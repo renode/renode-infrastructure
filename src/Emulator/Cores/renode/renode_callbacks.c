@@ -63,7 +63,6 @@ void tlib_invalidate_tb_in_other_cpus(unsigned long start, unsigned long end)
 }
 
 EXTERNAL_AS(action_uint32, UpdateInstructionCounter, update_instruction_counter_inner)
-EXTERNAL_AS(func_uint32, IsInstructionCountEnabled, tlib_is_instruction_count_enabled)
 
 void renode_set_count_threshold(int32_t value)
 {

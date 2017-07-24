@@ -1308,12 +1308,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private uint IsInstructionCountEnabled()
-        {
-            return ClockSource.HasEntries ? 1u : 0u;
-        }
-
-        [Export]
         private uint IsBlockBeginEventEnabled()
         {
             return (blockBeginInternalHook != null || blockBeginUserHook != null || executionMode == ExecutionMode.SingleStep || isAnyInactiveHook) ? 1u : 0u;
