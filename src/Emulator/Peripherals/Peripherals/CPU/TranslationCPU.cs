@@ -241,18 +241,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool ThreadSentinelEnabled { get; set; }
 
-        public bool ClocksourceBlockTrimming
-        {
-            get
-            {
-                return RenodeGetBlockTrimming() != 0;
-            }
-            set
-            {
-                RenodeSetBlockTrimming(value ? 1 : 0);
-            }
-        }
-
         private bool logTranslationBlockFetchEnabled;
 
         public ulong ExecutedInstructions { get; private set; }
@@ -1869,11 +1857,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private FuncInt32 TlibGetStateSize;
 
-        [Import]
-        private ActionInt32 RenodeSetBlockTrimming;
-
-        [Import]
-        private FuncInt32 RenodeGetBlockTrimming;
         #pragma warning restore 649
 
         private readonly HashSet<long> pagesAccessedByIo;

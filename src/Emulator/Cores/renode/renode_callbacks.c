@@ -69,24 +69,12 @@ void renode_set_count_threshold(int32_t value)
   cpu->instructions_count_threshold = value;
 }
 
-int32_t block_trimming_enabled;
-
-void renode_set_block_trimming(int32_t value)
-{
-  block_trimming_enabled = value;
-}
-
-int32_t renode_get_block_trimming()
-{
-  return block_trimming_enabled;
-}
-
 void tlib_update_instruction_counter(int32_t value)
 {
   // if trimming is enabled we want to trim block so that it does not saturate
   // the instruction count value; but - if such block has size of one
   // instruction, then we naturally have to let it saturate the count value
-  if(cpu->instructions_count_value + value >= cpu->instructions_count_threshold && value != 1 && block_trimming_enabled)
+  if(cpu->instructions_count_value + value >= cpu->instructions_count_threshold && value != 1)
   {
     size_of_next_block_to_translate = cpu->instructions_count_threshold - cpu->instructions_count_value - 1;
     // it might happen that even the first instruction of the current block would
