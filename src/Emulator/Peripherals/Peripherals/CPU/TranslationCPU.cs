@@ -44,8 +44,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException(new ArgumentNullException("cpuType"));
             }
 
-            oldMaximumBlockSize = -1;
-
             Endianness = endianness;
             PerformanceInMips = 100;
             this.cpuType = cpuType;
@@ -193,14 +191,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             set
             {
-                SetMaximumBlockSize(checked((uint)value));
+                TlibSetMaximumBlockSize(checked((uint)value));
+                ClearTranslationCache();
             }
-        }
-
-        private void SetMaximumBlockSize(uint value, bool skipSync = false)
-        {
-            TlibSetMaximumBlockSize(value);
-            ClearTranslationCache(skipSync);
         }
 
         public bool LogTranslationBlockFetch
@@ -234,18 +227,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUId(this); return slot.Value;} private set {slot = value;} }
         private int? slot;
 
-        public void ClearTranslationCache(bool skipSync = false)
+        public void ClearTranslationCache()
         {
-            if(skipSync)
+            using(machine.ObtainPausedState())
             {
                 TlibInvalidateTranslationCache();
-            }
-            else
-            {
-                using(machine.ObtainPausedState())
-                {
-                    TlibInvalidateTranslationCache();
-                }
             }
         }
 
@@ -395,37 +381,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         sync.Pass();
                     }
-                    InvokeInCpuThreadSafely(AdjustBlockSize);
                 }
             }
         }
 
         [Transient]
         private ExecutionMode executionMode;
-
-        private void AdjustBlockSize()
-        {
-            // to avoid locking, step mode must be checked just once
-            switch(executionMode)
-            {
-            case ExecutionMode.SingleStep:
-                if(oldMaximumBlockSize == -1)
-                {
-                    oldMaximumBlockSize = MaximumBlockSize;
-                    SetMaximumBlockSize(1, true);
-                }
-                break;
-            case ExecutionMode.Continuous:
-                if(oldMaximumBlockSize != -1)
-                {
-                    SetMaximumBlockSize((uint)oldMaximumBlockSize, true);
-                    oldMaximumBlockSize = -1;
-                }
-                break;
-            default:
-                throw new ArgumentException("Unsupported execution mode");
-            }
-        }
 
         public bool OnPossessedThread
         {
@@ -873,7 +834,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                         pauseGuard.Enter();
                         skipNextStepping = true;
-                        lastTlibResult = TlibExecute(5000);
+                        lastTlibResult = TlibExecute(executionMode == ExecutionMode.SingleStep ? 1 : 5000);
                         pauseGuard.Leave();
                     }
                 }
@@ -1271,8 +1232,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             return (blockBeginInternalHook != null || blockBeginUserHook != null || executionMode == ExecutionMode.SingleStep || isAnyInactiveHook) ? 1u : 0u;
         }
-
-        private int oldMaximumBlockSize;
 
         [Transient]
         private ActionUInt32 onTranslationBlockFetch;
