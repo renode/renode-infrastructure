@@ -24,7 +24,24 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void ReceiveFrame(byte[] frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
+            this.DebugLog("Frame of length {0} received.", frame.Length);
+            if(frame.Length == 0)
+            {
+                // according to the documentation:
+                // Received frames with a frame length field set to zero (invalid PHR) are not signaled to the microcontroller.
+                this.DebugLog("Ignoring an empty frame.");
+                return;
+            }
+
+            if(operatingMode == OperatingMode.RxAackOn || operatingMode == OperatingMode.RxOn)
+            {
+                HandleFrame(frame);
+            }
+            else
+            {
+                deferredFrameBuffer = frame;
+                this.DebugLog("Radio is not listening right now - this frame is being deffered.");
+            }
         }
 
         public void Reset()
@@ -125,28 +142,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 context = -1;
                 this.DebugLog("Command received: {0} {1}", accessMode.ToString(), accessType.ToString());
-            }
-        }
-
-        private void ReceiveFrameInner(byte[] frame)
-        {
-            this.DebugLog("Frame of length {0} received.", frame.Length);
-            if(frame.Length == 0)
-            {
-                // according to the documentation:
-                // Received frames with a frame length field set to zero (invalid PHR) are not signaled to the microcontroller.
-                this.DebugLog("Ignoring an empty frame.");
-                return;
-            }
-
-            if(operatingMode == OperatingMode.RxAackOn || operatingMode == OperatingMode.RxOn)
-            {
-                HandleFrame(frame);
-            }
-            else
-            {
-                deferredFrameBuffer = frame;
-                this.DebugLog("Radio is not listening right now - this frame is being deffered.");
             }
         }
 

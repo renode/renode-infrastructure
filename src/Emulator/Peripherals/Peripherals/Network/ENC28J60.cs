@@ -207,7 +207,17 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
+            lock(sync)
+            {
+                if(!macReceiveEnabled.Value || !ethernetReceiveEnabled.Value)
+                {
+                    return;
+                }
+                if(!TryReceivePacket(frame.Bytes))
+                {
+                    this.Log(LogLevel.Info, "Packet ignored.");
+                }
+            }
         }
 
         public void Reset()
@@ -423,21 +433,6 @@ namespace Antmicro.Renode.Peripherals.Network
             if(!phyRegisters.TryWrite(address, value))
             {
                 this.Log(LogLevel.Warning, "Write to unimplemented {0}.", registerFriendlyName);
-            }
-        }
-
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
-            lock(sync)
-            {
-                if(!macReceiveEnabled.Value || !ethernetReceiveEnabled.Value)
-                {
-                    return;
-                }
-                if(!TryReceivePacket(frame.Bytes))
-                {
-                    this.Log(LogLevel.Info, "Packet ignored.");
-                }
             }
         }
 

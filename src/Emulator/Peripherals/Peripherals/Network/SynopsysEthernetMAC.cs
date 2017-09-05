@@ -184,25 +184,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-
-        public event Action<EthernetFrame> FrameReady;
-
-        public MACAddress MAC { get; set; }
-
-        public GPIO IRQ { get; private set; }
-
-        public long Size
-        {
-            get
-            {
-                return 0x1400;
-            }
-        }
-
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
             /*if(machine.ElapsedTime < TimeSpan.FromSeconds(30))
             {
                 return;
@@ -333,6 +314,20 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     this.Log(LogLevel.Error, "Delivered only {0} from {1} bytes!", written, frame.Bytes.Length);
                 }
+            }
+        }
+
+        public event Action<EthernetFrame> FrameReady;
+
+        public MACAddress MAC { get; set; }
+
+        public GPIO IRQ { get; private set; }
+
+        public long Size
+        {
+            get
+            {
+                return 0x1400;
             }
         }
 

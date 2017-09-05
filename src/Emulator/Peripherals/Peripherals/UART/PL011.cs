@@ -37,7 +37,20 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            machine.ReportForeignEvent(value, WriteCharInner);
+            lock(UartLock)
+            {
+                readFifo.Enqueue(value);
+                flags &= ~(uint)Flags.ReceiveFifoEmpty;
+                if(readFifo.Count >= receiveFifoSize)
+                {
+                    flags |= (uint)Flags.ReceiveFifoFull;
+                }
+                if(readFifo.Count >= readFifoTriggerLevel)
+                {
+                    rawInterruptStatus |= (uint)RawInterruptStatus.ReceiveInterruptStatus;
+                    CallInterrupt();
+                }
+            }
         }
 
         [field: Transient]
@@ -234,24 +247,6 @@ namespace Antmicro.Renode.Peripherals.UART
                 default:
                     this.LogUnhandledWrite(offset, value);
                     break;
-                }
-            }
-        }
-
-        private void WriteCharInner(byte value) // char is typed
-        {
-            lock(UartLock)
-            {
-                readFifo.Enqueue(value);
-                flags &= ~(uint)Flags.ReceiveFifoEmpty;
-                if(readFifo.Count >= receiveFifoSize)
-                {
-                    flags |= (uint)Flags.ReceiveFifoFull;
-                }
-                if(readFifo.Count >= readFifoTriggerLevel)
-                {
-                    rawInterruptStatus |= (uint)RawInterruptStatus.ReceiveInterruptStatus;
-                    CallInterrupt();
                 }
             }
         }

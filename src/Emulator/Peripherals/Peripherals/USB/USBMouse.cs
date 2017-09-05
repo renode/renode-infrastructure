@@ -293,23 +293,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void MoveBy(int newx, int newy)
         {
-            machine.ReportForeignEvent(newx, newy, MoveByInner);
-        }
-
-        int mstate = 0;
-
-        public void Press(MouseButton button)
-        {
-            machine.ReportForeignEvent(button, PressInner);
-        }
-
-        public void Release(MouseButton button)
-        {
-            machine.ReportForeignEvent(button, ReleaseInner);
-        }
-
-        private void MoveByInner(int newx, int newy)
-        {
             lock(thisLock)
             {
                 x = newx;
@@ -339,7 +322,9 @@ namespace Antmicro.Renode.Peripherals.USB
             Refresh();
         }
 
-        private void PressInner(MouseButton button)
+        int mstate = 0;
+
+        public void Press(MouseButton button)
         {
             lock(thisLock)
             {
@@ -358,7 +343,7 @@ namespace Antmicro.Renode.Peripherals.USB
             Refresh();
         }
 
-        private void ReleaseInner(MouseButton button)
+        public void Release(MouseButton button)
         {
             lock(thisLock)
             {

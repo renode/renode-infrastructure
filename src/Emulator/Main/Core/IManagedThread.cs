@@ -9,7 +9,7 @@ using System;
 
 namespace Antmicro.Renode.Core
 {
-    public interface IManagedThread
+    public interface IManagedThread : IDisposable
     {
         void Start();
         void Stop();

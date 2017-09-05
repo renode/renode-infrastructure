@@ -12,6 +12,8 @@ using AntShell.Terminal;
 using System.Threading.Tasks;
 using Antmicro.Migrant;
 using System.Threading;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -38,7 +40,16 @@ namespace Antmicro.Renode.Peripherals.UART
         public void BindAnalyzer(IOProvider io)
         {
             this.io = io;
-            io.ByteRead += b => UART.WriteChar((byte)b);
+            io.ByteRead += b =>
+            {
+                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
+                {
+                    // it happens when writing from uart analyzer
+                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
+                }
+                
+                UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
+            };
 
             Action<byte> writeAction = (b =>
             {

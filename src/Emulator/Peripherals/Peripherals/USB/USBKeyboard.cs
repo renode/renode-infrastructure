@@ -101,25 +101,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Press(KeyScanCode scanCode)
         {
-            machine.ReportForeignEvent(scanCode, PressInner);
-        }
-
-        public void Release(KeyScanCode scanCode)
-        {
-            machine.ReportForeignEvent(scanCode, ReleaseInner);
-        }
-
-        private void Refresh()
-        {
-            var sendInterrupt = SendInterrupt;
-            if(DeviceAddress != 0 && sendInterrupt != null)
-            {
-                sendInterrupt(DeviceAddress);
-            }
-        }
-
-        private void PressInner(KeyScanCode scanCode)
-        {
             lock(thisLock)
             {
                 pkey = (int)scanCode & 0x7f;
@@ -133,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.USB
             Refresh();
         }
 
-        private void ReleaseInner(KeyScanCode scanCode)
+        public void Release(KeyScanCode scanCode)
         {
             lock(thisLock)
             {
@@ -146,6 +127,15 @@ namespace Antmicro.Renode.Peripherals.USB
                     queue.Enqueue((byte)pkey);
             }
             Refresh();
+        }
+
+        private void Refresh()
+        {
+            var sendInterrupt = SendInterrupt;
+            if(DeviceAddress != 0 && sendInterrupt != null)
+            {
+                sendInterrupt(DeviceAddress);
+            }
         }
 
         public byte[] WriteInterrupt(USBPacket packet)

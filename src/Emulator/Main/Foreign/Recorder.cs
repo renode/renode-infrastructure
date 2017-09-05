@@ -13,6 +13,7 @@ using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using System.Collections.Generic;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
 {
@@ -28,25 +29,25 @@ namespace Antmicro.Renode.EventRecording
             openStreamSerializer = new Serializer(new Settings(useBuffering: false, disableTypeStamping: true)).ObtainOpenStreamSerializer(stream);
         }
 
-        public void Record<T>(T value, Action<T> handler, long syncNumber, bool domainExternal)
+        public void Record<T>(T value, Action<T> handler, TimeInterval timestamp, bool domainExternal)
         {
             string name;
             if(!TryExtractName(handler, out name))
             {
                 return;
             }
-            var recordEntry = new RecordEntry<T>(name, value, GetNullifiedHandler<Action<T>>(handler), syncNumber);
+            var recordEntry = new RecordEntry<T>(name, value, GetNullifiedHandler<Action<T>>(handler), timestamp);
             RecordInner(recordEntry, domainExternal);
         }
 
-        public void Record<T1, T2>(T1 value1, T2 value2, Action<T1, T2> handler, long syncNumber, bool domainExternal)
+        public void Record<T1, T2>(T1 value1, T2 value2, Action<T1, T2> handler, TimeInterval timestamp, bool domainExternal)
         {
             string name;
             if(!TryExtractName(handler, out name))
             {
                 return;
             }
-            var recordEntry = new RecordEntry<T1, T2>(name, value1, value2, GetNullifiedHandler<Action<T1, T2>>(handler), syncNumber);
+            var recordEntry = new RecordEntry<T1, T2>(name, value1, value2, GetNullifiedHandler<Action<T1, T2>>(handler), timestamp);
             RecordInner(recordEntry, domainExternal);
         }
             

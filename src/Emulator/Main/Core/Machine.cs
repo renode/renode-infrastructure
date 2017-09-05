@@ -29,21 +29,20 @@ using System.Diagnostics;
 
 namespace Antmicro.Renode.Core
 {
-    public class Machine : IEmulationElement, IDisposable, ISynchronized
+    public class Machine : IEmulationElement, IDisposable
     {
         public Machine()
         {
+            LocalTimeSource = new SlaveTimeSource(this);
+            LocalTimeSource.TimePassed += HandleTimeProgress;
+
             collectionSync = new object();
             pausingSync = new object();
             disposedSync = new object();
-            hostTimeClockSource = new HostTimeClockSource();
-            clockSourceWrapper = new ClockSourceWrapper(hostTimeClockSource, this);
-            stopwatch = new Stopwatch();
+            clockSource = new BaseClockSource();
             localNames = new Dictionary<IPeripheral, string>();
             PeripheralsGroups = new PeripheralsGroupsManager(this);
             ownLifes = new HashSet<IHasOwnLife>();
-            syncedManagedThreads = new List<SynchronizedManagedThread>();
-            delayedTasks = new SortedSet<DelayedTask>();
             pausedState = new PausedState(this);
             SystemBus = new SystemBus(this);
             registeredPeripherals = new MultiTree<IPeripheral, IRegistrationPoint>(SystemBus);
@@ -52,10 +51,6 @@ namespace Antmicro.Renode.Core
             };
             userState = string.Empty;
             SetLocalName(SystemBus, SystemBusName);
-            clockSourceWrapper.AddClockEntry(new ClockEntry(1, -DefaultSyncUnit, SynchronizeInDomain).With(value: 0));
-            clockSourceWrapper.AddClockEntry(new ClockEntry(uint.MaxValue, ClockEntry.FrequencyToRatio(this, 1000), IndicatorForClockSource));
-            syncDomain = new DummySynchronizationDomain();
-            currentSynchronizer = syncDomain.ProvideSynchronizer();
         }
 
         public IEnumerable<IPeripheral> GetParentPeripherals(IPeripheral peripheral)
@@ -328,14 +323,13 @@ namespace Antmicro.Renode.Core
                     Resume();
                     return;
                 }
-                stopwatch.Start();
                 machineStartedAt = CustomDateTime.Now;
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 1 : 0))
                 {
                     this.NoisyLog("Starting {0}.", GetNameForOwnLife(ownLife));
                     ownLife.Start();
                 }
-                hostTimeClockSource.Start();
+                LocalTimeSource.Resume();
                 this.Log(LogLevel.Info, "Machine started.");
                 state = State.Started;
                 var machineStarted = StateChanged;
@@ -348,7 +342,6 @@ namespace Antmicro.Renode.Core
 
         public void Pause()
         {
-            stopwatch.Stop();
             lock(pausingSync)
             {
                 switch(state)
@@ -358,8 +351,7 @@ namespace Antmicro.Renode.Core
                 case State.NotStarted:
                     goto case State.Paused;
                 }
-                currentSynchronizer.CancelSync();
-                hostTimeClockSource.Pause();
+                LocalTimeSource.Pause();
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 0 : 1))
                 {
                     var ownLifeName = GetNameForOwnLife(ownLife);
@@ -416,7 +408,6 @@ namespace Antmicro.Renode.Core
                 alreadyDisposed = true;
             }
             Pause();
-            currentSynchronizer.Exit();
             if(recorder != null)
             {
                 recorder.Dispose();
@@ -424,11 +415,7 @@ namespace Antmicro.Renode.Core
             if(player != null)
             {
                 player.Dispose();
-                var currentSyncDomain = syncDomain as SynchronizationDomain;
-                if(currentSyncDomain != null)
-                {
-                    currentSyncDomain.SyncPointReached -= player.Play;
-                }
+                LocalTimeSource.SyncHook -= player.Play;
             }
 
             // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed last
@@ -437,6 +424,7 @@ namespace Antmicro.Renode.Core
                 this.DebugLog("Disposing {0}.", GetAnyNameOrTypeName((IPeripheral)peripheral));
                 peripheral.Dispose();
             }
+            LocalTimeSource.Dispose();
             this.Log(LogLevel.Info, "Disposed.");
             var disposed = StateChanged;
             if(disposed != null)
@@ -447,66 +435,47 @@ namespace Antmicro.Renode.Core
             EmulationManager.Instance.CurrentEmulation.BackendManager.HideAnalyzersFor(this);
         }
 
-        public IManagedThread ObtainManagedThread(Action action, object owner, uint frequency, string name = null, bool synchronized = true)
+        public IManagedThread ObtainManagedThread(Action action, int frequency)
         {
-            var ownerName = owner.GetType().Name;
-            if(!synchronized)
-            {
-                var managedThread = new ManagedThread(action, owner, this, name, frequency);
-                RegisterManagedThread(managedThread);
-                return managedThread;
-            }
-            var maximalFrequencyWithCurrentSyncUnit = Antmicro.Renode.Time.Consts.TicksPerSecond / SyncUnit;
-            if(maximalFrequencyWithCurrentSyncUnit < frequency)
-            {
-                switch(ConfigurationManager.Instance.Get<SyncUnitPolicy>("time", "sync-unit-policy", SyncUnitPolicy.ShowWarning))
-                {
-                case SyncUnitPolicy.ShowWarning:
-                    this.Log(LogLevel.Warning, "Desired frequency of managed thread '{0}:{1}' is {2}Hz while maximal allowed by current sync unit is {3}Hz",
-                        ownerName, name, Misc.NormalizeDecimal(frequency), Misc.NormalizeDecimal(maximalFrequencyWithCurrentSyncUnit));
-                    break;
-                case SyncUnitPolicy.Adjust:
-                    var desiredSyncUnit = Antmicro.Renode.Time.Consts.TicksPerSecond / frequency;
-                    if(desiredSyncUnit == 0)
-                    {
-                        desiredSyncUnit = 1;
-                        this.Log(LogLevel.Warning, "Desired frequency of managed thread '{0}:{1}' is {2}Hz which is unattainable even with sync unit = 1",
-                            ownerName, name, Misc.NormalizeDecimal(frequency));
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Info, "Setting sync unit to value {0} due to frequency {1}Hz of managed thread '{2}:{3}'",
-                            desiredSyncUnit, Misc.NormalizeDecimal(frequency), ownerName, name);
-                    }
-                    SyncUnit = desiredSyncUnit;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-                }
-            }
-            var syncedThread = new SynchronizedManagedThread(action, owner, this, name, frequency);
-            syncedManagedThreads.Add(syncedThread);
-            return syncedThread;
+            var ce = new ClockEntry(1, ClockEntry.FrequencyToRatio(this, frequency), action, false);
+            ClockSource.AddClockEntry(ce);
+            return new ManagedThreadWrappingClockEntry(ClockSource, action);
         }
 
-        public IClockSource ObtainClockSource()
+        private class ManagedThreadWrappingClockEntry : IManagedThread
         {
-            return clockSourceWrapper;
+            public ManagedThreadWrappingClockEntry(IClockSource cs, Action action)
+            {
+                clockSource = cs;
+                this.action = action;
+            }
+
+            public void Dispose()
+            {
+                clockSource.RemoveClockEntry(action);
+            }
+
+            public void Start()
+            {
+                clockSource.ExchangeClockEntryWith(action, x => x.With(enabled: true));
+            }
+
+            public void Stop()
+            {
+                clockSource.ExchangeClockEntryWith(action, x => x.With(enabled: false));
+            }
+
+            private readonly IClockSource clockSource;
+            private readonly Action action;
         }
 
-        public void SetClockSource(IClockSource clockSource)
-        {
-            if(!(syncDomain is DummySynchronizationDomain) && clockSource is HostTimeClockSource)
-            {
-                throw new RecoverableException("You cannot set the host time clock source when synchronization domain is used.");
-            }
-            clockSourceWrapper.CurrentClockSource = clockSource;
-        }
+        private BaseClockSource clockSource;
+        public IClockSource ClockSource { get { return clockSource; } }
 
         [UiAccessible]
         public string[,] GetClockSourceInfo()
         {
-            var entries = clockSourceWrapper.GetAllClockEntries();
+            var entries = ClockSource.GetAllClockEntries();
 
             var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Event frequency", "Event period");
             table.AddRows(entries, x =>
@@ -524,31 +493,17 @@ namespace Antmicro.Renode.Core
             return table.ToArray();
         }
 
-        public void SetHostTimeClockSource()
-        {
-            clockSourceWrapper.CurrentClockSource = hostTimeClockSource;
-        }
-
         public DateTime GetRealTimeClockBase()
         {
             switch(RealTimeClockMode)
             {
             case RealTimeClockMode.VirtualTime:
-                return new DateTime(1970, 1, 1) + ElapsedVirtualTime;
+                return new DateTime(1970, 1, 1) + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
             case RealTimeClockMode.VirtualTimeWithHostBeginning:
-                return machineStartedAt + ElapsedVirtualTime;
+                return machineStartedAt + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
             default:
                 throw new ArgumentOutOfRangeException();
             }
-        }
-
-        public void ExecuteIn(Action what, TimeSpan when = default(TimeSpan))
-        {
-            if(clockSourceWrapper.CurrentClockSource is HostTimeClockSource)
-            {
-                throw new InvalidOperationException("This function can only be used with virtual timers.");
-            }
-            delayedTasks.Add(new DelayedTask(what, timeSpanBySyncSoFar + when));
         }
 
         public void AttachGPIO(IPeripheral source, int sourceNumber, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null)
@@ -583,38 +538,47 @@ namespace Antmicro.Renode.Core
             DoAttachGPIO(source, connectors, actualDestination, destinationNumber);
         }
 
-        public void ReportForeignEvent<T>(T handlerArgument, Action<T> handler)
+        public void HandleTimeDomainEvent<T>(Action<T> handler, T handlerArgument, TimeStamp eventTime, Action postAction = null)
         {
-            ReportForeignEventInner((syncNumber, eventNotFromDomain) => recorder.Record(handlerArgument, handler, syncNumber, eventNotFromDomain),
-                () => handler(handlerArgument));
+            LocalTimeSource.ExecuteInSyncedState(ts =>
+            {
+                HandleTimeDomainEvent(handler, handlerArgument, ts.Domain == LocalTimeSource.Domain);
+                postAction?.Invoke();
+            }, eventTime);
         }
 
-        public void ReportForeignEvent<T1, T2>(T1 handlerArgument1, T2 handlerArgument2, Action<T1, T2> handler)
+        public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, TimeStamp eventTime, Action postAction = null)
         {
-            ReportForeignEventInner((syncNumber, 
-                eventNotFromDomain) => recorder.Record(handlerArgument1, handlerArgument2, handler, syncNumber, eventNotFromDomain),
-                () => handler(handlerArgument1, handlerArgument2));
+            LocalTimeSource.ExecuteInSyncedState(ts =>
+            {
+                HandleTimeDomainEvent(handler, handlerArgument1, handlerArgument2, ts.Domain == LocalTimeSource.Domain);
+                postAction?.Invoke();
+            }, eventTime);
+        }
+
+        public void HandleTimeDomainEvent<T>(Action<T> handler, T handlerArgument, bool timeDomainInternalEvent)
+        {
+            ReportForeignEventInner(
+                recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument, handler, timestamp, eventNotFromDomain),
+                () => handler(handlerArgument), timeDomainInternalEvent);
+        }
+
+        public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, bool timeDomainInternalEvent)
+        {
+            ReportForeignEventInner(
+                recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument1, handlerArgument2, handler, timestamp, eventNotFromDomain),
+                () => handler(handlerArgument1, handlerArgument2), timeDomainInternalEvent);
         }
 
         public void RecordTo(string fileName, RecordingBehaviour recordingBehaviour)
         {
-            var currentSyncDomain = syncDomain as SynchronizationDomain;
-            if(currentSyncDomain == null)
-            {
-                throw new RecoverableException("You can only record events on the fully fledged synchronization domain.");
-            }
             recorder = new Recorder(File.Create(fileName), this, recordingBehaviour);
         }
 
         public void PlayFrom(string fileName)
         {
-            var currentSyncDomain = syncDomain as SynchronizationDomain;
-            if(currentSyncDomain == null)
-            {
-                throw new RecoverableException("You can only play recorded events on the fully fledged synchronization domain.");
-            }
             player = new Player(File.OpenRead(fileName), this);
-            currentSyncDomain.SyncPointReached += player.Play;
+            LocalTimeSource.SyncHook += player.Play;
         }
 
         public void AddUserStateHook(Func<string, bool> predicate, Action<string> hook)
@@ -670,65 +634,15 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public TimeSpan ElapsedVirtualTime
+        public TimeStamp ElapsedVirtualTime
         {
             get
             {
-                return TimeSpan.FromMilliseconds(clockSourceWrapper.GetClockEntry(IndicatorForClockSource).Value);
+                return new TimeStamp(LocalTimeSource.ElapsedVirtualTime, LocalTimeSource.Domain);
             }
         }
 
-        public TimeSpan ElapsedHostTime
-        {
-            get
-            {
-                return stopwatch.Elapsed;
-            }
-        }
-
-        public HostTimeClockSource HostTimeClockSource
-        {
-            get
-            {
-                return hostTimeClockSource;
-            }
-        }
-
-        public ISynchronizationDomain SyncDomain
-        {
-            get
-            {
-                return syncDomain;
-            }
-            set
-            {
-                if(clockSourceWrapper.CurrentClockSource is HostTimeClockSource)
-                {
-                    throw new RecoverableException("One cannot change synchronization domain when host time clock source is used.");
-                }
-                currentSynchronizer.Exit();
-                currentSynchronizer = value.ProvideSynchronizer();
-                syncDomain = value;
-            }
-        }
-
-        public ulong SyncUnit
-        {
-            get
-            {
-                return (ulong)(-clockSourceWrapper.GetClockEntry(SynchronizeInDomain).Ratio);
-            }
-            set
-            {
-                // nope, this is not a bug - since we use Ratio that is long we cannot accept too long values
-                // we could make `SyncUnit` a long but we then we should not accept negative values, so it does not matter which one we choose
-                if(value > long.MaxValue)
-                {
-                    throw new RecoverableException("SyncUnit cannot be too long");
-                }
-                clockSourceWrapper.ExchangeClockEntryWith(SynchronizeInDomain, entry => entry.With(ratio: -1 * (long)value));
-            }
-        }
+        public SlaveTimeSource LocalTimeSource { get; private set; }
 
         public RealTimeClockMode RealTimeClockMode { get; set; }
 
@@ -800,6 +714,11 @@ namespace Antmicro.Renode.Core
                 if(executeAfterLock != null)
                 {
                     executeAfterLock();
+                }
+
+                if(peripheral is ITimeSink timeSink)
+                {
+                    LocalTimeSource.RegisterSink(timeSink);
                 }
             }
 
@@ -951,34 +870,13 @@ namespace Antmicro.Renode.Core
             return receiver;
         }
 
-        private void ReportForeignEventInner(Action<long, bool> recordMethod, Action handlerMethod)
+        private void ReportForeignEventInner(Action<TimeInterval, bool> recordMethod, Action handlerMethod, bool timeDomainInternalEvent)
         {
-            if(syncDomain.OnSyncPointThread)
+            LocalTimeSource.ExecuteInNearestSyncedState(ts =>
             {
+                recordMethod?.Invoke(ts.TimeElapsed, timeDomainInternalEvent);
                 handlerMethod();
-                if(recorder != null)
-                {
-                    // it came from somebody in our domain, like synchronized router
-                    recordMethod(SyncDomain.SynchronizationsCount, false);
-                }
-                return;
-            }
-            syncDomain.ExecuteOnNearestSync(() =>
-            { 
-                handlerMethod();
-                if(recorder != null)
-                {
-                    recordMethod(SyncDomain.SynchronizationsCount, true);
-                }
-            });
-        }
-
-        private void RegisterManagedThread(ManagedThread managedThread)
-        {
-            lock(collectionSync)
-            {
-                ownLifes.Add(managedThread);
-            }
+            }, true);
         }
 
         private void CollectGarbageStamp()
@@ -1009,14 +907,6 @@ namespace Antmicro.Renode.Core
                 if(ownLife != null)
                 {
                     ownLifes.Remove(ownLife);
-                }
-                // we may also need to remove managed threads used by the device
-                // note that if peripheral is put on shelf, its managed threads are
-                // already removed from ownLifes
-                var dependantThreads = ownLifes.OfType<ManagedThread>().Where(x => x.Owner == value).ToArray();
-                foreach(var thread in dependantThreads)
-                {
-                    ownLifes.Remove(thread);
                 }
                 EmulationManager.Instance.CurrentEmulation.Connector.DisconnectFromAll(value);
 
@@ -1061,16 +951,14 @@ namespace Antmicro.Renode.Core
 
         private void Resume()
         {
-            stopwatch.Start();
             lock(pausingSync)
             {
-                currentSynchronizer.RestoreSync();
+                LocalTimeSource.Resume();
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 1 : 0))
                 {
                     this.NoisyLog("Resuming {0}.", GetNameForOwnLife(ownLife));
                     ownLife.Resume();
                 }
-                hostTimeClockSource.Resume();
                 this.Log(LogLevel.Info, "Machine resumed.");
                 state = State.Started;
                 var machineStarted = StateChanged;
@@ -1081,42 +969,9 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        /// <summary>
-        /// This function is only used as an ID for clock source.
-        /// </summary>
-        private void IndicatorForClockSource()
+        private void HandleTimeProgress(TimeInterval diff)
         {
-        }
-
-        private void SynchronizeInDomain()
-        {
-            if(!currentSynchronizer.Sync())
-            {
-                return;
-            }
-            // one can see that managed threads are executed here which means they are synchronized only with regards to
-            // the given machine, not to all machines
-            // this is perfectly ok since cpu thread can also do anything with regards to other machines, their
-            // synchronization is guaranteed by synchronized externals, like switches etc
-            foreach(var syncedManagedThread in syncedManagedThreads)
-            {
-                syncedManagedThread.RunOnce();
-            }
-            var delayedTasksCount = delayedTasks.Count;
-            if(delayedTasksCount == 0)
-            {
-                return;
-            }
-
-            timeSpanBySyncSoFar += TimeSpan.FromTicks(Antmicro.Renode.Time.Consts.TimeQuantum.Ticks * (long)SyncUnit);
-            // we'll run all tasks that are late
-            var tasksToExecute = delayedTasks.GetViewBetween(DelayedTask.Zero, new DelayedTask(null, timeSpanBySyncSoFar));
-            var tasksAsArray = tasksToExecute.ToArray();
-            tasksToExecute.Clear();
-            foreach(var task in tasksAsArray)
-            {
-                task.What();
-            }
+            clockSource.Advance(diff);
         }
 
         private string userState;
@@ -1126,300 +981,21 @@ namespace Antmicro.Renode.Core
         private PausedState pausedState;
         private List<IPeripheral> currentStamp;
         private int currentStampLevel;
-        private ISynchronizer currentSynchronizer;
-        private ISynchronizationDomain syncDomain;
         private Recorder recorder;
         private Player player;
         private DateTime machineStartedAt;
-        private TimeSpan timeSpanBySyncSoFar;
         private readonly MultiTree<IPeripheral, IRegistrationPoint> registeredPeripherals;
         private readonly Dictionary<IPeripheral, string> localNames;
         private readonly HashSet<IHasOwnLife> ownLifes;
-        private readonly HostTimeClockSource hostTimeClockSource;
-        private readonly Stopwatch stopwatch;
-        private readonly ClockSourceWrapper clockSourceWrapper;
-        private readonly List<SynchronizedManagedThread> syncedManagedThreads;
-        private readonly SortedSet<DelayedTask> delayedTasks;
         private readonly object collectionSync;
         private readonly object pausingSync;
         private readonly object disposedSync;
-
-        private const string NoShelfForUnnamed = "Peripheral must be named in order to be put on shelf";
-        private const long DefaultSyncUnit = 10000;
 
         private enum State
         {
             NotStarted,
             Started,
             Paused
-        }
-
-        private sealed class ClockSourceWrapper : IClockSource
-        {
-            public ClockSourceWrapper(IClockSource firstClockSource, Machine machine)
-            {
-                this.machine = machine;
-                currentClockSource = firstClockSource;
-            }
-
-            public void ExecuteInLock(Action action)
-            {
-                CurrentClockSource.ExecuteInLock(action);
-            }
-
-            public void AddClockEntry(ClockEntry entry)
-            {
-                CurrentClockSource.AddClockEntry(entry);
-            }
-
-            public ClockEntry GetClockEntry(Action action)
-            {
-                return CurrentClockSource.GetClockEntry(action);
-            }
-
-            public void GetClockEntryInLockContext(Action action, Action<ClockEntry> visitor)
-            {
-                CurrentClockSource.GetClockEntryInLockContext(action, visitor);
-            }
-
-            public IEnumerable<ClockEntry> GetAllClockEntries()
-            {
-                return CurrentClockSource.GetAllClockEntries();
-            }
-
-            public bool RemoveClockEntry(Action action)
-            {
-                return CurrentClockSource.RemoveClockEntry(action);
-            }
-
-            public void ExchangeClockEntryWith(Action action, Func<ClockEntry, ClockEntry> factory,
-                                               Func<ClockEntry> factorIfNonExistant = null)
-            {
-                CurrentClockSource.ExchangeClockEntryWith(action, factory, factorIfNonExistant);
-            }
-
-            public ulong CurrentValue
-            {
-                get
-                {
-                    return CurrentClockSource.CurrentValue;
-                }
-            }
-
-            public IEnumerable<ClockEntry> EjectClockEntries()
-            {
-                return CurrentClockSource.EjectClockEntries();
-            }
-
-            public void AddClockEntries(IEnumerable<ClockEntry> entries)
-            {
-                CurrentClockSource.AddClockEntries(entries);
-            }
-
-            public IClockSource CurrentClockSource
-            {
-                get
-                {
-                    return currentClockSource;
-                }
-                set
-                {
-                    using(machine.ObtainPausedState())
-                    {
-                        var entries = currentClockSource.EjectClockEntries();
-                        currentClockSource = value;
-                        currentClockSource.AddClockEntries(entries);
-                    }
-                }
-            }
-
-            private IClockSource currentClockSource;
-            private readonly Machine machine;
-
-        }
-
-        private abstract class ManagedThreadBase
-        {
-            public override string ToString()
-            {
-                var ownerAsPeripheral = Owner as IPeripheral;
-                string ownerName;
-                ownerName = ownerAsPeripheral != null ? Machine.GetAnyNameOrTypeName(ownerAsPeripheral) : Owner.ToString();
-                var result = Name == null ? ownerName : string.Format("{0}: {1}", ownerName, Name);
-                if(Frequency != 0)
-                {
-                    result = string.Format("{0} ({1}Hz)", result, Frequency);
-                }
-                return result;
-            }
-
-            public object Owner { get; private set; }
-
-            protected ManagedThreadBase(Action action, object owner, Machine machine, string name, uint frequency)
-            {
-                this.Machine = machine;
-                Name = name;
-                ThreadAction = action;
-                Frequency = frequency;
-                Owner = owner;
-                if(frequency != 0)
-                {
-                    TimePerRun = TimeSpan.FromSeconds(1.0 / frequency);
-                }
-            }
-
-            protected readonly Action ThreadAction;
-            protected readonly uint Frequency;
-            protected readonly string Name;
-            protected readonly TimeSpan TimePerRun;
-            protected readonly Machine Machine;
-        }
-
-        private sealed class ManagedThread : ManagedThreadBase, IManagedThread, IHasOwnLife
-        {
-            public ManagedThread(Action action, object owner, Machine machine, string name, uint frequency = 0)
-                : base(action, owner, machine, name, frequency)
-            {
-                sync = new object();
-                paused = true;
-
-            }
-
-            public void Start()
-            {
-                ChangeState(activeTo: true);
-            }
-
-            public void Stop()
-            {
-                ChangeState(activeTo: false);
-            }
-
-            void IHasOwnLife.Start()
-            {
-                ChangeState(pausedTo: false);
-            }
-
-            void IHasOwnLife.Pause()
-            {
-                ChangeState(pausedTo: true);
-            }
-
-            void IHasOwnLife.Resume()
-            {
-                ChangeState(pausedTo: false);
-            }
-
-            private void ChangeState(bool? activeTo = null, bool? pausedTo = null)
-            {
-                Thread localThread;
-                lock(sync)
-                {
-                    localThread = thread;
-                    var wasStarted = active && !paused;
-                    var willBeStarted = (activeTo ?? active) && !(pausedTo ?? paused);
-                    active = activeTo ?? active;
-                    paused = pausedTo ?? paused;
-                    if(wasStarted == willBeStarted)
-                    {
-                        return;
-                    }
-                    if(willBeStarted)
-                    {
-                        thread = new Thread(InternalRun) {
-                            IsBackground = true,
-                            Name = Name
-                        };
-                        thread.Start();
-                        return;
-                    }
-                }
-                // we can't wait in lock for the thread to be ended, it may check the stop condition ;)
-                // also if we're in the same thread we started, we won't wait
-                if(localThread.ManagedThreadId == Thread.CurrentThread.ManagedThreadId)
-                {
-                    return;
-                }
-                // otherwise wait for thread to be stopped
-                localThread.Join();
-            }
-
-            private void InternalRun()
-            {
-                while(true)
-                {
-                    lock(sync)
-                    {
-                        if(!active || paused)
-                        {
-                            break;
-                        }
-                    }
-                    lastRun = CustomDateTime.Now;
-                    ThreadAction();
-                    if(Frequency == 0)
-                    {
-                        continue;
-                    }
-                    // sleep adequately to sustain desired frequency
-                    var now = CustomDateTime.Now;
-                    var diff = now - lastRun;
-                    if(diff > TimePerRun)
-                    {
-                        continue;
-                    }
-                    Thread.Sleep(TimePerRun - diff);
-                }
-            }
-
-            [Transient]
-            private Thread thread;
-
-            private bool active;
-            private bool paused;
-            private DateTime lastRun;
-            private readonly object sync;
-        }
-
-        private sealed class SynchronizedManagedThread : ManagedThreadBase, IManagedThread
-        {
-            public SynchronizedManagedThread(Action action, object owner, Machine machine, string name, uint frequency)
-                : base(action, owner, machine, name, frequency)
-            {
-                if(frequency == 0)
-                {
-                    throw new InvalidOperationException("Frequency of the synchronized thread cannot be zero.");
-                }
-            }
-
-            public void RunOnce()
-            {
-                if(!active)
-                {
-                    return;
-                }
-                var now = Machine.ElapsedVirtualTime;
-                var diff = now - lastRun;
-                if(diff < TimePerRun)
-                {
-                    return;
-                }
-                lastRun = now;
-                ThreadAction();
-            }
-
-            public void Start()
-            {
-                active = true;
-            }
-
-            public void Stop()
-            {
-                active = false;
-            }
-
-            private TimeSpan lastRun;
-            private bool active;
         }
 
         private sealed class PausedState : IDisposable
@@ -1491,36 +1067,6 @@ namespace Antmicro.Renode.Core
             private readonly object sync;
         }
 
-        private struct DelayedTask : IComparable<DelayedTask>
-        {
-            static DelayedTask()
-            {
-                Zero = new DelayedTask();
-            }
-
-            public DelayedTask(Action what, TimeSpan when) : this()
-            {
-                What = what;
-                When = when;
-                id = Interlocked.Increment(ref Id);
-            }
-
-            public int CompareTo(DelayedTask other)
-            {
-                var result = When.CompareTo(other.When);
-                return result != 0 ? result : id.CompareTo(other.id);
-            }
-
-            public Action What { get; private set; }
-
-            public TimeSpan When { get; private set; }
-
-            public static DelayedTask Zero { get; private set; }
-
-            private readonly int id;
-            private static int Id;
-        }
-
         private sealed class PeripheralsGroupsManager : IPeripheralsGroupsManager
         {
             public PeripheralsGroupsManager(Machine machine)
@@ -1586,7 +1132,7 @@ namespace Antmicro.Renode.Core
             }
 
             public IEnumerable<IPeripheralsGroup> ActiveGroups
-            { 
+            {
                 get
                 {
                     return groups.Where(x => x.IsActive);

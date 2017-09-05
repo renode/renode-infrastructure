@@ -30,7 +30,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            machine.ReportForeignEvent(value, WriteCharInner);
+            lock(charFifo)
+            {
+                charFifo.Enqueue(value);
+                Update();
+            }
         }
 
         [ConnectionRegion("irq")]
@@ -97,15 +101,6 @@ namespace Antmicro.Renode.Peripherals.UART
         public void Reset()
         {
             // TODO!
-        }
-
-        void WriteCharInner(byte value)
-        {
-            lock(charFifo)
-            {
-                charFifo.Enqueue(value);
-                Update();
-            }
         }
 
         private void Update()

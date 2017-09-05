@@ -39,7 +39,15 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
+            if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
+            {
+                return;
+            }
+            lock(packetQueue)
+            {
+                packetQueue.Enqueue(frame);
+                SignalInterrupt();
+            }
         }
 
         public byte Transmit(byte data)
@@ -84,19 +92,6 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public event Action<EthernetFrame> FrameReady;
-
-        void ReceiveFrameInner(EthernetFrame frame)
-        {
-            if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
-            {
-                return;
-            }
-            lock(packetQueue)
-            {
-                packetQueue.Enqueue(frame);
-                SignalInterrupt();
-            }
-        }
 
         private int Align(int value)
         {

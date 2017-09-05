@@ -56,7 +56,36 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public void OnFrameReceived(int id, byte[] data)
         {
-            machine.ReportForeignEvent(id, data, OnFrameReceivedInner);
+            this.Log(LogLevel.Warning, "TODO: Received data of id {0}", id);
+            if(registers.CAN_MCR.SleepRequest == true)
+            {
+                // Wake up if autowake up is on
+                if(registers.CAN_MCR.AutoWakeUpMode == true)
+                {
+                    registers.CAN_MCR.SleepRequest = false;
+                    registers.CAN_MSR.SleepAck = false;
+                }
+                // Signal wake up interrupt
+                registers.CAN_MSR.WakeupInterrupt = true;
+                UpdateSCEInterruptLine();
+            }
+            else
+                if(registers.CAN_BTR.LoopbackMode == false)
+                {
+                    CANMessage RxMsg = new CANMessage(id, data);
+                    for(int fifo = 0; fifo < NumberOfRxFifos; fifo++)
+                    {
+                        if(FilterCANMessage(fifo, RxMsg) == true)
+                        {
+                            ReceiveCANMessage(RxMsg);
+                        }
+                    }
+                }
+            var frameReceived = FrameReceived;
+            if(frameReceived != null)
+            {
+                frameReceived(id, data);
+            }
         }
 
         public void WriteDoubleWord(long address, uint value)  // cpu do per
@@ -708,40 +737,6 @@ namespace Antmicro.Renode.Peripherals.CAN
                 FilterBanks[i].Mode = FilterBankMode.FilterModeIdMask;
                 FilterBanks[i].FifoAssignment = 0;
                 FilterBanks[i].Scale = FilterBankScale.FilterScale16Bit;
-            }
-        }
-
-        private void OnFrameReceivedInner(int id, byte[] data)
-        {
-            this.Log(LogLevel.Warning, "TODO: Received data of id {0}", id);
-            if(registers.CAN_MCR.SleepRequest == true)
-            {
-                // Wake up if autowake up is on
-                if(registers.CAN_MCR.AutoWakeUpMode == true)
-                {
-                    registers.CAN_MCR.SleepRequest = false;
-                    registers.CAN_MSR.SleepAck = false;
-                }
-                // Signal wake up interrupt
-                registers.CAN_MSR.WakeupInterrupt = true;
-                UpdateSCEInterruptLine();
-            }
-            else
-                if(registers.CAN_BTR.LoopbackMode == false)
-                {
-                    CANMessage RxMsg = new CANMessage(id, data);
-                    for(int fifo = 0; fifo < NumberOfRxFifos; fifo++)
-                    {
-                        if(FilterCANMessage(fifo, RxMsg) == true)
-                        {
-                            ReceiveCANMessage(RxMsg);
-                        }
-                    }
-                }
-            var frameReceived = FrameReceived;
-            if(frameReceived != null)
-            {
-                frameReceived(id, data);
             }
         }
 

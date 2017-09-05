@@ -19,21 +19,21 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             IRQ = new GPIO();
             sync = new object();
-            clockSource = machine.ObtainClockSource();
+            clockSource = machine.ClockSource;
             Reset();
         }
 
         public GPIO IRQ { get; private set; }
 
 		public uint ReadDoubleWord(long offset)
-		{			
+		{
 			lock(sync)
-            { 
+            {
                 var clockEntry = clockSource.GetClockEntry(OnLimitReached);
                 var value = (uint)clockEntry.Period;
                 switch((Registers)offset)
                 {
-                case Registers.Ptv:                   
+                case Registers.Ptv:
                     if(clockEntry.Enabled)
                     {
                         value |= 0x80000000;
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 		}
-		
+
 		public void WriteDoubleWord(long offset, uint value)
         {
             lock(sync)
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 default:
                     this.LogUnhandledWrite(offset, value);
                     break;
-                }        
+                }
             }
 		}
 

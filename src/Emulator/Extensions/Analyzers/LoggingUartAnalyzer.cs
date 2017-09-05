@@ -14,6 +14,7 @@ using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Analyzers
 {
@@ -47,7 +48,7 @@ namespace Antmicro.Renode.Analyzers
         public override void Show()
         {
             lastLineStampHost = CustomDateTime.Now;
-            lastLineStampVirtual = machine.ElapsedVirtualTime;
+            lastLineStampVirtual = machine.ElapsedVirtualTime.TimeElapsed;
 
             uart.CharReceived += WriteChar;
         }
@@ -64,10 +65,11 @@ namespace Antmicro.Renode.Analyzers
             if(value == 10)
             {
                 var now = CustomDateTime.Now;
-                var virtualNow = machine.ElapsedVirtualTime;
-                uart.Log(LogLevel, "[+{0}s host +{1}s virt {2}s virt from start] {3}", Misc.NormalizeDecimal((now - lastLineStampHost).TotalSeconds),
+                var virtualNow = machine.ElapsedVirtualTime.TimeElapsed;
+                uart.Log(LogLevel, "[+{0}s host +{1}s virt {2}s virt from start] {3}",
+                    Misc.NormalizeDecimal((now - lastLineStampHost).TotalSeconds),
                     Misc.NormalizeDecimal((virtualNow - lastLineStampVirtual).TotalSeconds),
-                    Misc.NormalizeDecimal(machine.ElapsedVirtualTime.TotalSeconds),
+                    Misc.NormalizeDecimal(machine.ElapsedVirtualTime.TimeElapsed.TotalSeconds),
                     line.ToString());
                 lastLineStampHost = now;
                 lastLineStampVirtual = virtualNow;
@@ -85,7 +87,7 @@ namespace Antmicro.Renode.Analyzers
         }
 
         private DateTime lastLineStampHost;
-        private TimeSpan lastLineStampVirtual;
+        private TimeInterval lastLineStampVirtual;
         private IUART uart;
         private Machine machine;
 

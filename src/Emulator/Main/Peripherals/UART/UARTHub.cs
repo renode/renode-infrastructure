@@ -13,7 +13,7 @@ using System.Collections.Concurrent;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public static class UARTHubExtensions 
+    public static class UARTHubExtensions
     {
         public static void CreateUARTHub(this Emulation emulation, string name)
         {
@@ -21,14 +21,14 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 
-    public sealed class UARTHub : SynchronizedExternalBase, IExternal, IHasOwnLife, IConnectable<IUART>
+    public sealed class UARTHub : IExternal, IHasOwnLife, IConnectable<IUART>
     {
         public void AttachTo(IUART uart)
         {
             uarts.Add(uart);
             uart.CharReceived += x => HandleCharReceived(x, uart);
         }
-            
+
         public void Start()
         {
             Resume();
@@ -50,13 +50,10 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 return;
             }
-            ExecuteOnNearestSync(() =>
+            foreach(var item in uarts.Where(x=> x!= sender))
             {
-                foreach(var item in uarts.Where(x=> x!= sender))
-                {
-                    item.WriteChar(obj);
-                }
-            });
+                item.GetMachine().HandleTimeDomainEvent(item.WriteChar, obj, TimeDomainsManager.Instance.VirtualTimeStamp);
+            }
         }
 
         public void DetachFrom(IUART uart)

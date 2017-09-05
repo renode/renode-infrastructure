@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Core
     {
         public Emulation()
         {
-            syncDomains = new List<ISynchronizationDomain>();
+            MasterTimeSource = new MasterTimeSource();
             HostMachine = new HostMachine();
             MACRepository = new MACRepository();
             ExternalsManager = new ExternalsManager();
@@ -65,48 +65,11 @@ namespace Antmicro.Renode.Core
             theBag = new Dictionary<string, object>();
         }
 
+        public MasterTimeSource MasterTimeSource { get; private set; }
+
         public BackendManager BackendManager { get; private set; }
 
         public BlobManager BlobManager { get; set; }
-
-        public IReadOnlyList<ISynchronizationDomain> SyncDomains
-        {
-            get
-            {
-                return syncDomains;
-            }
-        }
-
-        public int AddSyncDomain()
-        {
-            syncDomains.Add(new SynchronizationDomain());
-            return syncDomains.Count - 1;
-        }
-
-        public string[,] GetElementsInSyncDomain(int num)
-        {
-            var table = new Table();
-            table.AddRow("SyncDomain {0}".FormatWith(num));
-
-            foreach(var machine in Machines)
-            {
-                if(machine.SyncDomain == SyncDomains[num])
-                {
-                    table.AddRow(this[machine]);
-                }
-            }
-
-            foreach(var synchronizedExternal in ExternalsManager.Externals.Select(x => x as ISynchronized).Where(x => x != null))
-            {
-                string name;
-                if(synchronizedExternal.SyncDomain == SyncDomains[num] && ExternalsManager.TryGetName((IExternal)synchronizedExternal, out name))
-                {
-                    table.AddRow(name);
-                }
-            }
-
-            return table.ToArray();
-        }
 
         private readonly object machLock = new object();
 
@@ -119,6 +82,15 @@ namespace Antmicro.Renode.Core
         {
             get { lock (machLock) { return machs.Rights.Any(x => !x.IsPaused); } }
         }
+
+        public bool IsStarted
+        {
+            get { return isStarted; }
+            private set { isStarted = value; }
+        }
+
+        [Transient]
+        private bool isStarted;
 
         public Machine this[String key]
         {
@@ -217,6 +189,7 @@ namespace Antmicro.Renode.Core
                 }
 
                 machs.Add(name, machine);
+                MasterTimeSource.RegisterSink(machine.LocalTimeSource);
                 return true;
             }
         }
@@ -231,7 +204,37 @@ namespace Antmicro.Renode.Core
             return RandomGenerator.GetCurrentSeed();
         }
 
+        public void RunFor(TimeInterval period)
+        {
+            if(IsStarted)
+            {
+                throw new RecoverableException("This action is not available when emulation is already started");
+            }
+            InnerStartAll();
+            MasterTimeSource.RunFor(period);
+            InnerPauseAll();
+        }
+
+        public void RunToNearestSyncPoint()
+        {
+            if(IsStarted)
+            {
+                throw new RecoverableException("This action is not available when emulation is already started");
+            }
+
+            InnerStartAll();
+            MasterTimeSource.Run();
+            InnerPauseAll();
+        }
+
         public void StartAll()
+        {
+            IsStarted = true;
+            InnerStartAll();
+            MasterTimeSource.Start();
+        }
+
+        private void InnerStartAll()
         {
             //ToList cast is a precaution for a situation where the list of machines changes
             //during start up procedure. It might happen on rare occasions. E.g. when a script loads them, and user
@@ -245,6 +248,13 @@ namespace Antmicro.Renode.Core
         }
 
         public void PauseAll()
+        {
+            MasterTimeSource.Stop();
+            InnerPauseAll();
+            IsStarted = false;
+        }
+
+        private void InnerPauseAll()
         {
             //ToList cast is a precaution for a situation where the list of machines changes
             //during pausing. It might happen on rare occasions. E.g. when a script loads them, and user
@@ -476,6 +486,7 @@ namespace Antmicro.Renode.Core
                 Array.ForEach(toDispose, x => x.Pause());
                 Array.ForEach(toDispose, x => x.Dispose());
                 machs.Clear();
+                MasterTimeSource.Dispose();
                 ExternalsManager.Clear();
                 HostMachine.Dispose();
                 CurrentLogger.Dispose();
@@ -582,7 +593,6 @@ namespace Antmicro.Renode.Core
         private readonly LRUCache<IPeripheral, Machine> peripheralToMachineCache;
 
         private readonly Lazy<PseudorandomNumberGenerator> randomGenerator;
-        private readonly List<ISynchronizationDomain> syncDomains;
         private readonly Dictionary<string, object> theBag;
         private readonly FastReadConcurrentTwoWayDictionary<string, Machine> machs;
 
@@ -593,6 +603,7 @@ namespace Antmicro.Renode.Core
         {
             public PausedState(Emulation emulation)
             {
+                emulation.MasterTimeSource.Stop();
                 machineStates = emulation.Machines.Select(x => x.ObtainPausedState()).ToArray();
                 emulation.ExternalsManager.Pause();
                 this.emulation = emulation;
@@ -600,6 +611,7 @@ namespace Antmicro.Renode.Core
 
             public void Dispose()
             {
+                emulation.MasterTimeSource.Start();
                 foreach(var state in machineStates)
                 {
                     state.Dispose();

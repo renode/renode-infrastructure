@@ -37,7 +37,24 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            machine.ReportForeignEvent(value, WriteCharInner);
+            lock(UARTLock)
+            {
+                if((fifoControl & FifoControl.Enable) != 0 || true)//HACK : fifo always enabled
+                {
+                    recvFifo.Enqueue(value);
+                    lineStatus |= LineStatus.DataReady;
+                }
+                else
+                {
+                    if((lineStatus & LineStatus.DataReady) != 0)
+                    {
+                        lineStatus |= LineStatus.OverrunErrorIndicator;
+                    }
+                    receiverBuffer = value;
+                    lineStatus |= LineStatus.DataReady;
+                }
+                Update();
+            }
         }
 
         public void WriteByte(long offset, byte value)
@@ -333,28 +350,6 @@ namespace Antmicro.Renode.Peripherals.UART
         public void WriteDoubleWord(long offset, uint value)
         {
             WriteByte(offset, (byte)(value & 0xFF));
-        }
-
-        private void WriteCharInner(byte value)
-        {
-            lock(UARTLock)
-            {
-                if((fifoControl & FifoControl.Enable) != 0 || true)//HACK : fifo always enabled
-                {
-                    recvFifo.Enqueue(value);
-                    lineStatus |= LineStatus.DataReady;
-                }
-                else
-                {
-                    if((lineStatus & LineStatus.DataReady) != 0)
-                    {
-                        lineStatus |= LineStatus.OverrunErrorIndicator;
-                    }
-                    receiverBuffer = value;
-                    lineStatus |= LineStatus.DataReady;
-                }
-                Update();
-            }
         }
 
         private void Update()

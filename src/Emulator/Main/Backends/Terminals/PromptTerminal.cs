@@ -12,6 +12,7 @@ using System.Threading;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Time;
 using System.Text;
 
 namespace Antmicro.Renode.Backends.Terminals
@@ -19,7 +20,7 @@ namespace Antmicro.Renode.Backends.Terminals
     [Transient]
     public sealed class PromptTerminal : BackendTerminal
     {
-        public PromptTerminal(Action<string, TimeSpan> onLine = null, Action<TimeSpan> onPrompt = null, string prompt = null)
+        public PromptTerminal(Action<string, TimeInterval> onLine = null, Action<TimeInterval> onPrompt = null, string prompt = null)
         {
             if(!string.IsNullOrEmpty(prompt))
             {
@@ -81,13 +82,13 @@ namespace Antmicro.Renode.Backends.Terminals
                         }
                         if(index == promptBytes.Length - 1 && onPrompt != null)
                         {
-                            onPrompt(machine.ElapsedVirtualTime);
+                            onPrompt(machine.ElapsedVirtualTime.TimeElapsed);
                         }
                         index++;
                     }
                     return;
                 }
-                onLine?.Invoke(buffer.ToString(), machine.ElapsedVirtualTime);
+                onLine?.Invoke(buffer.ToString(), machine.ElapsedVirtualTime.TimeElapsed);
                 buffer.Clear();
                 index = 0;
             }
@@ -130,8 +131,8 @@ namespace Antmicro.Renode.Backends.Terminals
         }
 
         private readonly StringBuilder buffer;
-        private readonly Action<string, TimeSpan> onLine;
-        private readonly Action<TimeSpan> onPrompt;
+        private readonly Action<string, TimeInterval> onLine;
+        private readonly Action<TimeInterval> onPrompt;
         private byte[] promptBytes;
         private int index;
         private Machine machine;

@@ -22,13 +22,13 @@ namespace Antmicro.Renode.UnitTests
             var counter = 0;
 
             clocksource.AddClockEntry(new ClockEntry(2, 1, () => counter++) { Value = 0 });
-            clocksource.Advance(1);
+            clocksource.Advance(TimeInterval.FromTicks(1));
             Assert.AreEqual(0, counter);
-            clocksource.Advance(1);
+            clocksource.Advance(TimeInterval.FromTicks(1));
             Assert.AreEqual(1, counter);
-            clocksource.Advance(1);
+            clocksource.Advance(TimeInterval.FromTicks(1));
             Assert.AreEqual(1, counter);
-            clocksource.Advance(2);
+            clocksource.Advance(TimeInterval.FromTicks(2));
             Assert.AreEqual(2, counter);
         }
 
@@ -41,13 +41,13 @@ namespace Antmicro.Renode.UnitTests
 
             clocksource.AddClockEntry(new ClockEntry(2, 1, () => counterA++) { Value = 0 });
             clocksource.AddClockEntry(new ClockEntry(5, 1, () => counterB++) { Value = 0 });
-            clocksource.Advance(2);
+            clocksource.Advance(TimeInterval.FromTicks(2));
             Assert.AreEqual(1, counterA);
             Assert.AreEqual(0, counterB);
-            clocksource.Advance(2);
+            clocksource.Advance(TimeInterval.FromTicks(2));
             Assert.AreEqual(2, counterA);
             Assert.AreEqual(0, counterB);
-            clocksource.Advance(1);
+            clocksource.Advance(TimeInterval.FromTicks(1));
             Assert.AreEqual(2, counterA);
             Assert.AreEqual(1, counterB);
         }
@@ -69,9 +69,9 @@ namespace Antmicro.Renode.UnitTests
             clockSource.AddClockEntry(new ClockEntry(10000, 1, firstHandler));
             clockSource.AddClockEntry(new ClockEntry(1, -10, () => values.Add(clockSource.GetClockEntry(firstHandler).Value)));
 
-            clockSource.Advance(9, true);
-            clockSource.Advance(8, true);
-            clockSource.Advance(20, true);
+            clockSource.Advance(TimeInterval.FromTicks(9), true);
+            clockSource.Advance(TimeInterval.FromTicks(8), true);
+            clockSource.Advance(TimeInterval.FromTicks(20), true);
 
             CollectionAssert.AreEqual(new [] { 10, 20, 30 }, values);
         }

@@ -205,11 +205,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
             if((registers.Control & (1u << 1)) == 0)
             {
                 //if receiving is disabled discard packet

@@ -56,20 +56,20 @@ namespace Antmicro.Renode.Time
             {
                 if(Ratio >= 0)
                 {
-                    return Utilities.MaxHz * Ratio;
+                    return (long)TimeInterval.TicksPerSecond * Ratio;
                 }
-                return -Utilities.MaxHz / Ratio;
+                return (long)TimeInterval.TicksPerSecond / -Ratio;
             }
         }
 
         public static long FrequencyToRatio(object parentForLogging, long desiredFrequency)
         {
-            var maxHz = Utilities.MaxHz;
+            var maxHz = (long)TimeInterval.TicksPerSecond;
             long result;
             double error;
-            if (desiredFrequency > maxHz)
+            if(desiredFrequency > maxHz)
             {
-                result = (long) Math.Round(desiredFrequency / (double)maxHz);
+                result = (long)Math.Round(desiredFrequency / (double)maxHz);
                 error = Math.Abs((result * maxHz - desiredFrequency) / (double)desiredFrequency);
             }
             else
@@ -77,11 +77,11 @@ namespace Antmicro.Renode.Time
                 // negative values here (i.e. -maxHz and -result then) are used to be consistent
                 // with general meaning of ratio (which is positive when desireq frequency is higher
                 // than the basic (maxHz) frequency and negative otherwise
-                result = (long) Math.Round(-maxHz / (double)desiredFrequency);
+                result = (long)Math.Round(-maxHz / (double)desiredFrequency);
                 error = Math.Abs(((maxHz / -result) - desiredFrequency) / (double)desiredFrequency);
             }
 
-            if (error > FrequencyErrorThreshold)
+            if(error > FrequencyErrorThreshold)
             {
                 Logger.LogAs(parentForLogging, LogLevel.Warning, "Set frequency differs from intended by {0}%", error * 100);
             }

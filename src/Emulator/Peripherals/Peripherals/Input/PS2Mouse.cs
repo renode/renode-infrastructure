@@ -100,12 +100,14 @@ namespace Antmicro.Renode.Peripherals.Input
 
         public void Press(MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, PressInner);
+            buttonState |= (byte)button;
+            SendButtonState();
         }
 
         public void Release(MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, ReleaseInner);
+            buttonState &= (byte) ~button;
+            SendButtonState();
         }
 
         public void Reset()
@@ -115,18 +117,6 @@ namespace Antmicro.Renode.Peripherals.Input
         }
 
         public IPS2Controller Controller { get; set; }
-
-        private void PressInner(MouseButton button)
-        {
-            buttonState |= (byte)button;
-            SendButtonState();
-        }
-
-        private void ReleaseInner(MouseButton button)
-        {
-            buttonState &= (byte) ~button;
-            SendButtonState();
-        }
 
         private void SendButtonState()
         {

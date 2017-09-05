@@ -295,34 +295,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-
-        public override void Reset()
-        {
-        }
-
-        public void Start()
-        {
-            Resume();
-        }
-
-        public void Pause()
-        {
-        }
-
-        public void Resume()
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-
-        public MACAddress MAC { get; set; }
-
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
             lock(sync)
             {
                 this.Log(LogLevel.Noisy, "Received packet len {0}", frame.Bytes.Length);
@@ -371,6 +343,29 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
             }
         }
+
+        public override void Reset()
+        {
+        }
+
+        public void Start()
+        {
+            Resume();
+        }
+
+        public void Pause()
+        {
+        }
+
+        public void Resume()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public MACAddress MAC { get; set; }
 
         private void HandleError(int value)
         {

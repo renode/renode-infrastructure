@@ -70,6 +70,50 @@ namespace Antmicro.Renode.UnitTests
             Assert.Throws(typeof(RecoverableException), () => machine.SetLocalName(peripheral1, null));
         }
 
+        [Test]
+        public void ShouldHandleManagedThreads()
+        {
+            var counter = 0;
+            var a = (Action)(() => counter++);
+
+            using(var emulation = new Emulation())
+            {
+                var machine = new Machine();
+
+                emulation.MasterTimeSource.Quantum = Time.TimeInterval.FromMilliseconds(1000);
+                emulation.MasterTimeSource.AdvanceImmediately = true;
+                machine.LocalTimeSource.Quantum = Time.TimeInterval.FromMilliseconds(1000);
+                machine.LocalTimeSource.AdvanceImmediately = true;
+
+                emulation.AddMachine(machine);
+
+                var mt = machine.ObtainManagedThread(a, 1);
+
+                emulation.RunToNearestSyncPoint();
+                emulation.RunToNearestSyncPoint();
+                emulation.RunToNearestSyncPoint();
+                Assert.AreEqual(0, counter);
+
+                mt.Start();
+
+                emulation.RunToNearestSyncPoint();
+                Assert.AreEqual(1, counter);
+
+                emulation.RunToNearestSyncPoint();
+                Assert.AreEqual(2, counter);
+
+                emulation.RunToNearestSyncPoint();
+                Assert.AreEqual(3, counter);
+
+                mt.Stop();
+
+                emulation.RunToNearestSyncPoint();
+                emulation.RunToNearestSyncPoint();
+                emulation.RunToNearestSyncPoint();
+                Assert.AreEqual(3, counter);
+            }
+        }
+
         public sealed class Mother : IPeripheralRegister<IPeripheral, NullRegistrationPoint>, IDoubleWordPeripheral
         {
             public Mother(Machine machine)
@@ -103,47 +147,6 @@ namespace Antmicro.Renode.UnitTests
             }
 
             private readonly Machine machine;
-        }
-
-        public sealed class PeripheralWithManagedThread : IDoubleWordPeripheral
-        {
-            public PeripheralWithManagedThread(Machine machine)
-            {
-                resetEvent = new ManualResetEventSlim(false);
-                machine.ObtainManagedThread(ThreadAction, this, 0, "test", false).Start();
-            }
-
-            public uint ReadDoubleWord(long offset)
-            {
-                return 0;
-            }
-
-            public void WriteDoubleWord(long offset, uint value)
-            {
-
-            }
-
-            public void Reset()
-            {
-
-            }
-
-            public bool IsTheThreadRunning
-            {
-                get
-                {
-                    return resetEvent.Wait(500);
-                }
-            }
-
-            private void ThreadAction()
-            {
-                resetEvent.Set();
-                Thread.Sleep(100);
-                resetEvent.Reset();
-            }
-
-            private readonly ManualResetEventSlim resetEvent;
         }
     }
 }

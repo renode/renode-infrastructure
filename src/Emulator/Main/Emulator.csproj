@@ -163,7 +163,6 @@
     <Compile Include="Time\IClockSource.cs" />
     <Compile Include="Time\WorkMode.cs" />
     <Compile Include="Time\BaseClockSource.cs" />
-    <Compile Include="Time\Consts.cs" />
     <Compile Include="Peripherals\I2C\II2CPeripheral.cs" />
     <Compile Include="Peripherals\I2C\I2CCommandManager.cs" />
     <Compile Include="Core\Structure\NumberRegistrationPoint.cs" />
@@ -208,8 +207,6 @@
     <Compile Include="Core\IGPIOSender.cs" />
     <Compile Include="Testing\TimeoutExecutor.cs" />
     <Compile Include="Core\BinaryFingerprint.cs" />
-    <Compile Include="Time\HostTimeClockSource.cs" />
-    <Compile Include="Time\Utilities.cs" />
     <Compile Include="Time\ClockEntry.cs" />
     <Compile Include="Time\Direction.cs" />
     <Compile Include="Peripherals\Bus\Redirector.cs" />
@@ -224,7 +221,6 @@
     <Compile Include="Utilities\CachingFileFetcher.cs" />
     <Compile Include="Core\PeripheralsChangedEventArgs.cs" />
     <Compile Include="Core\MachineStateChangedEventArgs.cs" />
-    <Compile Include="Time\ManualClockSource.cs" />
     <Compile Include="Peripherals\Bus\IMultibyteWritePeripheral.cs" />
     <Compile Include="Peripherals\Python\PythonDictionarySurrogate.cs" />
     <Compile Include="Utilities\FileCopier.cs" />
@@ -276,12 +272,6 @@
     <Compile Include="Utilities\TimerResult.cs" />
     <Compile Include="Core\IGPIO.cs" />
     <Compile Include="Core\IGPIORedirector.cs" />
-    <Compile Include="Time\ISynchronizationDomain.cs" />
-    <Compile Include="Time\ISynchronizer.cs" />
-    <Compile Include="Time\SynchronizationDomain.cs" />
-    <Compile Include="Time\SynchronizedExternalBase.cs" />
-    <Compile Include="Time\ISynchronized.cs" />
-    <Compile Include="Time\DummySynchronizationDomain.cs" />
     <Compile Include="Utilities\SudoTools.cs" />
     <Compile Include="Utilities\Collections\Interval.cs" />
     <Compile Include="Utilities\Collections\MultiValueDictionary.cs" />

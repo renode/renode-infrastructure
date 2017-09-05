@@ -224,40 +224,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        public void ReceiveFrame(byte[] frame)
-        {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-
-        public int Channel { get; set; }
-        public event Action<IRadio, byte[]> FrameSent;
-        public GPIO IRQ { get; private set; }
-        public long Size { get { return 0x1000; } }
-
-        private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
-            FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint> writeCallback = null, Func<int, uint> valueProviderCallback = null, string name = null)
-        {
-            var result = new DoubleWordRegister[size];
-            for(var i = 0; i < size; i++)
-            {
-                var j = i;
-                result[i] = new DoubleWordRegister(parent)
-                    .WithValueField(position, width, mode, name: name + j,
-                        valueProviderCallback: valueProviderCallback == null ? (Func<uint, uint>)null : _ => valueProviderCallback(j),
-                        writeCallback: writeCallback == null ? (Action<uint, uint>)null : (_, @new) => { writeCallback(j, @new); });
-            }
-            return result;
-        }
-
-        private static void RegisterGroup(Dictionary<long, DoubleWordRegister> collection, long initialAddress, DoubleWordRegister[] group)
-        {
-            for(var i = 0; i < group.Length; i++)
-            {
-                collection.Add(initialAddress + 0x4 * i, group[i]);
-            }
-        }
-
-        private void ReceiveFrameInner(byte[] bytes)
+        public void ReceiveFrame(byte[] bytes)
         {
             irqHandler.RequestInterrupt(InterruptSource.StartOfFrameDelimiter);
 
@@ -380,6 +347,34 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
 
             irqHandler.RequestInterrupt(InterruptSource.RxPktDone);
+        }
+
+        public int Channel { get; set; }
+        public event Action<IRadio, byte[]> FrameSent;
+        public GPIO IRQ { get; private set; }
+        public long Size { get { return 0x1000; } }
+
+        private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
+            FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint> writeCallback = null, Func<int, uint> valueProviderCallback = null, string name = null)
+        {
+            var result = new DoubleWordRegister[size];
+            for(var i = 0; i < size; i++)
+            {
+                var j = i;
+                result[i] = new DoubleWordRegister(parent)
+                    .WithValueField(position, width, mode, name: name + j,
+                        valueProviderCallback: valueProviderCallback == null ? (Func<uint, uint>)null : _ => valueProviderCallback(j),
+                        writeCallback: writeCallback == null ? (Action<uint, uint>)null : (_, @new) => { writeCallback(j, @new); });
+            }
+            return result;
+        }
+
+        private static void RegisterGroup(Dictionary<long, DoubleWordRegister> collection, long initialAddress, DoubleWordRegister[] group)
+        {
+            for(var i = 0; i < group.Length; i++)
+            {
+                collection.Add(initialAddress + 0x4 * i, group[i]);
+            }
         }
 
         private uint ReadRadioStatus1Register(uint oldValue)

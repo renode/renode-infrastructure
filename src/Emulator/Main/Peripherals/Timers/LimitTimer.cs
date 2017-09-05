@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             frequency = initialFrequency;
             divider = initialDivider;
 
-            var clockEntry = new ClockEntry(initialLimit, ClockEntry.FrequencyToRatio(this, frequency / divider), OnLimitReached, initialEnabled, initialDirection, initialWorkMode) 
+            var clockEntry = new ClockEntry(initialLimit, ClockEntry.FrequencyToRatio(this, frequency / divider), OnLimitReached, initialEnabled, initialDirection, initialWorkMode)
                 { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
 
             clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);

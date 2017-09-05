@@ -123,9 +123,20 @@ namespace Antmicro.Renode.Peripherals.Wireless
             this.Log(LogLevel.Debug, "Finish transmission");
         }
 
-        public void ReceiveFrame(byte[] frame)
+        public void ReceiveFrame(byte[] bytes)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
+            if(isRxEnabled)
+            {
+                //this allows to have proper CCA values easily.
+                currentFrame = bytes;
+                HandleFrame(bytes);
+                currentFrame = null;
+            }
+            else
+            {
+                currentFrame = bytes;
+                this.DebugLog("Radio is not listening right now - this frame is being deffered.");
+            }
         }
 
         public int Channel
@@ -148,22 +159,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         public event Action<IRadio, byte[]> FrameSent;
-
-        private void ReceiveFrameInner(byte[] bytes)
-        {
-            if(isRxEnabled)
-            {
-                //this allows to have proper CCA values easily.
-                currentFrame = bytes;
-                HandleFrame(bytes);
-                currentFrame = null;
-            }
-            else
-            {
-                currentFrame = bytes;
-                this.DebugLog("Radio is not listening right now - this frame is being deffered.");
-            }
-        }
 
         private void HandleFrame(byte[] bytes)
         {

@@ -442,16 +442,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void ReceiveFrame(EthernetFrame frame)//when data is send to us
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-        #endregion
-        #region device registers 
-        //   private byte[] macAddress = new byte[] {0,0,0,0,0,0};
-        #endregion
-        #region USB descriptors
-
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
             lock(sync)
             {
                 if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
@@ -468,6 +458,12 @@ namespace Antmicro.Renode.Peripherals.USB
                 rxPacketQueue.Enqueue(frame);
             }
         }
+        #endregion
+        #region device registers
+        //   private byte[] macAddress = new byte[] {0,0,0,0,0,0};
+        #endregion
+        #region USB descriptors
+
         private ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor() {
             ConfigurationIndex = 3,
             SelfPowered = true,

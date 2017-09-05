@@ -14,22 +14,23 @@ using System.Threading;
 using Antmicro.Renode.Backends.Terminals;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Time;
 using Mono.Linq.Expressions;
 
 namespace Antmicro.Renode.Testing
 {
     public static class TerminalTesterExtensions
     {
-        public static void CreateTerminalTester(this Emulation emulation, string name, int timeoutInSeconds = 300, string prompt = @"/ # ")
+        public static void CreateTerminalTester(this Emulation emulation, string name, uint timeoutInSeconds = 300, string prompt = @"/ # ")
         {
-            var tester = new TerminalTester(TimeSpan.FromSeconds(timeoutInSeconds), prompt);
+            var tester = new TerminalTester(TimeInterval.FromSeconds(timeoutInSeconds), prompt);
             emulation.ExternalsManager.AddExternal(tester, name);
         }
     }
 
     public class TerminalTester : BackendTerminal
     {
-        public TerminalTester(TimeSpan globalTimeout, string prompt = @"/ # ")
+        public TerminalTester(TimeInterval globalTimeout, string prompt = @"/ # ")
         {
             timeoutSync = new object();
             eventCollection = new BlockingCollection<Event>(new ConcurrentQueue<Event>());
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Testing
             this.globalTimeout = globalTimeout;
         }
 
-        public TimeSpan GlobalTimeout
+        public TimeInterval GlobalTimeout
         {
             get
             {
@@ -89,11 +90,11 @@ namespace Antmicro.Renode.Testing
             reportCollection = new ConcurrentQueue<Event>();
         }
 
-        public TerminalTester WaitUntilLineExpr(Expression<Func<string, bool>> predicateExpression, out string lineContent, out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
+        public TerminalTester WaitUntilLineExpr(Expression<Func<string, bool>> predicateExpression, out string lineContent, out TimeInterval virtualTimestamp, TimeInterval? timeout = null)
         {
             var predicate = predicateExpression.Compile();
             Line line = null;
-            var time = TimeSpan.Zero;
+            var time = TimeInterval.Empty;
             WaitForEvent(x =>
             {
                 line = x as Line;
@@ -111,10 +112,10 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
-        public TerminalTester WaitUntilLineFunc(Func<string, bool> predicate, out string lineContent, out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
+        public TerminalTester WaitUntilLineFunc(Func<string, bool> predicate, out string lineContent, out TimeInterval virtualTimestamp, TimeInterval? timeout = null)
         {
             Line line = null;
-            var time = TimeSpan.Zero;
+            var time = TimeInterval.Empty;
             WaitForEvent(x =>
             {
                 line = x as Line;
@@ -144,12 +145,12 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
-        public TerminalTester NextLine(Expression<Func<string, bool>> predicateExpression, out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
+        public TerminalTester NextLine(Expression<Func<string, bool>> predicateExpression, out TimeInterval virtualTimestamp, TimeInterval? timeout = null)
         {
             var predicate = predicateExpression.Compile();
             var assertNotMet = false;
             var assertion = new Assertion(string.Format("NextLine({0})", predicateExpression.ToCSharpCode())) { Type = AssertionType.NextLine };
-            TimeSpan time;
+            var time = TimeInterval.Empty;
             WaitForEvent(x =>
             {
                 var line = x as Line;
@@ -170,9 +171,9 @@ namespace Antmicro.Renode.Testing
                 });
                 return EventResult.Failure; // line arrived, but not the proper one
             }, timeout, assertion);
+            virtualTimestamp = time;
             if(!assertNotMet)
             {
-                virtualTimestamp = TimeSpan.Zero;
                 return this;
             }
             lock(reportEndingLock)
@@ -183,9 +184,9 @@ namespace Antmicro.Renode.Testing
             throw new InvalidOperationException("Should not reach here.");
         }
 
-        public TerminalTester WaitForPrompt(out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
+        public TerminalTester WaitForPrompt(out TimeInterval virtualTimestamp, TimeInterval? timeout = null)
         {
-            var time = TimeSpan.Zero;
+            var time = TimeInterval.Empty;
             WaitForEvent(x =>
                 {
                     if(x is Prompt)
@@ -200,10 +201,10 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
-        public string ReadToPrompt(out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
+        public string ReadToPrompt(out TimeInterval virtualTimestamp, TimeInterval? timeout = null)
         {
             var result = new StringBuilder();
-            var time = TimeSpan.Zero;
+            var time = TimeInterval.Empty;
             WaitForEvent(x =>
                 {
                     if(x is Prompt)
@@ -223,11 +224,11 @@ namespace Antmicro.Renode.Testing
             return result.ToString();
         }
 
-        public TerminalTester WriteLine(out TimeSpan virtualTimestamp, string line = "", bool doNotEatEvent = false)
+        public TerminalTester WriteLine(out TimeInterval virtualTimestamp, string line = "", bool doNotEatEvent = false)
         {
             terminal.WriteLineToTerminal(line);
             var assertion = new Assertion(string.Format("WriteLine({0})", line)) { Type = AssertionType.WriteLine };
-            var time = TimeSpan.Zero;
+            var time = TimeInterval.Empty;
             if(!doNotEatEvent)
             {
                 WaitForEvent(x =>
@@ -252,7 +253,7 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
-        public TerminalTester CheckIfUartIsIdle(TimeSpan period)
+        public TerminalTester CheckIfUartIsIdle(TimeInterval period)
         {
             var assertion = new Assertion("UartShouldBeIdle") { Type = AssertionType.DoNotErrorOnTimeout };
             // clear buffered events
@@ -284,9 +285,9 @@ namespace Antmicro.Renode.Testing
             }
         }
 
-        private void WaitForEvent(Func<Event, EventResult> predicate, TimeSpan? timeout, Assertion assertion)
+        private void WaitForEvent(Func<Event, EventResult> predicate, TimeInterval? timeout, Assertion assertion)
         {
-            TimeSpan usedTimeout;
+            TimeInterval usedTimeout;
             lock(timeoutSync)
             {
                 usedTimeout = timeout ?? globalTimeout;
@@ -330,7 +331,7 @@ namespace Antmicro.Renode.Testing
                 });
                 try
                 {
-                    if(!done.Wait(usedTimeout, doneWaitCancellationSource.Token))
+                    if(!done.Wait((int)usedTimeout.TotalMilliseconds, doneWaitCancellationSource.Token))
                     {
                         lock(reportEndingLock)
                         {
@@ -386,7 +387,7 @@ namespace Antmicro.Renode.Testing
         private readonly BlockingCollection<Event> eventCollection;
         private ConcurrentQueue<Event> reportCollection;
         private readonly PromptTerminal terminal;
-        private TimeSpan globalTimeout;
+        private TimeInterval globalTimeout;
         private readonly object reportEndingLock;
         private bool reportEnded;
 
@@ -407,7 +408,7 @@ namespace Antmicro.Renode.Testing
                 }
             }
 
-            public TimeSpan VirtualTimestamp { get; set; }
+            public TimeInterval VirtualTimestamp { get; set; }
 
             public readonly DateTime Timestamp = CustomDateTime.Now;
         }

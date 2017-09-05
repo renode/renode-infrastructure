@@ -30,7 +30,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             this.nvic = nvic;
             nvic.AttachCPU(this);
-            Init();
         }
 
         public override void Start()
@@ -50,12 +49,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             InitPCAndSP();
             base.Resume();
-        }
-
-        [LatePostDeserialization]
-        private void Init()
-        {
-            ExtendWaitHandlers(nvic.MaskedInterruptPresent);
         }
 
         public override string Architecture { get { return "arm-m"; } }

@@ -60,7 +60,6 @@
     <Compile Include="Mocks\MockGPIOByNumberConnectorPeripheral.cs" />
     <Compile Include="Mocks\MockIrqSender.cs" />
     <Compile Include="MachineTests.cs" />
-    <Compile Include="SyncDomainsTest.cs" />
     <Compile Include="Utilities\LazyPool.cs" />
     <Compile Include="Mocks\MockExternal.cs" />
     <Compile Include="SymbolLookup\SymbolLookupTests.cs" />
