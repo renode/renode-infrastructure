@@ -385,8 +385,21 @@
     <Compile Include="Utilities\InterruptManager.cs" />
     <Compile Include="Peripherals\GPIOPort\GPIOInterruptManager.cs" />
     <Compile Include="Utilities\Collections\IArray.cs" />
+    <Compile Include="Time\TimeInterval.cs" />
+    <Compile Include="Time\TimeStamp.cs" />
+    <Compile Include="Time\ITimeSource.cs" />
+    <Compile Include="Time\ITimeSink.cs" />
+    <Compile Include="Time\TimeSourceBase.cs" />
+    <Compile Include="Time\TimeSourceState.cs" />
+    <Compile Include="Time\MasterTimeSource.cs" />
+    <Compile Include="Time\SlaveTimeSource.cs" />
+    <Compile Include="Time\TimeHandle.cs" />
+    <Compile Include="Time\ITimeDomain.cs" />
+    <Compile Include="Time\TimeDomainsManager.cs" />
     <Compile Include="Debug\IIdentifiable.cs" />
     <Compile Include="Debug\IdentifiableObject.cs" />
+    <Compile Include="Time\HandlesCollection.cs" />
+    <Compile Include="Time\Sleeper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
