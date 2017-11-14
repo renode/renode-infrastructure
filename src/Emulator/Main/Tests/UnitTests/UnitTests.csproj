@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{E0E61E22-8E42-4ED8-8C1F-D683D7EC9FF6}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Antmicro.Renode.Tests.UnitTests</RootNamespace>
+    <AssemblyName>UnitTests</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <LangVersion>7</LangVersion>
+    <DebugSymbols>True</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>False</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>False</ConsolePause>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <LangVersion>7</LangVersion>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>False</ConsolePause>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ReadExtensionsTest.cs" />
+    <Compile Include="WriteExtensionsTest.cs" />
+    <Compile Include="GPIOTests.cs" />
+    <Compile Include="SerializationTests.cs" />
+    <Compile Include="CoreTimerTest.cs" />
+    <Compile Include="SerializableMappedSegmentTests.cs" />
+    <Compile Include="MultiCPUTests.cs" />
+    <Compile Include="Mocks\MockCPU.cs" />
+    <Compile Include="Mocks\ActivelyAskingCPU.cs" />
+    <Compile Include="Mocks\EmptyCPU.cs" />
+    <Compile Include="Mocks\ActivelyAskedPeripheral.cs" />
+    <Compile Include="Mocks\EmptyPeripheral.cs" />
+    <Compile Include="Collections\MultiTreeTests.cs" />
+    <Compile Include="StorageTests.cs" />
+    <Compile Include="Collections\ClampingBufferTests.cs" />
+    <Compile Include="PythonPeripherals\SerializationTests.cs" />
+    <Compile Include="SystemBusTests.cs" />
+    <Compile Include="Mocks\MockReceiverConstrained.cs" />
+    <Compile Include="Mocks\MockReceiver.cs" />
+    <Compile Include="Collections\WeakMultiTableTest.cs" />
+    <Compile Include="TimeTests.cs" />
+    <Compile Include="PeripheralsGroupTests.cs" />
+    <Compile Include="GPIODetachingTests.cs" />
+    <Compile Include="Mocks\MockGPIOByNumberConnectorPeripheral.cs" />
+    <Compile Include="Mocks\MockIrqSender.cs" />
+    <Compile Include="MachineTests.cs" />
+    <Compile Include="SyncDomainsTest.cs" />
+    <Compile Include="Utilities\LazyPool.cs" />
+    <Compile Include="Mocks\MockExternal.cs" />
+    <Compile Include="SymbolLookup\SymbolLookupTests.cs" />
+    <Compile Include="SymbolLookup\SymbolLookupElfMergeTests.cs" />
+    <Compile Include="SymbolLookup\DeduplicationTests.cs" />
+    <Compile Include="SymbolLookup\SymbolTests.cs" />
+    <Compile Include="Collections\MultiValueDictionaryTests.cs" />
+    <Compile Include="NullRegistrationPointPeripheralContainerTests.cs" />
+    <Compile Include="RegistersTests.cs" />
+    <Compile Include="MemoryTests.cs" />
+    <Compile Include="RegisterEnumParserTests.cs" />
+    <Compile Include="ComparingTimerTests.cs" />
+    <Compile Include="RangeTests.cs" />
+    <Compile Include="Mocks\TwoStateEnum.cs" />
+    <Compile Include="Mocks\NullRegister.cs" />
+    <Compile Include="Mocks\MockPeripheralWithDependency.cs" />
+    <Compile Include="Mocks\MockIrqSenderWithTwoInterrupts.cs" />
+    <Compile Include="Mocks\AmbiguousRegister.cs" />
+    <Compile Include="Mocks\EmptyInterestingType.cs" />
+    <Compile Include="Mocks\MockRegister.cs" />
+    <Compile Include="SVDParserTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Moq">
+      <HintPath>..\..\..\..\..\..\..\lib\resources\libraries\Moq.dll</HintPath>
+    </Reference>
+    <Reference Include="IronPython">
+      <HintPath>..\..\..\..\..\..\..\lib\resources\libraries\IronPython.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework">
+      <HintPath>..\..\..\..\..\..\..\lib\resources\tools\nunit.framework.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Emulator.csproj">
+      <Project>{2901AECB-A54F-4FD8-9AC1-033D86DC7257}</Project>
+      <Name>Emulator</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\..\..\lib\Migrant\Migrant\Migrant.csproj">
+      <Project>{5F87C357-09FB-4F53-BE37-41FE5BD88957}</Project>
+      <Name>Migrant</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp.csproj">
+      <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
+      <Name>ELFSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Peripherals\Peripherals.csproj">
+      <Project>{66400796-0C5B-4386-A859-50A2AC3F3DB7}</Project>
+      <Name>Peripherals</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <DotNetNamingPolicy DirectoryNamespaceAssociation="PrefixedHierarchical" ResourceNamePolicy="FileName" />
+          <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/x-csharp" />
+          <CSharpFormattingPolicy IndentBlock="True" IndentBraces="False" IndentSwitchSection="True" IndentSwitchCaseSection="True" LabelPositioning="OneLess" NewLinesForBracesInTypes="True" NewLinesForBracesInMethods="True" NewLinesForBracesInProperties="True" NewLinesForBracesInAccessors="True" NewLinesForBracesInAnonymousMethods="True" NewLinesForBracesInControlBlocks="True" NewLinesForBracesInAnonymousTypes="True" NewLinesForBracesInObjectCollectionArrayInitializers="True" NewLinesForBracesInLambdaExpressionBody="True" NewLineForElse="True" NewLineForCatch="True" NewLineForFinally="True" NewLineForMembersInObjectInit="True" NewLineForMembersInAnonymousTypes="True" NewLineForClausesInQuery="True" SpacingAfterMethodDeclarationName="False" SpaceWithinMethodDeclarationParenthesis="False" SpaceBetweenEmptyMethodDeclarationParentheses="False" SpaceAfterMethodCallName="False" SpaceWithinMethodCallParentheses="False" SpaceBetweenEmptyMethodCallParentheses="False" SpaceWithinExpressionParentheses="False" SpaceWithinCastParentheses="False" SpaceWithinOtherParentheses="False" SpaceAfterCast="False" SpacesIgnoreAroundVariableDeclaration="False" SpaceBeforeOpenSquareBracket="False" SpaceBetweenEmptySquareBrackets="False" SpaceWithinSquareBrackets="False" SpaceAfterColonInBaseTypeDeclaration="True" SpaceAfterComma="True" SpaceAfterDot="False" SpaceAfterSemicolonsInForStatement="True" SpaceBeforeColonInBaseTypeDeclaration="True" SpaceBeforeComma="False" SpaceBeforeDot="False" SpaceBeforeSemicolonsInForStatement="False" SpacingAroundBinaryOperator="Single" WrappingPreserveSingleLine="True" WrappingKeepStatementsOnSingleLine="True" PlaceSystemDirectiveFirst="True" SpaceAfterControlFlowStatementKeyword="False" scope="text/x-csharp" />
+          <TextStylePolicy FileWidth="120" NoTabsAfterNonTabs="True" EolMarker="Unix" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/plain" />
+          <StandardHeader IncludeInNewFiles="True" Text="&#xA;Copyright (c) 2010-${Year} Antmicro&#xA;&#xA; This file is licensed under the MIT License.&#xA; Full license text is available in 'licenses/MIT.txt'.&#xA;" />
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
+</Project>

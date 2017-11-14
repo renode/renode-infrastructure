@@ -1,4 +1,0 @@
-:Name: CC2538
-:Icon: TI
-
-include @platforms/cpus/cc2538

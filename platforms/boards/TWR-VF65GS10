@@ -1,4 +1,0 @@
-:Name: TWR-VF65GS10
-:Icon: Freescale
-
-include @platforms/cpus/vybrid

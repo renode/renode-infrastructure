@@ -1,8 +1,0 @@
-#
-# leon3 cpu script
-#
-sysbus Endianess BigEndian
-machine LoadPeripheralsFromJSONFile @platforms/cpus/leon3.json
-
-sysbus Tag <0xffff0a00, 0xffff0aff> "PCIARB: PCI Bus arbiter"
-sysbus Tag <0xffff0500, 0xffff05ff> "APBPS2: PS/2 host controller"

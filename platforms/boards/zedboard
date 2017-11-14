@@ -1,7 +1,0 @@
-#
-# zedboard
-#
-
-include @platforms/cpus/zynq-7000
-machine LoadPeripheralsFromJSONFile @platforms/boards/zedboard-externals.json
-

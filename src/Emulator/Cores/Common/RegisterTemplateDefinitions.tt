@@ -1,0 +1,20 @@
+﻿<#
+//
+// Copyright (c) 2010-2017 Antmicro
+// Copyright (c) 2011-2015 Realtime Embedded
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#
+    string CLASS_NAME = null;
+    string HEADER_FILE = null;
+    string PC_REGISTER = null;
+
+    var DEFINES = new List<string>();
+    var BEFORE_WRITE_HOOKS = new Dictionary<string, string>();
+    var AFTER_WRITE_HOOKS = new Dictionary<string, string>();
+    var REGISTERS_FROM_BASE_CLASS = new List<string>();
+#>

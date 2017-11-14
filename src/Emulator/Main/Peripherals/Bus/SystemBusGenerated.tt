@@ -1,0 +1,155 @@
+﻿<#
+//
+// Copyright (c) 2010-2017 Antmicro
+// Copyright (c) 2011-2015 Realtime Embedded
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#v3.5" debug="True"#>
+<#@ import namespace="System.Collections.Generic" #>
+<#
+    Dictionary<string, string> types = new Dictionary<string, string>();
+    types.Add("byte", "Byte");
+    types.Add("ushort", "Word");
+    types.Add("uint", "DoubleWord");
+#>
+/********************************************************
+*
+* Warning!
+* This file was generated automatically.
+* Please do not edit. Changes should be made in the
+* appropriate *.tt file.
+*
+*/
+
+using System;
+using System.Collections.Generic;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
+
+namespace Antmicro.Renode.Peripherals.Bus
+{
+    public partial class SystemBus
+    {
+<#
+    foreach(var entry in types)
+    {
+        var type = entry.Key;
+        var name = entry.Value;
+#>
+        public <#= type #> Read<#= name #>(long address)
+        {
+            long startAddress, endAddress;
+
+            InvokeWatchpointHooks(hooksOnRead, address, Width.<#=name#>);
+
+            var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            if (accessMethods == null)
+            {
+                return (<#= type #>)ReportNonExistingRead(address, "<#=name#>");
+            }
+            var lockTaken = false;
+            try
+            {
+                accessMethods.Lock.Enter(ref lockTaken);
+                if(accessMethods.SetAbsoluteAddress != null)
+                {
+                    accessMethods.SetAbsoluteAddress(address);
+                }
+                return accessMethods.Read<#=name#>(address - startAddress);
+            }
+            finally
+            {
+                if(lockTaken)
+                {
+                    accessMethods.Lock.Exit();
+                }
+            }
+        }
+
+        public void Write<#=name#>(long address, <#=type#> value)
+        {
+            long startAddress, endAddress;
+
+            var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            if (accessMethods == null)
+            {
+                ReportNonExistingWrite(address, value, "<#=name#>");
+                InvokeWatchpointHooks(hooksOnWrite, address, Width.<#=name#>);
+                return;
+            }
+            var lockTaken = false;
+            try
+            {
+                accessMethods.Lock.Enter(ref lockTaken);
+                if(accessMethods.SetAbsoluteAddress != null)
+                {
+                    accessMethods.SetAbsoluteAddress(address);
+                }
+                accessMethods.Write<#=name#>(address - startAddress, value);
+                InvokeWatchpointHooks(hooksOnWrite, address, Width.<#=name#>);
+            }
+            finally
+            {
+                if(lockTaken)
+                {
+                    accessMethods.Lock.Exit();
+                }
+            }
+        }
+
+<# }
+#>
+<#
+    foreach(var operation in new [] { "Read", "Write" })
+    {
+        var when = operation == "Read" ? "After" : "Before";
+        var actionOrFunc = operation == "Read" ? "Func" : "Action";
+#>
+        public void ClearHook<#=when#>Peripheral<#=operation#><T>(IBusPeripheral peripheral)
+        {
+            SetHook<#=when#>Peripheral<#=operation#><T>(peripheral, null);
+        }
+
+        public void SetHook<#=when#>Peripheral<#=operation#><T>(IBusPeripheral peripheral, Func<T, long, T> hook, Range? subrange = null)
+        {
+            if(!machine.IsRegistered(peripheral))
+            {
+                throw new RecoverableException(string.Format("Cannot set hook on peripheral {0}, it is not registered.", peripheral));
+            }
+            var type = typeof(T);
+<#
+        foreach(var entry in types)
+        {
+            var type = entry.Key;
+            var name = entry.Value;
+#>
+            if(type == typeof(<#=type#>))
+            {
+                peripherals.VisitAccessMethods(peripheral, pam =>
+                {
+                    if(pam.<#=operation#><#=name#>.Target is <#=operation#>HookWrapper<<#=type#>>)
+                    {
+                        pam.<#=operation#><#=name#> = new BusAccess.<#=name#><#=operation#>Method(((<#=operation#>HookWrapper<<#=type#>>)pam.<#=operation#><#=name#>.Target).OriginalMethod);
+                    }
+                    if(hook != null)
+                    {
+                        pam.<#=operation#><#=name#> = new BusAccess.<#=name#><#=operation#>Method(new <#=operation#>HookWrapper<<#=type#>>(peripheral, new <#=actionOrFunc#><long, <#=type#>>(pam.<#=operation#><#=name#>), (Func<<#=type#>, long, <#=type#>>)(object)hook, subrange).<#=operation#>);
+                    }
+                    return pam;
+                });
+                return;
+            }
+<#
+        }
+#>
+        }
+<#
+    }
+#>
+    }
+}

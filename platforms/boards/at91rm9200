@@ -1,6 +1,0 @@
-#
-# at91rm9200 board
-#
-
-include @platforms/cpus/at91rm9200
-

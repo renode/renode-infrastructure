@@ -1,6 +1,0 @@
-:Name: EFM32GG_STK3700
-:Icon: GG
-
-
-include @platforms/cpus/efm32gg
-machine LoadPeripheralsFromJSONFile @platforms/boards/efm32gg_stk3700.json

@@ -1,8 +1,0 @@
-#
-# script for  stm32w
-#
-
-machine LoadPeripheralsFromJSONFile @platforms/cpus/stm32w108.json
-
-sysbus ApplySVD @http://emul8.org/emul8_files/svd/STM32W108.svd
-

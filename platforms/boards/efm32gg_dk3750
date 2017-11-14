@@ -1,8 +1,0 @@
-#
-# efm32 board
-#
-
-include @platforms/cpus/efm32gg
-machine LoadPeripheralsFromJSONFile @platforms/boards/efm32gg_dk3750.json
-machine LoadPeripheralsFromJSONFile @platforms/boards/efm32gg_dk3750_ethernet.json
-

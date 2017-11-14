@@ -1,7 +1,0 @@
-#
-# Script for dual core leon3 system
-#
-
-sysbus Endianess BigEndian
-machine LoadPeripheralsFromJSONFile @platforms/cpus/leon3-dual-core.json
-

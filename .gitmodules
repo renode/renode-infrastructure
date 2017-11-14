@@ -1,27 +1,3 @@
-[submodule "External/cctask"]
-	path = External/cctask
-	url = https://github.com/antmicro/cctask.git
-[submodule "External/options-parser"]
-	path = External/options-parser
-	url = https://github.com/antmicro/options-parser
-[submodule "External/FdtSharp"]
-	path = External/FdtSharp
-	url = https://github.com/antmicro/FdtSharp.git
-[submodule "External/Packet.Net"]
-	path = External/Packet.Net
-	url = https://github.com/antmicro/Packet.Net.git
-[submodule "External/AntShell"]
-	path = External/AntShell
-	url = https://github.com/antmicro/AntShell.git
-[submodule "External/xwt"]
-	path = External/xwt
-	url = https://github.com/antmicro/xwt.git
-[submodule "External/ELFSharp"]
-	path = External/ELFSharp
-	url = https://github.com/antmicro/elfsharp.git
-[submodule "External/Migrant"]
-	path = External/Migrant
-	url = https://github.com/antmicro/Migrant.git
-[submodule "Emulator/Cores/tlib"]
-	path = Emulator/Cores/tlib
-	url = https://github.com/emul8/tlib.git
+[submodule "src/Emulator/Cores/tlib"]
+	path = src/Emulator/Cores/tlib
+	url = https://github.com/antmicro/tlib.git

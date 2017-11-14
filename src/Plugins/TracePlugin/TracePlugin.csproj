@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{887C6088-F483-466A-A671-06EEC42B8DC1}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Antmicro.Renode.Plugins.TracePlugin</RootNamespace>
+    <AssemblyName>TracePlugin</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <LangVersion>7</LangVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG;$(DefineConstants)</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <LangVersion>7</LangVersion>
+    <DebugType>full</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="Dynamitey">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Dynamitey.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="TraceCommand.cs" />
+    <Compile Include="Handlers\DefaultFunctionHandler.cs" />
+    <Compile Include="Handlers\PrintfHandler.cs" />
+    <Compile Include="Handlers\IFunctionHandler.cs" />
+    <Compile Include="TracePlugin.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell.csproj">
+      <Project>{0A473566-F4C6-455E-A56E-B3963FBABDFF}</Project>
+      <Name>AntShell</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Emulator\Main\Emulator.csproj">
+      <Project>{2901AECB-A54F-4FD8-9AC1-033D86DC7257}</Project>
+      <Name>Emulator</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Emulator\Extensions\Extensions.csproj">
+      <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
+      <Name>Extensions</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Emulator\Peripherals\Peripherals.csproj">
+      <Project>{66400796-0C5B-4386-A859-50A2AC3F3DB7}</Project>
+      <Name>Peripherals</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Emulator\Cores\cores-arm.csproj">
+      <Project>{13222124-707C-5EFD-8289-2728351FB7E9}</Project>
+      <Name>cores-arm</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/x-csharp" />
+          <CSharpFormattingPolicy IndentBlock="True" IndentBraces="False" IndentSwitchSection="True" IndentSwitchCaseSection="True" LabelPositioning="OneLess" NewLinesForBracesInTypes="True" NewLinesForBracesInMethods="True" NewLinesForBracesInProperties="True" NewLinesForBracesInAccessors="True" NewLinesForBracesInAnonymousMethods="True" NewLinesForBracesInControlBlocks="True" NewLinesForBracesInAnonymousTypes="True" NewLinesForBracesInObjectCollectionArrayInitializers="True" NewLinesForBracesInLambdaExpressionBody="True" NewLineForElse="True" NewLineForCatch="True" NewLineForFinally="True" NewLineForMembersInObjectInit="True" NewLineForMembersInAnonymousTypes="True" NewLineForClausesInQuery="True" SpacingAfterMethodDeclarationName="False" SpaceWithinMethodDeclarationParenthesis="False" SpaceBetweenEmptyMethodDeclarationParentheses="False" SpaceAfterMethodCallName="False" SpaceWithinMethodCallParentheses="False" SpaceBetweenEmptyMethodCallParentheses="False" SpaceWithinExpressionParentheses="False" SpaceWithinCastParentheses="False" SpaceWithinOtherParentheses="False" SpaceAfterCast="False" SpacesIgnoreAroundVariableDeclaration="False" SpaceBeforeOpenSquareBracket="False" SpaceBetweenEmptySquareBrackets="False" SpaceWithinSquareBrackets="False" SpaceAfterColonInBaseTypeDeclaration="True" SpaceAfterComma="True" SpaceAfterDot="False" SpaceAfterSemicolonsInForStatement="True" SpaceBeforeColonInBaseTypeDeclaration="True" SpaceBeforeComma="False" SpaceBeforeDot="False" SpaceBeforeSemicolonsInForStatement="False" SpacingAroundBinaryOperator="Single" WrappingPreserveSingleLine="True" WrappingKeepStatementsOnSingleLine="True" PlaceSystemDirectiveFirst="True" SpaceAfterControlFlowStatementKeyword="False" scope="text/x-csharp" />
+          <StandardHeader IncludeInNewFiles="True" Text="&#xA;Copyright (c) 2010-${Year} Antmicro&#xA;&#xA; This file is licensed under the MIT License.&#xA; Full license text is available in 'licenses/MIT.txt'.&#xA;" />
+          <DotNetNamingPolicy DirectoryNamespaceAssociation="PrefixedHierarchical" ResourceNamePolicy="FileName" />
+          <TextStylePolicy FileWidth="120" NoTabsAfterNonTabs="True" EolMarker="Unix" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/plain" />
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
+</Project>

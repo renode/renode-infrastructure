@@ -1,8 +1,0 @@
-:Name: STM32W_MB951
-:Icon: STM32
-
-#
-# mb951 board
-#
-
-include @platforms/cpus/stm32w108

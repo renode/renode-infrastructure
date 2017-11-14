@@ -1,4 +1,0 @@
-:Name:  LEON3
-:Icon:	LEON3
-
-include @platforms/cpus/leon3

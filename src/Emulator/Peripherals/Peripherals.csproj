@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{66400796-0C5B-4386-A859-50A2AC3F3DB7}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Antmicro.Renode</RootNamespace>
+    <AssemblyName>Renode-peripherals</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <LangVersion>7</LangVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG;$(DefineConstants)</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <LangVersion>7</LangVersion>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="Mono.Posix" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Peripherals\MTD\CFIFlash.cs" />
+    <Compile Include="Peripherals\UART\NS16550.cs" />
+    <Compile Include="Peripherals\Input\AntMouse.cs" />
+    <Compile Include="Peripherals\MTD\CFIFlashExtensions.cs" />
+    <Compile Include="Peripherals\Input\PS2Keyboard.cs" />
+    <Compile Include="Peripherals\Input\PS2Mouse.cs" />
+    <Compile Include="Peripherals\MTD\ISPIFlash.cs" />
+    <Compile Include="Peripherals\MTD\DummySPIFlash.cs" />
+    <Compile Include="Peripherals\Miscellaneous\LED.cs" />
+    <Compile Include="Peripherals\Memory\ArrayMemory.cs" />
+    <Compile Include="Peripherals\Memory\ArrayMemoryWithReadonlys.cs" />
+    <Compile Include="Peripherals\Miscellaneous\EmulatorController.cs" />
+    <Compile Include="Peripherals\IRQControllers\PL190.cs" />
+    <Compile Include="Peripherals\IRQControllers\SIC.cs" />
+    <Compile Include="Peripherals\Cache\PL310.cs" />
+    <Compile Include="Peripherals\IRQControllers\EXTI.cs" />
+    <Compile Include="Peripherals\DMA\STM32DMA.cs" />
+    <Compile Include="Peripherals\DMA\UDMA.cs" />
+    <Compile Include="Peripherals\DMA\STM32LDMA.cs" />
+    <Compile Include="Peripherals\Miscellaneous\ArmSysCtl.cs" />
+    <Compile Include="Peripherals\DMA\OmapDma.cs" />
+    <Compile Include="Peripherals\EfmSystemDevice.cs" />
+    <Compile Include="Peripherals\Miscellaneous\EFM32DeviceInformation.cs" />
+    <Compile Include="Peripherals\UART\GaislerUART.cs" />
+    <Compile Include="Peripherals\Bus\GaislerAHBPlugAndPlayInfo.cs" />
+    <Compile Include="Peripherals\Bus\GaislerAHBPlugAndPlayRecord.cs" />
+    <Compile Include="Peripherals\Bus\GaislerAPBController.cs" />
+    <Compile Include="Peripherals\Bus\IGaislerAHB.cs" />
+    <Compile Include="Peripherals\Bus\GaislerAPBPlugAndPlayRecord.cs" />
+    <Compile Include="Peripherals\Bus\IGaislerAPB.cs" />
+    <Compile Include="Peripherals\Network\GaislerEth.cs" />
+    <Compile Include="Peripherals\MemoryControllers\ESAMemoryController.cs" />
+    <Compile Include="Peripherals\IRQControllers\GaislerMIC.cs" />
+    <Compile Include="Peripherals\Timers\GaislerGPTimer.cs" />
+    <Compile Include="Peripherals\GPIOPort\GaislerGPIO.cs" />
+    <Compile Include="Peripherals\Network\CadenceGEM.cs" />
+    <Compile Include="Peripherals\Timers\TegraTimer.cs" />
+    <Compile Include="Peripherals\Timers\OMAP_GPTimer.cs" />
+    <Compile Include="Peripherals\Timers\STM32_Timer.cs" />
+    <Compile Include="Peripherals\Timers\SP804.cs" />
+    <Compile Include="Peripherals\Timers\CadenceTTC.cs" />
+    <Compile Include="Peripherals\UART\STM32_UART.cs" />
+    <Compile Include="Peripherals\UART\STM32W_UART.cs" />
+    <Compile Include="Peripherals\UART\EFM32_UART.cs" />
+    <Compile Include="Peripherals\SD\SDHCI.cs" />
+    <Compile Include="Peripherals\USB\PortStatusAndControlRegister.cs" />
+    <Compile Include="Peripherals\USB\USBDescriptor.cs" />
+    <Compile Include="Peripherals\USB\DescriptorType.cs" />
+    <Compile Include="Peripherals\USB\IUSBHub.cs" />
+    <Compile Include="Peripherals\USB\DummyUSBDevice.cs" />
+    <Compile Include="Peripherals\USB\USBRequestException.cs" />
+    <Compile Include="Peripherals\USB\USBEthernetEmulationModelDevice.cs" />
+    <Compile Include="Peripherals\USB\USBCommunicationClass.cs" />
+    <Compile Include="Peripherals\USB\USBEthernetControlModelDevicesSubclass.cs" />
+    <Compile Include="Peripherals\USB\USBEthernetControlModelDevice.cs" />
+    <Compile Include="Peripherals\USB\USBLanguageID.cs" />
+    <Compile Include="Peripherals\USB\USBRequestType.cs" />
+    <Compile Include="Peripherals\USB\SMSC9500.cs" />
+    <Compile Include="Peripherals\USB\USBSetupPacket.cs" />
+    <Compile Include="Peripherals\USB\PortStatusAndControlRegisterChanges.cs" />
+    <Compile Include="Peripherals\PCI\VersatilePCI.cs" />
+    <Compile Include="Peripherals\SPI\FakeEfmSPITransmitter.cs" />
+    <Compile Include="Peripherals\UART\LEUART.cs" />
+    <Compile Include="Peripherals\USB\MassStorage.cs" />
+    <Compile Include="Peripherals\Network\KS8851.cs" />
+    <Compile Include="Peripherals\SPI\UARTToSpiConverter.cs" />
+    <Compile Include="Peripherals\USB\IUSBPeripheral.cs" />
+    <Compile Include="Peripherals\USB\SCSI.cs" />
+    <Compile Include="Peripherals\Video\TegraSyncpts.cs" />
+    <Compile Include="Peripherals\Video\VybridDCU.cs" />
+    <Compile Include="Peripherals\Video\PL110.cs" />
+    <Compile Include="Peripherals\Video\TegraDisplay.cs" />
+    <Compile Include="Peripherals\Network\SMC91X.cs" />
+    <Compile Include="Peripherals\I2C\XIIC.cs" />
+    <Compile Include="Peripherals\I2C\VybridI2C.cs" />
+    <Compile Include="Peripherals\Wireless\EmberRadio.cs" />
+    <Compile Include="Peripherals\USB\ISP1761.cs" />
+    <Compile Include="Peripherals\Timers\PL031.cs" />
+    <Compile Include="Peripherals\USB\IUSBHubBase.cs" />
+    <Compile Include="Peripherals\USB\USBPacket.cs" />
+    <Compile Include="Peripherals\CAN\STMCAN.cs" />
+    <Compile Include="Peripherals\USB\EHCIHostController.cs" />
+    <Compile Include="Peripherals\Timers\TegraUsecTimer.cs" />
+    <Compile Include="Peripherals\I2C\TegraI2CController.cs" />
+    <Compile Include="Peripherals\I2C\TegraDVC.cs" />
+    <Compile Include="Peripherals\I2C\LM95245.cs" />
+    <Compile Include="Peripherals\Input\FT5x06.cs" />
+    <Compile Include="Peripherals\IRQControllers\AIC.cs" />
+    <Compile Include="Peripherals\USB\MassStorageExtensions.cs" />
+    <Compile Include="Peripherals\Input\PL050.cs" />
+    <Compile Include="Peripherals\USB\USBMouse.cs" />
+    <Compile Include="Peripherals\USB\USBKeyboard.cs" />
+    <Compile Include="Peripherals\I2C\EFM32GGI2CController.cs" />
+    <Compile Include="Peripherals\I2C\BMP180.cs" />
+    <Compile Include="Peripherals\I2C\BMA180.cs" />
+    <Compile Include="Peripherals\I2C\SHT21.cs" />
+    <Compile Include="Peripherals\I2C\BMC050.cs" />
+    <Compile Include="Peripherals\Miscellaneous\Button.cs" />
+    <Compile Include="Peripherals\Network\SynopsysEthernetMAC.cs" />
+    <Compile Include="Peripherals\SPI\XilinxQSPI.cs" />
+    <Compile Include="Peripherals\IRQControllers\MSCM.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SEMA4.cs" />
+    <Compile Include="Peripherals\MTD\FSLNAND.cs" />
+    <Compile Include="Peripherals\UART\PL011.cs" />
+    <Compile Include="Peripherals\Input\FusionF0710A.cs" />
+    <Compile Include="Peripherals\Input\AR1021.cs" />
+    <Compile Include="Peripherals\Miscellaneous\PrimeCellIDHelper.cs" />
+    <Compile Include="Peripherals\SPI\STM32SPI.cs" />
+    <Compile Include="Peripherals\Timers\CC2538Watchdog.cs" />
+    <Compile Include="Peripherals\USB\USBDeviceSpeed.cs" />
+    <Compile Include="Peripherals\GPIOPort\EFMGPIOPort.cs" />
+    <Compile Include="Peripherals\GPIOPort\STM32F4GPIOPort.cs" />
+    <Compile Include="Peripherals\GPIOPort\VybridGPIOPort.cs" />
+    <Compile Include="Peripherals\GPIOPort\XilinxGPIOPS.cs" />
+    <Compile Include="Peripherals\USB\USBTablet.cs" />
+    <Compile Include="Peripherals\GPIOPort\Emios.cs" />
+    <Compile Include="Peripherals\IRQControllers\MPC5567_INTC.cs" />
+    <Compile Include="Peripherals\UART\MPC5567_UART.cs" />
+    <Compile Include="Peripherals\Timers\CC2538SleepTimer.cs" />
+    <Compile Include="Peripherals\USB\Ulpi.cs" />
+    <Compile Include="Peripherals\SD\SunxiMMC.cs" />
+    <Compile Include="Peripherals\Timers\SunxiHighSpeedTimer.cs" />
+    <Compile Include="Peripherals\SD\MMCController.cs" />
+    <Compile Include="Peripherals\SD\ISDDevice.cs" />
+    <Compile Include="Peripherals\SD\SDCard.cs" />
+    <Compile Include="Peripherals\SD\SDCardExtensions.cs" />
+    <Compile Include="Peripherals\Timers\SunxiTimer.cs" />
+    <Compile Include="Peripherals\Timers\TexasInstrumentsTimer.cs" />
+    <Compile Include="Peripherals\IRQControllers\AINTC.cs" />
+    <Compile Include="Peripherals\I2C\STM32F4_I2C.cs" />
+    <Compile Include="Peripherals\Miscellaneous\BitBanding.cs">
+      <DependentUpon>BitBanding.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Peripherals\USB\UsbHub.cs" />
+    <Compile Include="Peripherals\UART\CadenceUart.cs" />
+    <Compile Include="Peripherals\UART\Atmel91DebugUnit.cs" />
+    <Compile Include="Peripherals\UART\ImxUart.cs" />
+    <Compile Include="Peripherals\Timers\Atmel91SystemTimer.cs" />
+    <Compile Include="Peripherals\Timers\PeriodicInterruptTimer.cs" />
+    <Compile Include="Peripherals\Network\FastEthernetController.cs" />
+    <Compile Include="Peripherals\DMA\TegraDma.cs" />
+    <Compile Include="Peripherals\DMA\VybridDma.cs" />
+    <Compile Include="Peripherals\DMA\TegraDmaHost1X.cs" />
+    <Compile Include="Peripherals\Timers\Efm32Timer.cs" />
+    <Compile Include="Peripherals\Timers\STM32L_RTC.cs" />
+    <Compile Include="Peripherals\Timers\STM32L_Timer.cs" />
+    <Compile Include="Peripherals\UART\AppUart.cs" />
+    <Compile Include="Peripherals\UART\STM32F7_USART.cs" />
+    <Compile Include="Peripherals\DMA\Dma2DColorMode.cs" />
+    <Compile Include="Peripherals\DMA\STM32DMA2D.cs" />
+    <Compile Include="Peripherals\Video\STM32LTDC.cs" />
+    <Compile Include="Peripherals\Wireless\CC2538\InterruptRegister.cs" />
+    <Compile Include="Peripherals\Wireless\CC2538\InterruptSource.cs" />
+    <Compile Include="Peripherals\Wireless\CC2538RF.cs" />
+    <Compile Include="Peripherals\Wireless\AT86RF233.cs" />
+    <Compile Include="Peripherals\I2C\STM32F7_I2C.cs" />
+    <Compile Include="Peripherals\Input\FT5336.cs" />
+    <Compile Include="Peripherals\Miscellaneous\STM32_SYSCFG.cs" />
+    <Compile Include="Peripherals\Wireless\IEEE802_15_4\Frame.cs" />
+    <Compile Include="Peripherals\Wireless\IEEE802_15_4\FrameType.cs" />
+    <Compile Include="Peripherals\Wireless\IEEE802_15_4\AddressingMode.cs" />
+    <Compile Include="Peripherals\Wireless\IEEE802_15_4\AddressInformation.cs" />
+    <Compile Include="Peripherals\Wireless\IEEE802_15_4\Address.cs" />
+    <Compile Include="Peripherals\SPI\Quark_SPI.cs" />
+    <Compile Include="Peripherals\Network\ENC28J60.cs" />
+    <Compile Include="Peripherals\Sensors\TI_LM74.cs" />
+    <Compile Include="Peripherals\GPIOPort\Quark_GPIOController.cs" />
+    <Compile Include="Peripherals\GPIOPort\Quark_PWM.cs" />
+    <Compile Include="Peripherals\Wireless\CC2520.cs" />
+    <Compile Include="Peripherals\Miscellaneous\CC2538_Cryptoprocessor.cs" />
+    <Compile Include="Peripherals\GPIOPort\EFR32_GPIOPort.cs" />
+    <Compile Include="Peripherals\I2C\EFR32_I2CController.cs" />
+    <Compile Include="Peripherals\UART\EFR32_USART.cs" />
+    <Compile Include="Peripherals\Sensors\MAX6682MUA.cs" />
+    <Compile Include="Peripherals\Sensors\SI70xx.cs" />
+    <Compile Include="Peripherals\CPU\TranslationCPU.cs" />
+    <Compile Include="Peripherals\CPU\Disassembler\IDisassembler.cs" />
+    <Compile Include="Peripherals\CPU\Disassembler\IDisassemblable.cs" />
+    <Compile Include="Peripherals\CPU\Disassembler\DisassemblerManager.cs" />
+    <Compile Include="Peripherals\CPU\Disassembler\DisassemblyEngine.cs" />
+    <Compile Include="Peripherals\CPU\Registers\IRegisters.cs" />
+    <Compile Include="Peripherals\CPU\CpuAbortException.cs" />
+    <Compile Include="Peripherals\CPU\Registers\RegistersGroup.cs" />
+    <Compile Include="Peripherals\UART\SemihostingUart.cs" />
+    <Compile Include="..\Cores\Common\RegisterEnumParser.cs">
+      <DependentUpon>RegisterEnumParser.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Peripherals\CPU\Disassembler\DisassemblerAttribtue.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/x-csharp" />
+          <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/plain" />
+          <DotNetNamingPolicy DirectoryNamespaceAssociation="PrefixedHierarchical" ResourceNamePolicy="FileName" />
+          <CSharpFormattingPolicy IndentBlock="True" IndentBraces="False" IndentSwitchSection="True" IndentSwitchCaseSection="True" LabelPositioning="OneLess" NewLinesForBracesInTypes="True" NewLinesForBracesInMethods="True" NewLinesForBracesInProperties="True" NewLinesForBracesInAccessors="True" NewLinesForBracesInAnonymousMethods="True" NewLinesForBracesInControlBlocks="True" NewLinesForBracesInAnonymousTypes="True" NewLinesForBracesInObjectCollectionArrayInitializers="True" NewLinesForBracesInLambdaExpressionBody="True" NewLineForElse="True" NewLineForCatch="True" NewLineForFinally="True" NewLineForMembersInObjectInit="True" NewLineForMembersInAnonymousTypes="True" NewLineForClausesInQuery="True" SpacingAfterMethodDeclarationName="False" SpaceWithinMethodDeclarationParenthesis="False" SpaceBetweenEmptyMethodDeclarationParentheses="False" SpaceAfterMethodCallName="False" SpaceWithinMethodCallParentheses="False" SpaceBetweenEmptyMethodCallParentheses="False" SpaceWithinExpressionParentheses="False" SpaceWithinCastParentheses="False" SpaceWithinOtherParentheses="False" SpaceAfterCast="False" SpacesIgnoreAroundVariableDeclaration="False" SpaceBeforeOpenSquareBracket="False" SpaceBetweenEmptySquareBrackets="False" SpaceWithinSquareBrackets="False" SpaceAfterColonInBaseTypeDeclaration="True" SpaceAfterComma="True" SpaceAfterDot="False" SpaceAfterSemicolonsInForStatement="True" SpaceBeforeColonInBaseTypeDeclaration="True" SpaceBeforeComma="False" SpaceBeforeDot="False" SpaceBeforeSemicolonsInForStatement="False" SpacingAroundBinaryOperator="Single" WrappingPreserveSingleLine="True" WrappingKeepStatementsOnSingleLine="True" PlaceSystemDirectiveFirst="True" SpaceAfterControlFlowStatementKeyword="False" scope="text/x-csharp" />
+          <StandardHeader IncludeInNewFiles="True" Text="&#xA;Copyright (c) 2010-${Year} Antmicro&#xA;&#xA; This file is licensed under the MIT License.&#xA; Full license text is available in 'licenses/MIT.txt'.&#xA;" />
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
+  <ItemGroup>
+    <None Include="Peripherals\Miscellaneous\BitBanding.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>BitBanding.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Cores\Common\RegisterEnumParser.tt">
+      <Link>Peripherals\CPU\Registers\RegisterEnumParser.tt</Link>
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>RegisterEnumParser.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Main\Emulator.csproj">
+      <Project>{2901AECB-A54F-4FD8-9AC1-033D86DC7257}</Project>
+      <Name>Emulator</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant.csproj">
+      <Project>{5F87C357-09FB-4F53-BE37-41FE5BD88957}</Project>
+      <Name>Migrant</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp.csproj">
+      <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
+      <Name>ELFSharp</Name>
+    </ProjectReference>
+    <!--<ProjectReference Include="..\Cores\cores-arm.csproj">
+      <Name>cores-arm</Name>
+      <Project>{13222124-707C-5EFD-8289-2728351FB7E9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Cores\cores-arm-m.csproj">
+      <Project>{43222114-707C-4EFD-8289-2728351FB7E9}</Project>
+      <Name>cores-arm-m</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Cores\cores-i386.csproj">
+      <Project>{53222114-707C-4EFD-8289-2728351FB7E9}</Project>
+      <Name>cores-i386</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Cores\cores-ppc.csproj">
+      <Project>{23222114-707C-4EFD-8289-2728351FB7E9}</Project>
+      <Name>cores-ppc</Name>
+  </ProjectReference>-->
+    <ProjectReference Include="..\Extensions\Extensions.csproj">
+      <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
+      <Name>Extensions</Name>
+    </ProjectReference>
+  </ItemGroup>
+</Project>
