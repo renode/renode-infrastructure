@@ -79,6 +79,10 @@
       <Project>{43222114-707C-4EFD-8289-2728351FB7E9}</Project>
       <Name>cores-arm-m</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\Cores\cores-riscv.csproj">
+      <Project>{63222124-707C-5EFD-8289-2728351FB7E9}</Project>
+      <Name>cores-riscv</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\..\UI\UI.csproj">
       <Project>{AEFE490F-85AC-42AF-9CAE-2B7FC7167E0E}</Project>
       <Name>UI</Name>
