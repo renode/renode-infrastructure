@@ -234,6 +234,7 @@
     <Compile Include="Peripherals\GPIOPort\MiV_CoreGPIO.cs" />
     <Compile Include="Peripherals\IRQControllers\CoreLevelInterruptor.cs" />
     <Compile Include="Peripherals\IRQControllers\PlatformLevelInterruptController.cs" />
+    <Compile Include="Peripherals\Timers\MiV_CoreTimer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
