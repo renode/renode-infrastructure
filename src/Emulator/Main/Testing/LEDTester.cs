@@ -29,32 +29,41 @@ namespace Antmicro.Renode.Testing
 
         public LEDTester AssertState(bool state, int timeout = 0)
         {
-            ManualResetEvent ev = null;
-            Action<ILed, bool> method = null;
-
-            if (timeout != 0)
+            var isSet = false;
+            var setState = false;
+            var ev = new ManualResetEvent(false);
+            Action<ILed, bool> method = (s,o) =>
             {
-                ev = new ManualResetEvent(false);
-                method = (s,o) => ev.Set();
-
-                led.StateChanged += method;
-            }
-
-            if (led.State != state)
-            {
-                if (!TimeoutExecutor.WaitForEvent(ev, timeout))
+                if(isSet)
                 {
-                    if (timeout != 0)
+                    return;
+                }
+                isSet = true;
+                setState = o;
+                ev.Set();
+            };
+
+            try
+            {
+                if(timeout != 0)
+                {
+                    led.StateChanged += method;
+                }
+
+                if(led.State != state)
+                {
+                    if(!TimeoutExecutor.WaitForEvent(ev, timeout))
                     {
-                        led.StateChanged -= method;
+                        throw new InvalidOperationException(string.Format("LED assertion not met. Was {0}, should be {1}.", setState, state));
                     }
-                    throw new InvalidOperationException(string.Format("LED assertion not met. Was {0}, should be {1}.", led.State, state));
                 }
             }
-
-            if (timeout != 0)
+            finally
             {
-                led.StateChanged -= method;
+                if(timeout != 0)
+                {
+                    led.StateChanged -= method;
+                }
             }
 
             return this;
