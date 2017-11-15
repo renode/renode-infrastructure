@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Testing
             defaultPrompt = prompt;
             this.globalTimeout = globalTimeout;
         }
-        
+
         public TimeSpan GlobalTimeout
         {
             get
@@ -255,8 +255,17 @@ namespace Antmicro.Renode.Testing
         public TerminalTester CheckIfUartIsIdle(TimeSpan period)
         {
             var assertion = new Assertion("UartShouldBeIdle") { Type = AssertionType.DoNotErrorOnTimeout };
-            WaitForEvent(x => 
+            // clear buffered events
+            var c = eventCollection.Count;
+            while(c > 0)
             {
+                eventCollection.Take();
+                c--;
+            }
+            WaitForEvent(x =>
+            {
+                reportCollection.Enqueue(x);
+                EndReport("UART was not idle!");
                 return EventResult.Failure;
             },
                 period, assertion);
