@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -102,6 +103,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public virtual void OnGPIO(int number, bool value)
         {
+            if(number < 0 || number >= State.Length)
+            {
+                this.Log(LogLevel.Error, $"This peripheral supports gpio inputs from 0 to {State.Length - 1}, but {number} was called.");
+                return;
+            }
+
             //GPIOs from outer peripherals have to be attached by their negative value.
             //Please keep in mind that it's impossible to connect outgoing GPIO to pin 0.
             State[number] = value;
