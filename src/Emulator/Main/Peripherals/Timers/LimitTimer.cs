@@ -254,6 +254,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);
             EventEnabled = initialEventEnabled;
             AutoUpdate = initialAutoUpdate;
+            rawInterrupt = false;
         }
 
 
