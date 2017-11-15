@@ -12,32 +12,48 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class Button : IPeripheral, IGPIOSender
     {
-        public Button()
+        public Button(bool invert = false)
         {
+            Inverted = invert;
             IRQ = new GPIO();
+
+            Reset();
+        }
+
+        public void Reset()
+        {
+            Release();
         }
 
         public void PressAndRelease()
         {
-            IRQ.Set();
-            IRQ.Unset();
+            Press();
+            Release();
+        }
+
+        public void Press()
+        {
+            IRQ.Set(!Inverted);
+            Pressed = true;
             OnStateChange(true);
+        }
+
+        public void Release()
+        {
+            IRQ.Set(Inverted);
+            Pressed = false;
             OnStateChange(false);
         }
 
         public void Toggle()
         {
-            if (Pressed)
+            if(Pressed)
             {
-                IRQ.Unset();
-                Pressed = false;
-                OnStateChange(false);
+                Release();
             }
             else
             {
-                IRQ.Set();
-                Pressed = true;
-                OnStateChange(true);
+                Press();
             }
         }
 
@@ -56,14 +72,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public bool Pressed { get; private set; }
 
-        #region IPeripheral implementation
-
-        public void Reset()
-        {
-            // despite apperances, nothing
-        }
-
-        #endregion
+        public bool Inverted { get; private set; }
     }
 }
 
