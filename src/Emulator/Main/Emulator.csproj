@@ -384,6 +384,7 @@
     <Compile Include="Peripherals\Bus\SVDParser.cs" />
     <Compile Include="Peripherals\SPI\SPILoopback.cs" />
     <Compile Include="Utilities\InterruptManager.cs" />
+    <Compile Include="Peripherals\GPIOPort\GPIOInterruptManager.cs" />
     <Compile Include="Utilities\Collections\IArray.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
