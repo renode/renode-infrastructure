@@ -17,13 +17,14 @@ namespace Antmicro.Renode.Utilities
 {
     public class GdbStub : IDisposable, IExternal
     {
-        public GdbStub(int port, ICpuSupportingGdb cpu)
+        public GdbStub(int port, ICpuSupportingGdb cpu, bool autostartEmulation)
         {
             this.cpu = cpu;
             Port = port;
 
             pcktBuilder = new PacketBuilder();
             commands = new CommandsManager(cpu);
+            commands.ShouldAutoStart = autostartEmulation;
             TypeManager.Instance.AutoLoadedType += commands.Register;
 
             terminal = new SocketServerProvider();

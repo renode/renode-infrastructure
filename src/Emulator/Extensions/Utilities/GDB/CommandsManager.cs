@@ -62,6 +62,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public Machine Machine { get; private set; }
         public ICpuSupportingGdb Cpu { get; private set; }
+        public bool ShouldAutoStart { get; set; }
 
         private Command GetOrCreateCommand(Type t)
         {

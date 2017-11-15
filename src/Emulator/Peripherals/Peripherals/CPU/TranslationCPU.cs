@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitDisas();
         }
 
-        public void StartGdbServer(int port)
+        public void StartGdbServer(int port, bool autostartEmulation = false)
         {
             if(IsGdbServerCreated)
             {
@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             try
             {
-                stub = new GdbStub(port, this);
+                stub = new GdbStub(port, this, autostartEmulation);
             }
             catch(SocketException e)
             {

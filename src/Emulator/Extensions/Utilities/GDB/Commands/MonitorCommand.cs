@@ -56,7 +56,16 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     manager.Machine.Reset();
                     break;
                 case "halt":
-                    manager.Machine.Pause();
+                    //this workaround allows to start debugging after first connection
+                    if(!manager.ShouldAutoStart)
+                    {
+                        manager.Machine.Pause();
+                    }
+                    else
+                    {
+                        EmulationManager.Instance.CurrentEmulation.StartAll();
+                        manager.ShouldAutoStart = false;
+                    }
                     break;
                 case "reg":
                     var inputBuilder = new StringBuilder("=====\n");

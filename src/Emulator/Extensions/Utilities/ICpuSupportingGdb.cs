@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         event Action<HaltArguments> Halted;
         void EnterSingleStepModeSafely(HaltArguments args);
 
-        void StartGdbServer(int port);
+        void StartGdbServer(int port, bool autostartEmulation = false);
         void StopGdbServer();
         bool IsGdbServerCreated { get; }
     }
