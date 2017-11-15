@@ -11,11 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -192,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             lock(irqSources)
             {
                 //Select required for by-index ordering. Skip(1) to omit first, unused entry.
-                var result = irqSources.Select((x, i) => new { Value = x, Key = (uint)i}).Skip(1)
+                var result = irqSources.Select((x, i) => new { Value = x, Key = (uint)i }).Skip(1)
                                        .Where(x => x.Value.IsPending && x.Value.EnabledTargets.Any())
                                        .OrderByDescending(x => x.Value.Priority)
                                        .ThenBy(x => x.Key).FirstOrDefault();

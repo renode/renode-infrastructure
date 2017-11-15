@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 3)]
     public partial class RiscV : TranslationCPU
     {
-        public RiscV(string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian): base(cpuType, machine, endianness)
+        public RiscV(string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
         {
         }
 

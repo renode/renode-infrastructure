@@ -6,12 +6,10 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 
@@ -50,15 +48,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     })},
 
                 {(long)Registers.InterruptClearRegister, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
-	                {
+                    {
                         lock(innerLock)
                         {
-	                        foreach(var i in BitHelper.GetSetBits(value))
-	                        {
-	                            irqManager.ClearInterrupt((uint)i);
-	                        }
-	                    }
-	                }, valueProviderCallback: _ => {
+                            foreach(var i in BitHelper.GetSetBits(value))
+                            {
+                                irqManager.ClearInterrupt((uint)i);
+                            }
+                        }
+                    }, valueProviderCallback: _ => {
                         lock(innerLock)
                         {
                             return BitHelper.GetValueFromBitsArray(irqManager.ActiveInterrupts);
@@ -104,7 +102,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithTag("OUTBUFF", 2, 1)
                     .WithFlag(3, writeCallback: (_, v) => { irqManager.InterruptEnable[j] = v; }, valueProviderCallback: _ => irqManager.InterruptEnable[j], name: "INTENABLE")
                     //bit 4 unused
-                    .WithValueField(5, 3, writeCallback: (_, value) => {
+                    .WithValueField(5, 3, writeCallback: (_, value) =>
+                    {
                         if(!intTypeToVal.TryGetValue(value, out var type))
                         {
                             this.Log(LogLevel.Warning, "Invalid interrupt type for pin #{0}: {1}", j, value);
