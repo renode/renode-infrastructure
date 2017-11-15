@@ -105,7 +105,7 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        private static BlockingCollection<Action> actionsToRunInUIThread = new BlockingCollection<Action>();
+        private static BlockingCollection<Action> actionsToRunInUIThread;
     }
 }
 
