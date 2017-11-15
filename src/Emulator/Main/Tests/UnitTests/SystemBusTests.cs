@@ -229,7 +229,7 @@ namespace Antmicro.Renode.UnitTests
             var machine = new Machine();
             if(isFirstMemory)
             {
-                machine.SystemBus.Register(new MappedMemory(100), new BusPointRegistration(50));
+                machine.SystemBus.Register(new MappedMemory(machine, 100), new BusPointRegistration(50));
             }
             else
             {
@@ -241,7 +241,7 @@ namespace Antmicro.Renode.UnitTests
 
             if(isSecondMemory)
             {
-                machine.SystemBus.Register(new MappedMemory(100), new BusPointRegistration(200));
+                machine.SystemBus.Register(new MappedMemory(machine, 100), new BusPointRegistration(200));
             }
             else
             {
@@ -315,7 +315,7 @@ namespace Antmicro.Renode.UnitTests
             using(var machine = new Machine())
             {
                 var sb = machine.SystemBus;
-                var memory = new MappedMemory(16);
+                var memory = new MappedMemory(machine, 16);
                 sb.Register(memory, 0.By(16));
                 sb.Register(memory, 0xC0000000.By(16));
 

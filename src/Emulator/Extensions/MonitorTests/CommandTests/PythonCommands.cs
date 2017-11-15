@@ -131,7 +131,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         {
             monitor.Parse("mach create", commandEater);
             machine = EmulationManager.Instance.CurrentEmulation.Machines.First() as Machine;
-            machine.SystemBus.Register(new MappedMemory(0x1000), new BusPointRegistration(MemoryOffset));
+            machine.SystemBus.Register(new MappedMemory(machine, 0x1000), new BusPointRegistration(MemoryOffset));
         }
 
         [TestFixtureSetUp]

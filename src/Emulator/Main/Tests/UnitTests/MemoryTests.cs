@@ -21,8 +21,8 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldReadWriteMemoryBiggerThan2GB()
         {
             const uint MemorySize = 3u * 1024 * 1024 * 1024;
-            var memory = new MappedMemory(MemorySize);
             var machine = new Machine();
+            var memory = new MappedMemory(machine, MemorySize);
             var start = (long)100.MB();
             machine.SystemBus.Register(memory, start);
             var offset1 = start + 16;

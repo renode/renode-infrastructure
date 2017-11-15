@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 #endif
 
-        public MappedMemory(uint size, int? segmentSize = null)
+        public MappedMemory(Machine machine, uint size, int? segmentSize = null)
         {
             if(segmentSize == null)
             {
@@ -56,6 +56,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 segmentSize = (int)(Math.Ceiling(1.0 * proposedSegmentSize / MinimalSegmentSize) * MinimalSegmentSize);
                 this.DebugLog("Segment size automatically calculated to value {0}B", Misc.NormalizeBinary(segmentSize.Value));
             }
+            this.machine = machine;
             this.size = size;
             SegmentSize = segmentSize.Value;
             Init();
@@ -66,8 +67,8 @@ namespace Antmicro.Renode.Peripherals.Memory
         public int SegmentCount
         {
             get
-            { 
-                return segments.Length; 
+            {
+                return segments.Length;
             }
         }
 
@@ -82,17 +83,18 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         public byte ReadByte(long offset)
-        {	
+        {
             var localOffset = GetLocalOffset((uint)offset);
             var segment = segments[GetSegmentNo((uint)offset)];
-            return Marshal.ReadByte(segment + localOffset);			
+            return Marshal.ReadByte(segment + localOffset);
         }
 
         public void WriteByte(long offset, byte value)
-        {			
+        {
             var localOffset = GetLocalOffset((uint)offset);
             var segment = segments[GetSegmentNo((uint)offset)];
             Marshal.WriteByte(segment + localOffset, value);
+            InvalidateMemoryFragment(segment + localOffset, 1);
         }
 
         public ushort ReadWord(long offset)
@@ -112,22 +114,27 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteWord(long offset, ushort value)
         {
-            var localOffset = GetLocalOffset((uint)offset);			
+            var localOffset = GetLocalOffset((uint)offset);
             var segment = segments[GetSegmentNo((uint)offset)];
             if(localOffset == SegmentSize - 1) // cross segment write
             {
-                var bytes = BitConverter.GetBytes(value);			
+                var bytes = BitConverter.GetBytes(value);
                 Marshal.WriteByte(segment + localOffset, bytes[0]);
                 var secondSegment = segments[GetSegmentNo((uint)(offset + 1))];
                 Marshal.WriteByte(secondSegment, bytes[1]);
-                return;
+                InvalidateMemoryFragment(segment + localOffset, 1);
+                InvalidateMemoryFragment(secondSegment, 1);
             }
-            Marshal.WriteInt16(segment + localOffset, unchecked((short)value));
+            else
+            {
+                Marshal.WriteInt16(segment + localOffset, unchecked((short)value));
+                InvalidateMemoryFragment(segment + localOffset, 2);
+            }
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            var localOffset = GetLocalOffset((uint)offset);			
+            var localOffset = GetLocalOffset((uint)offset);
             var segment = segments[GetSegmentNo((uint)offset)];
             if(localOffset >= SegmentSize - 3) // cross segment read
             {
@@ -138,23 +145,27 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         public void WriteDoubleWord(long offset, uint value)
-        {			
+        {
             var localOffset = GetLocalOffset((uint)offset);
             var segment = segments[GetSegmentNo((uint)offset)];
             if(localOffset >= SegmentSize - 3) // cross segment write
-            {				
+            {
                 var bytes = BitConverter.GetBytes(value);
                 WriteBytes(offset, bytes);
-                return;
+                // the memory will be invalidated by `WriteBytes`
             }
-            Marshal.WriteInt32(segment + localOffset, unchecked((int)value));
+            else
+            {
+                Marshal.WriteInt32(segment + localOffset, unchecked((int)value));
+                InvalidateMemoryFragment(segment + localOffset, 4);
+            }
         }
 
         public void ReadBytes(long offset, int count, byte[] destination, int startIndex)
         {
-            var read = 0;           
+            var read = 0;
             while(read < count)
-            {               
+            {
                 var currentOffset = offset + read;
                 var localOffset = GetLocalOffset((uint)currentOffset);
                 var segment = segments[GetSegmentNo((uint)currentOffset)];
@@ -183,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteBytes(long offset, byte[] array, int startingIndex, int count)
         {
-            var written = 0;			
+            var written = 0;
             while(written < count)
             {
                 var currentOffset = offset + written;
@@ -191,10 +202,11 @@ namespace Antmicro.Renode.Peripherals.Memory
                 var segment = segments[GetSegmentNo((uint)currentOffset)];
                 var length = Math.Min(count - written, SegmentSize - localOffset);
                 Marshal.Copy(array, startingIndex + written, segment + localOffset, length);
+                InvalidateMemoryFragment(segment + localOffset, length);
                 written += length;
             }
         }
-		
+
         public void WriteString(long offset, string value)
         {
             WriteBytes(offset, new System.Text.ASCIIEncoding().GetBytes(value).Concat(new []{ (byte)'\0' }).ToArray());
@@ -386,7 +398,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         private int GetLocalOffset(uint offset)
-        {			
+        {
             return (int)(offset % (uint)SegmentSize);
         }
 
@@ -407,7 +419,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 // memory segments would have been lost
                 return;
             }
-            // how many segments we need?			
+            // how many segments we need?
             var segmentsNo = size / SegmentSize + (size % SegmentSize != 0 ? 1 : 0);
             this.NoisyLog(string.Format("Preparing {0} segments for {1} bytes of memory, each {2} bytes long.",
                 segmentsNo, size, SegmentSize));
@@ -434,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 #if DEBUG
             // check bounds
             if(segmentNo >= segments.Length || segmentNo < 0)
-            {				
+            {
                 throw new IndexOutOfRangeException(string.Format(
                     "Memory: Attemption to use segment number {0}, which does not exist. Total number of segments is {1}.",
                     segmentNo,
@@ -449,14 +461,32 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         private IntPtr AllocateSegment()
-        {			
+        {
             this.NoisyLog("Allocating segment of size {0}.", SegmentSize);
             return Marshal.AllocHGlobal(SegmentSize + Alignment);
         }
 
+        private void InvalidateMemoryFragment(IntPtr start, int length)
+        {
+            if(machine == null)
+            {
+                // this peripheral is not connected to any machine, so there is nothing we can do
+                return;
+            }
+
+            this.NoisyLog("Invalidating memory fragment at 0x{0:X} of size {1} bytes.", start, SegmentSize);
+
+            var otherCpus = machine.SystemBus.GetCPUs().OfType<CPU.ICPU>();
+            foreach(var cpu in otherCpus)
+            {
+                //it's dynamic to avoid cyclic dependency to TranslationCPU
+                ((dynamic)cpu).InvalidateTranslationBlocks(start, start + length);
+            }
+        }
+
 #if PLATFORM_WINDOWS
         private static void MemSet(IntPtr pointer, byte value, int length)
-        {                
+        {
             MemsetDelegate(pointer, value, length);
         }
 
@@ -472,7 +502,8 @@ namespace Antmicro.Renode.Peripherals.Memory
         private IMappedSegment[] describedSegments;
         private bool disposed;
         private uint size;
-				
+        private readonly Machine machine;
+
         private const uint Magic = 0xABCD6366;
         private const int Alignment = 0x1000;
         private const int MinimalSegmentSize = 64 * 1024;

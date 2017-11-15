@@ -58,7 +58,7 @@ namespace Antmicro.Renode.UnitTests
                 buffers.Add(new Tuple<int, byte[]>(address, buffer));
             }
 
-            using(var memory = new MappedMemory(size))
+            using(var memory = new MappedMemory(null, size))
             {
                 foreach(var buf in buffers)
                 {

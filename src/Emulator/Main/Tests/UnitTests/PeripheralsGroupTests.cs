@@ -22,14 +22,14 @@ namespace Antmicro.Renode.UnitTests
         {
             using(var machine = new Machine())
             {
-                var peripheral = new MappedMemory(10);
+                var peripheral = new MappedMemory(machine, 10);
                 machine.SystemBus.Register(peripheral, new BusPointRegistration(0x0));
                 machine.SystemBus.Unregister(peripheral);
 
                 machine.SystemBus.Register(peripheral, new BusPointRegistration(0x0));
                 machine.PeripheralsGroups.GetOrCreate("test-group", new [] { peripheral });
 
-                try 
+                try
                 {
                     machine.SystemBus.Unregister(peripheral);
                 }
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.UnitTests
         {
             using(var machine = new Machine())
             {
-                var peripheral = new MappedMemory(10);
+                var peripheral = new MappedMemory(machine, 10);
                 machine.SystemBus.Register(peripheral, new BusPointRegistration(0x0));
                 var group = machine.PeripheralsGroups.GetOrCreate("test-group", new [] { peripheral });
                 Assert.IsTrue(machine.IsRegistered(peripheral));
@@ -61,9 +61,9 @@ namespace Antmicro.Renode.UnitTests
         {
             using(var machine = new Machine())
             {
-                try 
+                try
                 {
-                    machine.PeripheralsGroups.GetOrCreate("test-group", new [] { new MappedMemory(10) });
+                    machine.PeripheralsGroups.GetOrCreate("test-group", new [] { new MappedMemory(machine, 10) });
                 }
                 catch (RegistrationException)
                 {
