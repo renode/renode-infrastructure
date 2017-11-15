@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Time
 {
     public sealed class ManualClockSource : BaseClockSource
     {
-        public void AdvanceBySeconds(long seconds)
+        public void AdvanceBySeconds(ulong seconds)
         {
             Advance(Utilities.SecondsToTicks(seconds));
         }

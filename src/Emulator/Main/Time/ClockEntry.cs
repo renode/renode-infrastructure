@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Time
 {
     public struct ClockEntry
     {
-        public ClockEntry(long period, long ratio, Action handler, bool enabled = true,
+        public ClockEntry(ulong period, long ratio, Action handler, bool enabled = true,
             Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic) : this()
         {
             this.Value = direction == Direction.Ascending ? 0 : period;
@@ -24,8 +24,8 @@ namespace Antmicro.Renode.Time
             this.WorkMode = workMode;
         }
 
-        public ClockEntry With(long? period = null, long? ratio = null, Action handler = null, bool? enabled = null,
-            long? value = null, Direction? direction = null, WorkMode? workMode = null)
+        public ClockEntry With(ulong? period = null, long? ratio = null, Action handler = null, bool? enabled = null,
+            ulong? value = null, Direction? direction = null, WorkMode? workMode = null)
         {
             var result = this;
             result.Period = period ?? Period;
@@ -38,9 +38,9 @@ namespace Antmicro.Renode.Time
             return result;
         }
 
-        public long Value;
-        public long ValueResiduum;
-        public long Period { get; private set; }
+        public ulong Value;
+        public ulong ValueResiduum;
+        public ulong Period { get; private set; }
         public Action Handler { get; private set; }
         public bool Enabled { get; private set; }
         public Direction Direction { get; private set; }

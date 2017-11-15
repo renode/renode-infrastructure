@@ -184,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             if(timerMode == TimerMode.GeneralPurpose64)
             {
-                timer12.Limit = (((long)timerPeriod12) << 32) | timerPeriod34;
+                timer12.Limit = (((ulong)timerPeriod12) << 32) | timerPeriod34;
             }
             else
             {
@@ -263,8 +263,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if(timerMode == TimerMode.GeneralPurpose64)
                 {
-                    timer12.Value &= ~0xffffffffL;
-                    timer12.Value |= (long)value;
+                    timer12.Value &= ~0xffffffffUL;
+                    timer12.Value |= value;
                 }
                 else
                 {
@@ -291,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 if(timerMode == TimerMode.GeneralPurpose64)
                 {
                     timer12.Value &= 0xffffffffL;
-                    timer12.Value |= ((long)value << 32);
+                    timer12.Value |= ((ulong)value << 32);
                 }
                 else
                 {

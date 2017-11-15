@@ -5,7 +5,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
+using System;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             irqEnableRegister = new DoubleWordRegister(this);
             irqStatusRegister = new DoubleWordRegister(this);
-            
+
             timers = new SunxiHighSpeedTimerUnit[4];
             interruptFlags = new IFlagRegisterField[4];
             enableFlags = new IFlagRegisterField[4];
@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 set
                 {
-                    Limit = ((long)value << 32) | intervalRegisterLow;
+                    Limit = ((ulong)value << 32) | intervalRegisterLow;
                 }
             }
 
@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 set
                 {
-                    Value = ((long)value << 32) | valueRegisterLow;
+                    Value = ((ulong)value << 32) | valueRegisterLow;
                 }
             }
 

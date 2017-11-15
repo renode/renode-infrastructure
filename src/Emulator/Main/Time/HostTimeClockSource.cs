@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Time
             return result;
         }
 
-        public override long CurrentValue
+        public override ulong CurrentValue
         {
             get
             {
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Time
                 quickProgress.WaitOne(nearestInterruptTrigger);
                 lock(updateSync)
                 {
-                    var currentValue = stopwatch.ElapsedTicks / Consts.TimeQuantum.Ticks;
+                    var currentValue = (ulong)(stopwatch.ElapsedTicks / Consts.TimeQuantum.Ticks);
                     var difference = currentValue - lastValue;
                     lastValue = currentValue;
                     Advance(difference);
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Time
         }
 
         [Transient] // transient, since it is always 0 after pause
-        private long lastValue;
+        private ulong lastValue;
 
         [Constructor]
         private ManualResetEventSlim threadFinished;
@@ -193,6 +193,6 @@ namespace Antmicro.Renode.Time
         [Constructor]
         private readonly Stopwatch stopwatch;
 
-        private static readonly long MaximumWaitInTicks = TimeSpan.FromSeconds(10).Ticks/Consts.TimeQuantum.Ticks;
+        private static readonly ulong MaximumWaitInTicks = (ulong)(TimeSpan.FromSeconds(10).Ticks / Consts.TimeQuantum.Ticks);
     }
 }

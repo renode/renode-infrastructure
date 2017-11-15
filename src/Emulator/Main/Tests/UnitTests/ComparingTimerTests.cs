@@ -22,14 +22,6 @@ namespace Antmicro.Renode.UnitTests
             var timer = new ComparingTimer(machine, 10, 20, compare: 5);
             Assert.Throws<InvalidOperationException>(() => timer.Compare = 30);
         }
-
-        [Test]
-        public void ShouldThrowOnNegativeCompare()
-        {
-            var machine = new Machine();
-            var timer = new ComparingTimer(machine, 10, 20, compare: 5);
-            Assert.Throws<InvalidOperationException>(() => timer.Compare = -2);
-        }
     }
 }
 

@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Time
             updateAlreadyInProgress = new ThreadLocal<bool>();
         }
 
-        public long NearestLimitIn
+        public ulong NearestLimitIn
         {
             get
             {
@@ -38,14 +38,8 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        public void Advance(long ticks, bool immediately = false)
+        public void Advance(ulong ticks, bool immediately = false)
         {
-            #if DEBUG
-            if(ticks < 0)
-            {
-                throw new ArgumentException("Ticks cannot be negative.");
-            }
-            #endif
             lock(sync)
             {
                 if(ticks > nearestLimitIn && !skipAdvancesHigherThanNearestLimit)
@@ -174,7 +168,7 @@ namespace Antmicro.Renode.Time
             return true;
         }
 
-        public virtual long CurrentValue
+        public virtual ulong CurrentValue
         {
             get
             {
@@ -221,48 +215,54 @@ namespace Antmicro.Renode.Time
 
         public event Action<int, int> NumberOfEntriesChanged;
 
-        private static bool HandleDirectionDescendingPositiveRatio(ref ClockEntry entry, long ticks, ref long nearestTickIn) 
+        private static bool HandleDirectionDescendingPositiveRatio(ref ClockEntry entry, ulong ticks, ref ulong nearestTickIn)
         {
-            var flag = false;
-
-            entry.Value -= ticks * entry.Ratio;
+            var ticksByRatio = ticks * (ulong)entry.Ratio;
+            var isReached = ticksByRatio >= entry.Value;
             entry.ValueResiduum = 0;
-            if(entry.Value <= 0)
+            if(isReached)
             {
-                flag = true;
                 entry.Value = entry.Period;
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
+            else
+            {
+                entry.Value = ticksByRatio;
+            }
 
-            nearestTickIn = Math.Min(nearestTickIn, (entry.Value - 1) / entry.Ratio + 1);
-            return flag;
+            nearestTickIn = Math.Min(nearestTickIn, (entry.Value - 1) / (ulong)entry.Ratio + 1);
+            return isReached;
         }
 
-        private static bool HandleDirectionDescendingNegativeRatio(ref ClockEntry entry, long ticks, ref long nearestTickIn) 
+        private static bool HandleDirectionDescendingNegativeRatio(ref ClockEntry entry, ulong ticks, ref ulong nearestTickIn)
         {
-            var flag = false;
-                        
-            entry.Value -= (ticks + entry.ValueResiduum) / -entry.Ratio;
-            entry.ValueResiduum = (ticks + entry.ValueResiduum) % -entry.Ratio;
-            if(entry.Value <= 0)
+            var ratio = (ulong)(-entry.Ratio);
+            var ticksByRatio = (ticks + entry.ValueResiduum) / ratio;
+            var isReached = ticksByRatio >= entry.Value;
+            entry.ValueResiduum = (ticks + entry.ValueResiduum) % ratio;
+
+            if(isReached)
             {
                 // TODO: maybe issue warning if its lower than zero
-                flag = true;
                 entry.Value = entry.Period;
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
+            else
+            {
+                entry.Value -= ticksByRatio;
+            }
 
-            nearestTickIn = Math.Min(nearestTickIn, entry.Value * -entry.Ratio + entry.ValueResiduum);
-            return flag;
+            nearestTickIn = Math.Min(nearestTickIn, entry.Value * ratio + entry.ValueResiduum);
+            return isReached;
         }
 
-        private static bool HandleDirectionAscendingPositiveRatio(ref ClockEntry entry, long ticks, ref long nearestTickIn) 
+        private static bool HandleDirectionAscendingPositiveRatio(ref ClockEntry entry, ulong ticks, ref ulong nearestTickIn)
         {
             var flag = false;
-                    
-            entry.Value += ticks * entry.Ratio;
+
+            entry.Value += ticks * (ulong)entry.Ratio;
             entry.ValueResiduum = 0;
-            
+
             if(entry.Value >= entry.Period)
             {
                 flag = true;
@@ -270,16 +270,17 @@ namespace Antmicro.Renode.Time
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
 
-            nearestTickIn = Math.Min(nearestTickIn, (entry.Period - entry.Value - 1) / entry.Ratio + 1);
+            nearestTickIn = Math.Min(nearestTickIn, (entry.Period - entry.Value - 1) / (ulong)entry.Ratio + 1);
             return flag;
         }
 
-        private static bool HandleDirectionAscendingNegativeRatio(ref ClockEntry entry, long ticks, ref long nearestTickIn) 
+        private static bool HandleDirectionAscendingNegativeRatio(ref ClockEntry entry, ulong ticks, ref ulong nearestTickIn)
         {
             var flag = false;
-                        
-            entry.Value += (ticks + entry.ValueResiduum) / -entry.Ratio;
-            entry.ValueResiduum = (ticks + entry.ValueResiduum) % -entry.Ratio;
+            ulong ratio = (ulong)(-entry.Ratio);
+
+            entry.Value += (ticks + entry.ValueResiduum) / ratio;
+            entry.ValueResiduum = (ticks + entry.ValueResiduum) % ratio;
 
             if(entry.Value >= entry.Period)
             {
@@ -288,11 +289,11 @@ namespace Antmicro.Renode.Time
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
 
-            nearestTickIn = Math.Min(nearestTickIn, ((entry.Period - entry.Value) * -entry.Ratio) - entry.ValueResiduum);
+            nearestTickIn = Math.Min(nearestTickIn, ((entry.Period - entry.Value) * ratio) - entry.ValueResiduum);
             return flag;
         }
 
-        private void AdvanceInner(long ticks, bool immediately)
+        private void AdvanceInner(ulong ticks, bool immediately)
         {
             lock(sync)
             {
@@ -329,7 +330,7 @@ namespace Antmicro.Renode.Time
             AdvanceInner(0, true);
         }
 
-        private void Update(long ticks)
+        private void Update(ulong ticks)
         {
             if(updateAlreadyInProgress.Value)
             {
@@ -340,7 +341,7 @@ namespace Antmicro.Renode.Time
                 updateAlreadyInProgress.Value = true;
                 lock(sync)
                 {
-                    nearestLimitIn = long.MaxValue;
+                    nearestLimitIn = ulong.MaxValue;
                     for(var i = 0; i < clockEntries.Count; i++)
                     {
                         var clockEntry = clockEntries[i];
@@ -403,16 +404,16 @@ namespace Antmicro.Renode.Time
         [Constructor]
         private ThreadLocal<bool> updateAlreadyInProgress;
 
-        private long nearestLimitIn;
-        private long elapsed;
-        private long totalElapsed;
+        private ulong nearestLimitIn;
+        private ulong elapsed;
+        private ulong totalElapsed;
         private readonly bool skipAdvancesHigherThanNearestLimit;
         private readonly List<Action> toNotify;
         private readonly List<ClockEntry> clockEntries;
         private readonly List<UpdateHandlerDelegate> clockEntriesUpdateHandlers;
         private readonly object sync;
 
-        private delegate bool UpdateHandlerDelegate(ref ClockEntry entry, long ticks, ref long nearestTickIn);
+        private delegate bool UpdateHandlerDelegate(ref ClockEntry entry, ulong ticks, ref ulong nearestTickIn);
     }
 }
 

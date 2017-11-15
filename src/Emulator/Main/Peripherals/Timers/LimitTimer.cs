@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class LimitTimer : ITimer, IPeripheral
     {
-        public LimitTimer(Machine machine, long frequency, long limit = int.MaxValue, Direction direction = Direction.Descending,
+        public LimitTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending,
             bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
         {
             if(limit == 0)
@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             InternalReset();
         }
 
-        public long GetValueAndLimit(out long currentLimit)
+        public ulong GetValueAndLimit(out ulong currentLimit)
         {
             var clockEntry = clockSource.GetClockEntry(OnLimitReached);
             currentLimit = clockEntry.Period;
@@ -56,9 +56,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Value
+        public ulong Value
         {
-            get 
+            get
             {
                 return clockSource.GetClockEntry(OnLimitReached).Value;
             }
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Limit
+        public ulong Limit
         {
             get
             {
@@ -259,7 +259,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private readonly long initialFrequency;
         private readonly WorkMode initialWorkMode;
-        private readonly long initialLimit;
+        private readonly ulong initialLimit;
         private readonly Direction initialDirection;
         private readonly bool initialEnabled;
         private readonly IClockSource clockSource;

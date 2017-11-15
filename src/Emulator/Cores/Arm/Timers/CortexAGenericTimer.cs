@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class CortexAGenericTimer : IPeripheral
     {
-        public CortexAGenericTimer(Machine machine, GIC gic, long genericTimerCompareValue)
+        public CortexAGenericTimer(Machine machine, GIC gic, ulong genericTimerCompareValue)
         {
             var receiver = gic.GetLocalReceiver(0);
             irq = new GPIO();
@@ -75,25 +75,25 @@ namespace Antmicro.Renode.Peripherals.Timers
             case Registers.VirtualTimerValue:
                 checked
                 {
-                    virtualTimer.Value = (long)value;
+                    virtualTimer.Value = value;
                 }
                 break;
             case Registers.VirtualTimerCompareValue:
                 checked
                 {
-                    virtualTimer.Compare = (long)value;
+                    virtualTimer.Compare = value;
                 }
                 break;
             case Registers.PL1PhysicalTimerCompareValue:
                 checked
                 {
-                    physicalTimer1.Compare = (long)value;
+                    physicalTimer1.Compare = value;
                 }
                 break;
             case Registers.PL2PhysicalTimerCompareValue:
                 checked
                 {
-                    physicalTimer2.Compare = (long)value;
+                    physicalTimer2.Compare = value;
                 }
                 break;
             default:
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private sealed class CortexAGenericTimerUnit : ComparingTimer
         {
-            public CortexAGenericTimerUnit(Machine machine, GPIO irq, long compareValue, bool enabled = false)
+            public CortexAGenericTimerUnit(Machine machine, GPIO irq, ulong compareValue, bool enabled = false)
                 : base(machine, Frequency, compare: compareValue, enabled: enabled)
             {
                 controlRegister = new DoubleWordRegister(this);
@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             private readonly DoubleWordRegister controlRegister;
             private readonly IFlagRegisterField outputFlag, maskOutput;
             private readonly GPIO irq;
-            private readonly long compareValueDiff;
+            private readonly ulong compareValueDiff;
         }
     }
 }

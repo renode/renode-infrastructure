@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ClockSource.RemoveClockEntry(handler);
         }
 
-        long IClockSource.CurrentValue
+        ulong IClockSource.CurrentValue
         {
             get
             {
@@ -943,7 +943,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         try
                         {
-                            var timeToSleep = new TimeSpan(Time.Consts.TimeQuantum.Ticks * ClockSource.NearestLimitIn);
+                            var timeToSleep = new TimeSpan(Time.Consts.TimeQuantum.Ticks * (long)ClockSource.NearestLimitIn);
                             var timeToSleepInMs = Math.Min(int.MaxValue, (int)timeToSleep.TotalMilliseconds);
                             if(timeToSleepInMs > 0)
                             {
@@ -951,7 +951,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                                 {
                                     WaitHandle.WaitAny(waitHandles, timeToSleepInMs);
                                 }
-                                ClockSource.Advance(Time.Utilities.SecondsToTicks(timeToSleepInMs / 1000.0));
+                                ClockSource.Advance((ulong)Time.Utilities.SecondsToTicks(timeToSleepInMs / 1000.0));
                             }
                             else
                             {
@@ -1303,7 +1303,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // because it happens after executing instructions in this block and those
             // instructions are accounted for at this point
             pauseGuard.Leave();
-            ClockSource.Advance(instructionsThisTurn / PerformanceInMips);
+            ClockSource.Advance((ulong)(instructionsThisTurn / PerformanceInMips));
             pauseGuard.Enter();
         }
 

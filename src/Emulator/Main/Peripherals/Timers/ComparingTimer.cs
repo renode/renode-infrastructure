@@ -15,10 +15,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ComparingTimer : ITimer, IPeripheral
     {
-        public ComparingTimer(Machine machine, long frequency, long limit = long.MaxValue, Direction direction = Direction.Ascending,
-            bool enabled = false, WorkMode workMode = WorkMode.OneShot, long compare = long.MaxValue)
+        public ComparingTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending,
+            bool enabled = false, WorkMode workMode = WorkMode.OneShot, ulong compare = ulong.MaxValue)
         {
-            if(compare > limit || compare < 0)
+            if(compare > limit)
             {
                 throw new ConstructionException(string.Format(CompareHigherThanLimitMessage, compare, limit));
             }
@@ -45,21 +45,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Value
+        public ulong Value
         {
             get
             {
-                var currentValue = 0L;
+                var currentValue = 0UL;
                 clockSource.GetClockEntryInLockContext(CompareReached, entry =>
                 {
                     currentValue = valueAccumulatedSoFar + entry.Value;
                 });
                 return currentValue;
-                
             }
             set
             {
-                clockSource.ExchangeClockEntryWith(CompareReached, entry => { 
+                clockSource.ExchangeClockEntryWith(CompareReached, entry =>
+                {
                     valueAccumulatedSoFar = value;
                     Compare = compareValue;
                     return entry.With(value: 0);
@@ -67,29 +67,22 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Compare
+        public ulong Compare
         {
             get
             {
-                var returnValue = 0L;
-                clockSource.ExecuteInLock(() =>
-                {
-                    returnValue = compareValue;
-                });
-                return returnValue;
+                return compareValue;
             }
             set
             {
-                if(value > initialLimit || value < 0)
+                if(value > initialLimit)
                 {
                     throw new InvalidOperationException(CompareHigherThanLimitMessage.FormatWith(value, initialLimit));
                 }
                 clockSource.ExchangeClockEntryWith(CompareReached, entry =>
                 {
                     compareValue = value;
-                    // here we temporary convert to ulong since negative value will require a ClockEntry to overflow,
-                    // which will occur later than reaching
-                    var nextEventIn = (long)Math.Min((ulong)(compareValue - valueAccumulatedSoFar), (ulong)(initialLimit - valueAccumulatedSoFar));
+                    var nextEventIn = Math.Min(compareValue - valueAccumulatedSoFar, initialLimit - valueAccumulatedSoFar);
                     valueAccumulatedSoFar += entry.Value;
                     return entry.With(period: nextEventIn - entry.Value, value: 0);
                 });
@@ -137,18 +130,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             compareValue = initialCompare;
         }
 
-        private long valueAccumulatedSoFar;
-        private long compareValue;
+        private ulong valueAccumulatedSoFar;
+        private ulong compareValue;
 
         private readonly Direction initialDirection;
         private readonly long initialFrequency;
         private readonly IClockSource clockSource;
-        private readonly long initialLimit;
+        private readonly ulong initialLimit;
         private readonly WorkMode initialWorkMode;
-        private readonly long initialCompare;
+        private readonly ulong initialCompare;
         private readonly bool initialEnabled;
 
-        private const string CompareHigherThanLimitMessage = "Compare value ({0}) cannot be higher than limit ({1}) nor negative.";
+        private const string CompareHigherThanLimitMessage = "Compare value ({0}) cannot be higher than limit ({1}).";
     }
 }
 

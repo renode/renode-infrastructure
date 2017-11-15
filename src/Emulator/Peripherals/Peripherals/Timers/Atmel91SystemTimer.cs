@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             WatchdogTimer.Divider = 128;
             WatchdogTimer.LimitReached += WatchdogTimerAlarmHandler;
 
-            RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, BitHelper.Bits(20), Direction.Ascending);
+            RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, (ulong)BitHelper.Bits(20), Direction.Ascending);
             RealTimeTimer.Divider = 0x00008000;
             RealTimeTimer.OnUpdate += () => {
                 lock (localLock)
@@ -239,18 +239,18 @@ namespace Antmicro.Renode.Peripherals.Timers
         private class AT91_InterruptibleTimer
         {
             private LimitTimer timer;
-            private long? prevValue;
+            private ulong? prevValue;
             private object lockobj = new object();
 
             public event Action OnUpdate;
 
-            public AT91_InterruptibleTimer(Machine machine, long frequency, long limit = long.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
+            public AT91_InterruptibleTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
             {
                 timer = new LimitTimer(machine, frequency, limit, direction, enabled);
                 timer.LimitReached += () => { if (OnUpdate != null) OnUpdate(); };
             }
 
-            public long Value
+            public ulong Value
             {
                 get
                 {

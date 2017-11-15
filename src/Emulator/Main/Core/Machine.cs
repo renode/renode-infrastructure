@@ -456,7 +456,7 @@ namespace Antmicro.Renode.Core
                 RegisterManagedThread(managedThread);
                 return managedThread;
             }
-            var maximalFrequencyWithCurrentSyncUnit = Antmicro.Renode.Time.Consts.TicksPerSecond / SyncUnit;
+            var maximalFrequencyWithCurrentSyncUnit = (long)Antmicro.Renode.Time.Consts.TicksPerSecond / SyncUnit;
             if(maximalFrequencyWithCurrentSyncUnit < frequency)
             {
                 switch(ConfigurationManager.Instance.Get<SyncUnitPolicy>("time", "sync-unit-policy", SyncUnitPolicy.ShowWarning))
@@ -466,7 +466,7 @@ namespace Antmicro.Renode.Core
                         ownerName, name, Misc.NormalizeDecimal(frequency), Misc.NormalizeDecimal(maximalFrequencyWithCurrentSyncUnit));
                     break;
                 case SyncUnitPolicy.Adjust:
-                    var desiredSyncUnit = Antmicro.Renode.Time.Consts.TicksPerSecond / frequency;
+                    var desiredSyncUnit = (long)Antmicro.Renode.Time.Consts.TicksPerSecond / frequency;
                     if(desiredSyncUnit == 0)
                     {
                         desiredSyncUnit = 1;
@@ -1192,7 +1192,7 @@ namespace Antmicro.Renode.Core
                 CurrentClockSource.ExchangeClockEntryWith(action, factory, factorIfNonExistant);
             }
 
-            public long CurrentValue
+            public ulong CurrentValue
             {
                 get
                 {

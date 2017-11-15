@@ -14,9 +14,14 @@ namespace Antmicro.Renode.Time
 {
     public static class Utilities
     {
+        public static ulong SecondsToTicks(ulong seconds)
+        {
+            return seconds * Consts.TicksPerSecond;
+        }
+
         public static long SecondsToTicks(double seconds)
         {
-            return (int)Math.Round(seconds * Consts.TicksPerSecond);
+            return (long)Math.Round(seconds * Consts.TicksPerSecond);
         }
 
         public static long TicksToSeconds(long ticks)

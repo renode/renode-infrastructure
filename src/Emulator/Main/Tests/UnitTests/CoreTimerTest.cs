@@ -28,7 +28,7 @@ namespace Antmicro.Renode.UnitTests
                 var manualClockSource = new ManualClockSource();
                 machine.SetClockSource(manualClockSource);
                 machine.Start();
-                var oldValue = 0L;
+                var oldValue = 0UL;
                 for(var i = 0; i < 100; i++)
                 {
                     manualClockSource.AdvanceBySeconds(1);
@@ -64,7 +64,7 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldNotExceedLimitAscending()
         {
-            var limit = 100;
+            var limit = 100UL;
             using(var machine = new Machine())
             {
                 var timer = new LimitTimer(machine, 1, limit, Direction.Ascending, true);
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldNotExceedLimitDescending()
         {
-            var limit = 100;
+            var limit = 100UL;
             using(var machine = new Machine())
             {
                 var timer = new LimitTimer(machine, 1, limit, Direction.Descending, true);

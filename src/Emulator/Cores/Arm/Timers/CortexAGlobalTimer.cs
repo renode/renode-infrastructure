@@ -59,13 +59,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Value = (Value & 0x7FFFFFFF00000000) | value;
                 break;
             case Registers.Counter2:
-                Value = (Value & 0x00000000FFFFFFFF) | ((long)value << 32);
+                Value = (Value & 0x00000000FFFFFFFF) | ((ulong)value << 32);
                 break;
             case Registers.ComparatorValue1:
                 Compare = (Compare & 0x7FFFFFFF00000000) | value;
                 break;
             case Registers.ComparatorValue2:
-                Compare = (Compare & 0x00000000FFFFFFFF) | ((long)value << 32);
+                Compare = (Compare & 0x00000000FFFFFFFF) | ((ulong)value << 32);
                 break;
             case Registers.AutoIncrement:
                 int currentCpuId;

@@ -63,7 +63,7 @@ namespace Antmicro.Renode.UnitTests
             {
             };
 
-            var values = new List<long>();
+            var values = new List<ulong>();
 
             // clock entry with ratio -10 is 10 times slower than the one with 1
             clockSource.AddClockEntry(new ClockEntry(10000, 1, firstHandler));

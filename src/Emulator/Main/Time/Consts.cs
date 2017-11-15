@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Time
     {
         public static readonly TimeSpan TimeQuantum = TimeSpan.FromTicks(10);
 
-        public static readonly long TicksPerSecond = TimeSpan.TicksPerSecond / TimeQuantum.Ticks;
+        public static readonly ulong TicksPerSecond = (ulong)(TimeSpan.TicksPerSecond / TimeQuantum.Ticks);
     }
 }
 
