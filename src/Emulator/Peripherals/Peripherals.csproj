@@ -231,6 +231,7 @@
       <DependentUpon>RegisterEnumParser.tt</DependentUpon>
     </Compile>
     <Compile Include="Peripherals\CPU\Disassembler\DisassemblerAttribtue.cs" />
+    <Compile Include="Peripherals\IRQControllers\CoreLevelInterruptor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
