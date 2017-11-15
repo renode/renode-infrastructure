@@ -1130,6 +1130,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void InvalidateTranslationBlocks(IntPtr start, IntPtr end)
+        {
+            TlibInvalidateTranslationBlocks(start, end);
+        }
+
         public void RemoveHooksAt(uint addr)
         {
             lock(hooks)
