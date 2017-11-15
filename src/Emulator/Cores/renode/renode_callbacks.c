@@ -103,6 +103,7 @@ void tlib_update_instruction_counter(int32_t value)
   else
   {
     cpu->instructions_count_value += value;
+    cpu->instructions_count_total_value += value;
     if(cpu->instructions_count_value < cpu->instructions_count_threshold)
     {
       return;
