@@ -277,22 +277,6 @@
       <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
       <Name>ELFSharp</Name>
     </ProjectReference>
-    <!--<ProjectReference Include="..\Cores\cores-arm.csproj">
-      <Name>cores-arm</Name>
-      <Project>{13222124-707C-5EFD-8289-2728351FB7E9}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Cores\cores-arm-m.csproj">
-      <Project>{43222114-707C-4EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-arm-m</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Cores\cores-i386.csproj">
-      <Project>{53222114-707C-4EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-i386</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Cores\cores-ppc.csproj">
-      <Project>{23222114-707C-4EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-ppc</Name>
-  </ProjectReference>-->
     <ProjectReference Include="..\Extensions\Extensions.csproj">
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
