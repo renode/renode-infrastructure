@@ -122,18 +122,18 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             CounterFrequency = 0xe0000,  // CNTFRQ
             PhysicalCount = 0xe,  // CNTPCT
-            PL1Control = 0xe0001,  // CNTKCTL                                                                                                     
-            PL1PhysicalTimerValue = 0xe0002,  // CNTP_TVAL                                                                                           
-            PL1PhysicalTimerControl = 0xe0022,  // CNTP_CTL                                                                                         
-            VirtualTimerValue = 0xe0003,  // CNTV_TVAL                                                                                               
-            VirtualTimerControl = 0xe0023,  // CNTV_CTL                                                                                             
-            VirtualCount = 0x1e,  // CNTVCT                                                                                                       
-            PL1PhysicalTimerCompareValue = 0x2e,  // CNTP_CVAL                                                                                       
-            VirtualTimerCompareValue = 0x3e,  // CNTV_CVAL                                                                                           
-            VirtualOffset = 0x4e,  // CNTVOFF                                                                                                      
-            PL2Control = 0x8e0001,  // CNTHCTL                                                                                                     
-            PL2PhysicalTimerValue = 0x8e0002,  // CNTHP_TVAL                                                                                          
-            PL2PhysicalTimerControl = 0x8e0022,  // CNTHP_CTL                                                                                        
+            PL1Control = 0xe0001,  // CNTKCTL
+            PL1PhysicalTimerValue = 0xe0002,  // CNTP_TVAL
+            PL1PhysicalTimerControl = 0xe0022,  // CNTP_CTL
+            VirtualTimerValue = 0xe0003,  // CNTV_TVAL
+            VirtualTimerControl = 0xe0023,  // CNTV_CTL
+            VirtualCount = 0x1e,  // CNTVCT
+            PL1PhysicalTimerCompareValue = 0x2e,  // CNTP_CVAL
+            VirtualTimerCompareValue = 0x3e,  // CNTV_CVAL
+            VirtualOffset = 0x4e,  // CNTVOFF
+            PL2Control = 0x8e0001,  // CNTHCTL
+            PL2PhysicalTimerValue = 0x8e0002,  // CNTHP_TVAL
+            PL2PhysicalTimerControl = 0x8e0022,  // CNTHP_CTL
             PL2PhysicalTimerCompareValue = 0x6e  // CNTHP_CVAL
         };
 
