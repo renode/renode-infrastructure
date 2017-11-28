@@ -143,10 +143,17 @@ namespace Antmicro.Renode.Core
         {
             get
             {
-                return string.Format("{0}, version {1} ({2})", 
-		            Assembly.GetEntryAssembly().GetName().Name, 
-		            Assembly.GetEntryAssembly().GetName().Version, 
-		            ((AssemblyInformationalVersionAttribute)Assembly.GetEntryAssembly().GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0]).InformationalVersion
+                var entryAssembly = Assembly.GetEntryAssembly();
+                if(entryAssembly == null)
+                {
+                    // When running from NUnit in MonoDevelop entryAssembly is null, but we don't care
+                    return string.Empty;
+                }
+
+                return string.Format("{0}, version {1} ({2})",
+                    entryAssembly.GetName().Name,
+                    entryAssembly.GetName().Version,
+                    ((AssemblyInformationalVersionAttribute)entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0]).InformationalVersion
                 );
             }
         }
