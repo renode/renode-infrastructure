@@ -447,7 +447,7 @@ namespace Antmicro.Renode.Core
             EmulationManager.Instance.CurrentEmulation.BackendManager.HideAnalyzersFor(this);
         }
 
-        public IManagedThread ObtainManagedThread(Action action, object owner, int frequency, string name = null, bool synchronized = true)
+        public IManagedThread ObtainManagedThread(Action action, object owner, uint frequency, string name = null, bool synchronized = true)
         {
             var ownerName = owner.GetType().Name;
             if(!synchronized)
@@ -456,7 +456,7 @@ namespace Antmicro.Renode.Core
                 RegisterManagedThread(managedThread);
                 return managedThread;
             }
-            var maximalFrequencyWithCurrentSyncUnit = (long)Antmicro.Renode.Time.Consts.TicksPerSecond / SyncUnit;
+            var maximalFrequencyWithCurrentSyncUnit = Antmicro.Renode.Time.Consts.TicksPerSecond / SyncUnit;
             if(maximalFrequencyWithCurrentSyncUnit < frequency)
             {
                 switch(ConfigurationManager.Instance.Get<SyncUnitPolicy>("time", "sync-unit-policy", SyncUnitPolicy.ShowWarning))
@@ -466,7 +466,7 @@ namespace Antmicro.Renode.Core
                         ownerName, name, Misc.NormalizeDecimal(frequency), Misc.NormalizeDecimal(maximalFrequencyWithCurrentSyncUnit));
                     break;
                 case SyncUnitPolicy.Adjust:
-                    var desiredSyncUnit = (long)Antmicro.Renode.Time.Consts.TicksPerSecond / frequency;
+                    var desiredSyncUnit = Antmicro.Renode.Time.Consts.TicksPerSecond / frequency;
                     if(desiredSyncUnit == 0)
                     {
                         desiredSyncUnit = 1;
@@ -712,15 +712,21 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public long SyncUnit
+        public ulong SyncUnit
         {
             get
             {
-                return -clockSourceWrapper.GetClockEntry(SynchronizeInDomain).Ratio;
+                return (ulong)(-clockSourceWrapper.GetClockEntry(SynchronizeInDomain).Ratio);
             }
             set
             {
-                clockSourceWrapper.ExchangeClockEntryWith(SynchronizeInDomain, entry => entry.With(ratio: -value));
+                // nope, this is not a bug - since we use Ratio that is long we cannot accept too long values
+                // we could make `SyncUnit` a long but we then we should not accept negative values, so it does not matter which one we choose
+                if(value > long.MaxValue)
+                {
+                    throw new RecoverableException("SyncUnit cannot be too long");
+                }
+                clockSourceWrapper.ExchangeClockEntryWith(SynchronizeInDomain, entry => entry.With(ratio: -1 * (long)value));
             }
         }
 
@@ -1102,7 +1108,7 @@ namespace Antmicro.Renode.Core
                 return;
             }
 
-            timeSpanBySyncSoFar += TimeSpan.FromTicks(Antmicro.Renode.Time.Consts.TimeQuantum.Ticks * SyncUnit);
+            timeSpanBySyncSoFar += TimeSpan.FromTicks(Antmicro.Renode.Time.Consts.TimeQuantum.Ticks * (long)SyncUnit);
             // we'll run all tasks that are late
             var tasksToExecute = delayedTasks.GetViewBetween(DelayedTask.Zero, new DelayedTask(null, timeSpanBySyncSoFar));
             var tasksAsArray = tasksToExecute.ToArray();
@@ -1249,7 +1255,7 @@ namespace Antmicro.Renode.Core
 
             public object Owner { get; private set; }
 
-            protected ManagedThreadBase(Action action, object owner, Machine machine, string name, int frequency)
+            protected ManagedThreadBase(Action action, object owner, Machine machine, string name, uint frequency)
             {
                 this.Machine = machine;
                 Name = name;
@@ -1263,7 +1269,7 @@ namespace Antmicro.Renode.Core
             }
 
             protected readonly Action ThreadAction;
-            protected readonly int Frequency;
+            protected readonly uint Frequency;
             protected readonly string Name;
             protected readonly TimeSpan TimePerRun;
             protected readonly Machine Machine;
@@ -1271,7 +1277,7 @@ namespace Antmicro.Renode.Core
 
         private sealed class ManagedThread : ManagedThreadBase, IManagedThread, IHasOwnLife
         {
-            public ManagedThread(Action action, object owner, Machine machine, string name, int frequency = 0)
+            public ManagedThread(Action action, object owner, Machine machine, string name, uint frequency = 0)
                 : base(action, owner, machine, name, frequency)
             {
                 sync = new object();
@@ -1377,7 +1383,7 @@ namespace Antmicro.Renode.Core
 
         private sealed class SynchronizedManagedThread : ManagedThreadBase, IManagedThread
         {
-            public SynchronizedManagedThread(Action action, object owner, Machine machine, string name, int frequency)
+            public SynchronizedManagedThread(Action action, object owner, Machine machine, string name, uint frequency)
                 : base(action, owner, machine, name, frequency)
             {
                 if(frequency == 0)
