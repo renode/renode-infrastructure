@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
-            
+
         public void Start()
         {
             Resume();

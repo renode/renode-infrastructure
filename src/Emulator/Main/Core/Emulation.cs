@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Core
             machs.ItemAdded += (name, machine) =>
             {
                 machine.StateChanged += OnMachineStateChanged;
-                machine.PeripheralsChanged += (m, e) => 
+                machine.PeripheralsChanged += (m, e) =>
                 {
                     if (e.Operation != PeripheralsChangedEventArgs.PeripheralChangeType.Addition)
                     {
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Core
 
         public CachingFileFetcher FileFetcher
         {
-            get { return fileFetcher; } 
+            get { return fileFetcher; }
             set { fileFetcher = value; }
         }
 
@@ -444,7 +444,7 @@ namespace Antmicro.Renode.Core
             }
 
             IHostMachineElement hostMachineElement;
-            if(name.StartsWith(string.Format("{0}.", HostMachine.HostMachineName)) 
+            if(name.StartsWith(string.Format("{0}.", HostMachine.HostMachineName))
                 && HostMachine.TryGetByName(name.Substring(HostMachine.HostMachineName.Length + 1), out hostMachineElement))
             {
                 element = hostMachineElement;
@@ -454,7 +454,7 @@ namespace Antmicro.Renode.Core
             element = null;
             return false;
         }
-     
+
         public void Dispose()
         {
             FileFetcher.CancelDownload();
@@ -501,7 +501,7 @@ namespace Antmicro.Renode.Core
                 {
                     value = theBag[name] as T;
                     if(value != null)
-                    {                
+                    {
                         return true;
                     }
                 }

@@ -75,15 +75,15 @@ namespace Antmicro.Renode.Testing
         {
             Terminal.WriteChar(value);
         }
-        
-        public BackendTerminal Terminal
+
+        public PromptTerminal Terminal
         {
             get
             {
                 return terminal;
             }
         }
-        
+
         public void ClearReport()
         {
             reportCollection = new ConcurrentQueue<Event>();
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Testing
             var predicate = predicateExpression.Compile();
             Line line = null;
             var time = TimeSpan.Zero;
-            WaitForEvent(x => 
+            WaitForEvent(x =>
             {
                 line = x as Line;
                 if(line != null && predicate(line.Content))
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Testing
             virtualTimestamp = time;
             return this;
         }
-        
+
         public TerminalTester NowPromptIs(string prompt)
         {
             terminal.SetPrompt(prompt);
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Testing
             terminal.SetPrompt(defaultPrompt);
             return this;
         }
-        
+
         public TerminalTester NextLine(Expression<Func<string, bool>> predicateExpression, out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
         {
             var predicate = predicateExpression.Compile();
@@ -182,11 +182,11 @@ namespace Antmicro.Renode.Testing
             }
             throw new InvalidOperationException("Should not reach here.");
         }
-        
+
         public TerminalTester WaitForPrompt(out TimeSpan virtualTimestamp, TimeSpan? timeout = null)
         {
             var time = TimeSpan.Zero;
-            WaitForEvent(x => 
+            WaitForEvent(x =>
                 {
                     if(x is Prompt)
                     {
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Testing
             virtualTimestamp = time;
             return result.ToString();
         }
-        
+
         public TerminalTester WriteLine(out TimeSpan virtualTimestamp, string line = "", bool doNotEatEvent = false)
         {
             terminal.WriteLineToTerminal(line);
@@ -230,7 +230,7 @@ namespace Antmicro.Renode.Testing
             var time = TimeSpan.Zero;
             if(!doNotEatEvent)
             {
-                WaitForEvent(x => 
+                WaitForEvent(x =>
                 {
                     var lineEvent = x as Line;
                     if(lineEvent == null)
@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Testing
             virtualTimestamp = time;
             return this;
         }
-        
+
         public TerminalTester Write(string line)
         {
             terminal.WriteStringToTerminal(line);
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Testing
             var doneWaitCancellationSource = new CancellationTokenSource();
             try
             {
-                ThreadPool.QueueUserWorkItem(x => 
+                ThreadPool.QueueUserWorkItem(x =>
                 {
                     try
                     {
@@ -366,7 +366,6 @@ namespace Antmicro.Renode.Testing
             }
         }
 
-        
         private void EndReport(string reason)
         {
             lock(reportEndingLock)
@@ -397,7 +396,7 @@ namespace Antmicro.Renode.Testing
             Continue,
             Failure
         }
-        
+
         private abstract class Event
         {
             public virtual bool IsPrinted
@@ -412,7 +411,7 @@ namespace Antmicro.Renode.Testing
 
             public readonly DateTime Timestamp = CustomDateTime.Now;
         }
-        
+
         private class Prompt : Event
         {
             public override bool IsPrinted
@@ -423,24 +422,24 @@ namespace Antmicro.Renode.Testing
                 }
             }
         }
-        
+
         private class Line : Event
         {
             public string Content;
-            
+
             public override string ToString()
             {
                 return string.Format("\t{0}", Content);
             }
         }
-        
+
         private class Assertion : Event
         {
             public Assertion(string assert = null)
             {
                 this.assert = assert;
             }
-            
+
             public string AssertText
             {
                 get
@@ -448,9 +447,9 @@ namespace Antmicro.Renode.Testing
                     return assert;
                 }
             }
-            
+
             public AssertionType Type;
-            
+
             public override string ToString()
             {
                 return string.Format(">>> '{0}': success", assert ?? Type.ToString());
@@ -463,19 +462,19 @@ namespace Antmicro.Renode.Testing
                     return Type != AssertionType.WriteLine;
                 }
             }
-            
+
             private readonly string assert;
         }
-        
+
         private class Timeout : Event
         {
             public Timeout(Assertion assertion)
             {
                 Assertion = assertion;
             }
-            
+
             public Assertion Assertion { get; private set; }
-            
+
             public override string ToString()
             {
                 return string.Format(">>> '{0}': timeout occurred", Assertion.AssertText ?? Assertion.Type.ToString());
@@ -488,7 +487,7 @@ namespace Antmicro.Renode.Testing
             {
                 Assertion = assertion;
             }
-            
+
             public Assertion Assertion { get; private set; }
 
             public override string ToString()
@@ -496,17 +495,17 @@ namespace Antmicro.Renode.Testing
                  return string.Format(">>> '{0}': assert not met", Assertion.AssertText ?? Assertion.Type.ToString());
             }
         }
-        
+
         private class WaitingChars : Event
         {
             public string Chars;
-            
+
             public override string ToString()
             {
                 return string.Format (">>> Characters waiting in buffer: \n\t{0}", Chars);
             }
         }
-        
+
         private class ReportSeparator : Event
         {
             public override string ToString()
@@ -517,7 +516,7 @@ namespace Antmicro.Renode.Testing
 
         private readonly object timeoutSync;
         private readonly string defaultPrompt;
-        
+
         private enum AssertionType
         {
             WaitUntilLine,

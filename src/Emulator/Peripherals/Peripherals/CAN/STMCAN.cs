@@ -54,7 +54,8 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public event Action<int, byte[]> FrameReceived;
 
-        public void OnFrameReceived(int id, byte[] data) {
+        public void OnFrameReceived(int id, byte[] data)
+        {
             machine.ReportForeignEvent(id, data, OnFrameReceivedInner);
         }
 

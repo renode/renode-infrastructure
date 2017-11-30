@@ -86,7 +86,7 @@ namespace Antmicro.Renode.UnitTests
             {
                 machine.UnregisterAsAChildOf(this, peripheral);
             }
-                
+
             public uint ReadDoubleWord(long offset)
             {
                 return 0;
