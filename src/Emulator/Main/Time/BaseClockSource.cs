@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Time
             }
             else
             {
-                entry.Value = ticksByRatio;
+                entry.Value -= ticksByRatio;
             }
 
             nearestTickIn = Math.Min(nearestTickIn, (entry.Value - 1) / (ulong)entry.Ratio + 1);
