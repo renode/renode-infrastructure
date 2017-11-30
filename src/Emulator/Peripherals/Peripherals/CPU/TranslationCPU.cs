@@ -346,6 +346,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 PauseEvent.Set();
                 TlibSetPaused();
 
+                // this is to prevent deadlock on pausing/stopping/disposing in Single-Step mode
+                ExecutionMode = ExecutionMode.Continuous;
+
                 if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
                 {
                     sync.Pass();
@@ -707,18 +710,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             interruptEvents[number].Reset();
         }
 
-        private void HandleStepping(bool force = false)
+        private bool HandleStepping()
         {
             lock(sync.Guard)
             {
-                if(ExecutionMode != ExecutionMode.SingleStep || (!force && skipNextStepping))
+                if(ExecutionMode != ExecutionMode.SingleStep)
                 {
-                    return;
+                    return true;
                 }
 
                 this.NoisyLog("Waiting for another step (PC=0x{0:X8}).", PC);
                 InvokeHalted(new HaltArguments(HaltReason.Step));
                 sync.SignalAndWait();
+                return !PauseEvent.WaitOne(0);
             }
         }
 
@@ -726,8 +730,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void OnBlockBegin(uint address, uint size)
         {
             ReactivateHooks();
-            HandleStepping();
-            skipNextStepping = false;
 
             var bbInternalHook = blockBeginInternalHook;
             if(bbInternalHook != null)
@@ -807,6 +809,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException("Stepping is available in single step execution mode only.");
                 }
 
+                this.Log(LogLevel.Info, "Stepping {0} steps", count);
                 if(wait)
                 {
                     sync.PassAndWait(count);
@@ -1587,44 +1590,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Transient]
         protected DisassemblyEngine DisasEngine;
 
-        // Execution of a code in CPU is performed by tlib (implemented in C) that is called
-        // from C# in TranslationCPU.CpuLoop using TlibExecute method. For better performance,
-        // tlib groups instructions in so-called blocks that are executed atomically from C# code
-        // perspective (with some exceptions regarding hooks, of course). Sometimes it is even
-        // possible for multiple blocks to be executed one-by-one without leaving single TlibExecute call.
-        //
-        // In order to achieve code execution with precision up to a single instruction, maximum
-        // block size must be set to one.This, however, does not prevent block chaining from happening.
-        // As a result, there is still no guarantee that TlibExecute finishes after each instruction,
-        // even with minimal possible block size.
-        //
-        // Fortunately, there is OnBlockBegin hook that is called before executing instructions from
-        // each block - as a result, C# is notified about each block even when chaining is active.
-        //
-        // SingleStepping and halting on Hooks (both watchpoints and breakpoints) is achieved by
-        // blocking CpuLoop on sync guard located in OnBlockBegin hook. Thanks to that we are
-        // able to control an execution of CPU precisely with block chaining being active.
-        //
-        // Unfortunately, there is one problem with this approach when it comes to breakpoints.
-        // When it is inserted, the whole instruction block is re-translated in such a way that it ends
-        // with special trap instruction generated at the breakpoint's address. As a result, it is naturally
-        // guaranteed to leave C-code when hitting it. Removing breakpoint requires another retranslation
-        // to remove this trap instruction.
-        //
-        // Adding/removing breakpoints when tlib is not executing is safe and works well, but problems
-        // arise when managing them from within hooks.As mentioned earlier, CpuLoop is halted on
-        // OnBlockBegin hook, which means that the block is already executing. As a result removing
-        // breakpoint at this moment will not prevent executing trap instruction in this block again
-        // leading to breaking on non-existing breakpoint.
-        //
-        // To solve this problem method HandleStepping is executed two times:
-        //   (1) before entering tlib code (to handle breakpoints)
-        //   (2) at the beginning of each block (to handle stepping)
-        //
-        // As a result, it is executed twice for the first block.To avoid it we have special flag
-        // skipNextStepping which is set to true after(1) and cleared after first(2).
-        private bool skipNextStepping;
-
         protected static readonly Exception InvalidInterruptNumberException = new InvalidOperationException("Invalid interrupt number.");
 
         private const int DefaultMaximumBlockSize = 0x7FF;
@@ -1841,10 +1806,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     queuedAction();
                 }
 
-                HandleStepping(true);
-
                 pauseGuard.Enter();
-                skipNextStepping = true;
                 lastTlibResult = (ExecutionResult)TlibExecute(checked((int)numberOfInstructionsToExecute));
                 pauseGuard.Leave();
             }
