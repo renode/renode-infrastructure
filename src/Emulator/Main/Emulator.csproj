@@ -362,6 +362,7 @@
     <Compile Include="Peripherals\DMA\DmaEngine.cs" />
     <Compile Include="Peripherals\Bus\Width.cs" />
     <Compile Include="Peripherals\Bus\Access.cs" />
+    <Compile Include="Debug\DebugHelper.cs" />
     <Compile Include="Peripherals\Bus\BusHookHandler.cs" />
     <Compile Include="Testing\FrameBufferTester.cs" />
     <Compile Include="Peripherals\InterruptHandler.cs" />
