@@ -26,6 +26,7 @@ namespace Antmicro.Renode.UI
         public static void Run(Options options, Action<ObjectCreator.Context> beforeRun = null)
         {
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => CrashHandler.HandleCrash((Exception)e.ExceptionObject);
+            Emulator.ShowAnalyzers = !options.HideAnalyzers;
             XwtProvider xwt = null;
             try
             {
