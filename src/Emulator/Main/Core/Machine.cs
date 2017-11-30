@@ -1071,7 +1071,7 @@ namespace Antmicro.Renode.Core
                     ownLife.Resume();
                 }
                 hostTimeClockSource.Resume();
-                this.Log(LogLevel.Info, "Emulation resumed.");
+                this.Log(LogLevel.Info, "Machine resumed.");
                 state = State.Started;
                 var machineStarted = StateChanged;
                 if(machineStarted != null)
