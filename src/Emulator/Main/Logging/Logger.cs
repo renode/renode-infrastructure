@@ -64,6 +64,8 @@ namespace Antmicro.Renode.Logging
             {
                 backend.Dispose();
             }
+            backends.Clear();
+            backendNames.Clear();
         }
 
         public static void Log(LogLevel type, string message, params object[] args)
