@@ -262,7 +262,6 @@
     <Compile Include="Plugins\PluginManager.cs" />
     <Compile Include="Peripherals\IAnalyzableBackend.cs" />
     <Compile Include="Peripherals\IAnalyzable.cs" />
-    <Compile Include="Peripherals\BasicIAnalyzableBackend.cs" />
     <Compile Include="Peripherals\IAnalyzableBackendAnalyzer.cs" />
     <Compile Include="Core\IHostMachineElement.cs" />
     <Compile Include="Utilities\Table.cs" />
