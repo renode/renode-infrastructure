@@ -86,12 +86,12 @@ void tlib_update_instruction_counter(int32_t value)
 {
   // if trimming is enabled we want to trim block so that it does not saturate
   // the instruction count value; but - if such block has size of one
-  // instruction, the we naturally have to let him saturate the count value
+  // instruction, then we naturally have to let it saturate the count value
   if(cpu->instructions_count_value + value >= cpu->instructions_count_threshold && value != 1 && block_trimming_enabled)
   {
     size_of_next_block_to_translate = cpu->instructions_count_threshold - cpu->instructions_count_value - 1;
-    // it might happen that even first instruction of the current block would
-    // saturate counter - in such case create block with that instruction only
+    // it might happen that even the first instruction of the current block would
+    // saturate a counter - in such case create block with that instruction only
     if(size_of_next_block_to_translate == 0)
     {
       size_of_next_block_to_translate = 1;
