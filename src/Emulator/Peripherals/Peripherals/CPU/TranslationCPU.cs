@@ -255,7 +255,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool logTranslationBlockFetchEnabled;
 
-        public long ExecutedInstructions { get; private set; }
+        public ulong ExecutedInstructions { get; private set; }
 
         public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUId(this); return slot.Value;} private set {slot = value;} }
         private int? slot;
@@ -279,7 +279,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             new Task(() =>
                      {
-                var lastCount = 0L;
+                var lastCount = 0UL;
                 while(true)
                 {
                     var executedInstructions = ExecutedInstructions;
@@ -637,7 +637,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public bool DisableInterruptsWhileStepping { get; set; }
-        public int PerformanceInMips { get; set; }
+        public uint PerformanceInMips { get; set; }
 
         public void LogFunctionNames(bool value, string spaceSeparatedPrefixes = "")
         {
@@ -1294,7 +1294,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void UpdateInstructionCounter(int value)
+        private void UpdateInstructionCounter(uint value)
         {
             ExecutedInstructions += value;
             var instructionsThisTurn = value + instructionCountResiduum;
@@ -1303,7 +1303,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // because it happens after executing instructions in this block and those
             // instructions are accounted for at this point
             pauseGuard.Leave();
-            ClockSource.Advance((ulong)(instructionsThisTurn / PerformanceInMips));
+            ClockSource.Advance(instructionsThisTurn / PerformanceInMips);
             pauseGuard.Enter();
         }
 
@@ -1325,7 +1325,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 onTranslationBlockFetch;
         private string cpuType;
         private byte[] cpuState;
-        private int instructionCountResiduum;
+        private ulong instructionCountResiduum;
         private bool isHalted;
         private bool isAborted;
 
