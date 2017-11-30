@@ -514,11 +514,6 @@ namespace Antmicro.Renode.Core
         [field: Transient]
         public event Action<Machine, Machine> MachineExchanged;
 
-        internal void DropMachine(string name)
-        {
-            machs.Remove(name);
-        }
-
         [PostDeserialization]
         private void AfterDeserialization()
         {
