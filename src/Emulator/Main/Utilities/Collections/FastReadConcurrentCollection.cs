@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Utilities.Collections
     {
         public FastReadConcurrentCollection()
         {
-            Items = new T[0];
+            Clear();
         }
 
         public void Add(T item)
@@ -33,6 +33,14 @@ namespace Antmicro.Renode.Utilities.Collections
                 var copy = new List<T>(Items);
                 copy.Remove(item);
                 Items = copy.ToArray();
+            }
+        }
+
+        public void Clear()
+        {
+            lock(locker)
+            {
+                Items = new T[0];
             }
         }
 
