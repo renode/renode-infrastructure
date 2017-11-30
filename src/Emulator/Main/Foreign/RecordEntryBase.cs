@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.EventRecording
 {
@@ -14,12 +15,10 @@ namespace Antmicro.Renode.EventRecording
     {
         public RecordEntryBase(string name, Delegate handler, long syncNumber) : this()
         {
+            DebugHelper.Assert(handler.Target == null, "The handler is supposed to have null target");
+
             this.Name = name;
             this.SyncNumber = syncNumber;
-            if(handler.Target != null)
-            {
-                throw new ArgumentException("Assertion failed: the handler is supposed to have null target.");
-            }
             this.Handler = handler;
         }
 
