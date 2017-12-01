@@ -48,7 +48,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             Endianness = endianness;
             PerformanceInMips = 100;
-            currentCountThreshold = 5000;
             this.cpuType = cpuType;
             ClockSource = new BaseClockSource();
             ClockSource.NumberOfEntriesChanged += (oldValue, newValue) =>
@@ -183,19 +182,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 translationCacheSize = value;
                 SubmitTranslationCacheSizeUpdate();
-            }
-        }
-
-        public int CountThreshold
-        {
-            get
-            {
-                return currentCountThreshold;
-            }
-            set
-            {
-                currentCountThreshold = value;
-                RenodeSetCountThreshold(currentCountThreshold);
             }
         }
 
@@ -887,7 +873,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                         pauseGuard.Enter();
                         skipNextStepping = true;
-                        lastTlibResult = TlibExecute();
+                        lastTlibResult = TlibExecute(5000);
                         pauseGuard.Leave();
                     }
                 }
@@ -1269,7 +1255,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibAddBreakpoint(hook.Key);
             }
-            RenodeSetCountThreshold(currentCountThreshold);
         }
 
         private void InvokeHalted(HaltArguments arguments)
@@ -1279,20 +1264,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 halted(arguments);
             }
-        }
-
-        [Export]
-        private void UpdateInstructionCounter(uint value)
-        {
-            ExecutedInstructions += value;
-            var instructionsThisTurn = value + instructionCountResiduum;
-            instructionCountResiduum = instructionsThisTurn % PerformanceInMips;
-            // timer update can result in a pause; it should be precise at this point
-            // because it happens after executing instructions in this block and those
-            // instructions are accounted for at this point
-            pauseGuard.Leave();
-            ClockSource.Advance(instructionsThisTurn / PerformanceInMips);
-            pauseGuard.Enter();
         }
 
         [Export]
@@ -1438,7 +1409,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected readonly BaseClockSource ClockSource;
 
         private bool[] interruptState;
-        private int currentCountThreshold;
         private Action<uint, uint> blockBeginInternalHook;
         private Action<uint, uint> blockBeginUserHook;
 
@@ -1777,7 +1747,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action TlibReset;
 
         [Import]
-        private FuncInt32 TlibExecute;
+        private FuncInt32Int32 TlibExecute;
 
         [Import]
         protected Action TlibRestartTranslationBlock;
@@ -1814,9 +1784,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action RenodeFreeHostBlocks;
-
-        [Import]
-        private ActionInt32 RenodeSetCountThreshold;
 
         [Import]
         private ActionInt32Int32 TlibSetIrq;

@@ -62,43 +62,5 @@ void tlib_invalidate_tb_in_other_cpus(unsigned long start, unsigned long end)
   invalidate_tb_in_other_cpus((void*)start, (void*)end);
 }
 
-EXTERNAL_AS(action_uint32, UpdateInstructionCounter, update_instruction_counter_inner)
-
-void renode_set_count_threshold(int32_t value)
-{
-  cpu->instructions_count_threshold = value;
-}
-
-void tlib_update_instruction_counter(int32_t value)
-{
-  // if trimming is enabled we want to trim block so that it does not saturate
-  // the instruction count value; but - if such block has size of one
-  // instruction, then we naturally have to let it saturate the count value
-  if(cpu->instructions_count_value + value >= cpu->instructions_count_threshold && value != 1)
-  {
-    size_of_next_block_to_translate = cpu->instructions_count_threshold - cpu->instructions_count_value - 1;
-    // it might happen that even the first instruction of the current block would
-    // saturate a counter - in such case create block with that instruction only
-    if(size_of_next_block_to_translate == 0)
-    {
-      size_of_next_block_to_translate = 1;
-    }
-    cpu->tb_restart_request = 1;
-    tb_phys_invalidate(cpu->current_tb, -1);
-    cpu->current_tb = NULL;
-  }
-  else
-  {
-    cpu->instructions_count_value += value;
-    cpu->instructions_count_total_value += value;
-    if(cpu->instructions_count_value < cpu->instructions_count_threshold)
-    {
-      return;
-    }
-    update_instruction_counter_inner(cpu->instructions_count_value);
-    cpu->instructions_count_value = 0;
-  }
-}
-
 EXTERNAL_AS(func_int32, GetCpuIndex, tlib_get_cpu_index)
 EXTERNAL_AS(action_uint32_uint32_uint32, LogDisassembly, tlib_on_block_translation)
