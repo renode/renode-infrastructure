@@ -94,7 +94,7 @@
 
           <!-- This define is a little hack: It is necessary for CLinkerTask to create separate entry in hashes cache -->
           <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)" />
-          <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(HostWordSize) == '64' and $(CurrentPlatform) != 'Windows' " />
+          <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(HostWordSize) == '64' and $(CurrentPlatform) == 'Linux' " />
           <LinkFlags Include="-fomit-frame-pointer" />
           <LinkFlags Include="-lpthread" />
           <LinkFlags Include="-lm" />
