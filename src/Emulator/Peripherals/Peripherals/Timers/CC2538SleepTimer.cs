@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; private set; }
 
-        protected override void OnCompare()
+        protected override void OnCompareReached()
         {
             IRQ.Set();
             IRQ.Unset();

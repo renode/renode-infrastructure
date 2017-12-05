@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class ComparingTimer : ITimer, IPeripheral
     {
         public ComparingTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending,
-            bool enabled = false, WorkMode workMode = WorkMode.OneShot, ulong compare = ulong.MaxValue)
+            bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue)
         {
             if(compare > limit)
             {
@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             initialCompare = compare;
             initialEnabled = enabled;
             initialWorkMode = workMode;
+            initialEventEnabled = eventEnabled;
             InternalReset();
         }
 
@@ -37,20 +38,22 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             get
             {
-                return clockSource.GetClockEntry(CompareReached).Enabled;
+                return clockSource.GetClockEntry(CompareReachedInternal).Enabled;
             }
             set
             {
-                clockSource.ExchangeClockEntryWith(CompareReached, oldEntry => oldEntry.With(enabled: value));
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(enabled: value));
             }
         }
+
+        public bool EventEnabled { get; set; }
 
         public ulong Value
         {
             get
             {
                 var currentValue = 0UL;
-                clockSource.GetClockEntryInLockContext(CompareReached, entry =>
+                clockSource.GetClockEntryInLockContext(CompareReachedInternal, entry =>
                 {
                     currentValue = valueAccumulatedSoFar + entry.Value;
                 });
@@ -58,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             set
             {
-                clockSource.ExchangeClockEntryWith(CompareReached, entry =>
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry =>
                 {
                     valueAccumulatedSoFar = value;
                     Compare = compareValue;
@@ -79,7 +82,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     throw new InvalidOperationException(CompareHigherThanLimitMessage.FormatWith(value, initialLimit));
                 }
-                clockSource.ExchangeClockEntryWith(CompareReached, entry =>
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry =>
                 {
                     compareValue = value;
                     var nextEventIn = Math.Min(compareValue - valueAccumulatedSoFar, initialLimit - valueAccumulatedSoFar);
@@ -94,40 +97,49 @@ namespace Antmicro.Renode.Peripherals.Timers
             InternalReset();
         }
 
-        protected virtual void OnCompare()
+        public event Action CompareReached;
+
+        protected virtual void OnCompareReached()
         {
+            if(!EventEnabled)
+            {
+                return;
+            }
+
+            CompareReached?.Invoke();
         }
 
-        private void CompareReached()
+        private void CompareReachedInternal()
         {
             // since we use OneShot, timer's value is already 0 and it is disabled now
             // first we add old limit to accumulated value:
-            valueAccumulatedSoFar += clockSource.GetClockEntry(CompareReached).Period;
+            valueAccumulatedSoFar += clockSource.GetClockEntry(CompareReachedInternal).Period;
             if(valueAccumulatedSoFar >= initialLimit && compareValue != initialLimit)
             {
                 // compare value wasn't actually reached, the timer reached its limit
                 // we don't trigger an event in such case
                 valueAccumulatedSoFar = 0;
-                clockSource.ExchangeClockEntryWith(CompareReached, entry => entry.With(period: compareValue, enabled: true));
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => entry.With(period: compareValue, enabled: true));
                 return;
             }
             // real compare event - then we reenable the timer with the next event marked by limit
             // which will probably be soon corrected by software
-            clockSource.ExchangeClockEntryWith(CompareReached, entry => entry.With(period: initialLimit - valueAccumulatedSoFar, enabled: true));
+            clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => entry.With(period: initialLimit - valueAccumulatedSoFar, enabled: true));
             if(valueAccumulatedSoFar >= initialLimit)
             {
                 valueAccumulatedSoFar = 0;
             }
-            OnCompare();
+            OnCompareReached();
         }
 
         private void InternalReset()
         {
-            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency), CompareReached, initialEnabled, initialDirection, initialWorkMode)
-                { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
-            clockSource.ExchangeClockEntryWith(CompareReached, entry => clockEntry, () => clockEntry);
+            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency), CompareReachedInternal, initialEnabled, initialDirection, initialWorkMode)
+            { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
+            clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
             valueAccumulatedSoFar = 0;
             compareValue = initialCompare;
+            EventEnabled = initialEventEnabled;
         }
 
         private ulong valueAccumulatedSoFar;
@@ -140,6 +152,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly WorkMode initialWorkMode;
         private readonly ulong initialCompare;
         private readonly bool initialEnabled;
+        private readonly bool initialEventEnabled;
 
         private const string CompareHigherThanLimitMessage = "Compare value ({0}) cannot be higher than limit ({1}).";
     }

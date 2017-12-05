@@ -162,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            protected override void OnCompare()
+            protected override void OnCompareReached()
             {
                 irq.Set();
                 if(!maskOutput.Value)

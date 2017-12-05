@@ -22,7 +22,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ = new GPIO();
             SoftwareIRQ = new GPIO();
 
-            innerTimer = new LocalComparingTimer(machine, frequency, CompareAction);
+            innerTimer = new ComparingTimer(machine, frequency, eventEnabled: true);
+            innerTimer.CompareReached += () => IRQ.Set(true);
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -92,14 +93,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public GPIO SoftwareIRQ { get; private set; }
 
-        private void CompareAction(ulong currentValue)
-        {
-            IRQ.Set(true);
-        }
-
         private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registers;
-        private readonly LocalComparingTimer innerTimer;
+        private readonly ComparingTimer innerTimer;
 
         private enum Registers : long
         {
@@ -108,22 +104,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             MTimeCmpHart0Hi = 0x4004,
             MTimeLo = 0xBFF8,
             MTimeHi = 0xBFFC
-        }
-
-        private class LocalComparingTimer : ComparingTimer
-        {
-            public LocalComparingTimer(Machine machine, long frequency, Action<ulong> compareAction)
-                : base(machine, frequency, enabled: true)
-            {
-                this.compareAction = compareAction;
-            }
-
-            protected override void OnCompare()
-            {
-                compareAction(Value);
-            }
-
-            private readonly Action<ulong> compareAction;
         }
     }
 }
