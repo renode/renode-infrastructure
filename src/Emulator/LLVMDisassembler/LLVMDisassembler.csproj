@@ -85,6 +85,6 @@
         <Extension Condition=" '$(CurrentPlatform)' == 'OSX'"    >dylib</Extension>
         <Suffix    Condition=" '$(CurrentPlatform)' == 'Linux'"  >-3.4</Suffix>
     </PropertyGroup>
-    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\$(HostWordSize)_libLLVM$(Suffix).$(Extension)" DestinationFiles="..\..\..\..\..\output\$(OutputPath)\libLLVM.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\$(HostWordSize)_libLLVM$(Suffix).$(Extension)')" />
+    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\$(HostWordSize)_libLLVM$(Suffix).$(Extension)" DestinationFiles="$(OutputPath)\libLLVM.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\$(HostWordSize)_libLLVM$(Suffix).$(Extension)')" />
   </Target>
 </Project>
