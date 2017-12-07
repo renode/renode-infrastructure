@@ -86,6 +86,10 @@
       <Project>{AEFE490F-85AC-42AF-9CAE-2B7FC7167E0E}</Project>
       <Name>UI</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\..\Renode\Renode.csproj">
+      <Project>{5A7EF2B0-889A-488A-B296-97AF33791772}</Project>
+      <Name>Renode</Name>
+    </ProjectReference>
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
