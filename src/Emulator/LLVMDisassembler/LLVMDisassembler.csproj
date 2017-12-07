@@ -72,6 +72,7 @@
     <None Include="..\..\..\..\..\lib\resources\llvm\32_libLLVM-3.4.so" />
     <None Include="..\..\..\..\..\lib\resources\llvm\64_libLLVM-3.4.so" />
     <None Include="..\..\..\..\..\lib\resources\llvm\32_libLLVM.dylib" />
+    <None Include="..\..\..\..\..\lib\resources\llvm\64_libLLVM.dylib" />
   </ItemGroup>
   <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="EnvironmentTask" />
   <Target Name="CopySharedLibraries" AfterTargets="Build">
