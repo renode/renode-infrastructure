@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ = new GPIO();
             SoftwareIRQ = new GPIO();
 
-            innerTimer = new ComparingTimer(machine, frequency, eventEnabled: true);
+            innerTimer = new ComparingTimer(machine, frequency, enabled: true, eventEnabled: true);
             innerTimer.CompareReached += () => IRQ.Set(true);
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
