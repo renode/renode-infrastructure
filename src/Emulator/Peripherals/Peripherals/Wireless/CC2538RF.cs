@@ -90,7 +90,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             autoPendEnabled = sourceAddressMatching.DefineFlagField(1);
             pendDataRequestOnly = sourceAddressMatching.DefineFlagField(2);
 
-            var radioStatus0 = new DoubleWordRegister(this, 0x81).WithValueField(0, 8, FieldMode.Read);
+            var radioStatus0 = new DoubleWordRegister(this, 0).WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => (uint)fsmState)
+                                                              .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true);
             var radioStatus1 = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReadRadioStatus1Register);
             var rssiValidStatus = new DoubleWordRegister(this, 0x1).WithFlag(0, FieldMode.Read);
 
@@ -109,6 +110,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
             acceptDataFrames = frameFiltering1.DefineFlagField(4);
             acceptAckFrames = frameFiltering1.DefineFlagField(5);
             acceptMacCmdFrames = frameFiltering1.DefineFlagField(6);
+            //Reset value set according to the documentation, but register value is caluculated from Channel value.
+            var frequencyControl = new DoubleWordRegister(this, 0xB).WithValueField(0, 7, 
+                                changeCallback: (_, value) => Channel = (int)(((value > 113 ? 113 : value ) - 11) / 5 + 11), //FREQ = 11 + 5(channel - 11), maximum value is 113.
+                                valueProviderCallback: (value) =>  11 + 5 * ((uint)Channel - 11));
 
             var rfData = new DoubleWordRegister(this, 0).WithValueField(0, 8,
                                 valueProviderCallback: _ => DequeueData(), writeCallback: (_, @new) => { EnqueueData((byte)@new); });
@@ -130,7 +135,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 { (uint)Register.RadioStatus1, radioStatus1 },
                 { (uint)Register.RssiValidStatus, rssiValidStatus },
                 { (uint)Register.RandomData, randomData },
-                { (uint)Register.SourceAddressMatchingResult, matchedSourceIndex }
+                { (uint)Register.SourceAddressMatchingResult, matchedSourceIndex },
+                { (uint)Register.FrequencyControl, frequencyControl}
             };
 
             RegisterGroup(addresses, (uint)Register.InterruptFlag, interruptFlag);
@@ -208,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
                 currentFrameOffset = -1;
                 txPendingCounter = 0;
+                fsmState = FSMStates.Idle;
                 rxQueue.Clear();
 
                 Array.Clear(srcShortEnabled, 0, srcShortEnabled.Length);
@@ -220,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 irqHandler.Reset();
                 txQueue.Clear();
 
-                Channel = 0;
+                Channel = ChannelResetValue;
             }
         }
 
@@ -501,8 +508,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             switch((CSPInstructions)value)
             {
                 case CSPInstructions.TxOn:
+                    fsmState = FSMStates.Tx;
                     txPendingCounter = TxPendingCounterInitialValue;
                     SendData();
+                    break;
+                case CSPInstructions.RxOn:
+                    fsmState = FSMStates.Rx;
+                    break;
+                case CSPInstructions.RfOff:
+                    fsmState = FSMStates.Idle;
                     break;
                 case CSPInstructions.RxFifoFlush:
                     lock(rxLock)
@@ -577,11 +591,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var frame = new Frame(txQueue.Skip(1).Concat(crc).ToArray());
 
             this.DebugLog("Sending frame {0}.", frame.Bytes.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
-            var frameSent = FrameSent;
-            if(frameSent != null)
-            {
-                frameSent(this, frame.Bytes);
-            }
+            FrameSent?.Invoke(this, frame.Bytes);
 
             irqHandler.RequestInterrupt(InterruptSource.TxDone);
         }
@@ -709,6 +719,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private int txPendingCounter;
         private int currentFrameOffset;
+        private FSMStates fsmState;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField autoAck;
@@ -748,39 +759,52 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private const int RamTableBaseAddress = 0x40088400;
         //HACK! TX_ACTIVE is required to be set as 1 few times in a row for contiki
         private const int TxPendingCounterInitialValue = 4;
+        private const int ChannelResetValue = 11;
 
         private enum CSPInstructions
         {
+            RfOff = 0xDF,
+            RxOn = 0xE3,
             TxOn = 0xE9,
             RxFifoFlush = 0xED,
             TxFifoFlush = 0xEE
         }
 
+        private enum FSMStates
+        {
+            Idle = 0x00,
+            Rx = 0x07,
+            Tx = 0x22
+        }
+
         private enum Register
         {
-            RfData = 0x828,
-            CommandStrobeProcessor = 0x838,
+            //not groupped
+            SourceAddressMatchingResult = 0x58C,
             FrameFiltering0 = 0x600,
             FrameFiltering1 = 0x604,
             SourceAddressMatching = 0x608,
             FrameHandling0 = 0x624,
             FrameHandling1 = 0x628,
+            FrequencyControl = 0x63C,
             RadioStatus0 = 0x648,
             RadioStatus1 = 0x64C,
             RssiValidStatus = 0x664,
-            RandomData = 0x69C,
+            RandomData = 0x69C, 
+            RfData = 0x828,
+            CommandStrobeProcessor = 0x838,
 
-            InterruptFlag = 0x830,
-            SourceExtendedAdressEnable = 0x618,
-            SourceShortAddressEnable = 0x60C,
-            InterruptMask = 0x68C,
+            //register groups
             SourceAddressMatchingResultMask = 0x580,
             SourceExtendedAddressPendingEnabled = 0x590,
             SourceShortAddressPendingEnabled = 0x59C,
             ExtendedAddress = 0x5A8,
             PanId = 0x5C8,
             ShortAddressRegister = 0x5D0,
-            SourceAddressMatchingResult = 0x58C
+            SourceShortAddressEnable = 0x60C,
+            SourceExtendedAdressEnable = 0x618,
+            InterruptMask = 0x68C,
+            InterruptFlag = 0x830,
         }
     }
 }
