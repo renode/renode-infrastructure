@@ -503,8 +503,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             switch((CSPInstructions)value)
             {
                 case CSPInstructions.TxOn:
+                    fsmState = FSMStates.Tx;
                     txPendingCounter = TxPendingCounterInitialValue;
                     SendData();
+                    break;
+                case CSPInstructions.RxOn:
+                    fsmState = FSMStates.Rx;
+                    break;
+                case CSPInstructions.RfOff:
+                    fsmState = FSMStates.Idle;
                     break;
                 case CSPInstructions.RxFifoFlush:
                     lock(rxLock)
@@ -754,6 +761,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private enum CSPInstructions
         {
+            RfOff = 0xDF,
+            RxOn = 0xE3,
             TxOn = 0xE9,
             RxFifoFlush = 0xED,
             TxFifoFlush = 0xEE
