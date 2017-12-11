@@ -110,6 +110,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
             acceptDataFrames = frameFiltering1.DefineFlagField(4);
             acceptAckFrames = frameFiltering1.DefineFlagField(5);
             acceptMacCmdFrames = frameFiltering1.DefineFlagField(6);
+            //Reset value set according to the documentation, but register value is caluculated from Channel value.
+            var frequencyControl = new DoubleWordRegister(this, 0xB).WithValueField(0, 7, 
+                                changeCallback: (_, value) => Channel = (int)(((value > 113 ? 113 : value ) - 11) / 5 + 11), //FREQ = 11 + 5(channel - 11), maximum value is 113.
+                                valueProviderCallback: (value) =>  11 + 5 * ((uint)Channel - 11));
 
             var rfData = new DoubleWordRegister(this, 0).WithValueField(0, 8,
                                 valueProviderCallback: _ => DequeueData(), writeCallback: (_, @new) => { EnqueueData((byte)@new); });
@@ -131,7 +135,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 { (uint)Register.RadioStatus1, radioStatus1 },
                 { (uint)Register.RssiValidStatus, rssiValidStatus },
                 { (uint)Register.RandomData, randomData },
-                { (uint)Register.SourceAddressMatchingResult, matchedSourceIndex }
+                { (uint)Register.SourceAddressMatchingResult, matchedSourceIndex },
+                { (uint)Register.FrequencyControl, frequencyControl}
             };
 
             RegisterGroup(addresses, (uint)Register.InterruptFlag, interruptFlag);
@@ -222,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 irqHandler.Reset();
                 txQueue.Clear();
 
-                Channel = 0;
+                Channel = ChannelResetValue;
             }
         }
 
@@ -758,6 +763,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private const int RamTableBaseAddress = 0x40088400;
         //HACK! TX_ACTIVE is required to be set as 1 few times in a row for contiki
         private const int TxPendingCounterInitialValue = 4;
+        private const int ChannelResetValue = 11;
 
         private enum CSPInstructions
         {
@@ -784,6 +790,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             SourceAddressMatching = 0x608,
             FrameHandling0 = 0x624,
             FrameHandling1 = 0x628,
+            FrequencyControl = 0x63C,
             RadioStatus0 = 0x648,
             RadioStatus1 = 0x64C,
             RssiValidStatus = 0x664,
