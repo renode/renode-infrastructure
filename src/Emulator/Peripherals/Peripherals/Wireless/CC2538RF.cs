@@ -591,11 +591,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var frame = new Frame(txQueue.Skip(1).Concat(crc).ToArray());
 
             this.DebugLog("Sending frame {0}.", frame.Bytes.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
-            var frameSent = FrameSent;
-            if(frameSent != null)
-            {
-                frameSent(this, frame.Bytes);
-            }
+            FrameSent?.Invoke(this, frame.Bytes);
 
             irqHandler.RequestInterrupt(InterruptSource.TxDone);
         }
@@ -783,8 +779,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private enum Register
         {
-            RfData = 0x828,
-            CommandStrobeProcessor = 0x838,
+            //not groupped
+            SourceAddressMatchingResult = 0x58C,
             FrameFiltering0 = 0x600,
             FrameFiltering1 = 0x604,
             SourceAddressMatching = 0x608,
@@ -794,19 +790,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RadioStatus0 = 0x648,
             RadioStatus1 = 0x64C,
             RssiValidStatus = 0x664,
-            RandomData = 0x69C,
+            RandomData = 0x69C, 
+            RfData = 0x828,
+            CommandStrobeProcessor = 0x838,
 
-            InterruptFlag = 0x830,
-            SourceExtendedAdressEnable = 0x618,
-            SourceShortAddressEnable = 0x60C,
-            InterruptMask = 0x68C,
+            //register groups
             SourceAddressMatchingResultMask = 0x580,
             SourceExtendedAddressPendingEnabled = 0x590,
             SourceShortAddressPendingEnabled = 0x59C,
             ExtendedAddress = 0x5A8,
             PanId = 0x5C8,
             ShortAddressRegister = 0x5D0,
-            SourceAddressMatchingResult = 0x58C
+            SourceShortAddressEnable = 0x60C,
+            SourceExtendedAdressEnable = 0x618,
+            InterruptMask = 0x68C,
+            InterruptFlag = 0x830,
         }
     }
 }
