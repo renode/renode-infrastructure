@@ -90,7 +90,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             autoPendEnabled = sourceAddressMatching.DefineFlagField(1);
             pendDataRequestOnly = sourceAddressMatching.DefineFlagField(2);
 
-            var radioStatus0 = new DoubleWordRegister(this, 0x81).WithValueField(0, 8, FieldMode.Read);
+            var radioStatus0 = new DoubleWordRegister(this, 0).WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => (uint)fsmState)
+                                                              .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true);
             var radioStatus1 = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReadRadioStatus1Register);
             var rssiValidStatus = new DoubleWordRegister(this, 0x1).WithFlag(0, FieldMode.Read);
 
@@ -208,6 +209,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
                 currentFrameOffset = -1;
                 txPendingCounter = 0;
+                fsmState = FSMStates.Idle;
                 rxQueue.Clear();
 
                 Array.Clear(srcShortEnabled, 0, srcShortEnabled.Length);
@@ -709,6 +711,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private int txPendingCounter;
         private int currentFrameOffset;
+        private FSMStates fsmState;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField autoAck;
@@ -754,6 +757,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
             TxOn = 0xE9,
             RxFifoFlush = 0xED,
             TxFifoFlush = 0xEE
+        }
+
+        private enum FSMStates
+        {
+            Idle = 0x00,
+            Rx = 0x07,
+            Tx = 0x22
         }
 
         private enum Register
