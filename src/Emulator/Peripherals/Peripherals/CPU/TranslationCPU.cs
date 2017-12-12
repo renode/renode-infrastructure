@@ -335,7 +335,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void InnerPause(HaltArguments haltArgs)
         {
-            if(isAborted || PauseEvent.WaitOne(0))
+            if(isAborted || isPaused)
             {
                 // cpu is already paused or aborted
                 return;
@@ -343,7 +343,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             lock(pauseLock)
             {
-                PauseEvent.Set();
+                isPaused = true;
                 TlibSetPaused();
 
                 // this is to prevent deadlock on pausing/stopping/disposing in Single-Step mode
@@ -374,7 +374,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     return;
                 }
-                if(isAborted || !PauseEvent.WaitOne(0))
+                if(isAborted || !isPaused)
                 {
                     return;
                 }
@@ -385,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     IsBackground = true,
                     Name = this.GetCPUThreadName(machine)
                 };
-                PauseEvent.Reset();
+                isPaused = false;
                 cpuThread.Start();
                 TlibClearPaused();
                 this.NoisyLog("Resumed.");
@@ -722,7 +722,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.NoisyLog("Waiting for another step (PC=0x{0:X8}).", PC);
                 InvokeHalted(new HaltArguments(HaltReason.Step));
                 sync.SignalAndWait();
-                return !PauseEvent.WaitOne(0);
+                return !isPaused;
             }
         }
 
@@ -918,7 +918,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("About to dispose CPU.");
             }
-            if(!PauseEvent.WaitOne(0))
+            if(!isPaused)
             {
                 if(!silent)
                 {
@@ -970,7 +970,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void Init()
         {
             memoryManager = new SimpleMemoryManager(this);
-            PauseEvent = new ManualResetEvent(true);
+            isPaused = true;
             hooks = hooks ?? new Dictionary<uint, HookDescriptor>();
             sync = new Synchronizer();
             haltedLock = new object();
@@ -1026,15 +1026,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         private byte[] cpuState;
         private bool isHalted;
         private bool isAborted;
+        private bool isPaused;
 
         [Transient]
         private volatile bool started;
 
         [Transient]
         private Thread cpuThread;
-
-        [Transient]
-        protected ManualResetEvent PauseEvent;
 
         [Transient]
         private string libraryFile;
@@ -1696,7 +1694,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
                 var singleStep = executionMode == ExecutionMode.SingleStep;
-                while(!PauseEvent.WaitOne(0) && instructionsLeftThisRound > 0)
+                while(!isPaused && instructionsLeftThisRound > 0)
                 {
                     this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
                     var toExecute = singleStep ? 1 : instructionsLeftThisRound;
@@ -1748,7 +1746,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     localCopyOfTimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                     break;
                 }
-                else if(PauseEvent.WaitOne(0))
+                else if(isPaused)
                 {
                     this.Trace("paused, reporting break");
                     var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
