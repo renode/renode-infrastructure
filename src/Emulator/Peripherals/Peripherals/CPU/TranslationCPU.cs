@@ -1325,7 +1325,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 onTranslationBlockFetch;
         private string cpuType;
         private byte[] cpuState;
-        private ulong instructionCountResiduum;
         private bool isHalted;
         private bool isAborted;
 
