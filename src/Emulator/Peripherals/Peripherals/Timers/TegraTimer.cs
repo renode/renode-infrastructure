@@ -10,7 +10,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {

@@ -11,7 +11,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Network;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.Network
 {

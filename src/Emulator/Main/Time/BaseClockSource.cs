@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Antmicro.Migrant;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Time
 {
