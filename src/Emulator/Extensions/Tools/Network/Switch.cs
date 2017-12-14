@@ -36,10 +36,10 @@ namespace Antmicro.Renode.Tools.Network
                 var ifaceDescriptor = new InterfaceDescriptor
                 {
                     Interface = iface,
-                    Delegate = (s, f) => ForwardToReceiver(f, iface)
+                    Delegate = f => ForwardToReceiver(f, iface)
                 };
 
-                iface.Link.TransmitFromParentInterface += ifaceDescriptor.Delegate;
+                iface.FrameReady += ifaceDescriptor.Delegate;
                 ifaces.Add(ifaceDescriptor);
             }
         }
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Tools.Network
                 }
 
                 ifaces.Remove(descriptor);
-                iface.Link.TransmitFromParentInterface -= descriptor.Delegate;
+                iface.FrameReady -= descriptor.Delegate;
                 foreach(var m in macMapping.Where(x => x.Value == iface).ToArray())
                 {
                     macMapping.Remove(m.Key);
@@ -123,10 +123,7 @@ namespace Antmicro.Renode.Tools.Network
                 return;
             }
 
-            if(frameProcessed != null)
-            {
-                frameProcessed(this, sender, frame.Bytes.ToArray());
-            }
+            FrameProcessed?.Invoke(this, sender, frame.Bytes.ToArray());
 
             ExecuteOnNearestSync(() =>
             {
@@ -143,12 +140,9 @@ namespace Antmicro.Renode.Tools.Network
 
                     foreach(var iface in interestingIfaces)
                     {
-                        iface.Interface.Link.ReceiveFrameOnInterface(frame);
+                        iface.Interface.ReceiveFrame(frame);
 
-                        if(frameTransmitted != null)
-                        {
-                            frameTransmitted(this, sender, iface.Interface, frame.Bytes.ToArray());
-                        }
+                        FrameTransmitted?.Invoke(this, sender, iface.Interface, frame.Bytes.ToArray());
                     }
                 }
             });
@@ -176,7 +170,7 @@ namespace Antmicro.Renode.Tools.Network
         {
             public IMACInterface Interface;
             public bool PromiscuousMode;
-            public Action<NetworkLink, EthernetFrame> Delegate;
+            public Action<EthernetFrame> Delegate;
 
             public override int GetHashCode()
             {

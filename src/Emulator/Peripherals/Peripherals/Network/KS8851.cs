@@ -26,7 +26,6 @@ namespace Antmicro.Renode.Peripherals.Network
             response = new byte[10240];
             packetQueue = new Queue<EthernetFrame>();
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
         }
 
         public GPIO IRQ { get; private set; }
@@ -84,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ.Set(false);
         }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         void ReceiveFrameInner(EthernetFrame frame)
         {
@@ -212,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 Array.Copy(request, 0, frame, 0, currentLength);
                 //TODO: CRC handling
                 var ethernetFrame = EthernetFrame.CreateEthernetFrameWithoutCRC(frame);
-                Link.TransmitFrameFromInterface(ethernetFrame);
+                FrameReady?.Invoke(ethernetFrame);
                 mode = Mode.Standard;
                 currentLength = 4;
                 transmissionEnded = true;

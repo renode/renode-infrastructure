@@ -32,7 +32,6 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             this.machine = machine;
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
-            Link = new NetworkLink(this);
             for(int i=0; i<NumberOfEndpoints; i++)
             {
                 dataToggleBit[i] = false;
@@ -320,7 +319,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
 
             var frame = EthernetFrame.CreateEthernetFrameWithCRC(packetToSend);
-            Link.TransmitFrameFromInterface(frame);
+            FrameReady?.Invoke(frame);
         }
 
         private ushort CalculateChecksumRX(byte[] data)
@@ -439,7 +438,7 @@ namespace Antmicro.Renode.Peripherals.USB
         private readonly object sync = new object();
         #endregion
         #region INetworkInterface implementation
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         public void ReceiveFrame(EthernetFrame frame)//when data is send to us
         {

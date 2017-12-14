@@ -213,7 +213,6 @@
     <Compile Include="Time\ClockEntry.cs" />
     <Compile Include="Time\Direction.cs" />
     <Compile Include="Peripherals\Bus\Redirector.cs" />
-    <Compile Include="Peripherals\Network\NetworkLink.cs" />
     <Compile Include="Network\IPProtocolType.cs" />
     <Compile Include="Network\EtherType.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\RegisterMapper.cs" />

@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.Network
             this.machine = machine;
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
             Reset();
         }
 
@@ -58,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public GPIO IRQ { get; private set; }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         private ushort ReadBank0(long offset)
         {
@@ -455,7 +454,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         sentFifo.Enqueue((byte)whichPacket);
                     }
                     var frame = EthernetFrame.CreateEthernetFrameWithCRC(indata);
-                    Link.TransmitFrameFromInterface(frame);
+                    FrameReady?.Invoke(frame);
                 }
                 Update();
                 return 0;

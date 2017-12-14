@@ -33,7 +33,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
         public LinuxTapInterface(string name, bool persistent)
         {
             backupMAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
-            Link = new NetworkLink(this);
             deviceName = name ?? "";
             this.persistent = persistent;
             Init();
@@ -112,8 +111,8 @@ namespace Antmicro.Renode.HostInterfaces.Network
         }
 
         public string InterfaceName { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
-        public NetworkLink Link { get; private set; }
 
         public MACAddress MAC
         {
@@ -239,7 +238,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                     continue;
                 }
                 var ethernetFrame = EthernetFrame.CreateEthernetFrameWithCRC(buffer);
-                Link.TransmitFrameFromInterface(ethernetFrame);
+                FrameReady?.Invoke(ethernetFrame);
             }
         }
 

@@ -19,7 +19,6 @@ namespace Antmicro.Renode.Peripherals.Network
         public GaislerEth(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
             Reset();
         }
 
@@ -181,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.Network
             return GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
         }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         private readonly uint vendorID = 0x01;
         // Aeroflex Gaisler
@@ -275,12 +274,9 @@ namespace Antmicro.Renode.Peripherals.Network
             var packetBytes = machine.SystemBus.ReadBytes((long)td.PacketAddress, (int)td.Length);
             var packet = EthernetFrame.CreateEthernetFrameWithCRC(packetBytes);
 
-            if(Link.IsConnected)
-            {
-                this.Log(LogLevel.Info, "Sending packet length {0}", packet.Bytes.Length);
-                this.Log(LogLevel.Info, "Packet address = 0x{0:X}", td.PacketAddress);
-                Link.TransmitFrameFromInterface(packet);
-            }
+            this.Log(LogLevel.Info, "Sending packet length {0}", packet.Bytes.Length);
+            this.Log(LogLevel.Info, "Packet address = 0x{0:X}", td.PacketAddress);
+            FrameReady?.Invoke(packet);
 
             registers.Status |= 1u << 3;
 

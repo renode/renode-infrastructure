@@ -199,10 +199,9 @@ namespace Antmicro.Renode.Peripherals.Network
             });
             IRQ = new GPIO();
             IRQ.Set(); // the interrupt output is negated
-            Link = new NetworkLink(this);
         }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         public MACAddress MAC { get; set; }
 
@@ -511,7 +510,7 @@ namespace Antmicro.Renode.Peripherals.Network
             var frame = EthernetFrame.CreateEthernetFrameWithCRC(data);
             // status vector is not implemented yet
             this.Log(LogLevel.Debug, "Sending frame {0}.", frame);
-            Link.TransmitFrameFromInterface(frame);
+            FrameReady?.Invoke(frame);
             transmitPacketInterrupt.Value = true;
             RefreshInterruptStatus();
         }
