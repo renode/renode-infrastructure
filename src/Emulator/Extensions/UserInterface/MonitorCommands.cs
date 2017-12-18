@@ -24,6 +24,7 @@ using Antmicro.Renode.UserInterface.Commands;
 using Antmicro.Renode.UserInterface.Exceptions;
 using Antmicro.Renode.Core.Structure;
 using System.Runtime.InteropServices;
+using System.Globalization;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -276,8 +277,7 @@ namespace Antmicro.Renode.UserInterface
             var enumerable = result as IEnumerable;
             if(result is int || result is long || result is uint || result is ushort || result is byte)
             {
-                result.GetType();
-                writer.Write(string.Format(GetNumberFormat(CurrentNumberFormat, 2 * Marshal.SizeOf(result.GetType())) + endl, result));
+                writer.Write(string.Format(CultureInfo.InvariantCulture, GetNumberFormat(CurrentNumberFormat, 2 * Marshal.SizeOf(result.GetType())) + endl, result));
             }
             else if(result is string[,])
             {
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.UserInterface
                 foreach(var entry in dict)
                 {
                     var format = GetResultFormat(entry.Key, 0, length) + " : " + GetResultFormat(entry.Value, 1);
-                    string entryResult = string.Format(format, entry.Key, entry.Value); //DO NOT INLINE WITH WriteLine. May result with CS1973, but may even fail in runtime.
+                    string entryResult = string.Format(CultureInfo.InvariantCulture, format, entry.Key, entry.Value); //DO NOT INLINE WITH WriteLine. May result with CS1973, but may even fail in runtime.
                     writer.WriteLine(entryResult);
                 }
                 return;
@@ -313,7 +313,7 @@ namespace Antmicro.Renode.UserInterface
             }
             else
             {
-                writer.Write(result + endl);
+                writer.Write(string.Format(CultureInfo.InvariantCulture, "{0}" + endl, result));
             }
         }
 
