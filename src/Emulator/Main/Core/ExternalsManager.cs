@@ -43,6 +43,11 @@ namespace Antmicro.Renode.Core
             OnExternalsChanged(external, true);
         }
 
+        public IEnumerable<T> GetExternalsOfType<T>() where T : IExternal
+        {
+            return externals.Values.OfType<T>();
+        }
+
         public void RemoveExternal(IExternal external)
         {
             lock(externals)
