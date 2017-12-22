@@ -1209,13 +1209,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("Disposing translation library.");
             }
+            StopGdbServer();
             RemoveAllHooks();
             TlibDispose();
             RenodeFreeHostBlocks();
             binder.Dispose();
             File.Delete(libraryFile);
             memoryManager.CheckIfAllIsFreed();
-            StopGdbServer();
         }
 
         [Export]
