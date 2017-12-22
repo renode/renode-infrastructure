@@ -32,13 +32,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
             {
-                if(!Enum.IsDefined(typeof(InstructionSet), set))
+                if(Enum.IsDefined(typeof(InstructionSet), set))
                 {
-                    this.Log(LogLevel.Warning, $"Undefined instruction set: {char.ToUpper((char)(set + 'A'))}.");
+                    TlibAllowFeature((uint)set);
+                }
+                else if((int)set == 'G' - 'A')
+                {
+                    //G is a wildcard denoting multiple instruction sets
+                    foreach(var gSet in new [] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
+                    {
+                        TlibAllowFeature((uint)gSet);
+                    }
                 }
                 else
                 {
-                    TlibAllowFeature((uint)set);
+                    this.Log(LogLevel.Warning, $"Undefined instruction set: {char.ToUpper((char)(set + 'A'))}.");
                 }
             }
             TlibSetPrivilegeMode109(privilegeMode == PrivilegeMode.Priv1_09 ? 1 : 0u);
