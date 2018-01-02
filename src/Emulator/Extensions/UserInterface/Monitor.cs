@@ -534,11 +534,17 @@ namespace Antmicro.Renode.UserInterface
             return true;
         }
 
-        public bool TryExecuteScript(string filename)
+        public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
         {
+            if(writer == null)
+            {
+                writer = Interaction;
+            }
+
             Token oldOrigin;
             if(!TryGetFilenameFromAvailablePaths(filename, out filename))
             {
+                writer.WriteError(string.Format("Could not find file '{0}'", filename));
                 return false;
             }
             variables.TryGetValue(OriginVariable, out oldOrigin);
@@ -716,7 +722,7 @@ namespace Antmicro.Renode.UserInterface
             var commandHandler = Commands.FirstOrDefault(x => x.Name == command.Value);
             if(commandHandler != null)
             {
-                RunCommand(writer, commandHandler, com.Skip(1).ToList());
+                return RunCommand(writer, commandHandler, com.Skip(1).ToList());
             }
             else if(IsNameAvailable(command.Value))
             {
@@ -732,8 +738,7 @@ namespace Antmicro.Renode.UserInterface
                 {
                     if(item.AlternativeNames != null && item.AlternativeNames.Contains(command.Value))
                     {
-                        RunCommand(writer, item, com.Skip(1).ToList());
-                        return true;
+                        return RunCommand(writer, item, com.Skip(1).ToList());
                     }
                 }
                 if(!pythonRunner.ExecuteBuiltinCommand(ExpandVariables(com).ToArray(), writer))

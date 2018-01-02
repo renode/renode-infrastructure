@@ -59,7 +59,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             var mach = new Machine() { Platform = platform };
             EmulationManager.Instance.CurrentEmulation.AddMachine(mach, name);
             changeCurrentMachine(mach);
-            monitor.TryExecuteScript(platform.ScriptPath);
+            monitor.TryExecuteScript(platform.ScriptPath, writer);
         }
 
         public CreatePlatformCommand(Monitor monitor, Action<Machine> changeCurrentMachine) : base(monitor, "createPlatform", "creates a platform.", "c")

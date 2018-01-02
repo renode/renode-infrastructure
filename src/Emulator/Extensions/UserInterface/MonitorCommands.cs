@@ -43,7 +43,7 @@ namespace Antmicro.Renode.UserInterface
 
         public NumberModes CurrentNumberFormat{ get; set; }
 
-        private void RunCommand(ICommandInteraction writer, Command command, IList<Token> parameters)
+        private bool RunCommand(ICommandInteraction writer, Command command, IList<Token> parameters)
         {
             var commandType = command.GetType();
             var runnables = commandType.GetMethods().Where(x => x.GetCustomAttributes(typeof(RunnableAttribute), true).Any());
@@ -183,16 +183,17 @@ namespace Antmicro.Renode.UserInterface
                     }
                     throw;
                 }
-                return;
+                return true;
             }
             if(parameters.Any(x => x is VariableToken))
             {
-                RunCommand(writer, command, ExpandVariables(parameters));
-                return;
+                return RunCommand(writer, command, ExpandVariables(parameters));
             }
             writer.WriteError(String.Format("Bad parameters for command {0} {1}", command.Name, string.Join(" ", parameters.Select(x => x.OriginalValue))));
             command.PrintHelp(writer);
             writer.WriteLine();
+
+            return false;
         }
 
         //TODO: unused, but maybe should be used.
