@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Logging
 
         public void Reset()
         {
-            logLevel = LogLevel.Info;
+            logLevel = DefaultLogLevel;
             peripheralsWithDifferentLogging.Clear();
         }
 
@@ -71,11 +71,13 @@ namespace Antmicro.Renode.Logging
         protected LoggerBackend()
         {
             peripheralsWithDifferentLogging = new Dictionary<int, LogLevel>();
-            logLevel = LogLevel.Debug;
+            logLevel = DefaultLogLevel;
         }
 
         protected LogLevel logLevel;
+
         private readonly Dictionary<int, LogLevel> peripheralsWithDifferentLogging;
+        private readonly LogLevel DefaultLogLevel = LogLevel.Debug;
     }
 }
 
