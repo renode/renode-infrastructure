@@ -313,7 +313,7 @@ namespace Antmicro.Renode.Peripherals.X86
             BothEdges
         }
 
-        private enum Registers : long
+        internal enum Registers : long
         {
             PortAData = 0x0,
             PortADataDirection = 0x4,
