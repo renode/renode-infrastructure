@@ -147,7 +147,8 @@ namespace Antmicro.Renode.Peripherals.X86
                                             State[i] = bits[i];
                                         }
                                     }
-                                })
+                    }, valueProviderCallback:(_) => { return BitHelper.GetValueFromBitsArray(State); }
+                    )
                 },
                 {(long)Registers.PortADataDirection, new DoubleWordRegister(this)
                                 .WithValueField(0, 32, writeCallback: (_, val) => Array.Copy(BitHelper.GetBits(val).Select(x => x ? PinDirection.Output : PinDirection.Input).ToArray() , PortDataDirection, 32),
