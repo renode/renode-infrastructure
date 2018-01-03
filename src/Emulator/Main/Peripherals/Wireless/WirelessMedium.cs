@@ -50,7 +50,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void SetPosition(IRadio radio, decimal x, decimal y, decimal z)
         {
-            radios[radio] = new Position(x, y, z);
+            if(radios.ContainsKey(radio))
+            {
+                radios[radio] = new Position(x, y, z);
+            }
+            else
+            {
+                EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementName(radio, out string name);
+                this.Log(LogLevel.Error, $"Cannot set position for {name} as it is not registered in this wireless medium.");
+            }
         }
 
         public IEnumerable<string> GetNames()
