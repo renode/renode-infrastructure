@@ -18,8 +18,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class IOAPIC: IDoubleWordPeripheral, IIRQController, IKnownSize, INumberedGPIOOutput
     {
-        public IOAPIC()
+        public IOAPIC(LAPIC lapic = null)
         {
+            this.lapic = lapic;
             var irqs = new Dictionary<int, IGPIO>();
             mask = new bool[MaxRedirectionTableEntries];
             internalLock = new object();
@@ -106,8 +107,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         var externalIrqIds = externalIrqToVectorMapping.Where(x => x.Value == (int)value).Select(x => x.Key).ToArray();
                         if(externalIrqIds.Length == 0)
                         {
-                            //We filter out vector 64. Due to a bug in HW the software clears all interrupts on ioapic, although 64 is only handled by lapic - it's an internal timer.
-                            if(value != 64)
+                            //We filter out lapic internal timer vector. Due to a bug in HW the software clears all interrupts on ioapic, although this one is only handled by lapic.
+                            if(lapic == null || value != lapic.InternalTimerVector)
                             {
                                 this.Log(LogLevel.Warning, "Calling end of interrupt on unmapped vector: {0}", value);
                             }
@@ -158,6 +159,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint lastIndex;
         private object internalLock;
         private readonly Dictionary<int, int> externalIrqToVectorMapping;
+        private readonly LAPIC lapic;
 
         private const int MaxRedirectionTableEntries = 24;
         private const int NumberOfOutgoingInterrupts = 256;

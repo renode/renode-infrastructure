@@ -286,6 +286,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public uint InternalTimerVector { get => localTimerVector.Value; }
+
         private int FindPendingInterrupt()
         {
             var result = -1;
