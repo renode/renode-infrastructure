@@ -1136,6 +1136,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             protected override byte ParseInner(byte value)
             {
                 Parent.rxFifo.Clear();
+                Parent.UnsetException(ExceptionFlags.FifoThresholdReached);
                 Parent.UpdateInterrupts();
                 return base.ParseInner(value);
             }
