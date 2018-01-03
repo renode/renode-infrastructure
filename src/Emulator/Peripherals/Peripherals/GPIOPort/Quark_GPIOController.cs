@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.X86
         {
             registers = new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.PortData, new DoubleWordRegister(this)
+                {(long)Registers.PortAData, new DoubleWordRegister(this)
                                 .WithValueField(0, 32, writeCallback: (_, val) => 
                                 {
                                     var bits = BitHelper.GetBits(val);
@@ -178,7 +178,7 @@ namespace Antmicro.Renode.Peripherals.X86
                                     },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptMask))
                 },
-                {(long)Registers.ExternalPort, new DoubleWordRegister(this)
+                {(long)Registers.PortAExternalPort, new DoubleWordRegister(this)
                                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
                 },
                 {(long)Registers.ClearInterrupt, new DoubleWordRegister(this)
@@ -314,16 +314,19 @@ namespace Antmicro.Renode.Peripherals.X86
 
         private enum Registers : long
         {
-            PortData = 0x0,
+            PortAData = 0x0,
             PortADataDirection = 0x4,
+            PortADataSource = 0x8,
             InterruptEnable = 0x30,
             InterruptMask = 0x34,
             InterruptType = 0x38,
             InterruptPolarity = 0x3C,
             InterruptStatus = 0x40,
             RawInterruptStatus = 0x44,
+            DebounceEnable = 0x48,
             ClearInterrupt = 0x4C,
-            ExternalPort = 0x50,
+            PortAExternalPort = 0x50,
+            SynchronizationLevel = 0x60,
             InterruptBothEdgeType = 0x68
         }
     }
