@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class IOAPIC: IDoubleWordPeripheral, IIRQController, IKnownSize, INumberedGPIOOutput
     {
-        public IOAPIC(LAPIC lapic = null)
+        public IOAPIC(LAPIC lapic)
         {
             this.lapic = lapic;
             var irqs = new Dictionary<int, IGPIO>();
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         if(externalIrqIds.Length == 0)
                         {
                             //We filter out lapic internal timer vector. Due to a bug in HW the software clears all interrupts on ioapic, although this one is only handled by lapic.
-                            if(lapic == null || value != lapic.InternalTimerVector)
+                            if(value != lapic.InternalTimerVector)
                             {
                                 this.Log(LogLevel.Warning, "Calling end of interrupt on unmapped vector: {0}", value);
                             }

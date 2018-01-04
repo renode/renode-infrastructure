@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class Quark_SystemControlSubsystem : IDoubleWordPeripheral
     {
-        public Quark_SystemControlSubsystem(Machine machine, Quark_GPIOController gpioPort = null)
+        public Quark_SystemControlSubsystem(Machine machine, Quark_GPIOController gpioPort)
         {
             this.gpioPort = gpioPort;
             this.alwaysOnCounter = new LimitTimer(machine, 32000, direction: Time.Direction.Ascending, enabled: true);
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 {(long)Registers.HybridOscillatorStatus1, new DoubleWordRegister(this, 3)}, //use only reset value - means that oscillators are enabled
                 {(long)Registers.AlwaysOnCounter, new DoubleWordRegister(this, 0).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) => (uint)alwaysOnCounter.Value)},
-                //todo: if gpio == null
+
                 // These registers map directly to GPIO port. Only 6 LSBits are important. Offsets in SCSS are generally the same as in the gpio port + 0xB00,
                 // but we keep it here for clarity, logging purposes and ease of defining field modes.
                 {(long)Registers.PortAGPIOAlwaysOn, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.PortAData)},
