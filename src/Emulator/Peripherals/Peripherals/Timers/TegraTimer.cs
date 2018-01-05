@@ -14,7 +14,7 @@ using Antmicro.Renode.Time;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class TegraTimer : IDoubleWordPeripheral, IKnownSize
-	{
+    {
         public TegraTimer(Machine machine)
         {
             IRQ = new GPIO();
@@ -25,9 +25,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; private set; }
 
-		public uint ReadDoubleWord(long offset)
-		{
-			lock(sync)
+        public uint ReadDoubleWord(long offset)
+        {
+            lock(sync)
             {
                 var clockEntry = clockSource.GetClockEntry(OnLimitReached);
                 var value = (uint)clockEntry.Period;
@@ -42,19 +42,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         value |= 0x40000000;
                     }
-                    this.NoisyLog("Read at Ptv, 0x{1:X}, 0x{2:X}, {0}%.", value*100/clockEntry.Period, value, clockEntry.Period);
+                    this.NoisyLog("Read at Ptv, 0x{1:X}, 0x{2:X}, {0}%.", value * 100 / clockEntry.Period, value, clockEntry.Period);
                     return value;
                 case Registers.Pcr:
-                    this.NoisyLog("Read at Pcr, 0x{1:X}, 0x{2:X}, {0}%.", value*100/clockEntry.Period, value, clockEntry.Period);
+                    this.NoisyLog("Read at Pcr, 0x{1:X}, 0x{2:X}, {0}%.", value * 100 / clockEntry.Period, value, clockEntry.Period);
                     return (uint)clockEntry.Value;
                 default:
                     this.LogUnhandledRead(offset);
                     return 0;
                 }
             }
-		}
+        }
 
-		public void WriteDoubleWord(long offset, uint value)
+        public void WriteDoubleWord(long offset, uint value)
         {
             lock(sync)
             {
@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     break;
                 }
             }
-		}
+        }
 
         public long Size
         {
@@ -107,6 +107,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private readonly object sync;
-	}
+    }
 }
 
