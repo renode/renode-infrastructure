@@ -685,10 +685,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void InvokeInCpuThreadSafely(Action a)
         {
-            actionsToExecuteInCpuThread.Enqueue(a);
+            actionsToExecuteOnCpuThread.Enqueue(a);
         }
 
-        private ConcurrentQueue<Action> actionsToExecuteInCpuThread = new ConcurrentQueue<Action>();
+        private ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
         private ExecutionResult lastTlibResult;
 
         // TODO
@@ -1836,8 +1836,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             try
             {
-                Action queuedAction;
-                while(actionsToExecuteInCpuThread.TryDequeue(out queuedAction))
+                while(actionsToExecuteOnCpuThread.TryDequeue(out var queuedAction))
                 {
                     queuedAction();
                 }
