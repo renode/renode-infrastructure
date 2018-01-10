@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Core
             CurrentLogger = Logger.GetLogger();
             randomGenerator = new Lazy<PseudorandomNumberGenerator>(() => new PseudorandomNumberGenerator());
             nameCache = new LRUCache<object, Tuple<string, string>>(NameCacheSize);
+            peripheralToMachineCache = new LRUCache<IPeripheral, Machine>(PeripheralToMachineCacheSize);
 
             machs = new FastReadConcurrentTwoWayDictionary<string, Machine>();
             machs.ItemAdded += (name, machine) =>
@@ -44,6 +45,7 @@ namespace Antmicro.Renode.Core
                     if (e.Operation != PeripheralsChangedEventArgs.PeripheralChangeType.Addition)
                     {
                         nameCache.Invalidate();
+                        peripheralToMachineCache.Invalidate();
                     }
                 };
 
@@ -54,6 +56,7 @@ namespace Antmicro.Renode.Core
             {
                 machine.StateChanged -= OnMachineStateChanged;
                 nameCache.Invalidate();
+                peripheralToMachineCache.Invalidate();
 
                 OnMachineRemoved(machine);
             };
@@ -313,12 +316,18 @@ namespace Antmicro.Renode.Core
 
         public bool TryGetMachineForPeripheral(IPeripheral p, out Machine machine)
         {
+            if(peripheralToMachineCache.TryGetValue(p, out machine))
+            {
+                return true;
+            }
+
             foreach(var candidate in Machines)
             {
                 var candidateAsMachine = candidate;
                 if(candidateAsMachine != null && candidateAsMachine.IsRegistered(p))
                 {
                     machine = candidateAsMachine;
+                    peripheralToMachineCache.Add(p, machine);
                     return true;
                 }
             }
@@ -568,12 +577,17 @@ namespace Antmicro.Renode.Core
 
         [Constructor(NameCacheSize)]
         private readonly LRUCache<object, Tuple<string, string>> nameCache;
+
+        [Constructor(PeripheralToMachineCacheSize)]
+        private readonly LRUCache<IPeripheral, Machine> peripheralToMachineCache;
+
         private readonly Lazy<PseudorandomNumberGenerator> randomGenerator;
         private readonly List<ISynchronizationDomain> syncDomains;
         private readonly Dictionary<string, object> theBag;
         private readonly FastReadConcurrentTwoWayDictionary<string, Machine> machs;
 
         private const int NameCacheSize = 100;
+        private const int PeripheralToMachineCacheSize = 100;
 
         private class PausedState : IDisposable
         {
