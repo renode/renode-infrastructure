@@ -14,12 +14,13 @@ namespace Antmicro.Renode.Logging
 {
     public class FileBackend : TextBackend 
     {
-        public FileBackend(string filePath)
+        public FileBackend(string filePath, bool flushAfterEachWrite = false)
         {
             var stream = File.Open(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
             output = new StreamWriter(stream);
             sync = new object();
             timer = new Timer(x => Flush(), null, 0, 5000);
+            this.flushAfterEachWrite = flushAfterEachWrite;
         }
 
         public override void Log(LogEntry entry)
@@ -39,6 +40,10 @@ namespace Antmicro.Renode.Logging
                 var type = entry.Type;
                 var message = FormatLogEntry(entry);
                 output.WriteLine(string.Format("{0:HH:mm:ss} [{1}] {2}", CustomDateTime.Now, type, message));
+                if(flushAfterEachWrite)
+                {
+                    output.Flush();
+                }
             }
         }
 
@@ -76,6 +81,7 @@ namespace Antmicro.Renode.Logging
         private readonly Timer timer;
         private readonly object sync;
         private readonly TextWriter output;
+        private readonly bool flushAfterEachWrite;
     }
 }
 
