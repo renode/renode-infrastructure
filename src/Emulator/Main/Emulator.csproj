@@ -386,6 +386,8 @@
     <Compile Include="Utilities\InterruptManager.cs" />
     <Compile Include="Peripherals\GPIOPort\GPIOInterruptManager.cs" />
     <Compile Include="Utilities\Collections\IArray.cs" />
+    <Compile Include="Debug\IIdentifiable.cs" />
+    <Compile Include="Debug\IdentifiableObject.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
