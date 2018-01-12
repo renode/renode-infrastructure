@@ -32,6 +32,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             extendedAddress = new Address(AddressingMode.ExtendedAddress);
             random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             IRQ = new GPIO();
+            AlternativeIRQ = new GPIO();
+            IRQmultiplexer = new GPIOMultiplexer(IRQ, AlternativeIRQ);
 
             srcShortEnabled = new bool[24];
             srcExtendedEnabled = new bool[12];
@@ -40,8 +42,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             srcExtendedPendEnabled = new bool[12];
             ffsmMemory = new uint[96];
 
-            irqHandler = new InterruptHandler<InterruptRegister, InterruptSource>(IRQ);
-
+            irqHandler = new InterruptHandler<InterruptRegister, InterruptSource>(IRQmultiplexer);
             irqHandler.RegisterInterrupt(InterruptRegister.IrqFlag0, InterruptSource.StartOfFrameDelimiter, 1);
             irqHandler.RegisterInterrupt(InterruptRegister.IrqFlag0, InterruptSource.FifoP, 2);
             irqHandler.RegisterInterrupt(InterruptRegister.IrqFlag0, InterruptSource.SrcMatchDone, 3);
@@ -239,6 +240,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public int Channel { get; set; }
         public event Action<IRadio, byte[]> FrameSent;
         public GPIO IRQ { get; private set; }
+        public GPIO AlternativeIRQ { get; private set; }
         public long Size { get { return 0x1000; } }
 
         private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
@@ -721,6 +723,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private int txPendingCounter;
         private int currentFrameOffset;
         private FSMStates fsmState;
+        private GPIOMultiplexer IRQmultiplexer;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField autoAck;
