@@ -48,6 +48,11 @@ namespace Antmicro.Renode.Logging
             backends.Add(backend);
         }
 
+        public static void RemoveBackend(ILoggerBackend backend)
+        {
+            backends.Remove(backend);
+        }
+
         public static IDictionary<string, ILoggerBackend> GetBackends()
         {
             return backendNames;
