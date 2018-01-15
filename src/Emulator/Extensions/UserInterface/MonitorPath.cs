@@ -107,6 +107,7 @@ namespace Antmicro.Renode.UserInterface
             }
             Path = DefaultPath;
             workingDirectory.Push(Environment.CurrentDirectory);
+            Append(CurrentWorkingDirectory);
         }
 
 
