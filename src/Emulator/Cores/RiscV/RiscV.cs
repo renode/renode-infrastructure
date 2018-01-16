@@ -8,6 +8,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Utilities.Collections;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
