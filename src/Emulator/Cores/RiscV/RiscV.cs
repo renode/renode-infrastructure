@@ -18,23 +18,16 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public RiscV(string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
         {
+            intTypeToVal = new TwoWayDictionary<int, IrqType>();
+            intTypeToVal.Add(0, IrqType.MachineTimerIrq);
+            intTypeToVal.Add(1, IrqType.MachineExternalIrq);
+            intTypeToVal.Add(2, IrqType.MachineSoftwareInterrupt);
         }
 
         public override void OnGPIO(int number, bool value)
         {
-            IrqType decodedType;
-            switch(number)
+            if(!intTypeToVal.TryGetValue(number, out IrqType decodedType))
             {
-            case 0:
-                decodedType = IrqType.MachineTimerIrq;
-                break;
-            case 1:
-                decodedType = IrqType.MachineExternalIrq;
-                break;
-            case 2:
-                decodedType = IrqType.MachineSoftwareInterrupt;
-                break;
-            default:
                 throw new ArgumentOutOfRangeException(nameof(number));
             }
 
@@ -42,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             BitHelper.SetBit(ref mipState, (byte)decodedType, value);
             TlibSetMip(mipState);
 
-            base.OnGPIO(number, value);
+            base.OnGPIO(number, mipState != 0);
         }
 
         public override string Architecture { get { return "riscv"; } }
@@ -51,22 +44,30 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override Interrupt DecodeInterrupt(int number)
         {
-            if(number == 0)
+            if(number == 0 || number == 1 || number == 2)
             {
                 return Interrupt.Hard;
-            }
-            if(number == 1 || number == 2)
-            {
-                return Interrupt.TargetExternal0;
             }
             throw InvalidInterruptNumberException;
         }
 
         [Export]
-        private void SetMip(uint mip)
+        private void MipChanged(uint mip)
         {
-            OnGPIO(2, true);
+            var previousMip = BitHelper.GetBits(TlibGetMip());
+            var currentMip = BitHelper.GetBits(mip);
+
+            foreach(var gpio in intTypeToVal.Lefts)
+            {
+                intTypeToVal.TryGetValue(gpio, out IrqType decodedType);
+                if(previousMip[(int)decodedType] != currentMip[(int)decodedType])
+                {
+                    OnGPIO(gpio, currentMip[(int)decodedType]);
+                }
+            }
         }
+
+        private TwoWayDictionary<int, IrqType> intTypeToVal;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
