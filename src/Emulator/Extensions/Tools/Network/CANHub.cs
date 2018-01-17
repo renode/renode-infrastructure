@@ -6,9 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
-using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CAN;
 using Antmicro.Renode.Time;
 
