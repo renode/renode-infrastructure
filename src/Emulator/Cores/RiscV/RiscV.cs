@@ -6,6 +6,7 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Utilities.Collections;
@@ -16,8 +17,10 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 3)]
     public partial class RiscV : TranslationCPU
     {
-        public RiscV(string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
+        public RiscV(long frequency, string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
         {
+            innerTimer = new ComparingTimer(machine, frequency, enabled: true, eventEnabled: true);
+
             intTypeToVal = new TwoWayDictionary<int, IrqType>();
             intTypeToVal.Add(0, IrqType.MachineTimerIrq);
             intTypeToVal.Add(1, IrqType.MachineExternalIrq);
@@ -41,6 +44,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string Architecture { get { return "riscv"; } }
 
         public uint EntryPoint { get; private set; }
+
+        public readonly ComparingTimer innerTimer;
 
         protected override Interrupt DecodeInterrupt(int number)
         {
