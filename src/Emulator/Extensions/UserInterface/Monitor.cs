@@ -67,7 +67,7 @@ namespace Antmicro.Renode.UserInterface
         }
 
         private readonly EmulationManager emulationManager;
-        private MonitorPath monitorPath = new MonitorPath();
+        private MonitorPath monitorPath = new MonitorPath(Environment.CurrentDirectory);
         public const string StartupCommandEnv = "STARTUP_COMMAND";
         private bool swallowExceptions;
         private bool breakOnException;

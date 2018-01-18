@@ -95,7 +95,7 @@ namespace Antmicro.Renode.UserInterface
             Path = DefaultPath;
         }
 
-        public MonitorPath()
+        public MonitorPath(string currentWorkingDirectory)
         {
             if(Misc.TryGetRootDirectory(out var rootDirectory))
             {
@@ -106,11 +106,9 @@ namespace Antmicro.Renode.UserInterface
                 DefaultPath = ".";
             }
             Path = DefaultPath;
-            workingDirectory.Push(Environment.CurrentDirectory);
+            workingDirectory.Push(currentWorkingDirectory);
             Append(CurrentWorkingDirectory);
         }
-
-
     }
 }
 
