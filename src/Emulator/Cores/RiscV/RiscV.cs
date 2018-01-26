@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public RiscV(long frequency, string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
         {
-            innerTimer = new ComparingTimer(machine, frequency, enabled: true, eventEnabled: true);
+            InnerTimer = new ComparingTimer(machine, frequency, enabled: true, eventEnabled: true);
 
             intTypeToVal = new TwoWayDictionary<int, IrqType>();
             intTypeToVal.Add(0, IrqType.MachineTimerIrq);
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint EntryPoint { get; private set; }
 
-        public readonly ComparingTimer innerTimer;
+        public ComparingTimer InnerTimer { get; set; }
 
         protected override Interrupt DecodeInterrupt(int number)
         {

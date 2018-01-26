@@ -14,11 +14,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize
     {
-        public void FakeGPIO(bool value)
-        {
-            IRQ.Set(value);
-        }
-
         public CoreLevelInterruptor(Machine machine, RiscV cpu)
         {
             this.machine = machine;
@@ -26,45 +21,45 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ = new GPIO();
             SoftwareIRQ = new GPIO();
 
-            this.cpu.innerTimer.CompareReached += () => IRQ.Set(true);
+            this.cpu.InnerTimer.CompareReached += () => IRQ.Set(true);
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.MSipHart0, new DoubleWordRegister(this).WithFlag(0, writeCallback: (_, value) => { SoftwareIRQ.Set(value); })},
                 {(long)Registers.MTimeCmpHart0Lo, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
                     {
-                        var limit = cpu.innerTimer.Compare;
+                        var limit = cpu.InnerTimer.Compare;
                         limit &= ~0xffffffffUL;
                         limit |= value;
 
                         IRQ.Set(false);
-                        cpu.innerTimer.Compare = limit;
+                        cpu.InnerTimer.Compare = limit;
                     })
                 },
                 {(long)Registers.MTimeCmpHart0Hi, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
                     {
-                        var limit = cpu.innerTimer.Compare;
+                        var limit = cpu.InnerTimer.Compare;
                         limit &= 0xffffffffUL;
                         limit |= (ulong)value << 32;
 
                         IRQ.Set(false);
-                        cpu.innerTimer.Compare = limit;
+                        cpu.InnerTimer.Compare = limit;
                     })
                 },
-                {(long)Registers.MTimeLo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)this.cpu.innerTimer.Value, writeCallback: (_, value) =>
+                {(long)Registers.MTimeLo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)this.cpu.InnerTimer.Value, writeCallback: (_, value) =>
                     {
-                        var timerValue = cpu.innerTimer.Value;
+                        var timerValue = cpu.InnerTimer.Value;
                         timerValue &= ~0xffffffffUL;
                         timerValue |= value;
-                        cpu.innerTimer.Value = timerValue;
+                        cpu.InnerTimer.Value = timerValue;
                     })
                 },
-                {(long)Registers.MTimeHi, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)(this.cpu.innerTimer.Value >> 32), writeCallback: (_, value) =>
+                {(long)Registers.MTimeHi, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)(this.cpu.InnerTimer.Value >> 32), writeCallback: (_, value) =>
                     {
-                        var timerValue = cpu.innerTimer.Value;
+                        var timerValue = cpu.InnerTimer.Value;
                         timerValue &= 0xffffffffUL;
                         timerValue |= (ulong)value << 32;
-                        cpu.innerTimer.Value = timerValue;
+                        cpu.InnerTimer.Value = timerValue;
                     })
                 }
             };
@@ -77,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registers.Reset();
             IRQ.Set(false);
             SoftwareIRQ.Set(false);
-            cpu.innerTimer.Reset();
+            cpu.InnerTimer.Reset();
         }
 
         public uint ReadDoubleWord(long offset)
