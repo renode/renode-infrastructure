@@ -123,6 +123,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                 writeCallback: (i, @new) => { irqHandler.SetRegisterValue(InterruptRegisterHelper.GetValueRegister(i), @new); });
             var commandStrobeProcessor = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Write, writeCallback: (_, @new) => { HandleSFRInstruction(@new); });
 
+            var rxFifoBytesCount = new DoubleWordRegister(this).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: (_) => GetRxFifoBytesCount());
+
             var addresses = new Dictionary<long, DoubleWordRegister>
             {
                 { (uint)Register.RfData, rfData },
@@ -137,7 +139,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 { (uint)Register.RssiValidStatus, rssiValidStatus },
                 { (uint)Register.RandomData, randomData },
                 { (uint)Register.SourceAddressMatchingResult, matchedSourceIndex },
-                { (uint)Register.FrequencyControl, frequencyControl}
+                { (uint)Register.FrequencyControl, frequencyControl },
+                { (uint)Register.RxFifoBytesCount, rxFifoBytesCount }
             };
 
             RegisterGroup(addresses, (uint)Register.InterruptFlag, interruptFlag);
@@ -423,6 +426,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
 
             irqHandler.RequestInterrupt(InterruptSource.RxPktDone);
+        }
+
+        private uint GetRxFifoBytesCount()
+        {
+            lock(rxLock)
+            {
+                //takes only first packet into account plus 1 byte that indicates its size
+                return rxQueue.Count > 0 ? (uint)rxQueue.Peek().Bytes.Length + 1 : 0u;
+            }
         }
 
         private uint ReadRadioStatus1Register(uint oldValue)
@@ -834,6 +846,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RandomData = 0x69C,
             RfData = 0x828,
             CommandStrobeProcessor = 0x838,
+            RxFifoBytesCount = 0x66C,
 
             //register groups
             SourceAddressMatchingResultMask = 0x580,
