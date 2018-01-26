@@ -158,10 +158,44 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public uint ReadDoubleWord(long offset)
         {
-            uint result;
-            if(offset >= 0x400 && offset <= 0x57C)
+            uint result = 0u;
+            if(offset >= FfsmMemoryStart && offset <= FfsmMemoryEnd)
             {
-                result = ffsmMemory[offset - 0x400];
+                result = ffsmMemory[offset - FfsmMemoryStart];
+            }
+            else if(offset < RxFifoMemorySize)
+            {
+                lock(rxLock)
+                {
+                    // dividedOffset represents the position in the packet queue, assuming that the "Length" byte is also stored there.
+                    // Since we do not store the lenght along with the packet, we handle it with increasedFrameIndex variable.
+                    // The offset is shifted, as it seems that the driver accesses each byte as it was a double word value.
+                    var dividedOffset = offset >> 2;
+                    var increasedFrameIndex = 1;
+                    do
+                    {
+                        if(rxQueue.Count < increasedFrameIndex)
+                        {
+                            break;
+                        }
+
+                        if(dividedOffset == increasedFrameIndex - 1)
+                        {
+                            //return size of the current frame
+                            result = (uint)rxQueue.ElementAt(increasedFrameIndex - 1).Bytes.Count();
+                            break;
+                        }
+                        if(increasedFrameIndex + rxQueue.ElementAt(increasedFrameIndex - 1).Bytes.Count() > dividedOffset)
+                        {
+                            //return specific byte from the current frame
+                            result = rxQueue.ElementAt(increasedFrameIndex - 1).Bytes[dividedOffset - increasedFrameIndex];
+                            break;
+                        }
+
+                        dividedOffset -= rxQueue.ElementAt(increasedFrameIndex - 1).Bytes.Count();
+                        increasedFrameIndex++;
+                    } while(dividedOffset > 0);
+                }
             }
             else
             {
@@ -764,6 +798,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
         //HACK! TX_ACTIVE is required to be set as 1 few times in a row for contiki
         private const int TxPendingCounterInitialValue = 4;
         private const int ChannelResetValue = 11;
+        private const uint FfsmMemoryStart = 0x400;
+        private const uint FfsmMemoryEnd = 0x57C;
+        private const uint RxFifoMemorySize = 0x200;
 
         private enum CSPInstructions
         {
