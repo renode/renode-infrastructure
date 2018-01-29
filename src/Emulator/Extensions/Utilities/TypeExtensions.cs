@@ -146,6 +146,8 @@ namespace Antmicro.Renode.Utilities
             typeof(IClockSource),
             typeof(Range),
             typeof(TimeSpan),
+            typeof(TimeInterval),
+            typeof(TimeStamp),
             typeof(TimerResult)
         };
         private static bool IsTypeConvertible(Type type)
