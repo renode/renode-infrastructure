@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private class LocalComparingTimer : ComparingTimer
         {
             public LocalComparingTimer(Machine machine, long frequency, Action<ulong> compareAction)
-                : base(machine, frequency, enabled: true)
+                : base(machine.ClockSource, frequency, enabled: true)
             {
                 this.compareAction = compareAction;
             }

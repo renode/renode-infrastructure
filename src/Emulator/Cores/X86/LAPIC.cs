@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public LAPIC(Machine machine)
         {
             // frequency guessed from driver and zephyr code
-            localTimer = new LimitTimer(machine, 32000000, direction: Direction.Descending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
+            localTimer = new LimitTimer(machine.ClockSource, 32000000, direction: Direction.Descending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
             localTimer.LimitReached += () =>
             {
                 if(localTimerMasked.Value || !lapicEnabled.Value)

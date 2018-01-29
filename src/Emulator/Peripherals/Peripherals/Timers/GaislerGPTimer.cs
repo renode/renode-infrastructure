@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             
             public InnerTimer(Machine machine, int frequency)
             {
-                CoreTimer = new LimitTimer(machine, frequency, limit: InitialLimit, direction : Direction.Descending, eventEnabled: true);
+                CoreTimer = new LimitTimer(machine.ClockSource, frequency, limit: InitialLimit, direction : Direction.Descending, eventEnabled: true);
             }
 
             public LimitTimer CoreTimer;

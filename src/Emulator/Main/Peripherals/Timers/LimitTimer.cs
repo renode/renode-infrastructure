@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class LimitTimer : ITimer, IPeripheral
     {
-        public LimitTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending,
+        public LimitTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending,
             bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
         {
             if(limit == 0)
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 throw new ArgumentException("Limit cannot be zero.");
             }
             irqSync = new object();
-            clockSource = machine.ObtainClockSource();
+            this.clockSource = clockSource;
 
             initialFrequency = frequency;
             initialLimit = limit;

@@ -15,14 +15,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ComparingTimer : ITimer, IPeripheral
     {
-        public ComparingTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending,
+        public ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending,
             bool enabled = false, WorkMode workMode = WorkMode.OneShot, ulong compare = ulong.MaxValue)
         {
             if(compare > limit)
             {
                 throw new ConstructionException(string.Format(CompareHigherThanLimitMessage, compare, limit));
             }
-            clockSource = machine.ObtainClockSource();
+            this.clockSource = clockSource;
 
             initialDirection = direction;
             initialFrequency = frequency;

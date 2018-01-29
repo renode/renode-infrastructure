@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private sealed class CortexAGenericTimerUnit : ComparingTimer
         {
             public CortexAGenericTimerUnit(Machine machine, GPIO irq, ulong compareValue, bool enabled = false)
-                : base(machine, Frequency, compare: compareValue, enabled: enabled)
+                : base(machine.ClockSource, Frequency, compare: compareValue, enabled: enabled)
             {
                 controlRegister = new DoubleWordRegister(this);
                 controlRegister.DefineFlagField(0, writeCallback: OnEnabled);
