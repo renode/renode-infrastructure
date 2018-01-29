@@ -12,6 +12,7 @@ using System.Threading;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.UART;
+using System.Text;
 
 namespace Antmicro.Renode.Backends.Terminals
 {
@@ -25,7 +26,7 @@ namespace Antmicro.Renode.Backends.Terminals
                 SetPrompt(prompt);
             }
             internalLock = new object();
-            charBuffer = new List<char>();
+            buffer = new StringBuilder();
             this.onLine = onLine;
             this.onPrompt = onPrompt;
         }
@@ -62,7 +63,7 @@ namespace Antmicro.Renode.Backends.Terminals
                 }
                 if(value != 10)
                 {
-                    charBuffer.Add((char)value);
+                    buffer.Append((char)value);
                     if(promptBytes != null && index < promptBytes.Length)
                     {
                         if(promptBytes[index] != value)
@@ -77,19 +78,15 @@ namespace Antmicro.Renode.Backends.Terminals
                     }
                     return;
                 }
-                // TODO: little optimization here
-                if(onLine != null)
-                {
-                    onLine(new String(charBuffer.ToArray()), machine.ElapsedVirtualTime);
-                }
-                charBuffer.Clear();
+                onLine?.Invoke(buffer.ToString(), machine.ElapsedVirtualTime);
+                buffer.Clear();
                 index = 0;
             }
         }
 
         public string GetWaitingLine()
         {
-            return new string(charBuffer.ToArray());
+            return buffer.ToString();
         }
 
         public void WriteStringToTerminal(string line)
@@ -123,7 +120,7 @@ namespace Antmicro.Renode.Backends.Terminals
             }
         }
 
-        private readonly List<char> charBuffer;
+        private readonly StringBuilder buffer;
         private readonly Action<string, TimeSpan> onLine;
         private readonly Action<TimeSpan> onPrompt;
         private byte[] promptBytes;
