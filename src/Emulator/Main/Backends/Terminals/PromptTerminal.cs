@@ -43,6 +43,15 @@ namespace Antmicro.Renode.Backends.Terminals
             }
         }
 
+        public void AttachTo(IUART uart, Machine machine)
+        {
+            lock(internalLock)
+            {
+                this.machine = machine;
+                base.AttachTo(uart);
+            }
+        }
+
         public override void DetachFrom(IUART uart)
         {
             lock(internalLock)
