@@ -19,34 +19,29 @@ namespace Antmicro.Renode.Utilities
 
         public bool TryParse(string input, Type outputType, out object result)
         {
-            try
-            {
-                result = Parse(input, outputType);
-                return true;
-            }
-            catch(TargetInvocationException)
-            {
-                result = null;
-                return false;
-            }
-        }
-
-        public object Parse(string input, Type outputType)
-        {
             if(outputType == typeof(string))
             {
-                return input;
+                result = input;
+                return true;
             }
             var underlyingType = Nullable.GetUnderlyingType(outputType);
-            if(underlyingType != null)
+            if(underlyingType != null && TryParse(input, underlyingType, out var res))
             {
-                return input == null ? null : Parse(input, underlyingType);
+                result = res;
+                return true;
             }
             if(outputType.IsEnum)
             {
-                return Enum.Parse(outputType, input);
+                var names = Enum.GetNames(outputType);
+                if(names.Contains(input, StringComparer.CurrentCulture))
+                {
+                    result = Enum.Parse(outputType, input, false);
+                    return true;
+                }
+                result = null;
+                return false;
             }
-
+            
             Delegate parser;
             if(input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
@@ -55,10 +50,10 @@ namespace Antmicro.Renode.Utilities
                     hexCache,
                     outputType,
                     () =>
-                    {
-                        TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(NumberStyles), typeof(CultureInfo) }, new object[] { NumberStyles.HexNumber, CultureInfo.InvariantCulture }, out Delegate result);
-                        return result;
-                    }
+                {
+                    TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(NumberStyles), typeof(CultureInfo) }, new object[] { NumberStyles.HexNumber, CultureInfo.InvariantCulture }, out Delegate del);
+                    return del;
+                }
                 );
             }
             else
@@ -67,17 +62,26 @@ namespace Antmicro.Renode.Utilities
                     cache,
                     outputType,
                     () =>
+                {
+                    if(!TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(CultureInfo) }, new object[] { CultureInfo.InvariantCulture }, out Delegate del)
+                       && !TryGetParseMethodDelegate(outputType, new[] { typeof(string) }, new object[0], out del))
                     {
-                        if(!TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(CultureInfo) }, new object[] { CultureInfo.InvariantCulture }, out Delegate result)
-                          && !TryGetParseMethodDelegate(outputType, new[] { typeof(string) }, new object[0], out result))
-                        {
-                            result = null;
-                        }
-                        return result;
+                        del = null;
                     }
+                    return del;
+                }
                 );
             }
-            return parser.DynamicInvoke(input);
+            try
+            {
+                result = parser.DynamicInvoke(input);
+                return true;
+            }
+            catch(TargetInvocationException)
+            {
+                result = null;
+                return false;
+            }
         }
 
         private static bool TryGetParseMethodDelegate(Type type, Type[] parameters, object[] additionalParameters, out Delegate result)
