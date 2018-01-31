@@ -11,6 +11,7 @@ using Antmicro.Renode.Peripherals;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CAN;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Tools.Network
 {
@@ -35,6 +36,10 @@ namespace Antmicro.Renode.Tools.Network
         {
             lock(sync)
             {
+                if(attached.Contains(iface))
+                {
+                    throw new RecoverableException("Cannot attach to the provided CAN periperal as it is already registered in this hub.");
+                }
                 attached.Add(iface);
                 handlers.Add(iface, (id, data) => Transmit(iface, id, data));
                 iface.FrameSent += handlers[iface];

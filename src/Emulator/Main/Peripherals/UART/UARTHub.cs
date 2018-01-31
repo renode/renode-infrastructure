@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using System.Linq;
 using Antmicro.Renode.Time;
 using System.Collections.Concurrent;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -25,6 +26,10 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public void AttachTo(IUART uart)
         {
+            if(uarts.Contains(uart))
+            {
+                throw new RecoverableException("Cannot attach to the provided UART as it is already registered in this hub.");
+            }
             uarts.Add(uart);
             uart.CharReceived += x => HandleCharReceived(x, uart);
         }

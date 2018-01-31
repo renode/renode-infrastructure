@@ -11,6 +11,7 @@ using System.Linq;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -33,6 +34,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void AttachTo(IRadio radio)
         {
+            if(radios.ContainsKey(radio))
+            {
+                throw new RecoverableException("Cannot attach to the provided radio as it is already registered in this wireless medium.");
+            }
             radios.Add(radio, new Position());
             radio.FrameSent += FrameSentHandler;
         }

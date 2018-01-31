@@ -33,6 +33,11 @@ namespace Antmicro.Renode.Tools.Network
         {
             lock(innerLock)
             {
+                if(ifaces.Any(x => x.Interface == iface))
+                {
+                    throw new RecoverableException("Cannot attach to the provided MAC interface as it is already registered in this switch.");
+                }
+
                 var ifaceDescriptor = new InterfaceDescriptor
                 {
                     Interface = iface,
