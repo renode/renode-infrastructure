@@ -665,7 +665,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 messageBuilder.Clear();
-                this.Log(LogLevel.Info, messageBuilder.Append("Entering function ").Append(name).Append(" at 0x").Append(pc.ToString("X")).ToString());
+                this.Log(LogLevel.Info, messageBuilder.Append("Entering function ").Append(name ?? "without name").Append(" at 0x").Append(pc.ToString("X")).ToString());
             });
         }
 
