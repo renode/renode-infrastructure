@@ -660,7 +660,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     pc_cache.Add(pc, name);
                 }
 
-                if(spaceSeparatedPrefixes != "" && !prefixesAsArray.Any(name.StartsWith))
+                if(spaceSeparatedPrefixes != "" && (name == null || !prefixesAsArray.Any(name.StartsWith)))
                 {
                     return;
                 }
