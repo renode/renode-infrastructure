@@ -20,7 +20,6 @@
     REGISTERS_FROM_BASE_CLASS.Add("LR");
     REGISTERS_FROM_BASE_CLASS.Add("PC");
     REGISTERS_FROM_BASE_CLASS.Add("CPSR");
-    REGISTERS_FROM_BASE_CLASS.Add("SPSR");
     REGISTERS_FROM_BASE_CLASS.Add("R");
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>

@@ -102,19 +102,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        [Register]
-        public UInt32 SPSR
-        {
-            get
-            {
-                return GetRegisterValue32((int)ArmRegisters.SPSR);
-            }
-            set
-            {
-                SetRegisterValue32((int)ArmRegisters.SPSR, value);
-            }
-        }
-
         public RegistersGroup<UInt32> R { get; private set; }
 
         protected override void InitializeRegisters()
@@ -163,8 +150,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         SP = 13,
         LR = 14,
         PC = 15,
-        CPSR = 16,
-        SPSR = 17,
+        CPSR = 25,
         R0 = 0,
         R1 = 1,
         R2 = 2,
