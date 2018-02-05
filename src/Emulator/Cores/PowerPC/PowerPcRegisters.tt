@@ -14,5 +14,7 @@
     HEADER_FILE = "Emulator/Cores/tlib/arch/ppc/cpu_registers.h";
 
     PC_REGISTER = "NIP";
+
+    GENERAL_REGISTERS.AddRange(new[] { "PC" });
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>

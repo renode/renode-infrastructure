@@ -21,5 +21,7 @@
     REGISTERS_FROM_BASE_CLASS.Add("PC");
     REGISTERS_FROM_BASE_CLASS.Add("CPSR");
     REGISTERS_FROM_BASE_CLASS.Add("R");
+
+    // not setting general registers as they are the same as for CortexA
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>

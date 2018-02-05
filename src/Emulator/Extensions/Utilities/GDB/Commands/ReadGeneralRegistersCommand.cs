@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using System.Text;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
@@ -19,9 +20,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public PacketData Execute()
         {
             var registers = new StringBuilder();
-            foreach(var i in manager.Cpu.GetRegisters())
+            foreach(var i in manager.Cpu.GetRegisters().Where(x => x.IsGeneral))
             {
-                var value = manager.Cpu.GetRegisterUnsafe(i);
+                var value = manager.Cpu.GetRegisterUnsafe(i.Index);
                 foreach(var b in BitConverter.GetBytes(value))
                 {
                     registers.AppendFormat("{0:x2}", b);

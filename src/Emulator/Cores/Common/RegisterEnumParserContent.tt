@@ -212,6 +212,17 @@
         public class RegisterGroupDescriptor : RegisterDescriptorBase
         {
             public Dictionary<int, int> IndexValueMap { get; set; }
+
+            public IEnumerable<RegisterDescriptor> GetRegisters()
+            {
+                return IndexValueMap.Select(x => new RegisterDescriptor
+                {
+                    Name = $"{this.Name}{x.Key}",
+                    Width = this.Width,
+                    IsIgnored = this.IsIgnored,
+                    Value = x.Value
+                });
+            }
         }
 
         public class RegisterDescriptorBase

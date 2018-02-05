@@ -71,17 +71,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             return GetRegisterValue32(register);
         }
 
-        public override int[] GetRegisters()
+        public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new int[] {
+            return new CPURegister[] {
 <#
     foreach(var register in
-        parser.Registers.Where(x => !x.IsIgnored).Select(x => x.Value)
-        .Union(parser.RegisterGroups.Where(x => !x.IsIgnored).SelectMany(x => x.IndexValueMap.Values))
-        .OrderBy(x => x))
+        parser.Registers
+        .Union(parser.RegisterGroups.SelectMany(x => x.GetRegisters()))
+        .Where(x => !x.IsIgnored)
+        .GroupBy(x => x.Value)
+        .OrderBy(x => x.Key))
     {
 #>
-                <#=register#>,
+                new CPURegister(<#=register.Key#>, <#= register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false" #>),
 <#
     }
 #>

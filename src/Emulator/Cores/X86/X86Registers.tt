@@ -14,5 +14,7 @@
     HEADER_FILE = "Emulator/Cores/tlib/arch/i386/cpu_registers.h";
 
     PC_REGISTER = "EIP";
+
+    GENERAL_REGISTERS.AddRange(new[] { "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI", "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS", "CR0", "CR1", "CR2", "CR3", "CR4" });
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>

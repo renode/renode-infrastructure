@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber, Separator = '=')]int registerNumber,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] value)
         {
-            if(!manager.Cpu.GetRegisters().Contains(registerNumber))
+            if(!manager.Cpu.GetRegisters().Any(x => x.Index == registerNumber))
             {
                 return PacketData.ErrorReply(0);
             }

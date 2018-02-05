@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int registerNumber)
         {
             var content = new StringBuilder();
-            var value = manager.Cpu.GetRegisters().Contains(registerNumber) ? manager.Cpu.GetRegisterUnsafe(registerNumber) : 0;
+            var value = manager.Cpu.GetRegisters().Any(x => x.Index == registerNumber) ? manager.Cpu.GetRegisterUnsafe(registerNumber) : 0;
             foreach(var b in BitConverter.GetBytes(value))
             {
                 content.AppendFormat("{0:x2}", b);

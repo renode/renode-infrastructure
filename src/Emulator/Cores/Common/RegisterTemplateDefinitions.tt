@@ -17,4 +17,5 @@
     var BEFORE_WRITE_HOOKS = new Dictionary<string, string>();
     var AFTER_WRITE_HOOKS = new Dictionary<string, string>();
     var REGISTERS_FROM_BASE_CLASS = new List<string>();
+    var GENERAL_REGISTERS = new List<string>();
 #>

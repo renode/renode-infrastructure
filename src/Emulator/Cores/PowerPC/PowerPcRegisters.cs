@@ -24,11 +24,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             return GetRegisterValue32(register);
         }
-        
-        public override int[] GetRegisters()
+
+        public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new int[] {
-                0,
+            return new CPURegister[] {
+                new CPURegister(0, true),
             };
         }
 

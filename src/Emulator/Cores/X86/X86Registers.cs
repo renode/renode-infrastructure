@@ -24,31 +24,31 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             return GetRegisterValue32(register);
         }
-        
-        public override int[] GetRegisters()
+
+        public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new int[] {
-                0,
-                1,
-                2,
-                3,
-                4,
-                5,
-                6,
-                7,
-                8,
-                9,
-                10,
-                11,
-                12,
-                13,
-                14,
-                15,
-                16,
-                17,
-                18,
-                19,
-                20,
+            return new CPURegister[] {
+                new CPURegister(0, true),
+                new CPURegister(1, true),
+                new CPURegister(2, true),
+                new CPURegister(3, true),
+                new CPURegister(4, true),
+                new CPURegister(5, true),
+                new CPURegister(6, true),
+                new CPURegister(7, true),
+                new CPURegister(8, true),
+                new CPURegister(9, true),
+                new CPURegister(10, true),
+                new CPURegister(11, true),
+                new CPURegister(12, true),
+                new CPURegister(13, true),
+                new CPURegister(14, true),
+                new CPURegister(15, true),
+                new CPURegister(16, true),
+                new CPURegister(17, true),
+                new CPURegister(18, true),
+                new CPURegister(19, true),
+                new CPURegister(20, true),
             };
         }
 

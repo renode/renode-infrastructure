@@ -623,7 +623,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract uint GetRegisterUnsafe(int register);
 
-        public abstract int[] GetRegisters();
+        public abstract IEnumerable<CPURegister> GetRegisters();
 
         private void SetInternalHookAtBlockBegin(Action<uint, uint> hook)
         {
