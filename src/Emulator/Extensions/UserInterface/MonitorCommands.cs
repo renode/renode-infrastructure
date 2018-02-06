@@ -527,7 +527,7 @@ namespace Antmicro.Renode.UserInterface
             }
             if(info.Methods != null && info.Methods.Any(x => lookup == null || x.Name == lookup))
             {
-                writer.WriteLine("\nFollowing methods are available:");
+                writer.WriteLine("\nThe following methods are available:");
                 var methodsOutput = new StringBuilder();
 
                 foreach(var method in info.Methods.Where(x=> lookup == null || x.Name==lookup))
@@ -591,7 +591,7 @@ namespace Antmicro.Renode.UserInterface
          
             if(info.Properties != null && info.Properties.Any(x => lookup == null || x.Name == lookup))
             {
-                writer.WriteLine("\nFollowing properties are available:");
+                writer.WriteLine("\nThe following properties are available:");
 
                 foreach(var property in info.Properties.Where(x=> lookup==null || x.Name==lookup))
                 {
@@ -623,7 +623,7 @@ namespace Antmicro.Renode.UserInterface
 
             if(info.Indexers != null && info.Indexers.Any(x => lookup == null || x.Name == lookup))
             {
-                writer.WriteLine("\nFollowing indexers are available:");
+                writer.WriteLine("\nThe following indexers are available:");
                 foreach(var indexer in info.Indexers.Where(x=> lookup==null || x.Name==lookup))
                 {
                     var parameterFormat = new StringBuilder();
@@ -690,7 +690,7 @@ namespace Antmicro.Renode.UserInterface
 
             if(info.Fields != null && info.Fields.Any(x => lookup == null || x.Name == lookup))
             {
-                writer.WriteLine("\nFollowing fields are available:");
+                writer.WriteLine("\nThe following fields are available:");
 
                 foreach(var field in info.Fields.Where(x=> lookup==null || x.Name==lookup))
                 {
