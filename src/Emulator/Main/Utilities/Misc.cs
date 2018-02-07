@@ -910,6 +910,11 @@ namespace Antmicro.Renode.Utilities
             BitHelper.SetBit(ref val, index, value);
             field.Value = val;
         }
+
+        public static ulong InMicroseconds(this TimeSpan ts)
+        {
+            return (ulong)(ts.Ticks / 10);
+        }
     }
 }
 
