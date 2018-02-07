@@ -39,6 +39,11 @@ namespace Antmicro.Renode.Network
             packet.RecursivelyUpdateCalculatedValues(packetNetEtherTypes, packetNetIpProtocols);
         }
 
+        public EthernetFrame Clone()
+        {
+            return new EthernetFrame(packet.Bytes.ToArray(), crc?.ToArray());
+        }
+
         public override string ToString()
         {
             return packet.ToString();
@@ -48,14 +53,7 @@ namespace Antmicro.Renode.Network
         {
             get
             {
-                if(crcPresent)
-                {
-                    return packet.Bytes.Concat(crc).ToArray();
-                }
-                else
-                {
-                    return packet.Bytes.ToArray();
-                }
+                    return (crc != null) ? packet.Bytes.Concat(crc).ToArray() : packet.Bytes.ToArray();
             }
         }
 
@@ -105,11 +103,7 @@ namespace Antmicro.Renode.Network
 
         private EthernetFrame(byte[] data, byte[] crc = null)
         {
-            crcPresent = crc != null;
-            if(crcPresent)
-            {
-                this.crc = crc;
-            }
+            this.crc = crc;
             packet = Packet.ParsePacket(LinkLayers.Ethernet, data);
         }
 
@@ -136,7 +130,6 @@ namespace Antmicro.Renode.Network
         }
 
         private readonly Packet packet;
-        private bool crcPresent;
-        private IEnumerable<byte> crc;
+        private byte[] crc;
     }
 }
