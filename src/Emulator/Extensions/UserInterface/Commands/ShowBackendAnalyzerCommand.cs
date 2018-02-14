@@ -32,6 +32,10 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer, StringToken analyzerName, LiteralToken peripheral, LiteralToken analyzerTypeName)
         {
+            if(!Emulator.ShowAnalyzers)
+            {
+                return;
+            }
             try
             {
                 var analyzer = GetAnalyzer(peripheral.Value, analyzerTypeName == null ? null : analyzerTypeName.Value);
@@ -43,7 +47,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             } 
             catch (Exception e)
             {
-                throw new RecoverableException(string.Format("Received '{0}' error while initializng analyzer for: {1}. Are you missing a required plugin?", e.Message, peripheral.Value));
+                throw new RecoverableException(string.Format("Received '{0}' error while initializing analyzer for: {1}. Are you missing a required plugin?", e.Message, peripheral.Value));
             }
         }
 

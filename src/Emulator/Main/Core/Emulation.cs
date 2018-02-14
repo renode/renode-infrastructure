@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Core
     {
         public Emulation()
         {
-            syncDomains = new List<ISynchronizationDomain>();
+            MasterTimeSource = new MasterTimeSource();
             HostMachine = new HostMachine();
             MACRepository = new MACRepository();
             ExternalsManager = new ExternalsManager();
@@ -34,16 +34,18 @@ namespace Antmicro.Renode.Core
             CurrentLogger = Logger.GetLogger();
             randomGenerator = new Lazy<PseudorandomNumberGenerator>(() => new PseudorandomNumberGenerator());
             nameCache = new LRUCache<object, Tuple<string, string>>(NameCacheSize);
+            peripheralToMachineCache = new LRUCache<IPeripheral, Machine>(PeripheralToMachineCacheSize);
 
             machs = new FastReadConcurrentTwoWayDictionary<string, Machine>();
             machs.ItemAdded += (name, machine) =>
             {
                 machine.StateChanged += OnMachineStateChanged;
-                machine.PeripheralsChanged += (m, e) => 
+                machine.PeripheralsChanged += (m, e) =>
                 {
                     if (e.Operation != PeripheralsChangedEventArgs.PeripheralChangeType.Addition)
                     {
                         nameCache.Invalidate();
+                        peripheralToMachineCache.Invalidate();
                     }
                 };
 
@@ -54,6 +56,7 @@ namespace Antmicro.Renode.Core
             {
                 machine.StateChanged -= OnMachineStateChanged;
                 nameCache.Invalidate();
+                peripheralToMachineCache.Invalidate();
 
                 OnMachineRemoved(machine);
             };
@@ -62,48 +65,11 @@ namespace Antmicro.Renode.Core
             theBag = new Dictionary<string, object>();
         }
 
+        public MasterTimeSource MasterTimeSource { get; private set; }
+
         public BackendManager BackendManager { get; private set; }
 
         public BlobManager BlobManager { get; set; }
-
-        public IReadOnlyList<ISynchronizationDomain> SyncDomains
-        {
-            get
-            {
-                return syncDomains;
-            }
-        }
-
-        public int AddSyncDomain()
-        {
-            syncDomains.Add(new SynchronizationDomain());
-            return syncDomains.Count - 1;
-        }
-
-        public string[,] GetElementsInSyncDomain(int num)
-        {
-            var table = new Table();
-            table.AddRow("SyncDomain {0}".FormatWith(num));
-
-            foreach(var machine in Machines)
-            {
-                if(machine.SyncDomain == SyncDomains[num])
-                {
-                    table.AddRow(this[machine]);
-                }
-            }
-
-            foreach(var synchronizedExternal in ExternalsManager.Externals.Select(x => x as ISynchronized).Where(x => x != null))
-            {
-                string name;
-                if(synchronizedExternal.SyncDomain == SyncDomains[num] && ExternalsManager.TryGetName((IExternal)synchronizedExternal, out name))
-                {
-                    table.AddRow(name);
-                }
-            }
-
-            return table.ToArray();
-        }
 
         private readonly object machLock = new object();
 
@@ -117,6 +83,15 @@ namespace Antmicro.Renode.Core
             get { lock (machLock) { return machs.Rights.Any(x => !x.IsPaused); } }
         }
 
+        public bool IsStarted
+        {
+            get { return isStarted; }
+            private set { isStarted = value; }
+        }
+
+        [Transient]
+        private bool isStarted;
+
         public Machine this[String key]
         {
             get { return machs[key]; }
@@ -129,7 +104,7 @@ namespace Antmicro.Renode.Core
 
         public CachingFileFetcher FileFetcher
         {
-            get { return fileFetcher; } 
+            get { return fileFetcher; }
             set { fileFetcher = value; }
         }
 
@@ -214,6 +189,7 @@ namespace Antmicro.Renode.Core
                 }
 
                 machs.Add(name, machine);
+                MasterTimeSource.RegisterSink(machine.LocalTimeSource);
                 return true;
             }
         }
@@ -228,7 +204,37 @@ namespace Antmicro.Renode.Core
             return RandomGenerator.GetCurrentSeed();
         }
 
+        public void RunFor(TimeInterval period)
+        {
+            if(IsStarted)
+            {
+                throw new RecoverableException("This action is not available when emulation is already started");
+            }
+            InnerStartAll();
+            MasterTimeSource.RunFor(period);
+            InnerPauseAll();
+        }
+
+        public void RunToNearestSyncPoint()
+        {
+            if(IsStarted)
+            {
+                throw new RecoverableException("This action is not available when emulation is already started");
+            }
+
+            InnerStartAll();
+            MasterTimeSource.Run();
+            InnerPauseAll();
+        }
+
         public void StartAll()
+        {
+            IsStarted = true;
+            InnerStartAll();
+            MasterTimeSource.Start();
+        }
+
+        private void InnerStartAll()
         {
             //ToList cast is a precaution for a situation where the list of machines changes
             //during start up procedure. It might happen on rare occasions. E.g. when a script loads them, and user
@@ -242,6 +248,13 @@ namespace Antmicro.Renode.Core
         }
 
         public void PauseAll()
+        {
+            MasterTimeSource.Stop();
+            InnerPauseAll();
+            IsStarted = false;
+        }
+
+        private void InnerPauseAll()
         {
             //ToList cast is a precaution for a situation where the list of machines changes
             //during pausing. It might happen on rare occasions. E.g. when a script loads them, and user
@@ -313,12 +326,18 @@ namespace Antmicro.Renode.Core
 
         public bool TryGetMachineForPeripheral(IPeripheral p, out Machine machine)
         {
+            if(peripheralToMachineCache.TryGetValue(p, out machine))
+            {
+                return true;
+            }
+
             foreach(var candidate in Machines)
             {
                 var candidateAsMachine = candidate;
                 if(candidateAsMachine != null && candidateAsMachine.IsRegistered(p))
                 {
                     machine = candidateAsMachine;
+                    peripheralToMachineCache.Add(p, machine);
                     return true;
                 }
             }
@@ -444,7 +463,7 @@ namespace Antmicro.Renode.Core
             }
 
             IHostMachineElement hostMachineElement;
-            if(name.StartsWith(string.Format("{0}.", HostMachine.HostMachineName)) 
+            if(name.StartsWith(string.Format("{0}.", HostMachine.HostMachineName))
                 && HostMachine.TryGetByName(name.Substring(HostMachine.HostMachineName.Length + 1), out hostMachineElement))
             {
                 element = hostMachineElement;
@@ -454,7 +473,7 @@ namespace Antmicro.Renode.Core
             element = null;
             return false;
         }
-     
+
         public void Dispose()
         {
             FileFetcher.CancelDownload();
@@ -467,6 +486,7 @@ namespace Antmicro.Renode.Core
                 Array.ForEach(toDispose, x => x.Pause());
                 Array.ForEach(toDispose, x => x.Dispose());
                 machs.Clear();
+                MasterTimeSource.Dispose();
                 ExternalsManager.Clear();
                 HostMachine.Dispose();
                 CurrentLogger.Dispose();
@@ -501,7 +521,7 @@ namespace Antmicro.Renode.Core
                 {
                     value = theBag[name] as T;
                     if(value != null)
-                    {                
+                    {
                         return true;
                     }
                 }
@@ -513,11 +533,6 @@ namespace Antmicro.Renode.Core
 
         [field: Transient]
         public event Action<Machine, Machine> MachineExchanged;
-
-        internal void DropMachine(string name)
-        {
-            machs.Remove(name);
-        }
 
         [PostDeserialization]
         private void AfterDeserialization()
@@ -573,17 +588,22 @@ namespace Antmicro.Renode.Core
 
         [Constructor(NameCacheSize)]
         private readonly LRUCache<object, Tuple<string, string>> nameCache;
+
+        [Constructor(PeripheralToMachineCacheSize)]
+        private readonly LRUCache<IPeripheral, Machine> peripheralToMachineCache;
+
         private readonly Lazy<PseudorandomNumberGenerator> randomGenerator;
-        private readonly List<ISynchronizationDomain> syncDomains;
         private readonly Dictionary<string, object> theBag;
         private readonly FastReadConcurrentTwoWayDictionary<string, Machine> machs;
 
         private const int NameCacheSize = 100;
+        private const int PeripheralToMachineCacheSize = 100;
 
         private class PausedState : IDisposable
         {
             public PausedState(Emulation emulation)
             {
+                emulation.MasterTimeSource.Stop();
                 machineStates = emulation.Machines.Select(x => x.ObtainPausedState()).ToArray();
                 emulation.ExternalsManager.Pause();
                 this.emulation = emulation;
@@ -591,6 +611,7 @@ namespace Antmicro.Renode.Core
 
             public void Dispose()
             {
+                emulation.MasterTimeSource.Start();
                 foreach(var state in machineStates)
                 {
                     state.Dispose();

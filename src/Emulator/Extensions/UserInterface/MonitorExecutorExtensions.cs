@@ -15,7 +15,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var engine = new ExecutorPythonEngine(machine, script);
             var clockEntry = new ClockEntry((ulong)milliseconds, ClockEntry.FrequencyToRatio(machine, 1000), engine.Action);
-            machine.ObtainClockSource().AddClockEntry(clockEntry);
+            machine.ClockSource.AddClockEntry(clockEntry);
 
             events.Add(machine, name, engine.Action);
             machine.StateChanged += (m, s) => UnregisterEvent(m, name, s);
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.UserInterface
 
         public static void StopPythonExecution(this Machine machine, string name)
         {
-            machine.ObtainClockSource().RemoveClockEntry(events.WithdrawAction(machine, name));
+            machine.ClockSource.RemoveClockEntry(events.WithdrawAction(machine, name));
             events.Remove(machine, name);
         }
 

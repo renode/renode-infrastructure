@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Network;
 
@@ -14,8 +15,8 @@ namespace Antmicro.Renode.Peripherals.Network
     public interface IMACInterface : INetworkInterface
     {
         MACAddress MAC { get; set; }
-        NetworkLink Link { get; }
         void ReceiveFrame(EthernetFrame frame);
+        event Action<EthernetFrame> FrameReady;
     }
 }
 

@@ -28,7 +28,13 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void WriteChar(byte value)
         {
-            Machine.ReportForeignEvent(value, WriteCharInner);
+            if(RegisteredPeripheral != null)
+            {
+                return;
+            }
+            var charReceived = CharReceived;
+            var read = RegisteredPeripheral.Transmit(value);
+            charReceived(read);
         }
 
         public Bits StopBits
@@ -53,17 +59,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 throw new ArgumentException();
             }
-        }
-
-        private void WriteCharInner(byte value)
-        {
-            if(RegisteredPeripheral != null)
-            {
-                return;
-            }
-            var charReceived = CharReceived;
-            var read = RegisteredPeripheral.Transmit(value);
-            charReceived(read);
         }
     }
 }

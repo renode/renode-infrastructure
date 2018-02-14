@@ -97,6 +97,8 @@ namespace Antmicro.Renode
             actionsOnMainThread.CompleteAdding();
         }
 
+        public static bool ShowAnalyzers { get; set; }
+
         private static readonly BlockingCollection<Action> actionsOnMainThread = new BlockingCollection<Action>();
 
         public static event Action BeforeExit;

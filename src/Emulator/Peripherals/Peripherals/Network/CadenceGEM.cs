@@ -21,7 +21,6 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             registers = new regs();        
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
             //crc = new Crc16();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             sync = new object();
@@ -36,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        public NetworkLink Link{ get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         public uint ReadDoubleWord(long offset)
         {
@@ -240,23 +239,20 @@ namespace Antmicro.Renode.Peripherals.Network
                         }
                     }
 
-                    if(Link.IsConnected)
+                    EthernetFrame frame;
+
+                    if(!txBD.NoCRC)
                     {
-                        EthernetFrame frame;
-
-                        if(!txBD.NoCRC)
-                        {
-                            frame = EthernetFrame.CreateEthernetFrameWithCRC(packet.ToArray());
-                        }
-                        else
-                        {
-                            frame = EthernetFrame.CreateEthernetFrameWithoutCRC(packet.ToArray());
-                        }
-
-                        this.Log(LogLevel.Noisy, "Sending packet length {0}", packet.ToArray().Length);
-                        Link.TransmitFrameFromInterface(frame);
+                        frame = EthernetFrame.CreateEthernetFrameWithCRC(packet.ToArray());
                     }
-                
+                    else
+                    {
+                        frame = EthernetFrame.CreateEthernetFrameWithoutCRC(packet.ToArray());
+                    }
+
+                    this.Log(LogLevel.Noisy, "Sending packet length {0}", packet.ToArray().Length);
+                    FrameReady?.Invoke(frame);
+
                     txBD.WriteBack();
                 
                     if(txBD.Wrap)
@@ -298,34 +294,6 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public void ReceiveFrame(EthernetFrame frame)
-        {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-
-        public override void Reset()
-        {
-        }
-
-        public void Start()
-        {
-            Resume();
-        }
-
-        public void Pause()
-        {
-        }
-
-        public void Resume()
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-
-        public MACAddress MAC { get; set; }
-
-        private void ReceiveFrameInner(EthernetFrame frame)
         {
             lock(sync)
             {
@@ -375,6 +343,29 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
             }
         }
+
+        public override void Reset()
+        {
+        }
+
+        public void Start()
+        {
+            Resume();
+        }
+
+        public void Pause()
+        {
+        }
+
+        public void Resume()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public MACAddress MAC { get; set; }
 
         private void HandleError(int value)
         {

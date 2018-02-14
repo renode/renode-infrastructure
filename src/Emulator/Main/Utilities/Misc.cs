@@ -21,6 +21,8 @@ using System.Drawing;
 using Antmicro.Renode.Network;
 using System.Diagnostics;
 using Antmicro.Renode.Core.Structure.Registers;
+using System.Threading;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -909,6 +911,21 @@ namespace Antmicro.Renode.Utilities
             var val =  field.Value;
             BitHelper.SetBit(ref val, index, value);
             field.Value = val;
+        }
+
+        public static ulong InMicroseconds(this TimeSpan ts)
+        {
+            return (ulong)(ts.Ticks / 10);
+        }
+
+        public static void WaitWhile(this object @this, Func<bool> condition, string reason)
+        {
+            @this.Trace($"Waiting for '{reason}'...");
+            while(condition())
+            {
+                Monitor.Wait(@this);
+            }
+            @this.Trace($"Waiting for '{reason}' finished.");
         }
     }
 }

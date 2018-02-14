@@ -234,17 +234,59 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Press(MouseButton button)
         {
-            machine.ReportForeignEvent(button, PressInner);
+            lock(thisLock)
+            {
+                mstate = (byte)button;
+                buffer[0] = mstate;
+                buffer[1] = (byte)(x & byte.MaxValue);
+                // x small
+                buffer[2] = (byte)((x >> 8) & 127);
+                // x big
+                buffer[3] = (byte)(y & byte.MaxValue);
+                // y small
+                buffer[4] = (byte)((y >> 8) & 127);
+                // y big
+                changeState = true;
+            }
+            Refresh();
         }
 
         public void Release(MouseButton button)
         {
-            machine.ReportForeignEvent(button, ReleaseInner);
+            lock(thisLock)
+            {
+                buffer[0] = mstate = 0;
+                buffer[1] = (byte)(x & byte.MaxValue);
+                // x small
+                buffer[2] = (byte)((x >> 8) & 127);
+                // x big
+                buffer[3] = (byte)(y & byte.MaxValue);
+                // y small
+                buffer[4] = (byte)((y >> 8) & 127);
+                // y big
+                changeState = true;
+            }
+            Refresh();
         }
 
         public void MoveTo(int x, int y)
         {
-            machine.ReportForeignEvent(x, y, MoveToInner);
+            lock(thisLock)
+            {
+                this.x = x;
+                this.y = y;
+                buffer[0] = mstate;
+                buffer[1] = (byte)(x & byte.MaxValue);
+                // x small
+                buffer[2] = (byte)((x >> 8) & 127);
+                // x big
+                buffer[3] = (byte)(y & byte.MaxValue);
+                // y small
+                buffer[4] = (byte)((y >> 8) & 127);
+                // y big
+                changeState = true;
+            }
+            Refresh();
         }
 
         public int MaxX
@@ -277,63 +319,6 @@ namespace Antmicro.Renode.Peripherals.USB
             {
                 return 0;
             }
-        }
-
-        private void MoveToInner(int x, int y)
-        {
-            lock(thisLock)
-            {
-                this.x = x;
-                this.y = y;
-                buffer[0] = mstate;
-                buffer[1] = (byte)(x & byte.MaxValue);
-                // x small
-                buffer[2] = (byte)((x >> 8) & 127);
-                // x big
-                buffer[3] = (byte)(y & byte.MaxValue);
-                // y small
-                buffer[4] = (byte)((y >> 8) & 127);
-                // y big
-                changeState = true;
-            }
-            Refresh();
-        }
-
-        private void PressInner(MouseButton button)
-        {
-            lock(thisLock)
-            {
-                mstate = (byte)button;
-                buffer[0] = mstate;
-                buffer[1] = (byte)(x & byte.MaxValue);
-                // x small
-                buffer[2] = (byte)((x >> 8) & 127);
-                // x big
-                buffer[3] = (byte)(y & byte.MaxValue);
-                // y small
-                buffer[4] = (byte)((y >> 8) & 127);
-                // y big
-                changeState = true;
-            }
-            Refresh();
-        }
-
-        private void ReleaseInner(MouseButton button)
-        {
-            lock(thisLock)
-            {
-                buffer[0] = mstate = 0;
-                buffer[1] = (byte)(x & byte.MaxValue);
-                // x small
-                buffer[2] = (byte)((x >> 8) & 127);
-                // x big
-                buffer[3] = (byte)(y & byte.MaxValue);
-                // y small
-                buffer[4] = (byte)((y >> 8) & 127);
-                // y big
-                changeState = true;
-            }
-            Refresh();
         }
 
         private void fillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)

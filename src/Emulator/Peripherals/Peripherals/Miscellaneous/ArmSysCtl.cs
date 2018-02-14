@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return 0;
             case CTL.Mhz24:
                 //TODO: verify
-                uint v = unchecked((uint)((machine.ElapsedVirtualTime).TotalSeconds*24000000));
+                uint v = unchecked((uint)((machine.ElapsedVirtualTime.TimeElapsed).TotalSeconds*24000000));
                 return v;
             case CTL.Misc:
                 return 0;

@@ -22,7 +22,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            Machine.ReportForeignEvent(value, WriteCharInner);
+            lock(queue)
+            {
+                queue.Enqueue(value);
+                CharWritten();
+            }
         }
 
         public virtual void Reset()
@@ -76,15 +80,6 @@ namespace Antmicro.Renode.Peripherals.UART
                 {
                     return queue.Count;
                 }
-            }
-        }
-
-        private void WriteCharInner(byte value)
-        {
-            lock(queue)
-            {
-                queue.Enqueue(value);
-                CharWritten();
             }
         }
 

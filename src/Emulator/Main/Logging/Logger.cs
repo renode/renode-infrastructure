@@ -6,6 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+// this strange construct is to globally enable/disable `Trace` methods using single #define here;
+// normally each file calling `Trace` should have it defined either on its own or globally in csproj/command line;
+#if DEBUG
+// uncomment line below to enable tracing
+//#define TRACE_ENABLED
+#endif
+
 using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
@@ -19,6 +26,9 @@ using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities.Collections;
+using System.Diagnostics;
+using System.Text;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Logging
 {
@@ -38,6 +48,11 @@ namespace Antmicro.Renode.Logging
             backends.Add(backend);
         }
 
+        public static void RemoveBackend(ILoggerBackend backend)
+        {
+            backends.Remove(backend);
+        }
+
         public static IDictionary<string, ILoggerBackend> GetBackends()
         {
             return backendNames;
@@ -49,6 +64,8 @@ namespace Antmicro.Renode.Logging
             {
                 backend.Dispose();
             }
+            backends.Clear();
+            backendNames.Clear();
         }
 
         public static void Log(LogLevel type, string message, params object[] args)
@@ -111,20 +128,37 @@ namespace Antmicro.Renode.Logging
             }
         }
 
-        public static void Trace(this IEmulationElement e, LogLevel type, string message = "",
+// see a comment at the top
+#if !TRACE_ENABLED
+        [Conditional("TRACE_ENABLED")]
+#endif
+        public static void Trace(this object o, LogLevel type, string message = null,
             [CallerLineNumber] int lineNumber = 0,
             [CallerMemberName] string caller = null,
             [CallerFilePath] string fileName = null)
         {
-            e.Log(type, String.Format("{0} in {1} ({2}@{3}).", message, caller, Path.GetFileName(fileName), lineNumber));
+            var fullMessage = new StringBuilder($"[TRACE][t:{Thread.CurrentThread.Name}/{Thread.CurrentThread.ManagedThreadId}]");
+#if DEBUG
+            if(o is IIdentifiable identifiable)
+            {
+                fullMessage.Append($"[s:{identifiable.GetDescription()}]");
+            }
+#endif
+            fullMessage.Append($" {message} in {caller} ({Path.GetFileName(fileName)}:{lineNumber})");
+
+            LogAs(o, type, fullMessage.ToString());
         }
 
-        public static void Trace(this IEmulationElement e, string message = "",
+// see a comment at the top
+#if !TRACE_ENABLED
+        [Conditional("TRACE_ENABLED")]
+#endif
+        public static void Trace(this object o, string message = null,
             [CallerLineNumber] int lineNumber = 0,
             [CallerMemberName] string caller = null,
             [CallerFilePath] string fileName = null)
         {
-            Trace(e, LogLevel.Debug, message, lineNumber, caller, fileName);
+            Trace(o, LogLevel.Info, message, lineNumber, caller, fileName);
         }
 
         public static void LogUnhandledRead(this IPeripheral peripheral, long offset)

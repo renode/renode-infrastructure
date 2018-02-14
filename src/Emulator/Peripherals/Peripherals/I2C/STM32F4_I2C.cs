@@ -148,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void InterruptEnableChange(bool oldValue, bool newValue)
         {
-            machine.ExecuteIn(Update);
+            machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => Update());
         }
 
         private void Update()
@@ -220,11 +220,11 @@ namespace Antmicro.Renode.Peripherals.I2C
                     state = State.Idle;
                     acknowledgeFailed.Value = true;
                 }
-                machine.ExecuteIn(Update);
+                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => Update());
                 break;
             case State.AwaitingData:
                 dataToTransfer.Add((byte)newValue);
-                machine.ExecuteIn(() =>
+                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
                 {
                     startBit.Value = false;
                     Update();

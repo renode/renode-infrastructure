@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private ulong GetInstructionCount()
         {
-            return (ulong)this.ExecutedInstructions;
+            return this.ExecutedInstructions;
         }
 
         private readonly LAPIC lapic;

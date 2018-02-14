@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public PowerPc(string cpuType, Machine machine, Endianess endianness = Endianess.BigEndian) : base(cpuType, machine, endianness)
         {
             irqSync = new object();
-            machine.ObtainClockSource().AddClockEntry(
+            machine.ClockSource.AddClockEntry(
                 new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, false, Direction.Descending));
         }
 
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint ReadDecrementer()
         {
-            return checked((uint)machine.ObtainClockSource().GetClockEntry(DecrementerHandler).Value);
+            return checked((uint)machine.ClockSource.GetClockEntry(DecrementerHandler).Value);
         }
 
         public bool StartInVle
@@ -99,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void WriteDecrementer(uint value)
         {
-            machine.ObtainClockSource().ExchangeClockEntryWith(DecrementerHandler,
+            machine.ClockSource.ExchangeClockEntryWith(DecrementerHandler,
                 entry => entry.With(period: value, value: value, enabled: value != 0));
         }
 

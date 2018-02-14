@@ -27,9 +27,14 @@ namespace Antmicro.Renode.Tools.Network
         }
     }
 
-    public class Switch : SynchronizedExternalBase, IExternal, IHasOwnLife, IConnectable<IMACInterface>, INetworkLogSwitch
+    public class Switch : IExternal, IHasOwnLife, IConnectable<IMACInterface>, INetworkLogSwitch
     {
         public void AttachTo(IMACInterface iface)
+        {
+            AttachTo(iface, null);
+        }
+
+        public void AttachTo(IMACInterface iface, Machine machine)
         {
             lock(innerLock)
             {
@@ -41,10 +46,17 @@ namespace Antmicro.Renode.Tools.Network
                 var ifaceDescriptor = new InterfaceDescriptor
                 {
                     Interface = iface,
-                    Delegate = (s, f) => ForwardToReceiver(f, iface)
+                    Delegate = f => ForwardToReceiver(f, iface)
                 };
 
-                iface.Link.TransmitFromParentInterface += ifaceDescriptor.Delegate;
+                //  this is to handle TAPInterfaces that are not peripherals
+                if(iface is IPeripheral peripheralInterface)
+                {
+                    ifaceDescriptor.Machine = machine ?? peripheralInterface.GetMachine();
+                }
+                // here we try to cast the iface to `ITapInterface` to avoid doing it multiple times for every packet in the future
+                ifaceDescriptor.AsTap = iface as HostInterfaces.Network.ITapInterface;
+                iface.FrameReady += ifaceDescriptor.Delegate;
                 ifaces.Add(ifaceDescriptor);
             }
         }
@@ -61,7 +73,7 @@ namespace Antmicro.Renode.Tools.Network
                 }
 
                 ifaces.Remove(descriptor);
-                iface.Link.TransmitFromParentInterface -= descriptor.Delegate;
+                iface.FrameReady -= descriptor.Delegate;
                 foreach(var m in macMapping.Where(x => x.Value == iface).ToArray())
                 {
                     macMapping.Remove(m.Key);
@@ -119,44 +131,38 @@ namespace Antmicro.Renode.Tools.Network
 
         private void ForwardToReceiver(EthernetFrame frame, IMACInterface sender)
         {
-            var frameTransmitted = FrameTransmitted;
-            var frameProcessed = FrameProcessed;
-
             if(!frame.DestinationMAC.HasValue)
             {
                 this.Log(LogLevel.Warning, "Destination MAC not set, the frame has unsupported format.");
                 return;
             }
 
-            if(frameProcessed != null)
+            FrameProcessed?.Invoke(this, sender, frame.Bytes);
+
+            if(!started)
             {
-                frameProcessed(this, sender, frame.Bytes.ToArray());
+                return;
             }
-
-            ExecuteOnNearestSync(() =>
+            lock(innerLock)
             {
-                if(!started)
-                {
-                    return;
-                }
-                lock(innerLock)
-                {
-                    IMACInterface destIface;
-                    var interestingIfaces = macMapping.TryGetValue(frame.DestinationMAC.Value, out destIface)
-                        ? ifaces.Where(x => (x.PromiscuousMode && x.Interface != sender) || x.Interface == destIface)
-                        : ifaces.Where(x => x.Interface != sender);
+                var interestingIfaces = macMapping.TryGetValue(frame.DestinationMAC.Value, out var destIface)
+                    ? ifaces.Where(x => (x.PromiscuousMode && x.Interface != sender) || x.Interface == destIface)
+                    : ifaces.Where(x => x.Interface != sender);
 
-                    foreach(var iface in interestingIfaces)
+                foreach(var iface in interestingIfaces)
+                {
+                    if(iface.AsTap != null)
                     {
-                        iface.Interface.Link.ReceiveFrameOnInterface(frame);
-
-                        if(frameTransmitted != null)
-                        {
-                            frameTransmitted(this, sender, iface.Interface, frame.Bytes.ToArray());
-                        }
+                        iface.AsTap.ReceiveFrame(frame.Clone());
+                        continue;
                     }
+
+                    iface.Machine.HandleTimeDomainEvent(iface.Interface.ReceiveFrame, frame.Clone(), TimeDomainsManager.Instance.VirtualTimeStamp, () =>
+                    {
+                        FrameTransmitted?.Invoke(this, sender, iface.Interface, frame.Bytes);
+                    });
                 }
-            });
+            }
 
             // at the same we will potentially add current MAC address assigned to the source
             if(!frame.SourceMAC.HasValue)
@@ -179,9 +185,11 @@ namespace Antmicro.Renode.Tools.Network
 
         private class InterfaceDescriptor
         {
+            public HostInterfaces.Network.ITapInterface AsTap;
+            public Machine Machine;
             public IMACInterface Interface;
             public bool PromiscuousMode;
-            public Action<NetworkLink, EthernetFrame> Delegate;
+            public Action<EthernetFrame> Delegate;
 
             public override int GetHashCode()
             {

@@ -85,17 +85,34 @@ namespace Antmicro.Renode.Peripherals.Input
 
         public void MoveTo(int x, int y)
         {
-            machine.ReportForeignEvent(x, y, MoveToInner);
+            points[0].X = (ushort)(MaxY - y);
+            points[0].Y = (ushort)(MaxX - x);
+            //WARNING! X and Y ARE reversed! Intentionaly!
+            if(points[0].Type == PointType.Down)
+            {
+                this.DebugLog("Moving the pointer to {0}x{1}", x, y);
+                EnqueueNewPoint();
+                IRQ.Set();
+            }
         }
 
         public void Press(MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, PressInner);
+            pressed = true;
+            points[0].Type = PointType.Down;
+            this.DebugLog("Button pressed, sending press signal at {0}x{1}.", points[0].X, points[0].Y);
+            EnqueueNewPoint();
+            IRQ.Set();
         }
 
         public void Release(MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, ReleaseInner);
+            this.Log(LogLevel.Noisy, "Sending release signal");
+            points[0].Type = PointType.Up;
+            pressed = false;
+            EnqueueNewPoint();
+            IRQ.Set();
+            this.DebugLog("Button released at {0}x{1}.", points[0].X, points[0].Y);
         }
 
         public GPIO IRQ 
@@ -134,38 +151,6 @@ namespace Antmicro.Renode.Peripherals.Input
             {
                 return 1275;
             }
-        }
-
-        private void MoveToInner(int x, int y)
-        {
-            points[0].X = (ushort)(MaxY - y);
-            points[0].Y = (ushort)(MaxX - x);
-            //WARNING! X and Y ARE reversed! Intentionaly!
-            if(points[0].Type == PointType.Down)
-            {
-                this.DebugLog("Moving the pointer to {0}x{1}", x, y);
-                EnqueueNewPoint();
-                IRQ.Set();
-            }
-        }
-
-        private void PressInner(MouseButton button)
-        {
-            pressed = true;
-            points[0].Type = PointType.Down;
-            this.DebugLog("Button pressed, sending press signal at {0}x{1}.", points[0].X, points[0].Y);
-            EnqueueNewPoint();
-            IRQ.Set();
-        }
-
-        private void ReleaseInner(MouseButton button)
-        {
-            this.Log(LogLevel.Noisy, "Sending release signal");
-            points[0].Type = PointType.Up;
-            pressed = false;
-            EnqueueNewPoint();
-            IRQ.Set();
-            this.DebugLog("Button released at {0}x{1}.", points[0].X, points[0].Y);
         }
 
         private void PressAgainIfNeeded()

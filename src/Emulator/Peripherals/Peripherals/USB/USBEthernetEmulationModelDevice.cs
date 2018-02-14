@@ -28,7 +28,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public USBEthernetEmulationModelDevice ()
         {
-            Link = new NetworkLink(this);
         }
 
         public void Reset()
@@ -167,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.USB
             throw new NotImplementedException ();
         }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
         public MACAddress MAC { get; set; }
         private const ushort EnglishLangId = 0x09;
 

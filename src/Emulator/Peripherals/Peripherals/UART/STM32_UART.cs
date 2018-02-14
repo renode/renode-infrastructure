@@ -32,7 +32,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            machine.ReportForeignEvent(value, WriteCharInner);
+            lock(charFifo)
+            {
+                charFifo.Enqueue(value);
+                Update();
+            }
         }
     
         public void WriteDoubleWord(long address, uint value)
@@ -99,15 +103,6 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             // TODO!
             transmissionComplete = true;
-        }
-
-        void WriteCharInner(byte value)
-        {
-            lock(charFifo)
-            {
-                charFifo.Enqueue(value);
-                Update();
-            }
         }
 
         private void Update()

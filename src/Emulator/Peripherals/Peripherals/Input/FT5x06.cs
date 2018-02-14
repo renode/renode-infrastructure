@@ -135,27 +135,19 @@ namespace Antmicro.Renode.Peripherals.Input
 
         public void Press (MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, PressInner);
+            this.NoisyLog("Pressing the pointer at {0}x{1}", points[0].X, points[0].Y);
+            points[0].Type = PointType.On;
+            Update();
         }
 
         public void Release (MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, ReleaseInner);
+            this.NoisyLog("Releasing the pointer at {0}x{1}", points[0].X, points[0].Y);
+            points[0].Type = PointType.Up;
+            Update();
         }
 
         public void MoveTo (int x, int y)
-        {
-            machine.ReportForeignEvent(x, y, MoveToInner);
-        }
-
-        public void Unset ()
-        {
-            IRQ.Unset ();
-        } 
-
-        public GPIO IRQ { get; private set; }
-
-        private void MoveToInner(int x, int y)
         {
             points[0].X = (ushort)x;
             points[0].Y = (ushort)y;
@@ -167,19 +159,12 @@ namespace Antmicro.Renode.Peripherals.Input
             }
         }
 
-        private void PressInner(MouseButton button)
+        public void Unset ()
         {
-            this.NoisyLog("Pressing the pointer at {0}x{1}", points[0].X, points[0].Y);
-            points[0].Type = PointType.On;
-            Update();
+            IRQ.Unset ();
         }
 
-        private void ReleaseInner(MouseButton button)
-        {
-            this.NoisyLog("Releasing the pointer at {0}x{1}", points[0].X, points[0].Y);
-            points[0].Type = PointType.Up;
-            Update();
-        }
+        public GPIO IRQ { get; private set; }
 
         private void Update ()
         {

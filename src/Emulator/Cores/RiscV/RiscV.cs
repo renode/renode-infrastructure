@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public RiscV(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode = PrivilegeMode.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
         {
-            InnerTimer = new ComparingTimer(machine, frequency, enabled: true, eventEnabled: true);
+            InnerTimer = new ComparingTimer(machine.ClockSource, frequency, enabled: true, eventEnabled: true);
 
             intTypeToVal = new TwoWayDictionary<int, IrqType>();
             intTypeToVal.Add(0, IrqType.MachineTimerIrq);

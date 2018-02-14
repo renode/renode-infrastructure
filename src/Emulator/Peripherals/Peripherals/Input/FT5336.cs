@@ -78,17 +78,39 @@ namespace Antmicro.Renode.Peripherals.Input
 
         public void MoveTo(int x, int y)
         {
-            machine.ReportForeignEvent(x, y, MoveToInner);
+            if(!isRotated)
+            {
+                touchedPoints[0].X = (ushort)x;
+                touchedPoints[0].Y = (ushort)y;
+            }
+            else
+            {
+                touchedPoints[0].X = (ushort)y;
+                touchedPoints[0].Y = (ushort)x;
+            }
+            if(touchedPoints[0].Type == PointType.Down || touchedPoints[0].Type == PointType.Contact)
+            {
+                this.NoisyLog("Moving the pointer at {0}x{1}", touchedPoints[0].X, touchedPoints[0].Y);
+                touchedPoints[0].Type = PointType.Contact;
+            }
+            if(touchedPoints.Any(b => b.Type == PointType.Down || b.Type == PointType.Contact))
+            {
+                IRQ.Blink();
+            }
         }
 
         public void Press(MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, PressInner);
+            this.NoisyLog("Pressing the pointer at {0}x{1}", touchedPoints[0].X, touchedPoints[0].Y);
+            touchedPoints[0].Type = PointType.Contact;
+            IRQ.Blink();
         }
 
         public void Release(MouseButton button = MouseButton.Left)
         {
-            machine.ReportForeignEvent(button, ReleaseInner);
+            this.NoisyLog("Releasing the pointer at {0}x{1}", touchedPoints[0].X, touchedPoints[0].Y);
+            touchedPoints[0].Type = PointType.Up;
+            IRQ.Blink();
         }
 
         public int MaxX { get; set; }
@@ -146,43 +168,6 @@ namespace Antmicro.Renode.Peripherals.Input
         private void SetReturnValue(params byte[] bytes)
         {
             currentReturnValue = bytes;
-        }
-
-        private void MoveToInner(int x, int y)
-        {
-            if(!isRotated)
-            {
-                touchedPoints[0].X = (ushort)x;
-                touchedPoints[0].Y = (ushort)y;
-            }
-            else
-            {
-                touchedPoints[0].X = (ushort)y;
-                touchedPoints[0].Y = (ushort)x;
-            }
-            if(touchedPoints[0].Type == PointType.Down || touchedPoints[0].Type == PointType.Contact)
-            {
-                this.NoisyLog("Moving the pointer at {0}x{1}", touchedPoints[0].X, touchedPoints[0].Y);
-                touchedPoints[0].Type = PointType.Contact;
-            }
-            if(touchedPoints.Any(b => b.Type == PointType.Down || b.Type == PointType.Contact))
-            {
-                IRQ.Blink();
-            }
-        }
-
-        private void PressInner(MouseButton button)
-        {
-            this.NoisyLog("Pressing the pointer at {0}x{1}", touchedPoints[0].X, touchedPoints[0].Y);
-            touchedPoints[0].Type = PointType.Contact;
-            IRQ.Blink();
-        }
-
-        private void ReleaseInner(MouseButton button)
-        {
-            this.NoisyLog("Releasing the pointer at {0}x{1}", touchedPoints[0].X, touchedPoints[0].Y);
-            touchedPoints[0].Type = PointType.Up;
-            IRQ.Blink();
         }
 
         private byte[] currentReturnValue;

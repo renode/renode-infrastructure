@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         parent.streamFinished[streamNo] = true;
                         if(interruptOnComplete)
                         {
-                            parent.machine.ExecuteIn(IRQ.Set);
+                            parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
                         }
                     }
                 }

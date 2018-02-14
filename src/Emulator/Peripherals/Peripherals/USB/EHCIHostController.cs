@@ -15,7 +15,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
-    public class EHCIHostController : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>
+    public class EHCIHostController : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IDisposable
     {
         public EHCIHostController(Machine machine, uint ehciBaseAddress = 0x100, uint capabilityRegistersLength = 0x40, uint numberOfPorts = 1, uint? ulpiBaseAddress = 0x170)
         {
@@ -42,13 +42,19 @@ namespace Antmicro.Renode.Peripherals.USB
                 portStatusControl[i] = new PortStatusAndControlRegister(); 
             }
 
-            asyncThread = machine.ObtainManagedThread(AsyncListScheduleThread, this, 100, "EHCIHostControllerThread");
-            periodicThread = machine.ObtainManagedThread(PeriodicListScheduleThread, this, 100, "EHCIHostControllerThread");
+            asyncThread = machine.ObtainManagedThread(AsyncListScheduleThread, 100);
+            periodicThread = machine.ObtainManagedThread(PeriodicListScheduleThread, 100);
 
             SoftReset(); //soft reset must be done before attaching devices
 
             periodic_qh = new QueueHead(machine.SystemBus);
             async_qh = new QueueHead(machine.SystemBus);
+        }
+
+        public void Dispose()
+        {
+            asyncThread.Dispose();
+            periodicThread.Dispose();
         }
 
         public void Register(IUSBPeripheral peripheral, USBRegistrationPoint registrationPoint)

@@ -43,6 +43,15 @@ namespace Antmicro.Renode.Peripherals
             var local = peripheral.GetType().GetProperties().Where(x => x.PropertyType == typeof(GPIO)).Select(x => Tuple.Create(x.Name, (IGPIO)((GPIO)x.GetValue(peripheral))));
             return result == null ? local : result.Union(local);
         }
+
+        public static Machine GetMachine(this IPeripheral @this)
+        {
+            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(@this, out var mach))
+            {
+                throw new ArgumentException($"Couldn't find machine for given peripheral of type {@this.GetType().FullName}.");
+            }
+            return mach;
+        }
     }
 }
 

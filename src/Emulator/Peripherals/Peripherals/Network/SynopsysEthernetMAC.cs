@@ -23,7 +23,6 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
             Reset();
         }
 
@@ -185,25 +184,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-
-        public NetworkLink Link { get; private set; }
-
-        public MACAddress MAC { get; set; }
-
-        public GPIO IRQ { get; private set; }
-
-        public long Size
-        {
-            get
-            {
-                return 0x1400;
-            }
-        }
-
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
             /*if(machine.ElapsedTime < TimeSpan.FromSeconds(30))
             {
                 return;
@@ -337,6 +317,20 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        public event Action<EthernetFrame> FrameReady;
+
+        public MACAddress MAC { get; set; }
+
+        public GPIO IRQ { get; private set; }
+
+        public long Size
+        {
+            get
+            {
+                return 0x1400;
+            }
+        }
+
         private void SendFrames()
         {
             this.Log(LogLevel.Noisy, "Sending frame");
@@ -371,31 +365,29 @@ namespace Antmicro.Renode.Peripherals.Network
                 if(transmitDescriptor.IsLast)
                 {
                     this.Log(LogLevel.Noisy, "Sending frame of {0} bytes.", packetData.Count);
-                    if(Link.IsConnected)
+
+                    var frame = EthernetFrame.CreateEthernetFrameWithoutCRC(packetData.ToArray());
+
+                    if(transmitDescriptor.ChecksumInstertionControl > 0)
                     {
-                        var frame = EthernetFrame.CreateEthernetFrameWithoutCRC(packetData.ToArray());
-
-                        if(transmitDescriptor.ChecksumInstertionControl > 0)
+                        this.Log(LogLevel.Noisy, "Calculating checksum (mode {0}).", transmitDescriptor.ChecksumInstertionControl);
+                        if(transmitDescriptor.ChecksumInstertionControl == 1)
                         {
-                            this.Log(LogLevel.Noisy, "Calculating checksum (mode {0}).", transmitDescriptor.ChecksumInstertionControl);
-                            if(transmitDescriptor.ChecksumInstertionControl == 1)
-                            {
-                                //IP only
-                                frame.FillWithChecksums(supportedEtherChecksums, null);
-                            }
-                            else
-                            {
-                                //IP and payload
-                                frame.FillWithChecksums(supportedEtherChecksums, supportedIPChecksums);
-                            }
+                            //IP only
+                            frame.FillWithChecksums(supportedEtherChecksums, null);
                         }
-                        this.Log(LogLevel.Debug, Misc.DumpPacket(frame, true, machine));
-
-                        packetSent = true;
-                        //We recreate the EthernetFrame because the CRC should be appended after creating inner checksums.
-                        var frameWithCrc = EthernetFrame.CreateEthernetFrameWithCRC(frame.Bytes);
-                        Link.TransmitFrameFromInterface(frameWithCrc);
+                        else
+                        {
+                            //IP and payload
+                            frame.FillWithChecksums(supportedEtherChecksums, supportedIPChecksums);
+                        }
                     }
+                    this.Log(LogLevel.Debug, Misc.DumpPacket(frame, true, machine));
+
+                    packetSent = true;
+                    //We recreate the EthernetFrame because the CRC should be appended after creating inner checksums.
+                    var frameWithCrc = EthernetFrame.CreateEthernetFrameWithCRC(frame.Bytes);
+                    FrameReady?.Invoke(frameWithCrc);
                 }
                 transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);
             }

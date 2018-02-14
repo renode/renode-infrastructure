@@ -6,15 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
 {
     internal class RecordEntry<T> : IRecordEntry
-    {  
-        public RecordEntry(string name, T value, Action<T> handler, long syncNumber)
+    {
+        public RecordEntry(string name, T value, Action<T> handler, TimeInterval timestamp)
         {
             Value = value;
-            @base = new RecordEntryBase(name, handler, syncNumber);
+            @base = new RecordEntryBase(name, handler, timestamp);
         }
 
         public void Play(Func<string, Delegate, Delegate> handlerResolver)
@@ -37,11 +38,11 @@ namespace Antmicro.Renode.EventRecording
             }
         }
 
-        public long SyncNumber
+        public TimeInterval Timestamp
         {
             get
             {
-                return @base.SyncNumber;
+                return @base.Timestamp;
             }
         }
 
@@ -50,11 +51,11 @@ namespace Antmicro.Renode.EventRecording
 
     internal class RecordEntry<T1, T2> : IRecordEntry
     {
-        public RecordEntry(string name, T1 value1, T2 value2, Action<T1, T2> handler, long syncNumber)
+        public RecordEntry(string name, T1 value1, T2 value2, Action<T1, T2> handler, TimeInterval timestamp)
         {
             Value1 = value1;
             Value2 = value2;
-            @base = new RecordEntryBase(name, handler, syncNumber);
+            @base = new RecordEntryBase(name, handler, timestamp);
         }
 
         public void Play(Func<string, Delegate, Delegate> handlerResolver)
@@ -78,11 +79,11 @@ namespace Antmicro.Renode.EventRecording
             }
         }
 
-        public long SyncNumber
+        public TimeInterval Timestamp
         {
             get
             {
-                return @base.SyncNumber;
+                return @base.Timestamp;
             }
         }
 

@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.Network
             this.machine = machine;
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
             Reset();
         }
 
@@ -58,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public GPIO IRQ { get; private set; }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         private ushort ReadBank0(long offset)
         {
@@ -455,7 +454,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         sentFifo.Enqueue((byte)whichPacket);
                     }
                     var frame = EthernetFrame.CreateEthernetFrameWithCRC(indata);
-                    Link.TransmitFrameFromInterface(frame);
+                    FrameReady?.Invoke(frame);
                 }
                 Update();
                 return 0;
@@ -463,80 +462,6 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public void ReceiveFrame(EthernetFrame frame)
-        {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
-        }
-  
-        public void Update()
-        {
-            lock(lockObj)
-            {
-                if(txFifo.Count == 0)
-                {
-                    interruptStatus |= TxEmptyInterrupt;
-                }
-                if(sentFifo.Count != 0)
-                {
-                    interruptStatus |= TxInterrupt;
-                }
-                if((interruptMask & interruptStatus) != 0)
-                {
-                    IRQ.Set(true);
-                }
-            }
-        }
-
-        public bool TryAllocatePacket(out byte regionNumber)
-        {
-            lock(lockObj)
-            {
-                for(regionNumber = 0; regionNumber < memoryBuffer.Length; regionNumber++)
-                {
-                    if(!memoryBuffer[regionNumber].IsAllocated)
-                    {
-                        memoryBuffer[regionNumber].IsAllocated = true;
-                        return true;
-                    }
-                }
-                regionNumber = AllocationFailed; //AllocationFailed is used as a flag in a register
-                return false;
-            }
-        }
-
-        public void AllocateForTx()
-        {
-            lock(lockObj)
-            {
-                if(TryAllocatePacket(out allocationResult))
-                {
-                    interruptStatus |= AllocationSuccessfulInterrupt;
-                    Update();
-                }
-            }
-        }
-
-        public  void PopRxFifo()
-        {
-            lock(lockObj)
-            {
-                if(rxFifo.Count != 0)
-                {
-                    rxFifo.Dequeue();
-                }
-                if(rxFifo.Count != 0) //count changes after Dequeue!
-                {
-                    interruptStatus |= RxInterrupt;
-                }
-                else
-                {
-                    interruptStatus = (byte)(interruptStatus & ~RxInterrupt);
-                }
-                Update();
-            }
-        }
-
-
-        private void ReceiveFrameInner(EthernetFrame frame)
         {
             lock(lockObj)
             {
@@ -625,6 +550,74 @@ namespace Antmicro.Renode.Peripherals.Network
                     currentBuffer.Data[packetSize - 1] = 0x40;
                 }
                 interruptStatus |= RxInterrupt;
+                Update();
+            }
+        }
+  
+        public void Update()
+        {
+            lock(lockObj)
+            {
+                if(txFifo.Count == 0)
+                {
+                    interruptStatus |= TxEmptyInterrupt;
+                }
+                if(sentFifo.Count != 0)
+                {
+                    interruptStatus |= TxInterrupt;
+                }
+                if((interruptMask & interruptStatus) != 0)
+                {
+                    IRQ.Set(true);
+                }
+            }
+        }
+
+        public bool TryAllocatePacket(out byte regionNumber)
+        {
+            lock(lockObj)
+            {
+                for(regionNumber = 0; regionNumber < memoryBuffer.Length; regionNumber++)
+                {
+                    if(!memoryBuffer[regionNumber].IsAllocated)
+                    {
+                        memoryBuffer[regionNumber].IsAllocated = true;
+                        return true;
+                    }
+                }
+                regionNumber = AllocationFailed; //AllocationFailed is used as a flag in a register
+                return false;
+            }
+        }
+
+        public void AllocateForTx()
+        {
+            lock(lockObj)
+            {
+                if(TryAllocatePacket(out allocationResult))
+                {
+                    interruptStatus |= AllocationSuccessfulInterrupt;
+                    Update();
+                }
+            }
+        }
+
+        public  void PopRxFifo()
+        {
+            lock(lockObj)
+            {
+                if(rxFifo.Count != 0)
+                {
+                    rxFifo.Dequeue();
+                }
+                if(rxFifo.Count != 0) //count changes after Dequeue!
+                {
+                    interruptStatus |= RxInterrupt;
+                }
+                else
+                {
+                    interruptStatus = (byte)(interruptStatus & ~RxInterrupt);
+                }
                 Update();
             }
         }

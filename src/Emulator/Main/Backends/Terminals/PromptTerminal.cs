@@ -12,20 +12,22 @@ using System.Threading;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Time;
+using System.Text;
 
 namespace Antmicro.Renode.Backends.Terminals
 {
     [Transient]
     public sealed class PromptTerminal : BackendTerminal
     {
-        public PromptTerminal(Action<string, TimeSpan> onLine = null, Action<TimeSpan> onPrompt = null, string prompt = null)
+        public PromptTerminal(Action<string, TimeInterval> onLine = null, Action<TimeInterval> onPrompt = null, string prompt = null)
         {
             if(!string.IsNullOrEmpty(prompt))
             {
                 SetPrompt(prompt);
             }
             internalLock = new object();
-            charBuffer = new List<char>();
+            buffer = new StringBuilder();
             this.onLine = onLine;
             this.onPrompt = onPrompt;
         }
@@ -38,6 +40,15 @@ namespace Antmicro.Renode.Backends.Terminals
                 {
                     throw new ArgumentException("Could not find machine for uart");
                 }
+                base.AttachTo(uart);
+            }
+        }
+
+        public void AttachTo(IUART uart, Machine machine)
+        {
+            lock(internalLock)
+            {
+                this.machine = machine;
                 base.AttachTo(uart);
             }
         }
@@ -62,7 +73,7 @@ namespace Antmicro.Renode.Backends.Terminals
                 }
                 if(value != 10)
                 {
-                    charBuffer.Add((char)value);
+                    buffer.Append((char)value);
                     if(promptBytes != null && index < promptBytes.Length)
                     {
                         if(promptBytes[index] != value)
@@ -71,25 +82,21 @@ namespace Antmicro.Renode.Backends.Terminals
                         }
                         if(index == promptBytes.Length - 1 && onPrompt != null)
                         {
-                            onPrompt(machine.ElapsedVirtualTime);
+                            onPrompt(machine.ElapsedVirtualTime.TimeElapsed);
                         }
                         index++;
                     }
                     return;
                 }
-                // TODO: little optimization here
-                if(onLine != null)
-                {
-                    onLine(new String(charBuffer.ToArray()), machine.ElapsedVirtualTime);
-                }
-                charBuffer.Clear();
+                onLine?.Invoke(buffer.ToString(), machine.ElapsedVirtualTime.TimeElapsed);
+                buffer.Clear();
                 index = 0;
             }
         }
 
         public string GetWaitingLine()
         {
-            return new string(charBuffer.ToArray());
+            return buffer.ToString();
         }
 
         public void WriteStringToTerminal(string line)
@@ -123,9 +130,9 @@ namespace Antmicro.Renode.Backends.Terminals
             }
         }
 
-        private readonly List<char> charBuffer;
-        private readonly Action<string, TimeSpan> onLine;
-        private readonly Action<TimeSpan> onPrompt;
+        private readonly StringBuilder buffer;
+        private readonly Action<string, TimeInterval> onLine;
+        private readonly Action<TimeInterval> onPrompt;
         private byte[] promptBytes;
         private int index;
         private Machine machine;

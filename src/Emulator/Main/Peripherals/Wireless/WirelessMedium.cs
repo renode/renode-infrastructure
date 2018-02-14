@@ -23,11 +23,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
     }
 
-    public sealed class WirelessMedium : SynchronizedExternalBase, IHasChildren<IMediumFunction>, IExternal, IConnectable<IRadio>, INetworkLogWireless
+    public sealed class WirelessMedium : IHasChildren<IMediumFunction>, IExternal, IConnectable<IRadio>, INetworkLogWireless
     {
         public WirelessMedium()
         {
-            packetsToSend = new Queue<PacketWithSender>();
             radios = new Dictionary<IRadio, Position>();
             mediumFunction = SimpleMediumFunction.Instance;
         }
@@ -87,93 +86,39 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void FrameSentHandler(IRadio sender, byte[] packet)
         {
-            lock(packetsToSend)
+            var senderPosition = radios[sender];
+            var currentEmulation = EmulationManager.Instance.CurrentEmulation;
+            currentEmulation.TryGetEmulationElementName(sender, out var senderName);
+
+            FrameProcessed?.Invoke(this, sender, packet);
+
+            if(!mediumFunction.CanTransmit(senderPosition))
             {
-                packetsToSend.Enqueue(new PacketWithSender(packet, sender.Channel, sender, radios[sender]));
-                if(executeOnSyncAlreadyQueued)
+                this.NoisyLog("Packet from {0} can't be transmitted, size {1}.", senderName, packet.Length);
+                return;
+            }
+
+            foreach(var radioAndPosition in radios.Where(x => x.Key != sender))
+            {
+                var receiver = radioAndPosition.Key;
+
+                currentEmulation.TryGetEmulationElementName(receiver, out var receiverName);
+                if(!mediumFunction.CanReach(senderPosition, radioAndPosition.Value) || receiver.Channel != sender.Channel)
                 {
+                    this.NoisyLog("Packet {0} -> {1} NOT delivered, size {2}.", senderName, receiverName, packet.Length);
                     return;
                 }
-                executeOnSyncAlreadyQueued = true;
-                ExecuteOnNearestSync(NearestSyncHandler);
-            }
-        }
 
-        private void NearestSyncHandler()
-        {
-            var frameTransmitted = FrameTransmitted;
-            var frameProcessed = FrameProcessed;
-
-            lock(packetsToSend)
-            {
-                executeOnSyncAlreadyQueued = false;
-                while(packetsToSend.Count > 0)
+                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packet.ToArray(), TimeDomainsManager.Instance.VirtualTimeStamp, () =>
                 {
-                    var packet = packetsToSend.Dequeue();
-
-                    var sender = packet.Sender;
-                    var senderPosition = packet.SenderPosition;
-                    var senderName = sender.ToString();
-                    var currentEmulation = EmulationManager.Instance.CurrentEmulation;
-                    currentEmulation.TryGetEmulationElementName(sender, out senderName);
-
-                    if(frameProcessed != null)
-                    {
-                        frameProcessed(this, sender, packet.Frame);
-                    }
-
-                    if(!mediumFunction.CanTransmit(packet.SenderPosition))
-                    {
-                        this.NoisyLog("Packet from {0} can't be transmitted, size {1}.", senderName, packet.Frame.Length);
-                        continue;
-                    }
-
-                    foreach(var radioAndPosition in radios.Where(x => x.Key != packet.Sender))
-                    {
-                        var receiver = radioAndPosition.Key;
-                        var receiverPosition = radioAndPosition.Value;
-                        var receiverName = receiver.ToString();
-
-                        currentEmulation.TryGetEmulationElementName(receiver, out receiverName);
-
-                        if(!mediumFunction.CanReach(senderPosition, receiverPosition) || receiver.Channel != packet.Channel)
-                        {
-                            this.NoisyLog("Packet {0} -> {1} NOT delivered, size {2}.", senderName, receiverName, packet.Frame.Length);
-                            continue;
-                        }
-
-                        this.NoisyLog("Packet {0} -> {1} delivered, size {2}.", senderName, receiverName, packet.Frame.Length);
-                        receiver.ReceiveFrame(packet.Frame.ToArray());
-
-                        if(frameTransmitted != null)
-                        {
-                            frameTransmitted(this, sender, receiver, packet.Frame);
-                        }
-                    }
-                }
+                    this.NoisyLog("Packet {0} -> {1} delivered, size {2}.", senderName, receiverName, packet.Length);
+                    FrameTransmitted?.Invoke(this, sender, receiver, packet);
+                });
             }
         }
 
-        private bool executeOnSyncAlreadyQueued;
         private IMediumFunction mediumFunction;
         private readonly Dictionary<IRadio, Position> radios;
-        private readonly Queue<PacketWithSender> packetsToSend;
-
-        private sealed class PacketWithSender
-        {
-            public PacketWithSender(byte[] frame, int channel, IRadio sender, Position senderPosition)
-            {
-                Frame = frame;
-                Channel = channel;
-                Sender = sender;
-                SenderPosition = senderPosition;
-            }
-
-            public int Channel { get; private set; }
-            public byte[] Frame { get; private set; }
-            public IRadio Sender { get; private set; }
-            public Position SenderPosition { get; private set; }
-        }
     }
 }
 

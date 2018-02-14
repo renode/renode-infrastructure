@@ -32,6 +32,9 @@ namespace Antmicro.Renode.UI
         [Name("hide-log"), DefaultValue(false), Description("Do not show log messages in a console.")]
         public bool HideLog { get; set; }
 
+        [Name("hide-analyzers"), DefaultValue(false), Description("Do not show analyzers.")]
+        public bool HideAnalyzers { get; set; }
+
         public bool Validate(out string error)
         {
             if(DisableXwt && Port == -1)

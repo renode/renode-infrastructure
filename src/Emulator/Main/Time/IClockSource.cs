@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Time
         ClockEntry GetClockEntry(Action handler);
         void GetClockEntryInLockContext(Action handler, Action<ClockEntry> visitor);
         IEnumerable<ClockEntry> GetAllClockEntries();
-        ulong CurrentValue { get; }
+        TimeInterval CurrentValue { get; }
         IEnumerable<ClockEntry> EjectClockEntries();
         void AddClockEntries(IEnumerable<ClockEntry> entries);
     }

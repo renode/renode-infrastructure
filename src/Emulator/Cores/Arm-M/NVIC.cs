@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
-            systick = new LimitTimer(machine, systickFrequency, limit: uint.MaxValue, direction: Direction.Descending, enabled: false, autoUpdate: true);
+            systick = new LimitTimer(machine.ClockSource, systickFrequency, limit: uint.MaxValue, direction: Direction.Descending, enabled: false, autoUpdate: true);
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
             systick.LimitReached += () => 

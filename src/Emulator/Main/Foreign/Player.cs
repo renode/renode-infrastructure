@@ -13,6 +13,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.UART;
 using System.Collections.Generic;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
 {
@@ -32,13 +33,13 @@ namespace Antmicro.Renode.EventRecording
             }
         }
 
-        public void Play(long syncNumber)
+        public void Play(TimeInterval elapsedVirtualTime)
         {
             if(entries == null)
             {
                 return;
             }
-            while(entries.Current.SyncNumber <= syncNumber)
+            while(entries.Current.Timestamp <= elapsedVirtualTime)
             {
                 var entry = entries.Current;
                 entry.Play(ResolveHandler);

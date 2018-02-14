@@ -10,31 +10,30 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class TegraTimer : IDoubleWordPeripheral, IKnownSize
-	{
+    {
         public TegraTimer(Machine machine)
         {
             IRQ = new GPIO();
             sync = new object();
-            clockSource = machine.ObtainClockSource();
+            clockSource = machine.ClockSource;
             Reset();
         }
 
         public GPIO IRQ { get; private set; }
 
-		public uint ReadDoubleWord(long offset)
-		{			
-			lock(sync)
-            { 
+        public uint ReadDoubleWord(long offset)
+        {
+            lock(sync)
+            {
                 var clockEntry = clockSource.GetClockEntry(OnLimitReached);
                 var value = (uint)clockEntry.Period;
                 switch((Registers)offset)
                 {
-                case Registers.Ptv:                   
+                case Registers.Ptv:
                     if(clockEntry.Enabled)
                     {
                         value |= 0x80000000;
@@ -43,19 +42,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         value |= 0x40000000;
                     }
-                    this.NoisyLog("Read at Ptv, 0x{1:X}, 0x{2:X}, {0}%.", value*100/clockEntry.Period, value, clockEntry.Period);
+                    this.NoisyLog("Read at Ptv, 0x{1:X}, 0x{2:X}, {0}%.", value * 100 / clockEntry.Period, value, clockEntry.Period);
                     return value;
                 case Registers.Pcr:
-                    this.NoisyLog("Read at Pcr, 0x{1:X}, 0x{2:X}, {0}%.", value*100/clockEntry.Period, value, clockEntry.Period);
+                    this.NoisyLog("Read at Pcr, 0x{1:X}, 0x{2:X}, {0}%.", value * 100 / clockEntry.Period, value, clockEntry.Period);
                     return (uint)clockEntry.Value;
                 default:
                     this.LogUnhandledRead(offset);
                     return 0;
                 }
             }
-		}
-		
-		public void WriteDoubleWord(long offset, uint value)
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
         {
             lock(sync)
             {
@@ -75,9 +74,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 default:
                     this.LogUnhandledWrite(offset, value);
                     break;
-                }        
+                }
             }
-		}
+        }
 
         public long Size
         {
@@ -108,6 +107,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private readonly object sync;
-	}
+    }
 }
 

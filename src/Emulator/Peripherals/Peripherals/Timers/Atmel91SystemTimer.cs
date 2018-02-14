@@ -21,12 +21,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             IRQ = new GPIO();
 
-            PeriodIntervalTimer = new LimitTimer(machine, 32768, int.MaxValue); // long.MaxValue couses crashes 
+            PeriodIntervalTimer = new LimitTimer(machine.ClockSource, 32768, int.MaxValue); // long.MaxValue couses crashes
             PeriodIntervalTimer.Value = 0x00000000;
             PeriodIntervalTimer.AutoUpdate = true;
             PeriodIntervalTimer.LimitReached += PeriodIntervalTimerAlarmHandler;
 
-            WatchdogTimer = new LimitTimer(machine, 32768, int.MaxValue);
+            WatchdogTimer = new LimitTimer(machine.ClockSource, 32768, int.MaxValue);
             WatchdogTimer.Value = 0x00020000;
             WatchdogTimer.AutoUpdate = true;
             WatchdogTimer.Divider = 128;
@@ -246,7 +246,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public AT91_InterruptibleTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
             {
-                timer = new LimitTimer(machine, frequency, limit, direction, enabled);
+                timer = new LimitTimer(machine.ClockSource, frequency, limit, direction, enabled);
                 timer.LimitReached += () => { if (OnUpdate != null) OnUpdate(); };
             }
 

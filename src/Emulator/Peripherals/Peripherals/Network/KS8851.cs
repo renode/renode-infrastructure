@@ -26,7 +26,6 @@ namespace Antmicro.Renode.Peripherals.Network
             response = new byte[10240];
             packetQueue = new Queue<EthernetFrame>();
             IRQ = new GPIO();
-            Link = new NetworkLink(this);
         }
 
         public GPIO IRQ { get; private set; }
@@ -40,7 +39,15 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
+            if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
+            {
+                return;
+            }
+            lock(packetQueue)
+            {
+                packetQueue.Enqueue(frame);
+                SignalInterrupt();
+            }
         }
 
         public byte Transmit(byte data)
@@ -84,20 +91,7 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ.Set(false);
         }
 
-        public NetworkLink Link { get; private set; }
-
-        void ReceiveFrameInner(EthernetFrame frame)
-        {
-            if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
-            {
-                return;
-            }
-            lock(packetQueue)
-            {
-                packetQueue.Enqueue(frame);
-                SignalInterrupt();
-            }
-        }
+        public event Action<EthernetFrame> FrameReady;
 
         private int Align(int value)
         {
@@ -212,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 Array.Copy(request, 0, frame, 0, currentLength);
                 //TODO: CRC handling
                 var ethernetFrame = EthernetFrame.CreateEthernetFrameWithoutCRC(frame);
-                Link.TransmitFrameFromInterface(ethernetFrame);
+                FrameReady?.Invoke(ethernetFrame);
                 mode = Mode.Standard;
                 currentLength = 4;
                 transmissionEnded = true;

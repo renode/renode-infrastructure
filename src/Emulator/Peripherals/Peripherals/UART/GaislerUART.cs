@@ -30,7 +30,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            machine.ReportForeignEvent(value, WriteCharInner);
+            lock(buffer)
+            {
+                buffer.Enqueue(value);
+                registers.Status &= ~(uint)(0x3fu << 26);
+                registers.Status |= (uint)(((buffer.Count) & 0x3f) << 26) | 0x01u;
+                //data ready and data count
+                if((registers.Control & 1u << 2) != 0)
+                {
+                    IRQ.Set();
+                    IRQ.Unset();
+                }
+            }
         }
 
         #region IPeripheral implementation
@@ -132,26 +143,9 @@ namespace Antmicro.Renode.Peripherals.UART
                     this.LogUnhandledWrite(offset, value);
                     return;
                 }
-            }   
-        }
-        #endregion
-
-        private void WriteCharInner(byte value)
-        {
-            lock(buffer)
-            {
-                buffer.Enqueue(value);
-                registers.Status &= ~(uint)(0x3fu << 26);
-                registers.Status |= (uint)(((buffer.Count) & 0x3f) << 26) | 0x01u;
-                //data ready and data count
-                if((registers.Control & 1u << 2) != 0)
-                {
-                    IRQ.Set();
-                    IRQ.Unset();
-                }
             }
         }
-
+        #endregion
 
         private Queue<byte> buffer;
         private register registers;

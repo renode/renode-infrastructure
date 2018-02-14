@@ -28,7 +28,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public USBEthernetControlModelDevice()
         {
-            Link = new NetworkLink(this);
         }
 
         public void Reset()
@@ -168,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.USB
     #endregion
 
     #region INetworkInterface implementation
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
         public MACAddress MAC { get; set; }
 
         public void ReceiveFrame(EthernetFrame frame)//when data is send to us

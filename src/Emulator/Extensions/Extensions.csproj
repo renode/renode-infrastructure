@@ -55,6 +55,7 @@
     <Compile Include="UserInterface\Monitor.cs" />
     <Compile Include="UserInterface\MonitorCommands.cs" />
     <Compile Include="UserInterface\MonitorPath.cs" />
+    <Compile Include="UserInterface\MonitorTimeExtensions.cs" />
     <Compile Include="Tools\Network\Switch.cs" />
     <Compile Include="Utilities\GdbStub.cs" />
     <Compile Include="UserInterface\StreamToEventConverter.cs" />
@@ -120,7 +121,6 @@
     <Compile Include="Hooks\UserStatePythonEngine.cs" />
     <Compile Include="Tools\Network\CANHub.cs" />
     <Compile Include="Hooks\SyncPointHookPythonEngine.cs" />
-    <Compile Include="Time\SynchronizationExtensions.cs" />
     <Compile Include="UserInterface\Tokenizer\ConditionalEqualityToken.cs" />
     <Compile Include="UserInterface\Tokenizer\RelativeRangeToken.cs" />
     <Compile Include="UserInterface\Tokenizer\AbsoluteRangeToken.cs" />

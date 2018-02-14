@@ -199,16 +199,25 @@ namespace Antmicro.Renode.Peripherals.Network
             });
             IRQ = new GPIO();
             IRQ.Set(); // the interrupt output is negated
-            Link = new NetworkLink(this);
         }
 
-        public NetworkLink Link { get; private set; }
+        public event Action<EthernetFrame> FrameReady;
 
         public MACAddress MAC { get; set; }
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            machine.ReportForeignEvent(frame, ReceiveFrameInner);
+            lock(sync)
+            {
+                if(!macReceiveEnabled.Value || !ethernetReceiveEnabled.Value)
+                {
+                    return;
+                }
+                if(!TryReceivePacket(frame.Bytes))
+                {
+                    this.Log(LogLevel.Info, "Packet ignored.");
+                }
+            }
         }
 
         public void Reset()
@@ -427,21 +436,6 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        private void ReceiveFrameInner(EthernetFrame frame)
-        {
-            lock(sync)
-            {
-                if(!macReceiveEnabled.Value || !ethernetReceiveEnabled.Value)
-                {
-                    return;
-                }
-                if(!TryReceivePacket(frame.Bytes))
-                {
-                    this.Log(LogLevel.Info, "Packet ignored.");
-                }
-            }
-        }
-
         private void SetInterrupt(bool value)
         {
             IRQ.Set(!value);
@@ -511,7 +505,7 @@ namespace Antmicro.Renode.Peripherals.Network
             var frame = EthernetFrame.CreateEthernetFrameWithCRC(data);
             // status vector is not implemented yet
             this.Log(LogLevel.Debug, "Sending frame {0}.", frame);
-            Link.TransmitFrameFromInterface(frame);
+            FrameReady?.Invoke(frame);
             transmitPacketInterrupt.Value = true;
             RefreshInterruptStatus();
         }

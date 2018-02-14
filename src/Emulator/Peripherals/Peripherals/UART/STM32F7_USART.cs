@@ -91,7 +91,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            machine.ReportForeignEvent(value, WriteCharInner);
+            lock(sync)
+            {
+                if(receiveEnabled.Value && enabled.Value)
+                {
+                    receiveQueue.Enqueue(value);
+                    RefreshInterrupt();
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Char was received, but the receiver (or the whole USART) is not enabled. Ignoring.");
+                }
+            }
         }
 
         public uint BaudRate
@@ -143,22 +154,6 @@ namespace Antmicro.Renode.Peripherals.UART
             get
             {
                 return 0x400;
-            }
-        }
-
-        private void WriteCharInner(byte value)
-        {
-            lock(sync)
-            {
-                if(receiveEnabled.Value && enabled.Value)
-                {
-                    receiveQueue.Enqueue(value);
-                    RefreshInterrupt();
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, "Char was received, but the receiver (or the whole USART) is not enabled. Ignoring.");
-                }
             }
         }
 

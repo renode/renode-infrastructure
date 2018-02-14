@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 // this line must stay to avoid access to modified closure
                 var j = i;
-                timers[i].CoreTimer = new LimitTimer(machine, TimerFrequency, limit: InitialLimit, direction : Direction.Ascending);
+                timers[i].CoreTimer = new LimitTimer(machine.ClockSource, TimerFrequency, limit: InitialLimit, direction : Direction.Ascending);
                 timers[i].CoreTimer.LimitReached += () => OnTimerAlarm(j);
             }
 

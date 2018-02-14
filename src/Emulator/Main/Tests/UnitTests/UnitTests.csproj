@@ -53,12 +53,13 @@
     <Compile Include="Mocks\MockReceiver.cs" />
     <Compile Include="Collections\WeakMultiTableTest.cs" />
     <Compile Include="TimeTests.cs" />
+    <Compile Include="TimeHandleTests.cs" />
+    <Compile Include="TimeSourceTests.cs" />
     <Compile Include="PeripheralsGroupTests.cs" />
     <Compile Include="GPIODetachingTests.cs" />
     <Compile Include="Mocks\MockGPIOByNumberConnectorPeripheral.cs" />
     <Compile Include="Mocks\MockIrqSender.cs" />
     <Compile Include="MachineTests.cs" />
-    <Compile Include="SyncDomainsTest.cs" />
     <Compile Include="Utilities\LazyPool.cs" />
     <Compile Include="Mocks\MockExternal.cs" />
     <Compile Include="SymbolLookup\SymbolLookupTests.cs" />
