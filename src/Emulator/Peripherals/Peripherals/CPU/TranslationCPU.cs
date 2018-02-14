@@ -885,16 +885,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             // but we should check it anyway
             CheckCpuThreadId();
 
-            TlibSetPaused();
-            InvokeInCpuThreadSafely(() =>
+            ExecutionMode = ExecutionMode.SingleStep;
+
+            if(args.BreakpointType?.IsWatchpoint() == true)
             {
-                ExecutionMode = ExecutionMode.SingleStep;
-                TlibClearPaused();
-                if(args != null)
-                {
-                    InvokeHalted(args);
-                }
-            });
+                // we must call `TlibRequestExit` when hitting a watchpoint to ensure
+                // that `TlibExecute` finishes after executing current TB;
+                // since we know that current TB is of size 1, it's guaranteed to return to C#
+                // right after executing the watchpoint-triggering operation;
+                // this, in turn, allows us to enter `stepping` mode and handle the situation
+                // correctly in GDB stub;
+                // NOTE: we cannot call `TlibRequestExit` for a breakpoint because the TB has
+                // already been finished by the time we enter this function; calling `TlibRequestExit`
+                // would cause the next TB to report a 'fake' breakpoint
+                TlibRequestExit();
+            }
+
+            InvokeHalted(args);
         }
 
         private readonly object pauseLock = new object();
@@ -1469,6 +1476,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import]
+        private Action TlibRequestExit;
+
+        [Import]
         private FuncInt32String TlibInit;
 
         [Import]
@@ -1675,14 +1685,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             var localCopyOfTimeHandle = TimeHandle;
             TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(localCopyOfTimeHandle.TimeSource.NearestSyncPoint, localCopyOfTimeHandle.TimeSource.Domain));
 
-            localCopyOfTimeHandle.SinkSideActive = true;
             ulong executedResiduum = 0;
             while(true)
             {
+                localCopyOfTimeHandle.SinkSideActive = false;
                 if(!HandleStepping())
                 {
                     break;
                 }
+                localCopyOfTimeHandle.SinkSideActive = true;
 
                 if(!localCopyOfTimeHandle.RequestTimeInterval(out var interval))
                 {
@@ -1693,9 +1704,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
                 var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
-                var singleStep = executionMode == ExecutionMode.SingleStep;
+                var singleStep = false;
                 while(!isPaused && instructionsLeftThisRound > 0)
                 {
+                    singleStep = executionMode == ExecutionMode.SingleStep;
                     this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
                     var toExecute = singleStep ? 1 : instructionsLeftThisRound;
 
@@ -1715,8 +1727,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                         localCopyOfTimeHandle.ReportProgress(elapsed);
                     }
 
-                    if(result == ExecutionResult.Aborted || singleStep)
+                    if(result == ExecutionResult.Aborted || singleStep || result == ExecutionResult.StoppedAtBreakpoint)
                     {
+                        // entering a watchpoint (indicated as `StoppedAtBreakpoint`) causes CPU to go into `stepping` mode, so we must exit this loop
+                        // and go through `HandleStepping` as otherwise we would execute too much code
                         break;
                     }
                     else if(result == ExecutionResult.Halted)

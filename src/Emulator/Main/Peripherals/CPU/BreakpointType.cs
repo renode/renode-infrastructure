@@ -14,5 +14,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         ReadWatchpoint,
         AccessWatchpoint
     }
+
+    public static class BreakpointTypeExtensions
+    {
+        public static bool IsWatchpoint(this BreakpointType bt)
+        {
+            return bt == BreakpointType.WriteWatchpoint || bt == BreakpointType.ReadWatchpoint || bt == BreakpointType.AccessWatchpoint;
+        }
+    }
 }
 
