@@ -33,6 +33,9 @@ namespace Antmicro.Renode.Utilities
             {
                 cpu.Halted += OnHalted;
                 cpu.ExecutionMode = ExecutionMode.SingleStep;
+
+                var dcpu = (dynamic)cpu;
+                dcpu.MaximumBlockSize = 1;
             };
             terminal.ConnectionClosed += delegate
             {
