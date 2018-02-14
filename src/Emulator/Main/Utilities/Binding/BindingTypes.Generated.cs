@@ -3730,7 +3730,7 @@ namespace Antmicro.Renode.Utilities.Binding
   public delegate IntPtr FuncIntPtrIntPtrIntPtrIntPtr(IntPtr param0, IntPtr param1, IntPtr param2);
   [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
   public delegate void AttachFuncIntPtrIntPtrIntPtrIntPtr(FuncIntPtrIntPtrIntPtrIntPtr param);
-
+  [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
   public delegate void AttachAction(System.Action param);
   [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
   public delegate UInt64 FuncUInt64();
