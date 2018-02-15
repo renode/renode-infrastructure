@@ -639,7 +639,7 @@ namespace Antmicro.Renode.Time
                 {
                     // here we assume that `highPriorityRequestPending` will be reset soon,
                     // so there is no point of using more complicated synchronization methods
-                    while(highPriorityRequestPending);
+                    while(highPriorityRequestPendingCounter > 0);
                     Monitor.Enter(innerLock);
 
                     return this;
@@ -657,10 +657,9 @@ namespace Antmicro.Renode.Time
             {
                 get
                 {
-                    highPriorityRequestPending = true;
+                    Interlocked.Increment(ref highPriorityRequestPendingCounter);
                     Monitor.Enter(innerLock);
-                    highPriorityRequestPending = false;
-
+                    Interlocked.Decrement(ref highPriorityRequestPendingCounter);
                     return this;
                 }
             }
@@ -681,7 +680,7 @@ namespace Antmicro.Renode.Time
             }
 
             private readonly object innerLock;
-            private bool highPriorityRequestPending;
+            private volatile int highPriorityRequestPendingCounter;
         }
     }
 }
