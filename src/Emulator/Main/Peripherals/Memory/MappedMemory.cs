@@ -17,7 +17,7 @@ using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
 using System.Threading.Tasks;
 using System.Threading;
-using LZ4n;
+using LZ4;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Core;
 #if PLATFORM_WINDOWS
@@ -313,7 +313,8 @@ namespace Antmicro.Renode.Peripherals.Memory
                 var compressedBuffer = reader.ReadBytes(compressedSegmentSize);
                 TouchSegment(i);
                 realSegmentsCount++;
-                LZ4Codec.Decode64(compressedBuffer, segments[i], SegmentSize);
+                var decodedBuffer = LZ4Codec.Decode(compressedBuffer, 0, compressedBuffer.Length, SegmentSize);
+                Marshal.Copy(decodedBuffer, 0, segments[i], decodedBuffer.Length);
             }
             this.NoisyLog(string.Format("{0} segments loaded from stream, of which {1} had content.", segments.Length, realSegmentsCount));
         }
@@ -329,7 +330,6 @@ namespace Antmicro.Renode.Peripherals.Memory
             // saving size of the memory
             writer.Write(size);
             byte[][] outputBuffers = new byte[segments.Length][];
-            int[] outputLengths = new int[segments.Length];
             Parallel.For(0, segments.Length, i =>
             {
                 if(segments[i] == IntPtr.Zero)
@@ -337,10 +337,9 @@ namespace Antmicro.Renode.Peripherals.Memory
                     return;
                 }
                 Interlocked.Increment(ref realSegmentsCount);
-                var compressedBuffer = new byte[LZ4Codec.MaximumOutputLength(SegmentSize)];
-                var length = LZ4Codec.Encode64(segments[i], compressedBuffer, SegmentSize);
-                outputBuffers[i] = compressedBuffer;
-                outputLengths[i] = length;
+                var localBuffer = new byte[SegmentSize];
+                Marshal.Copy(segments[i], localBuffer, 0, localBuffer.Length);
+                outputBuffers[i] = LZ4Codec.Encode(localBuffer, 0, localBuffer.Length);
             });
             for(var i = 0; i < segments.Length; i++)
             {
@@ -350,8 +349,8 @@ namespace Antmicro.Renode.Peripherals.Memory
                     continue;
                 }
                 writer.Write(true);
-                writer.Write(outputLengths[i]);
-                writer.Write(outputBuffers[i], 0, outputLengths[i]);
+                writer.Write(outputBuffers[i].Length);
+                writer.Write(outputBuffers[i], 0, outputBuffers[i].Length);
             }
             this.NoisyLog(string.Format("{0} segments saved to stream, of which {1} had contents.", segments.Length, realSegmentsCount));
             globalStopwatch.Stop();
