@@ -166,7 +166,9 @@ namespace Antmicro.Renode.Peripherals.USB
             throw new NotImplementedException ();
         }
 
+#pragma warning disable 0067
         public event Action<EthernetFrame> FrameReady;
+#pragma warning restore 0067
         public MACAddress MAC { get; set; }
         private const ushort EnglishLangId = 0x09;
 

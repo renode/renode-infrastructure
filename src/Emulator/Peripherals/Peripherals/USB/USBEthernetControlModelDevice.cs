@@ -167,7 +167,9 @@ namespace Antmicro.Renode.Peripherals.USB
     #endregion
 
     #region INetworkInterface implementation
+#pragma warning disable 0067
         public event Action<EthernetFrame> FrameReady;
+#pragma warning restore 0067
         public MACAddress MAC { get; set; }
 
         public void ReceiveFrame(EthernetFrame frame)//when data is send to us
