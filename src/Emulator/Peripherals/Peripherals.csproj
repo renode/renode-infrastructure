@@ -237,6 +237,8 @@
     <Compile Include="Peripherals\UART\MiV_CoreUART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
     <Compile Include="Peripherals\Miscellaneous\Quark_SystemControlSubsystem.cs" />
+    <Compile Include="Peripherals\UART\FE310_UART.cs" />
+    <Compile Include="Peripherals\GPIOPort\FE310_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
