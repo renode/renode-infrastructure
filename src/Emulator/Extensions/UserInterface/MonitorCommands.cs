@@ -276,7 +276,7 @@ namespace Antmicro.Renode.UserInterface
                 endl = "\r\n"; //Cannot be Environment.NewLine, we need \r explicitly.
             }
             var enumerable = result as IEnumerable;
-            if(result is int || result is long || result is uint || result is ushort || result is byte)
+            if(result is int || result is long || result is uint || result is ushort || result is byte || result is ulong || result is short)
             {
                 writer.Write(string.Format(CultureInfo.InvariantCulture, GetNumberFormat(CurrentNumberFormat, 2 * Marshal.SizeOf(result.GetType())) + endl, result));
             }
