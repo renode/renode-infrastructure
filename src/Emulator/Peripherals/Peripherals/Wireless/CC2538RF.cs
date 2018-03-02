@@ -32,6 +32,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             extendedAddress = new Address(AddressingMode.ExtendedAddress);
             random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             IRQ = new GPIO();
+            AlternativeIRQ = new GPIO();
+            irqMultiplexer = new GPIOMultiplexer(IRQ, AlternativeIRQ);
 
             srcShortEnabled = new bool[24];
             srcExtendedEnabled = new bool[12];
@@ -40,8 +42,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             srcExtendedPendEnabled = new bool[12];
             ffsmMemory = new uint[96];
 
-            irqHandler = new InterruptHandler<InterruptRegister, InterruptSource>(IRQ);
-
+            irqHandler = new InterruptHandler<InterruptRegister, InterruptSource>(irqMultiplexer);
             irqHandler.RegisterInterrupt(InterruptRegister.IrqFlag0, InterruptSource.StartOfFrameDelimiter, 1);
             irqHandler.RegisterInterrupt(InterruptRegister.IrqFlag0, InterruptSource.FifoP, 2);
             irqHandler.RegisterInterrupt(InterruptRegister.IrqFlag0, InterruptSource.SrcMatchDone, 3);
@@ -60,21 +61,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var matchedSourceIndex = new DoubleWordRegister(this);
             matchedSourceIndexField = matchedSourceIndex.DefineValueField(0, 8, FieldMode.Read | FieldMode.Write);
 
-            var srcResMask = CreateRegistersGroup(3, this, 0, 8, 
+            var srcResMask = CreateRegistersGroup(3, this, 0, 8,
                                 valueProviderCallback: ReadSrcResMaskRegister, writeCallback: WriteSrcResMaskRegister);
-            var srcExtendedAddressPendingEnabled = CreateRegistersGroup(3, this, 0, 8, 
+            var srcExtendedAddressPendingEnabled = CreateRegistersGroup(3, this, 0, 8,
                                 valueProviderCallback: ReadSrcExtendedAddressPendingEnabledRegister, writeCallback: WriteSrcExtendedAddressPendingEnabledRegister);
-            var srcShortAddressPendingEnabled = CreateRegistersGroup(3, this, 0, 8, 
+            var srcShortAddressPendingEnabled = CreateRegistersGroup(3, this, 0, 8,
                                 name: "SrcShortAddressPendingEnabled", valueProviderCallback: ReadSrcShortAddressPendingEnabledRegister, writeCallback: WriteSrcShortAddressPendingEnabledRegister);
-            var extAddress = CreateRegistersGroup(8, this, 0, 8, 
+            var extAddress = CreateRegistersGroup(8, this, 0, 8,
                                 valueProviderCallback: i => extendedAddress.Bytes[i], writeCallback: (i, @new) => extendedAddress.SetByte((byte)@new, i));
             panId = CreateRegistersGroup(2, this, 0, 8);
-            var shortAddressRegister = CreateRegistersGroup(2, this, 0, 8, 
+            var shortAddressRegister = CreateRegistersGroup(2, this, 0, 8,
                                 valueProviderCallback: i => shortAddress.Bytes[i], writeCallback: (i, @new) => shortAddress.SetByte((byte)@new, i));
 
-            var sourceExtendedAddressEnable = CreateRegistersGroup(3, this, 0, 8, 
+            var sourceExtendedAddressEnable = CreateRegistersGroup(3, this, 0, 8,
                                 valueProviderCallback: ReadSourceExtendedAddressEnableRegister, writeCallback: WriteSourceExtendedAddressEnableRegister);
-            var sourceShortAddressEnable = CreateRegistersGroup(3, this, 0, 8, 
+            var sourceShortAddressEnable = CreateRegistersGroup(3, this, 0, 8,
                                 valueProviderCallback: ReadSourceShortAddressEnableRegister, writeCallback: WriteSourceShortAddressEnableRegister);
 
             var frameHandling0 = new DoubleWordRegister(this, 0x40);
@@ -95,8 +96,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var radioStatus1 = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReadRadioStatus1Register);
             var rssiValidStatus = new DoubleWordRegister(this, 0x1).WithFlag(0, FieldMode.Read);
 
-            var interruptMask = CreateRegistersGroup(2, this, 0, 8, 
-                                 valueProviderCallback: i => irqHandler.GetRegisterMask(InterruptRegisterHelper.GetMaskRegister(i)), 
+            var interruptMask = CreateRegistersGroup(2, this, 0, 8,
+                                 valueProviderCallback: i => irqHandler.GetRegisterMask(InterruptRegisterHelper.GetMaskRegister(i)),
                                  writeCallback: (i, @new) => { irqHandler.SetRegisterMask(InterruptRegisterHelper.GetMaskRegister(i), @new); });
             var randomData = new DoubleWordRegister(this, 0).WithValueField(0, 2, FieldMode.Read, valueProviderCallback: _ => (uint)(random.Next() & 3));
 
@@ -111,16 +112,18 @@ namespace Antmicro.Renode.Peripherals.Wireless
             acceptAckFrames = frameFiltering1.DefineFlagField(5);
             acceptMacCmdFrames = frameFiltering1.DefineFlagField(6);
             //Reset value set according to the documentation, but register value is caluculated from Channel value.
-            var frequencyControl = new DoubleWordRegister(this, 0xB).WithValueField(0, 7, 
-                                changeCallback: (_, value) => Channel = (int)(((value > 113 ? 113 : value ) - 11) / 5 + 11), //FREQ = 11 + 5(channel - 11), maximum value is 113.
-                                valueProviderCallback: (value) =>  11 + 5 * ((uint)Channel - 11));
+            var frequencyControl = new DoubleWordRegister(this, 0xB).WithValueField(0, 7,
+                                changeCallback: (_, value) => Channel = (int)(((value > 113 ? 113 : value) - 11) / 5 + 11), //FREQ = 11 + 5(channel - 11), maximum value is 113.
+                                valueProviderCallback: (value) => 11 + 5 * ((uint)Channel - 11));
 
             var rfData = new DoubleWordRegister(this, 0).WithValueField(0, 8,
                                 valueProviderCallback: _ => DequeueData(), writeCallback: (_, @new) => { EnqueueData((byte)@new); });
-            var interruptFlag = CreateRegistersGroup(2, this, 0, 8, 
-                                valueProviderCallback: i => irqHandler.GetRegisterValue(InterruptRegisterHelper.GetValueRegister(i)), 
+            var interruptFlag = CreateRegistersGroup(2, this, 0, 8,
+                                valueProviderCallback: i => irqHandler.GetRegisterValue(InterruptRegisterHelper.GetValueRegister(i)),
                                 writeCallback: (i, @new) => { irqHandler.SetRegisterValue(InterruptRegisterHelper.GetValueRegister(i), @new); });
             var commandStrobeProcessor = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Write, writeCallback: (_, @new) => { HandleSFRInstruction(@new); });
+
+            var rxFifoBytesCount = new DoubleWordRegister(this).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: (_) => GetRxFifoBytesCount());
 
             var addresses = new Dictionary<long, DoubleWordRegister>
             {
@@ -136,7 +139,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 { (uint)Register.RssiValidStatus, rssiValidStatus },
                 { (uint)Register.RandomData, randomData },
                 { (uint)Register.SourceAddressMatchingResult, matchedSourceIndex },
-                { (uint)Register.FrequencyControl, frequencyControl}
+                { (uint)Register.FrequencyControl, frequencyControl },
+                { (uint)Register.RxFifoBytesCount, rxFifoBytesCount }
             };
 
             RegisterGroup(addresses, (uint)Register.InterruptFlag, interruptFlag);
@@ -157,10 +161,44 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public uint ReadDoubleWord(long offset)
         {
-            uint result;
-            if(offset >= 0x400 && offset <= 0x57C)
+            uint result = 0u;
+            if(offset >= FfsmMemoryStart && offset <= FfsmMemoryEnd)
             {
-                result = ffsmMemory[offset - 0x400];
+                result = ffsmMemory[offset - FfsmMemoryStart];
+            }
+            else if(offset < RxFifoMemorySize)
+            {
+                lock(rxLock)
+                {
+                    // dividedOffset represents the position in the packet queue, assuming that the "Length" byte is also stored there.
+                    // Since we do not store the lenght along with the packet, we handle it with increasedFrameIndex variable.
+                    // The offset is shifted, as it seems that the driver accesses each byte as it was a double word value.
+                    var dividedOffset = offset >> 2;
+                    var increasedFrameIndex = 1;
+                    do
+                    {
+                        if(rxQueue.Count < increasedFrameIndex)
+                        {
+                            break;
+                        }
+
+                        if(dividedOffset == increasedFrameIndex - 1)
+                        {
+                            //return size of the current frame
+                            result = (uint)rxQueue.ElementAt(increasedFrameIndex - 1).Bytes.Count();
+                            break;
+                        }
+                        if(increasedFrameIndex + rxQueue.ElementAt(increasedFrameIndex - 1).Bytes.Count() > dividedOffset)
+                        {
+                            //return specific byte from the current frame
+                            result = rxQueue.ElementAt(increasedFrameIndex - 1).Bytes[dividedOffset - increasedFrameIndex];
+                            break;
+                        }
+
+                        dividedOffset -= rxQueue.ElementAt(increasedFrameIndex - 1).Bytes.Count();
+                        increasedFrameIndex++;
+                    } while(dividedOffset > 0);
+                }
             }
             else
             {
@@ -328,7 +366,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     {
                         secondByte |= index & 0x7F;
                     }
-                    else {
+                    else
+                    {
                         secondByte |= 100; // correlation value 100 means near maximum quality
                     }
                     frame.Bytes[frame.Bytes.Length - 2] = (byte)rssi;
@@ -359,9 +398,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public int Channel { get; set; }
         public event Action<IRadio, byte[]> FrameSent;
         public GPIO IRQ { get; private set; }
+        public GPIO AlternativeIRQ { get; private set; }
         public long Size { get { return 0x1000; } }
-
-        private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
+        
+	private uint GetRxFifoBytesCount()
+        {
+            lock(rxLock)
+            {
+                //takes only first packet into account plus 1 byte that indicates its size
+                return rxQueue.Count > 0 ? (uint)rxQueue.Peek().Bytes.Length + 1 : 0u;
+	    }
+	}
+        
+	private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
             FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint> writeCallback = null, Func<int, uint> valueProviderCallback = null, string name = null)
         {
             var result = new DoubleWordRegister[size];
@@ -539,7 +588,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 if(rxQueue.Count == 0)
                 {
-                    throw new InvalidOperationException("RX queuqe is empty");
+                    this.Log(LogLevel.Warning, "Trying to dequeue data from empty RX FIFO.");
+                    return 0x0;
                 }
 
                 var currentFrame = rxQueue.Peek();
@@ -567,7 +617,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void EnqueueData(byte value)
         {
-            this.NoisyLog("Enqueuing data: 0x{0:X}", value);
+            this.NoisyLog("Enqueuing data: 0x{0:X}.", value);
             txQueue.Enqueue((byte)(value & 0xFF));
         }
 
@@ -706,15 +756,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private ulong GetExtendedSourceAddressFromRamTable(uint id)
         {
-            return ((ffsmMemory[32 * id] << 7 * 8) | (ffsmMemory[32 * id + 1] << 6 * 8) 
+            return ((ffsmMemory[32 * id] << 7 * 8) | (ffsmMemory[32 * id + 1] << 6 * 8)
                            | (ffsmMemory[32 * id + 2] << 5 * 8) | (ffsmMemory[32 * id + 3] << 4 * 8)
-                           | (ffsmMemory[32 * id + 4] << 3 * 8) | (ffsmMemory[32 * id + 5] << 2 * 8) 
+                           | (ffsmMemory[32 * id + 4] << 3 * 8) | (ffsmMemory[32 * id + 5] << 2 * 8)
                            | (ffsmMemory[32 * id + 6] << 8) | ffsmMemory[32 * id + 7]);
         }
 
         private int txPendingCounter;
         private int currentFrameOffset;
         private FSMStates fsmState;
+        private GPIOMultiplexer irqMultiplexer;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField autoAck;
@@ -755,6 +806,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
         //HACK! TX_ACTIVE is required to be set as 1 few times in a row for contiki
         private const int TxPendingCounterInitialValue = 4;
         private const int ChannelResetValue = 11;
+        private const uint FfsmMemoryStart = 0x400;
+        private const uint FfsmMemoryEnd = 0x57C;
+        private const uint RxFifoMemorySize = 0x200;
 
         private enum CSPInstructions
         {
@@ -785,9 +839,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RadioStatus0 = 0x648,
             RadioStatus1 = 0x64C,
             RssiValidStatus = 0x664,
-            RandomData = 0x69C, 
+            RandomData = 0x69C,
             RfData = 0x828,
             CommandStrobeProcessor = 0x838,
+            RxFifoBytesCount = 0x66C,
 
             //register groups
             SourceAddressMatchingResultMask = 0x580,

@@ -393,6 +393,7 @@
     <Compile Include="Peripherals\Sensor\ISensor.cs" />
     <Compile Include="Peripherals\Sensor\IHumiditySensor.cs" />
     <Compile Include="Peripherals\Sensor\ITemperatureSensor.cs" />
+    <Compile Include="Core\GPIOMultiplexer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

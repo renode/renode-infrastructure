@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals
 {
     public class InterruptHandler<TRegister, TFlag>
     {
-        public InterruptHandler(GPIO gpio)
+        public InterruptHandler(IGPIO gpio)
         {
             irqs = new Dictionary<TRegister, IrqState>();
             flagToRegister = new Dictionary<TFlag, FlagState>();
@@ -26,7 +26,6 @@ namespace Antmicro.Renode.Peripherals
                 irq.Value.Value = 0;
                 irq.Value.Mask = 0;
             }
-
             gpio.Unset();
         }
 
@@ -83,13 +82,12 @@ namespace Antmicro.Renode.Peripherals
                     return;
                 }
             }
-
             gpio.Set(false);
         }
 
         private readonly Dictionary<TRegister, IrqState> irqs;
         private readonly Dictionary<TFlag, FlagState> flagToRegister;
-        private readonly GPIO gpio;
+        private readonly IGPIO gpio;
 
         private class IrqState
         {
