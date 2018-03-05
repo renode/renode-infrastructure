@@ -542,9 +542,10 @@ namespace Antmicro.Renode.UserInterface
             }
 
             Token oldOrigin;
+            var originalFilename = filename;
             if(!TryGetFilenameFromAvailablePaths(filename, out filename))
             {
-                writer.WriteError(string.Format("Could not find file '{0}'", filename));
+                writer.WriteError($"Could not find file '{originalFilename}'");
                 return false;
             }
             variables.TryGetValue(OriginVariable, out oldOrigin);
