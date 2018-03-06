@@ -149,6 +149,12 @@ namespace Antmicro.Renode.Tools.Network
                     ? ifaces.Where(x => (x.PromiscuousMode && x.Interface != sender) || x.Interface == destIface)
                     : ifaces.Where(x => x.Interface != sender);
 
+                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
+                {
+                    // it happens when sending from tap interface
+                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
+                }
+
                 foreach(var iface in interestingIfaces)
                 {
                     if(iface.AsTap != null)
@@ -157,7 +163,7 @@ namespace Antmicro.Renode.Tools.Network
                         continue;
                     }
 
-                    iface.Machine.HandleTimeDomainEvent(iface.Interface.ReceiveFrame, frame.Clone(), TimeDomainsManager.Instance.VirtualTimeStamp, () =>
+                    iface.Machine.HandleTimeDomainEvent(iface.Interface.ReceiveFrame, frame.Clone(), vts, () =>
                     {
                         FrameTransmitted?.Invoke(this, sender, iface.Interface, frame.Bytes);
                     });
