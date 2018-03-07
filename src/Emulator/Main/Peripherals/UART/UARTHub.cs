@@ -9,8 +9,8 @@ using System;
 using Antmicro.Renode.Core;
 using System.Linq;
 using Antmicro.Renode.Time;
-using System.Collections.Concurrent;
 using Antmicro.Renode.Exceptions;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -24,14 +24,25 @@ namespace Antmicro.Renode.Peripherals.UART
 
     public sealed class UARTHub : IExternal, IHasOwnLife, IConnectable<IUART>
     {
+        public UARTHub()
+        {
+            uarts = new Dictionary<IUART, Action<byte>>();
+            locker = new object();
+        }
+
         public void AttachTo(IUART uart)
         {
-            if(uarts.Contains(uart))
+            lock(locker)
             {
-                throw new RecoverableException("Cannot attach to the provided UART as it is already registered in this hub.");
+                if(uarts.ContainsKey(uart))
+                {
+                    throw new RecoverableException("Cannot attach to the provided UART as it is already registered in this hub.");
+                }
+
+                var d = (Action<byte>)(x => HandleCharReceived(x, uart));
+                uarts.Add(uart, d);
+                uart.CharReceived += d;
             }
-            uarts.Add(uart);
-            uart.CharReceived += x => HandleCharReceived(x, uart);
         }
 
         public void Start()
@@ -49,25 +60,39 @@ namespace Antmicro.Renode.Peripherals.UART
             started = true;
         }
 
-        private void HandleCharReceived (byte obj, IUART sender)
+        public void DetachFrom(IUART uart)
+        {
+            lock(locker)
+            {
+                if(!uarts.ContainsKey(uart))
+                {
+                    throw new RecoverableException("Cannot detach from the provided UART as it is not registered in this hub.");
+                }
+
+                uart.CharReceived -= uarts[uart];
+                uarts.Remove(uart);
+            }
+        }
+
+        private void HandleCharReceived(byte obj, IUART sender)
         {
             if(!started)
             {
                 return;
             }
-            foreach(var item in uarts.Where(x=> x!= sender))
+
+            lock(locker)
             {
-                item.GetMachine().HandleTimeDomainEvent(item.WriteChar, obj, TimeDomainsManager.Instance.VirtualTimeStamp);
+                foreach(var item in uarts.Where(x => x.Key != sender).Select(x => x.Key))
+                {
+                    item.GetMachine().HandleTimeDomainEvent(item.WriteChar, obj, TimeDomainsManager.Instance.VirtualTimeStamp);
+                }
             }
         }
 
-        public void DetachFrom(IUART uart)
-        {
-            throw new NotImplementedException();
-        }
-
         private bool started;
-        private ConcurrentBag<IUART> uarts = new ConcurrentBag<IUART>();
+        private readonly Dictionary<IUART, Action<byte>> uarts;
+        private readonly object locker;
     }
 }
 
