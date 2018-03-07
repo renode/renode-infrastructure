@@ -139,6 +139,9 @@ namespace Antmicro.Renode.Time
                     if(!localCopyOfTimeHandle.RequestTimeInterval(out var intervalGranted))
                     {
                         this.Trace("Time interval request interrupted");
+                        // we will loop here a little when starting the emulation;
+                        // without this sleep the CPU usage might go very high, especially when a lot of nodes are created at the same time
+                        Thread.Sleep(100);
                         continue;
                     }
 
