@@ -13,6 +13,8 @@ using System.Runtime.InteropServices;
 using System.IO;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -47,6 +49,11 @@ namespace Antmicro.Renode.Utilities
         public override void Flush()
         {
             Stream.Flush();
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            return Stream.ReadAsync(buffer, offset, count, cancellationToken);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
