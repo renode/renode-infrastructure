@@ -7,26 +7,43 @@
 *
 */
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class CortexM
     {
-        public override void SetRegisterUnsafe(int register, uint value)
+        public override void SetRegisterUnsafe(int register, ulong value)
         {
-            SetRegisterValue32(register, value);
+            if(!mapping.TryGetValue((CortexMRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override uint GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegisterUnsafe(int register)
         {
-            return GetRegisterValue32(register);
+            if(!mapping.TryGetValue((CortexMRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            return GetRegisterValue32(r.Index);
+        }
+
+        public override IEnumerable<CPURegister> GetRegisters()
+        {
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]
-        public UInt32 Control
+        public RegisterValue Control
         {
             get
             {
@@ -37,9 +54,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.Control, value);
             }
         }
-
         [Register]
-        public UInt32 BasePri
+        public RegisterValue BasePri
         {
             get
             {
@@ -50,9 +66,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.BasePri, value);
             }
         }
-
         [Register]
-        public UInt32 VecBase
+        public RegisterValue VecBase
         {
             get
             {
@@ -63,9 +78,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.VecBase, value);
             }
         }
-
         [Register]
-        public UInt32 CurrentSP
+        public RegisterValue CurrentSP
         {
             get
             {
@@ -76,9 +90,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.CurrentSP, value);
             }
         }
-
         [Register]
-        public UInt32 OtherSP
+        public RegisterValue OtherSP
         {
             get
             {
@@ -90,12 +103,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-
         protected override void InitializeRegisters()
         {
             base.InitializeRegisters();
         }
 
+        private static readonly Dictionary<CortexMRegisters, CPURegister> mapping = new Dictionary<CortexMRegisters, CPURegister>
+        {
+            { CortexMRegisters.Control,  new CPURegister(18, 32, false) },
+            { CortexMRegisters.BasePri,  new CPURegister(19, 32, false) },
+            { CortexMRegisters.VecBase,  new CPURegister(20, 32, false) },
+            { CortexMRegisters.CurrentSP,  new CPURegister(21, 32, false) },
+            { CortexMRegisters.OtherSP,  new CPURegister(22, 32, false) },
+        };
     }
 
     public enum CortexMRegisters

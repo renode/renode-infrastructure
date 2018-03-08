@@ -430,7 +430,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public virtual uint PC
+        public virtual RegisterValue PC
         {
             get
             {
@@ -623,9 +623,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public abstract void SetRegisterUnsafe(int register, uint value);
+        public abstract void SetRegisterUnsafe(int register, ulong value);
 
-        public abstract uint GetRegisterUnsafe(int register);
+        public abstract RegisterValue GetRegisterUnsafe(int register);
 
         public abstract IEnumerable<CPURegister> GetRegisters();
 

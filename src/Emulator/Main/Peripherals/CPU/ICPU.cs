@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         void SetPageAccessViaIo(long address);
         void ClearPageAccessViaIo(long address);
         string Model{ get; }
-        uint PC { get; set; }
+        RegisterValue PC { get; set; }
         bool IsHalted { get; set; }
         SystemBus Bus { get; }
         void UpdateContext();

@@ -1278,12 +1278,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Select(x => x.Peripheral).Cast<MappedMemory>().Distinct().ToList();
         }
 
-        private bool TryGetPCForCPU(ICPU cpu, out long pc)
+        private bool TryGetPCForCPU(ICPU cpu, out RegisterValue pc)
         {
             var controllableCpu = cpu as IControllableCPU;
             if(controllableCpu == null)
             {
-                pc = 0;
+                pc = default(RegisterValue);
                 return false;
             }
             pc = controllableCpu.PC;
@@ -1362,8 +1362,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             builder.Append("CPU");
             builder.Append(GetCPUId(cpu));
             cpuAppended = true;
-            long pc;
-            if(TryGetPCForCPU(cpu, out pc))
+            if(TryGetPCForCPU(cpu, out var pc))
             {
                 if(cpuAppended)
                 {

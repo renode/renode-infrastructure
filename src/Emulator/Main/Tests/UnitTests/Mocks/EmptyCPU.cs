@@ -59,7 +59,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
         {
         }
 
-        public virtual uint PC
+        public virtual RegisterValue PC
         {
             get
             {

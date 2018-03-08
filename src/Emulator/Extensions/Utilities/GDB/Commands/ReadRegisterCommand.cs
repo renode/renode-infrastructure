@@ -20,9 +20,13 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public PacketData Execute(
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int registerNumber)
         {
+            if(!manager.Cpu.GetRegisters().Any(x => x.Index == registerNumber))
+            {
+                return PacketData.ErrorReply(1);
+            }
+
             var content = new StringBuilder();
-            var value = manager.Cpu.GetRegisters().Any(x => x.Index == registerNumber) ? manager.Cpu.GetRegisterUnsafe(registerNumber) : 0;
-            foreach(var b in BitConverter.GetBytes(value))
+            foreach(var b in manager.Cpu.GetRegisterUnsafe(registerNumber).GetBytes())
             {
                 content.AppendFormat("{0:x2}", b);
             }
