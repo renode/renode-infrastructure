@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2010-2018 Antmicro
 //
 // This file is licensed under the MIT License.
@@ -18,17 +18,13 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    [GPIO(NumberOfInputs = 3)]
-    public partial class RiscV : TranslationCPU
+    public abstract class BaseRiscV : TranslationCPU
     {
-        public RiscV(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode = PrivilegeMode.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
+        protected BaseRiscV(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
             InnerTimer = new ComparingTimer(machine.ClockSource, frequency, enabled: true, eventEnabled: true);
 
             intTypeToVal = new TwoWayDictionary<int, IrqType>();
-            intTypeToVal.Add(0, IrqType.MachineTimerIrq);
-            intTypeToVal.Add(1, IrqType.MachineExternalIrq);
-            intTypeToVal.Add(2, IrqType.MachineSoftwareInterrupt);
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -40,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 else if((int)set == 'G' - 'A')
                 {
                     //G is a wildcard denoting multiple instruction sets
-                    foreach(var gSet in new [] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
+                    foreach(var gSet in new[] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
                     {
                         TlibAllowFeature((uint)gSet);
                     }
@@ -76,8 +72,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             return TlibIsFeatureEnabled((uint)set) == 1;
         }
-
-        public override string Architecture { get { return "riscv"; } }
 
         public ComparingTimer InnerTimer { get; set; }
 
@@ -126,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return InnerTimer.Value;
         }
 
-        private TwoWayDictionary<int, IrqType> intTypeToVal;
+        protected TwoWayDictionary<int, IrqType> intTypeToVal;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -173,10 +167,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
         }
 
-        private enum IrqType
+        protected enum IrqType
         {
+            SupervisorSoftwareInterrupt = 0x1,
             MachineSoftwareInterrupt = 0x3,
+            SupervisorTimerIrq = 0x5,
             MachineTimerIrq = 0x7,
+            SupervisorExternalIrq = 0x9,
             MachineExternalIrq = 0xb
         }
     }
