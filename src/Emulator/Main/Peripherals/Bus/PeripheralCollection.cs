@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     // note that truncating is in fact good thing here
                     for(var i = 0; i < numOfPages; i++)
                     {
-                        shortBlocks.Add(start + i*PageSize, block);
+                        shortBlocks.Add(start + i * PageSize, block);
                     }
                     sysbus.NoisyLog("Added {0} to dictionary.", name);
                 }
