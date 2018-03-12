@@ -66,7 +66,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 <#
     var widths = parser.Registers
         .Union(parser.RegisterGroups.SelectMany(x => x.GetRegisters()))
-        .Where(x => !x.IsIgnored)
         .Select(x => x.Width)
         .OrderBy(x => x)
         .Distinct()
@@ -250,7 +249,6 @@ namespace Antmicro.Renode.Peripherals.CPU
     foreach(var register in
         parser.Registers
         .Union(parser.RegisterGroups.SelectMany(x => x.GetRegisters()))
-        .Where(x => !x.IsIgnored)
         .GroupBy(x => x.Value)
         .OrderBy(x => x.Key))
     {
@@ -265,14 +263,14 @@ namespace Antmicro.Renode.Peripherals.CPU
     public enum <#=CLASS_NAME#>Registers
     {
 <#
-    foreach(var register in parser.Registers.Where(x => !x.IsIgnored))
+    foreach(var register in parser.Registers)
     {
 #>
         <#=register.Name#> = <#=register.Value#>,
 <#
     }
 
-    foreach(var registerGroup in parser.RegisterGroups.Where(x => !x.IsIgnored))
+    foreach(var registerGroup in parser.RegisterGroups)
     {
         foreach(var index in registerGroup.IndexValueMap.OrderBy(x => x.Key))
         {
