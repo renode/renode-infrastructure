@@ -21,10 +21,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public PlatformLevelInterruptController(Machine machine, int numberOfSources, int numberOfTargets = 1, bool prioritiesEnabled = true)
         {
-            if(numberOfTargets != 1)
-            {
-                throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than one target");
-            }
             // numberOfSources has to fit between these two registers, one bit per source
             if(Math.Ceiling((numberOfSources + 1) / 32.0) * 4 > Registers.Target1Enables - Registers.Target0Enables)
             {
@@ -43,17 +39,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             activeInterrupts = new Stack<uint>();
 
-            var registersMap = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)Registers.Target0ClaimComplete, new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
-                {
-                    return AcknowledgePendingInterrupt();
-                }, writeCallback:(_, value) =>
-                {
-                    CompleteHandlingInterrupt(value);
-                }
-                )}
-            };
+            var registersMap = new Dictionary<long, DoubleWordRegister>();
 
             registersMap.Add((long)Registers.Source0Priority, new DoubleWordRegister(this)
                              .WithValueField(0, 3, FieldMode.Read,
@@ -76,6 +62,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             }
 
+            var targetWidth = (uint)Registers.Target1PriorityThreshold - (uint)Registers.Target0PriorityThreshold;
             var vectorWidth = (uint)Registers.Target1Enables - (uint)Registers.Target0Enables;
             var maximumSourceDoubleWords = (int)Math.Ceiling((numberOfSources + 1) / 32.0) * 4;
 
@@ -83,9 +70,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // unused bit of a register that is at least partially used. A warning will be issued on a usual undefined register access otherwise.
             for(var target = 0u; target < numberOfTargets; target++)
             {
+                var lTarget = target;
+                registersMap.Add((long)Registers.Target0ClaimComplete + (targetWidth * target), new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
+                {
+                    return AcknowledgePendingInterrupt(lTarget);
+                }, writeCallback:(_, value) =>
+                {
+                    CompleteHandlingInterrupt(value);
+                }
+                ));
+
                 for(var offset = 0u; offset < maximumSourceDoubleWords; offset += 4)
                 {
-                    var lTarget = target;
                     var lOffset = offset;
                     registersMap.Add((long)Registers.Target0Enables + (vectorWidth * target) + offset, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
                     {
@@ -197,13 +193,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint AcknowledgePendingInterrupt()
+        private uint AcknowledgePendingInterrupt(uint targetId)
         {
             lock(irqSources)
             {
                 //Select required for by-index ordering. Skip(1) to omit first, unused entry.
                 var result = irqSources.Select((x, i) => new { Value = x, Key = (uint)i }).Skip(1)
-                                       .Where(x => x.Value.IsPending && x.Value.EnabledTargets.Any())
+                                       .Where(x => x.Value.IsPending && x.Value.EnabledTargets.Contains(targetId))
                                        .OrderByDescending(x => x.Value.Priority)
                                        .ThenBy(x => x.Key).FirstOrDefault();
                 if(result?.Value == null)
