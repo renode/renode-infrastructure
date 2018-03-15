@@ -64,7 +64,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 registersMap[(long)Registers.Source1Priority * i] = new DoubleWordRegister(this)
                     .WithValueField(0, 3,
                                     valueProviderCallback: (_) => irqSources[j].Priority,
-                                    writeCallback: (_, value) => { if(prioritiesEnabled) { irqSources[j].Priority = value; } });
+                                    writeCallback: (_, value) =>
+                                    {
+                                        if(prioritiesEnabled)
+                                        {
+                                            irqSources[j].Priority = value;
+                                            RefreshInterrupts();
+                                        }
+                                    });
 
             }
 
