@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                        .Where(x => x.Value.IsPending && x.Value.EnabledTargets.Any())
                                        .OrderByDescending(x => x.Value.Priority)
                                        .ThenBy(x => x.Key).FirstOrDefault();
-                if(result.Value == null)
+                if(result?.Value == null)
                 {
                     this.Log(LogLevel.Error, "There is no pending interrupt to acknowledge at the moment");
                     return 0;
