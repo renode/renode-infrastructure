@@ -68,6 +68,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                     {
                                         if(prioritiesEnabled)
                                         {
+                                            this.Log(LogLevel.Noisy, "Setting priority {0} for source #{1}", value, j);
                                             irqSources[j].Priority = value;
                                             RefreshInterrupts();
                                         }
@@ -113,10 +114,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 var targets = irqSources[sourceIdBase + bit].EnabledTargets;
                                 if(bits[bit])
                                 {
+                                    this.Log(LogLevel.Noisy, "Enabling target: {0}", sourceIdBase + bit);
                                     targets.Add(lTarget);
                                 }
                                 else
                                 {
+                                    this.Log(LogLevel.Noisy, "Disabling target: {0}", sourceIdBase + bit);
                                     targets.Remove(lTarget);
                                 }
                             }
@@ -136,6 +139,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void Reset()
         {
+            this.Log(LogLevel.Noisy, "Resetting peripheral state");
+
             registers.Reset();
             activeInterrupts.Clear();
             foreach(var irqSource in irqSources)
@@ -158,6 +163,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             lock(irqSources)
             {
+                this.Log(LogLevel.Noisy, "Setting #{0} gpio state to {1}", number, value);
+
                 var irq = irqSources[(uint)number];
                 irq.State = value;
                 irq.IsPending |= value;
@@ -207,6 +214,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 result.Value.IsPending = false;
                 activeInterrupts.Push(result.Key);
 
+                this.Log(LogLevel.Noisy, "Acknowledging pending interrupt #{0}", result.Key);
+
                 IRQ.Set(false);
                 return result.Key;
             }
@@ -216,6 +225,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(irqSources)
             {
+                this.Log(LogLevel.Noisy, "Completing irq {0}", irqId);
+
                 var topActiveInterrupt = activeInterrupts.Pop();
                 if(topActiveInterrupt != irqId)
                 {
