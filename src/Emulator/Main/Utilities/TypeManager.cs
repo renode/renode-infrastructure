@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Utilities
                             "Assembly resolver returned path {0} which is not one of the proposed paths {1}.",
                             selectedAssembly, possibleAssemblies.Select(x => x.Path).Aggregate((x, y) => x + ", " + y)));
                     }
-                    var typeName = string.Format("{0}, {1}", name, selectedAssemblyDescription);
+                    var typeName = string.Format("{0}, {1}", name, selectedAssemblyDescription.FullName);
                     // once conflict is resolved, we can move this type to assemblyFromTypeName
                     assembliesFromTypeName.Remove(name);
                     assemblyFromTypeName.Add(name, selectedAssemblyDescription);
