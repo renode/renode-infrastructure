@@ -500,11 +500,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             PortFModeHigh                       = 0xF8,
             PortFDataOut                        = 0xFC,
             //reserved x 2
-            PortFDataOutToggle                  = 0xF8,
-            PortFDataIn                         = 0xFC,
-            PortFUnlockedPins                   = 0x100,
+            PortFDataOutToggle                  = 0x108,
+            PortFDataIn                         = 0x10C,
+            PortFUnlockedPins                   = 0x110,
             //reserved x 1
-            PortFOverVoltageDisable             = 0x108,
+            PortFOverVoltageDisable             = 0x118,
             //reserved x 1
             //global registers
             ExternalInterruptPortSelectLow      = 0x400,
