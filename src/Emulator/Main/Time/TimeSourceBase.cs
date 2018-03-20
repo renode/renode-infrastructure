@@ -203,14 +203,14 @@ namespace Antmicro.Renode.Time
 
         public override string ToString()
         {
-            return string.Format("Elapsed Virtual Time: {0}\nCurrentLoad: {1}\nCumulativeLoad: {2}\nState: {3}\nAdvanceImmediately: {4}\nPerformance: {5}\nQuantum: {6}",
-                ElapsedVirtualTime,
-                CurrentLoad,
-                CumulativeLoad,
-                State,
-                AdvanceImmediately,
-                Performance,
-                Quantum);
+            return string.Join("\n",
+                $"Elapsed Virtual Time: {ElapsedVirtualTime}",
+                $"Current load: {CurrentLoad}",
+                $"Cumulative load: {CumulativeLoad}",
+                $"State: {State}",
+                $"Advance immediately: {AdvanceImmediately}",
+                $"Performance: {Performance}",
+                $"Quantum: {Quantum}");
         }
 
         /// <see cref="ITimeSource.Domain">
