@@ -138,21 +138,22 @@ namespace Antmicro.Renode.Utilities
 
         private static void HandleError(string operation)
         {
-            string message;
+            string message = null;
 #if PLATFORM_WINDOWS
-            message = new Win32Exception(Marshal.GetLastWin32Error()).Message;
+            var errno = Marshal.GetLastWin32Error();
+            //For an unknown reason, in some cases, Windows doesn't set error code.
+            if(errno != 0) 
+            {
+                message = new Win32Exception(errrno).Message;
+            }
 #else
             var messagePtr = dlerror();
-            if (messagePtr == IntPtr.Zero)
+            if(messagePtr != IntPtr.Zero)
             {
-                message = "unknown error";
-            }
-            else
-            {
-                message = Marshal.PtrToStringAnsi(messagePtr);
+                message = Marshal.PtrToStringUni(messagePtr);
             }
 #endif
-            throw new InvalidOperationException(string.Format("Error while {1} dynamic library: {0}", message, operation));
+            throw new InvalidOperationException(string.Format("Error while {1} dynamic library: {0}", message ?? "unknown error", operation));
         }
 
 #if PLATFORM_WINDOWS
