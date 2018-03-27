@@ -56,6 +56,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             translationCacheSync = new object();
             pagesAccessedByIo = new HashSet<long>();
             pauseGuard = new CpuThreadPauseGuard(this);
+            decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             InitializeRegisters();
             InitInterruptEvents();
             Init();
@@ -979,6 +980,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
             hooks = hooks ?? new Dictionary<uint, HookDescriptor>();
+
             sync = new Synchronizer();
             haltedLock = new object();
 
@@ -1787,9 +1789,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void TlibSetIrqWrapped(int number, bool state)
         {
-            this.Log(LogLevel.Noisy, "Setting CPU IRQ #{0} to {1}", number, state);
             var decodedInterrupt = DecodeInterrupt(number);
-            TlibSetIrq((int)decodedInterrupt, state ? 1 : 0);
+            if(!decodedIrqs.TryGetValue(decodedInterrupt, out var irqs))
+            {
+                irqs = new HashSet<int>();
+                decodedIrqs.Add(decodedInterrupt, irqs);
+            }
+            this.Log(LogLevel.Noisy, "Setting CPU IRQ #{0} to {1}", number, state);
+            if(state)
+            {
+                irqs.Add(number);
+                TlibSetIrq((int)decodedInterrupt, 1);
+            }
+            else
+            {
+                irqs.Remove(number);
+                if(irqs.Count == 0)
+                {
+                    TlibSetIrq((int)decodedInterrupt, 0);
+                }
+            }
         }
 
         private enum ExecutionResult
@@ -1802,15 +1821,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         {
-            // halted result means that cpu waits on WFI
-            // in such case we should, obviously, not mask interrupts
-            if(!((DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep) || lastTlibResult == ExecutionResult.Halted) && TlibIsIrqSet() == 0 && interruptEvents.Any(x => x.WaitOne(0)))
-            {
-                for(var i = 0; i < interruptEvents.Length; i++)
-                {
-                    TlibSetIrqWrapped(i, interruptEvents[i].WaitOne(0));
-                }
-            }
             try
             {
                 while(actionsToExecuteOnCpuThread.TryDequeue(out var queuedAction))
@@ -1860,6 +1870,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool isAnyInactiveHook;
         private Dictionary<uint, HookDescriptor> hooks;
+        private Dictionary<Interrupt, HashSet<int>> decodedIrqs;
 
         private class HookDescriptor
         {
