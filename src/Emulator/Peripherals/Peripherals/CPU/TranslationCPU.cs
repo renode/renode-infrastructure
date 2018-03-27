@@ -47,7 +47,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             Endianness = endianness;
             PerformanceInMips = 100;
-            MaximumTimerUpdateDelay = 10000;
             this.cpuType = cpuType;
             this.translationCacheSize = DefaultTranslationCacheSize;
             this.machine = machine;
@@ -135,8 +134,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 ClearTranslationCache();
             }
         }
-
-        public uint MaximumTimerUpdateDelay { get; set; }
 
         public bool LogTranslationBlockFetch
         {
@@ -1709,9 +1706,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
                     var toExecute = singleStep ? 1 : instructionsLeftThisRound;
 
+                    var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
+                    var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
+
                     // this puts a limit on instructions to execute in one round
                     // and makes timers update independent of the current quantum
-                    toExecute = Math.Min(MaximumTimerUpdateDelay, toExecute);
+                    toExecute = Math.Min(instructionsToNearestLimit, toExecute);
 
                     this.Trace($"Asking CPU to execute {toExecute} instructions");
                     var result = ExecuteInstructions(toExecute, out var executed);
@@ -1737,8 +1737,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                         // here we test if the nearest scheduled interrupt from timers will happen in this time period:
                         // if so, we simply jump directly to this moment reporting progress;
                         // otherwise we immediately finish the execution of this period
-                        var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
-                        var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
+                        nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
+                        instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out unused);
 
                         if(instructionsToNearestLimit >= instructionsLeftThisRound)
                         {
