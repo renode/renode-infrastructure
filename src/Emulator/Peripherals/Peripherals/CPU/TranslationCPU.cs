@@ -65,6 +65,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitDisas();
         }
 
+        public bool ChainingEnabled
+        {
+            get
+            {
+                return TlibGetChainingEnabled() != 0;
+            }
+
+            set
+            {
+                TlibSetChainingEnabled(value ? 1u : 0u);
+            }
+        }
+
         public void StartGdbServer(int port, bool autostartEmulation = false)
         {
             if(IsGdbServerCreated)
@@ -1469,6 +1482,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
         #pragma warning disable 649
+
+        [Import]
+        private ActionUInt32 TlibSetChainingEnabled;
+
+        [Import]
+        private FuncUInt32 TlibGetChainingEnabled;
 
         [Import]
         private Action TlibRequestExit;
