@@ -17,7 +17,7 @@ namespace Antmicro.Renode.UI
 {
     public class CrashHandler
     {
-        public static void HandleCrash(Exception e, bool exit = true)
+        public static void HandleCrash(Exception e)
         {
             var message = GetFullStackTrace(e);
             SaveErrorToFile(TemporaryFilesManager.Instance.EmulatorTemporaryPath + TemporaryFilesManager.CrashSuffix, message);
@@ -25,14 +25,10 @@ namespace Antmicro.Renode.UI
             try 
             {
                 ShowErrorWindow(message);
-            } 
+            }
             catch(Exception)
             {
                 // there is nothing to do here    
-            }
-            if(exit)
-            {
-                Environment.Exit(-1);
             }
         }
 

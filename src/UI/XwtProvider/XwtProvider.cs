@@ -53,7 +53,7 @@ namespace Antmicro.Renode.UI
                 UiThreadId = Thread.CurrentThread.ManagedThreadId;
             }
 
-            Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException, false);
+            Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException);
             GLib.ExceptionManager.UnhandledException += arg => CrashHandler.HandleCrash((Exception)arg.ExceptionObject);
             Application.Run();
             GtkTextLayoutBackendHandler.DisposeResources();
