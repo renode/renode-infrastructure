@@ -523,6 +523,8 @@ namespace Antmicro.Renode.Time
 
         protected readonly HandlesCollection handles;
         protected readonly Stopwatch stopwatch;
+        // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
+        protected readonly PrioritySynchronizer sync;
 
         [Antmicro.Migrant.Constructor(true)]
         private ManualResetEvent blockingEvent;
@@ -537,10 +539,75 @@ namespace Antmicro.Renode.Time
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
         private readonly Sleeper sleeper;
-        // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
-        private readonly PrioritySynchronizer sync;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromMilliseconds(10);
+
+        /// <summary>
+        /// Allows locking without starvation.
+        /// </summary>
+        protected class PrioritySynchronizer : IdentifiableObject, IDisposable
+        {
+            public PrioritySynchronizer()
+            {
+                innerLock = new object();
+            }
+
+            /// <summary>
+            /// Used to obtain lock with low priority.
+            /// </summary>
+            /// <remarks>
+            /// Any thread already waiting on the lock with high priority is guaranteed to obtain it prior to this one.
+            /// There are no guarantees for many threads with the same priority.
+            /// </remarks>
+            public PrioritySynchronizer LowPriority
+            {
+                get
+                {
+                    // here we assume that `highPriorityRequestPending` will be reset soon,
+                    // so there is no point of using more complicated synchronization methods
+                    while(highPriorityRequestPendingCounter > 0) ;
+                    Monitor.Enter(innerLock);
+
+                    return this;
+                }
+            }
+
+            /// <summary>
+            /// Used to obtain lock with high priority.
+            /// </summary>
+            /// <remarks>
+            /// It is guaranteed that the thread wanting to lock with high priority will not wait indefinitely if all other threads lock with low priority.
+            /// There are no guarantees for many threads with the same priority.
+            /// </remarks>
+            public PrioritySynchronizer HighPriority
+            {
+                get
+                {
+                    Interlocked.Increment(ref highPriorityRequestPendingCounter);
+                    Monitor.Enter(innerLock);
+                    Interlocked.Decrement(ref highPriorityRequestPendingCounter);
+                    return this;
+                }
+            }
+
+            public void Dispose()
+            {
+                Monitor.Exit(innerLock);
+            }
+
+            public void WaitWhile(Func<bool> condition, string reason)
+            {
+                innerLock.WaitWhile(condition, reason);
+            }
+
+            public void Pulse()
+            {
+                Monitor.PulseAll(innerLock);
+            }
+
+            private readonly object innerLock;
+            private volatile int highPriorityRequestPendingCounter;
+        }
 
         /// <summary>
         /// Represents a time-variant value.
@@ -614,73 +681,6 @@ namespace Antmicro.Renode.Time
 
             private readonly int id;
             private static int Id;
-        }
-
-        /// <summary>
-        /// Allows locking without starvation.
-        /// </summary>
-        private class PrioritySynchronizer : IdentifiableObject, IDisposable
-        {
-            public PrioritySynchronizer()
-            {
-                innerLock = new object();
-            }
-
-            /// <summary>
-            /// Used to obtain lock with low priority.
-            /// </summary>
-            /// <remarks>
-            /// Any thread already waiting on the lock with high priority is guaranteed to obtain it prior to this one.
-            /// There are no guarantees for many threads with the same priority.
-            /// </remarks>
-            public PrioritySynchronizer LowPriority
-            {
-                get
-                {
-                    // here we assume that `highPriorityRequestPending` will be reset soon,
-                    // so there is no point of using more complicated synchronization methods
-                    while(highPriorityRequestPendingCounter > 0);
-                    Monitor.Enter(innerLock);
-
-                    return this;
-                }
-            }
-
-            /// <summary>
-            /// Used to obtain lock with high priority.
-            /// </summary>
-            /// <remarks>
-            /// It is guaranteed that the thread wanting to lock with high priority will not wait indefinitely if all other threads lock with low priority.
-            /// There are no guarantees for many threads with the same priority.
-            /// </remarks>
-            public PrioritySynchronizer HighPriority
-            {
-                get
-                {
-                    Interlocked.Increment(ref highPriorityRequestPendingCounter);
-                    Monitor.Enter(innerLock);
-                    Interlocked.Decrement(ref highPriorityRequestPendingCounter);
-                    return this;
-                }
-            }
-
-            public void Dispose()
-            {
-                Monitor.Exit(innerLock);
-            }
-
-            public void WaitWhile(Func<bool> condition, string reason)
-            {
-                innerLock.WaitWhile(condition, reason);
-            }
-
-            public void Pulse()
-            {
-                Monitor.PulseAll(innerLock);
-            }
-
-            private readonly object innerLock;
-            private volatile int highPriorityRequestPendingCounter;
         }
     }
 }

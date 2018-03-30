@@ -62,14 +62,14 @@ namespace Antmicro.Renode.Time
                     this.Trace();
                     return;
                 }
-                lock(handles)
+                using(sync.HighPriority)
                 {
                     isPaused = true;
                     DeactivateSlavesSourceSide();
 
                     // we must wait for unblocked slaves to finish their work
                     this.Trace("About to wait for unblocked slaves");
-                    handles.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
+                    sync.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
                 }
                 this.Trace("Paused");
             }
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Time
             this.Trace("Resuming...");
             lock(locker)
             {
-                lock(handles)
+                using(sync.HighPriority)
                 {
                     ActivateSlavesSourceSide();
                     isPaused = false;
