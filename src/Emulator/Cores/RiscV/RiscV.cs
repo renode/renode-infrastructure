@@ -114,6 +114,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [Export]
+        private ulong GetCPUTime()
+        {
+            return InnerTimer.Value;
+        }
+
         private TwoWayDictionary<int, IrqType> intTypeToVal;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
