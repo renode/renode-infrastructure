@@ -10,6 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Utilities.Collections;
@@ -115,6 +116,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private ulong GetCPUTime()
         {
+            var numberOfExecutedInstructions = checked((ulong)TlibGetExecutedInstructions());
+            if(numberOfExecutedInstructions > 0)
+            {
+                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions, PerformanceInMips, out var residuum);
+                TlibResetExecutedInstructions(checked((int)residuum));
+                machine.HandleTimeProgress(elapsed);
+            }
             return InnerTimer.Value;
         }
 
@@ -136,6 +144,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt32 TlibIsFeatureAllowed;
+
+        [Import]
+        private ActionInt32 TlibResetExecutedInstructions;
 
         [Import(Name="tlib_set_privilege_mode_1_09")]
         private ActionUInt32 TlibSetPrivilegeMode109;

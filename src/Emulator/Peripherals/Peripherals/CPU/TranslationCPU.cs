@@ -1558,7 +1558,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncInt32 TlibGetStateSize;
 
         [Import]
-        private FuncInt32 TlibGetExecutedInstructions;
+        protected FuncInt32 TlibGetExecutedInstructions;
 
         #pragma warning restore 649
 

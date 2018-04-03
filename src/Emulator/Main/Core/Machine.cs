@@ -969,7 +969,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void HandleTimeProgress(TimeInterval diff)
+        public void HandleTimeProgress(TimeInterval diff)
         {
             clockSource.Advance(diff);
         }
