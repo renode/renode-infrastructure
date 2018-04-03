@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
                 else
                 {
-                    // special case when disassembling magic addresses in Cortex-M 
+                    // special case when disassembling magic addresses in Cortex-M
                     file.WriteLine("Magic PC value detected: 0x{0:x8}", flags > 0 ? pc | 1 : pc);
                 }
 
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         public string LogFile
         {
             get { return logFile; }
-            set 
+            set
             {
                 if(value != null && disassembler == null)
                 {
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                     File.WriteAllText(logFile, string.Empty);
                 }
             }
-        }     
+        }
 
         public string Disassemble(uint addr, bool isPhysical, uint size, uint flags)
         {
