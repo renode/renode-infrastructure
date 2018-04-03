@@ -78,8 +78,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "riscv"; } }
 
-        public uint EntryPoint { get; private set; }
-
         public ComparingTimer InnerTimer { get; set; }
 
         protected override Interrupt DecodeInterrupt(int number)
