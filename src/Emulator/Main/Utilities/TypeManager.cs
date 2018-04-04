@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Noisy, "Loading assembly {0}.", path);
                 ClearExtensionMethodsCache();
                 BuildAssemblyCache();
-                if(!AnalyzeAssembly(path))
+                if(!AnalyzeAssembly(path, true))
                 {
                     return false;
                 }
@@ -410,7 +410,7 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
-        private bool AnalyzeAssembly(string path)
+        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false)
         {
             Logger.LogAs(this, LogLevel.Noisy, "Analyzing assembly {0}.", path);
             if(assemblyFromAssemblyName.Values.Any(x => x.Path == path))
@@ -533,6 +533,11 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(assemblyFromTypeName.ContainsKey(fullName))
                 {
+                    if(abortOnDuplicatedAssembly)
+                    {
+                        Logger.LogAs(this, LogLevel.Warning, "Trying to load assembly that has been already loaded.");
+                        return false;
+                    }
                     var description = assemblyFromTypeName[fullName];
                     assemblyFromTypeName.Remove(fullName);
                     assembliesFromTypeName.Add(fullName, new List<AssemblyDescription> { description, newAssemblyDescription });
