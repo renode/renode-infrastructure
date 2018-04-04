@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 {
                                     if(bits[bit])
                                     {
-                                        this.Log(LogLevel.Error, "Trying to enable non-existing source: {0}", sourceIdBase + bit);
+                                        this.Log(LogLevel.Noisy, "Trying to enable non-existing source: {0}", sourceIdBase + bit);
                                     }
                                     continue;
                                 }
@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                        .ThenBy(x => x.Key).FirstOrDefault();
                 if(result?.Value == null)
                 {
-                    this.Log(LogLevel.Error, "There is no pending interrupt to acknowledge at the moment");
+                    this.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment");
                     return 0;
                 }
                 result.Value.IsPending = false;
