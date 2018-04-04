@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        void IControllableCPU.InitFromElf(ELF<uint> elf)
+        void IControllableCPU.InitFromElf(IELF elf)
         {
             // do nothing
         }
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 var value = machine.SystemBus.LowestLoadedAddress.Value;
                 this.Log(LogLevel.Info, "Guessing VectorTableOffset value to be 0x{0:X}.", value);
-                VectorTableOffset = value;
+                VectorTableOffset = checked((uint)value);
             }
             if(pcNotInitialized)
             {

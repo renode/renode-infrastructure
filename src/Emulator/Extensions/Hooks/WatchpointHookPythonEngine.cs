@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Hooks
             };
         }
 
-        public Action<long, Width> Hook { get; private set; }
+        public Action<ulong, Width> Hook { get; private set; }
 
         [PostDeserialization]
         private void InnerInit()

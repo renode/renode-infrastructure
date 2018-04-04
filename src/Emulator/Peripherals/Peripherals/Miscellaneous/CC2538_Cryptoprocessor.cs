@@ -869,7 +869,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private abstract class SysbusReaderWriterBase
         {
-            protected SysbusReaderWriterBase(SystemBus bus, long startAddress, int length)
+            protected SysbusReaderWriterBase(SystemBus bus, ulong startAddress, int length)
             {
                 this.bus = bus;
                 currentAddress = startAddress;
@@ -878,14 +878,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public bool IsFinished { get { return bytesLeft == 0; } }
 
-            protected long currentAddress;
+            protected ulong currentAddress;
             protected int bytesLeft;
             protected readonly SystemBus bus;
         }
 
         private class SysbusReader : SysbusReaderWriterBase
         {
-            public SysbusReader(SystemBus bus, long startAddress, int length) : base(bus, startAddress, length)
+            public SysbusReader(SystemBus bus, ulong startAddress, int length) : base(bus, startAddress, length)
             {
             }
 
@@ -894,7 +894,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var bytesToRead = Math.Min(bytesLeft, destination.SpaceLeft);
                 bus.ReadBytes(currentAddress, bytesToRead, destination.Buffer, destination.Index);
                 destination.Index += bytesToRead;
-                currentAddress += bytesToRead;
+                currentAddress += (ulong)bytesToRead;
                 bytesLeft -= bytesToRead;
                 return bytesToRead;
             }
@@ -902,7 +902,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class SysbusWriter : SysbusReaderWriterBase
         {
-            public SysbusWriter(SystemBus bus, long startAddress, int length) : base(bus, startAddress, length)
+            public SysbusWriter(SystemBus bus, ulong startAddress, int length) : base(bus, startAddress, length)
             {
             }
 
@@ -910,7 +910,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var length = Math.Min(bytesLeft, bytes.Length);
                 bus.WriteBytes(bytes, currentAddress, length);
-                currentAddress += length;
+                currentAddress += (ulong)length;
                 bytesLeft -= length;
             }
         }

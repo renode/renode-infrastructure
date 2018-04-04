@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public static class RedirectorExtensions
     {
-        public static void Redirect(this SystemBus sysbus, long from, long to, long size)
+        public static void Redirect(this SystemBus sysbus, ulong from, ulong to, ulong size)
         {
             var redirector = new Redirector(sysbus.Machine, to);
             var rangePoint = new BusRangeRegistration(from.By(size));
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
     public sealed class Redirector : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IMultibyteWritePeripheral
     {
-        public Redirector(Machine machine, long redirectedAddress)
+        public Redirector(Machine machine, ulong redirectedAddress)
         {
             this.redirectedAddress = redirectedAddress;
             systemBus = machine.SystemBus;
@@ -32,35 +32,35 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public byte ReadByte(long offset)
         {
-            return systemBus.ReadByte(redirectedAddress + offset);
+            return systemBus.ReadByte(redirectedAddress + checked((ulong)offset));
         }
 
         public void WriteByte(long offset, byte value)
         {
-            systemBus.WriteByte(redirectedAddress + offset, value);
+            systemBus.WriteByte(redirectedAddress + checked((ulong)offset), value);
         }
 
         public ushort ReadWord(long offset)
         {
-            return systemBus.ReadWord(redirectedAddress + offset);
+            return systemBus.ReadWord(redirectedAddress + checked((ulong)offset));
         }
 
         public void WriteWord(long offset, ushort value)
         {
-            systemBus.WriteWord(offset, value);
+            systemBus.WriteWord(checked((ulong)offset), value);
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            return systemBus.ReadDoubleWord(redirectedAddress + offset);
+            return systemBus.ReadDoubleWord(redirectedAddress + checked((ulong)offset));
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            systemBus.WriteDoubleWord(redirectedAddress + offset, value);
+            systemBus.WriteDoubleWord(redirectedAddress + checked((ulong)offset), value);
         }
 
-        public long TranslateAbsolute(long address)
+        public ulong TranslateAbsolute(ulong address)
         {
             foreach(var range in systemBus.GetRegistrationPoints(this).Select(x => x.Range))
             {
@@ -74,12 +74,12 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public byte[] ReadBytes(long offset, int count)
         {
-            return systemBus.ReadBytes(redirectedAddress + offset, count);
+            return systemBus.ReadBytes(redirectedAddress + checked((ulong)offset), count);
         }
 
         public void WriteBytes(long offset, byte[] array, int startingIndex, int count)
         {
-            systemBus.WriteBytes(array, redirectedAddress + offset, count);
+            systemBus.WriteBytes(array, redirectedAddress + checked((ulong)offset), count);
         }
 
         public void Reset()
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         }
 
-        private readonly long redirectedAddress;
+        private readonly ulong redirectedAddress;
         private readonly SystemBus systemBus;
     }
 }

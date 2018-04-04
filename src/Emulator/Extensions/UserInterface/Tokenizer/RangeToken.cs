@@ -29,14 +29,14 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
         }
 
-        protected long[] ParseNumbers(string[] input)
+        protected ulong[] ParseNumbers(string[] input)
         {
-            var resultValues = new long[2];
+            var resultValues = new ulong[2];
             for(var i = 0; i < input.Length; ++i)
             {
                 resultValues[i] = input[i].Contains('x')
-                    ? Convert.ToInt64(input[i].Split('x')[1], 16)
-                    : resultValues[i] = long.Parse(input[i]);
+                    ? Convert.ToUInt64(input[i].Split('x')[1], 16)
+                    : resultValues[i] = ulong.Parse(input[i]);
 
             }
             return resultValues;

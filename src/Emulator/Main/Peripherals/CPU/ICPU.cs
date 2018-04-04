@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -16,8 +17,8 @@ namespace Antmicro.Renode.Peripherals.CPU
     {       
         void MapMemory(IMappedSegment segment);
         void UnmapMemory(Range range);
-        void SetPageAccessViaIo(long address);
-        void ClearPageAccessViaIo(long address);
+        void SetPageAccessViaIo(ulong address);
+        void ClearPageAccessViaIo(ulong address);
         string Model{ get; }
         RegisterValue PC { get; set; }
         bool IsHalted { get; set; }

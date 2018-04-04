@@ -12,11 +12,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ICPUWithHooks : ICPU
     {
         void ClearHookAtBlockBegin();
-        void SetHookAtBlockBegin(Action<uint, uint> hook);
+        void SetHookAtBlockBegin(Action<ulong, uint> hook);
 
-        void AddHook(uint addr, Action<uint> hook);
-        void RemoveHook(uint addr, Action<uint> hook);
-        void RemoveHooksAt(uint addr);
+        void AddHook(ulong addr, Action<ulong> hook);
+        void RemoveHook(ulong addr, Action<ulong> hook);
+        void RemoveHooksAt(ulong addr);
         void RemoveAllHooks();
     }
 }

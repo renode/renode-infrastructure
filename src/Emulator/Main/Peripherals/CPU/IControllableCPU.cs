@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         string[,] GetRegistersValues();
 
-        void InitFromElf(ELF<uint> elf);
+        void InitFromElf(IELF elf);
 
         void InitFromUImage(UImage uImage);
 

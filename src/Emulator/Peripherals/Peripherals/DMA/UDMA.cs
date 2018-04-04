@@ -191,11 +191,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void InitTransfer()
             {
-                var dataSource = (UseAlternateControlData ? parent.basePointer + 0x200 : parent.basePointer) + 0x10 * channelNumber;
+                var dataSource = (ulong)((UseAlternateControlData ? parent.basePointer + 0x200 : parent.basePointer) + 0x10 * channelNumber);
                 var controlStructure = new ControlStructure(parent.SystemBus.ReadBytes(dataSource, 0x10));
                 var request = new Request(controlStructure.SourcePointer, controlStructure.DestinationPointer, (int)controlStructure.TransferSize,
                                   (TransferType)controlStructure.SourceSize, (TransferType)controlStructure.DestinationSize,
-                                  (int)controlStructure.SourceIncrement, (int)controlStructure.DestinationIncrement,
+                                  controlStructure.SourceIncrement, controlStructure.DestinationIncrement,
                                   controlStructure.SourceIncrement != 0, controlStructure.DestinationIncrement != 0);
                 parent.engine.IssueCopy(request);
 

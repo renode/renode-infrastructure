@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.sysbus = sysbus;
                 blocks = new Block[0];
-                shortBlocks = new Dictionary<long, Block>();
+                shortBlocks = new Dictionary<ulong, Block>();
                 sync = new object();
                 InvalidateLastBlock();
             }
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            public void Add(long start, long end, IBusRegistered<IBusPeripheral> peripheral, PeripheralAccessMethods accessMethods)
+            public void Add(ulong start, ulong end, IBusRegistered<IBusPeripheral> peripheral, PeripheralAccessMethods accessMethods)
             {
                 // the idea here is that we prefer the peripheral to go to dictionary
                 // ideally it can go to dicitonary wholly, but we try to put there as much as we can
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         return;
                     }
                     // note that truncating is in fact good thing here
-                    for(var i = 0; i < numOfPages; i++)
+                    for(var i = 0u; i < numOfPages; i++)
                     {
                         shortBlocks.Add(start + i * PageSize, block);
                     }
@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            public void Remove(long start, long end)
+            public void Remove(ulong start, ulong end)
             {
                 lock(sync)
                 {
@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 lock(sync)
                 {
-                    blocks = blocks.Select(block => 
+                    blocks = blocks.Select(block =>
                     {
                         if(block.Peripheral.Peripheral != peripheral)
                         {
@@ -140,13 +140,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                         }
                         var block = dEntry.Value;
                         block.AccessMethods = onPam(block.AccessMethods);
-                        return new KeyValuePair<long, Block>(dEntry.Key, block);
+                        return new KeyValuePair<ulong, Block>(dEntry.Key, block);
                     }).ToDictionary(x => x.Key, x => x.Value);
                     InvalidateLastBlock();
                 }
             }
 
-            public PeripheralAccessMethods FindAccessMethods(long address, out long startAddress, out long endAddress)
+            public PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress)
             {
                 // no need to lock here yet, cause last block is in the thread local storage
                 var lastBlock = lastBlockStorage.Value;
@@ -214,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 #endif
 
-            private int BinarySearch(long offset)
+            private int BinarySearch(ulong offset)
             {
                 var min = 0;
                 var max = blocks.Length - 1;
@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 lastBlockStorage = new ThreadLocal<Block>();
             }
 
-            private Dictionary<long, Block> shortBlocks;
+            private Dictionary<ulong, Block> shortBlocks;
             private Block[] blocks;
             [Constructor]
             private ThreadLocal<Block> lastBlockStorage;
@@ -261,14 +261,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             private long binarySearchCount;
 #endif
 
-            private const long PageSize = 1 << 11;
-            private const long PageAlign = PageSize - 1;
+            private const ulong PageSize = 1 << 11;
+            private const ulong PageAlign = PageSize - 1;
             private const long NumOfPagesThreshold = 4;
 
             private struct Block
             {
-                public long Start;
-                public long End;
+                public ulong Start;
+                public ulong End;
                 public PeripheralAccessMethods AccessMethods;
                 public IBusRegistered<IBusPeripheral> Peripheral;
             }

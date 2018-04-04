@@ -13,7 +13,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class ActivelyAskingCPU : EmptyCPU
     {
-        public ActivelyAskingCPU(Machine machine, long addressToAsk) : base(machine)
+        public ActivelyAskingCPU(Machine machine, ulong addressToAsk) : base(machine)
         {
             this.addressToAsk = addressToAsk;
             tokenSource = new CancellationTokenSource();
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         private CancellationTokenSource tokenSource;
         private readonly ManualResetEventSlim finished;
-        private readonly long addressToAsk;
+        private readonly ulong addressToAsk;
     }
 }
 

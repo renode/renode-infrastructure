@@ -313,12 +313,12 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private class SunxiDMADescriptor
         {
-            public SunxiDMADescriptor(uint address, DmaEngine dmaEngine)
+            public SunxiDMADescriptor(ulong address, DmaEngine dmaEngine)
             {
                 Address = address;
 
                 byte[] descriptorData = new byte[16];
-                Request getDescriptorData = new Request((long)Address, new Place(descriptorData, 0), 16, 
+                Request getDescriptorData = new Request(Address, new Place(descriptorData, 0), 16,
                     TransferType.DoubleWord, TransferType.DoubleWord);
 
                 dmaEngine.IssueCopy(getDescriptorData);
@@ -353,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 get;
                 private set;
             }
-            public uint Address
+            public ulong Address
             {
                 get;
                 private set;

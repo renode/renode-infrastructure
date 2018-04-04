@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusPointRegistration : IRegistrationPoint
     {
-        public BusPointRegistration(long address, long offset = 0)
+        public BusPointRegistration(ulong address, ulong offset = 0)
         {
             StartingPoint = address;
             Offset = offset;
@@ -31,13 +31,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public static implicit operator BusPointRegistration(long address)
+        public static implicit operator BusPointRegistration(ulong address)
         {
             return new BusPointRegistration(address);
         }
         
-        public long StartingPoint { get; set; }
-        public long Offset { get; set; }
+        public ulong StartingPoint { get; set; }
+        public ulong Offset { get; set; }
 
         public override bool Equals(object obj)
         {

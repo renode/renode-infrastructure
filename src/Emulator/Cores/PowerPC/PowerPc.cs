@@ -35,8 +35,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.InitFromUImage(uImage);
         }
 
-        public override void InitFromElf(ELF<uint> elf)
+        public override void InitFromElf(IELF elf)
         {
+            base.InitFromElf(elf);
+
             var bamSection = elf.GetSections<Section<uint>>().FirstOrDefault(x => x.Name == ".__bam_bootarea");
             if(bamSection != null)
             {
@@ -52,7 +54,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Log(LogLevel.Info, "Will {0}start in VLE mode.", StartInVle ? "" : "not ");
                 }
             }
-            base.InitFromElf(elf);
         }
 
         public override void OnGPIO(int number, bool value)

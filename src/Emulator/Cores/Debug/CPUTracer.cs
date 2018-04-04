@@ -34,8 +34,8 @@ namespace Antmicro.Renode.Debug
             this.bus = cpu.Bus;
         }
 
-        public void TraceFunction(string name, IEnumerable<FunctionCallParameter> parameters, Action<TranslationCPU, uint, string, IEnumerable<object>> callback,
-            FunctionCallParameter? returnParameter = null, Action<TranslationCPU, uint, string, IEnumerable<object>> returnCallback = null)
+        public void TraceFunction(string name, IEnumerable<FunctionCallParameter> parameters, Action<TranslationCPU, ulong, string, IEnumerable<object>> callback,
+            FunctionCallParameter? returnParameter = null, Action<TranslationCPU, ulong, string, IEnumerable<object>> returnCallback = null)
         {
             if(registeredCallbacks.ContainsKey(name))
             {
@@ -56,14 +56,14 @@ namespace Antmicro.Renode.Debug
             }
 
             var traceInfo = new TraceInfo();
-            traceInfo.Begin = symbol.Start;
+            traceInfo.Begin = symbol.Start.RawValue;
             traceInfo.BeginCallback = (pc) => EvaluateTraceCallback(pc, name, parameters, callback);
 
             cpu.AddHook(traceInfo.Begin, traceInfo.BeginCallback);
             if(returnCallback != null && returnParameter.HasValue)
             {
                 traceInfo.HasEnd = true;
-                traceInfo.End = (uint)(symbol.End - (symbol.IsThumbSymbol ? 2 : 4));
+                traceInfo.End = symbol.End.RawValue - (symbol.IsThumbSymbol ? 2 : 4UL);
                 traceInfo.EndCallback = (pc) => EvaluateTraceCallback(pc, name, new[] { returnParameter.Value }, returnCallback);
                 cpu.Log(LogLevel.Debug, "Address is @ 0x{0:X}, end is @ 0x{1:X}.", traceInfo.Begin, traceInfo.End);
                 cpu.AddHook(traceInfo.End, traceInfo.EndCallback);
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Debug
             }
         }
 
-        private void EvaluateTraceCallback(uint pc, string name, IEnumerable<FunctionCallParameter> parameters, Action<TranslationCPU, uint, string, List<object>> callback)
+        private void EvaluateTraceCallback(ulong pc, string name, IEnumerable<FunctionCallParameter> parameters, Action<TranslationCPU, ulong, string, List<object>> callback)
         {
             var regs = new List<object>();
             var paramList = parameters.ToList();
@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Debug
             }
             if(paramList.Count > 4)
             {
-                var offset = 0;
+                var offset = 0u;
                 var sp = cpu.SP;
                 for(int i = 4; i < paramList.Count; ++i)
                 {
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Debug
             callback(cpu, pc, name, regs);
         }
 
-        private object TranslateParameter(uint value, FunctionCallParameter parameter)
+        private object TranslateParameter(ulong value, FunctionCallParameter parameter)
         {
             var parameterType = parameter.Type;
             var size = parameter.NumberOfElements;
@@ -124,14 +124,18 @@ namespace Antmicro.Renode.Debug
             {
             case FunctionCallParameterType.Ignore:
                 return null;
+            case FunctionCallParameterType.Int64:
+                return unchecked((long)value);
+            case FunctionCallParameterType.UInt64:
+                return value;
             case FunctionCallParameterType.Byte:
                 return (byte)value;
             case FunctionCallParameterType.Int32:
                 return unchecked((int)value);
             case FunctionCallParameterType.UInt32:
-                return value;
+                return (uint)value;
             case FunctionCallParameterType.Int16:
-                return (short)value;
+                return unchecked((short)value);
             case FunctionCallParameterType.UInt16:
                 return (ushort)value;
             case FunctionCallParameterType.String:
@@ -179,11 +183,11 @@ namespace Antmicro.Renode.Debug
 
         private struct TraceInfo
         {
-            public uint Begin;
+            public ulong Begin;
             public bool HasEnd;
-            public uint End;
-            public Action<uint> BeginCallback;
-            public Action<uint> EndCallback;
+            public ulong End;
+            public Action<ulong> BeginCallback;
+            public Action<ulong> EndCallback;
         }
     }
 }

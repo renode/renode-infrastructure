@@ -595,7 +595,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             Array.Copy(inData, inputSourceArray, dataToSend, 0, dataAmount);
                             bytesToTransfer -= dataAmount;
                             inputSourceArray += dataAmount;
-                            machine.SystemBus.WriteBytes(dataToSend, (long)(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset), (int)dataAmount);
+                            machine.SystemBus.WriteBytes(dataToSend, qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, (int)dataAmount);
                             qh.UpdateTotalBytesToTransfer(Math.Min(dataAmount, qh.Overlay.TotalBytesToTransfer));
                         }
                     }
@@ -605,11 +605,11 @@ namespace Antmicro.Renode.Peripherals.USB
                     this.NoisyLog("[async] Device {0:d} [{1}]", qh.DeviceAddress, targetDevice);
                     
                     setupData = new USBSetupPacket();
-                    setupData.requestType = machine.SystemBus.ReadByte((long)(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset));
-                    setupData.request = machine.SystemBus.ReadByte((long)(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1));
-                    setupData.value = machine.SystemBus.ReadWord((long)(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2));
-                    setupData.index = machine.SystemBus.ReadWord((long)(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4));
-                    setupData.length = machine.SystemBus.ReadWord((long)(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6));
+                    setupData.requestType = machine.SystemBus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
+                    setupData.request = machine.SystemBus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
+                    setupData.value = machine.SystemBus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
+                    setupData.index = machine.SystemBus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
+                    setupData.length = machine.SystemBus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
 
                     if(((setupData.requestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
                     {
@@ -703,7 +703,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             var transferredThisTurn = Math.Min(4096, (int)qh.Overlay.TotalBytesToTransfer);
 
                             //get data
-                            machine.SystemBus.ReadBytes((long)(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset), transferredThisTurn, data, bytesTransferred);
+                            machine.SystemBus.ReadBytes(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, transferredThisTurn, data, bytesTransferred);
                             bytesTransferred += transferredThisTurn;
                             qh.UpdateTotalBytesToTransfer((uint)transferredThisTurn);      
                         }
@@ -937,7 +937,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
 
             //future 64bit data structures support
-            public void Fetch(long address)
+            public void Fetch(ulong address)
             {
                 //store address
                 memoryAddress = address;
@@ -946,8 +946,8 @@ namespace Antmicro.Renode.Peripherals.USB
                 PhysNext = systemBus.ReadDoubleWord(address);
                 PhysAlternativeNext = systemBus.ReadDoubleWord(address + 0x04);
                 Token = systemBus.ReadDoubleWord(address + 0x08);
-    
-                for(int i = 0; i < Buffer.Length; i++)
+
+                for(var i = 0u; i < Buffer.Length; i++)
                 {
                     Buffer[i] = systemBus.ReadDoubleWord(address + 0x0C + i * 4);
                 }
@@ -968,7 +968,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 Buffer[0] &= ~(0x0fffu);
             }
 
-            public long FetchNext()
+            public ulong FetchNext()
             {
                 if(!NextTerminate) //if next one is normal td
                 {
@@ -999,7 +999,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 systemBus.WriteDoubleWord(memoryAddress + 0x04, PhysAlternativeNext | 0x08);
                 systemBus.WriteDoubleWord(memoryAddress + 0x08, Token);
                 systemBus.WriteDoubleWord(memoryAddress + 0x0C, Buffer[0] | CurrentOffset);
-                for(int i = 1; i < Buffer.Length; i++)
+                for(var i = 1u; i < Buffer.Length; i++)
                 {
                     systemBus.WriteDoubleWord(memoryAddress + 0x0C + i * 4, Buffer[i]);
                 }
@@ -1047,7 +1047,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public uint TotalBytesToTransfer { get; set; }
 
             private SystemBus systemBus;
-            private long memoryAddress;
+            private ulong memoryAddress;
         }
 
         private class InterruptEnable
@@ -1170,7 +1170,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 TransferDescriptor.TotalBytesToTransfer -= trasferredBytes;
             }
 
-            public long Address { get; set; }
+            public ulong Address { get; set; }
 
             public bool IsValid { get { return ((systemBus.ReadDoubleWord(Address) & 0x1) == 0); } }
 
@@ -1255,7 +1255,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 systemBus.WriteDoubleWord(memoryAddress + 0x0C, BufferPointer[0] | CurrentOffset);
                 systemBus.WriteDoubleWord(memoryAddress + 0x10, BufferPointer[1]);
                 systemBus.WriteDoubleWord(memoryAddress + 0x14, BufferPointer[2]);
-                for(int i = 3; i < BufferPointer.Length; i++)
+                for(var i = 3u; i < BufferPointer.Length; i++)
                 {
                     systemBus.WriteDoubleWord(memoryAddress + 0x0C + i * 4, BufferPointer[i]);
                 }
@@ -1279,7 +1279,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public uint CurrentOffset { get; private set; }
           
             private readonly SystemBus systemBus;
-            private uint memoryAddress;
+            private ulong memoryAddress;
             private bool dataToggle;
             private byte errorCount;
             private uint physNext;

@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
         public virtual T Read(long offset)
         {
-            if(Subrange != null && !Subrange.Value.Contains(offset))
+            if(Subrange != null && !Subrange.Value.Contains(checked((ulong)offset)))
             {
                 return originalMethod(offset);
             }
