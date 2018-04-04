@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public void LogPeripheralAccess(IBusPeripheral busPeripheral, bool enable = true)
-        {           
+        {
             peripherals.VisitAccessMethods(busPeripheral, pam =>
             {
                 // first check whether logging is already enabled, method should be idempotent
@@ -230,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public bool TryGetCurrentCPUId(out int cpuId)
         {
-            /* 
+            /*
              * Because getting cpu id can possibly be a heavy operation, we cache the
              * obtained ID in the thread local storage. Note that we assume here that the
              * thread with such storage won't be used for another purposes than it was
@@ -276,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         /// <summary>
         /// Unregister peripheral from the specified address.
-        /// 
+        ///
         /// NOTE: After calling this method, peripheral may still be
         /// registered in the SystemBus at another address. In order
         /// to remove peripheral completely use 'Unregister' method.
@@ -520,7 +520,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 "timestamp:    {4}\n" +
                 "entry point:  0x{5:X}\n" +
                 "architecture: {6}\n" +
-                "OS:           {7}", 
+                "OS:           {7}",
                 uImage.Name,
                 uImage.LoadAddress,
                 uImage.Size, Misc.NormalizeBinary(uImage.Size),
@@ -659,7 +659,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException("Undefined width value.");
             }
 
-            Action updateContextHandler = updateContext ? 
+            Action updateContextHandler = updateContext ?
                 () =>
                 {
                     foreach(var cpu in cpuById.Values)
@@ -668,7 +668,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 } :
                 (Action)null;
-            
+
             var handler = new BusHookHandler(hook, width, updateContextHandler);
 
             var dictionariesToUpdate = new List<Dictionary<ulong, List<BusHookHandler>>>();
@@ -1113,7 +1113,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 // TODO: CheckMappings
                 var registeredPeripheral = new BusRegistered<IBusPeripheral>(peripheral, registrationPoint);
-                
+
                 // we also have to put missing methods
                 var absoluteAddressAware = peripheral as IAbsoluteAddressAware;
                 if(absoluteAddressAware != null)
@@ -1171,7 +1171,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 result.Add(singleResult);
             }
 
-            return result;            
+            return result;
         }
 
         private static void ThrowIfNotAllMemory(IEnumerable<PeripheralLookupResult> targets)
@@ -1558,7 +1558,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return false;
                 }
 
-                return wrappedSegment.Equals(objAsMappedSegmentWrapper.wrappedSegment) 
+                return wrappedSegment.Equals(objAsMappedSegmentWrapper.wrappedSegment)
                     && peripheralOffset == objAsMappedSegmentWrapper.peripheralOffset
                     && usedSize == objAsMappedSegmentWrapper.usedSize;
             }
@@ -1580,6 +1580,5 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly ulong usedSize;
         }
     }
-
 }
 
