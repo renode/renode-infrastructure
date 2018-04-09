@@ -649,7 +649,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void AddWatchpointHook(long address, Width width, Access access, bool updateContext, Action<long, Width> hook)
+        public void AddWatchpointHook(long address, SysbusAccessWidth width, Access access, bool updateContext, Action<long, SysbusAccessWidth> hook)
         {
             if(!Enum.IsDefined(typeof(Access), access))
             {
@@ -696,7 +696,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             UpdatePageAccesses();
         }
 
-        public void RemoveWatchpointHook(long address, Action<long, Width> hook)
+        public void RemoveWatchpointHook(long address, Action<long, SysbusAccessWidth> hook)
         {
             foreach(var hookDictionary in new [] { hooksOnRead, hooksOnWrite })
             {
@@ -1196,7 +1196,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private static void InvokeWatchpointHooks(Dictionary<long, List<BusHookHandler>> dictionary, long address, Width width)
+        private static void InvokeWatchpointHooks(Dictionary<long, List<BusHookHandler>> dictionary, long address, SysbusAccessWidth width)
         {
             List<BusHookHandler> handlers;
             if(dictionary.TryGetValue(address, out handlers))

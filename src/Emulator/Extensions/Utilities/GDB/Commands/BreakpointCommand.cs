@@ -7,7 +7,7 @@
 using System;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
-using Width = Antmicro.Renode.Peripherals.Bus.Width;
+using SysbusAccessWidth = Antmicro.Renode.Peripherals.Bus.SysbusAccessWidth;
 using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 
@@ -92,22 +92,22 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, breakpointType: BreakpointType.MemoryBreakpoint));
         }
 
-        private void AccessWatchpointHook(long address, Width width)
+        private void AccessWatchpointHook(long address, SysbusAccessWidth width)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.AccessWatchpoint));
         }
 
-        private void WriteWatchpointHook(long address, Width width)
+        private void WriteWatchpointHook(long address, SysbusAccessWidth width)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.WriteWatchpoint));
         }
 
-        private void ReadWatchpointHook(long address, Width width)
+        private void ReadWatchpointHook(long address, SysbusAccessWidth width)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.ReadWatchpoint));
         }
 
-        private void AddWatchpointsCoveringMemoryArea(long address, uint kind, Access access, Action<long, Width> hook)
+        private void AddWatchpointsCoveringMemoryArea(long address, uint kind, Access access, Action<long, SysbusAccessWidth> hook)
         {
             // we need to register hooks for all possible access widths convering memory fragment
             // [address, address + kind) referred by GDB
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private void RemoveWatchpointsCoveringMemoryArea(long address, uint kind, Access access, Action<long, Width> hook)
+        private void RemoveWatchpointsCoveringMemoryArea(long address, uint kind, Access access, Action<long, SysbusAccessWidth> hook)
         {
             // we need to unregister hooks from all possible access widths convering memory fragment 
             // [address, address + kind) referred by GDB
@@ -149,9 +149,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(long address, uint kind, Access access, Action<long, Width> hook)
+        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(long address, uint kind, Access access, Action<long, SysbusAccessWidth> hook)
         {
-            foreach(Width width in Enum.GetValues(typeof(Width)))
+            foreach(SysbusAccessWidth width in Enum.GetValues(typeof(SysbusAccessWidth)))
             {
                 for(var offset = -(address % (int)width); offset < kind; offset += (int)width)
                 {
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private class WatchpointDescriptor
         {
-            public WatchpointDescriptor(long address, Width width, Access access, Action<long, Width> hook)
+            public WatchpointDescriptor(long address, SysbusAccessWidth width, Access access, Action<long, SysbusAccessWidth> hook)
             {
                 Address = address;
                 Width = width;
@@ -195,9 +195,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
 
             public readonly long Address;
-            public readonly Width Width;
+            public readonly SysbusAccessWidth Width;
             public readonly Access Access;
-            public readonly Action<long, Width> Hook;
+            public readonly Action<long, SysbusAccessWidth> Hook;
         }
     }
 }

@@ -349,7 +349,7 @@
     <Compile Include="Peripherals\Input\IPS2Controller.cs" />
     <Compile Include="Peripherals\Network\EthernetPhysicalLayer.cs" />
     <Compile Include="Peripherals\DMA\DmaEngine.cs" />
-    <Compile Include="Peripherals\Bus\Width.cs" />
+    <Compile Include="Peripherals\Bus\SysbusAccessWidth.cs" />
     <Compile Include="Peripherals\Bus\Access.cs" />
     <Compile Include="Debug\DebugHelper.cs" />
     <Compile Include="Peripherals\Bus\BusHookHandler.cs" />
