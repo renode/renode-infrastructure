@@ -78,9 +78,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             parent.Log(LogLevel.Info, "Loaded SVD: {0}. Name: {1}. Description: {2}.", path, device.Name, device.Description);
         }
 
-        public bool TryReadAccess(long offset, out uint value, string type)
+        public bool TryReadAccess(long offset, out uint value, SysbusAccessWidth type)
         {
-            var bytesToRead = CountOfBytesFromString(type);
+            var bytesToRead = CheckAndGetWidth(type);
             var weHaveIt = false;
             value = 0;
 
@@ -104,9 +104,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             return weHaveIt;
         }
 
-        public bool TryWriteAccess(long offset, uint value, string type)
+        public bool TryWriteAccess(long offset, uint value, SysbusAccessWidth width)
         {
-            int bytesToWrite = CountOfBytesFromString(type);
+            int bytesToWrite = CheckAndGetWidth(width);
             var weHaveIt = false;
             if(HitInTheRegisterDictionary(out var tmpRegister, offset, bytesToWrite))
             {
@@ -296,18 +296,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             );
         }
 
-        private static int CountOfBytesFromString(string type)
+        private static int CheckAndGetWidth(SysbusAccessWidth type)
         {
             switch(type)
             {
-            case "Byte":
-                return 1;
-            case "Word":
-                return 2;
-            case "DoubleWord":
-                return 4;
+            case SysbusAccessWidth.Byte:
+            case SysbusAccessWidth.Word:
+            case SysbusAccessWidth.DoubleWord:
+                return (int)type;
             default:
-                throw new ArgumentException($"'{type}' is invalid type of data.");
+                throw new ArgumentException($"'{type}' is unsupported width of data.");
             }
         }
 

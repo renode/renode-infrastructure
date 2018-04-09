@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                return (byte)ReportNonExistingRead(address, "Byte");
+                return (byte)ReportNonExistingRead(address, SysbusAccessWidth.Byte);
             }
             var lockTaken = false;
             try
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                ReportNonExistingWrite(address, value, "Byte");
+                ReportNonExistingWrite(address, value, SysbusAccessWidth.Byte);
                 InvokeWatchpointHooks(hooksOnWrite, address, SysbusAccessWidth.Byte);
                 return;
             }
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                return (ushort)ReportNonExistingRead(address, "Word");
+                return (ushort)ReportNonExistingRead(address, SysbusAccessWidth.Word);
             }
             var lockTaken = false;
             try
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                ReportNonExistingWrite(address, value, "Word");
+                ReportNonExistingWrite(address, value, SysbusAccessWidth.Word);
                 InvokeWatchpointHooks(hooksOnWrite, address, SysbusAccessWidth.Word);
                 return;
             }
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                return (uint)ReportNonExistingRead(address, "DoubleWord");
+                return (uint)ReportNonExistingRead(address, SysbusAccessWidth.DoubleWord);
             }
             var lockTaken = false;
             try
@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                ReportNonExistingWrite(address, value, "DoubleWord");
+                ReportNonExistingWrite(address, value, SysbusAccessWidth.DoubleWord);
                 InvokeWatchpointHooks(hooksOnWrite, address, SysbusAccessWidth.DoubleWord);
                 return;
             }

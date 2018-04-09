@@ -1376,7 +1376,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return builder.ToString();
         }
 
-        private uint ReportNonExistingRead(long address, string type)
+        private uint ReportNonExistingRead(long address, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedReads);
             bool tagged;
@@ -1411,7 +1411,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return defaultValue;
         }
 
-        private void ReportNonExistingWrite(long address, uint value, string type)
+        private void ReportNonExistingWrite(long address, uint value, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedWrites);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
