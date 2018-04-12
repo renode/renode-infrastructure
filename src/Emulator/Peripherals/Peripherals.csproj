@@ -65,7 +65,6 @@
     <Compile Include="Peripherals\Miscellaneous\ArmSysCtl.cs" />
     <Compile Include="Peripherals\DMA\OmapDma.cs" />
     <Compile Include="Peripherals\EfmSystemDevice.cs" />
-    <Compile Include="Peripherals\Miscellaneous\EFM32DeviceInformation.cs" />
     <Compile Include="Peripherals\UART\GaislerUART.cs" />
     <Compile Include="Peripherals\Bus\GaislerAHBPlugAndPlayInfo.cs" />
     <Compile Include="Peripherals\Bus\GaislerAHBPlugAndPlayRecord.cs" />
@@ -239,6 +238,12 @@
     <Compile Include="Peripherals\Miscellaneous\Quark_SystemControlSubsystem.cs" />
     <Compile Include="Peripherals\UART\FE310_UART.cs" />
     <Compile Include="Peripherals\GPIOPort\FE310_GPIO.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\EFM32xG1xBDeviceInformation.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\EFM32xGDeviceInformation.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\EFR32DeviceInformation.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\EZR32DeviceInformation.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\DeviceFamily.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\DeviceInformation.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
@@ -284,5 +289,8 @@
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
   </ItemGroup>
 </Project>
