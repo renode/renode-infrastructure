@@ -698,6 +698,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
         private ExecutionResult lastTlibResult;
 
+        public bool BlockCompleted()
+        {
+            return (lastTlibResult == ExecutionResult.Ok);
+        }
+
         // TODO
         private object lck = new object();
 
@@ -1123,7 +1128,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private CpuThreadPauseGuard ObtainPauseGuard(bool forReading, long address)
+        public CpuThreadPauseGuard ObtainPauseGuard(bool forReading, long address)
         {
             pauseGuard.Initialize(forReading, address);
             return pauseGuard;
@@ -1248,7 +1253,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             private readonly TranslationCPU parent;
         }
 
-        private sealed class CpuThreadPauseGuard : IDisposable
+        public sealed class CpuThreadPauseGuard : IDisposable
         {
             public CpuThreadPauseGuard(TranslationCPU parent)
             {
