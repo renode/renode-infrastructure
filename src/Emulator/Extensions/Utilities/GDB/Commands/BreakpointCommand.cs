@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ulong, Width> hook)
         {
-            // we need to register hooks for all possible access widths convering memory fragment
+            // we need to register hooks for all possible access widths covering memory fragment
             // [address, address + kind) referred by GDB
             foreach(var descriptor in CalculateAllCoveringAddressess(address, kind, access, hook))
             {
