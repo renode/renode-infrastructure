@@ -57,6 +57,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             pagesAccessedByIo = new HashSet<long>();
             pauseGuard = new CpuThreadPauseGuard(this);
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
+            hooks = new Dictionary<uint, HookDescriptor>();
+            currentMappings = new List<SegmentMapping>();
+            isPaused = true;
             InitializeRegisters();
             InitInterruptEvents();
             Init();
@@ -978,16 +981,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void Init()
         {
             memoryManager = new SimpleMemoryManager(this);
-            isPaused = true;
-            hooks = hooks ?? new Dictionary<uint, HookDescriptor>();
-
             sync = new Synchronizer();
             haltedLock = new object();
 
-            if(currentMappings == null)
-            {
-                currentMappings = new List<SegmentMapping>();
-            }
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
             var libraryResource = string.Format("Antmicro.Renode.translate_{0}-{1}-{2}.so", IntPtr.Size * 8, Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
