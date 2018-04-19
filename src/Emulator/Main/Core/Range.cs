@@ -31,12 +31,12 @@ namespace Antmicro.Renode.Core
         {
             return address >= StartAddress && address <= EndAddress;
         }
-    
+
         public bool Contains(Range range)
         {
             return range.StartAddress >= StartAddress && range.EndAddress <= EndAddress;
         }
-     
+
         public Range Intersect(Range range)
         {
             var startAddress = Math.Max(StartAddress, range.StartAddress);
@@ -77,17 +77,17 @@ namespace Antmicro.Renode.Core
         {
             return new Range(checked(shiftValue >= 0 ? StartAddress + (ulong)shiftValue : StartAddress - (ulong)(-shiftValue)), Size);
         }
-     
+
         public Range MoveToZero()
         {
             return new Range(0, Size);
         }
-     
+
         public override string ToString()
         {
             return string.Format("<0x{0:X8}, 0x{1:X8}>", StartAddress, EndAddress);
         }
-     
+
         public override bool Equals(object obj)
         {
             if(obj == null)
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Core
             var other = (Range)obj;
             return this == other;
         }
-     
+
         public override int GetHashCode()
         {
             unchecked
