@@ -128,7 +128,7 @@ namespace Antmicro.Renode.CoresSourceParser
             var match = Regex.Match(line, @"^\s*(?<name>[\p{L}0-9]+)(_(?<index>[0-9]+))?_(?<width>[0-9]+)\s*=\s*(?<value>[0-9]+)\s*,?\s*$");
             if(string.IsNullOrEmpty(match.Groups["name"].Value))
             {
-                throw new ArgumentException("Register name was in a wrong format");
+                throw new ArgumentException($"Register name was in a wrong format: {line}");
             }
 
             var regDesc = new RegisterDescriptor
@@ -204,6 +204,17 @@ namespace Antmicro.Renode.CoresSourceParser
         public class RegisterGroupDescriptor : RegisterDescriptorBase
         {
             public Dictionary<int, int> IndexValueMap { get; set; }
+
+            public IEnumerable<RegisterDescriptor> GetRegisters()
+            {
+                return IndexValueMap.Select(x => new RegisterDescriptor
+                {
+                    Name = $"{this.Name}{x.Key}",
+                    Width = this.Width,
+                    IsIgnored = this.IsIgnored,
+                    Value = x.Value
+                });
+            }
         }
 
         public class RegisterDescriptorBase
