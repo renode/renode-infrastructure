@@ -35,7 +35,6 @@
     </PropertyGroup>
     <ItemGroup>
       <Endianess Include="le" />
-      <Endianess Include="be" />
     </ItemGroup>
   </Target>
   <Import Project="./cores.template.csproj" />
