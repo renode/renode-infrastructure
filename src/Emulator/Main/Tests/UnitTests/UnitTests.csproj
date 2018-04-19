@@ -81,6 +81,7 @@
     <Compile Include="Mocks\EmptyInterestingType.cs" />
     <Compile Include="Mocks\MockRegister.cs" />
     <Compile Include="SVDParserTests.cs" />
+    <Compile Include="Mocks\MockPeripheralWithEnumAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
