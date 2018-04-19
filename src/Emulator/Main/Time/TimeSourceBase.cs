@@ -523,6 +523,7 @@ namespace Antmicro.Renode.Time
 
         protected readonly HandlesCollection handles;
         protected readonly Stopwatch stopwatch;
+        protected readonly HashSet<TimeHandle> recentlyUnblockedSlaves;
         // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
         protected readonly PrioritySynchronizer sync;
 
@@ -530,7 +531,6 @@ namespace Antmicro.Renode.Time
         private ManualResetEvent blockingEvent;
 
         private TimeSpan elapsedAtLastGrant;
-        protected HashSet<TimeHandle> recentlyUnblockedSlaves;
         private bool isBlocked;
         private bool isInSyncPhase;
 
