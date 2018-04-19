@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Core
         /// <param name="end">End.</param>
         /// <param name="name">Name.</param>
         /// <param name="type">SymbolType.</param>
-        /// <param name="binding">SymbolBinding.</param> 
+        /// <param name="binding">SymbolBinding.</param>
         /// <param name="mayBeThumb">Set to <c>true</c> if symbol is related to architecture that allows thumb symbols.</param>
         public Symbol(SymbolAddress start, SymbolAddress end, string name, SymbolType type = SymbolType.NotSpecified, SymbolBinding binding = SymbolBinding.Global, bool mayBeThumb = false)
         {
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Core
         /// If the requested start is after end, the trial fails.
         /// If the symbol would not have to be changed, i.e. requested the original reference is returned and trial succeeds.
         /// Otherwise a truncated copy of symbol is returned and trial succeeds.
-        /// 
+        ///
         /// NOTE: If you create a new thumb symbol with interval (13,15), the acutal interval used will be (12,15);
         /// However, if you trim this symbol from left to the same start value (12,15).LeftTrim(13), the result will be (14,15).
         /// </summary>
