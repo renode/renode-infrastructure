@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals
 {
@@ -71,6 +72,7 @@ namespace Antmicro.Renode.Peripherals
         private readonly byte productRevision;
         private readonly ushort deviceNumber;
 
+        [AllowAnyNumericalValue]
         public enum Family : byte
         {
             Gecko = 0x47,
