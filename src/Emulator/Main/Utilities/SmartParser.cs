@@ -32,16 +32,33 @@ namespace Antmicro.Renode.Utilities
             }
             if(outputType.IsEnum)
             {
-                var names = Enum.GetNames(outputType);
-                if(names.Contains(input, StringComparer.CurrentCulture))
+                if(Enum.GetNames(outputType).Contains(input, StringComparer.Ordinal))
                 {
                     result = Enum.Parse(outputType, input, false);
                     return true;
                 }
+                if(Int32.TryParse(input, out var number))
+                {
+                    if(outputType.GetCustomAttributes<AllowAnyNumericalValue>().Any())
+                    {
+                        result = Enum.Parse(outputType, input, false);
+                        return true;
+                    }
+                    // We cannot use Enum.IsDefined here, because it requires us to provide the number cast to the enum's underlying type, which we do not know.
+                    // Therefore, we use the loop below.
+                    foreach(var enumValue in Enum.GetValues(outputType))
+                    {
+                        if(Convert.ToInt32(enumValue) == number)
+                        {
+                            result = Enum.Parse(outputType, input, false);
+                            return true;
+                        }
+                    }
+                }
                 result = null;
                 return false;
             }
-            
+
             Delegate parser;
             if(input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
