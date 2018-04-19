@@ -155,11 +155,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             if(number < 1 || number >= irqSources.Length)
             {
-                throw new ArgumentOutOfRangeException($"Wrong gpio source: {number}. This IRQ controller supports sources from 1 to {irqSources.Length - 1}.");
+                throw new ArgumentOutOfRangeException($"Wrong gpio source: {number}. This irq controller supports sources from 1 to {irqSources.Length - 1}.");
             }
             lock(irqSources)
             {
-                this.Log(LogLevel.Noisy, "Setting #{0} gpio state to {1}", number, value);
+                this.Log(LogLevel.Noisy, "Setting #{0} irq state to {1}", number, value);
 
                 var irq = irqSources[(uint)number];
                 irq.State = value;
