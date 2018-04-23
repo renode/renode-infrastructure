@@ -72,18 +72,27 @@ namespace Antmicro.Renode.Time
                     this.Trace("Already started");
                     return false;
                 }
+
                 isStarted = true;
                 ActivateSlavesSourceSide();
                 return true;
             }
         }
 
+        /// <summary>
+        /// Calls <see cref="StopRequested"/> event.
+        /// </summary>
+        protected void RequestStop()
+        {
+            StopRequested?.Invoke();
+        }
 
         /// <summary>
         /// Stops this time source and deactivates all associated slaves.
         /// </summary>
         protected void Stop()
         {
+            RequestStop();   
             using(sync.HighPriority)
             {
                 if(!isStarted)
@@ -138,7 +147,9 @@ namespace Antmicro.Renode.Time
         {
             using(sync.HighPriority)
             {
-                handles.Add(new TimeHandle(this, sink) { SourceSideActive = isStarted });
+                var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
+                StopRequested += handle.RequestPause;
+                handles.Add(handle);
             }
         }
 
@@ -522,6 +533,14 @@ namespace Antmicro.Renode.Time
 
         protected readonly HandlesCollection handles;
         protected readonly Stopwatch stopwatch;
+
+        /// <summary>
+        /// Used to request a pause on sinks before trying to acquire their locks.
+        /// </summary>
+        /// <remarks>
+        /// Triggering this event can improve pausing efficency by interrupting the sink execution in the middle of a quant.
+        /// </remarks>
+        private event Action StopRequested;
 
         [Antmicro.Migrant.Constructor(true)]
         private ManualResetEvent blockingEvent;

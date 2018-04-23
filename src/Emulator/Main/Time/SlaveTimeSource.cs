@@ -65,6 +65,7 @@ namespace Antmicro.Renode.Time
                 lock(handles)
                 {
                     isPaused = true;
+                    RequestStop();
                     DeactivateSlavesSourceSide();
 
                     // we must wait for unblocked slaves to finish their work
@@ -116,6 +117,7 @@ namespace Antmicro.Renode.Time
                     TimeHandle?.Dispose();
                     this.Trace("About to attach to the new master");
                     timeHandle = value;
+                    timeHandle.PauseRequested += RequestStop;
                     StartDispatcher();
                 }
             }
