@@ -136,7 +136,6 @@ namespace Antmicro.Renode.Time
         /// <see cref="ITimeSource.RegisterSink">
         public void RegisterSink(ITimeSink sink)
         {
-            //lock(handles)
             using(sync.HighPriority)
             {
                 handles.Add(new TimeHandle(this, sink) { SourceSideActive = isStarted });
