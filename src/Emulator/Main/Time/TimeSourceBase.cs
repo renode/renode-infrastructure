@@ -65,6 +65,12 @@ namespace Antmicro.Renode.Time
         /// <returns>False it the handle has already been started.</returns>
         protected bool Start()
         {
+            if(isStarted)
+            {
+                this.Trace("Already started");
+                return false;
+            }
+
             using(sync.HighPriority)
             {
                 if(isStarted)
