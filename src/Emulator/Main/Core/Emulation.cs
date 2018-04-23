@@ -232,6 +232,8 @@ namespace Antmicro.Renode.Core
             IsStarted = true;
             InnerStartAll();
             MasterTimeSource.Start();
+
+            System.Threading.Thread.Sleep(100);
         }
 
         private void InnerStartAll()
