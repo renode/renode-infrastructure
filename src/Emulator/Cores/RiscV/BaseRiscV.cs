@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             InnerTimer = new ComparingTimer(machine.ClockSource, frequency, enabled: true, eventEnabled: true);
 
-            intTypeToVal = new TwoWayDictionary<int, IrqType>();
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -51,16 +50,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
-            if(!intTypeToVal.TryGetValue(number, out IrqType decodedType))
-            {
-                throw new ArgumentOutOfRangeException(nameof(number));
-            }
 
-            var mipState = TlibGetMip();
-            BitHelper.SetBit(ref mipState, (byte)decodedType, value);
-            TlibSetMip(mipState);
+            TlibSetInterrupt((uint)number, value ? 1u : 0u);
 
-            base.OnGPIO(number, mipState != 0);
+            base.OnGPIO(number, value);
         }
 
         public bool SupportsInstructionSet(InstructionSet set)
@@ -91,21 +84,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
         }
 
-        [Export]
-        private void MipChanged(uint mip)
-        {
-            var previousMip = BitHelper.GetBits(TlibGetMip());
-            var currentMip = BitHelper.GetBits(mip);
-
-            foreach(var gpio in intTypeToVal.Lefts)
-            {
-                intTypeToVal.TryGetValue(gpio, out IrqType decodedType);
-                if(previousMip[(int)decodedType] != currentMip[(int)decodedType])
-                {
-                    OnGPIO(gpio, currentMip[(int)decodedType]);
-                }
-            }
-        }
 
         [Export]
         private ulong GetCPUTime()
@@ -120,16 +98,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             return InnerTimer.Value;
         }
 
-        protected TwoWayDictionary<int, IrqType> intTypeToVal;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
-        [Import]
-        private FuncUInt32 TlibGetMip;
-
-        [Import]
-        private ActionUInt32 TlibSetMip;
-
         [Import]
         private ActionUInt32 TlibAllowFeature;
 
@@ -144,6 +115,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import(Name="tlib_set_privilege_mode_1_09")]
         private ActionUInt32 TlibSetPrivilegeMode109;
+
+        [Import]
+        private ActionUInt32UInt32 TlibSetInterrupt;
 #pragma warning restore 649
 
         public enum PrivilegeMode

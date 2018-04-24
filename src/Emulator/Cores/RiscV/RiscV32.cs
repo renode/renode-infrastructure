@@ -14,9 +14,6 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public RiscV32(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode = PrivilegeMode.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(cpuType, frequency, machine, privilegeMode, endianness, CpuBitness.Bits32)
         {
-            intTypeToVal.Add(0, IrqType.MachineTimerIrq);
-            intTypeToVal.Add(1, IrqType.MachineExternalIrq);
-            intTypeToVal.Add(2, IrqType.MachineSoftwareInterrupt);
         }
 
         public override string Architecture { get { return "riscv"; } }
