@@ -13,17 +13,18 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Utilities.Collections;
 using Endianess = ELFSharp.ELF.Endianess;
+using Antmicro.Renode.Peripherals.IRQControllers;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
+        protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
-            InnerTimer = new ComparingTimer(machine.ClockSource, frequency, enabled: true, eventEnabled: true);
-
+            HartId = hartId;
+            clint.RegisterCPU(this);
+            this.clint = clint;
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -66,7 +67,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TlibIsFeatureEnabled((uint)set) == 1;
         }
 
-        public ComparingTimer InnerTimer { get; set; }
+        public override void Reset()
+        {
+            base.Reset();
+        }
+
 
         public uint HartId
         {
@@ -97,7 +102,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
         }
 
-
         [Export]
         private ulong GetCPUTime()
         {
@@ -108,9 +112,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibResetExecutedInstructions(checked((int)residuum));
                 machine.HandleTimeProgress(elapsed);
             }
-            return InnerTimer.Value;
+            return clint.TimerValue;
         }
 
+
+        private readonly CoreLevelInterruptor clint;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
