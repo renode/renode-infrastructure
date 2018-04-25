@@ -68,6 +68,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ComparingTimer InnerTimer { get; set; }
 
+        public uint HartId
+        {
+            get
+            {
+                return TlibGetHartId();
+            }
+
+            set
+            {
+                TlibSetHartId(value);
+            }
+        }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             if(number == 0 || number == 1 || number == 2)
@@ -118,6 +131,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibSetInterrupt;
+
+        [Import]
+        private ActionUInt32 TlibSetHartId;
+
+        [Import]
+        private FuncUInt32 TlibGetHartId;
 #pragma warning restore 649
 
         public enum PrivilegeMode
