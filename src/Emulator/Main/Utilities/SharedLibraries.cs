@@ -142,9 +142,9 @@ namespace Antmicro.Renode.Utilities
 #if PLATFORM_WINDOWS
             var errno = Marshal.GetLastWin32Error();
             //For an unknown reason, in some cases, Windows doesn't set error code.
-            if(errno != 0) 
+            if(errno != 0)
             {
-                message = new Win32Exception(errrno).Message;
+                message = new Win32Exception(errno).Message;
             }
 #else
             var messagePtr = dlerror();
