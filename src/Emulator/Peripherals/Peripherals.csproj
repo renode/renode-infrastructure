@@ -232,7 +232,6 @@
     </Compile>
     <Compile Include="Peripherals\CPU\Disassembler\DisassemblerAttribtue.cs" />
     <Compile Include="Peripherals\GPIOPort\MiV_CoreGPIO.cs" />
-    <Compile Include="Peripherals\IRQControllers\PlatformLevelInterruptController.cs" />
     <Compile Include="Peripherals\Timers\MiV_CoreTimer.cs" />
     <Compile Include="Peripherals\UART\MiV_CoreUART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
