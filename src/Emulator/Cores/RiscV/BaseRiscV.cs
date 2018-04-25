@@ -20,11 +20,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
+        protected BaseRiscV(PlatformLevelInterruptController plic, CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             clint.RegisterCPU(this);
             this.clint = clint;
+            plic.RegisterCPU(this);
+            this.plic = plic;
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -124,6 +126,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public event Action<PrivilegeLevel> PrivLevelChanged;
 
         private readonly CoreLevelInterruptor clint;
+        private readonly PlatformLevelInterruptController plic;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649

@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 3)]
     public partial class RiscV64 : BaseRiscV
     {
-        public RiscV64(CoreLevelInterruptor clint, string cpuType, Machine machine, uint hartId = 0, PrivilegeMode privilegeMode = PrivilegeMode.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(clint, hartId, cpuType, machine, privilegeMode, endianness, CpuBitness.Bits64)
+        public RiscV64(PlatformLevelInterruptController plic, CoreLevelInterruptor clint, string cpuType, Machine machine, uint hartId = 0, PrivilegeMode privilegeMode = PrivilegeMode.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(plic, clint, hartId, cpuType, machine, privilegeMode, endianness, CpuBitness.Bits64)
         {
         }
 
