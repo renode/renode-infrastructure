@@ -129,6 +129,9 @@ namespace Antmicro.Renode.Time
             var localCopyOfTimeHandle = TimeHandle;
             try
             {
+                // we must register this thread as a time provider to get current time stamp from sync hooks
+                TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(localCopyOfTimeHandle.TimeSource.NearestSyncPoint, localCopyOfTimeHandle.TimeSource.Domain));
+
                 this.Trace("Dispatcher thread started");
                 ActivateSlavesSourceSide();
                 firstIteration = true;
@@ -197,6 +200,7 @@ namespace Antmicro.Renode.Time
                 localCopyOfTimeHandle.SinkSideActive = false;
                 this.Trace("Dispatcher thread stopped");
                 DeactivateSlavesSourceSide();
+                TimeDomainsManager.Instance.UnregisterCurrentThread();
             }
         }
 

@@ -144,6 +144,9 @@ namespace Antmicro.Renode.Time
             ActivateSlavesSourceSide();
             try
             {
+                // we must register this thread as a time provider to get current time stamp from sync hooks
+                TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(NearestSyncPoint, Domain));
+
                 this.Trace("Dispatcher thread started");
                 while(isStarted)
                 {
@@ -163,6 +166,7 @@ namespace Antmicro.Renode.Time
             {
                 this.Trace("Dispatcher thread stopped");
                 DeactivateSlavesSourceSide();
+                TimeDomainsManager.Instance.UnregisterCurrentThread();
             }
         }
 
