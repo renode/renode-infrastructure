@@ -340,6 +340,8 @@ namespace Antmicro.Renode.Time
                 reportPending = false;
                 intervalToReport = intervalGranted;
                 Monitor.PulseAll(innerLock);
+
+                PauseRequested = null;
             }
             this.Trace();
         }
@@ -442,6 +444,14 @@ namespace Antmicro.Renode.Time
                 Monitor.PulseAll(innerLock);
             }
             this.Trace();
+        }
+
+        /// <summary>
+        /// Calls <see cref="PauseRequested"/> event.
+        /// </summary>
+        public void RequestPause()
+        {
+            PauseRequested?.Invoke();
         }
 
         /// <summary>
@@ -581,6 +591,11 @@ namespace Antmicro.Renode.Time
         /// Gets the amount of virtual time that passed from the perspective of this handle.
         /// </summary>
         public TimeInterval TotalElapsedTime { get; private set; }
+
+        /// <summary>
+        /// Called when pause of the sink is requested by the source.
+        /// </summary>
+        public event Action PauseRequested;
 
         [Antmicro.Migrant.Hooks.PreSerialization]
         private void VerifyStateBeforeSerialization()

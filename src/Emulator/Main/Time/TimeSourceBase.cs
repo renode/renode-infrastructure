@@ -65,6 +65,12 @@ namespace Antmicro.Renode.Time
         /// <returns>False it the handle has already been started.</returns>
         protected bool Start()
         {
+            if(isStarted)
+            {
+                this.Trace("Already started");
+                return false;
+            }
+
             using(sync.HighPriority)
             {
                 if(isStarted)
@@ -72,18 +78,27 @@ namespace Antmicro.Renode.Time
                     this.Trace("Already started");
                     return false;
                 }
+
                 isStarted = true;
                 ActivateSlavesSourceSide();
                 return true;
             }
         }
 
+        /// <summary>
+        /// Calls <see cref="StopRequested"/> event.
+        /// </summary>
+        protected void RequestStop()
+        {
+            StopRequested?.Invoke();
+        }
 
         /// <summary>
         /// Stops this time source and deactivates all associated slaves.
         /// </summary>
         protected void Stop()
         {
+            RequestStop();   
             using(sync.HighPriority)
             {
                 if(!isStarted)
@@ -136,10 +151,11 @@ namespace Antmicro.Renode.Time
         /// <see cref="ITimeSource.RegisterSink">
         public void RegisterSink(ITimeSink sink)
         {
-            //lock(handles)
             using(sync.HighPriority)
             {
-                handles.Add(new TimeHandle(this, sink) { SourceSideActive = isStarted });
+                var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
+                StopRequested += handle.RequestPause;
+                handles.Add(handle);
             }
         }
 
@@ -526,6 +542,14 @@ namespace Antmicro.Renode.Time
         protected readonly HashSet<TimeHandle> recentlyUnblockedSlaves;
         // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
         protected readonly PrioritySynchronizer sync;
+
+        /// <summary>
+        /// Used to request a pause on sinks before trying to acquire their locks.
+        /// </summary>
+        /// <remarks>
+        /// Triggering this event can improve pausing efficency by interrupting the sink execution in the middle of a quant.
+        /// </remarks>
+        private event Action StopRequested;
 
         [Antmicro.Migrant.Constructor(true)]
         private ManualResetEvent blockingEvent;

@@ -353,6 +353,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             InnerPause(new HaltArguments(HaltReason.Pause));
         }
 
+        private void RequestPause()
+        {
+            lock(pauseLock)
+            {
+                isPaused = true;
+                TlibSetPaused();
+
+                // this is to prevent deadlock on pausing/stopping/disposing in Single-Step mode
+                ExecutionMode = ExecutionMode.Continuous;
+            }
+        }
+
         private void InnerPause(HaltArguments haltArgs)
         {
             if(isAborted || isPaused)
@@ -363,11 +375,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             lock(pauseLock)
             {
-                isPaused = true;
-                TlibSetPaused();
-
-                // this is to prevent deadlock on pausing/stopping/disposing in Single-Step mode
-                ExecutionMode = ExecutionMode.Continuous;
+                RequestPause();
 
                 if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
                 {
@@ -1704,6 +1712,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     timeHandle = value;
                     timeHandle.Enabled = !isHalted;
+                    timeHandle.PauseRequested += RequestPause;
                 }
             }
         }
