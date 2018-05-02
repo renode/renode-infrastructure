@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+#if PLATFORM_LINUX
 using Antmicro.Renode.Core;
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -19,3 +20,4 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string Architecture { get { return "riscv64"; } }
     }
 }
+#endif
