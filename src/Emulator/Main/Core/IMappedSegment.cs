@@ -12,8 +12,8 @@ namespace Antmicro.Renode.Core
     public interface IMappedSegment
     {
         IntPtr Pointer { get; }
-        long StartingOffset { get; }
-        long Size { get; }
+        ulong StartingOffset { get; }
+        ulong Size { get; }
         void Touch();
     }
 }

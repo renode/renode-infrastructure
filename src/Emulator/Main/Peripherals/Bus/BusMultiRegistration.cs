@@ -5,13 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusMultiRegistration : BusRangeRegistration
     {
-        public BusMultiRegistration(long address, long size, string region) : base(address, size)
+        public BusMultiRegistration(ulong address, ulong size, string region) : base(address, size)
         {
             if(string.IsNullOrWhiteSpace(region))
             {
@@ -21,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             ConnectionRegionName = region;
         }
 
-        public long Address { get; private set; }
+        public ulong Address { get; private set; }
         public string ConnectionRegionName { get; private set; }
         public override string PrettyString { get { return ToString(); } }
 

@@ -9,18 +9,18 @@
 #include <callbacks.h>
 #include "renode_imports.h"
 
-EXTERNAL(action_uint32, touch_host_block)
+EXTERNAL(action_uint64, touch_host_block)
 
 typedef struct {
-  uint32_t start;
-  uint32_t size;
+  uint64_t start;
+  uint64_t size;
   void *host_pointer;
   uint32_t hb_start;
 } __attribute__((packed)) host_memory_block_packed_t;
 
 typedef struct {
-  uint32_t start;
-  uint32_t size;
+  uint64_t start;
+  uint64_t size;
   void *host_pointer;
   uint32_t hb_start;
   uint32_t last_used;
@@ -29,7 +29,7 @@ typedef struct {
 static host_memory_block_t *host_blocks;
 static int host_blocks_count;
 
-void *tlib_guest_offset_to_host_ptr(uint32_t offset)
+void *tlib_guest_offset_to_host_ptr(uint64_t offset)
 {
   host_memory_block_t *host_blocks_cached;
   int count_cached, i;
@@ -47,7 +47,7 @@ try_find_block:
   goto try_find_block;
 }
 
-uint32_t tlib_host_ptr_to_guest_offset(void *ptr)
+uint64_t tlib_host_ptr_to_guest_offset(void *ptr)
 {
   int i, index, count_cached;
   host_memory_block_t *host_blocks_cached;

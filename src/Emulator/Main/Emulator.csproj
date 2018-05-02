@@ -395,6 +395,10 @@
     <Compile Include="Peripherals\Sensor\ITemperatureSensor.cs" />
     <Compile Include="Core\GPIOMultiplexer.cs" />
     <Compile Include="Utilities\AllowAnyNumericalValue.cs" />
+    <Compile Include="Peripherals\CPU\RegisterValue.cs" />
+    <Compile Include="Peripherals\Bus\SymbolAddress.cs" />
+    <Compile Include="Peripherals\Bus\ELFExtensions.cs" />
+    <Compile Include="Peripherals\Bus\ISymbolEntryExtensions.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

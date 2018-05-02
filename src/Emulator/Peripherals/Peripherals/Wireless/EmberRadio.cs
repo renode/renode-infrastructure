@@ -278,8 +278,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     ushort crc = count_crc(data);
                     this.Log(LogLevel.Noisy, "Counted CRC = {0:X}", crc);
 
-                    machine.SystemBus.WriteByte(MAC_TX_ST_ADDR_A + packet_len - 1, (byte)(crc & 0xFF));
-                    machine.SystemBus.WriteByte(MAC_TX_ST_ADDR_A + packet_len, (byte)((crc >> 8) & 0xFF));
+                    machine.SystemBus.WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len - 1), (byte)(crc & 0xFF));
+                    machine.SystemBus.WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len), (byte)((crc >> 8) & 0xFF));
 
                 }
                 break;
@@ -305,8 +305,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             for(int i = 0; i < frame.Length; ++i)
             {
-                machine.SystemBus.WriteByte(MAC_RX_ST_ADDR_A + i + 1, frame[i]);
-                machine.SystemBus.WriteByte(MAC_RX_ST_ADDR_B + i + 1, frame[i]);
+                machine.SystemBus.WriteByte((ulong)(MAC_RX_ST_ADDR_A + i + 1), frame[i]);
+                machine.SystemBus.WriteByte((ulong)(MAC_RX_ST_ADDR_B + i + 1), frame[i]);
             }
 
             /*   ushort crc = count_crc(data);

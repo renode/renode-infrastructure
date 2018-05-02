@@ -519,7 +519,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 }
             }
 
-            public long Size
+            public ulong Size
             {
                 get
                 {
@@ -527,11 +527,11 @@ namespace Antmicro.Renode.Peripherals.Memory
                 }
             }
 
-            public long StartingOffset
+            public ulong StartingOffset
             {
                 get
                 {
-                    return index * parent.SegmentSize;
+                    return checked((ulong)index * (ulong)parent.SegmentSize);
                 }
             }
 

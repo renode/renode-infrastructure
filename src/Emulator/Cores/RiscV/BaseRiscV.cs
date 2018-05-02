@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2010-2018 Antmicro
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Utilities.Collections;
@@ -17,17 +18,12 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    [GPIO(NumberOfInputs = 3)]
-    public partial class RiscV : TranslationCPU
+    public abstract class BaseRiscV : TranslationCPU
     {
-        public RiscV(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode = PrivilegeMode.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
+        protected BaseRiscV(string cpuType, long frequency, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
             InnerTimer = new ComparingTimer(machine.ClockSource, frequency, enabled: true, eventEnabled: true);
 
-            intTypeToVal = new TwoWayDictionary<int, IrqType>();
-            intTypeToVal.Add(0, IrqType.MachineTimerIrq);
-            intTypeToVal.Add(1, IrqType.MachineExternalIrq);
-            intTypeToVal.Add(2, IrqType.MachineSoftwareInterrupt);
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -39,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 else if((int)set == 'G' - 'A')
                 {
                     //G is a wildcard denoting multiple instruction sets
-                    foreach(var gSet in new [] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
+                    foreach(var gSet in new[] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
                     {
                         TlibAllowFeature((uint)gSet);
                     }
@@ -54,16 +50,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
-            if(!intTypeToVal.TryGetValue(number, out IrqType decodedType))
-            {
-                throw new ArgumentOutOfRangeException(nameof(number));
-            }
 
-            var mipState = TlibGetMip();
-            BitHelper.SetBit(ref mipState, (byte)decodedType, value);
-            TlibSetMip(mipState);
+            TlibSetInterrupt((uint)number, value ? 1u : 0u);
 
-            base.OnGPIO(number, mipState != 0);
+            base.OnGPIO(number, value);
         }
 
         public bool SupportsInstructionSet(InstructionSet set)
@@ -75,10 +65,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             return TlibIsFeatureEnabled((uint)set) == 1;
         }
-
-        public override string Architecture { get { return "riscv"; } }
-
-        public uint EntryPoint { get; private set; }
 
         public ComparingTimer InnerTimer { get; set; }
 
@@ -98,32 +84,23 @@ namespace Antmicro.Renode.Peripherals.CPU
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
         }
 
-        [Export]
-        private void MipChanged(uint mip)
-        {
-            var previousMip = BitHelper.GetBits(TlibGetMip());
-            var currentMip = BitHelper.GetBits(mip);
 
-            foreach(var gpio in intTypeToVal.Lefts)
+        [Export]
+        private ulong GetCPUTime()
+        {
+            var numberOfExecutedInstructions = checked((ulong)TlibGetExecutedInstructions());
+            if(numberOfExecutedInstructions > 0)
             {
-                intTypeToVal.TryGetValue(gpio, out IrqType decodedType);
-                if(previousMip[(int)decodedType] != currentMip[(int)decodedType])
-                {
-                    OnGPIO(gpio, currentMip[(int)decodedType]);
-                }
+                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions, PerformanceInMips, out var residuum);
+                TlibResetExecutedInstructions(checked((int)residuum));
+                machine.HandleTimeProgress(elapsed);
             }
+            return InnerTimer.Value;
         }
 
-        private TwoWayDictionary<int, IrqType> intTypeToVal;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
-        [Import]
-        private FuncUInt32 TlibGetMip;
-
-        [Import]
-        private ActionUInt32 TlibSetMip;
-
         [Import]
         private ActionUInt32 TlibAllowFeature;
 
@@ -133,8 +110,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private FuncUInt32UInt32 TlibIsFeatureAllowed;
 
+        [Import]
+        private ActionInt32 TlibResetExecutedInstructions;
+
         [Import(Name="tlib_set_privilege_mode_1_09")]
         private ActionUInt32 TlibSetPrivilegeMode109;
+
+        [Import]
+        private ActionUInt32UInt32 TlibSetInterrupt;
 #pragma warning restore 649
 
         public enum PrivilegeMode
@@ -158,10 +141,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
         }
 
-        private enum IrqType
+        protected enum IrqType
         {
+            SupervisorSoftwareInterrupt = 0x1,
             MachineSoftwareInterrupt = 0x3,
+            SupervisorTimerIrq = 0x5,
             MachineTimerIrq = 0x7,
+            SupervisorExternalIrq = 0x9,
             MachineExternalIrq = 0xb
         }
     }

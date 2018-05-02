@@ -5,6 +5,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 
@@ -28,7 +29,7 @@ namespace Antmicro.Renode.Hooks
             sysbus.SetHookBeforePeripheralWrite<byte>(peripheral, (valueToWrite, offset) => (byte)runner.WriteHook(valueToWrite, offset), subrange);
         }
 
-        public static void AddWatchpointHook(this SystemBus sysbus, long address, SysbusAccessWidth width, Access access, string pythonScript)
+        public static void AddWatchpointHook(this SystemBus sysbus, ulong address, SysbusAccessWidth width, Access access, string pythonScript)
         {
             var engine = new WatchpointHookPythonEngine(sysbus, pythonScript);
             sysbus.AddWatchpointHook(address, width, access, true, engine.Hook);

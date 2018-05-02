@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -14,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize
     {
-        public CoreLevelInterruptor(Machine machine, RiscV cpu)
+        public CoreLevelInterruptor(Machine machine, BaseRiscV cpu)
         {
             this.machine = machine;
             this.cpu = cpu;
@@ -46,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         cpu.InnerTimer.Compare = limit;
                     })
                 },
-                {(long)Registers.MTimeLo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)this.cpu.InnerTimer.Value, writeCallback: (_, value) =>
+                {(long)Registers.MTimeLo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)cpu.InnerTimer.Value, writeCallback: (_, value) =>
                     {
                         var timerValue = cpu.InnerTimer.Value;
                         timerValue &= ~0xffffffffUL;
@@ -54,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         cpu.InnerTimer.Value = timerValue;
                     })
                 },
-                {(long)Registers.MTimeHi, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)(this.cpu.InnerTimer.Value >> 32), writeCallback: (_, value) =>
+                {(long)Registers.MTimeHi, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)(cpu.InnerTimer.Value >> 32), writeCallback: (_, value) =>
                     {
                         var timerValue = cpu.InnerTimer.Value;
                         timerValue &= 0xffffffffUL;
@@ -93,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registers;
-        private readonly RiscV cpu;
+        private readonly BaseRiscV cpu;
 
         private enum Registers : long
         {

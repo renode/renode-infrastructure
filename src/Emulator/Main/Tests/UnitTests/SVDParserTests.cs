@@ -445,9 +445,9 @@ namespace Antmicro.Renode.UnitTests
 
             for(var i = -3; i < 8; i++)
             {
-                var readingAddress = 0x1000 + i;
+                var readingAddress = (ulong)(0x1000 + i);
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     if(readingAddress + j >= 0x1000 && readingAddress + j < 0x1008)
                     {
@@ -523,9 +523,9 @@ namespace Antmicro.Renode.UnitTests
 
             for(var i = -3; i < 8; i++)
             {
-                var readingAddress = 0x1000 + i;
+                var readingAddress = (ulong)(0x1000 + i);
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     if(readingAddress + j >= 0x1000 && readingAddress + j < 0x1008)
                     {
@@ -584,11 +584,11 @@ namespace Antmicro.Renode.UnitTests
                 ",
                 false
             );
-            var readingAddress = 0x1000 - 3;
+            var readingAddress = (ulong)(0x1000 - 3);
             for(var i = -3; i < 8; i++)
             {
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     var tmpAddres = readingAddress + j;
                     if(tmpAddres >= 0x1000 && tmpAddres < 0x1008)
@@ -669,11 +669,11 @@ namespace Antmicro.Renode.UnitTests
                 ",
                 false
             );
-            var readingAddress = 0x1000 - 3;
+            var readingAddress = (ulong)(0x1000 - 3);
             for(var i = -3; i < 8; i++)
             {
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     var tmpAddres = readingAddress + j;
                     if(tmpAddres >= 0x1000 && tmpAddres < 0x1008)
@@ -724,7 +724,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var baseAddress = 0x10000;
             int[] addressOffset = { 0x1000, 0x100, 0x10 };
-            var finalAddressOffset = 0x11110;
+            var finalAddressOffset = 0x11110u;
 
             SetUpDeviceWithInfix($@"
                 <peripherals>  

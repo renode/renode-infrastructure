@@ -7,49 +7,43 @@
 *
 */
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Arm
     {
-        public override void SetRegisterUnsafe(int register, uint value)
+        public override void SetRegisterUnsafe(int register, ulong value)
         {
-            SetRegisterValue32(register, value);
+            if(!mapping.TryGetValue((ArmRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override uint GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegisterUnsafe(int register)
         {
-            return GetRegisterValue32(register);
+            if(!mapping.TryGetValue((ArmRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            return GetRegisterValue32(r.Index);
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new CPURegister[] {
-                new CPURegister(0, true),
-                new CPURegister(1, true),
-                new CPURegister(2, true),
-                new CPURegister(3, true),
-                new CPURegister(4, true),
-                new CPURegister(5, true),
-                new CPURegister(6, true),
-                new CPURegister(7, true),
-                new CPURegister(8, true),
-                new CPURegister(9, true),
-                new CPURegister(10, true),
-                new CPURegister(11, true),
-                new CPURegister(12, true),
-                new CPURegister(13, true),
-                new CPURegister(14, true),
-                new CPURegister(15, true),
-                new CPURegister(25, false),
-            };
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]
-        public UInt32 SP
+        public RegisterValue SP
         {
             get
             {
@@ -60,9 +54,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)ArmRegisters.SP, value);
             }
         }
-
         [Register]
-        public UInt32 LR
+        public RegisterValue LR
         {
             get
             {
@@ -73,9 +66,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)ArmRegisters.LR, value);
             }
         }
-
         [Register]
-        public override UInt32 PC
+        public override RegisterValue PC
         {
             get
             {
@@ -87,9 +79,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)ArmRegisters.PC, value);
             }
         }
-
         [Register]
-        public UInt32 CPSR
+        public RegisterValue CPSR
         {
             get
             {
@@ -100,12 +91,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)ArmRegisters.CPSR, value);
             }
         }
-
-        public RegistersGroup<UInt32> R { get; private set; }
+        public RegistersGroup R { get; private set; }
 
         protected override void InitializeRegisters()
         {
-            indexValueMapR = new Dictionary<int, ArmRegisters>
+            var indexValueMapR = new Dictionary<int, ArmRegisters>
             {
                 { 0, ArmRegisters.R0 },
                 { 1, ArmRegisters.R1 },
@@ -124,10 +114,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 { 14, ArmRegisters.R14 },
                 { 15, ArmRegisters.R15 },
             };
-            R = new RegistersGroup<UInt32>(
+            R = new RegistersGroup(
                 indexValueMapR.Keys,
-                i => GetRegisterValue32((int)indexValueMapR[i]),
-                (i, v) => SetRegisterValue32((int)indexValueMapR[i], v));
+                i => GetRegisterUnsafe((int)indexValueMapR[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapR[i], v));
 
         }
 
@@ -141,7 +131,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #pragma warning restore 649
 
-        private Dictionary<int, ArmRegisters> indexValueMapR;
+        private static readonly Dictionary<ArmRegisters, CPURegister> mapping = new Dictionary<ArmRegisters, CPURegister>
+        {
+            { ArmRegisters.R0,  new CPURegister(0, 32, true) },
+            { ArmRegisters.R1,  new CPURegister(1, 32, true) },
+            { ArmRegisters.R2,  new CPURegister(2, 32, true) },
+            { ArmRegisters.R3,  new CPURegister(3, 32, true) },
+            { ArmRegisters.R4,  new CPURegister(4, 32, true) },
+            { ArmRegisters.R5,  new CPURegister(5, 32, true) },
+            { ArmRegisters.R6,  new CPURegister(6, 32, true) },
+            { ArmRegisters.R7,  new CPURegister(7, 32, true) },
+            { ArmRegisters.R8,  new CPURegister(8, 32, true) },
+            { ArmRegisters.R9,  new CPURegister(9, 32, true) },
+            { ArmRegisters.R10,  new CPURegister(10, 32, true) },
+            { ArmRegisters.R11,  new CPURegister(11, 32, true) },
+            { ArmRegisters.R12,  new CPURegister(12, 32, true) },
+            { ArmRegisters.SP,  new CPURegister(13, 32, true) },
+            { ArmRegisters.LR,  new CPURegister(14, 32, true) },
+            { ArmRegisters.PC,  new CPURegister(15, 32, true) },
+            { ArmRegisters.CPSR,  new CPURegister(25, 32, false) },
+        };
     }
 
     public enum ArmRegisters
