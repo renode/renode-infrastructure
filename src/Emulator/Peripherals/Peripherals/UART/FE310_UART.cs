@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(transmitEnable.Value)
                         {
                             this.TransmitCharacter((byte)b);
+                            UpdateInterrupts();
                         }
                     }, name: "DATA")
                     .WithTag("RESERVED", 8, 23)
