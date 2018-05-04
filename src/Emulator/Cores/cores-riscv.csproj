@@ -45,6 +45,7 @@
     </Compile>
     <Compile Include="RiscV\CoreLevelInterruptor.cs" />
     <Compile Include="RiscV\BaseRiscV.cs" />
+    <Compile Include="RiscV\PrivilegeLevel.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
