@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 throw new InvalidOperationException("Memory: Cannot resume state from stream: Invalid magic.");
             }
             SegmentSize = reader.ReadInt32();
-            size = reader.ReadUInt32();
+            size = reader.ReadInt64();
             if(emptyCtorUsed)
             {
                 Init();
