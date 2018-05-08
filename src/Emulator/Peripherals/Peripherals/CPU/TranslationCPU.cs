@@ -700,7 +700,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool BlockCompleted()
         {
-            return (lastTlibResult == ExecutionResult.Ok);
+            //this.Log(LogLevel.Warning, "BlockCompleted: {0}", lastTlibResult);
+            lock(sync.Guard)
+            {
+                return (lastTlibResult == ExecutionResult.Ok || lastTlibResult == ExecutionResult.SingleStep);
+            }
+
         }
 
         // TODO
@@ -1816,6 +1821,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             Ok,
             Aborted,
+            SingleStep = 0x10000,
             StoppedAtBreakpoint = 0x10002,
             Halted = 0x10003,
         }
