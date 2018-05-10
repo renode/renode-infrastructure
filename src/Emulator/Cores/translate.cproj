@@ -4,6 +4,7 @@
     <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="CLinkerTask" />
 
   <Target Name="VerifyProperties">
+    <Error Text="The compiler must be explicitly provided when compiling on macOS." Condition="$(CompilerPath) == '' and $(CurrentPlatform) == 'OSX'"/>
     <Error Text="No configuration provided" Condition=" $(Configuration) == '' " />
     <Error Text="Host endianess not provided" Condition=" $(HostEndianess) == '' " />
     <Error Text="Wrong host endianess value: provide 'le' or 'be'" Condition=" $(HostEndianess) != 'le' and $(HostEndianess) != 'be' " />
