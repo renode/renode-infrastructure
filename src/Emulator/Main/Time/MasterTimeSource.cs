@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Time
 {
@@ -52,6 +53,8 @@ namespace Antmicro.Renode.Time
         /// <param name="period">Amount of virtual time to pass.</param>
         public void RunFor(TimeInterval period)
         {
+            DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
+
             base.Start();
             while(!isDisposed && period.Ticks > 0)
             {
@@ -78,6 +81,8 @@ namespace Antmicro.Renode.Time
         /// <param name="numberOfSyncPoints">Number of synchronization points to pass (default 1).</param>
         public void Run(uint numberOfSyncPoints = 1)
         {
+            DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
+
             base.Start();
             for(var i = 0u; i < numberOfSyncPoints; i++)
             {
