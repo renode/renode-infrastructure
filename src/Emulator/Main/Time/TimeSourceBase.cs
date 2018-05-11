@@ -156,6 +156,9 @@ namespace Antmicro.Renode.Time
                 var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
                 StopRequested += handle.RequestPause;
                 handles.Add(handle);
+#if DEBUG
+                this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
+#endif
             }
         }
 
