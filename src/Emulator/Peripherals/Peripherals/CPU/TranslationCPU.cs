@@ -529,19 +529,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetInternalHookAtBlockBegin(null);
                 return;
             }
+
             var prefixesAsArray = spaceSeparatedPrefixes.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var pc_cache = new LRUCache<ulong, string>(10000);
             // using string builder here is due to performance reasons: test shows that string.Format is much slower
             var messageBuilder = new StringBuilder(256);
 
             SetInternalHookAtBlockBegin((pc, size) =>
             {
-                string name;
-                if(!pc_cache.TryGetValue(pc, out name))
-                {
-                    name = Bus.FindSymbolAt(pc);
-                    pc_cache.Add(pc, name);
-                }
+                var name = Bus.FindSymbolAt(pc);
 
                 if(spaceSeparatedPrefixes != "" && (name == null || !prefixesAsArray.Any(name.StartsWith)))
                 {
