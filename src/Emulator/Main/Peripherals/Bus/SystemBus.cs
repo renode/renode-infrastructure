@@ -432,6 +432,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 Lookup.LoadELF(elf, useVirtualAddress);
             }
+            pcCache.Invalidate();
         }
 
         public void AddSymbol(Range address, string name, bool isThumb = false)
@@ -440,6 +441,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 Lookup.InsertSymbol(name, (uint)address.StartAddress, (uint)address.Size);
             }
+            pcCache.Invalidate();
         }
 
         public void LoadELF(string fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IControllableCPU cpu = null)
@@ -470,6 +472,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     this.DebugLog("Segment loaded.");
                 }
                 Lookup.LoadELF(elf, useVirtualAddress);
+                pcCache.Invalidate();
                 if (cpu != null)
                 {
                     cpu.InitFromElf(elf);
@@ -822,6 +825,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             LowestLoadedAddress = null;
             Lookup = new SymbolLookup();
+            pcCache.Invalidate();
         }
 
         public Machine Machine
@@ -1272,6 +1276,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             idByCpu.Clear();
             hooksOnRead.Clear();
             hooksOnWrite.Clear();
+            pcCache.Invalidate();
             Lookup = new SymbolLookup();
             cachedCpuId = new ThreadLocal<int>();
             peripherals = new PeripheralCollection(this);
