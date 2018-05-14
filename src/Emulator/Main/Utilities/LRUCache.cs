@@ -24,8 +24,7 @@ namespace Antmicro.Renode.Utilities
         {
             lock(locker)
             {
-                CacheItem item;
-                if(values.TryGetValue(key, out item))
+                if(values.TryGetValue(key, out var item))
                 {
                     ordering.Remove(item.Position);
                     ordering.AddFirst(item.Position);
