@@ -212,6 +212,8 @@ namespace Antmicro.Renode.Time
 #if DEBUG
                 this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
 #endif
+                // assigning TimeHandle to a sink must be done when everything is configured, otherwise a race condition might happen (dispatcher starts its execution when time source and handle are not yet ready)
+                sink.TimeHandle = handle;
             }
         }
 

@@ -105,8 +105,8 @@ namespace Antmicro.Renode.Time
             TimeSource = timeSource;
             TotalElapsedTime = timeSource.ElapsedVirtualTime;
 
+            // we should not assign this handle to TimeSink as the source might not be configured properly yet
             TimeSink = timeSink;
-            TimeSink.TimeHandle = this;
 
             this.Trace();
         }
