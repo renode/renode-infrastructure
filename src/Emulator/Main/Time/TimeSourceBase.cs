@@ -547,7 +547,7 @@ namespace Antmicro.Renode.Time
         /// Used to request a pause on sinks before trying to acquire their locks.
         /// </summary>
         /// <remarks>
-        /// Triggering this event can improve pausing efficency by interrupting the sink execution in the middle of a quant.
+        /// Triggering this event can improve pausing efficiency by interrupting the sink execution in the middle of a quant.
         /// </remarks>
         private event Action StopRequested;
 
