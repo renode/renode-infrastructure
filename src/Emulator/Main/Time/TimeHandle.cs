@@ -342,6 +342,7 @@ namespace Antmicro.Renode.Time
                 Monitor.PulseAll(innerLock);
 
                 PauseRequested = null;
+                StartRequested = null;
             }
             this.Trace();
         }
@@ -452,6 +453,14 @@ namespace Antmicro.Renode.Time
         public void RequestPause()
         {
             PauseRequested?.Invoke();
+        }
+
+        /// <summary>
+        /// Calls <see cref="StartRequested"/> event.
+        /// </summary>
+        public void RequestStart()
+        {
+            StartRequested?.Invoke();
         }
 
         /// <summary>
@@ -593,9 +602,17 @@ namespace Antmicro.Renode.Time
         public TimeInterval TotalElapsedTime { get; private set; }
 
         /// <summary>
-        /// Called when pause of the sink is requested by the source.
+        /// Informs the sink that the source wants to pause its execution.
         /// </summary>
+        /// <remarks>
+        /// The sink can react to it in the middle of a granted period and pause instantly.
+        /// </remarks>
         public event Action PauseRequested;
+
+        /// <summary>
+        /// Informs the sink that the source is about to (re)start its execution, so it should start the dispatcher thread and get ready for new grants.
+        /// </summary>
+        public event Action StartRequested;
 
         [Antmicro.Migrant.Hooks.PreSerialization]
         private void VerifyStateBeforeSerialization()

@@ -798,6 +798,7 @@ namespace UnitTests
 
             public void Dispose()
             {
+                isDisposed = true;
                 ExecuteOnDispatcherThread(null, false);
             }
 
@@ -844,10 +845,16 @@ namespace UnitTests
                             break;
                         }
 
-                        if(!handle.RequestTimeInterval(out var timeUnits))
+                        TimeInterval timeUnits;
+                        while(!handle.RequestTimeInterval(out timeUnits))
                         {
                             this.Trace("Request not granted - finishing");
-                            break;
+                            if(isDisposed)
+                            {
+                                return;
+                            }
+                            Thread.Sleep(100);
+                            continue;
                         }
 
                         this.Trace("Before action");
@@ -870,6 +877,7 @@ namespace UnitTests
 
             private Action<ITimeSink, TimeInterval> action;
             private TimeHandle handle;
+            private bool isDisposed;
             private readonly AutoResetEvent barrier;
             private readonly AutoResetEvent barrierBack;
             private readonly string name;

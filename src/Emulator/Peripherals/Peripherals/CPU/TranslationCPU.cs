@@ -377,13 +377,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 RequestPause();
 
-                if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
+                if(cpuThread != null && Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
                 {
                     sync.Pass();
                     this.NoisyLog("Waiting for thread to pause.");
-                    cpuThread.Join();
+                    cpuThread?.Join();
                     this.NoisyLog("Paused.");
-                    cpuThread = null;
                 }
                 else
                 {
@@ -407,15 +406,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 started = true;
-                this.NoisyLog("Resuming.");
-                cpuThread = new Thread(CpuThreadBody)
-                {
-                    IsBackground = true,
-                    Name = this.GetCPUThreadName(machine)
-                };
                 isPaused = false;
-                cpuThread.Start();
                 TlibClearPaused();
+                StartCPUThread();
                 this.NoisyLog("Resumed.");
             }
         }
@@ -1713,117 +1706,187 @@ namespace Antmicro.Renode.Peripherals.CPU
                     timeHandle = value;
                     timeHandle.Enabled = !isHalted;
                     timeHandle.PauseRequested += RequestPause;
+                    timeHandle.StartRequested += StartCPUThread;
                 }
             }
         }
 
-        private void CpuThreadBody()
+        private bool CpuThreadBodyInner()
         {
-            this.Trace("CPU loop thread started");
-            var localCopyOfTimeHandle = TimeHandle;
-            TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(localCopyOfTimeHandle.TimeSource.NearestSyncPoint, localCopyOfTimeHandle.TimeSource.Domain));
-
-            ulong executedResiduum = 0;
-            while(true)
+            using(this.ObtainSinkInactiveState())
             {
-                localCopyOfTimeHandle.SinkSideActive = false;
                 if(!HandleStepping())
                 {
+                    return false;
+                }
+            }
+
+            if(!TimeHandle.RequestTimeInterval(out var interval))
+            {
+                return false;
+            }
+
+            this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
+            var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
+            var instructionsLeftThisRound = instructionsToExecuteThisRound;
+
+            var singleStep = false;
+            var executedResiduum = 0ul;
+            while(!isPaused && instructionsLeftThisRound > 0)
+            {
+                singleStep = executionMode == ExecutionMode.SingleStep;
+                this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
+                var toExecute = singleStep ? 1 : instructionsLeftThisRound;
+
+                var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
+                var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
+
+                // this puts a limit on instructions to execute in one round
+                // and makes timers update independent of the current quantum
+                toExecute = Math.Min(instructionsToNearestLimit, toExecute);
+
+                this.Trace($"Asking CPU to execute {toExecute} instructions");
+                var result = ExecuteInstructions(toExecute, out var executed);
+                this.Trace($"CPU executed {executed} instructions");
+                instructionsLeftThisRound -= executed;
+                ExecutedInstructions += (ulong)executed;
+                if(executed > 0)
+                {
+                    // report how much time elapsed so far
+                    var elapsed = TimeInterval.FromCPUCycles(executed + executedResiduum, PerformanceInMips, out executedResiduum);
+                    TimeHandle.ReportProgress(elapsed);
+                }
+
+                if(result == ExecutionResult.Aborted || singleStep || result == ExecutionResult.StoppedAtBreakpoint)
+                {
+                    // entering a watchpoint (indicated as `StoppedAtBreakpoint`) causes CPU to go into `stepping` mode, so we must exit this loop
+                    // and go through `HandleStepping` as otherwise we would execute too much code
                     break;
                 }
-                localCopyOfTimeHandle.SinkSideActive = true;
-
-                if(!localCopyOfTimeHandle.RequestTimeInterval(out var interval))
+                else if(result == ExecutionResult.Halted)
                 {
-                    break;
-                }
+                    this.Trace();
+                    // here we test if the nearest scheduled interrupt from timers will happen in this time period:
+                    // if so, we simply jump directly to this moment reporting progress;
+                    // otherwise we immediately finish the execution of this period
+                    nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
+                    instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out unused);
 
-                this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
-                var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
-                var instructionsLeftThisRound = instructionsToExecuteThisRound;
-
-                var singleStep = false;
-                while(!isPaused && instructionsLeftThisRound > 0)
-                {
-                    singleStep = executionMode == ExecutionMode.SingleStep;
-                    this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
-                    var toExecute = singleStep ? 1 : instructionsLeftThisRound;
-
-                    var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
-                    var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
-
-                    // this puts a limit on instructions to execute in one round
-                    // and makes timers update independent of the current quantum
-                    toExecute = Math.Min(instructionsToNearestLimit, toExecute);
-
-                    this.Trace($"Asking CPU to execute {toExecute} instructions");
-                    var result = ExecuteInstructions(toExecute, out var executed);
-                    this.Trace($"CPU executed {executed} instructions");
-                    instructionsLeftThisRound -= executed;
-                    ExecutedInstructions += (ulong)executed;
-                    if(executed > 0)
-                    {
-                        // report how much time elapsed so far
-                        var elapsed = TimeInterval.FromCPUCycles(executed + executedResiduum, PerformanceInMips, out executedResiduum);
-                        localCopyOfTimeHandle.ReportProgress(elapsed);
-                    }
-
-                    if(result == ExecutionResult.Aborted || singleStep || result == ExecutionResult.StoppedAtBreakpoint)
-                    {
-                        // entering a watchpoint (indicated as `StoppedAtBreakpoint`) causes CPU to go into `stepping` mode, so we must exit this loop
-                        // and go through `HandleStepping` as otherwise we would execute too much code
-                        break;
-                    }
-                    else if(result == ExecutionResult.Halted)
+                    if(instructionsToNearestLimit >= instructionsLeftThisRound)
                     {
                         this.Trace();
-                        // here we test if the nearest scheduled interrupt from timers will happen in this time period:
-                        // if so, we simply jump directly to this moment reporting progress;
-                        // otherwise we immediately finish the execution of this period
-                        nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
-                        instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out unused);
+                        break;
+                    }
+                    instructionsLeftThisRound -= instructionsToNearestLimit;
+                    TimeHandle.ReportProgress(nearestLimitIn);
+                }
+            }
 
-                        if(instructionsToNearestLimit >= instructionsLeftThisRound)
+            this.Trace("CPU thread body finished");
+
+            if(isHalted)
+            {
+                this.Trace("halted, reporting continue");
+                TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
+                return false;
+            }
+            else if(isPaused)
+            {
+                this.Trace("paused, reporting break");
+                var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
+                TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
+                return false;
+            }
+            else if(!singleStep || instructionsToExecuteThisRound <= 1)
+            {
+                this.Trace("finished, reporting continue");
+                TimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
+            }
+            else
+            {
+                this.Trace("single step finished, reporting break");
+                var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
+                TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
+            }
+
+            return true;
+        }
+
+        private void CpuThreadBody()
+        {
+            var isLocked = false;
+            try
+            {
+#if DEBUG
+                using(this.TraceRegion("CPU loop"))
+#endif
+                using(this.ObtainSinkActiveState())
+                using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TimeSource.NearestSyncPoint, TimeHandle.TimeSource.Domain)))
+                {
+                    while(true)
+                    {
+                        if(CpuThreadBodyInner())
                         {
-                            this.Trace();
-                            break;
+                            continue;
                         }
-                        instructionsLeftThisRound -= instructionsToNearestLimit;
-                        localCopyOfTimeHandle.ReportProgress(nearestLimitIn);
+
+                        this.Trace();
+                        lock(cpuThreadBodyLock)
+                        {
+                            if(!dispatcherRestartRequested)
+                            {
+                                this.Trace();
+                                // the `locker` is re-acquired here to
+                                // make sure that dispose-related code of all usings
+                                // is executed before setting `dispatcherThread` to
+                                // null (what allows to start new dispatcher thread);
+                                // otherwise there could be a race condition when
+                                // new thread enters usings (e.g., activates sink side)
+                                // and then the old one exits them (deactivating sink
+                                // side as a result)
+                                Monitor.Enter(cpuThreadBodyLock, ref isLocked);
+                                break;
+                            }
+                            dispatcherRestartRequested = false;
+                            this.Trace();
+                        }
                     }
                 }
-
-                this.Trace("CPU thread body finished");
-
-                if(isHalted)
+            }
+            finally
+            {
+                cpuThread = null;
+                if(isLocked)
                 {
-                    this.Trace("halted, reporting continue");
-                    localCopyOfTimeHandle.ReportBackAndContinue(TimeInterval.Empty);
-                    break;
+                    this.Trace();
+                    Monitor.Exit(cpuThreadBodyLock);
                 }
-                else if(isPaused)
+                this.Trace();
+            }
+        }
+
+        private void StartCPUThread()
+        {
+            this.Trace();
+            lock(pauseLock)
+            lock(cpuThreadBodyLock)
+            {
+                if(cpuThread == null)
                 {
-                    this.Trace("paused, reporting break");
-                    var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
-                    localCopyOfTimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
-                    break;
-                }
-                else if(!singleStep || instructionsToExecuteThisRound <= 1)
-                {
-                    this.Trace("finished, reporting continue");
-                    localCopyOfTimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
+                    this.Trace();
+                    cpuThread = new Thread(CpuThreadBody)
+                    {
+                        IsBackground = true,
+                        Name = this.GetCPUThreadName(machine)
+                    };
+                    cpuThread.Start();
                 }
                 else
                 {
-                    this.Trace("single step finished, reporting break");
-                    var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
-                    localCopyOfTimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
+                    this.Trace();
+                    dispatcherRestartRequested = true;
                 }
             }
-            localCopyOfTimeHandle.SinkSideActive = false;
-
-            this.Trace("CPU loop thread finished");
-            TimeDomainsManager.Instance.UnregisterCurrentThread();
         }
 
         private void TlibSetIrqWrapped(int number, bool state)
@@ -1911,6 +1974,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Dictionary<ulong, HookDescriptor> hooks;
         private Dictionary<Interrupt, HashSet<int>> decodedIrqs;
         private readonly CpuBitness bitness;
+        private bool dispatcherRestartRequested;
+        private readonly object cpuThreadBodyLock = new object();
 
         private class HookDescriptor
         {

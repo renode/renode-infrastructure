@@ -56,6 +56,7 @@ namespace Antmicro.Renode.Time
             DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
 
             using(ObtainStartedState())
+            using(this.ObtainSourceActiveState())
             {
                 while(!isDisposed && period.Ticks > 0)
                 {
@@ -77,6 +78,7 @@ namespace Antmicro.Renode.Time
             DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
 
             using(ObtainStartedState())
+            using(this.ObtainSourceActiveState())
             {
                 for(var i = 0u; i < numberOfSyncPoints; i++)
                 {

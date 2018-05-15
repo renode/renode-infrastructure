@@ -117,8 +117,25 @@ namespace Antmicro.Renode.Time
                 }
 
                 isStarted = true;
-                ActivateSlavesSourceSide();
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Requests start of all registered slaves.
+        /// </summary>
+        /// <remark>
+        /// The method should be called after activating this source using <cref="ActivateSlavesSourceSize">,
+        /// otherwise a race condition situation might happen.
+        /// </remark>
+        protected void RequestSlavesStart()
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.RequestStart();
+                }
             }
         }
 
@@ -143,7 +160,6 @@ namespace Antmicro.Renode.Time
                     this.Trace("Not started");
                     return;
                 }
-                DeactivateSlavesSourceSide();
 
                 // we must wait for unblocked slaves to finish their work
                 sync.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
@@ -382,16 +398,6 @@ namespace Antmicro.Renode.Time
             State = TimeSourceState.ReportingElapsedTime;
             using(sync.LowPriority)
             {
-                if((isPaused || !isStarted) && recentlyUnblockedSlaves.Count == 0)
-                {
-                    // the time source is not started and it has not acknowledged any unblocks - it means no one is currently working
-                    DebugHelper.Assert(handles.All.All(x => !x.SourceSideActive), "No source side active slaves were expected at this point.");
-
-                    State = TimeSourceState.Idle;
-                    EnterBlockedState();
-                    return false;
-                }
-
                 handles.LatchAllAndCollectGarbage();
                 var shouldGrantTime = handles.AreAllReadyForNewGrant;
 
@@ -501,6 +507,10 @@ namespace Antmicro.Renode.Time
                 foreach(var slave in handles.All)
                 {
                     slave.SourceSideActive = state;
+                    if(state)
+                    {
+                        slave.RequestStart();
+                    }
                 }
             }
         }
