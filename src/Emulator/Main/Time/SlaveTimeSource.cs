@@ -136,7 +136,6 @@ namespace Antmicro.Renode.Time
 
                 this.Trace("Dispatcher thread started");
                 ActivateSlavesSourceSide();
-                firstIteration = true;
                 localCopyOfTimeHandle.SinkSideActive = true;
                 while(isStarted)
                 {
@@ -163,12 +162,6 @@ namespace Antmicro.Renode.Time
 
                     while(waitingForSlave || (timeLeft >= quantum && isStarted))
                     {
-                        if(!firstIteration && !waitingForSlave)
-                        {
-                            NearestSyncPoint += quantum;
-                        }
-
-                        firstIteration = false;
                         waitingForSlave = false;
                         bool syncPointReached;
                         do
@@ -239,7 +232,6 @@ namespace Antmicro.Renode.Time
         private Thread dispatcherThread;
         private TimeHandle timeHandle;
         private bool waitingForSlave;
-        private bool firstIteration;
         private readonly Machine machine;
         private readonly object locker;
     }

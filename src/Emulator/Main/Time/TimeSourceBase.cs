@@ -290,7 +290,7 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
         /// </summary>
-        public TimeInterval NearestSyncPoint { get; protected set; }
+        public TimeInterval NearestSyncPoint { get; private set; }
 
         /// <summary>
         /// Gets the number of synchronizations points reached so far.
@@ -323,11 +323,18 @@ namespace Antmicro.Renode.Time
         /// (6) execute sync hook and delayed actions if any
         /// </remarks>
         /// <param name="virtualTimeElapsed">Contains the amount of virtual time that passed during execution of this method. It is the minimal value reported by a slave (i.e, some slaves can report higher/lower values).</param>
+        /// <param name="timeLimit">Maximum amount of virtual time that can pass during the execution of this method. If not set, current <see cref="Quantum"> is used.</param>
         /// <returns>
         /// True if sync point has just been reached or False if the execution has been blocked.
         /// </returns>
-        protected bool InnerExecute(out TimeInterval virtualTimeElapsed)
+        protected bool InnerExecute(out TimeInterval virtualTimeElapsed, TimeInterval? timeLimit = null)
         {
+            if(updateNearestSyncPoint)
+            {
+                NearestSyncPoint += timeLimit.HasValue ? TimeInterval.Min(timeLimit.Value, Quantum) : Quantum;
+                updateNearestSyncPoint = false;
+                this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
+            }
             DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, "Nearest sync point set in the past");
 
             isBlocked = false;
@@ -434,6 +441,7 @@ namespace Antmicro.Renode.Time
             if(!isBlocked)
             {
                 ExecuteSyncPhase();
+                updateNearestSyncPoint = true;
             }
             else
             {
@@ -560,6 +568,7 @@ namespace Antmicro.Renode.Time
         private TimeSpan elapsedAtLastGrant;
         private bool isBlocked;
         private bool isInSyncPhase;
+        private bool updateNearestSyncPoint;
 
         private TimeInterval previousElapsedVirtualTime;
         private readonly TimeVariantValue virtualTicksElapsed;

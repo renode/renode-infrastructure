@@ -58,15 +58,7 @@ namespace Antmicro.Renode.Time
             base.Start();
             while(!isDisposed && period.Ticks > 0)
             {
-                var quantum = NearestSyncPoint - ElapsedVirtualTime;
-                if(quantum > period)
-                {
-                    NearestSyncPoint = ElapsedVirtualTime + period;
-                }
-                if(InnerExecute(out var timeElapsed))
-                {
-                    NearestSyncPoint += Quantum;
-                }
+                InnerExecute(out var timeElapsed, period);
                 period -= timeElapsed;
             }
             base.Stop();
@@ -96,7 +88,6 @@ namespace Antmicro.Renode.Time
                     syncPointReached = InnerExecute(out var notused);
                 }
                 while(!syncPointReached);
-                NearestSyncPoint += Quantum;
             }
             base.Stop();
         }
@@ -156,10 +147,7 @@ namespace Antmicro.Renode.Time
                 while(isStarted)
                 {
                     WaitIfBlocked();
-                    if(InnerExecute(out var notused))
-                    {
-                        NearestSyncPoint += Quantum;
-                    }
+                    InnerExecute(out var notused);
                 }
             }
             catch(Exception e)
