@@ -55,13 +55,14 @@ namespace Antmicro.Renode.Time
         {
             DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
 
-            base.Start();
-            while(!isDisposed && period.Ticks > 0)
+            using(ObtainStartedState())
             {
-                InnerExecute(out var timeElapsed, period);
-                period -= timeElapsed;
+                while(!isDisposed && period.Ticks > 0)
+                {
+                    InnerExecute(out var timeElapsed, period);
+                    period -= timeElapsed;
+                }
             }
-            base.Stop();
         }
 
         /// <summary>
@@ -75,21 +76,22 @@ namespace Antmicro.Renode.Time
         {
             DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
 
-            base.Start();
-            for(var i = 0u; i < numberOfSyncPoints; i++)
+            using(ObtainStartedState())
             {
-                bool syncPointReached;
-                do
+                for(var i = 0u; i < numberOfSyncPoints; i++)
                 {
-                    if(isDisposed)
+                    bool syncPointReached;
+                    do
                     {
-                        break;
+                        if(isDisposed)
+                        {
+                            break;
+                        }
+                        syncPointReached = InnerExecute(out var notused);
                     }
-                    syncPointReached = InnerExecute(out var notused);
+                    while(!syncPointReached);
                 }
-                while(!syncPointReached);
             }
-            base.Stop();
         }
 
         /// <summary>
@@ -137,29 +139,25 @@ namespace Antmicro.Renode.Time
 
         private void Dispatcher()
         {
-            ActivateSlavesSourceSide();
-            try
+#if DEBUG
+            using(this.TraceRegion("Dispatcher loop"))
+#endif
+            using(ObtainSourceActiveState())
+            using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(NearestSyncPoint, Domain)))
             {
-                // we must register this thread as a time provider to get current time stamp from sync hooks
-                TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(NearestSyncPoint, Domain));
-
-                this.Trace("Dispatcher thread started");
-                while(isStarted)
+                try
                 {
-                    WaitIfBlocked();
-                    InnerExecute(out var notused);
+                    while(isStarted)
+                    {
+                        WaitIfBlocked();
+                        InnerExecute(out var notused);
+                    }
                 }
-            }
-            catch(Exception e)
-            {
-                this.Trace(LogLevel.Error, $"Got an exception: {e.Message} @ {e.StackTrace}");
-                throw;
-            }
-            finally
-            {
-                this.Trace("Dispatcher thread stopped");
-                DeactivateSlavesSourceSide();
-                TimeDomainsManager.Instance.UnregisterCurrentThread();
+                catch(Exception e)
+                {
+                    this.Trace(LogLevel.Error, $"Got an exception: {e.Message} @ {e.StackTrace}");
+                    throw;
+                }
             }
         }
 

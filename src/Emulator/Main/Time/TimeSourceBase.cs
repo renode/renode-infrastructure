@@ -60,6 +60,43 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Activates sources of the time source and provides an object that deactivates them on dispose.
+        /// </summary>
+        protected IDisposable ObtainSourceActiveState()
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.SourceSideActive = true;
+                    slave.RequestStart();
+                }
+            }
+
+            var result = new DisposableWrapper();
+            result.RegisterDisposeAction(() =>
+            {
+                using(sync.HighPriority)
+                {
+                    foreach(var slave in handles.All)
+                    {
+                        slave.SourceSideActive = false;
+                    }
+                }
+            });
+            return result;
+        }
+
+        /// <summary>
+        /// Starts the time source and provides an object that stops it on dispose.
+        /// </summary>
+        protected IDisposable ObtainStartedState()
+        {
+            Start();
+            return new DisposableWrapper().RegisterDisposeAction(() => Stop());
+        }
+
+        /// <summary>
         /// Starts this time source and activates all associated slaves.
         /// </summary>
         /// <returns>False it the handle has already been started.</returns>
