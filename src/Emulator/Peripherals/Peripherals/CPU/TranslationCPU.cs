@@ -1697,10 +1697,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 this.Trace("Setting a new time handle");
-                if(timeHandle != null)
-                {
-                    timeHandle.Dispose();
-                }
+                timeHandle?.Dispose();
                 lock(haltedLock)
                 {
                     timeHandle = value;
