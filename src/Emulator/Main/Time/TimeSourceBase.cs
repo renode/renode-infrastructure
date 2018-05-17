@@ -362,6 +362,9 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public event Action BlockHook;
 
+        /// <summary>
+        /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
+        /// </summary>
         public event Action<TimeInterval> TimePassed;
 
         /// <summary>
