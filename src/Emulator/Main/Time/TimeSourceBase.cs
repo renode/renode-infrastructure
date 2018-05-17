@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Time
         /// </summary>
         protected void Stop()
         {
-            RequestStop();   
+            RequestStop();
             using(sync.HighPriority)
             {
                 if(!isStarted)
