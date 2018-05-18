@@ -853,7 +853,6 @@ namespace UnitTests
                             {
                                 return;
                             }
-                            Thread.Sleep(100);
                             continue;
                         }
 
