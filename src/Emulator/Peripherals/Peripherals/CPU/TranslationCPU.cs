@@ -1714,12 +1714,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 if(!HandleStepping())
                 {
+                    this.Trace();
                     return false;
                 }
             }
 
             if(!TimeHandle.RequestTimeInterval(out var interval))
             {
+                this.Trace();
                 return false;
             }
 

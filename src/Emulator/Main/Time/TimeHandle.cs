@@ -452,6 +452,7 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public void RequestPause()
         {
+            this.Trace();
             PauseRequested?.Invoke();
         }
 
@@ -460,6 +461,7 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public void RequestStart()
         {
+            this.Trace();
             StartRequested?.Invoke();
         }
 
