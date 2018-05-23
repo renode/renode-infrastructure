@@ -1734,6 +1734,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
                 var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
+                if(instructionsToNearestLimit != ulong.MaxValue && unused > 0)
+                {
+                    // we must check for `ulong.MaxValue` as otherwise it would overflow
+                    instructionsToNearestLimit++;
+                }
 
                 // this puts a limit on instructions to execute in one round
                 // and makes timers update independent of the current quantum
