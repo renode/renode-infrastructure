@@ -156,9 +156,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registersMap.Add(offset, new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
             {
                 var res = irqTargets[hartId].levels[(int)level].AcknowledgePendingInterrupt();
+                this.Log(LogLevel.Noisy, "Acknowledging pending interrupt for hart {0} on level {1}: {2}", hartId, level, res);
                 return res;
             }, writeCallback: (_, value) =>
             {
+                this.Log(LogLevel.Noisy, "Completing handling interrupt from source {0} for hart {1} on level {2}", value, hartId, level);
                 irqTargets[hartId].levels[(int)level].CompleteHandlingInterrupt(irqSources[value]);
             }));
         }
@@ -196,6 +198,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 continue;
                             }
 
+                            this.Log(LogLevel.Noisy, "{0} source #{1} for hart {2} on level {3}", bits[bit] ? "Enabling" : "Disabling", sourceNumber, hartId, level);
                             irqTargets[hartId].levels[(int)level].EnableSource(irqSources[sourceNumber], bits[bit]);
                         }
                         RefreshInterrupts();
