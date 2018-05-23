@@ -7,10 +7,10 @@
 using System;
 using System.Threading;
 using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Time
 {
@@ -118,7 +118,29 @@ namespace Antmicro.Renode.Time
                     this.Trace("About to attach to the new master");
                     timeHandle = value;
                     timeHandle.PauseRequested += RequestStop;
+                    timeHandle.StartRequested += HandleStartRequest;
                     StartDispatcher();
+                }
+            }
+        }
+
+        private void HandleStartRequest()
+        {
+            this.Trace();
+            lock(locker)
+            {
+                this.Trace();
+                if(dispatcherThread == null)
+                {
+                    this.Trace();
+                    // if the dispatcher is not started yet - start it
+                    StartDispatcher();
+                }
+                else
+                {
+                    this.Trace();
+                    // if the dispatcher is already running - set the restart flag
+                    dispatcherStartRequested = true;
                 }
             }
         }
@@ -128,85 +150,137 @@ namespace Antmicro.Renode.Time
         /// </summary>
         private void Dispatch()
         {
-            var localCopyOfTimeHandle = TimeHandle;
+            var isLocked = false;
             try
             {
-                // we must register this thread as a time provider to get current time stamp from sync hooks
-                TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(localCopyOfTimeHandle.TimeSource.NearestSyncPoint, localCopyOfTimeHandle.TimeSource.Domain));
-
-                this.Trace("Dispatcher thread started");
-                ActivateSlavesSourceSide();
-                firstIteration = true;
-                localCopyOfTimeHandle.SinkSideActive = true;
-                while(isStarted)
+#if DEBUG
+                using(this.TraceRegion("Dispatcher loop"))
+#endif
+                using(this.ObtainSourceActiveState())
+                using(this.ObtainSinkActiveState())
+                using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TimeSource.NearestSyncPoint, TimeHandle.TimeSource.Domain)))
                 {
-                    WaitIfBlocked();
-                    if(!localCopyOfTimeHandle.RequestTimeInterval(out var intervalGranted))
+                    while(true)
                     {
-                        this.Trace("Time interval request interrupted");
-                        // we will loop here a little when starting the emulation;
-                        // without this sleep the CPU usage might go very high, especially when a lot of nodes are created at the same time
-                        Thread.Sleep(100);
-                        continue;
-                    }
-
-                    if(isPaused && recentlyUnblockedSlaves.Count == 0)
-                    {
-                        this.Trace("Handle paused");
-                        localCopyOfTimeHandle.ReportBackAndBreak(intervalGranted);
-                        continue;
-                    }
-
-                    var quantum = Quantum;
-                    this.Trace($"Current QUANTUM is {quantum.Ticks} ticks");
-                    var timeLeft = intervalGranted;
-
-                    while(waitingForSlave || (timeLeft >= quantum && isStarted))
-                    {
-                        if(!firstIteration && !waitingForSlave)
+                        try
                         {
-                            NearestSyncPoint += quantum;
+                            while(isStarted)
+                            {
+                                WaitIfBlocked();
+                                if(!DispatchInner())
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        catch(Exception e)
+                        {
+                            this.Trace(LogLevel.Error, $"Got an exception: {e.Message} {e.StackTrace}");
+                            throw;
                         }
 
-                        firstIteration = false;
-                        waitingForSlave = false;
-                        bool syncPointReached;
-                        do
+                        lock(locker)
                         {
-                            syncPointReached = InnerExecute(out var elapsed);
-                            timeLeft -= elapsed;
-                            if(!syncPointReached)
+                            if(!dispatcherStartRequested)
                             {
-                                // we should not ask for time grant since the current one is not finished yet
-                                waitingForSlave = true;
-                                goto reportBreak;
+                                this.Trace();
+                                // the `locker` is re-acquired here to
+                                // make sure that dispose-related code of all usings
+                                // is executed before setting `dispatcherThread` to
+                                // null (what allows to start new dispatcher thread);
+                                // otherwise there could be a race condition when
+                                // new thread enters usings (e.g., activates source side)
+                                // and then the old one exits them (deactivating source
+                                // side as a result)
+                                Monitor.Enter(locker, ref isLocked);
+                                break;
                             }
 
+                            dispatcherStartRequested = false;
+                            this.Trace();
                         }
-                        while(!syncPointReached);
                     }
-
-                    localCopyOfTimeHandle.ReportBackAndContinue(timeLeft);
-                    continue;
-                reportBreak:
-                    localCopyOfTimeHandle.ReportBackAndBreak(timeLeft);
                 }
-            }
-            catch(Exception e)
-            {
-                this.Trace(LogLevel.Error, $"Got an exception: {e.Message} {e.StackTrace}");
-                throw;
             }
             finally
             {
-                localCopyOfTimeHandle.SinkSideActive = false;
-                this.Trace("Dispatcher thread stopped");
-                DeactivateSlavesSourceSide();
-                TimeDomainsManager.Instance.UnregisterCurrentThread();
+                dispatcherThread = null;
+                if(isLocked)
+                {
+                    this.Trace();
+                    Monitor.Exit(locker);
+                }
+                this.Trace();
             }
         }
 
-        [PostDeserialization]
+        private bool DispatchInner()
+        {
+            // it might happen that `RequestTimeInterval` finishes with `false`
+            // meaning that the handle was not unblocked - in such case
+            // it is not legal to report progress, hence this flag;
+            // there might be different reasons for the `false` result,
+            // but the value of `recentlyUnblockedSlaves` allows to
+            // recognize the actual reason
+            var doNotReport = false;
+
+            if(!TimeHandle.RequestTimeInterval(out var intervalGranted))
+            {
+                this.Trace("Time interval request interrupted");
+
+                // we cannot stop the thread if some slaves has just been unblocked
+                // - we must first read their status
+                if(recentlyUnblockedSlaves.Count == 0)
+                {
+                    this.Trace();
+                    return false;
+                }
+                else
+                {
+                    DebugHelper.Assert(waitingForSlave, "Expected waiting for slave state");
+                }
+                this.Trace();
+                doNotReport = true;
+            }
+
+            if(isPaused && recentlyUnblockedSlaves.Count == 0)
+            {
+                this.Trace("Handle paused");
+                if(!doNotReport)
+                {
+                    TimeHandle.ReportBackAndBreak(intervalGranted);
+                }
+                return true;
+            }
+
+            var quantum = Quantum;
+            this.Trace($"Current QUANTUM is {quantum.Ticks} ticks");
+            var timeLeft = intervalGranted;
+
+            while(waitingForSlave || (timeLeft >= quantum && isStarted))
+            {
+                waitingForSlave = false;
+                var syncPointReached = InnerExecute(out var elapsed);
+                timeLeft -= elapsed;
+                if(!syncPointReached)
+                {
+                    // we should not ask for time grant since the current one is not finished yet
+                    waitingForSlave = true;
+                    if(!doNotReport)
+                    {
+                        TimeHandle.ReportBackAndBreak(timeLeft);
+                    }
+                    return true;
+                }
+            }
+
+            if(!doNotReport)
+            {
+                TimeHandle.ReportBackAndContinue(timeLeft);
+            }
+            return true;
+        }
+
         private void StartDispatcher()
         {
             lock(locker)
@@ -224,22 +298,23 @@ namespace Antmicro.Renode.Time
 
         private void StopDispatcher()
         {
+            Thread threadToJoin = null;
             lock(locker)
             {
                 isStarted = false;
                 if(dispatcherThread != null && Thread.CurrentThread.ManagedThreadId != dispatcherThread.ManagedThreadId)
                 {
-                    dispatcherThread.Join();
+                    threadToJoin = dispatcherThread;
                 }
-                dispatcherThread = null;
             }
+            threadToJoin?.Join();
         }
 
         [Transient]
         private Thread dispatcherThread;
         private TimeHandle timeHandle;
         private bool waitingForSlave;
-        private bool firstIteration;
+        private bool dispatcherStartRequested;
         private readonly Machine machine;
         private readonly object locker;
     }

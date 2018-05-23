@@ -398,6 +398,7 @@
     <Compile Include="Peripherals\Bus\SymbolAddress.cs" />
     <Compile Include="Peripherals\Bus\ELFExtensions.cs" />
     <Compile Include="Peripherals\Bus\ISymbolEntryExtensions.cs" />
+    <Compile Include="Utilities\DisposableWrapper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

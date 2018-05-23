@@ -60,6 +60,43 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Activates sources of the time source and provides an object that deactivates them on dispose.
+        /// </summary>
+        protected IDisposable ObtainSourceActiveState()
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.SourceSideActive = true;
+                    slave.RequestStart();
+                }
+            }
+
+            var result = new DisposableWrapper();
+            result.RegisterDisposeAction(() =>
+            {
+                using(sync.HighPriority)
+                {
+                    foreach(var slave in handles.All)
+                    {
+                        slave.SourceSideActive = false;
+                    }
+                }
+            });
+            return result;
+        }
+
+        /// <summary>
+        /// Starts the time source and provides an object that stops it on dispose.
+        /// </summary>
+        protected IDisposable ObtainStartedState()
+        {
+            Start();
+            return new DisposableWrapper().RegisterDisposeAction(() => Stop());
+        }
+
+        /// <summary>
         /// Starts this time source and activates all associated slaves.
         /// </summary>
         /// <returns>False it the handle has already been started.</returns>
@@ -80,8 +117,25 @@ namespace Antmicro.Renode.Time
                 }
 
                 isStarted = true;
-                ActivateSlavesSourceSide();
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Requests start of all registered slaves.
+        /// </summary>
+        /// <remark>
+        /// The method should be called after activating this source using <cref="ActivateSlavesSourceSize">,
+        /// otherwise a race condition situation might happen.
+        /// </remark>
+        protected void RequestSlavesStart()
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.RequestStart();
+                }
             }
         }
 
@@ -98,7 +152,7 @@ namespace Antmicro.Renode.Time
         /// </summary>
         protected void Stop()
         {
-            RequestStop();   
+            RequestStop();
             using(sync.HighPriority)
             {
                 if(!isStarted)
@@ -106,7 +160,6 @@ namespace Antmicro.Renode.Time
                     this.Trace("Not started");
                     return;
                 }
-                DeactivateSlavesSourceSide();
 
                 // we must wait for unblocked slaves to finish their work
                 sync.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
@@ -156,6 +209,11 @@ namespace Antmicro.Renode.Time
                 var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
                 StopRequested += handle.RequestPause;
                 handles.Add(handle);
+#if DEBUG
+                this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
+#endif
+                // assigning TimeHandle to a sink must be done when everything is configured, otherwise a race condition might happen (dispatcher starts its execution when time source and handle are not yet ready)
+                sink.TimeHandle = handle;
             }
         }
 
@@ -287,7 +345,7 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
         /// </summary>
-        public TimeInterval NearestSyncPoint { get; protected set; }
+        public TimeInterval NearestSyncPoint { get; private set; }
 
         /// <summary>
         /// Gets the number of synchronizations points reached so far.
@@ -304,6 +362,9 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public event Action BlockHook;
 
+        /// <summary>
+        /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
+        /// </summary>
         public event Action<TimeInterval> TimePassed;
 
         /// <summary>
@@ -320,11 +381,18 @@ namespace Antmicro.Renode.Time
         /// (6) execute sync hook and delayed actions if any
         /// </remarks>
         /// <param name="virtualTimeElapsed">Contains the amount of virtual time that passed during execution of this method. It is the minimal value reported by a slave (i.e, some slaves can report higher/lower values).</param>
+        /// <param name="timeLimit">Maximum amount of virtual time that can pass during the execution of this method. If not set, current <see cref="Quantum"> is used.</param>
         /// <returns>
         /// True if sync point has just been reached or False if the execution has been blocked.
         /// </returns>
-        protected bool InnerExecute(out TimeInterval virtualTimeElapsed)
+        protected bool InnerExecute(out TimeInterval virtualTimeElapsed, TimeInterval? timeLimit = null)
         {
+            if(updateNearestSyncPoint)
+            {
+                NearestSyncPoint += timeLimit.HasValue ? TimeInterval.Min(timeLimit.Value, Quantum) : Quantum;
+                updateNearestSyncPoint = false;
+                this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
+            }
             DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, "Nearest sync point set in the past");
 
             isBlocked = false;
@@ -335,16 +403,6 @@ namespace Antmicro.Renode.Time
             State = TimeSourceState.ReportingElapsedTime;
             using(sync.LowPriority)
             {
-                if((isPaused || !isStarted) && recentlyUnblockedSlaves.Count == 0)
-                {
-                    // the time source is not started and it has not acknowledged any unblocks - it means no one is currently working
-                    DebugHelper.Assert(handles.All.All(x => !x.SourceSideActive), "No source side active slaves were expected at this point.");
-
-                    State = TimeSourceState.Idle;
-                    EnterBlockedState();
-                    return false;
-                }
-
                 handles.LatchAllAndCollectGarbage();
                 var shouldGrantTime = handles.AreAllReadyForNewGrant;
 
@@ -431,6 +489,7 @@ namespace Antmicro.Renode.Time
             if(!isBlocked)
             {
                 ExecuteSyncPhase();
+                updateNearestSyncPoint = true;
             }
             else
             {
@@ -453,6 +512,10 @@ namespace Antmicro.Renode.Time
                 foreach(var slave in handles.All)
                 {
                     slave.SourceSideActive = state;
+                    if(state)
+                    {
+                        slave.RequestStart();
+                    }
                 }
             }
         }
@@ -547,7 +610,7 @@ namespace Antmicro.Renode.Time
         /// Used to request a pause on sinks before trying to acquire their locks.
         /// </summary>
         /// <remarks>
-        /// Triggering this event can improve pausing efficency by interrupting the sink execution in the middle of a quant.
+        /// Triggering this event can improve pausing efficiency by interrupting the sink execution in the middle of a quant.
         /// </remarks>
         private event Action StopRequested;
 
@@ -557,6 +620,7 @@ namespace Antmicro.Renode.Time
         private TimeSpan elapsedAtLastGrant;
         private bool isBlocked;
         private bool isInSyncPhase;
+        private bool updateNearestSyncPoint;
 
         private TimeInterval previousElapsedVirtualTime;
         private readonly TimeVariantValue virtualTicksElapsed;

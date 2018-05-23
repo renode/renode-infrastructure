@@ -19,7 +19,9 @@ namespace UnitTests
         public void SetUp()
         {
             tsource = new MockTimeSource();
-            handle = new TimeHandle(tsource, new MockTimeSink());
+            var mockSink = new MockTimeSink();
+            handle = new TimeHandle(tsource, mockSink);
+            mockSink.TimeHandle = handle;
             tester = new ThreadSyncTester();
 
             sourceThread = tester.ObtainThread("source");

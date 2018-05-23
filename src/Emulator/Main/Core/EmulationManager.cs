@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Core
 
         static EmulationManager()
         {
-            ExternalWorld = new ExternalWordlTimeDomain();
+            ExternalWorld = new ExternalWorldTimeDomain();
             RebuildInstance();
         }
 
@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Core
         /// <remarks>
         /// Is used as a source of all external, asynchronous input events (e.g., user input on uart analyzer).
         /// </remarks>
-        private class ExternalWordlTimeDomain : ITimeDomain
+        private class ExternalWorldTimeDomain : ITimeDomain
         {
         }
     }

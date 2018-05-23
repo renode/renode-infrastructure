@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Time
 {
@@ -52,21 +53,17 @@ namespace Antmicro.Renode.Time
         /// <param name="period">Amount of virtual time to pass.</param>
         public void RunFor(TimeInterval period)
         {
-            base.Start();
-            while(!isDisposed && period.Ticks > 0)
+            DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
+
+            using(ObtainStartedState())
+            using(this.ObtainSourceActiveState())
             {
-                var quantum = NearestSyncPoint - ElapsedVirtualTime;
-                if(quantum > period)
+                while(!isDisposed && period.Ticks > 0)
                 {
-                    NearestSyncPoint = ElapsedVirtualTime + period;
+                    InnerExecute(out var timeElapsed, period);
+                    period -= timeElapsed;
                 }
-                if(InnerExecute(out var timeElapsed))
-                {
-                    NearestSyncPoint += Quantum;
-                }
-                period -= timeElapsed;
             }
-            base.Stop();
         }
 
         /// <summary>
@@ -78,22 +75,25 @@ namespace Antmicro.Renode.Time
         /// <param name="numberOfSyncPoints">Number of synchronization points to pass (default 1).</param>
         public void Run(uint numberOfSyncPoints = 1)
         {
-            base.Start();
-            for(var i = 0u; i < numberOfSyncPoints; i++)
+            DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
+
+            using(ObtainStartedState())
+            using(this.ObtainSourceActiveState())
             {
-                bool syncPointReached;
-                do
+                for(var i = 0u; i < numberOfSyncPoints; i++)
                 {
-                    if(isDisposed)
+                    bool syncPointReached;
+                    do
                     {
-                        break;
+                        if(isDisposed)
+                        {
+                            break;
+                        }
+                        syncPointReached = InnerExecute(out var notused);
                     }
-                    syncPointReached = InnerExecute(out var notused);
+                    while(!syncPointReached);
                 }
-                while(!syncPointReached);
-                NearestSyncPoint += Quantum;
             }
-            base.Stop();
         }
 
         /// <summary>
@@ -141,32 +141,25 @@ namespace Antmicro.Renode.Time
 
         private void Dispatcher()
         {
-            ActivateSlavesSourceSide();
-            try
+#if DEBUG
+            using(this.TraceRegion("Dispatcher loop"))
+#endif
+            using(ObtainSourceActiveState())
+            using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(NearestSyncPoint, Domain)))
             {
-                // we must register this thread as a time provider to get current time stamp from sync hooks
-                TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(NearestSyncPoint, Domain));
-
-                this.Trace("Dispatcher thread started");
-                while(isStarted)
+                try
                 {
-                    WaitIfBlocked();
-                    if(InnerExecute(out var notused))
+                    while(isStarted)
                     {
-                        NearestSyncPoint += Quantum;
+                        WaitIfBlocked();
+                        InnerExecute(out var notused);
                     }
                 }
-            }
-            catch(Exception e)
-            {
-                this.Trace(LogLevel.Error, $"Got an exception: {e.Message} @ {e.StackTrace}");
-                throw;
-            }
-            finally
-            {
-                this.Trace("Dispatcher thread stopped");
-                DeactivateSlavesSourceSide();
-                TimeDomainsManager.Instance.UnregisterCurrentThread();
+                catch(Exception e)
+                {
+                    this.Trace(LogLevel.Error, $"Got an exception: {e.Message} @ {e.StackTrace}");
+                    throw;
+                }
             }
         }
 
