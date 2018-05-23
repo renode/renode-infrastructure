@@ -9,4 +9,3 @@
 #include "renode_imports.h"
 
 EXTERNAL_AS(func_uint64, GetCPUTime, tlib_get_cpu_time)
-EXTERNAL_AS(action_uint32, PrivilegeLevelChanged, tlib_privilege_level_changed)

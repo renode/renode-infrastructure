@@ -122,14 +122,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             return clint.TimerValue;
         }
 
-        [Export]
-        private void PrivilegeLevelChanged(uint level)
-        {
-            PrivLevelChanged?.Invoke((PrivilegeLevel)level);
-        }
-
-        public event Action<PrivilegeLevel> PrivLevelChanged;
-
         private readonly CoreLevelInterruptor clint;
 
         private readonly PrivilegeMode mode;
