@@ -20,13 +20,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(PlatformLevelInterruptController plic, CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
+        protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             clint.RegisterCPU(this);
             this.clint = clint;
-            plic.RegisterCPU(this);
-            this.plic = plic;
+            mode = privilegeMode;
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -53,9 +52,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
+            if(!IsValidInterrupt(number))
+            {
+                throw new ArgumentOutOfRangeException($"Unsupported exception #{number}");
+            }
 
-            TlibSetInterrupt((uint)number, value ? 1u : 0u);
+            // we don't log warning when value is false to handle gpio initial reset
+            if(mode == PrivilegeMode.Priv1_10 && !IsValidInterruptInV10(number) && value)
+            {
+                this.Log(LogLevel.Warning, "Interrupt {0} not supported in Privileged ISA v1.09", (IrqType)number);
+                return;
+            }
 
+            TlibSetMipBit((uint)number, value ? 1u : 0u);
             base.OnGPIO(number, value);
         }
 
@@ -90,11 +99,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override Interrupt DecodeInterrupt(int number)
         {
-            if(number == 0 || number == 1 || number == 2)
-            {
-                return Interrupt.Hard;
-            }
-            throw InvalidInterruptNumberException;
+            return Interrupt.Hard;
         }
 
         private IEnumerable<InstructionSet> DecodeArchitecture(string architecture)
@@ -126,7 +131,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public event Action<PrivilegeLevel> PrivLevelChanged;
 
         private readonly CoreLevelInterruptor clint;
-        private readonly PlatformLevelInterruptController plic;
+
+        private readonly PrivilegeMode mode;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -146,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 TlibSetPrivilegeMode109;
 
         [Import]
-        private ActionUInt32UInt32 TlibSetInterrupt;
+        private ActionUInt32UInt32 TlibSetMipBit;
 
         [Import]
         private ActionUInt32 TlibSetHartId;
@@ -176,14 +182,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
         }
 
-        protected enum IrqType
+        private static bool IsValidInterrupt(int irq)
         {
+            return irq >= (int)IrqType.UserSoftwareInterrupt && irq <= (int)IrqType.MachineExternalInterrupt;
+        }
+
+        private static bool IsValidInterruptInV10(int irq)
+        {
+            return irq != (int)IrqType.HypervisorExternalInterrupt
+                && irq != (int)IrqType.HypervisorSoftwareInterrupt
+                && irq != (int)IrqType.HypervisorTimerInterrupt;
+        }
+
+        private enum IrqType
+        {
+            UserSoftwareInterrupt = 0x0,
             SupervisorSoftwareInterrupt = 0x1,
+            HypervisorSoftwareInterrupt = 0x2,
             MachineSoftwareInterrupt = 0x3,
-            SupervisorTimerIrq = 0x5,
-            MachineTimerIrq = 0x7,
-            SupervisorExternalIrq = 0x9,
-            MachineExternalIrq = 0xb
+            UserTimerInterrupt = 0x4,
+            SupervisorTimerInterrupt = 0x5,
+            HypervisorTimerInterrupt = 0x6,
+            MachineTimerInterrupt = 0x7,
+            UserExternalInterrupt = 0x8,
+            SupervisorExternalInterrupt = 0x9,
+            HypervisorExternalInterrupt = 0xa,
+            MachineExternalInterrupt = 0xb
         }
     }
 }

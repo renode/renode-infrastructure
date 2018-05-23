@@ -11,8 +11,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         User = 0,
         Supervisor = 1,
-        //The Hypervisor level is not yet supported
-        //Hypervisor = 2,
+        Hypervisor = 2,
         Machine = 3
     }
 }

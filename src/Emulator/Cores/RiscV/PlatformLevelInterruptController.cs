@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             this.machine = machine;
             var connections = new Dictionary<int, IGPIO>();
-            for(var i = 0; i < numberOfTargets; i++)
+            for(var i = 0; i < 4 * numberOfTargets; i++)
             {
                 connections[i] = new GPIO();
             }
@@ -91,12 +91,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
-        }
-
-        public void RegisterCPU(BaseRiscV cpu)
-        {
-            this.cpu = cpu;
-            cpu.PrivLevelChanged += _ => RefreshInterrupts();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -161,10 +155,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             registersMap.Add(offset, new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
             {
-                return irqTargets[hartId].levelRelated[level].AcknowledgePendingInterrupt();
+                var res = irqTargets[hartId].levels[(int)level].AcknowledgePendingInterrupt();
+                return res;
             }, writeCallback: (_, value) =>
             {
-                irqTargets[hartId].levelRelated[level].CompleteHandlingInterrupt(irqSources[value]);
+                irqTargets[hartId].levels[(int)level].CompleteHandlingInterrupt(irqSources[value]);
             }));
         }
 
@@ -201,19 +196,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 continue;
                             }
 
-                            //TODO: This is a hack to be removed after improving the privilege level handling
-                            foreach(PrivilegeLevel llevel in Enum.GetValues(typeof(PrivilegeLevel)))
-                            {
-                                irqTargets[hartId].levelRelated[llevel].EnableSource(irqSources[sourceNumber], bits[bit]);
-                            }
+                            irqTargets[hartId].levels[(int)level].EnableSource(irqSources[sourceNumber], bits[bit]);
                         }
                         RefreshInterrupts();
                     }
                 }));
             }
         }
-
-        private BaseRiscV cpu;
 
         private readonly IrqSource[] irqSources;
         private readonly IrqTarget[] irqTargets;
@@ -254,46 +243,39 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             public IrqTarget(uint id, PlatformLevelInterruptController irqController)
             {
-                Id = id;
-                this.irqController = irqController;
-
-                levelRelated = new Dictionary<PrivilegeLevel, LevelRelatedData>
+                levels = new IrqTargetHandler[]
                 {
-                    { PrivilegeLevel.Machine, new LevelRelatedData(this) },
-                    { PrivilegeLevel.Supervisor, new LevelRelatedData(this) },
-                    { PrivilegeLevel.User, new LevelRelatedData(this) }
+                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.User),
+                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.Supervisor),
+                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.Hypervisor),
+                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.Machine)
                 };
             }
 
             public void RefreshAllInterrupts()
             {
-                foreach(var lr in levelRelated.Values)
+                foreach(var lr in levels)
                 {
-                    lr.RefreshInterrupts();    
+                    lr.RefreshInterrupt();
                 }
             }
 
             public void Reset()
             {
-                foreach(var lr in levelRelated.Values)
+                foreach(var lr in levels)
                 {
-                    lr.activeInterrupts.Clear();
-                    lr.enabledSources.Clear();
+                    lr.Reset();
                 }
-
-                RefreshAllInterrupts();
             }
 
-            public uint Id { get; private set; }
+            public readonly IrqTargetHandler[] levels;
 
-            public readonly Dictionary<PrivilegeLevel, LevelRelatedData> levelRelated;
-            private readonly PlatformLevelInterruptController irqController;
-
-            public class LevelRelatedData
+            public class IrqTargetHandler
             {
-                public LevelRelatedData(IrqTarget parent)
+                public IrqTargetHandler(PlatformLevelInterruptController irqController, uint irqId)
                 {
-                    this.parent = parent;
+                    this.irqController = irqController;
+                    this.irqId = irqId;
 
                     enabledSources = new HashSet<IrqSource>();
                     activeInterrupts = new Stack<IrqSource>();
@@ -302,30 +284,39 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 public HashSet<IrqSource> enabledSources;
                 public Stack<IrqSource> activeInterrupts;
 
-                public void RefreshInterrupts()
+                public void Reset()
                 {
-                    lock(parent.irqController.irqSources)
+                    activeInterrupts.Clear();
+                    enabledSources.Clear();
+
+                    RefreshInterrupt();
+                }
+
+                public void RefreshInterrupt()
+                {
+                    lock(irqController.irqSources)
                     {
                         var currentPriority = activeInterrupts.Count > 0 ? activeInterrupts.Peek().Priority : 0;
-                        parent.irqController.Connections[(int)parent.Id].Set(enabledSources.Any(x => x.Priority > currentPriority && x.IsPending));
+                        var isPending = enabledSources.Any(x => x.Priority > currentPriority && x.IsPending);
+                        irqController.Connections[(int)irqId].Set(isPending);
                     }
                 }
 
                 public void CompleteHandlingInterrupt(IrqSource irq)
                 {
-                    lock(parent.irqController.irqSources)
+                    lock(irqController.irqSources)
                     {
-                        parent.irqController.Log(LogLevel.Noisy, "Completing irq {0} at target {1}", irq.Id, parent.Id);
+                        irqController.Log(LogLevel.Noisy, "Completing irq {0} at target {1}", irq.Id, irqId);
 
                         var topActiveInterrupt = activeInterrupts.Pop();
                         if(topActiveInterrupt != irq)
                         {
-                            parent.irqController.Log(LogLevel.Error, "Trying to complete irq {0} at target {1}, but {2} is the active one", irq.Id, parent.Id, topActiveInterrupt.Id);
+                            irqController.Log(LogLevel.Error, "Trying to complete irq {0} at target {1}, but {2} is the active one", irq.Id, irqId, topActiveInterrupt.Id);
                             return;
                         }
 
                         irq.IsPending = irq.State;
-                        RefreshInterrupts();
+                        RefreshInterrupt();
                     }
                 }
 
@@ -339,32 +330,33 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         enabledSources.Remove(s);
                     }
-                    RefreshInterrupts();
+                    RefreshInterrupt();
                 }
 
                 public uint AcknowledgePendingInterrupt()
                 {
-                    lock(parent.irqController.irqSources)
+                    lock(irqController.irqSources)
                     {
                         var pendingIrq = enabledSources.Where(x => x.IsPending)
                             .OrderByDescending(x => x.Priority)
                             .ThenBy(x => x.Id).FirstOrDefault();
                         if(pendingIrq == null)
                         {
-                            parent.irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for target {0}", parent.Id);
+                            irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for target {0}", irqId);
                             return 0;
                         }
                         pendingIrq.IsPending = false;
                         activeInterrupts.Push(pendingIrq);
 
-                        parent.irqController.Log(LogLevel.Noisy, "Acknowledging pending interrupt #{0} at target {1}", pendingIrq.Id, parent.Id);
+                        irqController.Log(LogLevel.Noisy, "Acknowledging pending interrupt #{0} at target {1}", pendingIrq.Id, irqId);
 
-                        RefreshInterrupts();
+                        RefreshInterrupt();
                         return pendingIrq.Id;
                     }
                 }
 
-                private readonly IrqTarget parent;
+                private readonly uint irqId;
+                private readonly PlatformLevelInterruptController irqController;
             }
         }
 
