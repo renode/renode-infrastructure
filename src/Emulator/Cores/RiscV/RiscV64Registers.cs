@@ -66,7 +66,32 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue64((int)RiscV64Registers.PC, value);
             }
         }
+        [Register]
+        public RegisterValue PRIV
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.PRIV);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.PRIV, value);
+            }
+        }
+        [Register]
+        public RegisterValue MCAUSE
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.MCAUSE);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.MCAUSE, value);
+            }
+        }
         public RegistersGroup X { get; private set; }
+        public RegistersGroup F { get; private set; }
 
         protected override void InitializeRegisters()
         {
@@ -109,6 +134,46 @@ namespace Antmicro.Renode.Peripherals.CPU
                 indexValueMapX.Keys,
                 i => GetRegisterUnsafe((int)indexValueMapX[i]),
                 (i, v) => SetRegisterUnsafe((int)indexValueMapX[i], v));
+
+            var indexValueMapF = new Dictionary<int, RiscV64Registers>
+            {
+                { 0, RiscV64Registers.F0 },
+                { 1, RiscV64Registers.F1 },
+                { 2, RiscV64Registers.F2 },
+                { 3, RiscV64Registers.F3 },
+                { 4, RiscV64Registers.F4 },
+                { 5, RiscV64Registers.F5 },
+                { 6, RiscV64Registers.F6 },
+                { 7, RiscV64Registers.F7 },
+                { 8, RiscV64Registers.F8 },
+                { 9, RiscV64Registers.F9 },
+                { 10, RiscV64Registers.F10 },
+                { 11, RiscV64Registers.F11 },
+                { 12, RiscV64Registers.F12 },
+                { 13, RiscV64Registers.F13 },
+                { 14, RiscV64Registers.F14 },
+                { 15, RiscV64Registers.F15 },
+                { 16, RiscV64Registers.F16 },
+                { 17, RiscV64Registers.F17 },
+                { 18, RiscV64Registers.F18 },
+                { 19, RiscV64Registers.F19 },
+                { 20, RiscV64Registers.F20 },
+                { 21, RiscV64Registers.F21 },
+                { 22, RiscV64Registers.F22 },
+                { 23, RiscV64Registers.F23 },
+                { 24, RiscV64Registers.F24 },
+                { 25, RiscV64Registers.F25 },
+                { 26, RiscV64Registers.F26 },
+                { 27, RiscV64Registers.F27 },
+                { 28, RiscV64Registers.F28 },
+                { 29, RiscV64Registers.F29 },
+                { 30, RiscV64Registers.F30 },
+                { 31, RiscV64Registers.F31 },
+            };
+            F = new RegistersGroup(
+                indexValueMapF.Keys,
+                i => GetRegisterUnsafe((int)indexValueMapF[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapF[i], v));
 
         }
 
@@ -157,6 +222,40 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV64Registers.X30,  new CPURegister(30, 64, true) },
             { RiscV64Registers.X31,  new CPURegister(31, 64, true) },
             { RiscV64Registers.PC,  new CPURegister(32, 64, true) },
+            { RiscV64Registers.F0,  new CPURegister(33, 64, false) },
+            { RiscV64Registers.F1,  new CPURegister(34, 64, false) },
+            { RiscV64Registers.F2,  new CPURegister(35, 64, false) },
+            { RiscV64Registers.F3,  new CPURegister(36, 64, false) },
+            { RiscV64Registers.F4,  new CPURegister(37, 64, false) },
+            { RiscV64Registers.F5,  new CPURegister(38, 64, false) },
+            { RiscV64Registers.F6,  new CPURegister(39, 64, false) },
+            { RiscV64Registers.F7,  new CPURegister(40, 64, false) },
+            { RiscV64Registers.F8,  new CPURegister(41, 64, false) },
+            { RiscV64Registers.F9,  new CPURegister(42, 64, false) },
+            { RiscV64Registers.F10,  new CPURegister(43, 64, false) },
+            { RiscV64Registers.F11,  new CPURegister(44, 64, false) },
+            { RiscV64Registers.F12,  new CPURegister(45, 64, false) },
+            { RiscV64Registers.F13,  new CPURegister(46, 64, false) },
+            { RiscV64Registers.F14,  new CPURegister(47, 64, false) },
+            { RiscV64Registers.F15,  new CPURegister(48, 64, false) },
+            { RiscV64Registers.F16,  new CPURegister(49, 64, false) },
+            { RiscV64Registers.F17,  new CPURegister(50, 64, false) },
+            { RiscV64Registers.F18,  new CPURegister(51, 64, false) },
+            { RiscV64Registers.F19,  new CPURegister(52, 64, false) },
+            { RiscV64Registers.F20,  new CPURegister(53, 64, false) },
+            { RiscV64Registers.F21,  new CPURegister(54, 64, false) },
+            { RiscV64Registers.F22,  new CPURegister(55, 64, false) },
+            { RiscV64Registers.F23,  new CPURegister(56, 64, false) },
+            { RiscV64Registers.F24,  new CPURegister(57, 64, false) },
+            { RiscV64Registers.F25,  new CPURegister(58, 64, false) },
+            { RiscV64Registers.F26,  new CPURegister(59, 64, false) },
+            { RiscV64Registers.F27,  new CPURegister(60, 64, false) },
+            { RiscV64Registers.F28,  new CPURegister(61, 64, false) },
+            { RiscV64Registers.F29,  new CPURegister(62, 64, false) },
+            { RiscV64Registers.F30,  new CPURegister(63, 64, false) },
+            { RiscV64Registers.F31,  new CPURegister(64, 64, false) },
+            { RiscV64Registers.MCAUSE,  new CPURegister(834, 64, false) },
+            { RiscV64Registers.PRIV,  new CPURegister(4161, 64, false) },
         };
     }
 
@@ -164,6 +263,8 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         ZERO = 0,
         PC = 32,
+        PRIV = 4161,
+        MCAUSE = 834,
         X0 = 0,
         X1 = 1,
         X2 = 2,
@@ -196,5 +297,37 @@ namespace Antmicro.Renode.Peripherals.CPU
         X29 = 29,
         X30 = 30,
         X31 = 31,
+        F0 = 33,
+        F1 = 34,
+        F2 = 35,
+        F3 = 36,
+        F4 = 37,
+        F5 = 38,
+        F6 = 39,
+        F7 = 40,
+        F8 = 41,
+        F9 = 42,
+        F10 = 43,
+        F11 = 44,
+        F12 = 45,
+        F13 = 46,
+        F14 = 47,
+        F15 = 48,
+        F16 = 49,
+        F17 = 50,
+        F18 = 51,
+        F19 = 52,
+        F20 = 53,
+        F21 = 54,
+        F22 = 55,
+        F23 = 56,
+        F24 = 57,
+        F25 = 58,
+        F26 = 59,
+        F27 = 60,
+        F28 = 61,
+        F29 = 62,
+        F30 = 63,
+        F31 = 64,
     }
 }
