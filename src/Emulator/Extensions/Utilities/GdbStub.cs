@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Utilities
                     return;
                 }
 
-                cpu.Log(LogLevel.Noisy, "GDB packet received: {0}", result.Packet.Data.DataAsString);
+                cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.DataAsString);
                 // send ACK
                 ctx.Send((byte)'+');
 
