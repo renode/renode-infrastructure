@@ -58,14 +58,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             for(var hart = 0; hart < MaxNumberOfTargets; ++hart)
             {
                 var hartId = hart;
-                registersMap.Add((long)Registers.MSipHart0 + 4 * hartId, new DoubleWordRegister(this).WithFlag(0, writeCallback: (_, value) => { irqs[2 * hartId + 1].Set(value); }));
+                registersMap.Add((long)Registers.MSipHart0 + 4 * hartId, new DoubleWordRegister(this).WithFlag(0, writeCallback: (_, value) => { irqs[2 * hartId].Set(value); }));
                 registersMap.Add((long)Registers.MTimeCmpHart0Lo + 8 * hartId, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
                 {
                     var limit = mTimers[hartId].Compare;
                     limit &= ~0xffffffffUL;
                     limit |= value;
 
-                    irqs[2 * hartId].Set(false);
+                    irqs[2 * hartId + 1].Set(false);
                     mTimers[hartId].Compare = limit;
                 }));
 
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     limit &= 0xffffffffUL;
                     limit |= (ulong)value << 32;
 
-                    irqs[2 * hartId].Set(false);
+                    irqs[2 * hartId + 1].Set(false);
                     mTimers[hartId].Compare = limit;
                 }));
             }
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             irqs[2 * hartId + 1] = new GPIO();
 
             var timer = new ComparingTimer(machine.ClockSource, timerFrequency, enabled: true, eventEnabled: true);
-            timer.CompareReached += () => irqs[2 * hartId].Set(true);
+            timer.CompareReached += () => irqs[2 * hartId + 1].Set(true);
 
             mTimers.Add(hartId, timer);
         }
