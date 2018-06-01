@@ -20,12 +20,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeMode privilegeMode, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
+        protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             clint.RegisterCPU(this);
             this.clint = clint;
-            mode = privilegeMode;
+            this.privilegeArchitecture = privilegeArchitecture;
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Log(LogLevel.Warning, $"Undefined instruction set: {char.ToUpper((char)(set + 'A'))}.");
                 }
             }
-            TlibSetPrivilegeMode109(privilegeMode == PrivilegeMode.Priv1_09 ? 1 : 0u);
+            TlibSetPrivilegeArchitecture109(privilegeArchitecture == PrivilegeArchitecture.Priv1_09 ? 1 : 0u);
         }
 
         public override void OnGPIO(int number, bool value)
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             // we don't log warning when value is false to handle gpio initial reset
-            if(mode == PrivilegeMode.Priv1_10 && !IsValidInterruptInV10(number) && value)
+            if(privilegeArchitecture == PrivilegeArchitecture.Priv1_10 && !IsValidInterruptInV10(number) && value)
             {
                 this.Log(LogLevel.Warning, "Interrupt {0} not supported in Privileged ISA v1.09", (IrqType)number);
                 return;
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly CoreLevelInterruptor clint;
 
-        private readonly PrivilegeMode mode;
+        private readonly PrivilegeArchitecture privilegeArchitecture;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -140,8 +140,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionInt32 TlibResetExecutedInstructions;
 
-        [Import(Name="tlib_set_privilege_mode_1_09")]
-        private ActionUInt32 TlibSetPrivilegeMode109;
+        [Import(Name="tlib_set_privilege_architecture_1_09")]
+        private ActionUInt32 TlibSetPrivilegeArchitecture109;
 
         [Import]
         private ActionUInt32UInt32 TlibSetMipBit;
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetHartId;
 #pragma warning restore 649
 
-        public enum PrivilegeMode
+        public enum PrivilegeArchitecture
         {
             Priv1_09,
             Priv1_10
