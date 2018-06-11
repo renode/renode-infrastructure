@@ -17,9 +17,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public class FE310_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
+    public class SiFive_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public FE310_GPIO(Machine machine) : base(machine, 32)
+        public SiFive_GPIO(Machine machine) : base(machine, 32)
         {
             locker = new object();
 

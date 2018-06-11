@@ -236,8 +236,8 @@
     <Compile Include="Peripherals\UART\MiV_CoreUART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
     <Compile Include="Peripherals\Miscellaneous\Quark_SystemControlSubsystem.cs" />
-    <Compile Include="Peripherals\UART\FE310_UART.cs" />
-    <Compile Include="Peripherals\GPIOPort\FE310_GPIO.cs" />
+    <Compile Include="Peripherals\UART\SiFive_UART.cs" />
+    <Compile Include="Peripherals\GPIOPort\SiFive_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SiLabs\EFM32xG1xBDeviceInformation.cs" />
     <Compile Include="Peripherals\Miscellaneous\SiLabs\EFM32xGDeviceInformation.cs" />
     <Compile Include="Peripherals\Miscellaneous\SiLabs\EFR32DeviceInformation.cs" />
