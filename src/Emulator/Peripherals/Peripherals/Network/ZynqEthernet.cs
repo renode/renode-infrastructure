@@ -15,9 +15,9 @@ using Antmicro.Renode.Network;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
-    public class CadenceGEM : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
+    public class ZynqEthernet : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
-        public CadenceGEM(Machine machine) : base(machine)
+        public ZynqEthernet(Machine machine) : base(machine)
         {
             registers = new regs();        
             IRQ = new GPIO();
