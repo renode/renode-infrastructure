@@ -150,6 +150,12 @@ namespace Antmicro.Renode.Core
             private set;
         }
 
+        public ulong? FirstNotNullSectionAddress
+        {
+            get;
+            private set;
+        }
+
         /// <summary>
         /// All SymbolLookup objects.
         /// </summary>
@@ -157,7 +163,7 @@ namespace Antmicro.Renode.Core
         static private readonly string[] armSpecificSymbolNames = { "$a", "$d", "$t" };
         static private readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
 
-        private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress) where T: struct
+        private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress) where T : struct
         {
             if(!elf.TryGetSection(".symtab", out var symtabSection))
             {
@@ -171,6 +177,11 @@ namespace Antmicro.Renode.Core
                                 .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined).Select(x => new Symbol(x, thumb));
             InsertSymbols(elfSymbols);
             EntryPoint = elf.GetEntryPoint();
+            FirstNotNullSectionAddress  = elf.Sections
+                                    .Where(x => x.Type != SectionType.Null && x.Flags.HasFlag(SectionFlags.Allocatable))
+                                    .Select(x => x.GetSectionPhysicalAddress())
+                                    .Cast<ulong?>()
+                                    .Min();
             var segments = elf.Segments.Where(x => x.Type == ELFSharp.ELF.Segments.SegmentType.Load).OfType<ELFSharp.ELF.Segments.Segment<T>>();
             foreach(var segment in segments)
             {
