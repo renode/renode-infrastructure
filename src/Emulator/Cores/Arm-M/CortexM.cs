@@ -103,11 +103,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void InitPCAndSP()
         {
-            if(!vtorInitialized && machine.SystemBus.LowestLoadedAddress.HasValue)
+            var firstNotNullSection = machine.SystemBus.Lookup.FirstNotNullSectionAddress;
+            if(!vtorInitialized && firstNotNullSection.HasValue)
             {
-                var value = machine.SystemBus.LowestLoadedAddress.Value;
-                this.Log(LogLevel.Info, "Guessing VectorTableOffset value to be 0x{0:X}.", value);
-                VectorTableOffset = checked((uint)value);
+                if((firstNotNullSection.Value & (2 << 6 - 1)) > 0)
+                {
+                    this.Log(LogLevel.Warning, "Alignment of VectorTableOffset register is not correct.");
+                }
+                else
+                {
+                    var value = firstNotNullSection.Value;
+                    this.Log(LogLevel.Info, "Guessing VectorTableOffset value to be 0x{0:X}.", value);
+                    VectorTableOffset = checked((uint)value);
+                }
             }
             if(pcNotInitialized)
             {
