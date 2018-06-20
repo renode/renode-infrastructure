@@ -6,6 +6,7 @@
 //
 using System;
 using ELFSharp.ELF;
+using ELFSharp.ELF.Sections;
 using ELFSharp.ELF.Segments;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -77,6 +78,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(segment is Segment<ulong> segment64)
             {
                 return segment64.Size;
+            }
+
+            throw new ArgumentException(ExceptionMessage);
+        }
+
+        public static ulong GetSectionPhysicalAddress(this ISection section)
+        {
+            if(section is Section<uint> section32)
+            {
+                return section32.LoadAddress;
+            }
+            if(section is Section<ulong> section64)
+            {
+                return section64.LoadAddress;
             }
 
             throw new ArgumentException(ExceptionMessage);
