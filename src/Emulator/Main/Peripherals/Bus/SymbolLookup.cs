@@ -144,6 +144,12 @@ namespace Antmicro.Renode.Core
             return symbol;
         }
 
+        public SymbolAddress? EntryPoint
+        {
+            get;
+            private set;
+        }
+
         /// <summary>
         /// All SymbolLookup objects.
         /// </summary>
@@ -233,12 +239,6 @@ namespace Antmicro.Renode.Core
                 }
             }
             return symbol;
-        }
-
-        public SymbolAddress? EntryPoint
-        {
-            get;
-            private set;
         }
 
         /// <summary>
