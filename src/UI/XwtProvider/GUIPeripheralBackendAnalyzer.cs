@@ -32,8 +32,13 @@ namespace Antmicro.Renode.UI
 
         public override void AttachTo(T backend)
         {
+#if PLATFORM_WINDOWS
+            //TODO: after adding support for Windows, remove the ifdef in BitmapImageExtensions.cs
+            throw new RecoverableException("Video analyzer is not supported on Windows.");
+#else
             base.AttachTo(backend);
             ApplicationExtensions.InvokeInUIThreadAndWait(() => OnAttach(backend));
+#endif
         }
 
         /// <summary>
