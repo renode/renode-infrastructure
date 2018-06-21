@@ -57,7 +57,7 @@ EXTERNAL_AS(action_intptr, Free, tlib_free)
 EXTERNAL_AS(action_int32, OnTranslationCacheSizeChange, tlib_on_translation_cache_size_change)
 
 EXTERNAL(action_intptr_intptr, invalidate_tb_in_other_cpus)
-void tlib_invalidate_tb_in_other_cpus(unsigned long start, unsigned long end)
+void tlib_invalidate_tb_in_other_cpus(uintptr_t start, uintptr_t end)
 {
   invalidate_tb_in_other_cpus((void*)start, (void*)end);
 }
