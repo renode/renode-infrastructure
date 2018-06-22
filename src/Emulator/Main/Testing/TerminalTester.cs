@@ -135,13 +135,13 @@ namespace Antmicro.Renode.Testing
 
         public TerminalTester NowPromptIs(string prompt)
         {
-            terminal.SetPrompt(prompt);
+            terminal.Prompt = prompt;
             return this;
         }
 
         public TerminalTester NowPromptIsDefault()
         {
-            terminal.SetPrompt(defaultPrompt);
+            terminal.Prompt = defaultPrompt;
             return this;
         }
 

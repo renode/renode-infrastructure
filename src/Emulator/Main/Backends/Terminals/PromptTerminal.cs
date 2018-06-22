@@ -22,12 +22,12 @@ namespace Antmicro.Renode.Backends.Terminals
     {
         public PromptTerminal(Action<string, TimeInterval> onLine = null, Action<TimeInterval> onPrompt = null, string prompt = null)
         {
+            buffer = new StringBuilder();
             if(!string.IsNullOrEmpty(prompt))
             {
-                SetPrompt(prompt);
+                Prompt = prompt;
             }
             internalLock = new object();
-            buffer = new StringBuilder();
             this.onLine = onLine;
             this.onPrompt = onPrompt;
         }
@@ -74,18 +74,7 @@ namespace Antmicro.Renode.Backends.Terminals
                 if(value != 10)
                 {
                     buffer.Append((char)value);
-                    if(promptBytes != null && index < promptBytes.Length)
-                    {
-                        if(promptBytes[index] != value)
-                        {
-                            index = promptBytes.Length + 1; // this way it will never match on this line
-                        }
-                        if(index == promptBytes.Length - 1 && onPrompt != null)
-                        {
-                            onPrompt(machine.ElapsedVirtualTime.TimeElapsed);
-                        }
-                        index++;
-                    }
+                    CheckForPrompt();
                     return;
                 }
                 onLine?.Invoke(buffer.ToString(), machine.ElapsedVirtualTime.TimeElapsed);
@@ -115,9 +104,20 @@ namespace Antmicro.Renode.Backends.Terminals
             WaitBeforeNextChar(); // for consistency
         }
 
-        public void SetPrompt(string prompt)
+        public string Prompt
         {
-            promptBytes = prompt == null ? null : prompt.ToCharArray().Select(x => (byte)x).ToArray();
+            get
+            {
+                return prompt;
+            }
+
+            set
+            {
+                prompt = value;
+                promptBytes = prompt == null ? null : Encoding.UTF8.GetBytes(prompt);
+                index = 0;
+                while(CheckForPrompt());
+            }
         }
 
         public TimeSpan WriteCharDelay { get; set; }
@@ -130,10 +130,30 @@ namespace Antmicro.Renode.Backends.Terminals
             }
         }
 
+        private bool CheckForPrompt()
+        {
+            if(promptBytes != null && index < promptBytes.Length && buffer.Length > 0)
+            {
+                if(promptBytes[index] != buffer[buffer.Length - 1])
+                {
+                    index = promptBytes.Length + 1; // this way it will never match on this line
+                    return false;
+                }
+                if(index == promptBytes.Length - 1 && onPrompt != null)
+                {
+                    onPrompt(machine.ElapsedVirtualTime.TimeElapsed);
+                }
+                index++;
+                return true;
+            }
+            return false;
+        }
+
         private readonly StringBuilder buffer;
         private readonly Action<string, TimeInterval> onLine;
         private readonly Action<TimeInterval> onPrompt;
         private byte[] promptBytes;
+        private string prompt;
         private int index;
         private Machine machine;
         private object internalLock;
