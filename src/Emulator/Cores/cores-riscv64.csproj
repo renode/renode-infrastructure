@@ -38,18 +38,7 @@
       <Endianess Include="le" />
     </ItemGroup>
   </Target>
-  <!-- Those fake targets and conditional importing of a project should be removed once support for 64-bit is introduced for Windows -->
-  <Target Name="Clean">
-  </Target>
-  <Target Name="Build">
-  </Target>
-  <Target Name="CompileTranslationLib">
-  </Target>
-  <Target Name="GetTargetPath">
-  </Target>
-  <Target Name="GetCopyToOutputDirectoryItems">
-  </Target>
-  <Import Project="./cores.template.csproj" Condition=" '$(CurrentPlatform)' != 'Windows' "/>
+  <Import Project="./cores.template.csproj"/>
   <ItemGroup>
     <Compile Include="RiscV\RiscV64.cs" />
     <Compile Include="RiscV\RiscV64Registers.cs">
