@@ -7,86 +7,43 @@
 *
 */
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Sparc
     {
-        public override void SetRegisterUnsafe(int register, uint value)
+        public override void SetRegisterUnsafe(int register, ulong value)
         {
-            SetRegisterValue32(register, value);
+            if(!mapping.TryGetValue((SparcRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override uint GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegisterUnsafe(int register)
         {
-            return GetRegisterValue32(register);
+            if(!mapping.TryGetValue((SparcRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            return GetRegisterValue32(r.Index);
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new CPURegister[] {
-                new CPURegister(0, true),
-                new CPURegister(1, true),
-                new CPURegister(2, true),
-                new CPURegister(3, true),
-                new CPURegister(4, true),
-                new CPURegister(5, true),
-                new CPURegister(6, true),
-                new CPURegister(7, true),
-                new CPURegister(8, true),
-                new CPURegister(9, true),
-                new CPURegister(10, true),
-                new CPURegister(11, true),
-                new CPURegister(12, true),
-                new CPURegister(13, true),
-                new CPURegister(14, true),
-                new CPURegister(15, true),
-                new CPURegister(16, true),
-                new CPURegister(17, true),
-                new CPURegister(18, true),
-                new CPURegister(19, true),
-                new CPURegister(20, true),
-                new CPURegister(21, true),
-                new CPURegister(22, true),
-                new CPURegister(23, true),
-                new CPURegister(24, true),
-                new CPURegister(25, true),
-                new CPURegister(26, true),
-                new CPURegister(27, true),
-                new CPURegister(28, true),
-                new CPURegister(29, true),
-                new CPURegister(30, true),
-                new CPURegister(31, true),
-                new CPURegister(32, true),
-                new CPURegister(33, true),
-                new CPURegister(34, true),
-                new CPURegister(35, true),
-                new CPURegister(36, true),
-                new CPURegister(37, true),
-                new CPURegister(38, true),
-                new CPURegister(39, true),
-                new CPURegister(40, true),
-                new CPURegister(41, true),
-                new CPURegister(42, true),
-                new CPURegister(43, true),
-                new CPURegister(44, true),
-                new CPURegister(45, true),
-                new CPURegister(46, true),
-                new CPURegister(47, true),
-                new CPURegister(48, true),
-                new CPURegister(49, true),
-                new CPURegister(50, true),
-                new CPURegister(51, true),
-                new CPURegister(52, true),
-                new CPURegister(53, true),
-            };
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]
-        public UInt32 PSR
+        public RegisterValue PSR
         {
             get
             {
@@ -97,9 +54,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)SparcRegisters.PSR, value);
             }
         }
-
         [Register]
-        public UInt32 TBR
+        public RegisterValue TBR
         {
             get
             {
@@ -110,9 +66,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)SparcRegisters.TBR, value);
             }
         }
-
         [Register]
-        public UInt32 Y
+        public RegisterValue Y
         {
             get
             {
@@ -123,9 +78,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)SparcRegisters.Y, value);
             }
         }
-
         [Register]
-        public override UInt32 PC
+        public override RegisterValue PC
         {
             get
             {
@@ -137,9 +91,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 AfterPCSet(value);
             }
         }
-
         [Register]
-        public UInt32 NPC
+        public RegisterValue NPC
         {
             get
             {
@@ -150,9 +103,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)SparcRegisters.NPC, value);
             }
         }
-
         [Register]
-        public UInt32 WIM
+        public RegisterValue WIM
         {
             get
             {
@@ -163,13 +115,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)SparcRegisters.WIM, value);
             }
         }
-
-        public RegistersGroup<UInt32> R { get; private set; }
-        public RegistersGroup<UInt32> ASR { get; private set; }
+        public RegistersGroup R { get; private set; }
+        public RegistersGroup ASR { get; private set; }
 
         protected override void InitializeRegisters()
         {
-            indexValueMapR = new Dictionary<int, SparcRegisters>
+            var indexValueMapR = new Dictionary<int, SparcRegisters>
             {
                 { 0, SparcRegisters.R0 },
                 { 1, SparcRegisters.R1 },
@@ -204,12 +155,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 { 30, SparcRegisters.R30 },
                 { 31, SparcRegisters.R31 },
             };
-            R = new RegistersGroup<UInt32>(
+            R = new RegistersGroup(
                 indexValueMapR.Keys,
-                i => GetRegisterValue32((int)indexValueMapR[i]),
-                (i, v) => SetRegisterValue32((int)indexValueMapR[i], v));
+                i => GetRegisterUnsafe((int)indexValueMapR[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapR[i], v));
 
-            indexValueMapASR = new Dictionary<int, SparcRegisters>
+            var indexValueMapASR = new Dictionary<int, SparcRegisters>
             {
                 { 16, SparcRegisters.ASR16 },
                 { 17, SparcRegisters.ASR17 },
@@ -228,10 +179,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 { 30, SparcRegisters.ASR30 },
                 { 31, SparcRegisters.ASR31 },
             };
-            ASR = new RegistersGroup<UInt32>(
+            ASR = new RegistersGroup(
                 indexValueMapASR.Keys,
-                i => GetRegisterValue32((int)indexValueMapASR[i]),
-                (i, v) => SetRegisterValue32((int)indexValueMapASR[i], v));
+                i => GetRegisterUnsafe((int)indexValueMapASR[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapASR[i], v));
 
         }
 
@@ -245,8 +196,63 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #pragma warning restore 649
 
-        private Dictionary<int, SparcRegisters> indexValueMapR;
-        private Dictionary<int, SparcRegisters> indexValueMapASR;
+        private static readonly Dictionary<SparcRegisters, CPURegister> mapping = new Dictionary<SparcRegisters, CPURegister>
+        {
+            { (SparcRegisters)0,  new CPURegister(0, 32, true) },
+            { (SparcRegisters)1,  new CPURegister(1, 32, true) },
+            { (SparcRegisters)2,  new CPURegister(2, 32, true) },
+            { (SparcRegisters)3,  new CPURegister(3, 32, true) },
+            { (SparcRegisters)4,  new CPURegister(4, 32, true) },
+            { (SparcRegisters)5,  new CPURegister(5, 32, true) },
+            { (SparcRegisters)6,  new CPURegister(6, 32, true) },
+            { (SparcRegisters)7,  new CPURegister(7, 32, true) },
+            { (SparcRegisters)8,  new CPURegister(8, 32, true) },
+            { (SparcRegisters)9,  new CPURegister(9, 32, true) },
+            { (SparcRegisters)10,  new CPURegister(10, 32, true) },
+            { (SparcRegisters)11,  new CPURegister(11, 32, true) },
+            { (SparcRegisters)12,  new CPURegister(12, 32, true) },
+            { (SparcRegisters)13,  new CPURegister(13, 32, true) },
+            { (SparcRegisters)14,  new CPURegister(14, 32, true) },
+            { (SparcRegisters)15,  new CPURegister(15, 32, true) },
+            { (SparcRegisters)16,  new CPURegister(16, 32, true) },
+            { (SparcRegisters)17,  new CPURegister(17, 32, true) },
+            { (SparcRegisters)18,  new CPURegister(18, 32, true) },
+            { (SparcRegisters)19,  new CPURegister(19, 32, true) },
+            { (SparcRegisters)20,  new CPURegister(20, 32, true) },
+            { (SparcRegisters)21,  new CPURegister(21, 32, true) },
+            { (SparcRegisters)22,  new CPURegister(22, 32, true) },
+            { (SparcRegisters)23,  new CPURegister(23, 32, true) },
+            { (SparcRegisters)24,  new CPURegister(24, 32, true) },
+            { (SparcRegisters)25,  new CPURegister(25, 32, true) },
+            { (SparcRegisters)26,  new CPURegister(26, 32, true) },
+            { (SparcRegisters)27,  new CPURegister(27, 32, true) },
+            { (SparcRegisters)28,  new CPURegister(28, 32, true) },
+            { (SparcRegisters)29,  new CPURegister(29, 32, true) },
+            { (SparcRegisters)30,  new CPURegister(30, 32, true) },
+            { (SparcRegisters)31,  new CPURegister(31, 32, true) },
+            { (SparcRegisters)32,  new CPURegister(32, 32, true) },
+            { (SparcRegisters)33,  new CPURegister(33, 32, true) },
+            { (SparcRegisters)34,  new CPURegister(34, 32, true) },
+            { (SparcRegisters)35,  new CPURegister(35, 32, true) },
+            { (SparcRegisters)36,  new CPURegister(36, 32, true) },
+            { (SparcRegisters)37,  new CPURegister(37, 32, true) },
+            { (SparcRegisters)38,  new CPURegister(38, 32, true) },
+            { (SparcRegisters)39,  new CPURegister(39, 32, true) },
+            { (SparcRegisters)40,  new CPURegister(40, 32, true) },
+            { (SparcRegisters)41,  new CPURegister(41, 32, true) },
+            { (SparcRegisters)42,  new CPURegister(42, 32, true) },
+            { (SparcRegisters)43,  new CPURegister(43, 32, true) },
+            { (SparcRegisters)44,  new CPURegister(44, 32, true) },
+            { (SparcRegisters)45,  new CPURegister(45, 32, true) },
+            { (SparcRegisters)46,  new CPURegister(46, 32, true) },
+            { (SparcRegisters)47,  new CPURegister(47, 32, true) },
+            { (SparcRegisters)48,  new CPURegister(48, 32, true) },
+            { (SparcRegisters)49,  new CPURegister(49, 32, true) },
+            { (SparcRegisters)50,  new CPURegister(50, 32, true) },
+            { (SparcRegisters)51,  new CPURegister(51, 32, true) },
+            { (SparcRegisters)52,  new CPURegister(52, 32, true) },
+            { (SparcRegisters)53,  new CPURegister(53, 32, true) },
+        };
     }
 
     public enum SparcRegisters

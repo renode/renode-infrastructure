@@ -161,6 +161,17 @@ namespace Antmicro.Renode.Logging
             Trace(o, LogLevel.Info, message, lineNumber, caller, fileName);
         }
 
+        public static IDisposable TraceRegion(this object o, string message = null,
+            [CallerLineNumber] int lineNumber = 0,
+            [CallerMemberName] string caller = null,
+            [CallerFilePath] string fileName = null)
+        {
+            var result = new DisposableWrapper();
+            Trace(o, $"Entering: {message}", lineNumber, caller, fileName);
+            result.RegisterDisposeAction(() => Trace(o, $"Leaving: {message}. Entered", lineNumber, caller, fileName));
+            return result;
+        }
+
         public static void LogUnhandledRead(this IPeripheral peripheral, long offset)
         {
             peripheral.Log(LogLevel.Warning, "Unhandled read from offset 0x{0:X}.", offset);

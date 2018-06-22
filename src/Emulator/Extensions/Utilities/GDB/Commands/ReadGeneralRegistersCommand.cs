@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             foreach(var i in manager.Cpu.GetRegisters().Where(x => x.IsGeneral))
             {
                 var value = manager.Cpu.GetRegisterUnsafe(i.Index);
-                foreach(var b in BitConverter.GetBytes(value))
+                foreach(var b in value.GetBytes())
                 {
                     registers.AppendFormat("{0:x2}", b);
                 }

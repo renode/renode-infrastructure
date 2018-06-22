@@ -232,6 +232,8 @@ namespace Antmicro.Renode.Core
             IsStarted = true;
             InnerStartAll();
             MasterTimeSource.Start();
+
+            System.Threading.Thread.Sleep(100);
         }
 
         private void InnerStartAll()
@@ -603,14 +605,24 @@ namespace Antmicro.Renode.Core
         {
             public PausedState(Emulation emulation)
             {
-                emulation.MasterTimeSource.Stop();
-                machineStates = emulation.Machines.Select(x => x.ObtainPausedState()).ToArray();
-                emulation.ExternalsManager.Pause();
+                wasStarted = emulation.IsStarted;
                 this.emulation = emulation;
+
+                if(wasStarted)
+                {
+                    emulation.MasterTimeSource.Stop();
+                    machineStates = emulation.Machines.Select(x => x.ObtainPausedState()).ToArray();
+                    emulation.ExternalsManager.Pause();
+                }
             }
 
             public void Dispose()
             {
+                if(!wasStarted)
+                {
+                    return;
+                }
+
                 emulation.MasterTimeSource.Start();
                 foreach(var state in machineStates)
                 {
@@ -621,6 +633,7 @@ namespace Antmicro.Renode.Core
 
             private readonly IDisposable[] machineStates;
             private readonly Emulation emulation;
+            private readonly bool wasStarted;
         }
     }
 }

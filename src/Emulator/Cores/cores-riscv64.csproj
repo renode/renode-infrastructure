@@ -1,95 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="CompileTranslationLib;Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{BB222124-707C-5EFD-8289-2728351FB7AA}</ProjectGuid>
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{C95FE37D-ADBA-45B5-86B1-BEDD3BCEF3AB}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Antmicro.Renode.Tests.SystemTests</RootNamespace>
-    <AssemblyName>SystemTests</AssemblyName>
+    <AssemblyName>cores-riscv64</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
   </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <LangVersion>7</LangVersion>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
     <OutputPath>bin\Debug</OutputPath>
-    <DefineConstants>DEBUG;</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
+    <DefineConstants>DEBUG;$(DefineConstants)</DefineConstants>
     <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
+    <Optimize>false</Optimize>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>7</LangVersion>
-    <DebugType>none</DebugType>
-    <Optimize>true</Optimize>
     <OutputPath>bin\Release</OutputPath>
-    <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
+    <Optimize>true</Optimize>
   </PropertyGroup>
+  <Target Name="SetEndianess" BeforeTargets="Build">
+    <!-- Endianess cannot be set directly in Project tag, as it would be visible in Monodevelop then -->
+    <PropertyGroup>
+      <Architecture>riscv64</Architecture>
+      <EmulatedTarget>riscv</EmulatedTarget>
+      <TargetWordSize>64</TargetWordSize>
+    </PropertyGroup>
+    <ItemGroup>
+      <Endianess Include="le" />
+    </ItemGroup>
+  </Target>
+  <!-- Those fake targets and conditional importing of a project should be removed once support for 64-bit is introduced for Windows -->
+  <Target Name="Clean">
+  </Target>
+  <Target Name="Build">
+  </Target>
+  <Target Name="CompileTranslationLib">
+  </Target>
+  <Target Name="GetTargetPath">
+  </Target>
+  <Target Name="GetCopyToOutputDirectoryItems">
+  </Target>
+  <Import Project="./cores.template.csproj" Condition=" '$(CurrentPlatform)' != 'Windows' "/>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="nunit.framework">
-      <HintPath>..\..\..\..\..\..\..\lib\resources\tools\nunit.framework.dll</HintPath>
-    </Reference>
+    <Compile Include="RiscV\RiscV64.cs" />
+    <Compile Include="RiscV\RiscV64Registers.cs">
+      <DependentUpon>RiscV64Registers.tt</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Demos.cs" />
+    <None Include="RiscV\RiscV64Registers.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>RiscV64Registers.cs</LastGenOutput>
+    </None>
   </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\..\lib\Migrant\Migrant\Migrant.csproj">
-      <Project>{5F87C357-09FB-4F53-BE37-41FE5BD88957}</Project>
-      <Name>Migrant</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\..\..\lib\AntShell\AntShell\AntShell.csproj">
-      <Project>{0A473566-F4C6-455E-A56E-B3963FBABDFF}</Project>
-      <Name>AntShell</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Emulator.csproj">
+    <ProjectReference Include="..\Main\Emulator.csproj">
       <Project>{2901AECB-A54F-4FD8-9AC1-033D86DC7257}</Project>
       <Name>Emulator</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\Extensions\Extensions.csproj">
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant.csproj">
+      <Project>{5F87C357-09FB-4F53-BE37-41FE5BD88957}</Project>
+      <Name>Migrant</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp.csproj">
+      <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
+      <Name>ELFSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Extensions\Extensions.csproj">
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\Peripherals\Peripherals.csproj">
+    <ProjectReference Include="..\Peripherals\Peripherals.csproj">
       <Project>{66400796-0C5B-4386-A859-50A2AC3F3DB7}</Project>
       <Name>Peripherals</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\Cores\cores-arm.csproj">
-      <Project>{13222124-707C-5EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-arm</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\Cores\cores-ppc.csproj">
-      <Project>{23222114-707C-4EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-ppc</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\Cores\cores-sparc.csproj">
-      <Project>{13222114-707C-4EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-sparc</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\Cores\cores-arm-m.csproj">
-      <Project>{43222114-707C-4EFD-8289-2728351FB7E9}</Project>
-      <Name>cores-arm-m</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\Cores\cores-riscv.csproj">
+    <ProjectReference Include="cores-riscv.csproj">
       <Project>{63222124-707C-5EFD-8289-2728351FB7E9}</Project>
       <Name>cores-riscv</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\UI\UI.csproj">
-      <Project>{AEFE490F-85AC-42AF-9CAE-2B7FC7167E0E}</Project>
-      <Name>UI</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\..\Renode\Renode.csproj">
-      <Project>{5A7EF2B0-889A-488A-B296-97AF33791772}</Project>
-      <Name>Renode</Name>
-    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
@@ -98,9 +98,8 @@
           <DotNetNamingPolicy DirectoryNamespaceAssociation="PrefixedHierarchical" ResourceNamePolicy="FileName" />
           <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/x-csharp" />
           <CSharpFormattingPolicy IndentBlock="True" IndentBraces="False" IndentSwitchSection="True" IndentSwitchCaseSection="True" LabelPositioning="OneLess" NewLinesForBracesInTypes="True" NewLinesForBracesInMethods="True" NewLinesForBracesInProperties="True" NewLinesForBracesInAccessors="True" NewLinesForBracesInAnonymousMethods="True" NewLinesForBracesInControlBlocks="True" NewLinesForBracesInAnonymousTypes="True" NewLinesForBracesInObjectCollectionArrayInitializers="True" NewLinesForBracesInLambdaExpressionBody="True" NewLineForElse="True" NewLineForCatch="True" NewLineForFinally="True" NewLineForMembersInObjectInit="True" NewLineForMembersInAnonymousTypes="True" NewLineForClausesInQuery="True" SpacingAfterMethodDeclarationName="False" SpaceWithinMethodDeclarationParenthesis="False" SpaceBetweenEmptyMethodDeclarationParentheses="False" SpaceAfterMethodCallName="False" SpaceWithinMethodCallParentheses="False" SpaceBetweenEmptyMethodCallParentheses="False" SpaceWithinExpressionParentheses="False" SpaceWithinCastParentheses="False" SpaceWithinOtherParentheses="False" SpaceAfterCast="False" SpacesIgnoreAroundVariableDeclaration="False" SpaceBeforeOpenSquareBracket="False" SpaceBetweenEmptySquareBrackets="False" SpaceWithinSquareBrackets="False" SpaceAfterColonInBaseTypeDeclaration="True" SpaceAfterComma="True" SpaceAfterDot="False" SpaceAfterSemicolonsInForStatement="True" SpaceBeforeColonInBaseTypeDeclaration="True" SpaceBeforeComma="False" SpaceBeforeDot="False" SpaceBeforeSemicolonsInForStatement="False" SpacingAroundBinaryOperator="Single" WrappingPreserveSingleLine="True" WrappingKeepStatementsOnSingleLine="True" PlaceSystemDirectiveFirst="True" SpaceAfterControlFlowStatementKeyword="False" scope="text/x-csharp" />
-          <TextStylePolicy FileWidth="120" NoTabsAfterNonTabs="True" EolMarker="Unix" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/plain" />
-          <TextStylePolicy FileWidth="120" NoTabsAfterNonTabs="True" EolMarker="Unix" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="application/json" />
-          <TextStylePolicy FileWidth="120" NoTabsAfterNonTabs="True" EolMarker="Unix" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/x-python" />
+          <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/plain" />
+          <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="application/t4-template" />
           <StandardHeader IncludeInNewFiles="True" Text="&#xA;Copyright (c) 2010-${Year} Antmicro&#xA;&#xA; This file is licensed under the MIT License.&#xA; Full license text is available in 'licenses/MIT.txt'.&#xA;" />
         </Policies>
       </Properties>

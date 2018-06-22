@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
         public virtual void Write(long offset, T value)
         {
-            if(Subrange != null && !Subrange.Value.Contains(offset))
+            if(Subrange != null && !Subrange.Value.Contains(checked((ulong)offset)))
             {
                 originalMethod(offset, value);
                 return;

@@ -10,16 +10,16 @@ using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU.Registers
 {
-    public class RegistersGroup<T> : IRegisters<T>
-    { 
-        public RegistersGroup(IEnumerable<int> keys, Func<int, T> getter, Action<int, T> setter)
+    public class RegistersGroup : IRegisters
+    {
+        public RegistersGroup(IEnumerable<int> keys, Func<int, RegisterValue> getter, Action<int, ulong> setter)
         {
             this.keys = new HashSet<int>(keys);
             this.getter = getter;
             this.setter = setter;
         }
 
-        public T this[int index]
+        public RegisterValue this[int index]
         {
             get
             {
@@ -43,8 +43,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Registers
         public IEnumerable<int> Keys { get { return keys; } }
 
         private readonly HashSet<int> keys;
-        private readonly Func<int, T> getter;
-        private readonly Action<int, T> setter;
+        private readonly Func<int, RegisterValue> getter;
+        private readonly Action<int, ulong> setter;
     }
 }
 

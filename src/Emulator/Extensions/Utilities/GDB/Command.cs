@@ -100,6 +100,10 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 return uint.Parse(input, style);
             }
+            if(type == typeof(ulong))
+            {
+                return ulong.Parse(input, style);
+            }
 
             throw new ArgumentException(string.Format("Unsupported type for parsing: {0}", type.Name));
         }

@@ -53,41 +53,101 @@
 *
 */
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class <#=CLASS_NAME#>
     {
-        public override void SetRegisterUnsafe(int register, uint value)
+<#
+    var widths = parser.Registers
+        .Union(parser.RegisterGroups.SelectMany(x => x.GetRegisters()))
+        .Select(x => x.Width)
+        .OrderBy(x => x)
+        .Distinct()
+        .ToArray();
+#>
+        public override void SetRegisterUnsafe(int register, ulong value)
         {
-            SetRegisterValue32(register, value);
+            if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+<#
+    if(widths.Length == 1)
+    {
+#>
+            SetRegisterValue<#=widths[0]#>(r.Index, checked((<#=RegisterTypeHelper.GetTypeName(widths[0])#>)value));
+<#
+    }
+    else
+    {
+#>
+            switch(r.Width)
+            {
+<#
+        foreach(var width in widths)
+        {
+#>
+            case <#=width#>:
+                SetRegisterValue<#=width#>(r.Index, checked((<#=RegisterTypeHelper.GetTypeName(width)#>)value));
+                break;
+<#
+        }
+#>
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
+<#
+    }
+#>
         }
 
-        public override uint GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegisterUnsafe(int register)
         {
-            return GetRegisterValue32(register);
+            if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+<#
+    if(widths.Length == 1)
+    {
+#>
+            return GetRegisterValue<#=widths[0]#>(r.Index);
+<#
+    }
+    else
+    {
+#>
+            switch(r.Width)
+            {
+<#
+        foreach(var width in widths)
+        {
+#>
+            case <#=width#>:
+                return GetRegisterValue<#=width#>(r.Index);
+                break;
+<#
+        }
+#>
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
+<#
+    }
+#>
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new CPURegister[] {
-<#
-    foreach(var register in
-        parser.Registers
-        .Union(parser.RegisterGroups.SelectMany(x => x.GetRegisters()))
-        .Where(x => !x.IsIgnored)
-        .GroupBy(x => x.Value)
-        .OrderBy(x => x.Key))
-    {
-#>
-                new CPURegister(<#=register.Key#>, <#= register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false" #>),
-<#
-    }
-#>
-            };
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
 <#
@@ -95,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
 #>
         [Register]
-        public <#= virtualRegisters.Contains(register.Name) ? "override " : "" #><#=RegisterTypeHelper.GetTypeName(register.Width)#> <#=register.Name#>
+        public <#= virtualRegisters.Contains(register.Name) ? "override " : "" #>RegisterValue <#=register.Name#>
         {
             get
             {
@@ -122,14 +182,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 #>
             }
         }
-
 <#
     }
 
     foreach(var registerGroup in parser.RegisterGroups.Where(x => !x.IsIgnored))
     {
 #>
-        public RegistersGroup<<#=RegisterTypeHelper.GetTypeName(registerGroup.Width)#>> <#=registerGroup.Name#> { get; private set; }
+        public RegistersGroup <#=registerGroup.Name#> { get; private set; }
 <#
     }
 #>
@@ -145,7 +204,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     }
     foreach(var registerGroup in parser.RegisterGroups.Where(x => !x.IsIgnored))
     {#>
-            indexValueMap<#=registerGroup.Name#> = new Dictionary<int, <#=CLASS_NAME#>Registers>
+            var indexValueMap<#=registerGroup.Name#> = new Dictionary<int, <#=CLASS_NAME#>Registers>
             {
 <#
         foreach(var elem in registerGroup.IndexValueMap)
@@ -156,10 +215,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 #>
             };
-            <#=registerGroup.Name#> = new RegistersGroup<<#=RegisterTypeHelper.GetTypeName(registerGroup.Width)#>>(
+            <#=registerGroup.Name#> = new RegistersGroup(
                 indexValueMap<#=registerGroup.Name#>.Keys,
-                i => GetRegisterValue<#=registerGroup.Width#>((int)indexValueMap<#=registerGroup.Name#>[i]),
-                (i, v) => SetRegisterValue<#=registerGroup.Width#>((int)indexValueMap<#=registerGroup.Name#>[i], v));
+                i => GetRegisterUnsafe((int)indexValueMap<#=registerGroup.Name#>[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMap<#=registerGroup.Name#>[i], v));
 
 <#
     }
@@ -183,27 +242,35 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 <#
     }
-
-    foreach(var registerGroup in parser.RegisterGroups.Where(x => !x.IsIgnored))
+#>
+        private static readonly Dictionary<<#=CLASS_NAME#>Registers, CPURegister> mapping = new Dictionary<<#=CLASS_NAME#>Registers, CPURegister>
+        {
+<#
+    foreach(var register in
+        parser.Registers
+        .Union(parser.RegisterGroups.SelectMany(x => x.GetRegisters()))
+        .GroupBy(x => x.Value)
+        .OrderBy(x => x.Key))
     {
 #>
-        private Dictionary<int, <#=CLASS_NAME#>Registers> indexValueMap<#=registerGroup.Name#>;
+            { <#=CLASS_NAME#>Registers.<#=register.First().Name#>,  new CPURegister(<#=register.Key#>, <#=register.Select(x => x.Width).First()#>, <#= register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false" #>) },
 <#
     }
 #>
+        };
     }
 
     public enum <#=CLASS_NAME#>Registers
     {
 <#
-    foreach(var register in parser.Registers.Where(x => !x.IsIgnored))
+    foreach(var register in parser.Registers)
     {
 #>
         <#=register.Name#> = <#=register.Value#>,
 <#
     }
 
-    foreach(var registerGroup in parser.RegisterGroups.Where(x => !x.IsIgnored))
+    foreach(var registerGroup in parser.RegisterGroups)
     {
         foreach(var index in registerGroup.IndexValueMap.OrderBy(x => x.Key))
         {

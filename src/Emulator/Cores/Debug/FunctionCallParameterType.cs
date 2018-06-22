@@ -11,6 +11,8 @@ namespace Antmicro.Renode.Debug
     public enum FunctionCallParameterType
     {
         Ignore,
+        Int64,
+        UInt64,
         Int32,
         UInt32,
         Int16,

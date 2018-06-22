@@ -23,7 +23,7 @@ namespace Antmicro.Renode.UnitTests
             const uint MemorySize = 3u * 1024 * 1024 * 1024;
             var machine = new Machine();
             var memory = new MappedMemory(machine, MemorySize);
-            var start = (long)100.MB();
+            var start = (ulong)100.MB();
             machine.SystemBus.Register(memory, start);
             var offset1 = start + 16;
             var offset2 = start + MemorySize - 16;

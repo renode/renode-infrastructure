@@ -16,36 +16,18 @@ namespace Antmicro.Renode.Core
 {
     public sealed class SerializableMappedSegment : IMappedSegment, IDisposable
     {
-        public SerializableMappedSegment(int size, int startingOffset)
+        public SerializableMappedSegment(ulong size, ulong startingOffset)
         {
-            this.size = size;
-            offset = startingOffset;
+            Size = size;
+            StartingOffset = startingOffset;
             MakeSegment();
         }
 
-        public IntPtr Pointer
-        {
-            get
-            {
-                return pointer;
-            }
-        }
+        public IntPtr Pointer { get { return pointer; } }
 
-        public long StartingOffset
-        {
-            get
-            {
-                return offset;
-            }
-        }
+        public ulong StartingOffset { get; private set; }
 
-        public long Size
-        {
-            get
-            {
-                return size;
-            }
-        }
+        public ulong Size { get; private set; }
 
         public void Touch()
         {
@@ -53,9 +35,10 @@ namespace Antmicro.Renode.Core
             {
                 return;
             }
-            pointer = Marshal.AllocHGlobal(size);
-            var zeroBuf = new byte[size];
-            Marshal.Copy(zeroBuf, 0, pointer, size);
+            var sizeAsInt = checked((int)Size);
+            pointer = Marshal.AllocHGlobal(sizeAsInt);
+            var zeroBuf = new byte[sizeAsInt];
+            Marshal.Copy(zeroBuf, 0, pointer, sizeAsInt);
         }
 
         public void Dispose()
@@ -63,7 +46,7 @@ namespace Antmicro.Renode.Core
             var oldPointer = Interlocked.Exchange(ref pointer, IntPtr.Zero);
             if(oldPointer != IntPtr.Zero)
             {
-                Marshal.FreeHGlobal(Pointer);
+                Marshal.FreeHGlobal(oldPointer);
             }
         }
 
@@ -74,8 +57,9 @@ namespace Antmicro.Renode.Core
             {
                 return;
             }
-            buffer = new byte[size];
-            Marshal.Copy(pointer, buffer, 0, size);
+            var sizeAsInt = checked((int)Size);
+            buffer = new byte[sizeAsInt];
+            Marshal.Copy(pointer, buffer, 0, sizeAsInt);
         }
 
         [PostSerialization]
@@ -87,22 +71,20 @@ namespace Antmicro.Renode.Core
         [PostDeserialization]
         private void MakeSegment()
         {
-            if(Pointer != IntPtr.Zero)
+            if(pointer != IntPtr.Zero)
             {
                 throw new InvalidOperationException("Unexpected non null pointer during initialization.");
             }
             if(buffer != null)
             {
                 Touch();
-                Marshal.Copy(buffer, 0, Pointer, size);
+                Marshal.Copy(buffer, 0, pointer, checked((int)Size));
                 buffer = null;
             }
         }
 
         [Transient]
         private IntPtr pointer;
-        private readonly int offset;
-        private readonly int size;
         private byte[] buffer;
     }
 }

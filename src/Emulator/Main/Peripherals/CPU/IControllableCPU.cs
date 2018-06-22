@@ -13,15 +13,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IControllableCPU : ICPU
     {
-        void SetRegisterUnsafe(int register, uint value);
+        void SetRegisterUnsafe(int register, ulong value);
 
-        uint GetRegisterUnsafe(int register);
+        RegisterValue GetRegisterUnsafe(int register);
 
         IEnumerable<CPURegister> GetRegisters();
 
         string[,] GetRegistersValues();
 
-        void InitFromElf(ELF<uint> elf);
+        void InitFromElf(IELF elf);
 
         void InitFromUImage(UImage uImage);
 
@@ -30,14 +30,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public struct CPURegister
     {
-        public CPURegister(int index, bool isGeneral)
+        public CPURegister(int index, int width, bool isGeneral)
         {
             Index = index;
             IsGeneral = isGeneral;
+            Width = width;
         }
 
         public int Index { get; private set; }
         public bool IsGeneral { get; private set; }
+        public int Width { get; private set; }
 
         // this is to support monitor output
         public override string ToString()

@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Analyzers
     // property from monitor. In order to do this one must create analyzer
     // and add it as external using command below:
     //
-    // showAnalyzer "ExternalName" sysbus.uart_name "LoggingAnalyzer"
+    // showAnalyzer "ExternalName" sysbus.uart_name Antmicro.Renode.Analyzers.LoggingAnalyzer
     //
     [Transient]
     public class LoggingUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal

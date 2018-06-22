@@ -208,6 +208,20 @@ namespace Antmicro.Renode.Utilities
             return (uint)((reg >> offset) & ((0x1ul << size) - 1));
         }
 
+        public static uint GetMaskedValue(uint reg, int maskOffset, int maskSize)
+        {
+            var mask = ((0x1u << maskSize) - 1);
+            return reg & (mask << maskOffset);
+        }
+
+        public static void SetMaskedValue(ref uint reg, uint value, int maskOffset, int maskSize)
+        {
+            var mask = ((0x1u << maskSize) - 1);
+            value &= mask;
+            reg &= ~(mask << maskOffset);
+            reg |= value << maskOffset;
+        }
+
         public static uint GetValueFromBitsArray(IEnumerable<bool> array)
         {
             var ret = 0u;

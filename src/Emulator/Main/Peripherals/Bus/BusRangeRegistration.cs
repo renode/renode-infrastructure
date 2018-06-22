@@ -13,13 +13,13 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusRangeRegistration : IRegistrationPoint
     {
-        public BusRangeRegistration(Range range, long offset = 0)
+        public BusRangeRegistration(Range range, ulong offset = 0)
         {
             Range = range;
             Offset = offset;
         }
 
-        public BusRangeRegistration(long address, long size, long offset = 0) : 
+        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0) :
             this(new Range(address, size), offset)
         {
         }
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public Range Range { get; set; }
-        public long Offset { get; set; }
+        public ulong Offset { get; set; }
 
         public override bool Equals(object obj)
         {

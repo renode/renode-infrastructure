@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class BitBanding : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral
     {
-        public BitBanding(Machine machine, long peripheralBase)
+        public BitBanding(Machine machine, ulong peripheralBase)
         {
             sysbus = machine.SystemBus;
             this.peripheralBase = peripheralBase;
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 #>
         public <#= type #> Read<#= name #>(long offset)
         {
-            var realAddress = GetBitBandAddress(offset) & ~<#= realAddressMask #>;
+            var realAddress = GetBitBandAddress(offset) & ~<#= realAddressMask #>UL;
             var readValue = sysbus.Read<#= name #>(realAddress);
             var bitNumber = (int)(offset >> 2) & <#= bitNumberMask #>;
             return (<#= type #>)((readValue >> bitNumber) & 1);
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Write<#= name #>(long offset, <#= type #> value)
         {
-            var realAddress = GetBitBandAddress(offset) & ~<#= realAddressMask #>;
+            var realAddress = GetBitBandAddress(offset) & ~<#= realAddressMask #>UL;
             var readValue = sysbus.Read<#= name #>(realAddress);
             var bitNumber = (int)(offset >> 2) & <#= bitNumberMask #>;
             var mask = (1 << bitNumber);
@@ -81,14 +81,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 <#
     }
 #>
-        private long GetBitBandAddress(long from)
+        private ulong GetBitBandAddress(long from)
         {
-            var retval = peripheralBase + (from >> 5);
+            var retval = peripheralBase + checked((ulong)(from >> 5));
             this.NoisyLog("Bit-band operation: 0x{0:X} -> 0x{1:X}.", from, retval);
             return retval;
         }
 
         private readonly SystemBus sysbus;
-        private readonly long peripheralBase;
+        private readonly ulong peripheralBase;
     }
 }

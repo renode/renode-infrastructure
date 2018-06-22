@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public BusAccess.WordWriteMethod WriteWord;
         public BusAccess.DoubleWordReadMethod ReadDoubleWord;
         public BusAccess.DoubleWordWriteMethod WriteDoubleWord;
-        public Action<long> SetAbsoluteAddress;
+        public Action<ulong> SetAbsoluteAddress;
         public IBusPeripheral Peripheral;
         [Constructor(true)]
         public SpinLock Lock;

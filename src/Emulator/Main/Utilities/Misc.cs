@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Utilities
 
         public static string Stringify<TSource>(this IEnumerable<TSource> source, string separator = " ")
         {
-            return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()));
+            return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()), separator);
         }
 
         public static string Stringify(this IEnumerable<string> source, string separator = " ")
