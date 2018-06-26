@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Core
             }
             InnerStartAll();
             MasterTimeSource.RunFor(period);
-            InnerPauseAll();
+            PauseAll();
         }
 
         public void RunToNearestSyncPoint()
@@ -224,7 +224,7 @@ namespace Antmicro.Renode.Core
 
             InnerStartAll();
             MasterTimeSource.Run();
-            InnerPauseAll();
+            PauseAll();
         }
 
         public void StartAll()
@@ -251,22 +251,13 @@ namespace Antmicro.Renode.Core
 
         public void PauseAll()
         {
-            MasterTimeSource.Stop();
-            InnerPauseAll();
-            IsStarted = false;
-        }
-
-        private void InnerPauseAll()
-        {
-            //ToList cast is a precaution for a situation where the list of machines changes
-            //during pausing. It might happen on rare occasions. E.g. when a script loads them, and user
-            //hits the pause button.
-            //Otherwise it would crash.
-            foreach(var machine in Machines.ToList())
+            lock(machLock)
             {
-                machine.Pause();
+                Array.ForEach(machs.Rights, x => x.Pause());
+                ExternalsManager.Pause();
+                MasterTimeSource.Stop();
+                IsStarted = false;
             }
-            ExternalsManager.Pause();
         }
 
         public IDisposable ObtainPausedState()
@@ -481,12 +472,8 @@ namespace Antmicro.Renode.Core
             FileFetcher.CancelDownload();
             lock(machLock)
             {
-                var toDispose = machs.Rights.ToArray();
-                //Although a single machine does not have to be paused before its disposal,
-                //disposing multiple entities has to ensure that all are stopped.
-                ExternalsManager.Pause();
-                Array.ForEach(toDispose, x => x.Pause());
-                Array.ForEach(toDispose, x => x.Dispose());
+                PauseAll();
+                Array.ForEach(machs.Rights, x => x.Dispose());
                 machs.Clear();
                 MasterTimeSource.Dispose();
                 ExternalsManager.Clear();
