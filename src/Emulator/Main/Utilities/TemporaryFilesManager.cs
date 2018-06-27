@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Utilities
                 string path;
                 do
                 {
-                    var fileName = string.Format(fileNameSuffix != null ? $"{Guid.NewGuid()}-{name}" : $"{Guid.NewGuid()}.tmp");
+                    var fileName = string.Format(fileNameSuffix != null ? $"{Guid.NewGuid()}-{fileNameSuffix}" : $"{Guid.NewGuid()}.tmp");
                     path = Path.Combine(emulatorTemporaryPath, fileName);
                     // this is guid, collision is very unlikely
                 }
