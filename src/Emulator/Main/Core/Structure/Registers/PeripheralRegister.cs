@@ -343,6 +343,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Wrapper for <see cref="Tag"/> method, tagging bits as "RESERVED".
+        /// </summary>
+        /// <param name="position">Offset in the register.</param>
+        /// <param name="width">Width of field.</param>
+        public void Reserved(int position, int width)
+        {
+            Tag("RESERVED", position, width);
+        }
+
+        /// <summary>
         /// Mark an unhandled field, so it is logged with its name.
         /// </summary>
         /// <param name="name">Name of the unhandled field.</param>
