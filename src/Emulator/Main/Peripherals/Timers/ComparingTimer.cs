@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class ComparingTimer : ITimer, IPeripheral
     {
         public ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending,
-            bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue)
+            bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1)
         {
             if(compare > limit)
             {
@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             initialEnabled = enabled;
             initialWorkMode = workMode;
             initialEventEnabled = eventEnabled;
+            initialDivider = divider;
             InternalReset();
         }
 
@@ -109,6 +110,28 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        public uint Divider
+        {
+            get
+            {
+                return divider;
+            }
+            set
+            {
+                if(value == divider)
+                {
+                    return;
+                }
+                if(value == 0)
+                {
+                    throw new ArgumentException("Divider cannot be zero.");
+                }
+                divider = value;
+                var effectiveFrequency = initialFrequency / divider;
+                clockSource.ExchangeClockEntryWith(OnCompareReached, oldEntry => oldEntry.With(ratio: ClockEntry.FrequencyToRatio(this, effectiveFrequency)));
+            }
+        }
+
         public virtual void Reset()
         {
             InternalReset();
@@ -151,7 +174,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void InternalReset()
         {
-            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency), CompareReachedInternal, initialEnabled, initialDirection, initialWorkMode)
+            divider = initialDivider;
+
+            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency / divider), CompareReachedInternal, initialEnabled, initialDirection, initialWorkMode)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
             clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
             valueAccumulatedSoFar = 0;
@@ -161,7 +186,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private ulong valueAccumulatedSoFar;
         private ulong compareValue;
+        private uint divider;
 
+        private readonly uint initialDivider;
         private readonly Direction initialDirection;
         private readonly long initialFrequency;
         private readonly IClockSource clockSource;
