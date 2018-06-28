@@ -214,6 +214,7 @@
     <Compile Include="Peripherals\Sensors\TI_LM74.cs" />
     <Compile Include="Peripherals\GPIOPort\Quark_GPIOController.cs" />
     <Compile Include="Peripherals\GPIOPort\Quark_PWM.cs" />
+    <Compile Include="Peripherals\GPIOPort\HiFive_PWM.cs" />
     <Compile Include="Peripherals\Wireless\CC2520.cs" />
     <Compile Include="Peripherals\Miscellaneous\CC2538_Cryptoprocessor.cs" />
     <Compile Include="Peripherals\GPIOPort\EFR32_GPIOPort.cs" />
