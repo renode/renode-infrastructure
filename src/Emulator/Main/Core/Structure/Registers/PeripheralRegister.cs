@@ -332,8 +332,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// </summary>
     public abstract partial class PeripheralRegister
     {
-
-
         /// <summary>
         /// Restores this register's value to its reset value, defined on per-field basis.
         /// </summary>
