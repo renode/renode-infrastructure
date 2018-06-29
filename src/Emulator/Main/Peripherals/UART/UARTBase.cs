@@ -17,12 +17,13 @@ namespace Antmicro.Renode.Peripherals.UART
         protected UARTBase(Machine machine)
         {
             queue = new Queue<byte>();
+            innerLock = new object();
             Machine = machine;
         }
 
         public void WriteChar(byte value)
         {
-            lock(queue)
+            lock(innerLock)
             {
                 queue.Enqueue(value);
                 CharWritten();
@@ -42,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected bool TryGetCharacter(out byte character)
         {
-            lock(queue)
+            lock(innerLock)
             {
                 if(queue.Count == 0)
                 {
@@ -65,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected void ClearBuffer()
         {
-            lock(queue)
+            lock(innerLock)
             {
                 queue.Clear();
                 QueueEmptied();
@@ -76,13 +77,14 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             get
             {
-                lock(queue)
+                lock(innerLock)
                 {
                     return queue.Count;
                 }
             }
         }
 
+        protected readonly object innerLock;
         protected readonly Machine Machine;
         private readonly Queue<byte> queue;
 

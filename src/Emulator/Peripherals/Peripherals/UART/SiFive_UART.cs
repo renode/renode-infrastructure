@@ -17,7 +17,6 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public SiFive_UART(Machine machine, long inputClockFrequency = 16000000) : base(machine)
         {
-            locker = new object();
             this.inputClockFrequency = inputClockFrequency;
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
@@ -98,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-            lock(locker)
+            lock(innerLock)
             {
                 return registers.Read(offset);
             }
@@ -106,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            lock(locker)
+            lock(innerLock)
             {
                 registers.Write(offset, value);
             }
@@ -147,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            lock(locker)
+            lock(innerLock)
             {
                 transmitWatermarkInterruptPending.Value = (transmitWatermarkInterruptEnable.Value && transmitWatermarkLevel.Value > 0);
                 receiveWatermarkInterruptPending.Value = (receiveWatermarkInterruptEnable.Value && Count > receiveWatermarkLevel.Value);
@@ -168,7 +167,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField receiveWatermarkInterruptEnable;
 
         private readonly long inputClockFrequency;
-        private readonly object locker;
         private readonly DoubleWordRegisterCollection registers;
 
         private enum Registers : long
