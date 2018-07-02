@@ -155,6 +155,7 @@
     <Compile Include="Peripherals\USB\USBDeviceSpeed.cs" />
     <Compile Include="Peripherals\GPIOPort\EFMGPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\STM32F4GPIOPort.cs" />
+    <Compile Include="Peripherals\GPIOPort\STM32F1GPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\VybridGPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\XilinxGPIOPS.cs" />
     <Compile Include="Peripherals\USB\USBTablet.cs" />
