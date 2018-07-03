@@ -8,7 +8,6 @@
 using System;
 using NUnit.Framework;
 using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.UnitTests
