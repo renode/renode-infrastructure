@@ -565,6 +565,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void SetHookAtBlockEnd(Action<ulong, uint> hook)
+        {
+            using(machine.ObtainPausedState())
+            {
+                if((hook == null) ^ (blockFinishedHook == null))
+                {
+                    ClearTranslationCache();
+                    TlibSetBlockFinishedHookPresent(hook != null ? 1u : 0u);
+                }
+                blockFinishedHook = hook;
+            }
+        }
+
         [Export]
         protected uint ReadByteFromBus(ulong offset)
         {
@@ -763,6 +776,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 bbUserHook(address, size);
             }
+        }
+
+        [Export]
+        private void OnBlockFinished(ulong pc, uint executedInstructions)
+        {
+	    blockFinishedHook?.Invoke(pc, executedInstructions);
         }
 
         protected virtual void InitializeRegisters()
@@ -1160,6 +1179,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool[] interruptState;
         private Action<ulong, uint> blockBeginInternalHook;
         private Action<ulong, uint> blockBeginUserHook;
+        private Action<ulong, uint> blockFinishedHook;
 
         private List<SegmentMapping> currentMappings;
 
@@ -1569,6 +1589,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected FuncInt32 TlibGetExecutedInstructions;
+
+        [Import]
+        private ActionUInt32 TlibSetBlockFinishedHookPresent;
 
         #pragma warning restore 649
 
