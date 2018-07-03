@@ -85,9 +85,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry =>
                 {
                     compareValue = value;
-                    var nextEventIn = Math.Min(compareValue - valueAccumulatedSoFar, initialLimit - valueAccumulatedSoFar);
                     valueAccumulatedSoFar += entry.Value;
-                    return entry.With(period: nextEventIn - entry.Value, value: 0);
+                    return entry.With(period: ((compareValue >= valueAccumulatedSoFar) ? compareValue : initialLimit) - valueAccumulatedSoFar, value: 0);
                 });
             }
         }
