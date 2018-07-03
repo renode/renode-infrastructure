@@ -128,13 +128,17 @@ namespace Antmicro.Renode.Utilities
             {
                 command = string.Format(@"-c ""{0}"" --comment ""{1}""", command, description);
             }
+            else if(sudoName == "pkexec")
+            {
+                // We do nothing, because 'pkexec' (version 0.105) doesn't accept description as a parameter.
+            }
             return command;
         }
 
         /// <summary>
         /// List of supported tool names.
         /// </summary>
-        private static string[] knownToolNames = { "gksudo", "beesu", "kdesudo" };
+        private static string[] knownToolNames = { "gksudo", "beesu", "kdesudo", "pkexec" };
     }
 }
 
