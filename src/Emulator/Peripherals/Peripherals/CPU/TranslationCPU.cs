@@ -1154,7 +1154,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public CpuThreadPauseGuard ObtainPauseGuard(bool forReading, long address)
+        public CpuThreadPauseGuard ObtainPauseGuard(bool forReading, ulong address)
         {
             pauseGuard.Initialize(forReading, address);
             return pauseGuard;
