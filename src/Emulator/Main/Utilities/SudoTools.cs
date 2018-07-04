@@ -114,25 +114,29 @@ namespace Antmicro.Renode.Utilities
         /// <param name="description">Description.</param>
         private static string SudoDecorateCommand(string sudoName, string command, string description = "")
         {
-            // Tool specific adjustments.
-            if(sudoName == "beesu")
+            string result;
+
+            switch(sudoName)
             {
-                // -l creates a login shell needed to execute bash startup scripts
-                command = "-l " + command;
+                // Tool specific adjustments.
+                case "beesu":
+                    // -l creates a login shell needed to execute bash startup scripts
+                    result = "-l " + command;
+                    break;
+                case "gksudo":
+                    result = string.Format(@"-D ""{0}"" ""{1}""", description, command);
+                    break;
+                case "kdesudo":
+                    result = string.Format(@"-c ""{0}"" --comment ""{1}""", command, description);
+                    break;
+                case "pkexec":
+                    // We do nothing, because 'pkexec' (version 0.105) doesn't accept description as a parameter.
+                default:
+                    result = command;
+                    break;
             }
-            else if(sudoName == "gksudo")
-            {
-                command = string.Format(@"-D ""{0}"" ""{1}""", description, command);
-            }
-            else if(sudoName == "kdesudo")
-            {
-                command = string.Format(@"-c ""{0}"" --comment ""{1}""", command, description);
-            }
-            else if(sudoName == "pkexec")
-            {
-                // We do nothing, because 'pkexec' (version 0.105) doesn't accept description as a parameter.
-            }
-            return command;
+
+            return result;
         }
 
         /// <summary>
