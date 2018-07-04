@@ -26,14 +26,14 @@ namespace Antmicro.Renode.Utilities
             Instance = new TemporaryFilesManager(tempDirectory, tempDirPrefix);
         }
 
-        public string GetTemporaryFile()
+        public string GetTemporaryFile(string fileNameSuffix = null)
         {
             lock(emulatorTemporaryPath)
             {
                 string path;
                 do
                 {
-                    var fileName = string.Format("{0}.tmp", Guid.NewGuid());
+                    var fileName = string.Format(fileNameSuffix != null ? $"{Guid.NewGuid()}-{fileNameSuffix}" : $"{Guid.NewGuid()}.tmp");
                     path = Path.Combine(emulatorTemporaryPath, fileName);
                     // this is guid, collision is very unlikely
                 }

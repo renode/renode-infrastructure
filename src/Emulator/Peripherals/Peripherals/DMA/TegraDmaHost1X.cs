@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
 	public uint classid = 0xFFFFFFFF;
 
-	public uint Execute_DMA(long offset) {
+	public uint Execute_DMA(ulong offset) {
 		uint result = 4;
 		uint vl = sysbus.ReadDoubleWord(offset);
 		var opcode = ((vl >> 28) & 0xF);

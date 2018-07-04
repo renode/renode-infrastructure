@@ -112,7 +112,6 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected byte[] buffer;
 
-        [Transient]
         private IManagedThread repainter;
         private Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> configurationChanged;
         private readonly object innerLock;

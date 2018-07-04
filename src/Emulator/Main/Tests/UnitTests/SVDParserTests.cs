@@ -307,7 +307,7 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, variableValue);
         }
 
@@ -336,7 +336,7 @@ namespace Antmicro.Renode.UnitTests
 
             byte[] newBytes = { bytes[3], bytes[2], bytes[1], bytes[0] };
             var expectedValue = BitConverter.ToUInt32(newBytes, 0);
-            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, expectedValue);
         }
 
@@ -359,7 +359,7 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            var returnValue = device.TryReadAccess(0x1000, out var result, "DoubleWord");
+            var returnValue = device.TryReadAccess(0x1000, out var result, SysbusAccessWidth.DoubleWord);
             if(access == "write-only" || access == "writeOnce")
             {
                 Assert.AreEqual(result, 0);
@@ -398,7 +398,7 @@ namespace Antmicro.Renode.UnitTests
                 ");
                 var mask = (uint)((1ul << i) - 1);
                 var expectedValue = variableValue & mask;
-                Assert.IsTrue(device.TryReadAccess(0x1000, out var result, "DoubleWord"));
+                Assert.IsTrue(device.TryReadAccess(0x1000, out var result, SysbusAccessWidth.DoubleWord));
                 Assert.AreEqual(result, expectedValue);
             }
         }
@@ -445,9 +445,9 @@ namespace Antmicro.Renode.UnitTests
 
             for(var i = -3; i < 8; i++)
             {
-                var readingAddress = 0x1000 + i;
+                var readingAddress = (ulong)(0x1000 + i);
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     if(readingAddress + j >= 0x1000 && readingAddress + j < 0x1008)
                     {
@@ -459,7 +459,7 @@ namespace Antmicro.Renode.UnitTests
                     }
                 }
                 var expectedValue = BitConverter.ToUInt32(expectedBytes, 0);
-                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, "DoubleWord"));
+                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, SysbusAccessWidth.DoubleWord));
                 Assert.AreEqual(result, expectedValue);
             }
         }
@@ -523,9 +523,9 @@ namespace Antmicro.Renode.UnitTests
 
             for(var i = -3; i < 8; i++)
             {
-                var readingAddress = 0x1000 + i;
+                var readingAddress = (ulong)(0x1000 + i);
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     if(readingAddress + j >= 0x1000 && readingAddress + j < 0x1008)
                     {
@@ -538,7 +538,7 @@ namespace Antmicro.Renode.UnitTests
                 }
                 var expectedValue = BitConverter.ToUInt32(expectedBytes, 0);
 
-                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, "DoubleWord"));
+                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, SysbusAccessWidth.DoubleWord));
                 Assert.AreEqual(result, expectedValue);
             }
         }
@@ -584,11 +584,11 @@ namespace Antmicro.Renode.UnitTests
                 ",
                 false
             );
-            var readingAddress = 0x1000 - 3;
+            var readingAddress = (ulong)(0x1000 - 3);
             for(var i = -3; i < 8; i++)
             {
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     var tmpAddres = readingAddress + j;
                     if(tmpAddres >= 0x1000 && tmpAddres < 0x1008)
@@ -620,7 +620,7 @@ namespace Antmicro.Renode.UnitTests
                     }
                 }
                 var expectedValue = BitConverter.ToUInt32(expectedBytes, 0);
-                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, "DoubleWord"));
+                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, SysbusAccessWidth.DoubleWord));
                 Assert.AreEqual(result, expectedValue);
                 readingAddress++;
             }
@@ -669,11 +669,11 @@ namespace Antmicro.Renode.UnitTests
                 ",
                 false
             );
-            var readingAddress = 0x1000 - 3;
+            var readingAddress = (ulong)(0x1000 - 3);
             for(var i = -3; i < 8; i++)
             {
                 var expectedBytes = new byte[4];
-                for(var j = 0; j < 4; j++)
+                for(var j = 0u; j < 4; j++)
                 {
                     var tmpAddres = readingAddress + j;
                     if(tmpAddres >= 0x1000 && tmpAddres < 0x1008)
@@ -709,7 +709,7 @@ namespace Antmicro.Renode.UnitTests
                     }
                 }
                 var expectedValue = BitConverter.ToUInt32(expectedBytes, 0);
-                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, "DoubleWord"));
+                Assert.IsTrue(device.TryReadAccess(readingAddress, out var result, SysbusAccessWidth.DoubleWord));
                 Assert.AreEqual(result, expectedValue);
                 readingAddress++;
             }
@@ -724,7 +724,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var baseAddress = 0x10000;
             int[] addressOffset = { 0x1000, 0x100, 0x10 };
-            var finalAddressOffset = 0x11110;
+            var finalAddressOffset = 0x11110u;
 
             SetUpDeviceWithInfix($@"
                 <peripherals>  
@@ -750,7 +750,7 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(finalAddressOffset, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(finalAddressOffset, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x1000);
         }
 
@@ -785,11 +785,11 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x00000663);
-            Assert.IsTrue(device.TryReadAccess(0x1010, out result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1010, out result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x05445E63);
-            Assert.IsTrue(device.TryReadAccess(0x1020, out result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1020, out result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x02345678);
         }
 
@@ -830,11 +830,11 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x1100, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1100, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x00000663);
-            Assert.IsTrue(device.TryReadAccess(0x1110, out result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1110, out result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x05445E63);
-            Assert.IsTrue(device.TryReadAccess(0x1120, out result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1120, out result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x02345678);
         }
 
@@ -873,11 +873,11 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1000, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x000007FF);
-            Assert.IsTrue(device.TryReadAccess(0x1110, out result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1110, out result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x05445E63);
-            Assert.IsTrue(device.TryReadAccess(0x1120, out result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1120, out result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0x02345678);
         }
 
@@ -911,7 +911,7 @@ namespace Antmicro.Renode.UnitTests
                         </peripheral>
                     </peripherals>
                 ");
-                device.TryReadAccess(0x1010, out var result, "DoubleWord");
+                device.TryReadAccess(0x1010, out var result, SysbusAccessWidth.DoubleWord);
             });
         }
 
@@ -939,7 +939,7 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x1010, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1010, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0xF2468ACE);
         }
 
@@ -971,7 +971,7 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x1010, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x1010, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0xF2468ACE);
         }
 
@@ -1010,7 +1010,7 @@ namespace Antmicro.Renode.UnitTests
                     </peripheral>
                 </peripherals>
             ");
-            Assert.IsTrue(device.TryReadAccess(0x2010, out var result, "DoubleWord"));
+            Assert.IsTrue(device.TryReadAccess(0x2010, out var result, SysbusAccessWidth.DoubleWord));
             Assert.AreEqual(result, 0xF2468ACE);
         }
 

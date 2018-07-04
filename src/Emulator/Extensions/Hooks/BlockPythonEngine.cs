@@ -47,9 +47,9 @@ namespace Antmicro.Renode.Hooks
             Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(Script));
         }
 
-        public Action<uint> Hook { get; private set; }
+        public Action<ulong> Hook { get; private set; }
 
-        public Action<uint, uint> HookWithSize { get; private set; }
+        public Action<ulong, uint> HookWithSize { get; private set; }
 
         [Transient]
         private Lazy<ScriptSource> Source;

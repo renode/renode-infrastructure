@@ -138,7 +138,16 @@ namespace Antmicro.Renode.Utilities.Binding
                 }
                 exportedMethods.Add(desiredMethodInfo);
                 // let's make the delegate instance
-                var attachee = Delegate.CreateDelegate(delegateType, classToBind, desiredMethodInfo);
+                Delegate attachee;
+                try
+                {
+                    attachee = Delegate.CreateDelegate(delegateType, classToBind, desiredMethodInfo);
+                }
+                catch(ArgumentException e)
+                {
+                    throw new InvalidOperationException($"Could not resolve call to managed: {e.Message}. Candidate is '{candidate}', desired method is '{desiredMethodInfo.ToString()}'");
+                }
+
 #if !PLATFORM_WINDOWS
                 // according to https://blogs.msdn.microsoft.com/cbrumme/2003/05/06/asynchronous-operations-pinning/,
                 // pinning is wrong (and it does not work on windows too)...

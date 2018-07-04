@@ -7,33 +7,43 @@
 *
 */
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class PowerPc
     {
-        public override void SetRegisterUnsafe(int register, uint value)
+        public override void SetRegisterUnsafe(int register, ulong value)
         {
-            SetRegisterValue32(register, value);
+            if(!mapping.TryGetValue((PowerPcRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override uint GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegisterUnsafe(int register)
         {
-            return GetRegisterValue32(register);
+            if(!mapping.TryGetValue((PowerPcRegisters)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            return GetRegisterValue32(r.Index);
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new CPURegister[] {
-                new CPURegister(0, true),
-            };
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]
-        public UInt32 NIP
+        public RegisterValue NIP
         {
             get
             {
@@ -44,9 +54,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)PowerPcRegisters.NIP, value);
             }
         }
-
         [Register]
-        public override UInt32 PC
+        public override RegisterValue PC
         {
             get
             {
@@ -57,7 +66,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)PowerPcRegisters.PC, value);
             }
         }
-
 
         protected override void InitializeRegisters()
         {
@@ -73,6 +81,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #pragma warning restore 649
 
+        private static readonly Dictionary<PowerPcRegisters, CPURegister> mapping = new Dictionary<PowerPcRegisters, CPURegister>
+        {
+            { PowerPcRegisters.NIP,  new CPURegister(0, 32, true) },
+        };
     }
 
     public enum PowerPcRegisters

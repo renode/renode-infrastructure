@@ -58,6 +58,7 @@ namespace Antmicro.Renode.Tools.Network
                 ifaceDescriptor.AsTap = iface as HostInterfaces.Network.ITapInterface;
                 iface.FrameReady += ifaceDescriptor.Delegate;
                 ifaces.Add(ifaceDescriptor);
+                this.Log(LogLevel.Info, "Interface {0} attached", iface.MAC);
             }
         }
 
@@ -78,6 +79,7 @@ namespace Antmicro.Renode.Tools.Network
                 {
                     macMapping.Remove(m.Key);
                 }
+                this.Log(LogLevel.Info, "Interface {0} detached", iface.MAC);
             }
         }
 
@@ -91,6 +93,7 @@ namespace Antmicro.Renode.Tools.Network
                     throw new RecoverableException("The interface is not registered, you must connect it in order to change promiscuous mode settings");
                 }
                 descriptor.PromiscuousMode = true;
+                this.Log(LogLevel.Info, "Promiscuous mode enabled for interace {0}", iface.MAC);
             }
         }
 
@@ -108,6 +111,7 @@ namespace Antmicro.Renode.Tools.Network
                     throw new RecoverableException("The interface is not in promiscuous mode");
                 }
                 descriptor.PromiscuousMode = false;
+                this.Log(LogLevel.Info, "Promiscuous mode disabled for interace {0}", iface.MAC);
             }
         }
 
@@ -131,6 +135,8 @@ namespace Antmicro.Renode.Tools.Network
 
         private void ForwardToReceiver(EthernetFrame frame, IMACInterface sender)
         {
+            this.Log(LogLevel.Noisy, "Received frame from interface {0}", sender.MAC);
+
             if(!frame.DestinationMAC.HasValue)
             {
                 this.Log(LogLevel.Warning, "Destination MAC not set, the frame has unsupported format.");
@@ -157,6 +163,8 @@ namespace Antmicro.Renode.Tools.Network
 
                 foreach(var iface in interestingIfaces)
                 {
+                    this.Log(LogLevel.Noisy, "Forwarding frame to interface {0}", iface.Interface.MAC);
+                    
                     if(iface.AsTap != null)
                     {
                         iface.AsTap.ReceiveFrame(frame.Clone());

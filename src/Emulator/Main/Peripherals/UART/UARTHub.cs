@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using System.Linq;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Migrant.Hooks;
 using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -86,6 +87,18 @@ namespace Antmicro.Renode.Peripherals.UART
                 foreach(var item in uarts.Where(x => x.Key != sender).Select(x => x.Key))
                 {
                     item.GetMachine().HandleTimeDomainEvent(item.WriteChar, obj, TimeDomainsManager.Instance.VirtualTimeStamp);
+                }
+            }
+        }
+
+        [PostDeserialization]
+        private void ReattachUARTsAfterDeserialization()
+        {
+            lock(locker)
+            {
+                foreach(var uart in uarts)
+                {
+                    uart.Key.CharReceived += uart.Value;
                 }
             }
         }

@@ -105,8 +105,8 @@ namespace Antmicro.Renode.Time
             TimeSource = timeSource;
             TotalElapsedTime = timeSource.ElapsedVirtualTime;
 
+            // we should not assign this handle to TimeSink as the source might not be configured properly yet
             TimeSink = timeSink;
-            TimeSink.TimeHandle = this;
 
             this.Trace();
         }
@@ -340,6 +340,9 @@ namespace Antmicro.Renode.Time
                 reportPending = false;
                 intervalToReport = intervalGranted;
                 Monitor.PulseAll(innerLock);
+
+                PauseRequested = null;
+                StartRequested = null;
             }
             this.Trace();
         }
@@ -442,6 +445,24 @@ namespace Antmicro.Renode.Time
                 Monitor.PulseAll(innerLock);
             }
             this.Trace();
+        }
+
+        /// <summary>
+        /// Calls <see cref="PauseRequested"/> event.
+        /// </summary>
+        public void RequestPause()
+        {
+            this.Trace();
+            PauseRequested?.Invoke();
+        }
+
+        /// <summary>
+        /// Calls <see cref="StartRequested"/> event.
+        /// </summary>
+        public void RequestStart()
+        {
+            this.Trace();
+            StartRequested?.Invoke();
         }
 
         /// <summary>
@@ -581,6 +602,19 @@ namespace Antmicro.Renode.Time
         /// Gets the amount of virtual time that passed from the perspective of this handle.
         /// </summary>
         public TimeInterval TotalElapsedTime { get; private set; }
+
+        /// <summary>
+        /// Informs the sink that the source wants to pause its execution.
+        /// </summary>
+        /// <remarks>
+        /// The sink can react to it in the middle of a granted period and pause instantly.
+        /// </remarks>
+        public event Action PauseRequested;
+
+        /// <summary>
+        /// Informs the sink that the source is about to (re)start its execution, so it should start the dispatcher thread and get ready for new grants.
+        /// </summary>
+        public event Action StartRequested;
 
         [Antmicro.Migrant.Hooks.PreSerialization]
         private void VerifyStateBeforeSerialization()

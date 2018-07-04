@@ -24,6 +24,7 @@
     <WarningLevel>4</WarningLevel>
     <Externalconsole>true</Externalconsole>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>7</LangVersion>
@@ -34,6 +35,7 @@
     <WarningLevel>4</WarningLevel>
     <Externalconsole>true</Externalconsole>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -336,7 +338,6 @@
     <Compile Include="UserInterface\IUserInterfaceProvider.cs" />
     <Compile Include="Core\ObjectCreator.cs" />
     <Compile Include="Core\PythonEngine.cs" />
-    <Compile Include="Utilities\DemosParser.cs" />
     <Compile Include="UserInterface\ControllerMaskAttribute.cs" />
     <Compile Include="Core\IMappedSegment.cs" />
     <Compile Include="Core\SerializableMappedSegment.cs" />
@@ -349,7 +350,7 @@
     <Compile Include="Peripherals\Input\IPS2Controller.cs" />
     <Compile Include="Peripherals\Network\EthernetPhysicalLayer.cs" />
     <Compile Include="Peripherals\DMA\DmaEngine.cs" />
-    <Compile Include="Peripherals\Bus\Width.cs" />
+    <Compile Include="Peripherals\Bus\SysbusAccessWidth.cs" />
     <Compile Include="Peripherals\Bus\Access.cs" />
     <Compile Include="Debug\DebugHelper.cs" />
     <Compile Include="Peripherals\Bus\BusHookHandler.cs" />
@@ -395,6 +396,11 @@
     <Compile Include="Peripherals\Sensor\ITemperatureSensor.cs" />
     <Compile Include="Core\GPIOMultiplexer.cs" />
     <Compile Include="Utilities\AllowAnyNumericalValue.cs" />
+    <Compile Include="Peripherals\CPU\RegisterValue.cs" />
+    <Compile Include="Peripherals\Bus\SymbolAddress.cs" />
+    <Compile Include="Peripherals\Bus\ELFExtensions.cs" />
+    <Compile Include="Peripherals\Bus\ISymbolEntryExtensions.cs" />
+    <Compile Include="Utilities\DisposableWrapper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

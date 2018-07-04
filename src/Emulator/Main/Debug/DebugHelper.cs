@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Debugging
 {
@@ -23,7 +24,9 @@ namespace Antmicro.Renode.Debugging
         {
             if(!condition)
             {
-                throw new AssertionException($"Assertion in {memberName} ({sourceFilePath}:{sourceLineNumber}) failed. {(string.IsNullOrEmpty(message) ? string.Empty : message)}");
+                var formattedMessage = $"Assertion in {memberName} ({sourceFilePath}:{sourceLineNumber}) failed. {(string.IsNullOrEmpty(message) ? string.Empty : message)}";
+                Logger.Log(null, LogLevel.Error, formattedMessage);
+                throw new AssertionException(formattedMessage);
             }
         }
     }

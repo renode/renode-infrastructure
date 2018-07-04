@@ -70,14 +70,15 @@ namespace Antmicro.Renode.UnitTests
             const int NumberOfPeripherals = 100;
             var MaximumPeripheralSize = 16.KB();
 
-            var regPoints = new int[NumberOfPeripherals];
+            var regPoints = new ulong[NumberOfPeripherals];
+            var unregisteredPoints = new HashSet<ulong>();
             var random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-            var lastPoint = 4;
+            var lastPoint = 4u;
             for(var i = 0; i < NumberOfPeripherals; i++)
             {
                 // gap
-                lastPoint += random.Next(MaximumPeripheralSize);
-                var size = random.Next(1, MaximumPeripheralSize + 1);
+                lastPoint += (uint)random.Next(MaximumPeripheralSize);
+                var size = (uint)random.Next(1, MaximumPeripheralSize + 1);
                 regPoints[i] = lastPoint;
                 var mock = new Mock<IDoubleWordPeripheral>();
                 mock.Setup(x => x.ReadDoubleWord(0)).Returns((uint)regPoints[i]);
@@ -92,20 +93,21 @@ namespace Antmicro.Renode.UnitTests
                 if(random.Next(100) < 10)
                 {
                     sysbus.UnregisterFromAddress(regPoints[i]);
-                    regPoints[i] = -regPoints[i];
+                    unregisteredPoints.Add(regPoints[i]);
                 }
             }
 			
             // finally some assertions
             for(var i = 0; i < NumberOfPeripherals; i++)
             {
-                if(regPoints[i] < 0)
+                var value = sysbus.ReadDoubleWord(regPoints[i]);
+                if(unregisteredPoints.Contains(regPoints[i]))
                 {
-                    Assert.AreEqual(0, sysbus.ReadDoubleWord(-regPoints[i]));
+                    Assert.AreEqual(0, value);
                 }
                 else
                 {
-                    Assert.AreEqual(regPoints[i], sysbus.ReadDoubleWord(regPoints[i]));
+                    Assert.AreEqual(regPoints[i], value);
                 }
             }
         }

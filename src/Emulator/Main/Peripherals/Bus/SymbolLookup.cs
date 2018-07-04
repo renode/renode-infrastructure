@@ -16,10 +16,10 @@ using Antmicro.Renode.Utilities.Collections;
 using System.Collections;
 using Antmicro.Renode.Utilities;
 
+using Antmicro.Renode.Peripherals.Bus;
+
 namespace Antmicro.Renode.Core
 {
-    using TAddress = System.UInt32;
-
     public class SymbolLookup
     {
         public SymbolLookup()
@@ -33,25 +33,19 @@ namespace Antmicro.Renode.Core
         /// Loads the symbols from ELF and puts the symbols into the SymbolLookup.
         /// </summary>
         /// <param name="elf">Elf.</param>
-        public void LoadELF(ELF<TAddress> elf, bool useVirtualAddress)
+        public void LoadELF(IELF elf, bool useVirtualAddress)
         {
-            Section<uint> symtabSection;
-            if(!elf.TryGetSection(".symtab", out symtabSection))
+            if(elf is ELF<uint> elf32)
             {
-                return;
+                LoadELF(elf32, useVirtualAddress);
             }
-            var symtab = (SymbolTable<uint>)symtabSection;
-            var thumb = elf.Machine == ELFSharp.ELF.Machine.ARM;
-
-            var elfSymbols = symtab.Entries.Where(x => !armSpecificSymbolNames.Contains(x.Name)).Where(x => !excludedSymbolTypes.Contains(x.Type))
-                                   .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined).Select(x => new Symbol(x, thumb));
-            InsertSymbols(elfSymbols);
-            EntryPoint = elf.EntryPoint;
-            var segments = elf.Segments.Where(x => x.Type == ELFSharp.ELF.Segments.SegmentType.Load);
-            foreach(var segment in segments)
+            else if(elf is ELF<ulong> elf64)
             {
-                var loadAddress = useVirtualAddress ? segment.Address : segment.PhysicalAddress;
-                maxLoadAddress = Math.Max(maxLoadAddress, loadAddress + segment.Size);
+                LoadELF(elf64, useVirtualAddress);
+            }
+            else
+            {
+                throw new ArgumentException("Unsupported ELF format");
             }
         }
 
@@ -64,7 +58,7 @@ namespace Antmicro.Renode.Core
             var symbolToAdd = GetUnique(symbol);
             symbols.Add(symbolToAdd);
             symbolsByName.Add(symbol.Name, symbol);
-            maxLoadAddress = Math.Max(maxLoadAddress, symbol.End);
+            maxLoadAddress = SymbolAddress.Max(maxLoadAddress, symbol.End);
         }
 
         /// <summary>
@@ -76,7 +70,7 @@ namespace Antmicro.Renode.Core
         /// <param name="type">SymbolType.</param>
         /// <param name="binding">Symbol binding</param> 
         /// <param name="isThumb">If set to <c>true</c>, symbol is marked as a thumb symbol.</param>
-        public void InsertSymbol(string name, TAddress start, TAddress size, SymbolType type = SymbolType.NotSpecified, SymbolBinding binding = SymbolBinding.Global, bool isThumb = false)
+        public void InsertSymbol(string name, SymbolAddress start, SymbolAddress size, SymbolType type = SymbolType.NotSpecified, SymbolBinding binding = SymbolBinding.Global, bool isThumb = false)
         {
             var symbol = new Symbol(start, start + size, name, type, binding, isThumb);
             InsertSymbol(symbol);
@@ -100,7 +94,7 @@ namespace Antmicro.Renode.Core
             foreach(var symbolToAdd in symbolsToAdd)
             {
                 AddSymbolToNameLookup(symbolToAdd);
-                maxLoadAddress = Math.Max(maxLoadAddress, symbolToAdd.End);
+                maxLoadAddress = SymbolAddress.Max(maxLoadAddress, symbolToAdd.End);
             }
 
             // Add symbols to interval set
@@ -125,7 +119,7 @@ namespace Antmicro.Renode.Core
         /// <returns><c>true</c>, if a symbol was found, <c>false</c> when no symbol contains specified address.</returns>
         /// <param name="offset">Offset.</param>
         /// <param name="symbol">Symbol.</param>
-        public bool TryGetSymbolByAddress(TAddress offset, out Symbol symbol)
+        public bool TryGetSymbolByAddress(SymbolAddress offset, out Symbol symbol)
         {
             if(offset > maxLoadAddress)
             {
@@ -140,7 +134,7 @@ namespace Antmicro.Renode.Core
         /// </summary>
         /// <returns>The symbol by address.</returns>
         /// <param name="offset">Offset.</param>
-        public Symbol GetSymbolByAddress(TAddress offset)
+        public Symbol GetSymbolByAddress(SymbolAddress offset)
         {
             Symbol symbol;
             if(!TryGetSymbolByAddress(offset, out symbol))
@@ -150,12 +144,51 @@ namespace Antmicro.Renode.Core
             return symbol;
         }
 
+        public SymbolAddress? EntryPoint
+        {
+            get;
+            private set;
+        }
+
+        public ulong? FirstNotNullSectionAddress
+        {
+            get;
+            private set;
+        }
+
         /// <summary>
         /// All SymbolLookup objects.
         /// </summary>
         static private readonly HashSet<SymbolLookup> allSymbolSets = new HashSet<SymbolLookup>();
         static private readonly string[] armSpecificSymbolNames = { "$a", "$d", "$t" };
         static private readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
+
+        private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress) where T : struct
+        {
+            if(!elf.TryGetSection(".symtab", out var symtabSection))
+            {
+                return;
+            }
+
+            var thumb = elf.Machine == ELFSharp.ELF.Machine.ARM;
+            var symtab = (SymbolTable<T>)symtabSection;
+
+            var elfSymbols = symtab.Entries.Where(x => !armSpecificSymbolNames.Contains(x.Name)).Where(x => !excludedSymbolTypes.Contains(x.Type))
+                                .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined).Select(x => new Symbol(x, thumb));
+            InsertSymbols(elfSymbols);
+            EntryPoint = elf.GetEntryPoint();
+            FirstNotNullSectionAddress  = elf.Sections
+                                    .Where(x => x.Type != SectionType.Null && x.Flags.HasFlag(SectionFlags.Allocatable))
+                                    .Select(x => x.GetSectionPhysicalAddress())
+                                    .Cast<ulong?>()
+                                    .Min();
+            var segments = elf.Segments.Where(x => x.Type == ELFSharp.ELF.Segments.SegmentType.Load).OfType<ELFSharp.ELF.Segments.Segment<T>>();
+            foreach(var segment in segments)
+            {
+                var loadAddress = useVirtualAddress ? segment.GetSegmentAddress() : segment.GetSegmentPhysicalAddress();
+                maxLoadAddress = SymbolAddress.Max(maxLoadAddress, loadAddress + segment.GetSegmentSize());
+            }
+        }
 
         private bool TryGetSymbol(Symbol symbol, out Symbol outSymbol)
         {
@@ -219,12 +252,6 @@ namespace Antmicro.Renode.Core
             return symbol;
         }
 
-        public uint? EntryPoint
-        {
-            get;
-            private set;
-        }
-
         /// <summary>
         /// Interval to symbol mapping.
         /// </summary>
@@ -235,7 +262,7 @@ namespace Antmicro.Renode.Core
         /// </summary>
         private MultiValueDictionary<string, Symbol> symbolsByName;
 
-        private uint maxLoadAddress;
+        private SymbolAddress maxLoadAddress;
 
         private class SortedIntervals : IEnumerable
         {
@@ -297,7 +324,7 @@ namespace Antmicro.Renode.Core
             /// <returns><c>true</c>, if the interval was found, <c>false</c> when such interval does not exist.</returns>
             /// <param name="scalar">Scalar.</param>
             /// <param name="interval">Found interval.</param>
-            public bool TryGet(TAddress scalar, out Symbol interval)
+            public bool TryGet(SymbolAddress scalar, out Symbol interval)
             {
                 interval = default(Symbol);
                 var marker = new MarkerSymbol(scalar);
@@ -872,7 +899,7 @@ namespace Antmicro.Renode.Core
             /// <returns>The enclosing interval index or NoEnclosingInterval.</returns>
             /// <param name="index">Index of the input interval.</param>
             /// <param name = "scalar"></param>
-            private int FindEnclosingInterval(int index, TAddress scalar)
+            private int FindEnclosingInterval(int index, SymbolAddress scalar)
             {
                 var original = index;
                 while(index != NoEnclosingInterval && !symbols[index].Contains(scalar))
@@ -895,7 +922,7 @@ namespace Antmicro.Renode.Core
             private SymbolLookup owner;
             private const int NoEnclosingInterval = -1;
             private const int NoRightSibling = -1;
-            private readonly MarkerComparer<TAddress> comparer = new MarkerComparer<TAddress>();
+            private readonly MarkerComparer<SymbolAddress> comparer = new MarkerComparer<SymbolAddress>();
 
             private Symbol[] symbols;
 
@@ -964,7 +991,7 @@ namespace Antmicro.Renode.Core
             /// </summary>
             private class MarkerSymbol : Symbol
             {
-                public MarkerSymbol(TAddress value) : base(value, MarkerComparer<TAddress>.GetMarkerValue())
+                public MarkerSymbol(SymbolAddress value) : base(value, MarkerComparer<SymbolAddress>.GetMarkerValue())
                 {
                 }
             }

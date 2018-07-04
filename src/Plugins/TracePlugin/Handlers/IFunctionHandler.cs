@@ -14,9 +14,9 @@ namespace Antmicro.Renode.Plugins.TracePlugin.Handlers
 {
     public interface IFunctionHandler
     {
-        void CallHandler(TranslationCPU cpu, uint pc, string functionName, IEnumerable<object> arguments);
+        void CallHandler(TranslationCPU cpu, ulong pc, string functionName, IEnumerable<object> arguments);
 
-        void ReturnHandler(TranslationCPU cpu, uint pc, string functionName, IEnumerable<object> argument);
+        void ReturnHandler(TranslationCPU cpu, ulong pc, string functionName, IEnumerable<object> argument);
 
         IEnumerable<FunctionCallParameter> CallParameters{ get; }
 

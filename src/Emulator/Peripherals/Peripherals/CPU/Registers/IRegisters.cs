@@ -13,11 +13,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Registers
     public interface IRegisters
     {
         IEnumerable<int> Keys { get; }
-    }
-
-    public interface IRegisters<T> : IRegisters
-    {
-        T this[int index] { get; set; }
+        RegisterValue this[int index] { get; set; }
     }
 }
 

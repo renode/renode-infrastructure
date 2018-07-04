@@ -9,7 +9,7 @@ using System;
 namespace Antmicro.Renode.Peripherals.Bus
 {
     [Flags]
-    public enum Width
+    public enum SysbusAccessWidth
     {
         Byte = 1,
         Word = 2,
@@ -17,4 +17,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         QuadWord = 8
     }
 }
-

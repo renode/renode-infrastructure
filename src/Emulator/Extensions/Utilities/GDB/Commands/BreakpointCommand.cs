@@ -7,7 +7,7 @@
 using System;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
-using Width = Antmicro.Renode.Peripherals.Bus.Width;
+using SysbusAccessWidth = Antmicro.Renode.Peripherals.Bus.SysbusAccessWidth;
 using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("Z")]
         public PacketData InsertBreakpoint(
             [Argument(Separator = ',')]BreakpointType type,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint address,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
             [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint kind)
         {
             switch(type)
@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("z")]
         public PacketData RemoveBreakpoint(
             [Argument(Separator = ',')]BreakpointType type,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint address,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
             [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint kind)
         {
             switch(type)
@@ -82,34 +82,34 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return PacketData.Success;
         }
 
-        private void HardwareBreakpointHook(uint address)
+        private void HardwareBreakpointHook(ulong address)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, breakpointType: BreakpointType.HardwareBreakpoint));
         }
 
-        private void MemoryBreakpointHook(uint address)
+        private void MemoryBreakpointHook(ulong address)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, breakpointType: BreakpointType.MemoryBreakpoint));
         }
 
-        private void AccessWatchpointHook(long address, Width width)
+        private void AccessWatchpointHook(ulong address, SysbusAccessWidth width)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.AccessWatchpoint));
         }
 
-        private void WriteWatchpointHook(long address, Width width)
+        private void WriteWatchpointHook(ulong address, SysbusAccessWidth width)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.WriteWatchpoint));
         }
 
-        private void ReadWatchpointHook(long address, Width width)
+        private void ReadWatchpointHook(ulong address, SysbusAccessWidth width)
         {
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.ReadWatchpoint));
         }
 
-        private void AddWatchpointsCoveringMemoryArea(long address, uint kind, Access access, Action<long, Width> hook)
+        private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ulong, SysbusAccessWidth> hook)
         {
-            // we need to register hooks for all possible access widths convering memory fragment
+            // we need to register hooks for all possible access widths covering memory fragment
             // [address, address + kind) referred by GDB
             foreach(var descriptor in CalculateAllCoveringAddressess(address, kind, access, hook))
             {
@@ -128,9 +128,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private void RemoveWatchpointsCoveringMemoryArea(long address, uint kind, Access access, Action<long, Width> hook)
+        private void RemoveWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ulong, SysbusAccessWidth> hook)
         {
-            // we need to unregister hooks from all possible access widths convering memory fragment 
+            // we need to unregister hooks from all possible access widths convering memory fragment
             // [address, address + kind) referred by GDB
             foreach(var descriptor in CalculateAllCoveringAddressess(address, kind, access, hook))
             {
@@ -149,13 +149,13 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(long address, uint kind, Access access, Action<long, Width> hook)
+        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, Action<ulong, SysbusAccessWidth> hook)
         {
-            foreach(Width width in Enum.GetValues(typeof(Width)))
+            foreach(SysbusAccessWidth width in Enum.GetValues(typeof(SysbusAccessWidth)))
             {
-                for(var offset = -(address % (int)width); offset < kind; offset += (int)width)
+                for(var offset = -(long)(address % (ulong)width); offset < kind; offset += (long)width)
                 {
-                    yield return new WatchpointDescriptor(address + offset, width, access, hook);
+                    yield return new WatchpointDescriptor(address - (ulong)(-offset), width, access, hook);
                 }
             }
         }
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private class WatchpointDescriptor
         {
-            public WatchpointDescriptor(long address, Width width, Access access, Action<long, Width> hook)
+            public WatchpointDescriptor(ulong address, SysbusAccessWidth width, Access access, Action<ulong, SysbusAccessWidth> hook)
             {
                 Address = address;
                 Width = width;
@@ -194,10 +194,10 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     + 17 * Hook.GetHashCode();
             }
 
-            public readonly long Address;
-            public readonly Width Width;
+            public readonly ulong Address;
+            public readonly SysbusAccessWidth Width;
             public readonly Access Access;
-            public readonly Action<long, Width> Hook;
+            public readonly Action<ulong, SysbusAccessWidth> Hook;
         }
     }
 }

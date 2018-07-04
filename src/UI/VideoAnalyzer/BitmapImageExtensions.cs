@@ -8,7 +8,9 @@
 using System;
 using Xwt.Drawing;
 using Xwt.Backends;
+#if !PLATFORM_WINDOWS
 using Xwt.GtkBackend;
+#endif
 using System.Runtime.InteropServices;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video
@@ -18,8 +20,10 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         public static void Copy(this BitmapImage bmp, byte[] frame)
         {
             var backend = bmp.GetBackend();
+#if !PLATFORM_WINDOWS
             var outBuffer = ((GtkImage)backend).Frames[0].Pixbuf.Pixels;
             Marshal.Copy(frame, 0, outBuffer, frame.Length);
+#endif
         }
 
         public static void InvertColorOfPixel(this BitmapImage img, int x, int y)

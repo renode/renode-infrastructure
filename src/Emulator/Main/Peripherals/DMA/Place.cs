@@ -17,16 +17,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             StartIndex = startIndex;
         }
 
-        public Place(long address)
+        public Place(ulong address)
         {
             Address = address;
         }
 
-        public long? Address { get; private set; }
+        public ulong? Address { get; private set; }
         public byte[] Array { get; private set; }
         public int? StartIndex { get; private set; }
 
-        public static implicit operator Place(long address)
+        public static implicit operator Place(ulong address)
         {
             return new Place(address);
         }

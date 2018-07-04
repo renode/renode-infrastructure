@@ -12,7 +12,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
-    public delegate int DisassemblyProvider(UInt64 pc, IntPtr memory, UInt64 size, UInt32 flags, IntPtr output, UInt64 outputSize);
+    public delegate int DisassemblyProvider(ulong pc, IntPtr memory, ulong size, UInt32 flags, IntPtr output, ulong outputSize);
 
     public interface IDisassembler
     {

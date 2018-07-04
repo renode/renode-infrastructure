@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Python
             public byte length { get; set; }
             public RequestType type { get; set; }
             public long offset { get; set; }
-            public long absolute { get; set; }
+            public ulong absolute { get; set; }
 
             public bool isInit
             {

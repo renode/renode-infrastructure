@@ -7,7 +7,9 @@
 //
 using System;
 using Xwt;
+#if !PLATFORM_WINDOWS
 using Xwt.GtkBackend;
+#endif
 using System.Threading;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.UserInterface;
@@ -39,7 +41,11 @@ namespace Antmicro.Renode.UI
 
         public void Initialize()
         {
+#if PLATFORM_WINDOWS
+            Application.Initialize(ToolkitType.Wpf);
+#else
             Application.Initialize(ToolkitType.Gtk);
+#endif
         }
 
         public void RunMainLoopInCurrentThread()
@@ -53,11 +59,13 @@ namespace Antmicro.Renode.UI
                 UiThreadId = Thread.CurrentThread.ManagedThreadId;
             }
 
-            Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException, false);
+            Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException);
             GLib.ExceptionManager.UnhandledException += arg => CrashHandler.HandleCrash((Exception)arg.ExceptionObject);
             Application.Run();
-            GtkTextLayoutBackendHandler.DisposeResources();
 
+#if !PLATFORM_WINDOWS
+            GtkTextLayoutBackendHandler.DisposeResources();
+#endif
             lock(internalLock)
             {
                 UiThreadId = -1;

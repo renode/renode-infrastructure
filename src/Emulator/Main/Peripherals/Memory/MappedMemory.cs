@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 #endif
 
-        public MappedMemory(Machine machine, uint size, int? segmentSize = null)
+        public MappedMemory(Machine machine, long size, int? segmentSize = null)
         {
             if(segmentSize == null)
             {
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 throw new InvalidOperationException("Memory: Cannot resume state from stream: Invalid magic.");
             }
             SegmentSize = reader.ReadInt32();
-            size = reader.ReadUInt32();
+            size = reader.ReadInt64();
             if(emptyCtorUsed)
             {
                 Init();
@@ -431,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 describedSegments[i] = new MappedSegment(this, i, (uint)SegmentSize);
             }
             var last = describedSegments.Length - 1;
-            var sizeOfLast = size % (uint)SegmentSize;
+            var sizeOfLast = (uint)(size % (uint)SegmentSize);
             if(sizeOfLast == 0)
             {
                 sizeOfLast = (uint)SegmentSize;
@@ -500,7 +500,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         private IntPtr[] originalPointers;
         private IMappedSegment[] describedSegments;
         private bool disposed;
-        private uint size;
+        private long size;
         private readonly Machine machine;
 
         private const uint Magic = 0xABCD6366;
@@ -519,7 +519,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 }
             }
 
-            public long Size
+            public ulong Size
             {
                 get
                 {
@@ -527,11 +527,11 @@ namespace Antmicro.Renode.Peripherals.Memory
                 }
             }
 
-            public long StartingOffset
+            public ulong StartingOffset
             {
                 get
                 {
-                    return index * parent.SegmentSize;
+                    return checked((ulong)index * (ulong)parent.SegmentSize);
                 }
             }
 

@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Time
 {
@@ -21,9 +22,10 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Registers a time stamp provider for the current thread.
         /// </summary>
-        public void RegisterCurrentThread(Func<TimeStamp> f)
+        public IDisposable RegisterCurrentThread(Func<TimeStamp> f)
         {
             timeGetters.AddOrUpdate(Thread.CurrentThread.ManagedThreadId, f, (k, v) => f);
+            return new DisposableWrapper().RegisterDisposeAction(() => Instance.UnregisterCurrentThread());
         }
 
         /// <summary>

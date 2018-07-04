@@ -20,12 +20,12 @@ namespace Antmicro.Renode.Plugins.TracePlugin.Handlers
         {
         }
 
-        public void CallHandler(TranslationCPU cpu, uint pc, string functionName, IEnumerable<object> arguments)
+        public void CallHandler(TranslationCPU cpu, ulong pc, string functionName, IEnumerable<object> arguments)
         {
             Logger.LogAs(this, LogLevel.Warning, arguments.First().ToString());
         }
 
-        public void ReturnHandler(TranslationCPU cpu, uint pc, string functionName, IEnumerable<object> argument)
+        public void ReturnHandler(TranslationCPU cpu, ulong pc, string functionName, IEnumerable<object> argument)
         {
             throw new NotImplementedException();
         }

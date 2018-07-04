@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 else if(whatIsAt != null)
                 {
                     var transferred = 0;
-                    var offset = 0;
+                    var offset = 0UL;
                     while(transferred < request.Size)
                     {
                         switch(request.ReadTransferType)
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 else
                 {
                     var transferred = 0;
-                    var offset = 0;
+                    var offset = 0UL;
                     while(transferred < request.Size)
                     {
                         switch(request.WriteTransferType)

@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Noisy, "Loading assembly {0}.", path);
                 ClearExtensionMethodsCache();
                 BuildAssemblyCache();
-                if(!AnalyzeAssembly(path))
+                if(!AnalyzeAssembly(path, true))
                 {
                     return false;
                 }
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Utilities
                             "Assembly resolver returned path {0} which is not one of the proposed paths {1}.",
                             selectedAssembly, possibleAssemblies.Select(x => x.Path).Aggregate((x, y) => x + ", " + y)));
                     }
-                    var typeName = string.Format("{0}, {1}", name, selectedAssemblyDescription);
+                    var typeName = string.Format("{0}, {1}", name, selectedAssemblyDescription.FullName);
                     // once conflict is resolved, we can move this type to assemblyFromTypeName
                     assembliesFromTypeName.Remove(name);
                     assemblyFromTypeName.Add(name, selectedAssemblyDescription);
@@ -410,7 +410,7 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
-        private bool AnalyzeAssembly(string path)
+        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false)
         {
             Logger.LogAs(this, LogLevel.Noisy, "Analyzing assembly {0}.", path);
             if(assemblyFromAssemblyName.Values.Any(x => x.Path == path))
@@ -533,6 +533,11 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(assemblyFromTypeName.ContainsKey(fullName))
                 {
+                    if(abortOnDuplicatedAssembly)
+                    {
+                        Logger.LogAs(this, LogLevel.Warning, "Trying to load assembly that has been already loaded.");
+                        return false;
+                    }
                     var description = assemblyFromTypeName[fullName];
                     assemblyFromTypeName.Remove(fullName);
                     assembliesFromTypeName.Add(fullName, new List<AssemblyDescription> { description, newAssemblyDescription });

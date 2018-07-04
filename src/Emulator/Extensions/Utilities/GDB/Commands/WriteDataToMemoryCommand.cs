@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
     internal class WriteDataToMemoryCommand : Command
@@ -14,7 +16,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("M")]
         public PacketData WriteHexData(
-           [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint address,
+           [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint length,
            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] data)
         {
@@ -24,7 +26,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("X")]
         public PacketData WriteBinaryData(
-           [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint address,
+           [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint length,
            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.BinaryBytes)]byte[] data)
         {
