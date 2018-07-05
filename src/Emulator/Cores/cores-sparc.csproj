@@ -40,11 +40,11 @@
   </Target>
   <Target Name="PrepareEmbeddedResources" DependsOnTargets="_PrepareProperties" BeforeTargets="PrepareForBuild">
     <ItemGroup>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib$(HostWordSize)\translate-sparc-le.so">
-        <LogicalName>Antmicro.Renode.translate_$(HostWordSize)-sparc-le.so</LogicalName>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-sparc-le.so">
+        <LogicalName>Antmicro.Renode.translate-sparc-le.so</LogicalName>
       </EmbeddedResource>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib$(HostWordSize)\translate-sparc-be.so">
-        <LogicalName>Antmicro.Renode.translate_$(HostWordSize)-sparc-be.so</LogicalName>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-sparc-be.so">
+        <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
   </Target>

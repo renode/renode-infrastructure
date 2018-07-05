@@ -76,15 +76,12 @@
   </ItemGroup>
   <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="EnvironmentTask" />
   <Target Name="CopySharedLibraries" AfterTargets="Build">
-    <EnvironmentTask Condition="$(HostWordSize) == ''">
-      <Output TaskParameter="FrameworkPointerSize" PropertyName="HostWordSize" />
-    </EnvironmentTask>
     <PropertyGroup>
         <Extension Condition=" '$(CurrentPlatform)' == 'Windows'">dll</Extension>
         <Extension Condition=" '$(CurrentPlatform)' == 'Linux'"  >so</Extension>
         <Extension Condition=" '$(CurrentPlatform)' == 'OSX'"    >dylib</Extension>
         <Suffix    Condition=" '$(CurrentPlatform)' == 'Linux'"  >-3.4</Suffix>
     </PropertyGroup>
-    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\$(HostWordSize)_libLLVM$(Suffix).$(Extension)" DestinationFiles="$(OutputPath)\libLLVM.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\$(HostWordSize)_libLLVM$(Suffix).$(Extension)')" />
+    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\64_libLLVM$(Suffix).$(Extension)" DestinationFiles="$(OutputPath)\libLLVM.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\64_libLLVM$(Suffix).$(Extension)')" />
   </Target>
 </Project>

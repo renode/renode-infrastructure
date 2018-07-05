@@ -5,19 +5,15 @@
 
     <Target Name="_PrepareProperties" DependsOnTargets="SetEndianess">
         <Error Text="Configuration not provided" Condition=" $(Configuration) == '' " />
-        <EnvironmentTask Condition= "$(HostWordSize) == ''">
-            <Output TaskParameter="FrameworkPointerSize" PropertyName="HostWordSize" />
-        </EnvironmentTask>
-        <Message Text="Detected host word size: $(HostWordSize)" />
     </Target>
 
     <Target Name="PrepareEmbeddedResources" BeforeTargets="PrepareForBuild" DependsOnTargets="_PrepareProperties">
         <ItemGroup>
-            <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib$(HostWordSize)\translate-$(Architecture)-le.so" Condition=" '%(Endianess.Identity)' == 'le' ">
-                <LogicalName>Antmicro.Renode.translate_$(HostWordSize)-$(Architecture)-le.so</LogicalName>
+            <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-le.so" Condition=" '%(Endianess.Identity)' == 'le' ">
+                <LogicalName>Antmicro.Renode.translate-$(Architecture)-le.so</LogicalName>
             </EmbeddedResource>
-            <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib$(HostWordSize)\translate-$(Architecture)-be.so" Condition=" '%(Endianess.Identity)' == 'be' ">
-                <LogicalName>Antmicro.Renode.translate_$(HostWordSize)-$(Architecture)-be.so</LogicalName>
+            <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-be.so" Condition=" '%(Endianess.Identity)' == 'be' ">
+                <LogicalName>Antmicro.Renode.translate-$(Architecture)-be.so</LogicalName>
             </EmbeddedResource>
         </ItemGroup>
     </Target>
@@ -31,7 +27,7 @@
         <MSBuild
             Projects="./translate.cproj"
             Targets="VerifyProperties;GenerateFlags;Compile;Link;Build"
-            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;HostWordSize=$(HostWordSize);TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);CurrentPlatform=$(CurrentPlatform)" />
+            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);CurrentPlatform=$(CurrentPlatform)" />
     </Target>
 
     <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">

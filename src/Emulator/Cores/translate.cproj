@@ -7,14 +7,10 @@
     <Error Text="No configuration provided" Condition=" $(Configuration) == '' " />
     <Error Text="Host endianess not provided" Condition=" $(HostEndianess) == '' " />
     <Error Text="Wrong host endianess value: provide 'le' or 'be'" Condition=" $(HostEndianess) != 'le' and $(HostEndianess) != 'be' " />
-
     <Error Text="Target endianess not provided" Condition=" $(TargetEndianess) == '' " />
     <Error Text="Wrong target endianess value: provide 'le' or 'be'" Condition=" $(TargetEndianess) != 'le' and $(TargetEndianess) != 'be' " />
-
     <Error Text="Target architecture not provided" Condition=" $(TargetArchitecture) == '' " />
-
     <Error Text="Host architecture not provided!" Condition=" $(HostArchitecture) == '' " />
-    <Message Text="Host word size not provided!" Condition=" $(HostWordSize) == '' " />
 
     <Message Text="Target word size not provided. Using default: 32" Condition=" $(TargetWordSize) == '' " />
     <Message Text="Emulated target not provided. Using default: $(TargetArchitecture.ToLower())" Condition=" $(EmulatedTarget) == '' " />
@@ -27,16 +23,16 @@
         <EmulatedTarget Condition=" '$(EmulatedTarget)' == '' ">$(TargetArchitecture.ToLower())</EmulatedTarget>
 
         <ConfigName>$(ProtoTarget)-$(TargetWordSize)_$(TargetEndianess)</ConfigName>
-        <SoFileLocation>bin/$(Configuration)/lib$(HostWordSize)</SoFileLocation>
+        <SoFileLocation>bin/$(Configuration)/lib</SoFileLocation>
         <LibraryPath>translate-$(ProtoTarget)-$(TargetEndianess).so</LibraryPath>
         <ObjectFilesDirectory>obj/$(Configuration)/obj-$(ConfigName)</ObjectFilesDirectory>
         <TlibDirectory>tlib</TlibDirectory>
         <TcgLibraryDirectory>$(MSBuildProjectDirectory)/tlib/tcg/bin/$(Configuration)</TcgLibraryDirectory>
-        <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(HostWordSize)-$(TargetWordSize)_$(TargetEndianess).a</TcgLibraryFilename>
+        <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(TargetWordSize)_$(TargetEndianess).a</TcgLibraryFilename>
     </PropertyGroup>
 
     <Message Text="Configuring translation library" />
-    <Message Text="Host : $(HostArchitecture), $(HostWordSize)-bit, $(HostEndianess)" />
+    <Message Text="Host : $(HostArchitecture), 64-bit, $(HostEndianess)" />
     <Message Text="Target : $(TargetArchitecture), $(TargetWordSize)-bit, $(TargetEndianess)" />
   </Target>
 
@@ -56,8 +52,7 @@
       <ItemGroup>
           <CompilationFlags Include="-fomit-frame-pointer" />
           <CompilationFlags Include="-shared" />
-          <CompilationFlags Include="-m32 " Condition="$(HostWordSize) == '32'" />
-          <CompilationFlags Include="-fPIC" Condition=" $(HostWordSize) == '64' and $(CurrentPlatform) != 'Windows'" />
+          <CompilationFlags Include="-fPIC" Condition=" $(CurrentPlatform) != 'Windows'" />
           <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug'" />
           <CompilationFlags Include="-O2" Condition=" $(Configuration) == 'Release' or $(Configuration) == ''" />
           <CompilationFlags Include="-Wall" />
@@ -67,7 +62,7 @@
           <CompilationFlags Include="-Werror" />
           <CompilationFlags Include="-DCONFIG_NEED_MMU" />
           <CompilationFlags Include="-DTCG_TARGET_$(HostUpper)" />
-          <CompilationFlags Include="-DHOST_BITS_$(HostWordSize)" />
+          <CompilationFlags Include="-DHOST_BITS_64" />
           <CompilationFlags Include="-I $(TlibDirectory)/arch/$(EmulatedTarget)" />
           <CompilationFlags Include="-I $(TlibDirectory)/tcg/$(HostArchitecture)" />
           <CompilationFlags Include="-I $(TlibDirectory)/include" />
@@ -81,7 +76,7 @@
           <CompilationFlags Include="-DTARGET_LLONG_ALIGNMENT=4" />
 
           <CompilationFlags Include="-DHOST_$(HostUpper)=1" />
-          <CompilationFlags Include="-DHOST_LONG_BITS=$(HostWordSize)" />
+          <CompilationFlags Include="-DHOST_LONG_BITS=64" />
 
           <CompilationFlags Include="-DTARGET_ARCH=&quot;$(EmulatedTarget)&quot;" />
           <CompilationFlags Include="-DTARGET_$(EmulatedTargetUpper)=1" />
@@ -94,21 +89,20 @@
 
           <!-- This define is a little hack: It is necessary for CLinkerTask to create separate entry in hashes cache -->
           <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)" />
-          <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(HostWordSize) == '64' and $(CurrentPlatform) == 'Linux' " />
+          <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(CurrentPlatform) == 'Linux' " />
           <LinkFlags Include="-fomit-frame-pointer" />
           <LinkFlags Include="-lpthread" />
           <LinkFlags Include="-lm" />
           <LinkFlags Include="-shared" />
           <LinkFlags Include="-z defs" Condition="$(CurrentPlatform) == 'Linux'" />
           <LinkFlags Include="-Wl,-undefined,error" Condition="$(CurrentPlatform) != 'Linux'" />
-          <LinkFlags Include="-m32 " Condition="$(HostWordSize) == '32'" />
           <LinkFlags Include="$(AdditionalLinkFlags)" />
       </ItemGroup>
   </Target>
 
   <Target Name="_PrepareInputsAndOutputsForCompilation" DependsOnTargets="GenerateFlags">
       <ItemGroup>
-          <InputFiles Include="**" Exclude="config/**;tcg/**;bin/**;obj/**;lib64/**;**/.*" />
+          <InputFiles Include="**" Exclude="config/**;tcg/**;bin/**;obj/**;lib/**;**/.*" />
           <ObjectFiles Include="@(SourceFiles->'$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
           <ObjectFiles Include="$(TcgLibraryDirectory)/$(TcgLibraryFilename)" />
       </ItemGroup>
@@ -119,7 +113,7 @@
     <MSBuild
         Projects="tcg.cproj"
         Targets="_VerifyProperties;Compile;Build"
-        Properties="Configuration=$(Configuration);HostWordSize=$(HostWordSize);TargetWordSize=$(TargetWordSize);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
+        Properties="Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
   </Target>
 
   <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" >

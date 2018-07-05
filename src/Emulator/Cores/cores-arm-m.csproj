@@ -43,11 +43,11 @@
   </Target>
   <Target Name="PrepareEmbeddedResources" BeforeTargets="PrepareForBuild" DependsOnTargets="_PrepareProperties">
     <ItemGroup>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib$(HostWordSize)\translate-arm-m-le.so">
-        <LogicalName>Antmicro.Renode.translate_$(HostWordSize)-arm-m-le.so</LogicalName>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-arm-m-le.so">
+        <LogicalName>Antmicro.Renode.translate-arm-m-le.so</LogicalName>
       </EmbeddedResource>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib$(HostWordSize)\translate-arm-m-be.so">
-        <LogicalName>Antmicro.Renode.translate_$(HostWordSize)-arm-m-be.so</LogicalName>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-arm-m-be.so">
+        <LogicalName>Antmicro.Renode.translate-arm-m-be.so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
   </Target>

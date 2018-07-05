@@ -9,26 +9,24 @@
   </PropertyGroup>
 
   <Target Name="_VerifyProperties">
-    <Error Text="Host word size not provided" Condition=" $(HostWordSize) == '' " />
     <Error Text="Target word size not provided" Condition=" $(TargetWordSize) == '' " />
     <Error Text="No configuration provided" Condition=" $(Configuration) == '' "/>
     <Error Text="Endianess not provided" Condition=" $(Endianess) == '' "/>
     <Error Text="Wrong endianess value: provide 'le' or 'be'" Condition=" $(Endianess) != 'le' and $(Endianess) != 'be' "/>
     <PropertyGroup>
-      <TcgOutput>$(OutputDirectory)/libtcg_$(Architecture)-$(HostWordSize)-$(TargetWordSize)_$(Endianess).a</TcgOutput>
-      <ObjectFilesDirectory>$(TcgDirectory)/obj/$(Configuration)/obj-$(HostWordSize)-$(TargetWordSize)_$(Endianess)</ObjectFilesDirectory>
+      <TcgOutput>$(OutputDirectory)/libtcg_$(Architecture)-$(TargetWordSize)_$(Endianess).a</TcgOutput>
+      <ObjectFilesDirectory>$(TcgDirectory)/obj/$(Configuration)/obj-$(TargetWordSize)_$(Endianess)</ObjectFilesDirectory>
     </PropertyGroup>
 
     <ItemGroup>
       <CompilationFlags Include="-DTARGET_WORDS_BIGENDIAN" Condition=" $(Endianess) == 'be'" />
-      <CompilationFlags Include="-DHOST_LONG_BITS=$(HostWordSize)" />
+      <CompilationFlags Include="-DHOST_LONG_BITS=64" />
       <CompilationFlags Include="-DTARGET_LONG_BITS=$(TargetWordSize)" />
       <CompilationFlags Include="-I $(TcgDirectory)/$(Architecture)" />
       <CompilationFlags Include="-I $(TcgDirectory) " />
       <CompilationFlags Include="-fomit-frame-pointer" />
-      <CompilationFlags Include="-fPIC " Condition=" $(HostWordSize) == '64' and $(CurrentPlatform) != 'Windows'" />
+      <CompilationFlags Include="-fPIC " Condition=" $(CurrentPlatform) != 'Windows'" />
       <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug'" />
-      <CompilationFlags Include="-m32 " Condition="$(HostWordSize) == '32'" />
 
       <CSources Include="$(TcgDirectory)/tcg.c" />
       <CSources Include="$(TcgDirectory)/optimize.c" />

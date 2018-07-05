@@ -1007,7 +1007,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
-            var libraryResource = string.Format("Antmicro.Renode.translate_{0}-{1}-{2}.so", IntPtr.Size * 8, Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
+            var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
             libraryFile = GetType().Assembly.FromResourceToTemporaryFile(libraryResource);
 
             binder = new NativeBinder(this, libraryFile);
