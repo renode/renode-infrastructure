@@ -8,23 +8,26 @@
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Logging;
+using System;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
     /// <summary>
     /// Double word register collection, allowing to write and read from specified offsets.
     /// </summary>
-    public class DoubleWordRegisterCollection
+    public class DoubleWordRegisterCollection : IRegisterCollection
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.DoubleWordRegisterCollection"/> class.
         /// </summary>
         /// <param name="parent">Parent peripheral (for logging purposes).</param>
         /// <param name="registersMap">Map of register offsets and registers.</param>
-        public DoubleWordRegisterCollection(IPeripheral parent, IDictionary<long, DoubleWordRegister> registersMap)
+        public DoubleWordRegisterCollection(IPeripheral parent, IDictionary<long, DoubleWordRegister> registersMap = null)
         {
             this.parent = parent;
-            this.registers = new Dictionary<long, DoubleWordRegister>(registersMap);
+            this.registers = (registersMap != null)
+                ? new Dictionary<long, DoubleWordRegister>(registersMap)
+                : new Dictionary<long, DoubleWordRegister>();
         }
 
         /// <summary>
@@ -101,6 +104,31 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        /// <summary>
+        /// Defines a new register and adds it to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="resetValue">Register reset value.</param>
+        /// <returns>Newly added register.</returns>
+        public DoubleWordRegister DefineRegister(long offset, uint resetValue = 0)
+        {
+            var reg = new DoubleWordRegister(parent, resetValue);
+            registers.Add(offset, reg);
+            return reg;
+        }
+
+        /// <summary>
+        /// Adds an existing register to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="register">Register to add.</param>
+        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
+        public DoubleWordRegister AddRegister(long offset, DoubleWordRegister register)
+        {
+            registers.Add(offset, register);
+            return register;
+        }
+
         private readonly IPeripheral parent;
         private readonly IDictionary<long, DoubleWordRegister> registers;
     }
@@ -108,17 +136,19 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// Word register collection, allowing to write and read from specified offsets.
     /// </summary>
-    public class WordRegisterCollection
+    public class WordRegisterCollection : IRegisterCollection
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.WordRegisterCollection"/> class.
         /// </summary>
         /// <param name="parent">Parent peripheral (for logging purposes).</param>
         /// <param name="registersMap">Map of register offsets and registers.</param>
-        public WordRegisterCollection(IPeripheral parent, IDictionary<long, WordRegister> registersMap)
+        public WordRegisterCollection(IPeripheral parent, IDictionary<long, WordRegister> registersMap = null)
         {
             this.parent = parent;
-            this.registers = new Dictionary<long, WordRegister>(registersMap);
+            this.registers = (registersMap != null)
+                ? new Dictionary<long, WordRegister>(registersMap)
+                : new Dictionary<long, WordRegister>();
         }
 
         /// <summary>
@@ -195,6 +225,31 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        /// <summary>
+        /// Defines a new register and adds it to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="resetValue">Register reset value.</param>
+        /// <returns>Newly added register.</returns>
+        public WordRegister DefineRegister(long offset, ushort resetValue = 0)
+        {
+            var reg = new WordRegister(parent, resetValue);
+            registers.Add(offset, reg);
+            return reg;
+        }
+
+        /// <summary>
+        /// Adds an existing register to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="register">Register to add.</param>
+        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
+        public WordRegister AddRegister(long offset, WordRegister register)
+        {
+            registers.Add(offset, register);
+            return register;
+        }
+
         private readonly IPeripheral parent;
         private readonly IDictionary<long, WordRegister> registers;
     }
@@ -202,17 +257,19 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// Byte register collection, allowing to write and read from specified offsets.
     /// </summary>
-    public class ByteRegisterCollection
+    public class ByteRegisterCollection : IRegisterCollection
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.ByteRegisterCollection"/> class.
         /// </summary>
         /// <param name="parent">Parent peripheral (for logging purposes).</param>
         /// <param name="registersMap">Map of register offsets and registers.</param>
-        public ByteRegisterCollection(IPeripheral parent, IDictionary<long, ByteRegister> registersMap)
+        public ByteRegisterCollection(IPeripheral parent, IDictionary<long, ByteRegister> registersMap = null)
         {
             this.parent = parent;
-            this.registers = new Dictionary<long, ByteRegister>(registersMap);
+            this.registers = (registersMap != null)
+                ? new Dictionary<long, ByteRegister>(registersMap)
+                : new Dictionary<long, ByteRegister>();
         }
 
         /// <summary>
@@ -289,7 +346,41 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        /// <summary>
+        /// Defines a new register and adds it to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="resetValue">Register reset value.</param>
+        /// <returns>Newly added register.</returns>
+        public ByteRegister DefineRegister(long offset, byte resetValue = 0)
+        {
+            var reg = new ByteRegister(parent, resetValue);
+            registers.Add(offset, reg);
+            return reg;
+        }
+
+        /// <summary>
+        /// Adds an existing register to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="register">Register to add.</param>
+        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
+        public ByteRegister AddRegister(long offset, ByteRegister register)
+        {
+            registers.Add(offset, register);
+            return register;
+        }
+
         private readonly IPeripheral parent;
         private readonly IDictionary<long, ByteRegister> registers;
+    }
+
+    public interface IRegisterCollection
+    {
+    }
+
+    public interface IProvidesRegisterCollection<T> where T : IRegisterCollection
+    {
+        T RegistersCollection { get; }
     }
 }
