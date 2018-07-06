@@ -22,6 +22,19 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 throw new ConstructionException(string.Format(CompareHigherThanLimitMessage, compare, limit));
             }
+            if(divider == 0)
+            {
+                throw new ArgumentException("Divider cannot be zero.");
+            }
+            if(frequency == 0)
+            {
+                throw new ArgumentException("Frequency cannot be zero.");
+            }
+            if(limit == 0)
+            {
+                throw new ArgumentException("Limit cannot be zero.");
+            }
+
             this.clockSource = clockSource;
 
             initialDirection = direction;
@@ -61,6 +74,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             set
             {
+                if(value > initialLimit)
+                {
+                    throw new ArgumentException("Value cannot be larger than limit");
+                }
+
                 clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry =>
                 {
                     valueAccumulatedSoFar = value;
