@@ -129,6 +129,7 @@ namespace Antmicro.Renode.Time
                 base.Stop();
                 this.Trace("Waiting for dispatcher thread");
                 dispatcherThread?.Join();
+                dispatcherThread = null;
                 this.Trace("Stopped");
             }
         }
