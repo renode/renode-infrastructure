@@ -477,7 +477,7 @@ namespace Antmicro.Renode.Core
         {
             var entries = ClockSource.GetAllClockEntries();
 
-            var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Event frequency", "Event period");
+            var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Value", "Event frequency", "Event period");
             table.AddRows(entries, x =>
             {
                 var owner = x.Handler.Target;
@@ -487,6 +487,7 @@ namespace Antmicro.Renode.Core
                 x => x.Enabled.ToString(),
                 x => Misc.NormalizeDecimal(x.Frequency) + "Hz",
                 x => x.Period.ToString(),
+                x => x.Value.ToString(),
                 x => Misc.NormalizeDecimal(x.Frequency / x.Period) + "Hz",
                 x => Misc.NormalizeDecimal(1.0 / (x.Frequency / x.Period)) + "s"
             );
