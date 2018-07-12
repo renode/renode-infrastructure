@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Python
 {
     public static class PythonPeripheralExtensions
     {
-        public static void PyDevFromFile(this Machine @this, string path, long address, int size, bool initable = false, string name = null, long offset = 0)
+        public static void PyDevFromFile(this Machine @this, string path, ulong address, int size, bool initable = false, string name = null, ulong offset = 0)
         {
             var pyDev = new PythonPeripheral(size, initable, filename: path);
             @this.SystemBus.Register(pyDev, new BusPointRegistration(address, offset));
@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Python
             }
         }
 
-        public static void PyDevFromString(this Machine @this, string script, long address, int size, bool initable = false, string name = null, long offset = 0)
+        public static void PyDevFromString(this Machine @this, string script, ulong address, int size, bool initable = false, string name = null, ulong offset = 0)
         {
             var pyDev = new PythonPeripheral(size, initable, script: script);
             @this.SystemBus.Register(pyDev, new BusPointRegistration(address, offset));
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Python
     [Icon("python")]
     public class PythonPeripheral : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IAbsoluteAddressAware
     {
-        public PythonPeripheral(int size, bool initable = false, string script = null, string filename = null) 
+        public PythonPeripheral(int size, bool initable = false, string script = null, string filename = null)
         {
             this.size = size;
             this.initable = initable;
@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Python
             }
         }
 
-        public void SetAbsoluteAddress(long address)
+        public void SetAbsoluteAddress(ulong address)
         {
             pythonRunner.Request.absolute = address;
         }

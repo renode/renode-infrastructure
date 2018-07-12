@@ -93,33 +93,20 @@ namespace Antmicro.Renode.MonitorTests
         [Test]
         public void RangeTest()
         {
-            var result = tokenizer.Tokenize("<-5,+5>");
-            var expectedValue = new Range(-5, 11);
-            AssertTokenizationTypes(result, typeof(AbsoluteRangeToken));
-            AssertTokenizationValues(result, expectedValue);
-
-            result = tokenizer.Tokenize("<    \t0x123abDE  \t, \t\t  0xabcdef0 \t\t   >");
-            expectedValue = new Range(0x123abde, 0xabcdef0 - 0x123abde + 1);
+            var result = tokenizer.Tokenize("<    \t0x123abDE  \t, \t\t  0xabcdef0 \t\t   >");
+            var expectedValue = new Range(0x123abde, 0xabcdef0 - 0x123abde + 1);
             AssertTokenizationTypes(result, typeof(AbsoluteRangeToken));
             AssertTokenizationValues(result, expectedValue);
 
             result = tokenizer.Tokenize("<0xdefg, 0xefgh>");
             AssertTokenizationResult(result, 16);
-
-            result = tokenizer.Tokenize("<5,-6>");
-            AssertTokenizationResult(result, 6, typeof(RecoverableException));
         }
 
         [Test]
         public void RelativeRangeTest()
         {
-            var result = tokenizer.Tokenize("<-5,+5>");
-            var expectedValue = new Range(-5, 11);
-            AssertTokenizationTypes(result, typeof(AbsoluteRangeToken));
-            AssertTokenizationValues(result, expectedValue);
-
-            result = tokenizer.Tokenize("<0x6 0x2>");
-            expectedValue = new Range(0x6, 0x2);
+            var result = tokenizer.Tokenize("<0x6 0x2>");
+            var expectedValue = new Range(0x6, 0x2);
             AssertTokenizationTypes(result, typeof(RelativeRangeToken));
             AssertTokenizationValues(result, expectedValue);
         }

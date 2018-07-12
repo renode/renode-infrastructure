@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            machine.SystemBus.WriteBytes(frame.Bytes, (long)rd.PacketAddress);
+            machine.SystemBus.WriteBytes(frame.Bytes, rd.PacketAddress);
             registers.Status = 1u << 2;
             if(rd.Wrap)
             {
@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return; //if decriptor is disabled there is nothing to send (just return)
             }
 
-            var packetBytes = machine.SystemBus.ReadBytes((long)td.PacketAddress, (int)td.Length);
+            var packetBytes = machine.SystemBus.ReadBytes(td.PacketAddress, (int)td.Length);
             var packet = EthernetFrame.CreateEthernetFrameWithCRC(packetBytes);
 
             this.Log(LogLevel.Info, "Sending packet length {0}", packet.Bytes.Length);

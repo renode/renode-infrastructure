@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             case 4: // SYS_WRITE0
                 if(uart == null) break;
                 string s = "";
-                uint addr = this.TranslateAddress(r1);
+                var addr = this.TranslateAddress(r1);
                 do
                 {
                     var c = this.Bus.ReadByte(addr++);

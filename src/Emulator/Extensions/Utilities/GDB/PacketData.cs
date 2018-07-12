@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Text;
 using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
@@ -34,10 +35,10 @@ namespace Antmicro.Renode.Utilities.GDB
             return new PacketData(string.Format("S{0:X2}", signal));
         }
 
-        public static PacketData StopReply(BreakpointType reason, long address)
+        public static PacketData StopReply(BreakpointType reason, ulong? address)
         {
             return new PacketData(string.Format("T05{0}:{1};", reason.GetStopReason(),
-                                                address == -1 ? string.Empty : string.Format("{0:X2}", address)));
+                                                !address.HasValue ? string.Empty : string.Format("{0:X2}", address)));
         }
 
         public PacketData(string data)

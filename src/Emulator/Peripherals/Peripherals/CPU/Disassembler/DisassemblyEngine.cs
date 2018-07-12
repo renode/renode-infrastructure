@@ -13,14 +13,14 @@ using Antmicro.Renode.Exceptions;
 namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
     public class DisassemblyEngine
-    {  
-        public DisassemblyEngine(IDisassemblable disasm, Func<uint, uint> addressTranslator)
+    {
+        public DisassemblyEngine(IDisassemblable disasm, Func<ulong, ulong> addressTranslator)
         {
             this.cpu = disasm;
             this.AddressTranslator = addressTranslator;
         }
 
-        public void LogSymbol(uint pc, uint size, uint flags)
+        public void LogSymbol(ulong pc, uint size, uint flags)
         {
             if (disassembler == null || LogFile == null)
             {
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
                 else
                 {
-                    // special case when disassembling magic addresses in Cortex-M 
+                    // special case when disassembling magic addresses in Cortex-M
                     file.WriteLine("Magic PC value detected: 0x{0:x8}", flags > 0 ? pc | 1 : pc);
                 }
 
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             }
         }
 
-        public string Disassemble(IntPtr memory, uint size, uint pc = 0, uint flags = 0)
+        public string Disassemble(IntPtr memory, uint size, ulong pc = 0, uint flags = 0)
         {
             if (disassembler == null)
             {
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         public string LogFile
         {
             get { return logFile; }
-            set 
+            set
             {
                 if(value != null && disassembler == null)
                 {
@@ -116,9 +116,9 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                     File.WriteAllText(logFile, string.Empty);
                 }
             }
-        }     
+        }
 
-        public string Disassemble(uint addr, bool isPhysical, uint size, uint flags)
+        public string Disassemble(ulong addr, bool isPhysical, uint size, uint flags)
         {
             var physical = isPhysical ? addr : AddressTranslator(addr);
             /*if (physical == 0xffffffff)
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 
         public string CurrentDisassemblerType { get { return disassembler == null ? string.Empty : disassembler.Name; } }
 
-        private string Disassemble(uint pc, uint physical, uint size, uint flags)
+        private string Disassemble(ulong pc, ulong physical, uint size, uint flags)
         {
             var tabPtr = Marshal.AllocHGlobal((int)size);
             var tab = cpu.Bus.ReadBytes(physical, (int)size, true);
@@ -152,6 +152,6 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         private IDisassembler disassembler;
         protected readonly IDisassemblable cpu;
         private string logFile;
-        private Func<uint, uint> AddressTranslator;
+        private Func<ulong, ulong> AddressTranslator;
     }
 }

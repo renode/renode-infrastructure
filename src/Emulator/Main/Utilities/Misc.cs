@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Utilities
 
         public static string Stringify<TSource>(this IEnumerable<TSource> source, string separator = " ")
         {
-            return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()));
+            return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()), separator);
         }
 
         public static string Stringify(this IEnumerable<string> source, string separator = " ")
@@ -464,7 +464,7 @@ namespace Antmicro.Renode.Utilities
                     throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
                 }
             }
-            return CopyToFile(libraryStream);
+            return CopyToFile(libraryStream, resourceName);
         }
 
         public static void Copy(this Stream from, Stream to)
@@ -552,11 +552,11 @@ namespace Antmicro.Renode.Utilities
 
         }
 
-        private static string CopyToFile(Stream libraryStream)
+        private static string CopyToFile(Stream libraryStream, string fileNameSuffix = null)
         {
             try
             {
-                var libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile();
+                var libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile(fileNameSuffix);
                 using(var destination = new FileStream(libraryFile, FileMode.Open, FileAccess.Write, FileShare.None))
                 {
                     libraryStream.Copy(destination);

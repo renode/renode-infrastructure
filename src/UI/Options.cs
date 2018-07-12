@@ -20,7 +20,7 @@ namespace Antmicro.Renode.UI
         [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with -s and startup script passed as an argument).")]
         public string Execute { get; set; }
 
-        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. (requires -P)")]
+        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. (requires -P or --robot-server-port)")]
         public bool DisableXwt { get; set; }
 
         [Name("script"), PositionalArgument(0)]
@@ -35,11 +35,14 @@ namespace Antmicro.Renode.UI
         [Name("hide-analyzers"), DefaultValue(false), Description("Do not show analyzers.")]
         public bool HideAnalyzers { get; set; }
 
+        [Name("robot-server-port"), DefaultValue(-1), Description("Start robot framework remote server on the specified port.")]
+        public int RobotFrameworkRemoteServerPort { get; set; }
+
         public bool Validate(out string error)
         {
-            if(DisableXwt && Port == -1)
+            if(DisableXwt && Port == -1 && RobotFrameworkRemoteServerPort == -1)
             {
-                error = "X11 support can be disabled only in socket mode";
+                error = "X11 support can be disabled in socket mode or when robot framework remote server is on.";
                 return false;
             }
 

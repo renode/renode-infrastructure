@@ -10,14 +10,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     internal class BusHookHandler
     {
-        public BusHookHandler(Action<long, Width> action, Width width, Action updateContext)
+        public BusHookHandler(Action<ulong, SysbusAccessWidth> action, SysbusAccessWidth width, Action updateContext)
         {
             this.action = action;
             this.width = width;
             this.updateContext = updateContext;
         }        
 
-        public void Invoke(long currentAddress, Width currentWidth)
+        public void Invoke(ulong currentAddress, SysbusAccessWidth currentWidth)
         {
             if(updateContext != null)
             {
@@ -29,13 +29,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public bool ContainsAction(Action<long, Width> actionToTest)
+        public bool ContainsAction(Action<ulong, SysbusAccessWidth> actionToTest)
         {
             return action == actionToTest;
         }
 
-        private readonly Action<long, Width> action;
-        private readonly Width width;
+        private readonly Action<ulong, SysbusAccessWidth> action;
+        private readonly SysbusAccessWidth width;
         private readonly Action updateContext;
     }
 }

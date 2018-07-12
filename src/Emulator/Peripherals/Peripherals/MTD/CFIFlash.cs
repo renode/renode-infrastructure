@@ -19,17 +19,17 @@ namespace Antmicro.Renode.Peripherals.MTD
     [Icon("sd")]
     public sealed class CFIFlash : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IDisposable
     {        
-        public CFIFlash(string fileName, int size, Width bits = Width.DoubleWord, bool nonPersistent = false)
+        public CFIFlash(string fileName, int size, SysbusAccessWidth bits = SysbusAccessWidth.DoubleWord, bool nonPersistent = false)
         {
             switch(bits)
             {
-            case Width.Byte:
+            case SysbusAccessWidth.Byte:
                 busWidth = 0;
                 break;
-            case Width.Word:
+            case SysbusAccessWidth.Word:
                 busWidth = 1;
                 break;
-            case Width.DoubleWord:
+            case SysbusAccessWidth.DoubleWord:
                 busWidth = 2;
                 break;
             default:

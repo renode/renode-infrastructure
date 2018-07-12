@@ -13,9 +13,9 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class FE310_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class SiFive_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public FE310_UART(Machine machine, long inputClockFrequency = 16000000) : base(machine)
+        public SiFive_UART(Machine machine, long inputClockFrequency = 16000000) : base(machine)
         {
             locker = new object();
             this.inputClockFrequency = inputClockFrequency;
@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(transmitEnable.Value)
                         {
                             this.TransmitCharacter((byte)b);
+                            UpdateInterrupts();
                         }
                     }, name: "DATA")
                     .WithTag("RESERVED", 8, 23)

@@ -524,14 +524,13 @@ namespace Antmicro.Renode.UserInterface
             try
             {
                 var result = compiler.Compile(filename, AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location));
-                TypeManager.Instance.ScanFile(result);
+                return TypeManager.Instance.ScanFile(result);
             }
             catch(RecoverableException e)
             {
                 writer.WriteError("Errors during compilation or loading:\r\n" + e.Message.Replace(Environment.NewLine, "\r\n"));
-                return true;
+                return false;
             }
-            return true;
         }
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)

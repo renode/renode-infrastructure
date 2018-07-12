@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Utilities
 
         }
 
-        public static void LoadFdt(this SystemBus sysbus, string file, long address, string bootargs = null, bool append = true, string excludedNodes = "")
+        public static void LoadFdt(this SystemBus sysbus, string file, ulong address, string bootargs = null, bool append = true, string excludedNodes = "")
         {
             var fdtBlob = File.ReadAllBytes(file);
             if(bootargs == null)

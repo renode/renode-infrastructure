@@ -101,11 +101,20 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        public virtual void OnGPIO(int number, bool value)
+        protected bool CheckPinNumber(int number)
         {
             if(number < 0 || number >= State.Length)
             {
                 this.Log(LogLevel.Error, $"This peripheral supports gpio inputs from 0 to {State.Length - 1}, but {number} was called.");
+                return false;
+            }
+            return true;
+        }
+
+        public virtual void OnGPIO(int number, bool value)
+        {
+            if(!CheckPinNumber(number))
+            {
                 return;
             }
 

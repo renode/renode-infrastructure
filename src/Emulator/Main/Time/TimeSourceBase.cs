@@ -60,11 +60,54 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Activates sources of the time source and provides an object that deactivates them on dispose.
+        /// </summary>
+        protected IDisposable ObtainSourceActiveState()
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.SourceSideActive = true;
+                    slave.RequestStart();
+                }
+            }
+
+            var result = new DisposableWrapper();
+            result.RegisterDisposeAction(() =>
+            {
+                using(sync.HighPriority)
+                {
+                    foreach(var slave in handles.All)
+                    {
+                        slave.SourceSideActive = false;
+                    }
+                }
+            });
+            return result;
+        }
+
+        /// <summary>
+        /// Starts the time source and provides an object that stops it on dispose.
+        /// </summary>
+        protected IDisposable ObtainStartedState()
+        {
+            Start();
+            return new DisposableWrapper().RegisterDisposeAction(() => Stop());
+        }
+
+        /// <summary>
         /// Starts this time source and activates all associated slaves.
         /// </summary>
         /// <returns>False it the handle has already been started.</returns>
         protected bool Start()
         {
+            if(isStarted)
+            {
+                this.Trace("Already started");
+                return false;
+            }
+
             using(sync.HighPriority)
             {
                 if(isStarted)
@@ -72,18 +115,44 @@ namespace Antmicro.Renode.Time
                     this.Trace("Already started");
                     return false;
                 }
+
                 isStarted = true;
-                ActivateSlavesSourceSide();
                 return true;
             }
         }
 
+        /// <summary>
+        /// Requests start of all registered slaves.
+        /// </summary>
+        /// <remark>
+        /// The method should be called after activating this source using <cref="ActivateSlavesSourceSize">,
+        /// otherwise a race condition situation might happen.
+        /// </remark>
+        protected void RequestSlavesStart()
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.RequestStart();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Calls <see cref="StopRequested"/> event.
+        /// </summary>
+        protected void RequestStop()
+        {
+            StopRequested?.Invoke();
+        }
 
         /// <summary>
         /// Stops this time source and deactivates all associated slaves.
         /// </summary>
         protected void Stop()
         {
+            RequestStop();
             using(sync.HighPriority)
             {
                 if(!isStarted)
@@ -91,7 +160,6 @@ namespace Antmicro.Renode.Time
                     this.Trace("Not started");
                     return;
                 }
-                DeactivateSlavesSourceSide();
 
                 // we must wait for unblocked slaves to finish their work
                 sync.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
@@ -136,10 +204,16 @@ namespace Antmicro.Renode.Time
         /// <see cref="ITimeSource.RegisterSink">
         public void RegisterSink(ITimeSink sink)
         {
-            //lock(handles)
             using(sync.HighPriority)
             {
-                handles.Add(new TimeHandle(this, sink) { SourceSideActive = isStarted });
+                var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
+                StopRequested += handle.RequestPause;
+                handles.Add(handle);
+#if DEBUG
+                this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
+#endif
+                // assigning TimeHandle to a sink must be done when everything is configured, otherwise a race condition might happen (dispatcher starts its execution when time source and handle are not yet ready)
+                sink.TimeHandle = handle;
             }
         }
 
@@ -203,14 +277,14 @@ namespace Antmicro.Renode.Time
 
         public override string ToString()
         {
-            return string.Format("Elapsed Virtual Time: {0}\nCurrentLoad: {1}\nCumulativeLoad: {2}\nState: {3}\nAdvanceImmediately: {4}\nPerformance: {5}\nQuantum: {6}",
-                ElapsedVirtualTime,
-                CurrentLoad,
-                CumulativeLoad,
-                State,
-                AdvanceImmediately,
-                Performance,
-                Quantum);
+            return string.Join("\n",
+                $"Elapsed Virtual Time: {ElapsedVirtualTime}",
+                $"Current load: {CurrentLoad}",
+                $"Cumulative load: {CumulativeLoad}",
+                $"State: {State}",
+                $"Advance immediately: {AdvanceImmediately}",
+                $"Performance: {Performance}",
+                $"Quantum: {Quantum}");
         }
 
         /// <see cref="ITimeSource.Domain">
@@ -271,7 +345,7 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
         /// </summary>
-        public TimeInterval NearestSyncPoint { get; protected set; }
+        public TimeInterval NearestSyncPoint { get; private set; }
 
         /// <summary>
         /// Gets the number of synchronizations points reached so far.
@@ -288,6 +362,9 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public event Action BlockHook;
 
+        /// <summary>
+        /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
+        /// </summary>
         public event Action<TimeInterval> TimePassed;
 
         /// <summary>
@@ -304,11 +381,18 @@ namespace Antmicro.Renode.Time
         /// (6) execute sync hook and delayed actions if any
         /// </remarks>
         /// <param name="virtualTimeElapsed">Contains the amount of virtual time that passed during execution of this method. It is the minimal value reported by a slave (i.e, some slaves can report higher/lower values).</param>
+        /// <param name="timeLimit">Maximum amount of virtual time that can pass during the execution of this method. If not set, current <see cref="Quantum"> is used.</param>
         /// <returns>
         /// True if sync point has just been reached or False if the execution has been blocked.
         /// </returns>
-        protected bool InnerExecute(out TimeInterval virtualTimeElapsed)
+        protected bool InnerExecute(out TimeInterval virtualTimeElapsed, TimeInterval? timeLimit = null)
         {
+            if(updateNearestSyncPoint)
+            {
+                NearestSyncPoint += timeLimit.HasValue ? TimeInterval.Min(timeLimit.Value, Quantum) : Quantum;
+                updateNearestSyncPoint = false;
+                this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
+            }
             DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, "Nearest sync point set in the past");
 
             isBlocked = false;
@@ -319,16 +403,6 @@ namespace Antmicro.Renode.Time
             State = TimeSourceState.ReportingElapsedTime;
             using(sync.LowPriority)
             {
-                if((isPaused || !isStarted) && recentlyUnblockedSlaves.Count == 0)
-                {
-                    // the time source is not started and it has not acknowledged any unblocks - it means no one is currently working
-                    DebugHelper.Assert(handles.All.All(x => !x.SourceSideActive), "No source side active slaves were expected at this point.");
-
-                    State = TimeSourceState.Idle;
-                    EnterBlockedState();
-                    return false;
-                }
-
                 handles.LatchAllAndCollectGarbage();
                 var shouldGrantTime = handles.AreAllReadyForNewGrant;
 
@@ -415,6 +489,7 @@ namespace Antmicro.Renode.Time
             if(!isBlocked)
             {
                 ExecuteSyncPhase();
+                updateNearestSyncPoint = true;
             }
             else
             {
@@ -437,6 +512,10 @@ namespace Antmicro.Renode.Time
                 foreach(var slave in handles.All)
                 {
                     slave.SourceSideActive = state;
+                    if(state)
+                    {
+                        slave.RequestStart();
+                    }
                 }
             }
         }
@@ -523,24 +602,100 @@ namespace Antmicro.Renode.Time
 
         protected readonly HandlesCollection handles;
         protected readonly Stopwatch stopwatch;
+        protected readonly HashSet<TimeHandle> recentlyUnblockedSlaves;
+        // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
+        protected readonly PrioritySynchronizer sync;
+
+        /// <summary>
+        /// Used to request a pause on sinks before trying to acquire their locks.
+        /// </summary>
+        /// <remarks>
+        /// Triggering this event can improve pausing efficiency by interrupting the sink execution in the middle of a quant.
+        /// </remarks>
+        private event Action StopRequested;
 
         [Antmicro.Migrant.Constructor(true)]
         private ManualResetEvent blockingEvent;
 
         private TimeSpan elapsedAtLastGrant;
-        protected HashSet<TimeHandle> recentlyUnblockedSlaves;
         private bool isBlocked;
         private bool isInSyncPhase;
+        private bool updateNearestSyncPoint;
 
         private TimeInterval previousElapsedVirtualTime;
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
         private readonly Sleeper sleeper;
-        // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
-        private readonly PrioritySynchronizer sync;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromMilliseconds(10);
+
+        /// <summary>
+        /// Allows locking without starvation.
+        /// </summary>
+        protected class PrioritySynchronizer : IdentifiableObject, IDisposable
+        {
+            public PrioritySynchronizer()
+            {
+                innerLock = new object();
+            }
+
+            /// <summary>
+            /// Used to obtain lock with low priority.
+            /// </summary>
+            /// <remarks>
+            /// Any thread already waiting on the lock with high priority is guaranteed to obtain it prior to this one.
+            /// There are no guarantees for many threads with the same priority.
+            /// </remarks>
+            public PrioritySynchronizer LowPriority
+            {
+                get
+                {
+                    // here we assume that `highPriorityRequestPending` will be reset soon,
+                    // so there is no point of using more complicated synchronization methods
+                    while(highPriorityRequestPendingCounter > 0) ;
+                    Monitor.Enter(innerLock);
+
+                    return this;
+                }
+            }
+
+            /// <summary>
+            /// Used to obtain lock with high priority.
+            /// </summary>
+            /// <remarks>
+            /// It is guaranteed that the thread wanting to lock with high priority will not wait indefinitely if all other threads lock with low priority.
+            /// There are no guarantees for many threads with the same priority.
+            /// </remarks>
+            public PrioritySynchronizer HighPriority
+            {
+                get
+                {
+                    Interlocked.Increment(ref highPriorityRequestPendingCounter);
+                    Monitor.Enter(innerLock);
+                    Interlocked.Decrement(ref highPriorityRequestPendingCounter);
+                    return this;
+                }
+            }
+
+            public void Dispose()
+            {
+                Monitor.Exit(innerLock);
+            }
+
+            public void WaitWhile(Func<bool> condition, string reason)
+            {
+                innerLock.WaitWhile(condition, reason);
+            }
+
+            public void Pulse()
+            {
+                Monitor.PulseAll(innerLock);
+            }
+
+            private readonly object innerLock;
+            private volatile int highPriorityRequestPendingCounter;
+        }
 
         /// <summary>
         /// Represents a time-variant value.
@@ -614,73 +769,6 @@ namespace Antmicro.Renode.Time
 
             private readonly int id;
             private static int Id;
-        }
-
-        /// <summary>
-        /// Allows locking without starvation.
-        /// </summary>
-        private class PrioritySynchronizer : IdentifiableObject, IDisposable
-        {
-            public PrioritySynchronizer()
-            {
-                innerLock = new object();
-            }
-
-            /// <summary>
-            /// Used to obtain lock with low priority.
-            /// </summary>
-            /// <remarks>
-            /// Any thread already waiting on the lock with high priority is guaranteed to obtain it prior to this one.
-            /// There are no guarantees for many threads with the same priority.
-            /// </remarks>
-            public PrioritySynchronizer LowPriority
-            {
-                get
-                {
-                    // here we assume that `highPriorityRequestPending` will be reset soon,
-                    // so there is no point of using more complicated synchronization methods
-                    while(highPriorityRequestPendingCounter > 0);
-                    Monitor.Enter(innerLock);
-
-                    return this;
-                }
-            }
-
-            /// <summary>
-            /// Used to obtain lock with high priority.
-            /// </summary>
-            /// <remarks>
-            /// It is guaranteed that the thread wanting to lock with high priority will not wait indefinitely if all other threads lock with low priority.
-            /// There are no guarantees for many threads with the same priority.
-            /// </remarks>
-            public PrioritySynchronizer HighPriority
-            {
-                get
-                {
-                    Interlocked.Increment(ref highPriorityRequestPendingCounter);
-                    Monitor.Enter(innerLock);
-                    Interlocked.Decrement(ref highPriorityRequestPendingCounter);
-                    return this;
-                }
-            }
-
-            public void Dispose()
-            {
-                Monitor.Exit(innerLock);
-            }
-
-            public void WaitWhile(Func<bool> condition, string reason)
-            {
-                innerLock.WaitWhile(condition, reason);
-            }
-
-            public void Pulse()
-            {
-                Monitor.PulseAll(innerLock);
-            }
-
-            private readonly object innerLock;
-            private volatile int highPriorityRequestPendingCounter;
         }
     }
 }

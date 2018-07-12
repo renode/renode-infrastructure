@@ -84,9 +84,12 @@ namespace Antmicro.Renode.Time
 
         public static TimeInterval FromCPUCycles(ulong cycles, uint performanceInMips, out ulong cyclesResiduum)
         {
-            cyclesResiduum = cycles % performanceInMips;
-            ulong useconds = cycles / performanceInMips;
-            return TimeInterval.FromTicks(useconds * TicksPerMicrosecond);
+            checked
+            {
+                cyclesResiduum = cycles % performanceInMips;
+                ulong useconds = cycles / performanceInMips;
+                return TimeInterval.FromTicks(useconds * TicksPerMicrosecond);
+            }
         }
 
         public static TimeInterval operator +(TimeInterval t1, TimeInterval t2)
@@ -178,9 +181,19 @@ namespace Antmicro.Renode.Time
 
         public ulong ToCPUCycles(uint performanceInMips, out ulong ticksCountResiduum)
         {
-            var microSeconds = ticks / TicksPerMicrosecond;
-            ticksCountResiduum = ticks % TicksPerMicrosecond;
-            return microSeconds * performanceInMips;
+            var maxTicks = FromCPUCycles(ulong.MaxValue, performanceInMips, out var unused).Ticks;
+            if(ticks >= maxTicks)
+            {
+                ticksCountResiduum = ticks - maxTicks;
+                return ulong.MaxValue;
+            }
+
+            checked
+            {
+                var microSeconds = ticks / TicksPerMicrosecond;
+                ticksCountResiduum = ticks % TicksPerMicrosecond;
+                return microSeconds * performanceInMips;
+            }
         }
 
         public ulong Ticks { get { return ticks; } }
@@ -192,7 +205,7 @@ namespace Antmicro.Renode.Time
         public const ulong TicksPerSecond = TicksPerMicrosecond * 1000000;
         public const ulong TicksPerMillisecond = TicksPerMicrosecond * 1000;
 
-        // WARNING: when changing the resolution of TimeInterval update methods: 'TryParse', 'FromTimeSpan' and 'ToTimeSpan' accordingly
+        // WARNING: when changing the resolution of TimeInterval update methods: 'FromCPUCycles', 'TryParse', 'FromTimeSpan' and 'ToTimeSpan' accordingly
         public const ulong TicksPerMicrosecond = 1;
 
         private TimeInterval(ulong ticks)

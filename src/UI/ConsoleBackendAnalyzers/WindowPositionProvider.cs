@@ -4,7 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+
+#if PLATFORM_WINDOWS
+using System.Windows;
+#endif
 using Xwt;
 
 namespace Antmicro.Renode.UI
@@ -31,7 +34,11 @@ namespace Antmicro.Renode.UI
 
         private WindowPositionProvider()
         {
+#if PLATFORM_WINDOWS
+            nextPosition = new Point(SystemParameters.BorderWidth, SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight);
+#else
             nextPosition = new Point(0, 0);
+#endif
             offset = new Point(30, 50);
             innerLock = new object();
         }

@@ -99,6 +99,29 @@ namespace Antmicro.Renode.Utilities
             RefreshInterrupts();
         }
 
+        public TRegister GetRegister<TRegister>(Func<TInterrupt, bool, bool> valueProviderCallback = null, Action<TInterrupt, bool, bool> writeCallback = null) where TRegister : PeripheralRegister
+        {
+            var mode = default(FieldMode);
+            if(valueProviderCallback != null)
+            {
+                mode |= FieldMode.Read;
+            }
+            if(writeCallback != null)
+            {
+                mode |= FieldMode.Write;
+            }
+
+            var result = CreateRegister<TRegister>();
+            foreach(TInterrupt interruptType in Enum.GetValues(typeof(TInterrupt)))
+            {
+                var local = interruptType;
+                result.DefineFlagField((int)(object)interruptType, mode, name: interruptType.ToString(),
+                    valueProviderCallback: valueProviderCallback == null ? null : (Func<bool, bool>)(oldValue => valueProviderCallback(local, oldValue)),
+                    writeCallback: writeCallback == null ? null : (Action<bool, bool>)((oldValue, newValue) => writeCallback(local, oldValue, newValue)));
+            }
+            return result;
+        }
+
         public TRegister GetInterruptFlagRegister<TRegister>() where TRegister : PeripheralRegister
         {
             var result = CreateRegister<TRegister>();

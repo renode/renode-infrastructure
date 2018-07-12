@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         var offset = lineWidth + (outputLineOffsetField.Value * outputFormat.GetColorDepth());
                         for(var line = 0; line < numberOfLineField.Value; line++)
                         {
-                            machine.SystemBus.WriteBytes(outputBuffer, outputMemoryAddressRegister.Value + line * offset, line * lineWidth, lineWidth);
+                            machine.SystemBus.WriteBytes(outputBuffer, (ulong)(outputMemoryAddressRegister.Value + line * offset), line * lineWidth, lineWidth);
                         }
                     }
                 break;
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                (int)numberOfLineField.Value,
                                (localForegroundBuffer, line) =>
                                 {
-                                    machine.SystemBus.ReadBytes(backgroundMemoryAddressRegister.Value + line * (backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth(), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
+                                    machine.SystemBus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
                                     blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer);
                                     return outputLineBuffer;
                                 });
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             IRQ.Set();
         }
 
-        private void DoCopy(long sourceAddress, long destinationAddress, byte[] sourceBuffer, int sourceOffset = 0, int destinationOffset = 0, int count = 1, Func<byte[], int, byte[]> converter = null)
+        private void DoCopy(ulong sourceAddress, ulong destinationAddress, byte[] sourceBuffer, int sourceOffset = 0, int destinationOffset = 0, int count = 1, Func<byte[], int, byte[]> converter = null)
         {
             var currentSource = sourceAddress;
             var currentDestination = destinationAddress;
@@ -320,8 +320,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var destinationBuffer = converter == null ? sourceBuffer : converter(sourceBuffer, line);
                 machine.SystemBus.WriteBytes(destinationBuffer, currentDestination, 0, destinationBuffer.Length);
 
-                currentSource += sourceBuffer.Length + sourceOffset;
-                currentDestination += destinationBuffer.Length + destinationOffset;
+                currentSource += (ulong)(sourceBuffer.Length + sourceOffset);
+                currentDestination += (ulong)(destinationBuffer.Length + destinationOffset);
             }
         }
 

@@ -7,53 +7,43 @@
 *
 */
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class X86
     {
-        public override void SetRegisterUnsafe(int register, uint value)
+        public override void SetRegisterUnsafe(int register, ulong value)
         {
-            SetRegisterValue32(register, value);
+            if(!mapping.TryGetValue((X86Registers)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override uint GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegisterUnsafe(int register)
         {
-            return GetRegisterValue32(register);
+            if(!mapping.TryGetValue((X86Registers)register, out var r))
+            {
+                throw new RecoverableException($"Wrong register index: {register}");
+            }
+
+            return GetRegisterValue32(r.Index);
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return new CPURegister[] {
-                new CPURegister(0, true),
-                new CPURegister(1, true),
-                new CPURegister(2, true),
-                new CPURegister(3, true),
-                new CPURegister(4, true),
-                new CPURegister(5, true),
-                new CPURegister(6, true),
-                new CPURegister(7, true),
-                new CPURegister(8, true),
-                new CPURegister(9, true),
-                new CPURegister(10, true),
-                new CPURegister(11, true),
-                new CPURegister(12, true),
-                new CPURegister(13, true),
-                new CPURegister(14, true),
-                new CPURegister(15, true),
-                new CPURegister(16, true),
-                new CPURegister(17, true),
-                new CPURegister(18, true),
-                new CPURegister(19, true),
-                new CPURegister(20, true),
-            };
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]
-        public UInt32 EAX
+        public RegisterValue EAX
         {
             get
             {
@@ -64,9 +54,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EAX, value);
             }
         }
-
         [Register]
-        public UInt32 ECX
+        public RegisterValue ECX
         {
             get
             {
@@ -77,9 +66,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.ECX, value);
             }
         }
-
         [Register]
-        public UInt32 EDX
+        public RegisterValue EDX
         {
             get
             {
@@ -90,9 +78,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EDX, value);
             }
         }
-
         [Register]
-        public UInt32 EBX
+        public RegisterValue EBX
         {
             get
             {
@@ -103,9 +90,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EBX, value);
             }
         }
-
         [Register]
-        public UInt32 ESP
+        public RegisterValue ESP
         {
             get
             {
@@ -116,9 +102,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.ESP, value);
             }
         }
-
         [Register]
-        public UInt32 EBP
+        public RegisterValue EBP
         {
             get
             {
@@ -129,9 +114,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EBP, value);
             }
         }
-
         [Register]
-        public UInt32 ESI
+        public RegisterValue ESI
         {
             get
             {
@@ -142,9 +126,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.ESI, value);
             }
         }
-
         [Register]
-        public UInt32 EDI
+        public RegisterValue EDI
         {
             get
             {
@@ -155,9 +138,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EDI, value);
             }
         }
-
         [Register]
-        public UInt32 EIP
+        public RegisterValue EIP
         {
             get
             {
@@ -168,9 +150,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EIP, value);
             }
         }
-
         [Register]
-        public UInt32 EFLAGS
+        public RegisterValue EFLAGS
         {
             get
             {
@@ -181,9 +162,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.EFLAGS, value);
             }
         }
-
         [Register]
-        public UInt32 CS
+        public RegisterValue CS
         {
             get
             {
@@ -194,9 +174,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.CS, value);
             }
         }
-
         [Register]
-        public UInt32 SS
+        public RegisterValue SS
         {
             get
             {
@@ -207,9 +186,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.SS, value);
             }
         }
-
         [Register]
-        public UInt32 DS
+        public RegisterValue DS
         {
             get
             {
@@ -220,9 +198,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.DS, value);
             }
         }
-
         [Register]
-        public UInt32 ES
+        public RegisterValue ES
         {
             get
             {
@@ -233,9 +210,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.ES, value);
             }
         }
-
         [Register]
-        public UInt32 FS
+        public RegisterValue FS
         {
             get
             {
@@ -246,9 +222,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.FS, value);
             }
         }
-
         [Register]
-        public UInt32 GS
+        public RegisterValue GS
         {
             get
             {
@@ -259,9 +234,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.GS, value);
             }
         }
-
         [Register]
-        public UInt32 CR0
+        public RegisterValue CR0
         {
             get
             {
@@ -272,9 +246,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.CR0, value);
             }
         }
-
         [Register]
-        public UInt32 CR1
+        public RegisterValue CR1
         {
             get
             {
@@ -285,9 +258,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.CR1, value);
             }
         }
-
         [Register]
-        public UInt32 CR2
+        public RegisterValue CR2
         {
             get
             {
@@ -298,9 +270,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.CR2, value);
             }
         }
-
         [Register]
-        public UInt32 CR3
+        public RegisterValue CR3
         {
             get
             {
@@ -311,9 +282,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.CR3, value);
             }
         }
-
         [Register]
-        public UInt32 CR4
+        public RegisterValue CR4
         {
             get
             {
@@ -324,9 +294,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.CR4, value);
             }
         }
-
         [Register]
-        public override UInt32 PC
+        public override RegisterValue PC
         {
             get
             {
@@ -337,7 +306,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)X86Registers.PC, value);
             }
         }
-
 
         protected override void InitializeRegisters()
         {
@@ -353,6 +321,30 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #pragma warning restore 649
 
+        private static readonly Dictionary<X86Registers, CPURegister> mapping = new Dictionary<X86Registers, CPURegister>
+        {
+            { X86Registers.EAX,  new CPURegister(0, 32, true) },
+            { X86Registers.ECX,  new CPURegister(1, 32, true) },
+            { X86Registers.EDX,  new CPURegister(2, 32, true) },
+            { X86Registers.EBX,  new CPURegister(3, 32, true) },
+            { X86Registers.ESP,  new CPURegister(4, 32, true) },
+            { X86Registers.EBP,  new CPURegister(5, 32, true) },
+            { X86Registers.ESI,  new CPURegister(6, 32, true) },
+            { X86Registers.EDI,  new CPURegister(7, 32, true) },
+            { X86Registers.EIP,  new CPURegister(8, 32, true) },
+            { X86Registers.EFLAGS,  new CPURegister(9, 32, true) },
+            { X86Registers.CS,  new CPURegister(10, 32, true) },
+            { X86Registers.SS,  new CPURegister(11, 32, true) },
+            { X86Registers.DS,  new CPURegister(12, 32, true) },
+            { X86Registers.ES,  new CPURegister(13, 32, true) },
+            { X86Registers.FS,  new CPURegister(14, 32, true) },
+            { X86Registers.GS,  new CPURegister(15, 32, true) },
+            { X86Registers.CR0,  new CPURegister(16, 32, true) },
+            { X86Registers.CR1,  new CPURegister(17, 32, true) },
+            { X86Registers.CR2,  new CPURegister(18, 32, true) },
+            { X86Registers.CR3,  new CPURegister(19, 32, true) },
+            { X86Registers.CR4,  new CPURegister(20, 32, true) },
+        };
     }
 
     public enum X86Registers
