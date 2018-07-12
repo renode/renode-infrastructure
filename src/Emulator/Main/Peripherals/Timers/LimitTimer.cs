@@ -21,6 +21,15 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 throw new ArgumentException("Limit cannot be zero.");
             }
+            if(divider == 0)
+            {
+                throw new ArgumentException("Divider cannot be zero.");
+            }
+            if(frequency == 0)
+            {
+                throw new ArgumentException("Frequency cannot be zero.");
+            }
+
             irqSync = new object();
             this.clockSource = clockSource;
 
@@ -50,6 +59,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             set
             {
+                if(value == 0)
+                {
+                    throw new ArgumentException("Frequency cannot be zero.");
+                }
                 frequency = value;
                 var effectiveFrequency = frequency / Divider;
                 clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(ratio: ClockEntry.FrequencyToRatio(this, effectiveFrequency)));
@@ -64,6 +77,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             set
             {
+                if(value > initialLimit)
+                {
+                    throw new ArgumentException("Value cannot be larger than limit");
+                }
+
                 clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(value: value));
             }
         }

@@ -1820,7 +1820,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 using(this.TraceRegion("CPU loop"))
 #endif
                 using(this.ObtainSinkActiveState())
-                using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TimeSource.NearestSyncPoint, TimeHandle.TimeSource.Domain)))
+                using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TotalElapsedTime, TimeHandle.TimeSource.Domain)))
                 {
                     while(true)
                     {

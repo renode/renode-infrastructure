@@ -332,14 +332,22 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// </summary>
     public abstract partial class PeripheralRegister
     {
-
-
         /// <summary>
         /// Restores this register's value to its reset value, defined on per-field basis.
         /// </summary>
         public void Reset()
         {
             UnderlyingValue = resetValue;
+        }
+
+        /// <summary>
+        /// Wrapper for <see cref="Tag"/> method, tagging bits as "RESERVED".
+        /// </summary>
+        /// <param name="position">Offset in the register.</param>
+        /// <param name="width">Width of field.</param>
+        public void Reserved(int position, int width)
+        {
+            Tag("RESERVED", position, width);
         }
 
         /// <summary>

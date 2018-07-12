@@ -181,5 +181,35 @@ namespace Antmicro.Renode.Core.Structure.Registers
             register.DefineChangeCallback (changeCallback);
             return register;
         }
+
+        /// <summary>
+        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
+        /// </summary>
+        /// <returns>This register with a new "RESERVED" tag.</returns>
+        public static DoubleWordRegister WithReservedBits(this DoubleWordRegister register, int position, int width)
+        {
+            register.Reserved(position, width);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
+        /// </summary>
+        /// <returns>This register with a new "RESERVED" tag.</returns>
+        public static WordRegister WithReservedBits(this WordRegister register, int position, int width)
+        {
+            register.Reserved(position, width);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
+        /// </summary>
+        /// <returns>This register with a new "RESERVED" tag.</returns>
+        public static ByteRegister WithReservedBits(this ByteRegister register, int position, int width)
+        {
+            register.Reserved(position, width);
+            return register;
+        }
     }
 }

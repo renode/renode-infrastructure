@@ -40,6 +40,7 @@
     <Compile Include="SerializableMappedSegmentTests.cs" />
     <Compile Include="MultiCPUTests.cs" />
     <Compile Include="Mocks\MockCPU.cs" />
+    <Compile Include="Mocks\MockPeripheralWithProtectedConstructor.cs" />
     <Compile Include="Mocks\ActivelyAskingCPU.cs" />
     <Compile Include="Mocks\EmptyCPU.cs" />
     <Compile Include="Mocks\ActivelyAskedPeripheral.cs" />
