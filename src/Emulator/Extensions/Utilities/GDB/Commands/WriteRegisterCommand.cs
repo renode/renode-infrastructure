@@ -6,6 +6,7 @@
 //
 using System.Linq;
 using System;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -20,12 +21,13 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber, Separator = '=')]int registerNumber,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] value)
         {
-            if(!manager.Cpu.GetRegisters().Any(x => x.Index == registerNumber))
+            var reg = manager.Cpu.GetRegisters().SingleOrDefault(x => x.Index == registerNumber);
+            if(reg.Width == 0)
             {
                 return PacketData.ErrorReply(0);
             }
 
-            manager.Cpu.SetRegisterUnsafe(registerNumber, BitConverter.ToUInt32(value, 0));
+            manager.Cpu.SetRegisterUnsafe(registerNumber, reg.ValueFromBytes(value));
             return PacketData.Success;
         }
     }
