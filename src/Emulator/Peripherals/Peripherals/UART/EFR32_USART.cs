@@ -34,8 +34,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithEnumField(8, 2, out parityBitModeField, name: "PARITY")
                     .WithEnumField(12, 2, out stopBitsModeField, name: "STOPBITS")},
                 {(long)Registers.Command, new DoubleWordRegister(this)
-                    .WithFlag(11, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue){ ClearBuffer(); }}, name: "CLEARRX")},
+                    .WithFlag(11, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue){ ClearBuffer(); }}, name: "CLEARRX")
+                    .WithFlag(3, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) transmitterEnableFlag.Value = false; }, name: "TXDIS")
+                    .WithFlag(2, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) transmitterEnableFlag.Value = true; }, name: "TXEN")
+                    .WithFlag(1, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) receiverEnableFlag.Value = false; }, name: "RXDIS")
+                    .WithFlag(0, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) receiverEnableFlag.Value = true; }, name: "RXEN")},
                 {(long)Registers.Status, new DoubleWordRegister(this, 0x2040)
+                    .WithFlag(0, out receiverEnableFlag, FieldMode.Read, name: "RXENS")
+                    .WithFlag(1, out transmitterEnableFlag, FieldMode.Read, name: "TXENS")
                     .WithFlag(5, out transferCompleteFlag, FieldMode.Read, name: "TXC")
                     .WithFlag(7, out receiveDataValidFlag, FieldMode.Read, name: "RXDATAV")},
                 {(long)Registers.ClockControl, new DoubleWordRegister(this)
@@ -158,6 +164,16 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public override void WriteChar(byte value)
+        {
+            if(!receiverEnableFlag.Value)
+            {
+                this.Log(LogLevel.Info, "Data received when the receiver is disabled: 0x{0:X}", value);
+                return;
+            }
+            base.WriteChar(value);
+        }
+
         protected override void CharWritten()
         {
             interruptsManager.SetInterrupt(Interrupt.ReceiveDataValid);
@@ -172,6 +188,12 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void HandleTxBufferData(byte data)
         {
+            if(!transmitterEnableFlag.Value)
+            {
+                this.Log(LogLevel.Warning, "Trying to send data, but the transmitter is disabled: 0x{0:X}", data);
+                return;
+            }
+
             if(operationModeField.Value == OperationMode.Synchronous)
             {
                 if(spiSlaveDevice == null)
@@ -206,6 +228,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IValueRegisterField fractionalClockDividerField;
         private readonly IFlagRegisterField transferCompleteFlag;
         private readonly IFlagRegisterField receiveDataValidFlag;
+        private readonly IFlagRegisterField receiverEnableFlag;
+        private readonly IFlagRegisterField transmitterEnableFlag;
         private readonly uint uartClockFrequency;
         private ISPIPeripheral spiSlaveDevice;
 

@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Machine = machine;
         }
 
-        public void WriteChar(byte value)
+        public virtual void WriteChar(byte value)
         {
             lock(innerLock)
             {
