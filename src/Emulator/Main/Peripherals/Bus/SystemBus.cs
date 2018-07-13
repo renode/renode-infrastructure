@@ -153,6 +153,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void LogAllPeripheralsAccess(bool enable = true)
+        {
+            lock(cpuSync)
+            {
+                foreach(var p in peripherals.Peripherals)
+                {
+                    LogPeripheralAccess(p.Peripheral, enable);
+                }
+            }
+        }
+
         public void LogPeripheralAccess(IBusPeripheral busPeripheral, bool enable = true)
         {
             peripherals.VisitAccessMethods(busPeripheral, pam =>
