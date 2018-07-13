@@ -233,7 +233,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly uint uartClockFrequency;
         private ISPIPeripheral spiSlaveDevice;
 
-
         private enum OperationMode
         {
             Asynchronous,
