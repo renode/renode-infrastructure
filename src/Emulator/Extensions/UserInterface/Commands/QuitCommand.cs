@@ -21,15 +21,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         {
             writer.WriteLine("Renode is quitting", ConsoleColor.Green);
             SetCurrentMachine(null);
-            var quit = Quitted;
-            if(quit != null)
-            {
-                var exQuit = quit();
-                if(exQuit != null)
-                {
-                    exQuit();
-                }
-            }
+            Quitted?.Invoke()?.Invoke();
             writer.QuitEnvironment = true;
         }
 
