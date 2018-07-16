@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Logging
             {
                 var currentEmulation = EmulationManager.Instance.CurrentEmulation;
                 var machineCount = currentEmulation.MachinesCount;
-                if(machineCount > 1 && entry.MachineName != null)
+                if((entry.ForceMachineName || machineCount > 1) && entry.MachineName != null)
                 {
                     messageBuilder.AppendFormat("{2}/{0}: {1}", entry.ObjectName, messages.Current, entry.MachineName);
                 }

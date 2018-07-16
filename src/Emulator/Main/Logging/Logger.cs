@@ -281,7 +281,7 @@ namespace Antmicro.Renode.Logging
                     message = string.Format(message, args);
                 }
 
-                var entry = new LogEntry(CustomDateTime.Now, type, message, sourceId, Thread.CurrentThread.ManagedThreadId);
+                var entry = new LogEntry(CustomDateTime.Now, type, message, sourceId, alwaysAppendMachineName, Thread.CurrentThread.ManagedThreadId);
 
                 if(useSynchronousLogging)
                 {
@@ -333,6 +333,7 @@ namespace Antmicro.Renode.Logging
                 nextNameId = 0;
 
                 useSynchronousLogging = ConfigurationManager.Instance.Get("general", "use-synchronous-logging", false);
+                alwaysAppendMachineName = ConfigurationManager.Instance.Get("general", "always-log-machine-name", false);
                 if(useSynchronousLogging)
                 {
                     synchronousLoggingLock = new object();
@@ -348,6 +349,9 @@ namespace Antmicro.Renode.Logging
                     loggingThread.Start();
                 }
             }
+
+            [Transient]
+            private bool alwaysAppendMachineName;
 
             [Transient]
             private bool useSynchronousLogging;

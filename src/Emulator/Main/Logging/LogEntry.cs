@@ -13,13 +13,14 @@ namespace Antmicro.Renode.Logging
 {
     public sealed class LogEntry : ISpeciallySerializable
     {
-        public LogEntry(DateTime time, LogLevel level, string message, int sourceId = NoSource, int? threadId = null)
+        public LogEntry(DateTime time, LogLevel level, string message, int sourceId = NoSource, bool forceMachineName = false, int? threadId = null)
         {
             Message = message;
             numericLogLevel = level.NumericLevel;
             SourceId = sourceId;
             Time = time;
             ThreadId = threadId;
+            ForceMachineName = forceMachineName;
         }
 
         public bool EqualsWithoutIdAndTime(LogEntry entry)
@@ -112,6 +113,8 @@ namespace Antmicro.Renode.Logging
                 return machineName;
             }
         }
+
+        public bool ForceMachineName { get; }
 
         public const int NoSource = -1;
 
