@@ -49,9 +49,12 @@ namespace Antmicro.Renode.Core
             }
             set
             {
-                var oldEmulation = Interlocked.Exchange(ref currentEmulation, value);
-                oldEmulation.Dispose();
-                InvokeEmulationChanged();
+                lock(currentEmulationLock)
+                {
+                    currentEmulation.Dispose();
+                    currentEmulation = value;
+                    InvokeEmulationChanged();
+                }
             }
         }
 
@@ -174,6 +177,7 @@ namespace Antmicro.Renode.Core
             currentEmulation = new Emulation();
             ProgressMonitor = new ProgressMonitor();
             stopwatch = new Stopwatch();
+            currentEmulationLock = new object();
         }
 
         private void InvokeEmulationChanged()
@@ -189,6 +193,7 @@ namespace Antmicro.Renode.Core
         private Stopwatch stopwatch;
         private readonly Serializer serializer;
         private Emulation currentEmulation;
+        private readonly object currentEmulationLock;
 
         /// <summary>
         /// Represents external world time domain.
