@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Logging
             Time = time;
             ThreadId = threadId;
             ForceMachineName = forceMachineName;
+            GetNames();
         }
 
         public bool EqualsWithoutIdAndTime(LogEntry entry)
@@ -66,6 +67,7 @@ namespace Antmicro.Renode.Logging
             ThreadId = reader.ReadInt32();
             Time = new DateTime(reader.ReadInt64());
             numericLogLevel = reader.ReadInt32();
+            GetNames();
 
             if(ThreadId == -1)
             {
@@ -100,7 +102,10 @@ namespace Antmicro.Renode.Logging
         {
             get
             {
-                EnsureName();
+                if(objectName != null && objectName.StartsWith(string.Format("{0}.", Machine.SystemBusName)))
+                {
+                    objectName = objectName.Substring(Machine.SystemBusName.Length + 1);
+                }
                 return objectName;
             }
         }
@@ -109,45 +114,25 @@ namespace Antmicro.Renode.Logging
         {
             get
             {
-                EnsureName();
                 return machineName;
             }
         }
 
         public bool ForceMachineName { get; }
 
-        public const int NoSource = -1;
-
-        private void EnsureName()
-        {
-            if(!nameResolved)
-            {
-                nameResolved = true;
-                TryGetName(out objectName, out machineName);
-
-                if(objectName != null && objectName.StartsWith(string.Format("{0}.", Machine.SystemBusName)))
-                {
-                    objectName = objectName.Substring(Machine.SystemBusName.Length + 1);
-                }
-            }
-        }
-
-        private bool TryGetName(out string objName, out string machName)
+        private void GetNames()
         {
             if(SourceId != NoSource)
             {
-                return EmulationManager.Instance.CurrentEmulation.CurrentLogger.TryGetName(SourceId, out objName, out machName);
+                EmulationManager.Instance.CurrentEmulation.CurrentLogger.TryGetName(SourceId, out objectName, out machineName);
             }
-
-            objName = null;
-            machName = null;
-            return false;
         }
 
         private int numericLogLevel;
-        private bool nameResolved;
         private string objectName;
         private string machineName;
+
+        private const int NoSource = -1;
     }
 }
 
