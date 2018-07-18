@@ -9,3 +9,4 @@
 #include "renode_imports.h"
 
 EXTERNAL_AS(func_uint64, GetCPUTime, tlib_get_cpu_time)
+EXTERNAL_AS(func_uint32, IsInDebugMode, tlib_is_in_debug_mode)

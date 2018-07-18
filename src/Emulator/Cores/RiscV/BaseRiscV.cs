@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             clint.RegisterCPU(this);
             this.clint = clint;
             this.privilegeArchitecture = privilegeArchitecture;
+            ShouldEnterDebugMode = true;
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -81,6 +82,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             base.Reset();
+            ShouldEnterDebugMode = true;
         }
 
 
@@ -97,6 +99,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public bool ShouldEnterDebugMode { get; set; }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             return Interrupt.Hard;
@@ -107,6 +111,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
             return architecture.Skip(2).SkipWhile(x => Char.IsDigit(x))
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
+        }
+
+        [Export]
+        private uint IsInDebugMode()
+        {
+            return (gdbStub?.DebuggerConnected == true && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
         }
 
         [Export]
