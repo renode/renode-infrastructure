@@ -31,11 +31,13 @@ namespace Antmicro.Renode.Utilities
             terminal.DataReceived += OnByteWritten;
             terminal.ConnectionAccepted += delegate
             {
+                DebuggerConnected = true;
                 cpu.Halted += OnHalted;
                 cpu.ExecutionMode = ExecutionMode.SingleStep;
             };
             terminal.ConnectionClosed += delegate
             {
+                DebuggerConnected = false;
                 cpu.Halted -= OnHalted;
                 cpu.ExecutionMode = ExecutionMode.Continuous;
             }; 
@@ -50,6 +52,8 @@ namespace Antmicro.Renode.Utilities
         }
 
         public int Port { get; private set; }
+
+        public bool DebuggerConnected { get; set; }
 
         private void OnHalted(HaltArguments args)
         {
