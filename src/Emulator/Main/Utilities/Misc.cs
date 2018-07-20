@@ -927,6 +927,25 @@ namespace Antmicro.Renode.Utilities
             }
             @this.Trace($"Waiting for '{reason}' finished.");
         }
+
+        public static void FlipFlag<TEnum>(ref TEnum value, TEnum flag, bool state)
+        {
+            if(!typeof(TEnum).IsEnum)
+            {
+                throw new ArgumentException("TEnum must be an enumerated type.");
+            }
+            var intValue = (long)(object)value;
+            var intFlag = (long)(object)flag;
+            if(state)
+            {
+                intValue |= intFlag;
+            }
+            else
+            {
+                intValue &= ~intFlag;
+            }
+            value = (TEnum)(object)intValue;
+        }
     }
 }
 
