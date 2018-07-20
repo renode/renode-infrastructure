@@ -6,34 +6,59 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class SiFive_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public SiFive_GPIO(Machine machine) : base(machine, 32)
+        public SiFive_GPIO(Machine machine) : base(machine, NumberOfPins)
         {
             locker = new object();
+            pins = new Pin[NumberOfPins];
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.OutputPortValue, new DoubleWordRegister(this)
+                {(long)Registers.PinValue, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
                         valueProviderCallback: _ =>
                         {
-                            lock(locker)
+                            var readOperations = pins.Select(x => (x.pinOperation & Operation.Read) != 0);
+                            var result = readOperations.Zip(State, (operation, state) => operation && state);
+                            return BitHelper.GetValueFromBitsArray(result);
+                        })
+                },
+
+                {(long)Registers.PinInputEnable, new DoubleWordRegister(this)
+                    .WithValueField(0, 32,
+                        writeCallback: (_, val) =>
+                        {
+                            var bits = BitHelper.GetBits(val);
+                            for(var i = 0; i < bits.Length; i++)
                             {
-                                return BitHelper.GetValueFromBitsArray(Connections.Where(x => x.Key >= 0).OrderBy(x => x.Key).Select(x => x.Value.IsSet));
+                                Misc.FlipFlag(ref pins[i].pinOperation, Operation.Read, bits[i]);
                             }
-                        },
+                        })
+                },
+
+                {(long)Registers.PinOutputEnable, new DoubleWordRegister(this)
+                    .WithValueField(0, 32,
+	                    writeCallback: (_, val) =>
+                        {
+                            var bits = BitHelper.GetBits(val);
+                            for (var i = 0; i < bits.Length; i++)
+                            {
+                                Misc.FlipFlag(ref pins[i].pinOperation, Operation.Write, bits[i]);
+                            }
+                        })
+                },
+
+                {(long)Registers.OutputPortValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 32,
                         writeCallback: (_, val) =>
                         {
                             lock(locker)
@@ -41,7 +66,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                 var bits = BitHelper.GetBits(val);
                                 for(var i = 0; i < bits.Length; i++)
                                 {
-                                    Connections[i].Set(State[i] || bits[i]);
+                                    if((pins[i].pinOperation & Operation.Write) != 0)
+                                    {
+                                        State[i] = bits[i];
+                                        Connections[i].Set(bits[i]);
+                                    }
                                 }
                             }
                         })
@@ -100,12 +129,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly object locker;
+        private readonly Pin[] pins;
+
+        private const int NumberOfPins = 32;
+
+        private struct Pin
+        {
+            public Operation pinOperation;
+        }
+
+        [Flags]
+        private enum Operation : long
+        {
+            Disabled = 0x0,
+            Read = 0x1,
+            Write = 0x2
+        }
 
         private enum Registers : long
         {
             PinValue = 0x00,
-            PinInputEnabled = 0x04,
-            PinOutputEnabled = 0x08,
+            PinInputEnable = 0x04,
+            PinOutputEnable = 0x08,
             OutputPortValue = 0x0C,
             InternalPullUpEnable = 0x10,
             PinDriveStrength = 0x14,
