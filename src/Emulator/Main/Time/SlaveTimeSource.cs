@@ -119,6 +119,7 @@ namespace Antmicro.Renode.Time
                     timeHandle = value;
                     timeHandle.PauseRequested += RequestStop;
                     timeHandle.StartRequested += HandleStartRequest;
+                    ResetVirtualTime(timeHandle.TotalElapsedTime);
                     StartDispatcher();
                 }
             }

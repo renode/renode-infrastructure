@@ -103,12 +103,21 @@ namespace Antmicro.Renode.Time
             enabled = true;
 
             TimeSource = timeSource;
-            TotalElapsedTime = timeSource.ElapsedVirtualTime;
 
             // we should not assign this handle to TimeSink as the source might not be configured properly yet
             TimeSink = timeSink;
 
+            Reset();
             this.Trace();
+        }
+
+        public void Reset()
+        {
+            lock(innerLock)
+            {
+                Debug.Assert(TimeSource.ElapsedVirtualTime >= TotalElapsedTime, $"Trying to move time handle back in time from: {TotalElapsedTime} to {TimeSource.ElapsedVirtualTime}");
+                TotalElapsedTime = TimeSource.ElapsedVirtualTime;
+            }
         }
 
         /// <summary>

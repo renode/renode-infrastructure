@@ -547,6 +547,31 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Forces value of elapsed virtual time and nearest sync point.
+        /// </summary>
+        /// <remarks>
+        /// It is called when attaching a new time handle to synchronize the initial value of virtual time.
+        /// </remarks>
+        protected void ResetVirtualTime(TimeInterval interval)
+        {
+            lock(hostTicksElapsed)
+            {
+                Debug.Assert(ElapsedVirtualTime <= interval, $"Couldn't reset back in time from {ElapsedVirtualTime} to {interval}.");
+
+                virtualTicksElapsed.Reset(interval.Ticks);
+                NearestSyncPoint = interval;
+
+                using(sync.HighPriority)
+                {
+                    foreach(var handle in handles.All)
+                    {
+                        handle.Reset();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Sets blocking event to true.
         /// </summary>
         private void EnterBlockedState()
@@ -700,6 +725,19 @@ namespace Antmicro.Renode.Time
             public TimeVariantValue(int size)
             {
                 buffer = new ulong[size];
+            }
+
+            /// <summary> <summary>
+            /// Resets the value and clears the internal buffer.
+            /// </summary>
+            public void Reset(ulong value = 0)
+            {
+                position = 0;
+                CumulativeValue = 0;
+                partialSum = 0;
+                Array.Clear(buffer, 0, buffer.Length);
+
+                Update(value);
             }
 
             /// <summary>
