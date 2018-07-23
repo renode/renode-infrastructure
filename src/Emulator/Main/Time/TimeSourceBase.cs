@@ -476,8 +476,8 @@ namespace Antmicro.Renode.Time
                 lock(hostTicksElapsed)
                 {
                     this.Trace($"Updating virtual time by {virtualTimeElapsed.InMicroseconds} us");
-                    this.virtualTicksElapsed.Update(virtualTimeElapsed.InMicroseconds);
-                    this.hostTicksElapsed.Update(elapsedThisTime.InMicroseconds());
+                    this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
+                    this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
                 }
             }
 
