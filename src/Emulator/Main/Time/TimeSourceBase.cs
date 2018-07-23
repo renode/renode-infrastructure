@@ -388,7 +388,7 @@ namespace Antmicro.Renode.Time
                 updateNearestSyncPoint = false;
                 this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
             }
-            DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, "Nearest sync point set in the past");
+            DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, $"Nearest sync point set in the past: EVT={ElapsedVirtualTime} NSP={NearestSyncPoint}");
 
             isBlocked = false;
             var quantum = NearestSyncPoint - ElapsedVirtualTime;
