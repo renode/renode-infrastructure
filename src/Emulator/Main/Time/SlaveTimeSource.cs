@@ -22,9 +22,8 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Creates a new instance of <see cref="SlaveTimeSource">.
         /// </summary>
-        public SlaveTimeSource(Machine machine)
+        public SlaveTimeSource()
         {
-            this.machine = machine;
             locker = new object();
         }
 
@@ -316,7 +315,6 @@ namespace Antmicro.Renode.Time
         private TimeHandle timeHandle;
         private bool waitingForSlave;
         private bool dispatcherStartRequested;
-        private readonly Machine machine;
         private readonly object locker;
     }
 }

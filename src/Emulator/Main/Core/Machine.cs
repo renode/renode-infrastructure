@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Core
     {
         public Machine()
         {
-            LocalTimeSource = new SlaveTimeSource(this);
+            LocalTimeSource = new SlaveTimeSource();
             LocalTimeSource.TimePassed += HandleTimeProgress;
 
             collectionSync = new object();

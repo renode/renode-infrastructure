@@ -164,7 +164,7 @@ namespace UnitTests
             const int roundsCount = 3;
 
             using(var timeSource = new MasterTimeSource { Quantum = TimeInterval.FromTicks(100), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(100), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(100), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0);
 
@@ -190,7 +190,7 @@ namespace UnitTests
             const int roundsCount = 3;
 
             using(var timeSource = new MasterTimeSource { Quantum = TimeInterval.FromTicks(100), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0);
 
@@ -214,7 +214,7 @@ namespace UnitTests
         public void ShouldHandleSlaveTimeSourceWithNotAlignedQuantum()
         {
             using(var timeSource = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(3), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(3), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0);
 
@@ -268,7 +268,7 @@ namespace UnitTests
         public void ShouldNotTickDisconnectedSlaveTimeSource()
         {
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0);
 
@@ -307,7 +307,7 @@ namespace UnitTests
 
             var alreadyDone = false;
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0, (sts, th, ti) =>
                 {
@@ -344,7 +344,7 @@ namespace UnitTests
             var time = TimeInterval.Empty;
 
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0, (sts, th, ti) =>
                 {
@@ -374,7 +374,7 @@ namespace UnitTests
             var time = TimeInterval.Empty;
 
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0, (sts, th, ti) =>
                 {
@@ -407,7 +407,7 @@ namespace UnitTests
             var time = TimeInterval.Empty;
 
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0, (sts, th, ti) =>
                 {
@@ -443,7 +443,7 @@ namespace UnitTests
             var sinkToThreadSync = new ManualResetEvent(false);
 
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             {
                 var timeSink = new SimpleTimeSink(1.0, (sts, th, ti) =>
                 {
@@ -507,7 +507,7 @@ namespace UnitTests
             var indicator = false;
 
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             using(var timeSinkA2 = new MoreComplicatedTimeSink("A"))
             using(var timeSinkB2 = new MoreComplicatedTimeSink("B"))
             {
@@ -659,7 +659,7 @@ namespace UnitTests
             var indicator = false;
 
             using(var master = new MasterTimeSource { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
-            using(var timeSlave = new SlaveTimeSource(null) { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
+            using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             using(var timeSink = new MoreComplicatedTimeSink("A"))
             {
                 // tester thread
