@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Utilities
                 DebuggerConnected = false;
                 cpu.Halted -= OnHalted;
                 cpu.ExecutionMode = ExecutionMode.Continuous;
-            }; 
+            };
             terminal.Start(port);
             commHandler = new CommunicationHandler(this);
         }
@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Utilities
                                 using(var innerCtx = commHandler.OpenContext())
                                 {
                                     innerCtx.Send(new Packet(PacketData.StopReply(TrapSignal)));
-                                }   
+                                }
                                 beforeCommand = null;
                                 commandsCounter = 0;
                                 return true;
