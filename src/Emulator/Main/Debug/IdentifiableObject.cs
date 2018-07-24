@@ -21,6 +21,11 @@ namespace Antmicro.Renode.Debugging
             get { return uniqueObjectId; }
         }
 
+        public override string ToString()
+        {
+            return $"[IdentifiableObject: {uniqueObjectId}]";
+        }
+
         private int uniqueObjectId;
 
         private static int IdCounter = 0;
