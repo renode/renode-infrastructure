@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void StartGdbServer(int port, bool autostartEmulation = false)
         {
-            if(IsGdbServerCreated)
+            if(gdbStub != null)
             {
                 throw new RecoverableException(string.Format("GDB server already started for this cpu on port: {0}", gdbStub.Port));
             }
@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void StopGdbServer()
         {
-            if(!IsGdbServerCreated)
+            if(gdbStub == null)
             {
                 return;
             }
@@ -543,8 +543,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         // TODO: improve this when backend/analyser stuff is done
 
         public bool UpdateContextOnLoadAndStore { get; set; }
-
-        public bool IsGdbServerCreated { get { return stub != null; } }
 
         protected GdbStub gdbStub;
 
