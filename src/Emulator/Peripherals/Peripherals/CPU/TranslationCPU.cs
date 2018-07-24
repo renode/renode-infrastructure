@@ -83,12 +83,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(IsGdbServerCreated)
             {
-                throw new RecoverableException(string.Format("GDB server already started for this cpu on port: {0}", stub.Port));
+                throw new RecoverableException(string.Format("GDB server already started for this cpu on port: {0}", gdbStub.Port));
             }
 
             try
             {
-                stub = new GdbStub(port, this, autostartEmulation);
+                gdbStub = new GdbStub(port, this, autostartEmulation);
             }
             catch(SocketException e)
             {
@@ -103,8 +103,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
 
-            stub.Dispose();
-            stub = null;
+            gdbStub.Dispose();
+            gdbStub = null;
         }
 
         public virtual void InitFromElf(IELF elf)
@@ -546,7 +546,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool IsGdbServerCreated { get { return stub != null; } }
 
-        private GdbStub stub;
+        protected GdbStub gdbStub;
 
         protected abstract Interrupt DecodeInterrupt(int number);
 
