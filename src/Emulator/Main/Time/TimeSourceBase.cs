@@ -450,6 +450,7 @@ namespace Antmicro.Renode.Time
 
                         if(minInterval != null)
                         {
+                            DebugHelper.Assert(minInterval.Value >= ElapsedVirtualTime, $"A slave reports time from the past! The current virtual time is {ElapsedVirtualTime}, but {minInterval.Value} has been reported");
                             virtualTimeElapsed = minInterval.Value - ElapsedVirtualTime;
                         }
                     }
