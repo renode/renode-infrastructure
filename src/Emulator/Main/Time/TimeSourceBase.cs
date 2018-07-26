@@ -258,13 +258,8 @@ namespace Antmicro.Renode.Time
         }
 
         /// <see cref="ITimeSource.ReportTimeProgress">
-        public void ReportTimeProgress(TimeHandle h, TimeInterval diff)
+        public void ReportTimeProgress()
         {
-            if(diff.Ticks == 0)
-            {
-                return;
-            }
-
             var currentCommonElapsedTime = handles.CommonElapsedTime;
             if(currentCommonElapsedTime > previousElapsedVirtualTime)
             {

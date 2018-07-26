@@ -68,6 +68,6 @@ namespace Antmicro.Renode.Time
         /// <remark>
         /// Calling this method does not mean that the granted time is fully processed. It is just used to update Elapsed Virtual Time more often than Quantum in order to handle timers well.
         /// </remark>
-        void ReportTimeProgress(TimeHandle h, TimeInterval diff);
+        void ReportTimeProgress();
     }
 }

@@ -655,7 +655,7 @@ namespace UnitTests
             {
             }
 
-            public void ReportTimeProgress(TimeHandle h, TimeInterval diff)
+            public void ReportTimeProgress()
             {
             }
 

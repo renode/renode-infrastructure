@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Time
                 this.Trace($"Reporting progress: {progress}");
                 TotalElapsedTime += progress;
                 reportedSoFar += progress;
-                TimeSource.ReportTimeProgress(this, progress);
+                TimeSource.ReportTimeProgress();
             }
         }
 
