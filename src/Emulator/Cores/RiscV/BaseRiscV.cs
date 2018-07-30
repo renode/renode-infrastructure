@@ -15,6 +15,7 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Endianess = ELFSharp.ELF.Endianess;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -27,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.clint = clint;
             this.privilegeArchitecture = privilegeArchitecture;
             ShouldEnterDebugMode = true;
+            nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
 
             var architectureSets = DecodeArchitecture(cpuType);
             foreach(var @set in architectureSets)
@@ -85,7 +87,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             ShouldEnterDebugMode = true;
         }
 
-
         public uint HartId
         {
             get
@@ -106,11 +107,53 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Interrupt.Hard;
         }
 
+        protected void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation)
+        {
+            nonstandardCSR.Add(csr, Tuple.Create(readOperation, writeOperation));
+        }
+
         private IEnumerable<InstructionSet> DecodeArchitecture(string architecture)
         {
             //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
             return architecture.Skip(2).SkipWhile(x => Char.IsDigit(x))
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
+        }
+        
+        [Export]
+        private int HasCSR(ulong csr)
+        {
+            if(nonstandardCSR.ContainsKey(csr))
+            {
+                return 1;
+            }
+            this.Log(LogLevel.Noisy, "Missing nonstandard CSR: 0x{0:X}", csr);
+            return 0;
+        }
+
+        [Export]
+        private ulong ReadCSR(ulong csr)
+        {
+            var readMethod = nonstandardCSR[csr].Item1;
+            if(readMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
+                return 0;
+            }
+            return readMethod();
+        }
+
+        [Export]
+        private void WriteCSR(ulong csr, ulong value)
+        {
+            var writeMethod = nonstandardCSR[csr].Item2;
+            if(writeMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
+            }
+            else
+            {
+                writeMethod(value);
+            }
         }
 
         [Export]
@@ -135,6 +178,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly CoreLevelInterruptor clint;
 
         private readonly PrivilegeArchitecture privilegeArchitecture;
+
+        private readonly Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>> nonstandardCSR;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649

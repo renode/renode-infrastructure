@@ -56,6 +56,10 @@ void *tlib_realloc(void *ptr, size_t size)
 EXTERNAL_AS(action_intptr, Free, tlib_free)
 EXTERNAL_AS(action_uint64, OnTranslationCacheSizeChange, tlib_on_translation_cache_size_change)
 
+EXTERNAL_AS(func_int32_uint64, HasCSR, tlib_has_nonstandard_csr)
+EXTERNAL_AS(func_uint64_uint64, ReadCSR, tlib_read_csr)
+EXTERNAL_AS(action_uint64_uint64, WriteCSR, tlib_write_csr)
+
 EXTERNAL(action_intptr_intptr, invalidate_tb_in_other_cpus)
 void tlib_invalidate_tb_in_other_cpus(uintptr_t start, uintptr_t end)
 {
