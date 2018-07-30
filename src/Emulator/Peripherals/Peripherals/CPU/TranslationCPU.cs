@@ -780,20 +780,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnBlockBegin(ulong address, uint size)
+        private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            var bbInternalHook = blockBeginInternalHook;
-            if(bbInternalHook != null)
-            {
-                bbInternalHook(address, size);
-            }
-            var bbUserHook = blockBeginUserHook;
-            if(bbUserHook != null)
-            {
-                bbUserHook(address, size);
-            }
+            blockBeginInternalHook?.Invoke(address, size);
+            blockBeginUserHook?.Invoke(address, size);
+
+            return 1;
         }
 
         [Export]
