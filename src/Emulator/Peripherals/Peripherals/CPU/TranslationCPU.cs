@@ -384,7 +384,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     cpuThread?.Join();
                     this.NoisyLog("Paused.");
                 }
-                else
+                // calling pause from block begin hook is safe and we should not check pauseGuard in this context
+                else if(!insideBlockBeginHook)
                 {
                     pauseGuard.OrderPause();
                 }
@@ -779,15 +780,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private bool insideBlockBeginHook;
+
         [Export]
         private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            blockBeginInternalHook?.Invoke(address, size);
-            blockBeginUserHook?.Invoke(address, size);
+            using(DisposableWrapper.New(() => insideBlockBeginHook = false))
+            {
+                insideBlockBeginHook = true;
 
-            return 1;
+                blockBeginInternalHook?.Invoke(address, size);
+                blockBeginUserHook?.Invoke(address, size);
+            }
+
+            return (isHalted || isPaused) ? 0 : 1u;
         }
 
         [Export]
@@ -1502,8 +1510,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                     isHalted = value;
                     if(TimeHandle != null)
                     {
-                        // this is needed to quit 'RequestTimeInterval'
-                        TimeHandle.Enabled = !value;
+                        if(insideBlockBeginHook)
+                        {
+                            // deferr disabling to the moment of unlatch, otherwise we would deadlock
+                            TimeHandle.DisableRequest = true;
+                        }
+                        else
+                        {
+                            // this is needed to quit 'RequestTimeInterval'
+                            TimeHandle.Enabled = !value;
+                        }
                     }
                     if(isHalted)
                     {

@@ -452,6 +452,12 @@ namespace Antmicro.Renode.Time
                 this.Trace($"Time handle unlatched; current level is {latchLevel}");
                 // since there is one place when we wait for latch to be equal to 1, we have to pulse more often than only when latchLevel is 0
                 Monitor.PulseAll(innerLock);
+
+                if(latchLevel == 0 && disableRequested)
+                {
+                    disableRequested = false;
+                    Enabled = false;
+                }
             }
             this.Trace();
         }
@@ -613,6 +619,30 @@ namespace Antmicro.Renode.Time
         public TimeInterval TotalElapsedTime { get; private set; }
 
         /// <summary>
+        /// Sets the value indicating if the handle should be automatically disabled on the nearest call to <see cref="Unlatch"> method.
+        /// </summary>
+        public bool DisableRequest
+        {
+            get
+            {
+                return disableRequested;
+            }
+
+            set
+            {
+                lock(innerLock)
+                {
+                    if(value == disableRequested)
+                    {
+                        return;
+                    }
+
+                    disableRequested = value;
+                }
+            }
+        }
+
+        /// <summary>
         /// Informs the sink that the source wants to pause its execution.
         /// </summary>
         /// <remarks>
@@ -667,6 +697,7 @@ namespace Antmicro.Renode.Time
         private int latchLevel;
         private bool deferredUnlatch;
         private bool recentlyUnblocked;
+        private bool disableRequested;
 
         private readonly object innerLock;
 
