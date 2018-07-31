@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             using (var file = File.AppendText(LogFile))
             {
                 var phy = AddressTranslator(pc);
-                var symbol = cpu.SymbolLookup(pc);
+                var symbol = cpu.Bus.FindSymbolAt(pc);
                 var disas = Disassemble(pc, phy, size, flags);
 
                 if (disas == null)
@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 file.WriteLine("-------------------------");
                 if (size > 0)
                 {
-                    file.Write("IN: {0} ", symbol == null ? string.Empty : symbol.ToStringRelative(pc));
+                    file.Write("IN: {0} ", symbol ?? string.Empty);
                     if(phy != pc)
                     {
                         file.WriteLine("(physical: 0x{0:x8}, virtual: 0x{1:x8})", phy, pc);

@@ -789,31 +789,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected readonly Machine machine;
 
-        protected Symbol DoLookupSymbolInner(ulong offset)
-        {
-            Symbol symbol;
-            if(machine.SystemBus.Lookup.TryGetSymbolByAddress(offset, out symbol))
-            {
-                return symbol;
-            }
-            return null;
-        }
-
-        private string GetSymbolName(ulong offset)
-        {
-            var info = string.Empty;
-            var s = DoLookupSymbolInner(offset);
-            if(s != null && !string.IsNullOrEmpty(s.Name))
-            {
-                info = s.ToStringRelative(offset);
-            }
-            return info;
-        }
-
         private void OnTranslationBlockFetch(ulong offset)
         {
             this.DebugLog(() => {
-                string info = GetSymbolName(offset);
+                string info = Bus.FindSymbolAt(offset);
                 if (info != string.Empty) info = "- " + info;
                 return string.Format("Fetching block @ 0x{0:X8} {1}", offset, info);
             });
@@ -1383,11 +1362,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         #region IDisassemblable implementation
-
-        public Symbol SymbolLookup(ulong addr)
-        {
-            return DoLookupSymbolInner(addr);
-        }
 
         private bool logTranslatedBlocks;
         public bool LogTranslatedBlocks

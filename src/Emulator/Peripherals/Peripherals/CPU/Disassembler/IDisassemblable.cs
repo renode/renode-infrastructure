@@ -14,7 +14,6 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
     public interface IDisassemblable
     {
         SystemBus Bus { get; }
-        Symbol SymbolLookup(ulong addr);
         bool LogTranslatedBlocks { get; set; }
 
         string Architecture { get; }
