@@ -566,6 +566,24 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        public virtual int HasCSR(ulong csr)
+        {
+            throw new NotImplementedException();
+        }
+
+        [Export]
+        public virtual ulong ReadCSR(ulong csr)
+        {
+            throw new NotImplementedException();
+        }
+
+        [Export]
+        public virtual void WriteCSR(ulong csr, ulong value)
+        {
+            throw new NotImplementedException();
+        }
+
+        [Export]
         protected uint ReadByteFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)

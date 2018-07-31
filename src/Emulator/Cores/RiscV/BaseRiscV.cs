@@ -87,6 +87,48 @@ namespace Antmicro.Renode.Peripherals.CPU
             ShouldEnterDebugMode = true;
         }
 
+        [Export]
+        public override int HasCSR(ulong csr)
+        {
+            if(nonstandardCSR.ContainsKey(csr))
+            {
+                return 1;
+            }
+            this.Log(LogLevel.Noisy, "Missing nonstandard CSR: 0x{0:X}", csr);
+            return 0;
+        }
+
+        [Export]
+        public override ulong ReadCSR(ulong csr)
+        {
+            var readMethod = nonstandardCSR[csr].Item1;
+            if(readMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
+                return 0;
+            }
+            return readMethod();
+        }
+
+        [Export]
+        public override void WriteCSR(ulong csr, ulong value)
+        {
+            var writeMethod = nonstandardCSR[csr].Item2;
+            if(writeMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
+            }
+            else
+            {
+                writeMethod(value);
+            }
+        }
+
+        public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation)
+        {
+            nonstandardCSR.Add(csr, Tuple.Create(readOperation, writeOperation));
+        }
+
         public uint HartId
         {
             get
@@ -107,53 +149,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Interrupt.Hard;
         }
 
-        protected void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation)
-        {
-            nonstandardCSR.Add(csr, Tuple.Create(readOperation, writeOperation));
-        }
-
         private IEnumerable<InstructionSet> DecodeArchitecture(string architecture)
         {
             //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
             return architecture.Skip(2).SkipWhile(x => Char.IsDigit(x))
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
-        }
-        
-        [Export]
-        private int HasCSR(ulong csr)
-        {
-            if(nonstandardCSR.ContainsKey(csr))
-            {
-                return 1;
-            }
-            this.Log(LogLevel.Noisy, "Missing nonstandard CSR: 0x{0:X}", csr);
-            return 0;
-        }
-
-        [Export]
-        private ulong ReadCSR(ulong csr)
-        {
-            var readMethod = nonstandardCSR[csr].Item1;
-            if(readMethod == null)
-            {
-                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
-                return 0;
-            }
-            return readMethod();
-        }
-
-        [Export]
-        private void WriteCSR(ulong csr, ulong value)
-        {
-            var writeMethod = nonstandardCSR[csr].Item2;
-            if(writeMethod == null)
-            {
-                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
-            }
-            else
-            {
-                writeMethod(value);
-            }
         }
 
         [Export]
