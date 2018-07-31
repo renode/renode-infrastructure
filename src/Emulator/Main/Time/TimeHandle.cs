@@ -71,6 +71,7 @@ namespace Antmicro.Renode.Time
         // * `SourceSideActive` - when set to `false`: `Request` returns immediately with the `false` result
         // * `SinkSideActive`   - when set to `false`: `WaitUntilDone` returns immediately with the `false` result
         // * `Enabled`          - when set to `false`: `WaitUntilDone` returns immediately with the `true` result
+        // * `DeferredEnabled`  - `Enabled` will be assigned this value when unlatched
         //
         // Internal state:
         // * `sourceSideInProgress` - `true` from  `Grant`                            to  `WaitUntilDone` or `Dispose`
@@ -92,6 +93,7 @@ namespace Antmicro.Renode.Time
         //
         // 4. Latching is needed to ensure that the handle will not become disabled/re-enabled in an arbitrary moment.
         // As described in (2), the disabled handle does not synchronize the sink side, so it cannot switch state when the sink is in progress of an execution and the sink cannot resume execution when the source side is in progress.
+        // It is possible to defer changing value of `Enabled` by using `DeferredEnabled` property - their values will be automatically synced (i.e., `Enabled` will get `DeferredEnabled` value) when unlatching the handle.
         // -------
 
         /// <summary>
@@ -101,6 +103,7 @@ namespace Antmicro.Renode.Time
         {
             innerLock = new object();
             enabled = true;
+            DeferredEnabled = true;
 
             TimeSource = timeSource;
 
@@ -452,6 +455,11 @@ namespace Antmicro.Renode.Time
                 this.Trace($"Time handle unlatched; current level is {latchLevel}");
                 // since there is one place when we wait for latch to be equal to 1, we have to pulse more often than only when latchLevel is 0
                 Monitor.PulseAll(innerLock);
+
+                if(latchLevel == 0)
+                {
+                    Enabled = DeferredEnabled;
+                }
             }
             this.Trace();
         }
@@ -498,12 +506,14 @@ namespace Antmicro.Renode.Time
                     {
                         return;
                     }
+
                     changingEnabled = true;
                     this.Trace("About to wait for unlatching the time handle");
                     innerLock.WaitWhile(() => latchLevel > 0, "Waiting for unlatching the time handle");
 
                     this.Trace($"Enabled value changed: {enabled} -> {value}");
                     enabled = value;
+                    DeferredEnabled = value;
                     changingEnabled = false;
                     if(!enabled)
                     {
@@ -611,6 +621,11 @@ namespace Antmicro.Renode.Time
         /// Gets the amount of virtual time that passed from the perspective of this handle.
         /// </summary>
         public TimeInterval TotalElapsedTime { get; private set; }
+
+        /// <summary>
+        /// The value of the enabled property that will be set on the nearest call to <see cref="Unlatch"> method.
+        /// </summary>
+        public bool DeferredEnabled { get; set; }
 
         /// <summary>
         /// Informs the sink that the source wants to pause its execution.

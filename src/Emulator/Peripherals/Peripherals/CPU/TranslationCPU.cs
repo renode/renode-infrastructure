@@ -384,7 +384,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     cpuThread?.Join();
                     this.NoisyLog("Paused.");
                 }
-                else
+                // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
+                else if(!insideBlockHook)
                 {
                     pauseGuard.OrderPause();
                 }
@@ -761,21 +762,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private bool insideBlockHook;
+
         [Export]
         private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            blockBeginInternalHook?.Invoke(address, size);
-            blockBeginUserHook?.Invoke(address, size);
+            using(DisposableWrapper.New(() => insideBlockHook = false))
+            {
+                insideBlockHook = true;
 
-            return 1;
+                blockBeginInternalHook?.Invoke(address, size);
+                blockBeginUserHook?.Invoke(address, size);
+            }
+
+            return (isHalted || isPaused) ? 0 : 1u;
         }
 
         [Export]
         private void OnBlockFinished(ulong pc, uint executedInstructions)
         {
-	    blockFinishedHook?.Invoke(pc, executedInstructions);
+            using(DisposableWrapper.New(() => insideBlockHook = false))
+            {
+                insideBlockHook = true;
+                blockFinishedHook?.Invoke(pc, executedInstructions);
+            }
         }
 
         protected virtual void InitializeRegisters()
@@ -1466,8 +1478,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                     isHalted = value;
                     if(TimeHandle != null)
                     {
-                        // this is needed to quit 'RequestTimeInterval'
-                        TimeHandle.Enabled = !value;
+                        if(insideBlockHook || !OnPossessedThread)
+                        {
+                            // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                            TimeHandle.DeferredEnabled = !value;
+                        }
+                        else
+                        {
+                            // this is needed to quit 'RequestTimeInterval'
+                            TimeHandle.Enabled = !value;
+                        }
                     }
                     if(isHalted)
                     {
