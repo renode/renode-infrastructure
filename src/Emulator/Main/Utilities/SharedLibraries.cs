@@ -150,7 +150,7 @@ namespace Antmicro.Renode.Utilities
             var messagePtr = dlerror();
             if(messagePtr != IntPtr.Zero)
             {
-                message = Marshal.PtrToStringUni(messagePtr);
+                message = Marshal.PtrToStringAuto(messagePtr);
             }
 #endif
             throw new InvalidOperationException(string.Format("Error while {1} dynamic library: {0}", message ?? "unknown error", operation));
