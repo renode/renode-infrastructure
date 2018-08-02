@@ -43,6 +43,7 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Peripherals\SD\PSE_SDController.cs" />
     <Compile Include="Peripherals\MTD\CFIFlash.cs" />
     <Compile Include="Peripherals\UART\NS16550.cs" />
     <Compile Include="Peripherals\UART\AxiUartLite.cs" />
