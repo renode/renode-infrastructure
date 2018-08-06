@@ -40,6 +40,7 @@
   <Import Project="./cores.template.csproj" />
   <ItemGroup>
     <Compile Include="RiscV\RiscV32.cs" />
+    <Compile Include="RiscV\VexRiscv.cs" />
     <Compile Include="RiscV\RiscV32Registers.cs">
       <DependentUpon>RiscV32Registers.tt</DependentUpon>
     </Compile>
