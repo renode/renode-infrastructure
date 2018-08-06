@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 && irq != (int)IrqType.HypervisorTimerInterrupt;
         }
 
-        private enum IrqType
+        protected enum IrqType
         {
             UserSoftwareInterrupt = 0x0,
             SupervisorSoftwareInterrupt = 0x1,
