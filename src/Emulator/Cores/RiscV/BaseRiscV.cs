@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
-            clint.RegisterCPU(this);
+            clint?.RegisterCPU(this);
             this.clint = clint;
             this.privilegeArchitecture = privilegeArchitecture;
             ShouldEnterDebugMode = true;
@@ -128,6 +128,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private ulong GetCPUTime()
         {
+            if(clint == null)
+            {
+                this.Log(LogLevel.Warning, "Trying to read CPU time from CLINT, but CLINT is not registered.");
+                return 0;
+            }
+
             var numberOfExecutedInstructions = checked((ulong)TlibGetExecutedInstructions());
             if(numberOfExecutedInstructions > 0)
             {
