@@ -384,8 +384,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     cpuThread?.Join();
                     this.NoisyLog("Paused.");
                 }
-                // calling pause from block begin hook is safe and we should not check pauseGuard in this context
-                else if(!insideBlockBeginHook)
+                // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
+                else if(!insideBlockHook)
                 {
                     pauseGuard.OrderPause();
                 }
@@ -780,16 +780,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool insideBlockBeginHook;
+        private bool insideBlockHook;
 
         [Export]
         private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            using(DisposableWrapper.New(() => insideBlockBeginHook = false))
+            using(DisposableWrapper.New(() => insideBlockHook = false))
             {
-                insideBlockBeginHook = true;
+                insideBlockHook = true;
 
                 blockBeginInternalHook?.Invoke(address, size);
                 blockBeginUserHook?.Invoke(address, size);
@@ -801,7 +801,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void OnBlockFinished(ulong pc)
         {
-            blockFinishedHook?.Invoke(pc);
+            using(DisposableWrapper.New(() => insideBlockHook = false))
+            {
+                insideBlockHook = true;
+                blockFinishedHook?.Invoke(pc);
+            }
         }
 
         protected virtual void InitializeRegisters()
@@ -1510,9 +1514,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     isHalted = value;
                     if(TimeHandle != null)
                     {
-                        if(insideBlockBeginHook)
+                        if(insideBlockHook)
                         {
-                            // deferr disabling to the moment of unlatch, otherwise we would deadlock
+                            // deferr disabling to the moment of unlatch, otherwise we would deadlock in block begin hook
                             TimeHandle.DisableRequest = true;
                         }
                         else
