@@ -38,6 +38,10 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
                     .WithFlag(1, valueProviderCallback: _ => Count != 0, writeCallback: (_, value) => { if(value) IRQ.Unset(); })
                 },
+                {(long)Registers.EventEnable, new DoubleWordRegister(this)
+                    .WithTag("tx_event_enabled", 0, 1)
+                    .WithFlag(1, out rxEventEnabled, changeCallback: (_, value) => { if(!value) IRQ.Unset(); } )
+                },
              };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -72,7 +76,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            IRQ.Set();
+            if(rxEventEnabled.Value)
+            {
+                // we do not filter IRQ.Unset, as it should not really influence anything.
+                IRQ.Set();
+            }
         }
 
         protected override void QueueEmptied()
@@ -80,6 +88,7 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ.Unset(); // I'm not certain about this
         }
 
+        private IFlagRegisterField rxEventEnabled;
         private readonly DoubleWordRegisterCollection registers;
 
         private enum Registers : long
