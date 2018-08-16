@@ -18,7 +18,7 @@ namespace Antmicro.Renode.UserInterface
 {
     public static class ShellProvider
     {
-        public static Shell GenerateShell(IOProvider io, Monitor monitor, bool forceVCursor = false, bool clearScreen = true)
+        public static Shell GenerateShell(IOProvider io, Monitor monitor, bool forceVCursor = false)
         {
             var settings = new ShellSettings {
                 NormalPrompt = new Prompt("(monitor) ", ConsoleColor.DarkRed),
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.UserInterface
                 UseBuiltinHelp = false,
                 UseBuiltinSave = false,
                 ForceVirtualCursor = forceVCursor,
-                ClearScreen = clearScreen,
+                ClearScreen = false,
                 DirectorySeparator = '/',
                 HistorySavePath = ConfigurationManager.Instance.Get("general", "history-path", Path.Combine(Emulator.UserDirectoryPath, "history"))
             };
