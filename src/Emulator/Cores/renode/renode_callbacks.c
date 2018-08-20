@@ -43,7 +43,7 @@ EXTERNAL_AS(func_int32_uint64, IsIoAccessed, tlib_is_io_accessed)
 EXTERNAL_AS(func_uint32_uint64_uint32, OnBlockBegin, tlib_on_block_begin)
 EXTERNAL_AS(func_uint32, IsBlockBeginEventEnabled, tlib_is_block_begin_event_enabled)
 
-EXTERNAL_AS(action_uint64, OnBlockFinished, tlib_on_block_finished)
+EXTERNAL_AS(action_uint64_uint32, OnBlockFinished, tlib_on_block_finished)
 
 EXTERNAL_AS(func_intptr_int32, Allocate, tlib_allocate)
 void *tlib_malloc(size_t size)

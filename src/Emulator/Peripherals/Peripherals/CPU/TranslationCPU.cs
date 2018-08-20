@@ -579,7 +579,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void SetHookAtBlockEnd(Action<ulong> hook)
+        public void SetHookAtBlockEnd(Action<ulong, uint> hook)
         {
             using(machine.ObtainPausedState())
             {
@@ -812,12 +812,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnBlockFinished(ulong pc)
+        private void OnBlockFinished(ulong pc, uint executedInstructions)
         {
             using(DisposableWrapper.New(() => insideBlockHook = false))
             {
                 insideBlockHook = true;
-                blockFinishedHook?.Invoke(pc);
+                blockFinishedHook?.Invoke(pc, executedInstructions);
             }
         }
 
@@ -1229,7 +1229,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool[] interruptState;
         private Action<ulong, uint> blockBeginInternalHook;
         private Action<ulong, uint> blockBeginUserHook;
-        private Action<ulong> blockFinishedHook;
+        private Action<ulong, uint> blockFinishedHook;
 
         private List<SegmentMapping> currentMappings;
 
