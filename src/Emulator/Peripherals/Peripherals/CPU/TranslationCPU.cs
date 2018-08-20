@@ -1648,7 +1648,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetMaximumBlockSize;
 
         [Import]
-        private Action TlibRestoreContext;
+        private FuncInt32 TlibRestoreContext;
 
         [Import]
         private FuncIntPtr TlibExportState;
