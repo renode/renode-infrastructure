@@ -58,6 +58,14 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void EnsureTypeIsLoaded(string name)
+        {
+            // this is a bit hacky - calling `GetTypeByName` forces
+            // TypeManager to load the type into memory making
+            // it accessible for dynamically compiled C# code
+            TypeManager.Instance.GetTypeByName(name);
+        }
+
         public void Load(string path)
         {
             string version;
