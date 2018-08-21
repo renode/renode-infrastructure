@@ -500,6 +500,12 @@ namespace Antmicro.Renode.Time
             {
                 lock(innerLock)
                 {
+                    if(value)
+                    {
+                        // enabling the handle should reset a pending disable request
+                        disableRequested = false;
+                    }
+
                     if(enabled == value)
                     {
                         return;

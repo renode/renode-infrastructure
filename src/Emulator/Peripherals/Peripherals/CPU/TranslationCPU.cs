@@ -1530,7 +1530,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         if(insideBlockHook)
                         {
                             // deferr disabling to the moment of unlatch, otherwise we would deadlock in block begin hook
-                            TimeHandle.DisableRequest = true;
+                            TimeHandle.DisableRequest = value;
                         }
                         else
                         {
