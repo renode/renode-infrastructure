@@ -1520,26 +1520,31 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 lock(haltedLock)
                 {
+                    this.Trace();
                     if(value == isHalted)
                     {
                         return;
                     }
+                    this.Trace();
                     isHalted = value;
                     if(TimeHandle != null)
                     {
                         if(insideBlockHook)
                         {
+                            this.Trace();
                             // deferr disabling to the moment of unlatch, otherwise we would deadlock in block begin hook
                             TimeHandle.DisableRequest = value;
                         }
                         else
                         {
+                            this.Trace();
                             // this is needed to quit 'RequestTimeInterval'
                             TimeHandle.Enabled = !value;
                         }
                     }
                     if(isHalted)
                     {
+                        this.Trace();
                         InnerPause(new HaltArguments(HaltReason.Pause));
                     }
                 }
