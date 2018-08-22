@@ -744,20 +744,21 @@ namespace Antmicro.Renode.Peripherals.Bus
             UpdatePageAccesses();
         }
 
-        public bool IsWatchpointAt(ulong address, Access access)
+        public bool TryGetWatchpointsAt(ulong address, Access access, out List<BusHookHandler> result)
         {
             if(access == Access.ReadAndWrite || access == Access.Read)
             {
-                if(hooksOnRead.ContainsKey(address))
+                if(hooksOnRead.TryGetValue(address, out result))
                 {
                     return true;
                 }
                 else if(access == Access.Read)
                 {
+                    result = null;
                     return false;
                 }
             }
-            return hooksOnWrite.ContainsKey(address);
+            return hooksOnWrite.TryGetValue(address, out result);
         }
 
         public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral)
@@ -1215,18 +1216,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             foreach(var address in hooksOnRead.Select(x => x.Key).Union(hooksOnWrite.Select(x => x.Key)))
             {
                 SetPageAccessViaIo(address);
-            }
-        }
-
-        private static void InvokeWatchpointHooks(Dictionary<ulong, List<BusHookHandler>> dictionary, ulong address, SysbusAccessWidth width)
-        {
-            List<BusHookHandler> handlers;
-            if(dictionary.TryGetValue(address, out handlers))
-            {
-                foreach(var handler in handlers)
-                {
-                    handler.Invoke(address, width);
-                }
             }
         }
 

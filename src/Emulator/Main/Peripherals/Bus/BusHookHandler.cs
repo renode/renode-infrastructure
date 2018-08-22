@@ -8,14 +8,15 @@ using System;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    internal class BusHookHandler
+    public class BusHookHandler
     {
         public BusHookHandler(Action<ulong, SysbusAccessWidth> action, SysbusAccessWidth width, Action updateContext)
         {
             this.action = action;
             this.width = width;
             this.updateContext = updateContext;
-        }        
+            Enabled = true;
+        }
 
         public void Invoke(ulong currentAddress, SysbusAccessWidth currentWidth)
         {
@@ -33,6 +34,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             return action == actionToTest;
         }
+
+        public bool Enabled { get; set; }
 
         private readonly Action<ulong, SysbusAccessWidth> action;
         private readonly SysbusAccessWidth width;

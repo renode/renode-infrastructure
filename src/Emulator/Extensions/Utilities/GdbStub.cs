@@ -67,36 +67,6 @@ namespace Antmicro.Renode.Utilities
                     case BreakpointType.AccessWatchpoint:
                     case BreakpointType.WriteWatchpoint:
                     case BreakpointType.ReadWatchpoint:
-                        beforeCommand += cmd =>
-                        {
-                            commandsCounter++;
-                            if(commandsCounter > 15)
-                            {
-                                // this is a hack!
-                                // I noticed that GDB will send `step` command after receiving
-                                // information about watchpoint being hit.
-                                // As a result cpu would execute next instruction and stop again.
-                                // To prevent this situation we wait for `step` and ignore it, but
-                                // only in small time window (15 - instructions, value choosen at random)
-                                // and only after sending watchpoint-related stop reply.
-                                this.Log(LogLevel.Error, "Expected step command after watchpoint. Further debugging might not work properly");
-                                beforeCommand = null;
-                                commandsCounter = 0;
-                                return false;
-                            }
-                            if((cmd is SingleStepCommand))
-                            {
-                                using(var innerCtx = commHandler.OpenContext())
-                                {
-                                    innerCtx.Send(new Packet(PacketData.StopReply(TrapSignal)));
-                                }
-                                beforeCommand = null;
-                                commandsCounter = 0;
-                                return true;
-                            }
-                            return false;
-                        };
-                        goto case BreakpointType.HardwareBreakpoint;
                     case BreakpointType.HardwareBreakpoint:
                     case BreakpointType.MemoryBreakpoint:
                         ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, args.Address)));
@@ -160,11 +130,6 @@ namespace Antmicro.Renode.Utilities
                 }
                 else
                 {
-                    var before = beforeCommand;
-                    if(before != null && before(command))
-                    {
-                        return;
-                    }
                     var packetData = Command.Execute(command, result.Packet);
                     // null means that we will respond later with Stop Reply Response
                     if(packetData != null)
@@ -174,9 +139,6 @@ namespace Antmicro.Renode.Utilities
                 }
             }
         }
-
-        private int commandsCounter;
-        private Func<Command, bool> beforeCommand;
 
         private readonly PacketBuilder pcktBuilder;
         private readonly ICpuSupportingGdb cpu;

@@ -94,6 +94,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private void AccessWatchpointHook(ulong address, SysbusAccessWidth width)
         {
+            //? I See a possible problem here.
+            //? Here we call `Halt` event with T05 argument, but in a second we will call it once again with S05 in HandleStepping@TranlationCPU.
+            //? It seems to work fine with GDB, but... I don't know if it is fully correct.
             manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.AccessWatchpoint));
         }
 
