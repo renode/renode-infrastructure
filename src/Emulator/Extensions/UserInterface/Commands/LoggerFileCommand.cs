@@ -27,6 +27,12 @@ namespace Antmicro.Renode.UserInterface.Commands
             Logger.AddBackend(new FileBackend(path.Value), "file", true);
         }
 
+        [Runnable]
+        public void Run(PathToken path, DecimalIntegerToken token)
+        {
+            Logger.AddBackend(new FileBackend(path.Value, true), "file", true);
+        }
+
         public LoggerFileCommand(Monitor monitor) : base(monitor, "logFile", "sets the output file for logger.", "logF")
         {
         }
