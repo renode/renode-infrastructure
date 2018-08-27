@@ -1518,11 +1518,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                     isHalted = value;
                     if(TimeHandle != null)
                     {
-                        if(insideBlockHook)
+                        if(insideBlockHook || !OnPossessedThread)
                         {
                             this.Trace();
-                            // deferr disabling to the moment of unlatch, otherwise we would deadlock in block begin hook
-                            TimeHandle.DisableRequest = value;
+                            // deferr disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                            if(value)
+                            {
+                                TimeHandle.DisableRequest = true;
+                            }
+                            else
+                            {
+                                TimeHandle.EnableRequest = true;
+                            }
                         }
                         else
                         {

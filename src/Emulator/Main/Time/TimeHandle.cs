@@ -177,6 +177,13 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(!sinkSideInProgress, "Requested a new time interval, but the previous one is still processed.");
 
                 var result = true;
+
+                if(!Enabled && enableRequested)
+                {
+                    // wait until enabled
+                    innerLock.WaitWhile(() => !Enabled && enableRequested, "Waiting for the enabling the handle");
+                }
+
                 if(!Enabled || changingEnabled)
                 {
                     // we test `changingEnabled` here to avoid starvation:
@@ -453,10 +460,18 @@ namespace Antmicro.Renode.Time
                 // since there is one place when we wait for latch to be equal to 1, we have to pulse more often than only when latchLevel is 0
                 Monitor.PulseAll(innerLock);
 
-                if(latchLevel == 0 && disableRequested)
+                if(latchLevel == 0)
                 {
-                    disableRequested = false;
-                    Enabled = false;
+                    if(disableRequested)
+                    {
+                        disableRequested = false;
+                        Enabled = false;
+                    }
+                    else if(enableRequested)
+                    {
+                        enableRequested = false;
+                        Enabled = true;
+                    }
                 }
             }
             this.Trace();
@@ -502,8 +517,9 @@ namespace Antmicro.Renode.Time
                 {
                     if(value)
                     {
-                        // enabling the handle should reset a pending disable request
+                        // enabling the handle should reset a pending enable/disable request
                         disableRequested = false;
+                        enableRequested = false;
                     }
 
                     if(enabled == value)
@@ -644,6 +660,39 @@ namespace Antmicro.Renode.Time
                     }
 
                     disableRequested = value;
+                    if(value)
+                    {
+                        enableRequested = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the value indicating if the handle should be automatically enabled on the nearest call to <see cref="Unlatch"> method.
+        /// </summary>
+        public bool EnableRequest
+        {
+            get
+            {
+                return enableRequested;
+            }
+
+            set
+            {
+                lock(innerLock)
+                {
+                    if(value == enableRequested)
+                    {
+                        return;
+                    }
+
+                    enableRequested = value;
+                    if(value)
+                    {
+                        disableRequested = false;
+                    }
+                    Monitor.PulseAll(innerLock);
                 }
             }
         }
@@ -704,6 +753,7 @@ namespace Antmicro.Renode.Time
         private bool deferredUnlatch;
         private bool recentlyUnblocked;
         private bool disableRequested;
+        private bool enableRequested;
 
         private readonly object innerLock;
 
