@@ -1793,7 +1793,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             this.Trace("CPU thread body finished");
 
-            if(isHalted)
+            if(isAborted)
+            {
+                this.Trace("aborted, reporting continue");
+                TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
+                return false;
+            }
+            else if(isHalted)
             {
                 this.Trace("halted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
@@ -1900,6 +1906,10 @@ restart:
             lock(pauseLock)
             lock(cpuThreadBodyLock)
             {
+                if(isAborted)
+                {
+                    return;
+                }
                 if(cpuThread == null)
                 {
                     this.Trace();
