@@ -160,7 +160,50 @@ namespace Antmicro.Renode.Utilities
 
             public Context OpenContext()
             {
-                return new Context(this);
+                lock(internalLock)
+                {
+                    counter++;
+                    if(counter > 1)
+                    {
+                        stub.cpu.Log(LogLevel.Debug, "Gdb stub: entering nested communication context. All bytes will be queued.");
+                    }
+                    return new Context(this, counter > 1);
+                }
+            }
+
+            public void SendByteDirect(byte b)
+            {
+                stub.terminal.SendByte(b);
+            }
+
+            private void SendAllBufferedData()
+            {
+                foreach(var b in queue)
+                {
+                    stub.terminal.SendByte(b);
+                }
+                queue.Clear();
+            }
+
+            private void ContextClosed(IEnumerable<byte> buffer)
+            {
+                lock(internalLock)
+                {
+                    if(buffer != null)
+                    {
+                        foreach(var b in buffer)
+                        {
+                            queue.Enqueue(b);
+                        }
+                    }
+
+                    counter--;
+                    if(counter == 0 && queue.Count > 0)
+                    {
+                        stub.cpu.Log(LogLevel.Debug, "Gdb stub: leaving nested communication context. Sending {0} queued bytes.", queue.Count);
+                        SendAllBufferedData();
+                    }
+                }
             }
 
             private readonly GdbStub stub;
@@ -170,33 +213,17 @@ namespace Antmicro.Renode.Utilities
 
             public class Context : IDisposable
             {
-                public Context(CommunicationHandler commHandler)
+                public Context(CommunicationHandler commHandler, bool useBuffering)
                 {
                     this.commHandler = commHandler;
-                    Monitor.Enter(commHandler.internalLock);
-                    commHandler.counter++;
-                    if(commHandler.counter > 1)
+                    if(useBuffering)
                     {
-                        commHandler.stub.cpu.Log(LogLevel.Debug, "Gdb stub: entering nested communication context. All bytes will be queued.");
+                        buffer = new Queue<byte>();
                     }
                 }
-
                 public void Dispose()
                 {
-                    commHandler.counter--;
-                    if(commHandler.counter == 0)
-                    {
-                        if(commHandler.queue.Count > 0)
-                        {
-                            commHandler.stub.cpu.Log(LogLevel.Debug, "Gdb stub: leaving nested communication context. Sending {0} queued bytes.", commHandler.queue.Count);
-                        }
-                        foreach(var b in commHandler.queue)
-                        {
-                            commHandler.stub.terminal.SendByte(b);
-                        }
-                        commHandler.queue.Clear();
-                    }
-                    Monitor.Exit(commHandler.internalLock);
+                    commHandler.ContextClosed(buffer);
                 }
 
                 public void Send(Packet packet)
@@ -210,17 +237,18 @@ namespace Antmicro.Renode.Utilities
 
                 public void Send(byte b)
                 {
-                    if(commHandler.counter == 1)
+                    if(buffer == null)
                     {
-                        commHandler.stub.terminal.SendByte(b);
+                        commHandler.SendByteDirect(b);
                     }
                     else
                     {
-                        commHandler.queue.Enqueue(b);
+                        buffer.Enqueue(b);
                     }
                 }
 
                 private readonly CommunicationHandler commHandler;
+                private readonly Queue<byte> buffer;
             }
         }
     }
