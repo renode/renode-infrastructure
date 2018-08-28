@@ -60,7 +60,9 @@ namespace Antmicro.Renode.UI
             }
 
             Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException);
+#if !PLATFORM_WINDOWS
             GLib.ExceptionManager.UnhandledException += arg => CrashHandler.HandleCrash((Exception)arg.ExceptionObject);
+#endif
             Application.Run();
 
 #if !PLATFORM_WINDOWS

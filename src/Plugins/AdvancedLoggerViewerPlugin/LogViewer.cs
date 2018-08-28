@@ -136,7 +136,7 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
                 }
                 await FilterEntriesAsync(progressWidget.ProgressMonitor, true);
             };
-
+#if !PLATFORM_WINDOWS
             listViewLog.Scrolled += async state =>
             {
                 if(Interlocked.Increment(ref eventDepth) > 1)
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
                     state == ListViewLog.ScrolledState.ScrolledUp ? Direction.Backward : Direction.Forward,
                     () => Interlocked.Decrement(ref eventDepth));
             };
-
+#endif
             var searchBox = new HBox();
             searchTextEntry = new TextEntry();
             searchTextEntry.KeyReleased += async (sender, e) => 
@@ -334,8 +334,9 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
         {
             pageStatusLabel.Text = string.Format("Total results: {0}", totalCount);
         }
-
+#if !PLATFORM_WINDOWS
         private int eventDepth;
+#endif
         private ListViewLog listViewLog;
         private TextEntry searchTextEntry;
         private TextEntry filterTextEntry;

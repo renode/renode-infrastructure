@@ -40,9 +40,9 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
             Columns.Add("Machine", machineField);
             Columns.Add("Text", textField);
 
+#if !PLATFORM_WINDOWS
             var gtkScrolledWindow = (Gtk.ScrolledWindow)Toolkit.CurrentEngine.GetNativeWidget(this);
             gtkScrolledWindow.Child.CanFocus = false; //can only set this inside GTK since there is a ScrolledWindow wrapper... - should be fixed in XWT
-            BorderVisible = false;
 
             gtkScrolledWindow.Vadjustment.ValueChanged += (sender, e) => 
             {
@@ -61,6 +61,8 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
                     s(ScrolledState.ScrolledDown);
                 }
             };
+#endif
+            BorderVisible = false;
         }
 
         public int AddItem(LogEntry entry, bool scrollOnRefresh, int? limit = null)
@@ -143,9 +145,10 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
         public ulong? LastItemId  { get { return listStore.RowCount == 0 ? (ulong?)null : listStore.GetValue(listStore.RowCount - 1, idField); } }
 
         public int ItemsCount { get { return listStore.RowCount; } }
-
+        #pragma warning disable 67
+        // on windows we currently don't support this event
         public event Action<ScrolledState> Scrolled;
-
+        #pragma warning restore 67
         protected override void OnSelectionChanged(EventArgs a)
         {
             base.OnSelectionChanged(a);

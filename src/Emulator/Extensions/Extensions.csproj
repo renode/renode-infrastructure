@@ -35,7 +35,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="Mono.Posix" />
+    <Reference Include="Mono.Posix" Condition=" $(CurrentPlatform) != 'Windows'" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.Scripting">
       <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
