@@ -838,7 +838,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void Step(int count = 1, bool wait = true)
+        public void Step(int count = 1)
         {
             lock(sync.Guard)
             {
@@ -848,14 +848,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 this.Log(LogLevel.Info, "Stepping {0} steps", count);
-                if(wait)
-                {
-                    sync.PassAndWait(count);
-                }
-                else
-                {
-                    sync.Pass(count);
-                }
+                sync.PassAndWait(count);
             }
         }
 
