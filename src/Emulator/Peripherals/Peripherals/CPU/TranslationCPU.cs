@@ -301,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                lock(sync.Guard)
+                lock(singleStepSynchronizer.Guard)
                 {
                     return executionMode;
                 }
@@ -314,12 +314,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
 
-                lock(sync.Guard)
+                lock(singleStepSynchronizer.Guard)
                 {
                     executionMode = value;
                     if(executionMode == ExecutionMode.Continuous)
                     {
-                        sync.Pass();
+                        singleStepSynchronizer.CommandStep();
                     }
                 }
             }
@@ -392,7 +392,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(cpuThread != null && Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
                 {
-                    sync.Pass();
+                    singleStepSynchronizer.CommandStep();
                     this.NoisyLog("Waiting for thread to pause.");
                     cpuThread?.Join();
                     this.NoisyLog("Paused.");
@@ -880,7 +880,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Step(int count = 1)
         {
-            lock(sync.Guard)
+            lock(singleStepSynchronizer.Guard)
             {
                 if(ExecutionMode != ExecutionMode.SingleStep)
                 {
@@ -888,7 +888,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 this.Log(LogLevel.Info, "Stepping {0} steps", count);
-                sync.PassAndWait(count);
+                singleStepSynchronizer.CommandStep(count);
+                singleStepSynchronizer.WaitForStepFinished();
             }
         }
 
@@ -1033,7 +1034,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
-            sync = new Synchronizer();
+            singleStepSynchronizer = new Synchronizer();
             haltedLock = new object();
 
             onTranslationBlockFetch = OnTranslationBlockFetch;
@@ -1095,7 +1096,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private string libraryFile;
 
         [Transient]
-        private Synchronizer sync;
+        private Synchronizer singleStepSynchronizer;
 
         private ulong translationCacheSize;
         private readonly object translationCacheSync;
@@ -2125,7 +2126,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 guard = new object();
             }
 
-            public void SignalAndWait()
+            public void StepFinished()
             {
                 lock(guard)
                 {
@@ -2137,30 +2138,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         Monitor.Pulse(guard);
                     }
-                    do
-                    {
-                        Monitor.Wait(guard);
-                    }
-                    while(counter == 0);
                 }
             }
 
-            public void PassAndWait(int steps = 1)
-            {
-                lock(guard)
-                {
-                    counter = steps;
-                    Monitor.Pulse(guard);
-
-                    do
-                    {
-                        Monitor.Wait(guard);
-                    }
-                    while(counter > 0);
-                }
-            }
-
-            public void Pass(int steps = 1)
+            public void CommandStep(int steps = 1)
             {
                 lock(guard)
                 {
@@ -2169,11 +2150,24 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            public void Wait()
+            public void WaitForStepCommand()
             {
                 lock(guard)
                 {
-                    Monitor.Wait(guard);
+                    while(counter == 0)
+                    {
+                        Monitor.Wait(guard);
+                    }
+                }
+            }
+            public void WaitForStepFinished()
+            {
+                lock(guard)
+                {
+                    while(counter > 0)
+                    {
+                        Monitor.Wait(guard);
+                    }
                 }
             }
 
