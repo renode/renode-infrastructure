@@ -777,22 +777,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             interruptEvents[number].Reset();
         }
 
-        private bool HandleStepping()
-        {
-            lock(sync.Guard)
-            {
-                if(ExecutionMode != ExecutionMode.SingleStep)
-                {
-                    return true;
-                }
-
-                this.NoisyLog("Waiting for another step (PC=0x{0:X8}).", PC.RawValue);
-                InvokeHalted(new HaltArguments(HaltReason.Step));
-                sync.SignalAndWait();
-                return !isPaused;
-            }
-        }
-
         private bool insideBlockHook;
 
         [Export]
@@ -1767,17 +1751,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool CpuThreadBodyInner()
+        private bool CpuThreadBodyInner(bool singleStep)
         {
-            using(this.ObtainSinkInactiveState())
-            {
-                if(!HandleStepping())
-                {
-                    this.Trace();
-                    return false;
-                }
-            }
-
             if(!TimeHandle.RequestTimeInterval(out var interval))
             {
                 this.Trace();
@@ -1788,11 +1763,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
             var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
-            var singleStep = false;
             var executedResiduum = 0ul;
             while(!isPaused && instructionsLeftThisRound > 0)
             {
-                singleStep = executionMode == ExecutionMode.SingleStep;
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
                 var toExecute = singleStep ? 1 : instructionsLeftThisRound;
 
@@ -1897,9 +1870,31 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     while(true)
                     {
-                        if(CpuThreadBodyInner())
+                        var singleStep = false;
+                        using(this.ObtainSinkInactiveState())
                         {
-                            continue;
+                            // locking here is to ensure that execution mode does not change
+                            // before calling `WaitForStepCommand` method
+                            lock(singleStepSynchronizer.Guard)
+                            {
+                                singleStep = (executionMode == ExecutionMode.SingleStep);
+                                if(singleStep)
+                                {
+                                    this.NoisyLog("Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
+                                    InvokeHalted(new HaltArguments(HaltReason.Step));
+                                    singleStepSynchronizer.WaitForStepCommand();
+                                }
+                            }
+                        }
+
+                        if(!isPaused)
+                        {
+                            var shouldContinue = CpuThreadBodyInner(singleStep);
+                            singleStepSynchronizer.StepFinished();
+                            if(shouldContinue)
+                            {
+                                continue;
+                            }
                         }
 
                         this.Trace();
