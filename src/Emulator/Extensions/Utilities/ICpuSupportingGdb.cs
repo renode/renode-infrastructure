@@ -10,7 +10,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICpuSupportingGdb : ICPUWithHooks, IControllableCPU
     {
-        void Step(int count = 1, bool wait = true);
+        void Step(int count = 1);
         ExecutionMode ExecutionMode { get; set; }
         event Action<HaltArguments> Halted;
         void EnterSingleStepModeSafely(HaltArguments args);

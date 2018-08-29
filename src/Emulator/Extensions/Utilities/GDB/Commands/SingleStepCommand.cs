@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         {
             manager.Cpu.ExecutionMode = ExecutionMode.SingleStep;
             manager.Cpu.Resume();
-            manager.Cpu.Step(wait: false);
+            manager.Cpu.Step();
             return null;
         }
     }
