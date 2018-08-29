@@ -221,6 +221,7 @@ namespace Antmicro.Renode.Utilities
                         buffer = new Queue<byte>();
                     }
                 }
+
                 public void Dispose()
                 {
                     commHandler.ContextClosed(buffer);
