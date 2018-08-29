@@ -1820,6 +1820,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     if(instructionsToNearestLimit >= instructionsLeftThisRound)
                     {
                         this.Trace();
+                        instructionsLeftThisRound = 0;
                         break;
                     }
                     instructionsLeftThisRound -= instructionsToNearestLimit;
@@ -1835,23 +1836,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                 return false;
             }
-            else if(isPaused)
+            else if(singleStep || instructionsLeftThisRound > 0)
             {
-                this.Trace("paused, reporting break");
+                this.Trace("reporting break");
                 var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
                 TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
                 return false;
             }
-            else if(!singleStep || instructionsToExecuteThisRound <= 1)
+            else
             {
                 this.Trace("finished, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
-            }
-            else
-            {
-                this.Trace("single step finished, reporting break");
-                var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
-                TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
             }
 
             return true;
