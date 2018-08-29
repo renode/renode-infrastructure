@@ -1793,17 +1793,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                     TimeHandle.ReportProgress(elapsed);
                 }
 
-                if(result == ExecutionResult.StoppedAtWatchpoint)
+                if(result == ExecutionResult.StoppedAtWatchpoint || result == ExecutionResult.StoppedAtBreakpoint)
                 {
                     this.Trace();
-                    // we could switch to single step as result of gdb watchpoint - check
+                    // we could switch to single step as result of a hook - check
                     if(ExecutionMode == ExecutionMode.SingleStep)
                     {
                         singleStep = true;
                     }
                     break;
                 }
-                else if(result == ExecutionResult.Aborted || singleStep || result == ExecutionResult.StoppedAtBreakpoint)
+                else if(result == ExecutionResult.Aborted)
                 {
                     this.Trace();
                     break;
