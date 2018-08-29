@@ -446,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.NoisyLog("IRQ {0}, value {1}", number, value);
                 // halted result means that cpu waits on WFI
                 // in such case we should, obviously, not mask interrupts
-                if(started && (lastTlibResult == ExecutionResult.Halted || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
+                if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
                 {
                     TlibSetIrqWrapped(number, value);
                 }
@@ -1841,7 +1841,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Trace();
                     break;
                 }
-                else if(result == ExecutionResult.Halted)
+                else if(result == ExecutionResult.WaitingForInterrupt)
                 {
                     this.Trace();
                     // here we test if the nearest scheduled interrupt from timers will happen in this time period:
@@ -1996,7 +1996,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Ok,
             Aborted,
             StoppedAtBreakpoint = 0x10002,
-            Halted = 0x10003,
+            WaitingForInterrupt = 0x10003,
             StoppedAtWatchpoint = 0x10004
         }
 
