@@ -1761,13 +1761,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
             var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
+            if(singleStep && instructionsToExecuteThisRound >= 1)
+            {
+                instructionsToExecuteThisRound = 1;
+            }
             var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
             var executedResiduum = 0ul;
             while(!isPaused && instructionsLeftThisRound > 0)
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
-                var toExecute = singleStep ? 1 : instructionsLeftThisRound;
 
                 var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
                 var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
@@ -1779,7 +1782,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 // this puts a limit on instructions to execute in one round
                 // and makes timers update independent of the current quantum
-                toExecute = Math.Min(instructionsToNearestLimit, toExecute);
+                var toExecute = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
 
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
