@@ -1841,7 +1841,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Trace("reporting break");
                 var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
                 TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
-                return false;
+                return singleStep || !isPaused;
             }
             else
             {
