@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     else
                     {
                         watchpoints.Add(descriptor, 1);
-                        manager.Machine.SystemBus.AddWatchpointHook(descriptor.Address, descriptor.Width, access, false, hook);
+                        manager.Machine.SystemBus.AddWatchpointHook(descriptor.Address, descriptor.Width, access, hook);
                     }
                 }
             }

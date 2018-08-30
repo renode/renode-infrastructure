@@ -670,7 +670,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void AddWatchpointHook(ulong address, SysbusAccessWidth width, Access access, bool updateContext, Action<ulong, SysbusAccessWidth> hook)
+        public void AddWatchpointHook(ulong address, SysbusAccessWidth width, Access access, Action<ulong, SysbusAccessWidth> hook)
         {
             if(!Enum.IsDefined(typeof(Access), access))
             {
@@ -681,17 +681,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException("Undefined width value.");
             }
 
-            Action updateContextHandler = updateContext ?
-                () =>
-                {
-                    foreach(var cpu in cpuById.Values)
-                    {
-                        cpu.UpdateContext();
-                    }
-                } :
-                (Action)null;
-
-            var handler = new BusHookHandler(hook, width, updateContextHandler);
+            var handler = new BusHookHandler(hook, width);
 
             var dictionariesToUpdate = new List<Dictionary<ulong, List<BusHookHandler>>>();
 

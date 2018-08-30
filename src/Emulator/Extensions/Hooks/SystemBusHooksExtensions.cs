@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Hooks
         public static void AddWatchpointHook(this SystemBus sysbus, ulong address, SysbusAccessWidth width, Access access, string pythonScript)
         {
             var engine = new WatchpointHookPythonEngine(sysbus, pythonScript);
-            sysbus.AddWatchpointHook(address, width, access, true, engine.Hook);
+            sysbus.AddWatchpointHook(address, width, access, engine.Hook);
         }
     }
 }
