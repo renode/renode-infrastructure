@@ -308,6 +308,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         sync.Pass();
                     }
+                    else if(executionMode == ExecutionMode.SingleStep)
+                    {
+                        TlibSetPaused();
+                    }
                 }
             }
         }
