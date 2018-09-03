@@ -16,9 +16,9 @@ namespace Antmicro.Renode.Storage
 {
     public class SerializableFileStreamWrapper : IDisposable, IBlobProvider
     {
-        public SerializableFileStreamWrapper(string underlyingFile)
+        public SerializableFileStreamWrapper(string underlyingFile, long? size = null)
         {
-            Stream = new FileStreamLimitWrapper(new FileStream(underlyingFile, FileMode.OpenOrCreate));
+            Stream = new FileStreamLimitWrapper(new FileStream(underlyingFile, FileMode.OpenOrCreate), 0, size);
             blobManager = EmulationManager.Instance.CurrentEmulation.BlobManager;
         }
 

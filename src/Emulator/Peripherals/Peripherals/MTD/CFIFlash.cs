@@ -264,7 +264,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 FileCopier.Copy(fileName, tempFile, true);
                 fileName = tempFile;
             }
-            stream = new SerializableFileStreamWrapper(fileName);
+            stream = new SerializableFileStreamWrapper(fileName, size);
             CheckUnderlyingFile();
             size2n = (byte)Misc.Logarithm2(size);
             buffer = new byte[DesiredBufferSize];

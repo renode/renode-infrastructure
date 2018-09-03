@@ -12,27 +12,43 @@ namespace Antmicro.Renode.Storage
 {
     public class FileStreamLimitWrapper : Stream
     {
+        //
+        //                                        Padding with 0's
+        //                                        |
+        //         Position = 0                   |   Position = length - 1
+        //         |                              |   |
+        //         v                              v   v
+        // *-------+---------------------------*......#
+        // ^       ^                           ^      ^
+        // |       |                           |      |
+        // |       offset                      |      |
+        // |                                   |      length
+        // underlying stream beginning         |
+        //                                     underlying stream length
+        //
         public FileStreamLimitWrapper(FileStream stream, long offset = 0, long? length = null)
         {
             if(!stream.CanSeek)
             {
                 throw new ArgumentException("This wrapper is suitable only for seekable streams");
             }
-            stream.Seek(offset, SeekOrigin.Begin);
 
-            this.length = length;
-            this.offset = offset;
+            Length = length ?? (stream.Length - offset);
+
+            if(Length < 0 || offset > Length)
+            {
+                throw new ArgumentException("Wrong offset/length values");
+            }
+
             underlyingStream = stream;
+            this.offset = offset;
+            Position = 0;
         }
 
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            var us = underlyingStream;
-            if(us != null)
-            {
-                us.Dispose();
-            }
+            underlyingStream.Dispose();
         }
 
         public override void Flush()
@@ -42,15 +58,27 @@ namespace Antmicro.Renode.Storage
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if(length.HasValue)
+            var paddingSize = 0;
+            var bytesReadCount = underlyingStream.Read(buffer, offset, count);
+            if(bytesReadCount < count)
             {
-                var maxBytesToReadLeft = (int)(this.offset + this.length - underlyingStream.Position);
-                return underlyingStream.Read(buffer, offset, Math.Min(count, maxBytesToReadLeft));
+                // pad the rest with 0's
+                paddingSize = checked((int)Math.Min(count - bytesReadCount, Length - Position));
+                Array.Clear(buffer, offset + bytesReadCount, paddingSize);
             }
-            else
+            return bytesReadCount + paddingSize;
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            if(Position + count > Length)
             {
-                return underlyingStream.Read(buffer, offset, count);
+                throw new ArgumentException($"There is no more space left in stream. Asked to write {count} bytes, but only {Length - Position} are left.");
             }
+
+            // writing to the padding area extends the file, but not longer than provided `length`
+            var bytesToWriteCount = checked((int)Math.Min(count, Length - underlyingStream.Position));
+            underlyingStream.Write(buffer, offset, bytesToWriteCount);
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -59,45 +87,26 @@ namespace Antmicro.Renode.Storage
             {
             case SeekOrigin.Begin:
                 Position = offset;
-                return offset;
+                break;
 
             case SeekOrigin.Current:
                 Position += offset;
-                return Position;
+                break;
 
             case SeekOrigin.End:
-                if(length.HasValue)
-                {
-                    Position = this.offset + this.length.Value + offset;
-                    return Position;
-                }
-                else
-                {
-                    Position = Math.Max(this.offset, underlyingStream.Length + offset);
-                    return Position;
-                }
+                Position = Length;
+                break;
+
+            default:
+                throw new ArgumentException("Unexpected seek origin");
             }
 
-            return -1;
+            return Position;
         }
 
         public override void SetLength(long value)
         {
             throw new NotImplementedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            if(length.HasValue)
-            {
-                var maxBytesToWriteLeft = (int)(this.offset + this.length - underlyingStream.Position);
-                if(count > maxBytesToWriteLeft)
-                {
-                    throw new ArgumentException(string.Format("There is no more space left in stream. Asked to write {0} bytes, but only {1} are left.", count, maxBytesToWriteLeft));
-                }
-            }
-
-            underlyingStream.Write(buffer, offset, count);
         }
 
         public override bool CanRead { get { return underlyingStream.CanRead; } }
@@ -106,7 +115,7 @@ namespace Antmicro.Renode.Storage
 
         public override bool CanWrite { get { return underlyingStream.CanWrite; } }
 
-        public override long Length { get { return length ?? underlyingStream.Length; } }
+        public override long Length { get; }
 
         public override long Position
         {
@@ -116,7 +125,7 @@ namespace Antmicro.Renode.Storage
             }
             set
             {
-                if(length.HasValue && value > length)
+                if(value > Length)
                 {
                     throw new ArgumentException("Setting position beyond the underlying stream is unsupported");
                 }
@@ -125,16 +134,13 @@ namespace Antmicro.Renode.Storage
                     throw new ArgumentOutOfRangeException("Position");
                 }
 
-                underlyingStream.Position = offset + value;
+                underlyingStream.Seek(offset + value, SeekOrigin.Begin);
             }
         }
-
-        public long AbsolutePosition { get { return underlyingStream.Position; } }
 
         public string Name { get { return underlyingStream.Name; } }
 
         private readonly FileStream underlyingStream;
-        private readonly long? length;
         private readonly long offset;
     }
 }

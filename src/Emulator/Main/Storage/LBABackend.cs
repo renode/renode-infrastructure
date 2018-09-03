@@ -104,8 +104,8 @@ namespace Antmicro.Renode.Storage
                 FileCopier.Copy(underlyingFile, tempFileName, true);
                 underlyingFile = tempFileName;
             }
-            file = new SerializableFileStreamWrapper(underlyingFile);
             var size = blockSize * (long)numberOfBlocks;
+            file = new SerializableFileStreamWrapper(underlyingFile, size);
             // punch a hole if it is needed
             if(file.Stream.Length < size)
             {
