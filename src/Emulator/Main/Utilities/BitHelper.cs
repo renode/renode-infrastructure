@@ -258,6 +258,310 @@ namespace Antmicro.Renode.Utilities
             return (byte)(((b << 7) & 0x80) | ((b << 5) & 0x40) | ((b << 3) & 0x20) | ((b << 1) & 0x10) |
                           ((b >> 1) & 0x08) | ((b >> 3) & 0x04) | ((b >> 5) & 0x02) | ((b >> 7) & 0x01));
         }
+
+        // TODO: enumerator + lazy calculation
+        public class VariableLengthValue
+        {
+            public VariableLengthValue(int? size = null)
+            {
+                fragments = new List<Fragment>();
+                sizeLimit = size;
+            }
+
+            public VariableLengthValue DefineFragment(int offset, int length, ulong value, string name = null, int valueOffset = 0)
+            {
+                if(valueOffset + length > 64)
+                {
+                    throw new ArgumentException("value offset/length combination exceeds value length");
+                }
+
+                var f = new Fragment
+                {
+                    Offset = offset,
+                    Length = length,
+                    RawValue = (value >> valueOffset) & ((1u << length) - 1),
+                    Name = name
+                };
+
+                InnerDefine(f);
+                return this;
+            }
+
+            public VariableLengthValue DefineFragment(int offset, int length, Func<ulong> valueProvider, string name = null)
+            {
+                if(length > 64)
+                {
+                    throw new ArgumentException("Length exceeds");
+                }
+
+                var f = new Fragment
+                {
+                    Offset = offset,
+                    Length = length,
+                    ValueProvider = valueProvider,
+                    Name = name
+                };
+
+                InnerDefine(f);
+                return this;
+            }
+
+            public BitStream GetBits(int skip)
+            {
+                // TODO: skip value works only for padding area - make it complete
+
+                // construct the final value
+                var result = new BitStream();
+                for(var i = 0; i < fragments.Count; i++)
+                {
+                    // pad the space before the fragment
+                    while(result.Length + skip < fragments[i].Offset)
+                    {
+                        result.AppendBit(false);
+                    }
+
+                    // append the fragment value
+                    var value = fragments[i].EffectiveValue;
+                    result.AppendMaskedValue((uint)value, 0, (uint)Math.Min(fragments[i].Length, 32));
+                    if(fragments[i].Length > 32)
+                    {
+                        result.AppendMaskedValue((uint)(value >> 32), 0, (uint)(fragments[i].Length - 32));
+                    }
+                }
+                if(sizeLimit.HasValue)
+                {
+                    // add final padding
+                    while(result.Length + skip < sizeLimit.Value)
+                    {
+                        result.AppendBit(false);
+                    }
+                }
+
+                return result;
+            }
+
+            public BitStream Bits
+            {
+                get
+                {
+                    return GetBits(skip: 0);
+                }
+            }
+
+            private void InnerDefine(Fragment f)
+            {
+                if(sizeLimit.HasValue && f.Offset + f.Length > sizeLimit.Value)
+                {
+                    throw new ArgumentException("Fragment exceeds size limit.");
+                }
+                if(!CanAcceptFragment(f, out var index))
+                {
+                    throw new ArgumentException("Fragment overlaps with another one.");
+                }
+                fragments.Insert(index, f);
+            }
+
+            private bool CanAcceptFragment(Fragment f, out int index)
+            {
+                var result = fragments.BinarySearch(f, comparer);
+                if(result >= 0)
+                {
+                    index = -1;
+                    return false;
+                }
+
+                index = ~result;
+                return ((index == 0) || (fragments[index - 1].Offset + fragments[index - 1].Length <= f.Offset))
+                    && ((index == fragments.Count) || (f.Offset + f.Length <= fragments[index + 1].Offset));
+            }
+
+            private readonly List<Fragment> fragments;
+            private readonly int? sizeLimit;
+
+            private static FragmentComparer comparer = new FragmentComparer();
+
+            private struct Fragment
+            {
+                public int Offset;
+                public int Length;
+                public ulong RawValue;
+                public Func<ulong> ValueProvider;
+                public string Name;
+
+                public ulong EffectiveValue => ValueProvider != null ? ValueProvider() & ((1u << Length) - 1) : RawValue;
+            }
+
+            private class FragmentComparer : IComparer<Fragment>
+            {
+                public int Compare(Fragment x, Fragment y)
+                {
+                    if(x.Offset < y.Offset)
+                    {
+                        return -1;
+                    }
+                    else if(x.Offset > y.Offset)
+                    {
+                        return 1;
+                    }
+                    return 0;
+                }
+            }
+        }
+
+        public class BitStream
+        {
+            public static BitStream Empty = new BitStream();
+
+            public BitStream(IEnumerable<byte> b = null)
+            {
+                segments = (b == null)
+                    ? new List<byte>()
+                    : new List<byte>(b);
+
+                Length = (uint)segments.Count * 8;
+            }
+
+            public void AppendBit(bool state)
+            {
+                var offset = (int)(Length % BitsPerSegment);
+                if(offset == 0)
+                {
+                    segments.Add(0);
+                }
+
+                if(state)
+                {
+                    var segmentId = (int)(Length / BitsPerSegment);
+                    segments[segmentId] |= (byte)(1 << offset);
+                }
+
+                Length++;
+            }
+
+            // TODO: this is not the most efficient way of doing things
+            public void AppendMaskedValue(uint value, uint offset = 0, uint length = 32, bool msbFirst = true)
+            {
+                // TODO: add checks
+                var bits = BitHelper.GetBits(value).Skip((int)offset).Take((int)length);
+                if(!msbFirst)
+                {
+                    bits = bits.Reverse();
+                }
+                foreach(var bit in bits)
+                {
+                    AppendBit(bit);
+                }
+            }
+
+            public byte AsByte(uint offset = 0, int length = 8)
+            {
+                if(length > 8)
+                {
+                    length = 8;
+                }
+
+                if(offset >= Length || length <= 0)
+                {
+                    return 0;
+                }
+
+                byte result;
+                var firstSegment = (int)(offset / BitsPerSegment);
+                var segmentOffset = (int)(offset % BitsPerSegment);
+                if(segmentOffset == 0)
+                {
+                    // aligned access
+                    result = segments[firstSegment];
+                }
+                else
+                {
+                    var s1 = segments[firstSegment];
+                    var s2 = ((firstSegment + 1) < segments.Count) ? segments[firstSegment + 1] : (byte)0;
+                    result = (byte)((s1 << segmentOffset)
+                                | (s2 >> (BitsPerSegment - segmentOffset)));
+                }
+
+                return (length == 8)
+                    ? result
+                    : (byte)(result & BitHelper.CalculateMask((int)length, 0));
+            }
+
+            public byte[] AsByteArray(uint offset, uint length)
+            {
+                var result = new byte[length];
+                for(var i = 0u; i < length; i++)
+                {
+                    result[i] = AsByte(offset + 8 * i);
+                }
+                return result;
+            }
+
+            public uint AsUInt32(uint offset = 0, int length = 32)
+            {
+                if(length > 32)
+                {
+                    length = 32;
+                }
+
+                return (AsByte(offset, length)
+                        | (uint)AsByte(offset + 8, length - 8) << 8
+                        | (uint)AsByte(offset + 16, length - 16) << 16
+                        | (uint)AsByte(offset + 24, length - 24) << 24) ;
+            }
+
+            public ulong AsUInt64(uint offset = 0, int length = 64)
+            {
+                if(length > 64)
+                {
+                    length = 64;
+                }
+
+                return AsUInt32(offset, length)
+                    | (ulong)AsUInt32(offset + 32, length - 32) << 32;
+            }
+
+            public override string ToString()
+            {
+                return Misc.PrettyPrintCollection(segments, x => $"0x{(x.ToString("x"))}");
+            }
+
+            public uint Length { get; private set; }
+
+            private readonly List<byte> segments;
+
+            private const int BitsPerSegment = 8;
+        }
+
+        // TODO: optimize it - add padding automatically, limit number of copying
+        public class BitConcatenator
+        {
+            public static BitConcatenator New(int? size = null)
+            {
+                return new BitConcatenator(size);
+            }
+
+            private BitStream bs = new BitStream();
+
+            public BitStream Bits => bs;
+
+            public BitConcatenator StackAbove(uint value, int length, int position = 0)
+            {
+                if(maxHeight.HasValue && bs.Length + length > maxHeight.Value)
+                {
+                    throw new ArgumentException("This operation would exceed maximal height");
+                }
+
+                bs.AppendMaskedValue(value, (uint)position, (uint)length);
+                return this;
+            }
+
+            private BitConcatenator(int? size)
+            {
+                maxHeight = size;
+            }
+
+            private readonly int? maxHeight;
+        }
     }
 }
 

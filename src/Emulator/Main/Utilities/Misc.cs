@@ -946,6 +946,13 @@ namespace Antmicro.Renode.Utilities
             }
             value = (TEnum)(object)intValue;
         }
+
+        public static string PrettyPrintCollection<T>(IEnumerable<T> collection, Func<T, string> formatter = null)
+        {
+            return collection == null || !collection.Any()
+                ? "[]"
+                : $"[{(string.Join(", ", collection.Select(x => formatter == null ? x.ToString() : formatter(x))))}]";
+        }
     }
 }
 
