@@ -170,6 +170,7 @@
     <Compile Include="Peripherals\Timers\SunxiHighSpeedTimer.cs" />
     <Compile Include="Peripherals\SD\MMCController.cs" />
     <Compile Include="Peripherals\SD\ISDDevice.cs" />
+    <Compile Include="Peripherals\SD\SDCard.cs" />
     <Compile Include="Peripherals\SD\DeprecatedSDCard.cs" />
     <Compile Include="Peripherals\SD\SDCardExtensions.cs" />
     <Compile Include="Peripherals\Timers\SunxiTimer.cs" />
