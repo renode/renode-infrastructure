@@ -82,6 +82,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Peripherals\BasicBytePeripheral.cs" />
+    <Compile Include="Peripherals\BasicWordPeripheral.cs" />
+    <Compile Include="Peripherals\BasicDoubleWordPeripheral.cs" />
     <Compile Include="Peripherals\IPeripheral.cs" />
     <Compile Include="Utilities\Misc.cs" />
     <Compile Include="Core\GPIOAttribute.cs" />
