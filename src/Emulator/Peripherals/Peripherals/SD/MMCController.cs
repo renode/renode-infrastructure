@@ -12,7 +12,7 @@ using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
-    public abstract class MMCController : NullRegistrationPointPeripheralContainer<ISDDevice>, IDisposable
+    public abstract class MMCController : NullRegistrationPointPeripheralContainer<DeprecatedSDCard>, IDisposable
     {
         public override void Reset()
         {

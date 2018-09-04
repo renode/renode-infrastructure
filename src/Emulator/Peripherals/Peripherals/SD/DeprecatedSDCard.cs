@@ -14,9 +14,9 @@ using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
-    public class SDCard : ISDDevice
+    public class DeprecatedSDCard : IPeripheral
     {
-        public SDCard(string imageFile, long? cardSize, bool persistent)
+        public DeprecatedSDCard(string imageFile, long? cardSize, bool persistent)
         {
             if(String.IsNullOrEmpty(imageFile))
             {

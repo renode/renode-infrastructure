@@ -13,7 +13,14 @@ namespace Antmicro.Renode.Peripherals.SD
 {
     public static class SDCardExtensions
     {
-        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<ISDDevice, NullRegistrationPoint> attachTo, bool persistent = true, long? size = null)
+        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<DeprecatedSDCard, NullRegistrationPoint> attachTo, bool persistent = true, long? size = null)
+        {
+            var card = new DeprecatedSDCard(file, size, persistent);
+            attachTo.Register(card, NullRegistrationPoint.Instance);
+            machine.SetLocalName(card, String.Format("SD card: {0}", file));
+        }
+
+        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<SDCard, NullRegistrationPoint> attachTo, bool persistent = true, long? size = null)
         {
             var card = new SDCard(file, size, persistent);
             attachTo.Register(card, NullRegistrationPoint.Instance);
