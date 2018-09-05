@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public CoreLevelInterruptor(Machine machine, long frequency)
+        public CoreLevelInterruptor(Machine machine, long frequency, int numberOfTargets = 1)
         {
             this.machine = machine;
             this.timerFrequency = frequency;
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             };
 
-            for(var hart = 0; hart < MaxNumberOfTargets; ++hart)
+            for(var hart = 0; hart < numberOfTargets; ++hart)
             {
                 var hartId = hart;
                 registersMap.Add((long)Registers.MSipHart0 + 4 * hartId, new DoubleWordRegister(this).WithFlag(0, writeCallback: (_, value) => { irqs[2 * hartId].Set(value); }));
@@ -141,8 +141,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Dictionary<int, BaseRiscV> cpus = new Dictionary<int, BaseRiscV>();
         private readonly Dictionary<int, ComparingTimer> mTimers = new Dictionary<int, ComparingTimer>();
         private readonly long timerFrequency;
-
-        private const int MaxNumberOfTargets = 5;
 
         private enum Registers : long
         {
