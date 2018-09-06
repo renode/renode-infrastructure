@@ -1728,7 +1728,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
                 var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
-                if(instructionsToNearestLimit != ulong.MaxValue && unused > 0)
+                if(instructionsToNearestLimit != ulong.MaxValue && (nearestLimitIn.Ticks == 0 || unused > 0))
                 {
                     // we must check for `ulong.MaxValue` as otherwise it would overflow
                     instructionsToNearestLimit++;
