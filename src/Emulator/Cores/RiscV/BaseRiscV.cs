@@ -30,27 +30,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             ShouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
 
-            var architectureSets = DecodeArchitecture(cpuType);
-            foreach(var @set in architectureSets)
-            {
-                if(Enum.IsDefined(typeof(InstructionSet), set))
-                {
-                    TlibAllowFeature((uint)set);
-                }
-                else if((int)set == 'G' - 'A')
-                {
-                    //G is a wildcard denoting multiple instruction sets
-                    foreach(var gSet in new[] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
-                    {
-                        TlibAllowFeature((uint)gSet);
-                    }
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, $"Undefined instruction set: {char.ToUpper((char)(set + 'A'))}.");
-                }
-            }
-            TlibSetPrivilegeArchitecture109(privilegeArchitecture == PrivilegeArchitecture.Priv1_09 ? 1 : 0u);
+            architectureSets = DecodeArchitecture(cpuType);
+            EnableArchitectureVariants();
         }
 
         public override void OnGPIO(int number, bool value)
@@ -85,6 +66,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.Reset();
             ShouldEnterDebugMode = true;
+            EnableArchitectureVariants();
         }
 
         public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation)
@@ -110,6 +92,30 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected override Interrupt DecodeInterrupt(int number)
         {
             return Interrupt.Hard;
+        }
+
+        private void EnableArchitectureVariants()
+        {
+            foreach(var @set in architectureSets)
+            {
+                if(Enum.IsDefined(typeof(InstructionSet), set))
+                {
+                    TlibAllowFeature((uint)set);
+                }
+                else if((int)set == 'G' - 'A')
+                {
+                    //G is a wildcard denoting multiple instruction sets
+                    foreach(var gSet in new[] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
+                    {
+                        TlibAllowFeature((uint)gSet);
+                    }
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, $"Undefined instruction set: {char.ToUpper((char)(set + 'A'))}.");
+                }
+            }
+            TlibSetPrivilegeArchitecture109(privilegeArchitecture == PrivilegeArchitecture.Priv1_09 ? 1 : 0u);
         }
 
         private IEnumerable<InstructionSet> DecodeArchitecture(string architecture)
@@ -262,6 +268,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             HypervisorExternalInterrupt = 0xa,
             MachineExternalInterrupt = 0xb
         }
+
+        private IEnumerable<InstructionSet> architectureSets = new List<InstructionSet>();
     }
 }
 
