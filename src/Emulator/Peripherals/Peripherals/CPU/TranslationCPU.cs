@@ -1777,7 +1777,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
-                this.Trace($"CPU executed {executed} instructions");
+                this.Trace($"CPU executed {executed} instructions and returned {result}");
                 instructionsLeftThisRound -= executed;
                 ExecutedInstructions += (ulong)executed;
                 if(executed > 0)
@@ -1978,8 +1978,8 @@ restart:
         {
             Ok,
             Aborted,
+            WaitingForInterrupt = 0x10001,
             StoppedAtBreakpoint = 0x10002,
-            WaitingForInterrupt = 0x10003,
             StoppedAtWatchpoint = 0x10004,
             ReturnRequested = 0x10005
         }
