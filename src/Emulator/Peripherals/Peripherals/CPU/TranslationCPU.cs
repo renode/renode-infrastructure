@@ -855,6 +855,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void InvalidateTranslationBlocks(IntPtr start, IntPtr end)
         {
+            if(disposing)
+            {
+                return;
+            }
             TlibInvalidateTranslationBlocks(start, end);
         }
 
@@ -922,6 +926,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         void DisposeInner(bool silent = false)
         {
+            disposing = true;
             if(!silent)
             {
                 this.NoisyLog("About to dispose CPU.");
@@ -1035,6 +1040,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private volatile bool started;
 
         [Transient]
+        private bool disposing;
+
+        [Transient]
         private Thread cpuThread;
 
         [Transient]
@@ -1117,7 +1125,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var otherCpus = machine.SystemBus.GetCPUs().OfType<TranslationCPU>().Where(x => x != this);
             foreach(var cpu in otherCpus)
             {
-                cpu.TlibInvalidateTranslationBlocks(start, end);
+                cpu.InvalidateTranslationBlocks(start, end);
             }
         }
 
