@@ -255,6 +255,7 @@ namespace Antmicro.Renode.Testing
 
         public TerminalTester CheckIfUartIsIdle(TimeInterval period)
         {
+            var isIdle = true;
             var assertion = new Assertion("UartShouldBeIdle") { Type = AssertionType.DoNotErrorOnTimeout };
             // clear buffered events
             var c = eventCollection.Count;
@@ -266,10 +267,16 @@ namespace Antmicro.Renode.Testing
             WaitForEvent(x =>
             {
                 reportCollection.Enqueue(x);
-                EndReport("UART was not idle!");
+                isIdle = false;
                 return EventResult.Failure;
             },
                 period, assertion);
+
+            if(!isIdle)
+            {
+                EndReport("UART was not idle!");
+            }
+
             return this;
         }
 
