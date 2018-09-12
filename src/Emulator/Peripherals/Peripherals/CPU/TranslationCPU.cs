@@ -1877,7 +1877,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace("halted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
-                return false;
+                //return false;
             }
             else if(isPaused || /*singleStep ||*/ instructionsLeftThisRound > 0)
             {
@@ -1889,8 +1889,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace("finished, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
-                return true;
+                //return true;
             }
+
+            return instructionsLeftThisRound != instructionsToExecuteThisRound;
 
             return singleStep /*|| !isPaused*/;
             // return true;
@@ -1942,16 +1944,19 @@ restart:
                                     {
                                         this.Log(LogLevel.Info, "Waiting interrupted");
                                         continue;
-                                        // break;
                                     }
                                     this.Log(LogLevel.Info, "Waiting finished");
                                 }
                             }
                         }
 
-                        shouldContinue = CpuThreadBodyInner(singleStep);
-                        this.Log(LogLevel.Info, "Informing abot step finished");
-                        singleStepSynchronizer.StepFinished();
+                        // shouldContinue = CpuThreadBodyInner(singleStep);
+                        var doneSth = CpuThreadBodyInner(singleStep);
+                        if(doneSth)
+                        {
+                            this.Log(LogLevel.Info, "Informing abot step finished");
+                            singleStepSynchronizer.StepFinished();
+                        }
                     }
 
                     this.Trace();
