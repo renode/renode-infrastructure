@@ -1865,7 +1865,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TotalElapsedTime, TimeHandle.TimeSource.Domain)))
                 {
 restart:
-                    var firstIteration = true;
+                    // var firstIteration = true;
                     while(!isPaused)
                     {
                         var singleStep = false;
@@ -1876,14 +1876,14 @@ restart:
                             singleStep = (executionMode == ExecutionMode.SingleStep);
                             if(singleStep)
                             {
-                                if(firstIteration)
-                                {
-                                    firstIteration = false;
-                                }
-                                else
-                                {
+                                //if(firstIteration)
+                                //{
+                                //    firstIteration = false;
+                                //}
+                                //else
+                                //{
                                     InvokeHalted(new HaltArguments(HaltReason.Step));
-                                }
+                                //}
 
                                 // we become incactive as we wait for step command
                                 using(this.ObtainSinkInactiveState())
@@ -1899,7 +1899,9 @@ restart:
                             }
                         }
 
-                        if(CpuThreadBodyInner(singleStep))
+                        var anythingExecuted = CpuThreadBodyInner(singleStep);
+
+                        if(singleStep && anythingExecuted)
                         {
                             this.Trace();
                             singleStepSynchronizer.StepFinished();
