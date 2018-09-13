@@ -24,13 +24,18 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(PathToken path)
         {
-            Logger.AddBackend(new FileBackend(path.Value), "file", true);
+            InnerRun(path.Value, false);
         }
 
         [Runnable]
-        public void Run(PathToken path, DecimalIntegerToken token)
+        public void Run(PathToken path, BooleanToken token)
         {
-            Logger.AddBackend(new FileBackend(path.Value, true), "file", true);
+            InnerRun(path.Value, token.Value);
+        }
+
+        private void InnerRun(string path, bool flushAfterEveryWrite)
+        {
+            Logger.AddBackend(new FileBackend(path, flushAfterEveryWrite), "file", true);
         }
 
         public LoggerFileCommand(Monitor monitor) : base(monitor, "logFile", "sets the output file for logger.", "logF")
