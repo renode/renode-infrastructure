@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Core
         public ProgressMonitor ProgressMonitor { get; private set; }
 
         public Emulation CurrentEmulation
-        { 
+        {
             get
             {
                 return currentEmulation;
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void LoadType(string name)
+        public void EnsureTypeIsLoaded(string name)
         {
             // this is a bit hacky - calling `GetTypeByName` forces
             // TypeManager to load the type into memory making

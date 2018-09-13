@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new Dictionary<ulong, HookDescriptor>();
             currentMappings = new List<SegmentMapping>();
-            // isPaused = true;
+            isPaused = true;
             InitializeRegisters();
             InitInterruptEvents();
             Init();
@@ -437,8 +437,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     CheckIfOnSynchronizedThread();
                 }
                 this.NoisyLog("IRQ {0}, value {1}", number, value);
-                // halted result means that cpu waits on WFI
-                // in such case we should, obviously, not mask interrupts
+                // as we are waiting for an interrupt we should, obviously, not mask it
                 if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
                 {
                     TlibSetIrqWrapped(number, value);
@@ -785,7 +784,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 blockBeginUserHook?.Invoke(address, size);
             }
 
-            // TODO: this must be handled in some other way - think about it!!!
             return (isHalted || isPaused) ? 0 : 1u;
         }
 
@@ -865,11 +863,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException("Stepping is available in single step execution mode only.");
                 }
 
-                this.Log(LogLevel.Info, "Stepping {0} steps", count);
+                this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
                 singleStepSynchronizer.CommandStep(count);
-                this.Log(LogLevel.Info, "Waiting for step finished");
                 singleStepSynchronizer.WaitForStepFinished();
-                this.Log(LogLevel.Info, "Waiting for step finished finished!!!");
             }
         }
 
@@ -961,14 +957,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("About to dispose CPU.");
             }
-            //if(!isPaused)
-            //{
-            if(!silent)
-            {
-                this.NoisyLog("Halting CPU.");
-            }
             InnerPause(new HaltArguments(HaltReason.Abort));
-            // }
             TimeHandle.Dispose();
             started = false;
             if(!silent)
@@ -1281,6 +1270,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             private long allocated;
             private readonly TranslationCPU parent;
         }
+
         private sealed class CpuThreadPauseGuard : IDisposable
         {
             public CpuThreadPauseGuard(TranslationCPU parent)
@@ -1299,41 +1289,48 @@ namespace Antmicro.Renode.Peripherals.CPU
                 active = false;
             }
 
-            public void Initialize(bool forReading, ulong address, SysbusAccessWidth width)
+            public void Initialize()
             {
                 guard.Value = new object();
-                if(parent.machine.SystemBus.TryGetWatchpointsAt(address, forReading ? Access.Read : Access.Write, out var watchpoints))
+            }
+
+            public void Initialize(bool forReading, ulong address, SysbusAccessWidth width)
+            {
+                Initialize();
+                if(!parent.machine.SystemBus.TryGetWatchpointsAt(address, forReading ? Access.Read : Access.Write, out var watchpoints))
                 {
-                    /*
-                     * In general precise pause works as follows:
-                     * - translation libraries execute an instruction that reads/writes to/from memory
-                     * - the execution is then transferred to the system bus (to process memory access)
-                     * - we check whether there are any hooks registered for the accessed address (TryGetWatchpointsAt)
-                     * - if there are (and we hit them for the first time) we call them and then invalidate the block and issue retranslation of the code at current PC
-                     * - we exit the cpu loop so that newly translated block will be executed now
-                     * - the next time we hit them we do nothing
-                     */
+                    return;
+                }
 
-                    var anyEnabled = false;
-                    foreach(var enabledWatchpoint in watchpoints.Where(x => x.Enabled))
-                    {
-                        enabledWatchpoint.Enabled = false;
-                        enabledWatchpoint.Invoke(address, width);
-                        anyEnabled = true;
-                    }
+                /*
+                    * In general precise pause works as follows:
+                    * - translation libraries execute an instruction that reads/writes to/from memory
+                    * - the execution is then transferred to the system bus (to process memory access)
+                    * - we check whether there are any hooks registered for the accessed address (TryGetWatchpointsAt)
+                    * - if there are (and we hit them for the first time) we call them and then invalidate the block and issue retranslation of the code at current PC
+                    * - we exit the cpu loop so that newly translated block will be executed now
+                    * - the next time we hit them we do nothing
+                */
 
-                    if(anyEnabled)
+                var anyEnabled = false;
+                foreach(var enabledWatchpoint in watchpoints.Where(x => x.Enabled))
+                {
+                    enabledWatchpoint.Enabled = false;
+                    enabledWatchpoint.Invoke(address, width);
+                    anyEnabled = true;
+                }
+
+                if(anyEnabled)
+                {
+                    // TODO: think if we have to tlib restart at all? if there is no pausing in watchpoint hook than maybe it's not necessary at all?
+                    parent.TlibRestartTranslationBlock();
+                    // note that on the line above we effectively exit the function so the stuff below is not executed
+                }
+                else
+                {
+                    foreach(var disabledWatchpoint in watchpoints)
                     {
-                        // TODO: think if we have to tlib restart at all? if there is no pausing in watchpoint hook than maybe it's not necessary at all?
-                        parent.TlibRestartTranslationBlock();
-                        // note that on the line above we effectively exit the function so the stuff below is not executed
-                    }
-                    else
-                    {
-                        foreach(var disabledWatchpoint in watchpoints.Where(x => !x.Enabled))
-                        {
-                            disabledWatchpoint.Enabled = true;
-                        }
+                        disabledWatchpoint.Enabled = true;
                     }
                 }
             }
@@ -1496,7 +1493,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         if(insideBlockHook || !OnPossessedThread)
                         {
                             this.Trace();
-                            // deferr disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                            // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
                             if(value)
                             {
                                 TimeHandle.DisableRequest = true;
@@ -1807,16 +1804,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                     DeactivateHooks(PC);
                     break;
                 }
-                else if(result == ExecutionResult.StoppedAtWatchpoint)
-                {
-                    this.Trace();
-                    break;
-                }
-                else if(result == ExecutionResult.Aborted || result == ExecutionResult.ReturnRequested)
-                {
-                    this.Trace(result.ToString());
-                    break;
-                }
                 else if(result == ExecutionResult.WaitingForInterrupt)
                 {
                     this.Trace();
@@ -1834,6 +1821,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     instructionsLeftThisRound -= instructionsToNearestLimit;
                     TimeHandle.ReportProgress(nearestLimitIn);
+                }
+                else if(result == ExecutionResult.Aborted || result == ExecutionResult.ReturnRequested || result == ExecutionResult.StoppedAtWatchpoint)
+                {
+                    this.Trace(result.ToString());
+                    break;
                 }
             }
 
@@ -1893,13 +1885,13 @@ restart:
                                 // we become incactive as we wait for step command
                                 using(this.ObtainSinkInactiveState())
                                 {
-                                    this.Log(LogLevel.Debug, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
+                                    this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
                                     if(!singleStepSynchronizer.WaitForStepCommand())
                                     {
-                                        this.Log(LogLevel.Debug, "Waiting interrupted");
+                                        this.Trace();
                                         continue;
                                     }
-                                    this.Log(LogLevel.Debug, "Waiting finished");
+                                    this.Trace();
                                 }
                             }
                         }
@@ -2019,7 +2011,6 @@ restart:
             }
             catch(CpuAbortException)
             {
-                this.Log(LogLevel.Error, "CPU abort detected.");
                 isAborted = true;
                 InvokeHalted(new HaltArguments(HaltReason.Abort));
                 return ExecutionResult.Aborted;

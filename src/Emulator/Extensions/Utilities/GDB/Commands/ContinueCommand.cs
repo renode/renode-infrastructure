@@ -17,9 +17,8 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("c")]
         public PacketData Execute()
         {
-            manager.Cpu.IsHalted = false;
             manager.Cpu.ExecutionMode = ExecutionMode.Continuous;
-            manager.Cpu.Start();
+            manager.Cpu.Resume();
 
             return null;
         }

@@ -178,11 +178,13 @@ namespace Antmicro.Renode.Time
 
                 var result = true;
 
+                /*
                 if(!Enabled && enableRequested)
                 {
                     // wait until enabled
-                    innerLock.WaitWhile(() => !Enabled && enableRequested, "Waiting for the enabling the handle");
+                    innerLock.WaitWhile(() => !Enabled && enableRequested, "Waiting for enabling the handle");
                 }
+                */
 
                 if(!Enabled || changingEnabled)
                 {
@@ -639,6 +641,11 @@ namespace Antmicro.Renode.Time
         /// Gets the amount of virtual time that passed from the perspective of this handle.
         /// </summary>
         public TimeInterval TotalElapsedTime { get; private set; }
+
+        /// <summary>
+        /// The value of the enabled property that will be set on the nearest call to <see cref="Unlatch"> method.
+        /// </summary>
+        public bool DeferredEnabled { get; set; }
 
         /// <summary>
         /// Sets the value indicating if the handle should be automatically disabled on the nearest call to <see cref="Unlatch"> method.
