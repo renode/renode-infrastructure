@@ -101,6 +101,7 @@ namespace Antmicro.Renode.Time
         {
             innerLock = new object();
             enabled = true;
+            DeferredEnabled = true;
 
             TimeSource = timeSource;
 
@@ -464,6 +465,8 @@ namespace Antmicro.Renode.Time
 
                 if(latchLevel == 0)
                 {
+                    Enabled = DeferredEnabled;
+                    /*
                     if(disableRequested)
                     {
                         disableRequested = false;
@@ -474,6 +477,7 @@ namespace Antmicro.Renode.Time
                         enableRequested = false;
                         Enabled = true;
                     }
+                    */
                 }
             }
             this.Trace();
@@ -517,17 +521,22 @@ namespace Antmicro.Renode.Time
             {
                 lock(innerLock)
                 {
+                    /*
                     if(value)
                     {
                         // enabling the handle should reset a pending enable/disable request
                         disableRequested = false;
                         enableRequested = false;
                     }
+                    */
 
                     if(enabled == value)
                     {
                         return;
                     }
+
+                    DeferredEnabled = Enabled;
+
                     changingEnabled = true;
                     this.Trace("About to wait for unlatching the time handle");
                     innerLock.WaitWhile(() => latchLevel > 0, "Waiting for unlatching the time handle");
@@ -647,6 +656,7 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public bool DeferredEnabled { get; set; }
 
+        /*
         /// <summary>
         /// Sets the value indicating if the handle should be automatically disabled on the nearest call to <see cref="Unlatch"> method.
         /// </summary>
@@ -703,6 +713,7 @@ namespace Antmicro.Renode.Time
                 }
             }
         }
+        */
 
         /// <summary>
         /// Informs the sink that the source wants to pause its execution.
@@ -759,8 +770,8 @@ namespace Antmicro.Renode.Time
         private int latchLevel;
         private bool deferredUnlatch;
         private bool recentlyUnblocked;
-        private bool disableRequested;
-        private bool enableRequested;
+        //private bool disableRequested;
+        //private bool enableRequested;
 
         private readonly object innerLock;
 

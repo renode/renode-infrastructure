@@ -1494,6 +1494,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                         {
                             this.Trace();
                             // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                            TimeHandle.DeferredEnabled = !value;
+                            /*
                             if(value)
                             {
                                 TimeHandle.DisableRequest = true;
@@ -1502,6 +1504,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                             {
                                 TimeHandle.EnableRequest = true;
                             }
+                            */
                         }
                         else
                         {
