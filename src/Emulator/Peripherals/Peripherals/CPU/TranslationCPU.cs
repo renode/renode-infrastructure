@@ -1495,16 +1495,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                             this.Trace();
                             // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
                             TimeHandle.DeferredEnabled = !value;
-                            /*
-                            if(value)
-                            {
-                                TimeHandle.DisableRequest = true;
-                            }
-                            else
-                            {
-                                TimeHandle.EnableRequest = true;
-                            }
-                            */
                         }
                         else
                         {
@@ -1865,7 +1855,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TotalElapsedTime, TimeHandle.TimeSource.Domain)))
                 {
 restart:
-                    // var firstIteration = true;
                     while(!isPaused)
                     {
                         var singleStep = false;
@@ -1876,19 +1865,11 @@ restart:
                             singleStep = (executionMode == ExecutionMode.SingleStep);
                             if(singleStep)
                             {
-                                //if(firstIteration)
-                                //{
-                                //    firstIteration = false;
-                                //}
-                                //else
-                                //{
-                                    InvokeHalted(new HaltArguments(HaltReason.Step));
-                                //}
-
                                 // we become incactive as we wait for step command
                                 using(this.ObtainSinkInactiveState())
                                 {
                                     this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
+                                    InvokeHalted(new HaltArguments(HaltReason.Step));
                                     if(!singleStepSynchronizer.WaitForStepCommand())
                                     {
                                         this.Trace();
