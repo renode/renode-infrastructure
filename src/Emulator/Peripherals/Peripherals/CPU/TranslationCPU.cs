@@ -66,6 +66,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitDisas();
         }
 
+#if DEBUG
         public bool TbCacheEnabled
         {
             get
@@ -78,6 +79,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibSetTbCacheEnabled(value ? 1u : 0u);
             }
         }
+#endif
 
         public bool ChainingEnabled
         {
@@ -1529,11 +1531,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private FuncUInt32 TlibGetChainingEnabled;
 
+#if DEBUG
         [Import]
         private ActionUInt32 TlibSetTbCacheEnabled;
 
         [Import]
         private FuncUInt32 TlibGetTbCacheEnabled;
+#endif
 
         [Import]
         private FuncInt32String TlibInit;

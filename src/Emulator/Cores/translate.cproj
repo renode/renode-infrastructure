@@ -54,6 +54,7 @@
           <CompilationFlags Include="-shared" />
           <CompilationFlags Include="-fPIC" Condition=" $(CurrentPlatform) != 'Windows'" />
           <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug'" />
+          <CompilationFlags Include="-DDEBUG" Condition=" $(Configuration) == 'Debug'" />
           <CompilationFlags Include="-O2" Condition=" $(Configuration) == 'Release' or $(Configuration) == ''" />
           <CompilationFlags Include="-Wall" />
           <CompilationFlags Include="-Wextra" />
