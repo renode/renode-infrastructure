@@ -149,6 +149,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
             protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<T, T> readCallback,
                 Action<T, T> writeCallback, Action<T, T> changeCallback, Func<T, T> valueProviderCallback) : base(parent, position, width, fieldMode)
             {
+                if(!fieldMode.IsReadable() && valueProviderCallback != null)
+                {
+                    throw new ArgumentException($"A write-only field cannot provide a value callback.");
+                }
+
                 this.readCallback = readCallback;
                 this.writeCallback = writeCallback;
                 this.changeCallback = changeCallback;
