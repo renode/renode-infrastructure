@@ -59,6 +59,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteByte(long offset, byte value)
         {
+            var originalOffset = offset;
             if(mode32 && ((offset % 4) == 0))
             {
                 offset = offset / 4;
@@ -193,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     break;
 
                 default:
-                    this.LogUnhandledWrite(offset, value);
+                    this.LogUnhandledWrite(originalOffset, value);
                     break;
                 }
 
@@ -202,6 +203,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public byte ReadByte(long offset)
         {
+            var originalOffset = offset;
             if(mode32 && ((offset % 4) == 0))
             {
                 offset = offset / 4;
@@ -316,7 +318,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         break;
 
                     default:
-                        this.LogUnhandledRead(offset);
+                        this.LogUnhandledRead(originalOffset);
                         break;
                     }
                 }
