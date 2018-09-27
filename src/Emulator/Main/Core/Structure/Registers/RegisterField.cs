@@ -17,6 +17,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Also, it does not invoke callbacks.
         /// </summary>
         T Value { get; set; }
+
+        /// <summary>
+        /// Gets the field's width in bits. It should be used to verify if the value assigned to <cref="Value"> is valid, as exceeding
+        /// the field's limits causes an ArgumentException.
+        /// </summary>
+        int Width { get; }
     }
 
     public partial class PeripheralRegister
@@ -97,6 +103,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     WriteFiltered(binary);
                 }
             }
+
+            public int Width => width;
 
             public override void CallReadHandler(uint oldValue, uint newValue)
             {
