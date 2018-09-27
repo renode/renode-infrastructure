@@ -9,6 +9,7 @@ using System.Text;
 using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -90,7 +91,11 @@ namespace Antmicro.Renode.Utilities.GDB
                 var cs = cachedString;
                 if(cs == null)
                 {
-                    cs = Encoding.UTF8.GetString(bytes.ToArray());
+                    var counter = 0;
+                    // This code effectively prevents us from printing out non-printable characters in logs, and limits the output.
+                    // It is definitely a hack, but works well enough for our needs and prevents the console from crashing when
+                    // loading binaries via GDB.
+                    cs = Encoding.ASCII.GetString(bytes.TakeWhile(b => b >= 32 && b <= 127 && counter++ < 100).ToArray());
                     cachedString = cs;
                 }
                 return cs;
