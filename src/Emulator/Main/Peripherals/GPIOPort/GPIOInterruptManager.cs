@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var irqState = false;
             for(var i = 0; i < numberOfGpios; i++)
             {
-                if(!InterruptEnable[i] || pinDirection[i] != Direction.Input)
+                if(!InterruptEnable[i] || (pinDirection[i] & Direction.Input) == 0)
                 {
                     continue;
                 }
