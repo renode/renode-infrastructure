@@ -254,6 +254,7 @@
     <Compile Include="Peripherals\Network\CadenceGEM.cs" />
     <Compile Include="Peripherals\GPIOPort\PSE_GPIO.cs" />
     <Compile Include="Peripherals\MTD\PSE_eNVM.cs" />
+    <Compile Include="Peripherals\SPI\PSE_SPI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
