@@ -256,6 +256,7 @@
     <Compile Include="Peripherals\MTD\PSE_eNVM.cs" />
     <Compile Include="Peripherals\SPI\PSE_SPI.cs" />
     <Compile Include="Peripherals\Timers\PSE_Timer.cs" />
+    <Compile Include="Peripherals\I2C\PSE_I2C.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
