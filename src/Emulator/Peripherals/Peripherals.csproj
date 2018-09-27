@@ -252,6 +252,7 @@
     <Compile Include="Peripherals\Miscellaneous\SiLabs\DeviceFamily.cs" />
     <Compile Include="Peripherals\Miscellaneous\SiLabs\DeviceInformation.cs" />
     <Compile Include="Peripherals\Network\CadenceGEM.cs" />
+    <Compile Include="Peripherals\GPIOPort\PSE_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
