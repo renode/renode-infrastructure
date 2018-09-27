@@ -376,12 +376,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
             interruptIdentification = interruptId | (interruptIdentification & (InterruptLevel)0xF0);
 
-            if(((lineStatus & LineStatus.DataReady) != 0) && (((fifoControl & FifoControl.Enable) != 0 || true /*HACK*/) || recvFifo.Count > interruptTriggerLevel))
-            {
-                IRQ.Set(true);
-                return;
-            }
-
             if(interruptId != InterruptLevel.NoInterruptsPending)
             {
                 this.NoisyLog("IRQ true");
