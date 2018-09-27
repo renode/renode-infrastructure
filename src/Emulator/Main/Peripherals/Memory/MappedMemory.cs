@@ -273,6 +273,18 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
         }
 
+        public void InitWithRandomData()
+        {
+            var rand = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+            var buf = new byte[SegmentSize];
+
+            for(var i = 0; i < segments.Length; ++i)
+            {
+                rand.NextBytes(buf);
+                WriteBytes(i * SegmentSize, buf);
+            }
+        }
+
         public void ZeroAll()
         {
             foreach(var segment in segments.Where(x => x != IntPtr.Zero))
