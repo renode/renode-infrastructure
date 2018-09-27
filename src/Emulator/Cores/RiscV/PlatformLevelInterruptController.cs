@@ -23,9 +23,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public PlatformLevelInterruptController(Machine machine, int numberOfSources, int numberOfTargets = 1, bool prioritiesEnabled = true)
         {
             // numberOfSources has to fit between these two registers, one bit per source
-            if(Math.Ceiling((numberOfSources + 1) / 32.0) * 4 > Registers.Target1Enables - Registers.Target0Enables)
+            if(Math.Ceiling((numberOfSources + 1) / 32.0) * 4 > Targets01EnablesWidth)
             {
-                throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {Registers.Target1Enables - Registers.Target0Enables} sources");
+                throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {Targets01EnablesWidth} sources");
             }
 
             this.prioritiesEnabled = prioritiesEnabled;
@@ -74,20 +74,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             }
 
-            AddTargetEnablesRegister(registersMap, 0x2000, 0, PrivilegeLevel.Machine, numberOfSources);
+            AddTargetEnablesRegister(registersMap, (long)Registers.Target0MachineEnables, 0, PrivilegeLevel.Machine, numberOfSources);
+            AddTargetClaimCompleteRegister(registersMap, (long)Registers.Target0ClaimComplete, 0, PrivilegeLevel.Machine);
+            // Target 0 does not support supervisor mode
 
-            for(var i = 0u; i <= 3; i++)
+            for(var i = 0u; i < numberOfTargets; i++)
             {
-                AddTargetEnablesRegister(registersMap, 0x2080 + i * 0x100, i + 1, PrivilegeLevel.Machine, numberOfSources);
-                AddTargetEnablesRegister(registersMap, 0x2100 + i * 0x100, i + 1, PrivilegeLevel.Supervisor, numberOfSources);
-            }
+                AddTargetEnablesRegister(registersMap, (long)Registers.Target1MachineEnables + i * Targets12EnablesWidth, i + 1, PrivilegeLevel.Machine, numberOfSources);
+                AddTargetEnablesRegister(registersMap, (long)Registers.Target1SupervisorEnables + i * Targets12EnablesWidth, i + 1, PrivilegeLevel.Supervisor, numberOfSources);
 
-            AddTargetClaimCompleteRegister(registersMap, 0x200004, 0, PrivilegeLevel.Machine);
-
-            for(var i = 0u; i <= 3; i++)
-            {
-                AddTargetClaimCompleteRegister(registersMap, 0x201004 + i * 0x2000, i + 1, PrivilegeLevel.Machine);
-                AddTargetClaimCompleteRegister(registersMap, 0x202004 + i * 0x2000, i + 1, PrivilegeLevel.Supervisor);
+                AddTargetClaimCompleteRegister(registersMap, (long)Registers.Target1MachineClaimComplete + i * Targets12ClaimCompleteWidth, i + 1, PrivilegeLevel.Machine);
+                AddTargetClaimCompleteRegister(registersMap, (long)Registers.Target1SupervisorClaimComplete + i * Targets12ClaimCompleteWidth, i + 1, PrivilegeLevel.Supervisor);
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -370,14 +367,26 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Source2Priority = 0x8,
             // ...
             StartOfPendingArray = 0x1000,
-            Target0Enables = 0x2000,
-            Target1Enables = 0x2080,
+            // WARNING: offset between Enables of Targets 0 and 1 is different than between Targets 2 and 1, 3 and 2, etc.!
+            Target0MachineEnables = 0x2000,
+            Target1MachineEnables = 0x2080,
+            Target1SupervisorEnables = 0x2100,
+            Target2MachineEnables = 0x2180,
+            Target2SupervisorEnables = 0x2200,
             // ...
             Target0PriorityThreshold = 0x200000,
             Target0ClaimComplete = 0x200004,
             // ...
             Target1PriorityThreshold = 0x201000,
-            Target1ClaimComplete = 0x201004
+            Target1MachineClaimComplete = 0x201004,
+            Target1SupervisorClaimComplete = 0x202004,
+            Target2MachineClaimComplete = 0x203004,
+            Target2SupervisorClaimComplete = 0x204004,
+            // ...
         }
+
+        private const long Targets01EnablesWidth = Registers.Target1MachineEnables - Registers.Target0MachineEnables;
+        private const long Targets12EnablesWidth = Registers.Target2MachineEnables - Registers.Target1MachineEnables;
+        private const long Targets12ClaimCompleteWidth = Registers.Target2MachineClaimComplete - Registers.Target1MachineClaimComplete;
     }
 }
