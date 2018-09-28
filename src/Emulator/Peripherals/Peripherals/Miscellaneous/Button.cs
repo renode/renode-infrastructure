@@ -22,6 +22,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
+            // We call Press here to refresh states after reset.
+            Press();
             Release();
         }
 
