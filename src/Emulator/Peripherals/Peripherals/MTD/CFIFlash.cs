@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 {
     [Icon("sd")]
     public sealed class CFIFlash : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IDisposable
-    {        
+    {
         public CFIFlash(string fileName, int size, SysbusAccessWidth bits = SysbusAccessWidth.DoubleWord, bool nonPersistent = false)
         {
             switch(bits)
@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             Init(fileName);
             CheckBuffer(0);
         }
-        
+
         public long Size
         {
             get
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return size;
             }
         }
-        
+
         /// <summary>
         /// Gets or sets the size of the erase block.
         /// </summary>
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 eraseBlockCountMinusOne = (ushort)(size / value - 1);
             }
         }
-        
+
         public byte ReadByte(long offset)
         {
             switch(state)
@@ -248,14 +248,14 @@ namespace Antmicro.Renode.Peripherals.MTD
             state = State.ReadArray;
             CheckBuffer(0);
         }
-        
+
         public void Dispose()
         {
             this.NoisyLog("Dispose: flushing buffer and closing underlying stream.");
             FlushBuffer();
             stream.Dispose();
         }
-        
+
         private void Init(string fileName)
         {
             if(nonPersistent)
@@ -300,7 +300,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return 0;
             }
         }
-        
+
         private byte HandleQuery(long offset)
         {
             //TODO: enum/const!!!
@@ -553,7 +553,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             state = State.WaitingForBufferData;
             writeBufferStart = offset;
         }
-        
+
         private bool IsBlockAddress(long offset)
         {
             return offset % EraseBlockSize == 0;
@@ -570,7 +570,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 throw new ArgumentException("Size has to be power of two.");
             }
         }
-        
+
         private void CheckBuffer(long offset)
         {
             if(offset >= currentBufferStart && offset < currentBufferStart + currentBufferSize)
@@ -602,7 +602,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             stream.Stream.Write(buffer, 0, currentBufferSize);
             dirty = false;
         }
-        
+
         private void DiscardBuffer()
         {
             this.NoisyLog("Buffer discarded.");
@@ -622,7 +622,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 where = what;
             }
         }
-        
+
         private class Command
         {
             public const byte ReadArray = 0xFF;
@@ -637,7 +637,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             public const byte PageUnlock = 0x60;
             public const byte SetupWriteBuffer = 0xE8;
         }
-        
+
         private enum State : int
         {
             ReadArray = 0,
@@ -651,7 +651,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             WaitingForWriteConfirm,
             ActionDone
         }
-        
+
         [Flags]
         private enum StatusRegister : byte
         {
@@ -660,7 +660,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             EraseOrClearLockError = 32,
             ActionDone = 128
         }
-        
+
         private const int DesiredBufferSize = 100 * 1024;
         private const int DefaultEraseBlockSize = 256 * 1024;
         private const int CopyBufferSize = 256 * 1024;
