@@ -38,8 +38,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private enum CSRs
         {
-            IrqMask = 0x330,
-            IrqPending = 0x360,
+            IrqMask = 0xBC0,
+            IrqPending = 0xFC0,
             DCacheInfo = 0xCC0
         }
     }
