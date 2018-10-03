@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(Core.Machine machine, uint hartId = 0) : base(null, "rv32g", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public VexRiscv(Core.Machine machine, uint hartId = 0) : base(null, "rv32imc", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
             RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value => { irqMask = (uint)value; Update(); });
             RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value => { irqPending = (uint)value; Update(); });
