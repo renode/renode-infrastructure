@@ -783,6 +783,10 @@ namespace Antmicro.Renode.UserInterface
             var directoryPath = Path.Combine(prefix, directory);
             try
             {
+                if(!Directory.Exists(directoryPath))
+                {
+                    return Enumerable.Empty<string>();
+                }
                 var files = Directory.GetFiles(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
                                      .Select(x => allButLast + "@" + StripPrefix(x, prefix).Replace(" ", @"\ "));
                 var dirs = Directory.GetDirectories(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
