@@ -368,7 +368,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(pauseLock)
             {
                 isPaused = true;
-                TlibSetPaused();
+                this.Trace("Requesting pause");
+                TlibSetReturnRequest();
             }
         }
 
@@ -414,9 +415,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 started = true;
-                isPaused = false;
-                TlibClearPaused();
                 singleStepSynchronizer.Enabled = (ExecutionMode == ExecutionMode.SingleStep);
+                isPaused = false;
                 StartCPUThread();
                 this.NoisyLog("Resumed.");
             }
@@ -925,14 +925,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("About to dispose CPU.");
             }
-            if(!isPaused)
-            {
-                if(!silent)
-                {
-                    this.NoisyLog("Halting CPU.");
-                }
-                InnerPause(new HaltArguments(HaltReason.Abort));
-            }
+            InnerPause(new HaltArguments(HaltReason.Abort));
             TimeHandle.Dispose();
             started = false;
             if(!silent)
@@ -1529,10 +1522,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action TlibRestartTranslationBlock;
 
         [Import]
-        private Action TlibSetPaused;
-
-        [Import]
-        private Action TlibClearPaused;
+        private Action TlibSetReturnRequest;
 
         [Import]
         private FuncUInt32 TlibGetPageSize;
@@ -1778,16 +1768,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                     DeactivateHooks(PC);
                     break;
                 }
-                else if(result == ExecutionResult.StoppedAtWatchpoint)
-                {
-                    this.Trace();
-                    break;
-                }
-                else if(result == ExecutionResult.Aborted)
-                {
-                    this.Trace(result.ToString());
-                    break;
-                }
                 else if(result == ExecutionResult.WaitingForInterrupt)
                 {
                     this.Trace();
@@ -1805,6 +1785,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     instructionsLeftThisRound -= instructionsToNearestLimit;
                     TimeHandle.ReportProgress(nearestLimitIn);
+                }
+                else if(result == ExecutionResult.Aborted || result == ExecutionResult.ReturnRequested || result == ExecutionResult.StoppedAtWatchpoint)
+                {
+                    this.Trace(result.ToString());
+                    break;
                 }
             }
 
@@ -1965,7 +1950,8 @@ restart:
             Aborted,
             WaitingForInterrupt = 0x10001,
             StoppedAtBreakpoint = 0x10002,
-            StoppedAtWatchpoint = 0x10004
+            StoppedAtWatchpoint = 0x10004,
+            ReturnRequested = 0x10005
         }
 
         private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
