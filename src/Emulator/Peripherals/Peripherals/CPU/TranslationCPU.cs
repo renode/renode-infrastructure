@@ -1741,7 +1741,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
-                this.Trace($"CPU executed {executed} instructions");
+                this.Trace($"CPU executed {executed} instructions and returned {result}");
                 instructionsLeftThisRound -= executed;
                 ExecutedInstructions += (ulong)executed;
                 if(executed > 0)
