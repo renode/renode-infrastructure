@@ -1239,6 +1239,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             private long allocated;
             private readonly TranslationCPU parent;
         }
+
         private sealed class CpuThreadPauseGuard : IDisposable
         {
             public CpuThreadPauseGuard(TranslationCPU parent)
