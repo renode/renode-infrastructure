@@ -383,13 +383,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             lock(pauseLock)
             {
+                // cpuThread can get null as a result of `RequestPause` call
+                var cpuThreadCopy = cpuThread;
                 RequestPause();
 
-                if(cpuThread != null && Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
+                if(cpuThreadCopy != null && Thread.CurrentThread.ManagedThreadId != cpuThreadCopy.ManagedThreadId)
                 {
                     singleStepSynchronizer.Enabled = false;
                     this.NoisyLog("Waiting for thread to pause.");
-                    cpuThread?.Join();
+                    cpuThreadCopy?.Join();
                     this.NoisyLog("Paused.");
                 }
                 // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
