@@ -408,11 +408,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             lock(pauseLock)
             {
-                if(isHalted)
-                {
-                    return;
-                }
-                if(isAborted || !isPaused)
+                if(isHalted || isAborted || !isPaused)
                 {
                     return;
                 }
