@@ -824,7 +824,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException("Stepping is available in single step execution mode only.");
                 }
 
-                this.Log(LogLevel.Info, "Stepping {0} steps", count);
+                this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
                 singleStepSynchronizer.CommandStep(count);
                 singleStepSynchronizer.WaitForStepFinished();
             }
