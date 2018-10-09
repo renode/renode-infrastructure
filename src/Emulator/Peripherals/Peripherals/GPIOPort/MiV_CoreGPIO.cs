@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -27,27 +28,39 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.OutputRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) =>
+                {(long)Registers.OutputRegister, new DoubleWordRegister(this).WithValueField(0, 32,
+                    writeCallback: (_, value) =>
                     {
                         lock(innerLock)
                         {
                             var bits = BitHelper.GetBits(value);
                             for(var i = 0; i < bits.Length; i++)
                             {
-                                Connections[i].Set(bits[i]);
+                                if((irqManager.PinDirection[i] & GPIOInterruptManager.Direction.Output) != 0)
+                                {
+                                    Connections[i].Set(bits[i]);
+                                }
                             }
                         }
-                    })},
-
-                {(long)Registers.InputRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                    }, valueProviderCallback: _ =>
                     {
                         lock(innerLock)
                         {
-                            return BitHelper.GetValueFromBitsArray(State);
+                            return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Output);
                         }
                     })},
 
-                {(long)Registers.InterruptClearRegister, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
+                {(long)Registers.InputRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read,
+                    valueProviderCallback: _ =>
+                    {
+                        lock(innerLock)
+                        {
+                            return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Input);
+                        }
+                    })},
+
+                {(long)Registers.InterruptClearRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write,
+                    writeCallback: (_, value) =>
                     {
                         lock(innerLock)
                         {
@@ -55,11 +68,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             {
                                 irqManager.ClearInterrupt((uint)i);
                             }
-                        }
-                    }, valueProviderCallback: _ => {
-                        lock(innerLock)
-                        {
-                            return BitHelper.GetValueFromBitsArray(irqManager.ActiveInterrupts);
                         }
                     })}
             };
@@ -75,7 +83,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 var j = i;
                 registersMap.Add((long)Registers.ConfigurationRegisterBase + i * 0x4, new DoubleWordRegister(this)
-                    .WithFlag(0, writeCallback: (_, v) =>
+                    .WithFlag(0,
+                        writeCallback: (_, v) =>
                         {
                             if(v)
                             {
@@ -86,8 +95,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                 irqManager.PinDirection[j] &= ~GPIOInterruptManager.Direction.Output;
                             }
                         },
-                        valueProviderCallback: _ => (irqManager.PinDirection[j] & GPIOInterruptManager.Direction.Output) != 0, name: "OUTREG")
-                    .WithFlag(1, writeCallback: (_, value) =>
+                        valueProviderCallback: _ =>
+                        {
+                            return (irqManager.PinDirection[j] & GPIOInterruptManager.Direction.Output) != 0;
+                        }, name: "OUTREG")
+                    .WithFlag(1,
+                        writeCallback: (_, value) =>
                         {
                             if(value)
                             {
@@ -98,10 +111,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                 irqManager.PinDirection[j] &= ~GPIOInterruptManager.Direction.Input;
                             }
                         },
-                        valueProviderCallback: _ => (irqManager.PinDirection[j] & GPIOInterruptManager.Direction.Input) != 0, name: "INREG")
+                        valueProviderCallback: _ =>
+                        {
+                            return (irqManager.PinDirection[j] & GPIOInterruptManager.Direction.Input) != 0;
+                        }, name: "INREG")
                     .WithTag("OUTBUFF", 2, 1)
-                    .WithFlag(3, writeCallback: (_, v) => { irqManager.InterruptEnable[j] = v; }, valueProviderCallback: _ => irqManager.InterruptEnable[j], name: "INTENABLE")
-                    //bit 4 unused
+                    .WithFlag(3, writeCallback: (_, v) => irqManager.InterruptEnable[j] = v, valueProviderCallback: _ => irqManager.InterruptEnable[j], name: "INTENABLE")
+                    .WithReservedBits(4, 1)
                     .WithValueField(5, 3, writeCallback: (_, value) =>
                     {
                         if(!intTypeToVal.TryGetValue(value, out var type))
@@ -160,6 +176,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public GPIO IRQ { get; private set; }
 
         public long Size => 0xA4;
+
+        private uint ActivePinsSetToDirection(GPIOInterruptManager.Direction direction)
+        {
+            var pins = irqManager.PinDirection.Select(x => (x & direction) != 0);
+            var result = pins.Zip(Connections.Values, (pin, state) => pin && state.IsSet);
+            return BitHelper.GetValueFromBitsArray(result);
+        }
 
         private readonly GPIOInterruptManager irqManager;
         private readonly DoubleWordRegisterCollection registers;
