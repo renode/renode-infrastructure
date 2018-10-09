@@ -1781,7 +1781,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     if(instructionsToNearestLimit >= instructionsLeftThisRound)
                     {
-                        this.Trace();
+                        this.Trace($"Instructions to nearest limit are: {instructionsToNearestLimit}");
                         instructionsLeftThisRound = 0;
                         break;
                     }
