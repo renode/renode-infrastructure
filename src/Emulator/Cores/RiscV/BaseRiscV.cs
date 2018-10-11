@@ -89,6 +89,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool ShouldEnterDebugMode { get; set; }
 
+        public event Action<ulong> MipChanged;
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             return Interrupt.Hard;
@@ -187,6 +189,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [Export]
+        private void TlibMipChanged(ulong value)
+        {
+            MipChanged?.Invoke(value);
+        }
+
         private readonly CoreLevelInterruptor clint;
 
         private readonly PrivilegeArchitecture privilegeArchitecture;
@@ -270,6 +278,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private IEnumerable<InstructionSet> architectureSets = new List<InstructionSet>();
+
     }
 }
 
