@@ -16,6 +16,7 @@ using Antmicro.Renode.Utilities.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using System.Threading;
 using Antmicro.Renode.Time;
 using System.Text;
@@ -26,6 +27,7 @@ using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.EventRecording;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Antmicro.Renode.Core
 {
@@ -35,6 +37,8 @@ namespace Antmicro.Renode.Core
         {
             LocalTimeSource = new SlaveTimeSource();
             LocalTimeSource.TimePassed += HandleTimeProgress;
+
+            InitAtomicMemoryState();
 
             collectionSync = new object();
             pausingSync = new object();
@@ -53,6 +57,52 @@ namespace Antmicro.Renode.Core
             SetLocalName(SystemBus, SystemBusName);
         }
 
+        [PreSerialization]
+        private void SerializeAtomicMemoryState()
+        {
+            atomicMemoryState = new byte[AtomicMemoryStateSize];
+            Marshal.Copy(atomicMemoryStatePointer, atomicMemoryState, 0, atomicMemoryState.Length);
+            // the first byte of an atomic memory state contains value 0 or 1
+            // indicating if the mutex has already been initialized;
+            // the mutex must be restored after each deserialization, so here we force this value to 0
+            atomicMemoryState[0] = 0;
+        }
+
+        [PostDeserialization]
+        public void InitAtomicMemoryState()
+        {
+            atomicMemoryStatePointer = Marshal.AllocHGlobal(AtomicMemoryStateSize);
+
+            // the beginning of an atomic memory state contains two 8-bit flags:
+            // byte 0: information if the mutex has already been initialized
+            // byte 1: information if the reservations array has already been initialized
+            //
+            // the first byte must be set to 0 at start and after each deserialization
+            // as this is crucial for proper memory initialization;
+            //
+            // the second one must be set to 0 at start, but should not be overwritten after deserialization;
+            // this is handled when saving `atomicMemoryState`
+            if(atomicMemoryState != null)
+            {
+                Marshal.Copy(atomicMemoryState, 0, atomicMemoryStatePointer, atomicMemoryState.Length);
+                atomicMemoryState = null;
+            }
+            else
+            {
+                // this write spans two 8-byte flags
+                Marshal.WriteInt16(atomicMemoryStatePointer, 0);
+            }
+        }
+
+        public IntPtr AtomicMemoryStatePointer => atomicMemoryStatePointer;
+
+        [Transient]
+        private IntPtr atomicMemoryStatePointer;
+        private byte[] atomicMemoryState;
+
+        // TODO: this probably should be dynamically get from Tlib, but how to nicely do that in `Machine` class?
+        private const int AtomicMemoryStateSize = 25600;
+        
         public IEnumerable<IPeripheral> GetParentPeripherals(IPeripheral peripheral)
         {
             var node = registeredPeripherals.TryGetNode(peripheral);
@@ -432,6 +482,8 @@ namespace Antmicro.Renode.Core
                 disposed(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Disposed));
             }
 
+            Marshal.FreeHGlobal(AtomicMemoryStatePointer);
+
             EmulationManager.Instance.CurrentEmulation.BackendManager.HideAnalyzersFor(this);
         }
 
@@ -629,7 +681,7 @@ namespace Antmicro.Renode.Core
         {
             get
             {
-                // locking on pausingSync can couse deadlock (when mach.Start() and AllMachineStarted are called together)
+                // locking on pausingSync can cause a deadlock (when mach.Start() and AllMachineStarted are called together)
                 var stateCopy = state;
                 return stateCopy == State.Paused || stateCopy == State.NotStarted;
             }

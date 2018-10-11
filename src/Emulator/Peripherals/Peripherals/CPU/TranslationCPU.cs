@@ -39,7 +39,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         public Endianess Endianness { get; protected set; }
 
         protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+		: this(0, cpuType, machine, endianness, bitness)
         {
+        }
+
+        protected TranslationCPU(uint id, string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+        {
+            Id = id;
+
             if(cpuType == null)
             {
                 throw new RecoverableException(new ArgumentNullException("cpuType"));
@@ -969,6 +976,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public uint Id { get; }
+
         private void Init()
         {
             memoryManager = new SimpleMemoryManager(this);
@@ -995,6 +1004,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Marshal.Copy(cpuState, 0, statePtr, cpuState.Length);
                 AfterLoad(statePtr);
             }
+            TlibAtomicMemoryStateInit(checked((int)this.Id), machine.AtomicMemoryStatePointer);
             HandleRamSetup();
             foreach(var hook in hooks)
             {
@@ -1521,6 +1531,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibSetReturnRequest;
+         
+        [Import]
+        private ActionInt32IntPtr TlibAtomicMemoryStateInit;
 
         [Import]
         private FuncUInt32 TlibGetPageSize;
