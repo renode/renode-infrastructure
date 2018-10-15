@@ -62,9 +62,12 @@ namespace Antmicro.Renode.Storage
             var bytesReadCount = underlyingStream.Read(buffer, offset, count);
             if(bytesReadCount < count)
             {
-                // pad the rest with 0's
+                // pad the rest with `PaddingByte`
                 paddingSize = checked((int)Math.Min(count - bytesReadCount, Length - Position));
-                Array.Clear(buffer, offset + bytesReadCount, paddingSize);
+                for(var i = 0; i < paddingSize; i++)
+                {
+                    buffer[i + bytesReadCount + offset] = PaddingByte;
+                }
                 paddingOffset += paddingSize;
             }
             return bytesReadCount + paddingSize;
@@ -81,8 +84,11 @@ namespace Antmicro.Renode.Storage
             var bytesToWriteCount = checked((int)Math.Min(count, Length - underlyingStream.Position));
             if(paddingOffset > 0)
             {
-                // this effectively grows the file filling it with zeros
-                underlyingStream.Seek(paddingOffset, SeekOrigin.End);
+                // this effectively grows the file filling it with `PaddingByte`
+                for(var i = 0; i < paddingOffset; i++)
+                {
+                    underlyingStream.WriteByte(PaddingByte);
+                }
                 paddingOffset = 0;
             }
             underlyingStream.Write(buffer, offset, bytesToWriteCount);
@@ -115,6 +121,8 @@ namespace Antmicro.Renode.Storage
         {
             throw new NotImplementedException();
         }
+
+        public byte PaddingByte { get; set; }
 
         public override bool CanRead { get { return underlyingStream.CanRead; } }
 
