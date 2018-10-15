@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 fileName = tempFile;
             }
             stream = new SerializableFileStreamWrapper(fileName, size);
-            CheckUnderlyingFile();
+            stream.Stream.PaddingByte = 0xFF;
             size2n = (byte)Misc.Logarithm2(size);
             buffer = new byte[DesiredBufferSize];
         }
@@ -362,39 +362,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             default:
                 return 0x00;
             }
-        }
-
-        public void CheckUnderlyingFile()
-        {
-            if(stream.Stream.Length == size)
-            {
-                return;
-            }
-            if(stream.Stream.Length < size)
-            {
-                if(stream.Stream.Length != 0)
-                {
-                    // display warning only in case file is not empty/new
-                    this.Log(LogLevel.Warning,
-                        "Underlying file {0} has size {1}B, but size of the flash is {2}B. Filling rest of the file with 0xFF.",
-                        stream.Stream.Name, Misc.NormalizeBinary(stream.Stream.Length), Misc.NormalizeBinary(size));
-                }
-                stream.Stream.Seek(0, SeekOrigin.End);
-                var bufferWithOnes = new byte[DesiredBufferSize];
-                for(var i = 0; i < bufferWithOnes.Length; i++)
-                {
-                    bufferWithOnes[i] = 0xFF;
-                }
-                var toWrite = size - stream.Stream.Length;
-                while(toWrite > 0)
-                {
-                    stream.Stream.Write(bufferWithOnes, 0, (int)Math.Min(DesiredBufferSize, toWrite));
-                    toWrite -= DesiredBufferSize;
-                }
-                return;
-            }
-            this.Log(LogLevel.Warning, "Underlying file {0} has size {1}B, but size of the flash is {2}B.",
-                stream.Stream.Name, Misc.NormalizeBinary(stream.Stream.Length), Misc.NormalizeBinary(size));
         }
 
         private void HandleErase(long offset)
