@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Storage
                 break;
 
             case SeekOrigin.End:
-                Position = Length;
+                Position = Length + offset;
                 break;
 
             default:
