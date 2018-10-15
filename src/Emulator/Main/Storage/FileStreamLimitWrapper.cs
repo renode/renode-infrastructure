@@ -65,6 +65,7 @@ namespace Antmicro.Renode.Storage
                 // pad the rest with 0's
                 paddingSize = checked((int)Math.Min(count - bytesReadCount, Length - Position));
                 Array.Clear(buffer, offset + bytesReadCount, paddingSize);
+                paddingOffset += paddingSize;
             }
             return bytesReadCount + paddingSize;
         }
@@ -78,6 +79,12 @@ namespace Antmicro.Renode.Storage
 
             // writing to the padding area extends the file, but not longer than provided `length`
             var bytesToWriteCount = checked((int)Math.Min(count, Length - underlyingStream.Position));
+            if(paddingOffset > 0)
+            {
+                // this effectively grows the file filling it with zeros
+                underlyingStream.Seek(paddingOffset, SeekOrigin.End);
+                paddingOffset = 0;
+            }
             underlyingStream.Write(buffer, offset, bytesToWriteCount);
         }
 
@@ -121,7 +128,7 @@ namespace Antmicro.Renode.Storage
         {
             get
             {
-                return underlyingStream.Position - offset;
+                return underlyingStream.Position - offset + paddingOffset;
             }
             set
             {
@@ -134,12 +141,22 @@ namespace Antmicro.Renode.Storage
                     throw new ArgumentOutOfRangeException("Position");
                 }
 
-                underlyingStream.Seek(offset + value, SeekOrigin.Begin);
+                if(underlyingStream.Length > offset + value)
+                {
+                    underlyingStream.Seek(offset + value, SeekOrigin.Begin);
+                    paddingOffset = 0;
+                }
+                else
+                {
+                    underlyingStream.Seek(0, SeekOrigin.End);
+                    paddingOffset = value - (underlyingStream.Length - offset);
+                }
             }
         }
 
         public string Name { get { return underlyingStream.Name; } }
 
+        private long paddingOffset;
         private readonly FileStream underlyingStream;
         private readonly long offset;
     }
