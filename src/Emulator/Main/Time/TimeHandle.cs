@@ -529,6 +529,7 @@ namespace Antmicro.Renode.Time
                     else
                     {
                         TimeSource.ReportHandleActive();
+                        RequestStart();
                     }
                 }
             }

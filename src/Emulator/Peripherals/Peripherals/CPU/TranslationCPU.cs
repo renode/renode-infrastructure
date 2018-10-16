@@ -1473,11 +1473,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                             TimeHandle.Enabled = !value;
                         }
                     }
-                    if(isHalted)
-                    {
-                        this.Trace();
-                        InnerPause(new HaltArguments(HaltReason.Pause));
-                    }
                 }
             }
         }
@@ -1722,7 +1717,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
             var executedResiduum = 0ul;
-            while(!isPaused && instructionsLeftThisRound > 0)
+            while(!isPaused && !isHalted && instructionsLeftThisRound > 0)
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
 
