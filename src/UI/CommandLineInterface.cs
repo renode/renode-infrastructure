@@ -160,6 +160,12 @@ namespace Antmicro.Renode.UI
             {
             }
 
+            public bool TryPeek(out int value)
+            {
+                value = 0;
+                return true;
+            }
+
             public int Read()
             {
                 return 0;
