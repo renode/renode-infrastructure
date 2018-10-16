@@ -827,6 +827,19 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void DisablePeripheral(IPeripheral peripheral)
+        {
+            if(peripheral != null)
+            {
+                lockedPeripherals.Add(peripheral);
+            }
+        }
+
+        public void EnablePeripheral(IPeripheral peripheral)
+        {
+            lockedPeripherals.Remove(peripheral);
+        }
+
         public void Clear()
         {
             ClearAll();
@@ -1196,6 +1209,15 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             return result;
         }
+        
+        private bool IsTargetAccessible(IPeripheral peripheral)
+        {
+            if(lockedPeripherals.Contains(peripheral))
+            {
+                return false;
+            }
+            return true;
+        }
 
         private static void ThrowIfNotAllMemory(IEnumerable<PeripheralLookupResult> targets)
         {
@@ -1291,6 +1313,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             Lookup = new SymbolLookup();
             cachedCpuId = new ThreadLocal<int>();
             peripherals = new PeripheralCollection(this);
+            lockedPeripherals = new HashSet<IPeripheral>();
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
             tags = new Dictionary<Range, TagEntry>();
             svdDevices = new List<SVDParser>();
@@ -1473,6 +1496,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         private PeripheralCollection peripherals;
+        private ISet<IPeripheral> lockedPeripherals;
         private Dictionary<IBusPeripheral, List<MappedSegmentWrapper>> mappingsForPeripheral;
         private bool mappingsRemoved;
         private bool peripheralRegistered;
