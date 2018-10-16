@@ -26,8 +26,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
@@ -52,6 +54,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return (<#= type #>)ReportNonExistingRead(address, SysbusAccessWidth.<#=name#>);
             }
+            if(!IsTargetAccessible(accessMethods.Peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                return 0;
+            }
             var lockTaken = false;
             try
             {
@@ -74,6 +81,13 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void Write<#=name#>(ulong address, <#=type#> value)
         {
             ulong startAddress, endAddress;
+
+            var peripheral = WhatPeripheralIsAt(address);
+            if(!IsTargetAccessible(peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", peripheral, address, value);
+                return;
+            }
 
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
