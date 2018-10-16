@@ -45,12 +45,12 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             ulong startAddress, endAddress;
 
-            InvokeWatchpointHooks(hooksOnRead, address, Width.<#=name#>);
+            InvokeWatchpointHooks(hooksOnRead, address, SysbusAccessWidth.<#=name#>);
 
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                return (<#= type #>)ReportNonExistingRead(address, "<#=name#>");
+                return (<#= type #>)ReportNonExistingRead(address, SysbusAccessWidth.<#=name#>);
             }
             var lockTaken = false;
             try
@@ -78,8 +78,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
-                ReportNonExistingWrite(address, value, "<#=name#>");
-                InvokeWatchpointHooks(hooksOnWrite, address, Width.<#=name#>);
+                ReportNonExistingWrite(address, value, SysbusAccessWidth.<#=name#>);
+                InvokeWatchpointHooks(hooksOnWrite, address, SysbusAccessWidth.<#=name#>);
                 return;
             }
             var lockTaken = false;
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     accessMethods.SetAbsoluteAddress(address);
                 }
                 accessMethods.Write<#=name#>(checked((long)(address - startAddress)), value);
-                InvokeWatchpointHooks(hooksOnWrite, address, Width.<#=name#>);
+                InvokeWatchpointHooks(hooksOnWrite, address, SysbusAccessWidth.<#=name#>);
             }
             finally
             {
