@@ -55,6 +55,7 @@
     <Compile Include="Peripherals\MTD\ISPIFlash.cs" />
     <Compile Include="Peripherals\MTD\DummySPIFlash.cs" />
     <Compile Include="Peripherals\Miscellaneous\LED.cs" />
+    <Compile Include="Peripherals\Miscellaneous\PSE_Sysreg.cs" />
     <Compile Include="Peripherals\Memory\ArrayMemory.cs" />
     <Compile Include="Peripherals\Memory\ArrayMemoryWithReadonlys.cs" />
     <Compile Include="Peripherals\Miscellaneous\EmulatorController.cs" />
