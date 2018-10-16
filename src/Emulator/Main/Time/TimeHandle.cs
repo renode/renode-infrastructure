@@ -525,6 +525,9 @@ namespace Antmicro.Renode.Time
                     if(!enabled)
                     {
                         Monitor.PulseAll(innerLock);
+                    }
+                    else
+                    {
                         TimeSource.ReportHandleActive();
                     }
                 }
