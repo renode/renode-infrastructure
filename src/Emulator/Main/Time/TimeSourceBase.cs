@@ -26,6 +26,8 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public TimeSourceBase()
         {
+            reportTimeProgressLock = new object();
+
             blockingEvent = new ManualResetEvent(true);
             delayedActions = new SortedSet<DelayedTask>();
             handles = new HandlesCollection();
@@ -261,13 +263,16 @@ namespace Antmicro.Renode.Time
         /// <see cref="ITimeSource.ReportTimeProgress">
         public void ReportTimeProgress()
         {
-            var currentCommonElapsedTime = handles.CommonElapsedTime;
-            if(currentCommonElapsedTime > previousElapsedVirtualTime)
+            lock(reportTimeProgressLock)
             {
-                var timeDiff = currentCommonElapsedTime - previousElapsedVirtualTime;
-                this.Trace($"Reporting time passed: {timeDiff}");
-                TimePassed?.Invoke(timeDiff);
-                previousElapsedVirtualTime = currentCommonElapsedTime;
+                var currentCommonElapsedTime = handles.CommonElapsedTime;
+                if(currentCommonElapsedTime > previousElapsedVirtualTime)
+                {
+                    var timeDiff = currentCommonElapsedTime - previousElapsedVirtualTime;
+                    this.Trace($"Reporting time passed: {timeDiff}");
+                    TimePassed?.Invoke(timeDiff);
+                    previousElapsedVirtualTime = currentCommonElapsedTime;
+                }
             }
         }
 
@@ -671,6 +676,7 @@ namespace Antmicro.Renode.Time
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
         private readonly Sleeper sleeper;
+        private readonly object reportTimeProgressLock;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);
 
