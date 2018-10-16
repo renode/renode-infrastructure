@@ -80,6 +80,7 @@
     <Compile Include="UserInterface\Commands\CommandAttributes.cs" />
     <Compile Include="UserInterface\Commands\AllowPrivatesCommand.cs" />
     <Compile Include="UserInterface\Commands\HelpCommand.cs" />
+    <Compile Include="UserInterface\Commands\WatchCommand.cs" />
     <Compile Include="UserInterface\Commands\IncludeFileCommand.cs" />
     <Compile Include="UserInterface\Commands\UsingCommand.cs" />
     <Compile Include="UserInterface\Commands\QuitCommand.cs" />
