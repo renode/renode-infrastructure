@@ -967,6 +967,17 @@ namespace Antmicro.Renode.Utilities
             }
             return result;
         }
+
+        public static DateTime With(this DateTime @this, int? year = null, int? month = null, int? day = null, int? hour = null, int? minute = null, int? second = null)
+        {
+            return new DateTime(
+                year ?? @this.Year,
+                month ?? @this.Month,
+                day ?? @this.Day,
+                hour ?? @this.Hour,
+                minute ?? @this.Minute,
+                second ?? @this.Second);
+        }
     }
 }
 

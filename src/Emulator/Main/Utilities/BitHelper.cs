@@ -31,6 +31,13 @@ namespace Antmicro.Renode.Utilities
             return source | bitsToSet;
         }
 
+        public static ulong CopyBitsFrom(ulong source, ulong newValue, int position, int width)
+        {
+            var mask = ((1u << width) - 1) << position;
+            var bitsToSet = newValue & mask;
+            return (source & ~mask) | bitsToSet;
+        }
+
         public static void ClearBits(ref uint reg, params byte[] bits)
         {
             uint mask = 0xFFFFFFFFu;
