@@ -120,6 +120,9 @@
     <Compile Include="Peripherals\PCI\IPCIPeripheral.cs" />
     <Compile Include="Peripherals\PCI\IPCIePeripheral.cs" />
     <Compile Include="Peripherals\PCI\IPCIeRouter.cs" />
+    <Compile Include="Peripherals\PCI\PCIeBasePeripheral.cs" />
+    <Compile Include="Peripherals\PCI\PCIeEndpoint.cs" />
+    <Compile Include="Peripherals\PCI\PCIeBridge.cs" />
     <Compile Include="Peripherals\PCI\PCIeSpace.cs" />
     <Compile Include="Peripherals\PCI\HeaderType.cs" />
     <Compile Include="Peripherals\PCI\Capabilities\Capability.cs" />
