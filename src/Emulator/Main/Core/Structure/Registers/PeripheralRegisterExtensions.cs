@@ -56,6 +56,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for tagged flag creation - a tag of width equal to 1. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// </summary>
+        /// <returns>This register with a defined tag field.</returns>
+        public static T WithTaggedFlag<T>(this T register, string name, int position) where T : PeripheralRegister
+        {
+            register.Tag(name, position, 1);
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for value field creation. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
         /// This overload allows you to retrieve the created field via <c>valueField</c> parameter.
         /// </summary>
