@@ -72,7 +72,7 @@
       <HintPath>..\..\..\..\..\lib\resources\libraries\LZ4.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <ItemGroup Condition=" $(CurrentPlatform) != 'Windows'">
+  <ItemGroup Condition="$(CurrentPlatform) != 'Windows'">
     <Reference Include="Mono.Posix" />
     <Reference Include="gdk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
       <Package>gdk-sharp-2.0</Package>
@@ -118,6 +118,15 @@
     <Compile Include="Core\Machine.cs" />
     <Compile Include="Peripherals\Bus\IBusPeripheral.cs" />
     <Compile Include="Peripherals\PCI\IPCIPeripheral.cs" />
+    <Compile Include="Peripherals\PCI\IPCIePeripheral.cs" />
+    <Compile Include="Peripherals\PCI\IPCIeRouter.cs" />
+    <Compile Include="Peripherals\PCI\PCIeSpace.cs" />
+    <Compile Include="Peripherals\PCI\HeaderType.cs" />
+    <Compile Include="Peripherals\PCI\Capabilities\Capability.cs" />
+    <Compile Include="Peripherals\PCI\Capabilities\PCIeCapability.cs" />
+    <Compile Include="Peripherals\PCI\BAR\BaseAddressRegister.cs" />
+    <Compile Include="Peripherals\PCI\BAR\MemoryBaseAddressRegister.cs" />
+    <Compile Include="Peripherals\PCI\BAR\IOBaseAddressRegister.cs" />
     <Compile Include="Peripherals\CPU\CPURegistrationPoint.cs" />
     <Compile Include="Core\Structure\Registered.cs" />
     <Compile Include="Peripherals\IEmulationElement.cs" />
