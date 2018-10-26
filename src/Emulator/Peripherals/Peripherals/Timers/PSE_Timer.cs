@@ -17,7 +17,8 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public PSE_Timer(Machine machine, long frequency = 100000000)
         {
-            IRQ = new GPIO();
+            Timer1IRQ = new GPIO();
+            Timer2IRQ = new GPIO();
 
             timerInterruptEnable = new IFlagRegisterField[NumberOfInternalTimers];
             rawInterruptStatus = new IFlagRegisterField[NumberOfInternalTimers];
@@ -100,6 +101,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         public void Reset()
         {
             registers.Reset();
+            foreach(var eachTimer in timer)
+            {
+                eachTimer.Reset();
+            }
             UpdateInterrupt();
         }
 
@@ -115,7 +120,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x1000;
 
-        public GPIO IRQ { get; private set; }
+        public GPIO Timer1IRQ { get; private set; }
+        public GPIO Timer2IRQ { get; private set; }
 
         private void InternalSoftReset(TimerMode mode)
         {
@@ -128,11 +134,13 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             if(timerMode.Value == TimerMode.One64BitTimer)
             {
-                IRQ.Set(CalculateTimerMaskedInterruptValue(Timer.Timer64));
+                Timer1IRQ.Set(CalculateTimerMaskedInterruptValue(Timer.Timer64));
+                Timer2IRQ.Unset();
             }
             else
             {
-                IRQ.Set(CalculateTimerMaskedInterruptValue(Timer.Timer32_1) || CalculateTimerMaskedInterruptValue(Timer.Timer32_2));
+                Timer1IRQ.Set(CalculateTimerMaskedInterruptValue(Timer.Timer32_1));
+                Timer2IRQ.Set(CalculateTimerMaskedInterruptValue(Timer.Timer32_2));
             }
         }
 
