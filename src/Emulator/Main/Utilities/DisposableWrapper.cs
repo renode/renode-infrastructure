@@ -11,6 +11,11 @@ namespace Antmicro.Renode.Utilities
 {
     public class DisposableWrapper : IDisposable
     {
+        public static DisposableWrapper New(Action a)
+        {
+            return new DisposableWrapper().RegisterDisposeAction(a);
+        }
+
         public DisposableWrapper()
         {
             disposeActions = new List<Action>();

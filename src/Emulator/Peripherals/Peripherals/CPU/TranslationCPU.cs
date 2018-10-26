@@ -66,6 +66,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitDisas();
         }
 
+        public bool TbCacheEnabled
+        {
+            get
+            {
+                return TlibGetTbCacheEnabled() != 0;
+            }
+
+            set
+            {
+                TlibSetTbCacheEnabled(value ? 1u : 0u);
+            }
+        }
+
         public bool ChainingEnabled
         {
             get
@@ -288,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                lock(sync.Guard)
+                lock(singleStepSynchronizer.Guard)
                 {
                     return executionMode;
                 }
@@ -301,16 +314,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
 
-                lock(sync.Guard)
+                lock(singleStepSynchronizer.Guard)
                 {
                     executionMode = value;
-                    if(executionMode == ExecutionMode.Continuous)
+                    singleStepSynchronizer.Enabled = (executionMode == ExecutionMode.SingleStep);
+                    if(executionMode == ExecutionMode.SingleStep)
                     {
-                        sync.Pass();
-                    }
-                    else if(executionMode == ExecutionMode.SingleStep)
-                    {
-                        TlibSetPaused();
+                        TlibSetReturnRequest();
                     }
                 }
             }
@@ -362,10 +372,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(pauseLock)
             {
                 isPaused = true;
-                TlibSetPaused();
-
-                // this is to prevent deadlock on pausing/stopping/disposing in Single-Step mode
-                ExecutionMode = ExecutionMode.Continuous;
+                this.Trace("Requesting pause");
+                TlibSetReturnRequest();
             }
         }
 
@@ -379,16 +387,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             lock(pauseLock)
             {
+                // cpuThread can get null as a result of `RequestPause` call
+                var cpuThreadCopy = cpuThread;
                 RequestPause();
 
-                if(cpuThread != null && Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
+                if(cpuThreadCopy != null && Thread.CurrentThread.ManagedThreadId != cpuThreadCopy.ManagedThreadId)
                 {
-                    sync.Pass();
+                    singleStepSynchronizer.Enabled = false;
                     this.NoisyLog("Waiting for thread to pause.");
-                    cpuThread?.Join();
+                    cpuThreadCopy?.Join();
                     this.NoisyLog("Paused.");
                 }
-                else
+                // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
+                else if(!insideBlockHook)
                 {
                     pauseGuard.OrderPause();
                 }
@@ -401,17 +412,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             lock(pauseLock)
             {
-                if(isHalted)
-                {
-                    return;
-                }
-                if(isAborted || !isPaused)
+                if(isHalted || isAborted || !isPaused)
                 {
                     return;
                 }
                 started = true;
+                singleStepSynchronizer.Enabled = (ExecutionMode == ExecutionMode.SingleStep);
                 isPaused = false;
-                TlibClearPaused();
                 StartCPUThread();
                 this.NoisyLog("Resumed.");
             }
@@ -434,9 +441,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     CheckIfOnSynchronizedThread();
                 }
                 this.NoisyLog("IRQ {0}, value {1}", number, value);
-                // halted result means that cpu waits on WFI
-                // in such case we should, obviously, not mask interrupts
-                if(started && (lastTlibResult == ExecutionResult.Halted || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
+                // as we are waiting for an interrupt we should, obviously, not mask it
+                if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
                 {
                     TlibSetIrqWrapped(number, value);
                 }
@@ -569,6 +575,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void SetHookAtBlockEnd(Action<ulong, uint> hook)
+        {
+            using(machine.ObtainPausedState())
+            {
+                if((hook == null) ^ (blockFinishedHook == null))
+                {
+                    ClearTranslationCache();
+                    TlibSetBlockFinishedHookPresent(hook != null ? 1u : 0u);
+                }
+                blockFinishedHook = hook;
+            }
+        }
+
         [Export]
         protected uint ReadByteFromBus(ulong offset)
         {
@@ -576,7 +595,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(true, offset))
+            using(ObtainPauseGuard(true, offset, SysbusAccessWidth.Byte))
             {
                 return machine.SystemBus.ReadByte(offset);
             }
@@ -589,7 +608,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(true, offset))
+            using(ObtainPauseGuard(true, offset, SysbusAccessWidth.Word))
             {
                 return machine.SystemBus.ReadWord(offset);
             }
@@ -602,7 +621,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(true, offset))
+            using(ObtainPauseGuard(true, offset, SysbusAccessWidth.DoubleWord))
             {
                 return machine.SystemBus.ReadDoubleWord(offset);
             }
@@ -615,7 +634,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(false, offset))
+            using(ObtainPauseGuard(false, offset, SysbusAccessWidth.Byte))
             {
                 machine.SystemBus.WriteByte(offset, unchecked((byte)value));
             }
@@ -628,7 +647,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(false, offset))
+            using(ObtainPauseGuard(false, offset, SysbusAccessWidth.Word))
             {
                 machine.SystemBus.WriteWord(offset, unchecked((ushort)value));
             }
@@ -641,7 +660,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(false, offset))
+            using(ObtainPauseGuard(false, offset, SysbusAccessWidth.DoubleWord))
             {
                 machine.SystemBus.WriteDoubleWord(offset, value);
             }
@@ -736,36 +755,31 @@ namespace Antmicro.Renode.Peripherals.CPU
             interruptEvents[number].Reset();
         }
 
-        private bool HandleStepping()
-        {
-            lock(sync.Guard)
-            {
-                if(ExecutionMode != ExecutionMode.SingleStep)
-                {
-                    return true;
-                }
-
-                this.NoisyLog("Waiting for another step (PC=0x{0:X8}).", PC.RawValue);
-                InvokeHalted(new HaltArguments(HaltReason.Step));
-                sync.SignalAndWait();
-                return !isPaused;
-            }
-        }
+        private bool insideBlockHook;
 
         [Export]
-        private void OnBlockBegin(ulong address, uint size)
+        private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            var bbInternalHook = blockBeginInternalHook;
-            if(bbInternalHook != null)
+            using(DisposableWrapper.New(() => insideBlockHook = false))
             {
-                bbInternalHook(address, size);
+                insideBlockHook = true;
+
+                blockBeginInternalHook?.Invoke(address, size);
+                blockBeginUserHook?.Invoke(address, size);
             }
-            var bbUserHook = blockBeginUserHook;
-            if(bbUserHook != null)
+
+            return (isHalted || isPaused) ? 0 : 1u;
+        }
+
+        [Export]
+        private void OnBlockFinished(ulong pc, uint executedInstructions)
+        {
+            using(DisposableWrapper.New(() => insideBlockHook = false))
             {
-                bbUserHook(address, size);
+                insideBlockHook = true;
+                blockFinishedHook?.Invoke(pc, executedInstructions);
             }
         }
 
@@ -805,24 +819,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void Step(int count = 1, bool wait = true)
+        public void Step(int count = 1)
         {
-            lock(sync.Guard)
+            lock(singleStepSynchronizer.Guard)
             {
                 if(ExecutionMode != ExecutionMode.SingleStep)
                 {
                     throw new RecoverableException("Stepping is available in single step execution mode only.");
                 }
 
-                this.Log(LogLevel.Info, "Stepping {0} steps", count);
-                if(wait)
-                {
-                    sync.PassAndWait(count);
-                }
-                else
-                {
-                    sync.Pass(count);
-                }
+                this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
+                singleStepSynchronizer.CommandStep(count);
+                singleStepSynchronizer.WaitForStepFinished();
             }
         }
 
@@ -893,23 +901,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // this method should only be called from CPU thread,
             // but we should check it anyway
             CheckCpuThreadId();
-
             ExecutionMode = ExecutionMode.SingleStep;
-
-            if(args.BreakpointType?.IsWatchpoint() == true)
-            {
-                // we must call `TlibRequestExit` when hitting a watchpoint to ensure
-                // that `TlibExecute` finishes after executing current TB;
-                // since we know that current TB is of size 1, it's guaranteed to return to C#
-                // right after executing the watchpoint-triggering operation;
-                // this, in turn, allows us to enter `stepping` mode and handle the situation
-                // correctly in GDB stub;
-                // NOTE: we cannot call `TlibRequestExit` for a breakpoint because the TB has
-                // already been finished by the time we enter this function; calling `TlibRequestExit`
-                // would cause the next TB to report a 'fake' breakpoint
-                TlibRequestExit();
-            }
-
             InvokeHalted(args);
         }
 
@@ -935,14 +927,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("About to dispose CPU.");
             }
-            if(!isPaused)
-            {
-                if(!silent)
-                {
-                    this.NoisyLog("Halting CPU.");
-                }
-                InnerPause(new HaltArguments(HaltReason.Abort));
-            }
+            InnerPause(new HaltArguments(HaltReason.Abort));
             TimeHandle.Dispose();
             started = false;
             if(!silent)
@@ -988,7 +973,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
-            sync = new Synchronizer();
+            singleStepSynchronizer = new Synchronizer();
             haltedLock = new object();
 
             onTranslationBlockFetch = OnTranslationBlockFetch;
@@ -1053,7 +1038,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private string libraryFile;
 
         [Transient]
-        private Synchronizer sync;
+        private Synchronizer singleStepSynchronizer;
 
         private ulong translationCacheSize;
         private readonly object translationCacheSync;
@@ -1133,9 +1118,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private CpuThreadPauseGuard ObtainPauseGuard(bool forReading, ulong address)
+        private CpuThreadPauseGuard ObtainPauseGuard(bool forReading, ulong address, SysbusAccessWidth width)
         {
-            pauseGuard.Initialize(forReading, address);
+            pauseGuard.Initialize(forReading, address, width);
             return pauseGuard;
         }
 
@@ -1164,6 +1149,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool[] interruptState;
         private Action<ulong, uint> blockBeginInternalHook;
         private Action<ulong, uint> blockBeginUserHook;
+        private Action<ulong, uint> blockFinishedHook;
 
         private List<SegmentMapping> currentMappings;
 
@@ -1263,7 +1249,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             public CpuThreadPauseGuard(TranslationCPU parent)
             {
                 guard = new ThreadLocal<object>();
-                blockRestartReached = new ThreadLocal<bool>();
                 this.parent = parent;
             }
 
@@ -1277,31 +1262,55 @@ namespace Antmicro.Renode.Peripherals.CPU
                 active = false;
             }
 
-            public void Initialize(bool forReading, ulong address)
+            public void Initialize()
             {
                 guard.Value = new object();
-                if(parent.machine.SystemBus.IsWatchpointAt(address, forReading ? Access.Read : Access.Write))
+            }
+
+            public void Initialize(bool forReading, ulong address, SysbusAccessWidth width)
+            {
+                Initialize();
+                if(!parent.machine.SystemBus.TryGetWatchpointsAt(address, forReading ? Access.Read : Access.Write, out var watchpoints))
                 {
-                    /*
-                     * In general precise pause works as follows:
-                     * - translation libraries execute an instruction that reads/writes to/from memory
-                     * - the execution is then transferred to the system bus (to process memory access)
-                     * - we check whether the accessed address can contain hook (IsWatchpointAt)
-                     * - if it can, we invalidate the block and issue retranslation of the code at current PC - but limiting block size to 1 instruction
-                     * - we exit the cpu loop so that newly translated block will be executed now
-                     * - because the mentioned memory access is executed again, we reach this point for the second time
-                     * - but now we can simply do nothing; because the executed block is of size 1, the pause will be precise
-                     */
-                    var wasReached = blockRestartReached.Value;
-                    blockRestartReached.Value = true;
-                    if(!wasReached)
+                    return;
+                }
+
+                /*
+                    * In general precise pause works as follows:
+                    * - translation libraries execute an instruction that reads/writes to/from memory
+                    * - the execution is then transferred to the system bus (to process memory access)
+                    * - we check whether there are any hooks registered for the accessed address (TryGetWatchpointsAt)
+                    * - if there are (and we hit them for the first time) we call them and then invalidate the block and issue retranslation of the code at current PC
+                    * - we exit the cpu loop so that newly translated block will be executed now
+                    * - the next time we hit them we do nothing
+                */
+
+                var anyEnabled = false;
+                var alreadyUpdated = false;
+                foreach(var enabledWatchpoint in watchpoints.Where(x => x.Enabled))
+                {
+                    enabledWatchpoint.Enabled = false;
+                    if(!alreadyUpdated && parent.UpdateContextOnLoadAndStore)
                     {
-                        // we're here for the first time
-                        parent.TlibRestartTranslationBlock();
-                        // note that on the line above we effectively exit the function so the stuff below is not executed
+                        parent.UpdateContext();
+                        alreadyUpdated = true;
                     }
-                    // since the translation block is now short, we can simply continue
-                    blockRestartReached.Value = false;
+                    enabledWatchpoint.Invoke(address, width);
+                    anyEnabled = true;
+                }
+
+                if(anyEnabled)
+                {
+                    // TODO: think if we have to tlib restart at all? if there is no pausing in watchpoint hook than maybe it's not necessary at all?
+                    parent.TlibRestartTranslationBlock();
+                    // note that on the line above we effectively exit the function so the stuff below is not executed
+                }
+                else
+                {
+                    foreach(var disabledWatchpoint in watchpoints)
+                    {
+                        disabledWatchpoint.Enabled = true;
+                    }
                 }
             }
 
@@ -1320,9 +1329,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             [Constructor]
             private readonly ThreadLocal<object> guard;
-
-            [Constructor]
-            private readonly ThreadLocal<bool> blockRestartReached;
 
             private readonly TranslationCPU parent;
             private bool active;
@@ -1449,19 +1455,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 lock(haltedLock)
                 {
+                    this.Trace();
                     if(value == isHalted)
                     {
                         return;
                     }
+                    this.Trace();
                     isHalted = value;
                     if(TimeHandle != null)
                     {
-                        // this is needed to quit 'RequestTimeInterval'
-                        TimeHandle.Enabled = !value;
-                    }
-                    if(isHalted)
-                    {
-                        InnerPause(new HaltArguments(HaltReason.Pause));
+                        if(insideBlockHook || !OnPossessedThread)
+                        {
+                            this.Trace();
+                            // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                            TimeHandle.DeferredEnabled = !value;
+                        }
+                        else
+                        {
+                            this.Trace();
+                            // this is needed to quit 'RequestTimeInterval'
+                            TimeHandle.Enabled = !value;
+                        }
                     }
                 }
             }
@@ -1485,7 +1499,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetChainingEnabled;
 
         [Import]
-        private Action TlibRequestExit;
+        private ActionUInt32 TlibSetTbCacheEnabled;
+
+        [Import]
+        private FuncUInt32 TlibGetTbCacheEnabled;
 
         [Import]
         private FuncInt32String TlibInit;
@@ -1503,10 +1520,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action TlibRestartTranslationBlock;
 
         [Import]
-        private Action TlibSetPaused;
-
-        [Import]
-        private Action TlibClearPaused;
+        private Action TlibSetReturnRequest;
 
         [Import]
         private FuncUInt32 TlibGetPageSize;
@@ -1563,7 +1577,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetMaximumBlockSize;
 
         [Import]
-        private Action TlibRestoreContext;
+        private FuncInt32 TlibRestoreContext;
 
         [Import]
         private FuncIntPtr TlibExportState;
@@ -1573,6 +1587,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected FuncInt32 TlibGetExecutedInstructions;
+
+        [Import]
+        private ActionUInt32 TlibSetBlockFinishedHookPresent;
 
         #pragma warning restore 649
 
@@ -1687,17 +1704,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool CpuThreadBodyInner()
+        private bool CpuThreadBodyInner(bool singleStep)
         {
-            using(this.ObtainSinkInactiveState())
-            {
-                if(!HandleStepping())
-                {
-                    this.Trace();
-                    return false;
-                }
-            }
-
             if(!TimeHandle.RequestTimeInterval(out var interval))
             {
                 this.Trace();
@@ -1706,15 +1714,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
             var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
+            if(singleStep && instructionsToExecuteThisRound >= 1)
+            {
+                instructionsToExecuteThisRound = 1;
+            }
             var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
-            var singleStep = false;
             var executedResiduum = 0ul;
-            while(!isPaused && instructionsLeftThisRound > 0)
+            while(!isPaused && !isHalted && instructionsLeftThisRound > 0)
             {
-                singleStep = executionMode == ExecutionMode.SingleStep;
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
-                var toExecute = singleStep ? 1 : instructionsLeftThisRound;
 
                 var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
                 var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
@@ -1726,11 +1735,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 // this puts a limit on instructions to execute in one round
                 // and makes timers update independent of the current quantum
-                toExecute = Math.Min(instructionsToNearestLimit, toExecute);
+                var toExecute = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
 
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
-                this.Trace($"CPU executed {executed} instructions");
+                this.Trace($"CPU executed {executed} instructions and returned {result}");
                 instructionsLeftThisRound -= executed;
                 ExecutedInstructions += (ulong)executed;
                 if(executed > 0)
@@ -1740,13 +1749,24 @@ namespace Antmicro.Renode.Peripherals.CPU
                     TimeHandle.ReportProgress(elapsed);
                 }
 
-                if(result == ExecutionResult.Aborted || singleStep || result == ExecutionResult.StoppedAtBreakpoint)
+                if(result == ExecutionResult.StoppedAtBreakpoint)
                 {
-                    // entering a watchpoint (indicated as `StoppedAtBreakpoint`) causes CPU to go into `stepping` mode, so we must exit this loop
-                    // and go through `HandleStepping` as otherwise we would execute too much code
+                    this.Trace();
+                    ExecuteHooks(PC);
+                    // it is necessary to deactivate hooks installed on this PC before
+                    // calling `tlib_execute` again to avoid a loop;
+                    // we need to do this because creating a breakpoint has caused special
+                    // exception-rising, block-breaking `trap` instruction to be
+                    // generated by the tcg;
+                    // in order to execute code after the breakpoint we must first remove
+                    // this `trap` and retranslate the code right after it;
+                    // this is achieved by deactivating the breakpoint (i.e., unregistering
+                    // from tlib, but keeping it in C#), executing the beginning of the next
+                    // block and registering the breakpoint again in the OnBlockBegin hook
+                    DeactivateHooks(PC);
                     break;
                 }
-                else if(result == ExecutionResult.Halted)
+                else if(result == ExecutionResult.WaitingForInterrupt)
                 {
                     this.Trace();
                     // here we test if the nearest scheduled interrupt from timers will happen in this time period:
@@ -1757,11 +1777,17 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     if(instructionsToNearestLimit >= instructionsLeftThisRound)
                     {
-                        this.Trace();
+                        this.Trace($"Instructions to nearest limit are: {instructionsToNearestLimit}");
+                        instructionsLeftThisRound = 0;
                         break;
                     }
                     instructionsLeftThisRound -= instructionsToNearestLimit;
                     TimeHandle.ReportProgress(nearestLimitIn);
+                }
+                else if(result == ExecutionResult.Aborted || result == ExecutionResult.ReturnRequested || result == ExecutionResult.StoppedAtWatchpoint)
+                {
+                    this.Trace(result.ToString());
+                    break;
                 }
             }
 
@@ -1771,28 +1797,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace("halted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
-                return false;
             }
-            else if(isPaused)
+            else if(isPaused || instructionsLeftThisRound > 0)
             {
-                this.Trace("paused, reporting break");
+                this.Trace("reporting break");
                 var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
                 TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
-                return false;
             }
-            else if(!singleStep || instructionsToExecuteThisRound <= 1)
+            else
             {
                 this.Trace("finished, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
             }
-            else
-            {
-                this.Trace("single step finished, reporting break");
-                var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
-                TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
-            }
 
-            return true;
+            return instructionsLeftThisRound != instructionsToExecuteThisRound;
         }
 
         private void CpuThreadBody()
@@ -1806,33 +1824,61 @@ namespace Antmicro.Renode.Peripherals.CPU
                 using(this.ObtainSinkActiveState())
                 using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TotalElapsedTime, TimeHandle.TimeSource.Domain)))
                 {
-                    while(true)
+restart:
+                    while(!isPaused)
                     {
-                        if(CpuThreadBodyInner())
+                        var singleStep = false;
+                        // locking here is to ensure that execution mode does not change
+                        // before calling `WaitForStepCommand` method
+                        lock(singleStepSynchronizer.Guard)
                         {
-                            continue;
+                            singleStep = (executionMode == ExecutionMode.SingleStep);
+                            if(singleStep)
+                            {
+                                // we become incactive as we wait for step command
+                                using(this.ObtainSinkInactiveState())
+                                {
+                                    this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
+                                    InvokeHalted(new HaltArguments(HaltReason.Step));
+                                    if(!singleStepSynchronizer.WaitForStepCommand())
+                                    {
+                                        this.Trace();
+                                        continue;
+                                    }
+                                    this.Trace();
+                                }
+                            }
+                        }
+
+                        var anythingExecuted = CpuThreadBodyInner(singleStep);
+
+                        if(singleStep && anythingExecuted)
+                        {
+                            this.Trace();
+                            singleStepSynchronizer.StepFinished();
+                        }
+                    }
+
+                    this.Trace();
+                    lock(cpuThreadBodyLock)
+                    {
+                        if(dispatcherRestartRequested)
+                        {
+                            dispatcherRestartRequested = false;
+                            this.Trace();
+                            goto restart;
                         }
 
                         this.Trace();
-                        lock(cpuThreadBodyLock)
-                        {
-                            if(!dispatcherRestartRequested)
-                            {
-                                this.Trace();
-                                // the `locker` is re-acquired here to
-                                // make sure that dispose-related code of all usings
-                                // is executed before setting `dispatcherThread` to
-                                // null (what allows to start new dispatcher thread);
-                                // otherwise there could be a race condition when
-                                // new thread enters usings (e.g., activates sink side)
-                                // and then the old one exits them (deactivating sink
-                                // side as a result)
-                                Monitor.Enter(cpuThreadBodyLock, ref isLocked);
-                                break;
-                            }
-                            dispatcherRestartRequested = false;
-                            this.Trace();
-                        }
+                        // the `locker` is re-acquired here to
+                        // make sure that dispose-related code of all usings
+                        // is executed before setting `dispatcherThread` to
+                        // null (what allows to start new dispatcher thread);
+                        // otherwise there could be a race condition when
+                        // new thread enters usings (e.g., activates sink side)
+                        // and then the old one exits them (deactivating sink
+                        // side as a result)
+                        Monitor.Enter(cpuThreadBodyLock, ref isLocked);
                     }
                 }
             }
@@ -1900,8 +1946,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             Ok,
             Aborted,
+            WaitingForInterrupt = 0x10001,
             StoppedAtBreakpoint = 0x10002,
-            Halted = 0x10003,
+            StoppedAtWatchpoint = 0x10004,
+            ReturnRequested = 0x10005
         }
 
         private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
@@ -1932,22 +1980,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Trace($"Asked tlib to execute {numberOfInstructionsToExecute}, but did nothing");
                 }
                 DebugHelper.Assert(numberOfExecutedInstructions <= numberOfInstructionsToExecute, "tlib executed more instructions than it was asked to");
-            }
-
-            if(lastTlibResult == ExecutionResult.StoppedAtBreakpoint)
-            {
-                ExecuteHooks(PC);
-                // it is necessary to deactivate hooks installed on this PC before
-                // calling `tlib_execute` again to avoid a loop;
-                // we need to do this because creating a breakpoint has caused special
-                // exeption-rising, block-breaking `trap` instruction to be
-                // generated by the tcg;
-                // in order to execute code after the breakpoint we must first remove
-                // this `trap` and retranslate the code right after it;
-                // this is achieved by deactivating the breakpoint (i.e., unregistering
-                // from tlib, but keeping it in C#), executing the beginning of the next
-                // block and registering the breakpoint again in the OnBlockBegin hook
-                DeactivateHooks(PC);
             }
 
             return lastTlibResult;
@@ -2036,7 +2068,28 @@ namespace Antmicro.Renode.Peripherals.CPU
                 guard = new object();
             }
 
-            public void SignalAndWait()
+            public bool Enabled
+            {
+                get
+                {
+                    return enabled;
+                }
+
+                set
+                {
+                    lock(guard)
+                    {
+                        enabled = value;
+                        if(!enabled)
+                        {
+                            Monitor.PulseAll(guard);
+                        }
+                    }
+                }
+            }
+
+
+            public void StepFinished()
             {
                 lock(guard)
                 {
@@ -2048,30 +2101,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         Monitor.Pulse(guard);
                     }
-                    do
-                    {
-                        Monitor.Wait(guard);
-                    }
-                    while(counter == 0);
                 }
             }
 
-            public void PassAndWait(int steps = 1)
-            {
-                lock(guard)
-                {
-                    counter = steps;
-                    Monitor.Pulse(guard);
-
-                    do
-                    {
-                        Monitor.Wait(guard);
-                    }
-                    while(counter > 0);
-                }
-            }
-
-            public void Pass(int steps = 1)
+            public void CommandStep(int steps = 1)
             {
                 lock(guard)
                 {
@@ -2080,11 +2113,26 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            public void Wait()
+            public bool WaitForStepCommand()
             {
                 lock(guard)
                 {
-                    Monitor.Wait(guard);
+                    while(enabled && counter == 0)
+                    {
+                        Monitor.Wait(guard);
+                    }
+
+                    return enabled;
+                }
+            }
+            public void WaitForStepFinished()
+            {
+                lock(guard)
+                {
+                    while(counter > 0)
+                    {
+                        Monitor.Wait(guard);
+                    }
                 }
             }
 
@@ -2096,6 +2144,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
+            private bool enabled;
             private int counter;
             private readonly object guard;
         }

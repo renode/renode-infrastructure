@@ -71,6 +71,7 @@ namespace Antmicro.Renode.Time
         // * `SourceSideActive` - when set to `false`: `Request` returns immediately with the `false` result
         // * `SinkSideActive`   - when set to `false`: `WaitUntilDone` returns immediately with the `false` result
         // * `Enabled`          - when set to `false`: `WaitUntilDone` returns immediately with the `true` result
+        // * `DeferredEnabled`  - `Enabled` will be assigned this value when unlatched
         //
         // Internal state:
         // * `sourceSideInProgress` - `true` from  `Grant`                            to  `WaitUntilDone` or `Dispose`
@@ -92,6 +93,7 @@ namespace Antmicro.Renode.Time
         //
         // 4. Latching is needed to ensure that the handle will not become disabled/re-enabled in an arbitrary moment.
         // As described in (2), the disabled handle does not synchronize the sink side, so it cannot switch state when the sink is in progress of an execution and the sink cannot resume execution when the source side is in progress.
+        // It is possible to defer changing value of `Enabled` by using `DeferredEnabled` property - their values will be automatically synced (i.e., `Enabled` will get `DeferredEnabled` value) when unlatching the handle.
         // -------
 
         /// <summary>
@@ -101,6 +103,7 @@ namespace Antmicro.Renode.Time
         {
             innerLock = new object();
             enabled = true;
+            DeferredEnabled = true;
 
             TimeSource = timeSource;
 
@@ -177,47 +180,54 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(!sinkSideInProgress, "Requested a new time interval, but the previous one is still processed.");
 
                 var result = true;
-                if(!Enabled || changingEnabled)
+                if(!Enabled)
                 {
-                    // we test `changingEnabled` here to avoid starvation:
-                    // in order to change state of `Enabled` property the handle must not be latched,
-                    // so the operation blocks until `latchLevel` drops down to 0;
-                    // calling this method (`RequestTimeInterval`) when the handle is in a blocking state results
-                    // in latching it temporarily until `WaitUntilDone` is called;
-                    // this temporary latching/unlatching together with normal latching/unlatching in a short loop
-                    // can cause `latchLevel` to fluctuate from 1 to 2 never allowing the operation modifying `Enabled` to finish
                     result = false;
                 }
                 else if(isBlocking && SourceSideActive)
                 {
-                    // we check SourceSideActive here as otherwise unblocking will not succeed anyway
-                    DebugHelper.Assert(!grantPending, "New grant not expected when blocked.");
-
-                    this.Trace("Asking time source to unblock the time handle");
-                    // latching here is to protect against disabling Enabled that would lead to making IsBlocking false while waiting for unblocking this handle
-                    Latch();
-                    Monitor.Exit(innerLock);
-                    // it is necessary to leave `innerLock` since calling `UnblockHandle` could lead to a deadlock on `handles` collection
-                    var isHandleUnblocked = TimeSource.UnblockHandle(this);
-                    Monitor.Enter(innerLock);
-                    if(!isHandleUnblocked)
+                    if(changingEnabled)
                     {
-                        Unlatch();
-                        this.Trace("Unblocking handle is not allowed, quitting");
+                        // we test `changingEnabled` here to avoid starvation:
+                        // in order to change state of `Enabled` property the handle must not be latched,
+                        // so the operation blocks until `latchLevel` drops down to 0;
+                        // calling this method (`RequestTimeInterval`) when the handle is in a blocking state results
+                        // in latching it temporarily until `WaitUntilDone` is called;
+                        // this temporary latching/unlatching together with normal latching/unlatching in a short loop
+                        // can cause `latchLevel` to fluctuate from 1 to 2 never allowing the operation modifying `Enabled` to finish
                         result = false;
                     }
                     else
                     {
-                        this.Trace("Handle unblocked");
-                        // since we are latched here, latchLevel 1 means that the handle is not currently latched by anybody else
-                        // why? this is needed as we change the value of isBlocking - this should not happen when the handle is latched by another thread
-                        this.Trace("About to wait until the latch reduces to 1");
-                        innerLock.WaitWhile(() => latchLevel > 1, "Waiting for reducing the latch to 1");
-                        isBlocking = false;
+                        // we check SourceSideActive here as otherwise unblocking will not succeed anyway
+                        DebugHelper.Assert(!grantPending, "New grant not expected when blocked.");
 
-                        DebugHelper.Assert(!deferredUnlatch, "Unexpected value of deferredUnlatch");
-                        deferredUnlatch = true;
-                        recentlyUnblocked = true;
+                        this.Trace("Asking time source to unblock the time handle");
+                        // latching here is to protect against disabling Enabled that would lead to making IsBlocking false while waiting for unblocking this handle
+                        Latch();
+                        Monitor.Exit(innerLock);
+                        // it is necessary to leave `innerLock` since calling `UnblockHandle` could lead to a deadlock on `handles` collection
+                        var isHandleUnblocked = TimeSource.UnblockHandle(this);
+                        Monitor.Enter(innerLock);
+                        if(!isHandleUnblocked)
+                        {
+                            Unlatch();
+                            this.Trace("Unblocking handle is not allowed, quitting");
+                            result = false;
+                        }
+                        else
+                        {
+                            this.Trace("Handle unblocked");
+                            // since we are latched here, latchLevel 1 means that the handle is not currently latched by anybody else
+                            // why? this is needed as we change the value of isBlocking - this should not happen when the handle is latched by another thread
+                            this.Trace("About to wait until the latch reduces to 1");
+                            innerLock.WaitWhile(() => latchLevel > 1, "Waiting for reducing the latch to 1");
+                            isBlocking = false;
+
+                            DebugHelper.Assert(!deferredUnlatch, "Unexpected value of deferredUnlatch");
+                            deferredUnlatch = true;
+                            recentlyUnblocked = true;
+                        }
                     }
                 }
                 else if(!grantPending)
@@ -452,6 +462,11 @@ namespace Antmicro.Renode.Time
                 this.Trace($"Time handle unlatched; current level is {latchLevel}");
                 // since there is one place when we wait for latch to be equal to 1, we have to pulse more often than only when latchLevel is 0
                 Monitor.PulseAll(innerLock);
+
+                if(latchLevel == 0)
+                {
+                    Enabled = DeferredEnabled;
+                }
             }
             this.Trace();
         }
@@ -498,17 +513,23 @@ namespace Antmicro.Renode.Time
                     {
                         return;
                     }
+
                     changingEnabled = true;
                     this.Trace("About to wait for unlatching the time handle");
                     innerLock.WaitWhile(() => latchLevel > 0, "Waiting for unlatching the time handle");
 
                     this.Trace($"Enabled value changed: {enabled} -> {value}");
                     enabled = value;
+                    DeferredEnabled = value;
                     changingEnabled = false;
                     if(!enabled)
                     {
                         Monitor.PulseAll(innerLock);
+                    }
+                    else
+                    {
                         TimeSource.ReportHandleActive();
+                        RequestStart();
                     }
                 }
             }
@@ -611,6 +632,11 @@ namespace Antmicro.Renode.Time
         /// Gets the amount of virtual time that passed from the perspective of this handle.
         /// </summary>
         public TimeInterval TotalElapsedTime { get; private set; }
+
+        /// <summary>
+        /// The value of the enabled property that will be set on the nearest call to <see cref="Unlatch"> method.
+        /// </summary>
+        public bool DeferredEnabled { get; set; }
 
         /// <summary>
         /// Informs the sink that the source wants to pause its execution.
