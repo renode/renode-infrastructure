@@ -30,10 +30,10 @@ namespace Antmicro.Renode.Peripherals.SD
                     FileCopier.Copy(imageFile, tempFileName, true);
                     imageFile = tempFileName;
                 }
-                file = new SerializableFileStreamWrapper(imageFile);
+                file = new SerializableStreamView(new FileStream(imageFile, FileMode.OpenOrCreate));
             }
 
-            CardSize = cardSize ?? file.Stream.Length;
+            CardSize = cardSize ?? file.Length;
 
             var cardIdentificationBytes = new byte[] {0x01, 0x00, 0x00, 0x00, // 1b always one + 7b CRC (ignored) + 12b manufacturing date + 4b reserved
                 0x00, 0x00, 0x00, 0x00, // 32b product serial number + 8b product revision
@@ -167,15 +167,15 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public byte[] ReadData(long offset, int size)
         {
-            file.Stream.Seek(offset, SeekOrigin.Begin);
+            file.Seek(offset, SeekOrigin.Begin);
             this.Log(LogLevel.Info, "Reading {0} bytes from card finished.", size);
-            return file.Stream.ReadBytes(size);
+            return file.ReadBytes(size);
         }
 
         public void WriteData(long offset, int size, byte[] data)
         {
-            file.Stream.Seek(offset, SeekOrigin.Begin);
-            file.Stream.Write(data, 0, size);
+            file.Seek(offset, SeekOrigin.Begin);
+            file.Write(data, 0, size);
             this.Log(LogLevel.Info, "Writing {0} bytes to card finished.", (int)size);
         }
 
@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly uint cardAddress = 0xaaaa;
         private uint[] cardSpecificData, cardIdentification;
         private bool opAppInitialized, opCodeChecked, lastAppOpCodeNormal;
-        private readonly SerializableFileStreamWrapper file;
+        private readonly SerializableStreamView file;
 
     }
 }

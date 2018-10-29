@@ -264,8 +264,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 FileCopier.Copy(fileName, tempFile, true);
                 fileName = tempFile;
             }
-            stream = new SerializableFileStreamWrapper(fileName, size);
-            stream.Stream.PaddingByte = 0xFF;
+            stream = new SerializableStreamView(new FileStream(fileName, FileMode.OpenOrCreate), size, 0xFF);
             size2n = (byte)Misc.Logarithm2(size);
             buffer = new byte[DesiredBufferSize];
         }
@@ -387,13 +386,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 FlushBuffer();
                 DiscardBuffer();
-                stream.Stream.Seek(offset, SeekOrigin.Begin);
+                stream.Seek(offset, SeekOrigin.Begin);
                 var a = new byte[EraseBlockSize];
                 for(var i = 0; i < a.Length; i++)
                 {
                     a[i] = 0xFF;
                 }
-                stream.Stream.Write(a, 0, EraseBlockSize);
+                stream.Write(a, 0, EraseBlockSize);
                 CheckBuffer(offset);
             }
             statusRegister |= StatusRegister.ActionDone;
@@ -443,8 +442,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 FlushBuffer();
                 DiscardBuffer(); // to assure consistency
-                stream.Stream.Seek(writeBufferStart, SeekOrigin.Begin);
-                stream.Stream.Write(writeBuffer, 0, writeBuffer.Length);
+                stream.Seek(writeBufferStart, SeekOrigin.Begin);
+                stream.Write(writeBuffer, 0, writeBuffer.Length);
                 this.NoisyLog("Programmed buffer (with direct write) of {0}B at 0x{1:X}.",
                     Misc.NormalizeBinary(writeBuffer.Length), writeBufferStart);
             }
@@ -473,8 +472,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                     else
                     {
                         FlushBuffer();
-                        stream.Stream.Seek(offset, SeekOrigin.Begin);
-                        var read = stream.Stream.Read(writeBuffer, 0, writeBuffer.Length);
+                        stream.Seek(offset, SeekOrigin.Begin);
+                        var read = stream.Read(writeBuffer, 0, writeBuffer.Length);
                         if(read != writeBuffer.Length)
                         {
                             this.Log(LogLevel.Error,
@@ -547,10 +546,10 @@ namespace Antmicro.Renode.Peripherals.MTD
             FlushBuffer();
             var alignedAddress = offset & (~3);
             this.NoisyLog("Reloading buffer at 0x{0:X}.", alignedAddress);
-            stream.Stream.Seek(alignedAddress, SeekOrigin.Begin);
+            stream.Seek(alignedAddress, SeekOrigin.Begin);
             currentBufferStart = alignedAddress;
             currentBufferSize = unchecked((int)Math.Min(DesiredBufferSize, size - alignedAddress));
-            var read = stream.Stream.Read(buffer, 0, currentBufferSize);
+            var read = stream.Read(buffer, 0, currentBufferSize);
             if(read != currentBufferSize)
             {
                 this.Log(LogLevel.Error, "Error while reading from file: read {0}B, but {1}B requested.",
@@ -565,8 +564,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
             this.NoisyLog("Buffer flushed.");
-            stream.Stream.Seek(currentBufferStart, SeekOrigin.Begin);
-            stream.Stream.Write(buffer, 0, currentBufferSize);
+            stream.Seek(currentBufferStart, SeekOrigin.Begin);
+            stream.Write(buffer, 0, currentBufferSize);
             dirty = false;
         }
 
@@ -644,7 +643,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private byte size2n;
         private int size;
         private State state;
-        private SerializableFileStreamWrapper stream;
+        private SerializableStreamView stream;
         private bool nonPersistent;
         private readonly int busWidth;
         private static readonly bool likeFlashProgramming = true;

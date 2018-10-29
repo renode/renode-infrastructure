@@ -7,42 +7,44 @@
 //
 using System;
 using System.IO;
+using Antmicro.Migrant;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Storage
 {
-    public class FileStreamLimitWrapper : Stream
+    public class SerializableStreamView : Stream, ISpeciallySerializable
     {
         //
-        //                                        Padding with 0's
-        //                                        |
-        //         Position = 0                   |   Position = length - 1
-        //         |                              |   |
-        //         v                              v   v
-        // *-------+---------------------------*......#
+        //    this data is not accessible         filled with padding byte
+        //    |                                   |
+        //    |    Position = 0                   |   Position = length - 1
+        //    |    |                              |   |
+        //    v    v                              v   v
+        // *~~~~~~~+---------------------------*......#
         // ^       ^                           ^      ^
         // |       |                           |      |
         // |       offset                      |      |
         // |                                   |      length
-        // underlying stream beginning         |
-        //                                     underlying stream length
+        // underlying stream's beginning       |
+        //                                     underlying stream's length
         //
-        public FileStreamLimitWrapper(FileStream stream, long offset = 0, long? length = null)
+        public SerializableStreamView(Stream stream, long? length = null, byte paddingByte = 0, long offset = 0)
         {
             if(!stream.CanSeek)
             {
                 throw new ArgumentException("This wrapper is suitable only for seekable streams");
             }
 
-            Length = length ?? (stream.Length - offset);
-
-            if(Length < 0 || offset > Length)
+            this.length = length ?? stream.Length - offset;
+            if(this.length < 0 || offset > this.length)
             {
                 throw new ArgumentException("Wrong offset/length values");
             }
 
             underlyingStream = stream;
-            this.offset = offset;
+            underlyingStreamOffset = offset;
             Position = 0;
+            PaddingByte = paddingByte;
         }
 
         protected override void Dispose(bool disposing)
@@ -122,7 +124,35 @@ namespace Antmicro.Renode.Storage
             throw new NotImplementedException();
         }
 
-        public byte PaddingByte { get; set; }
+        public void Load(PrimitiveReader reader)
+        {
+            var fileName = TemporaryFilesManager.Instance.GetTemporaryFile();
+            underlyingStream = new FileStream(fileName, FileMode.OpenOrCreate);
+            underlyingStreamOffset = 0;
+
+            length = reader.ReadInt64();
+            PaddingByte = reader.ReadByte();
+            var numberOfBytes = reader.ReadInt64();
+            reader.CopyTo(underlyingStream, numberOfBytes);
+            Position = reader.ReadInt64();
+        }
+
+        public void Save(PrimitiveWriter writer)
+        {
+            // we don't have to save offset as after deserialization we will treat it as 0
+            // we don't have to save paddingOffset as it will be recalculated by setting `Position` after deserialization
+            writer.Write(Length);
+            writer.Write(PaddingByte);
+            var initialPosition = Position;
+            // this seeks to the beginning of meaningful data in the stream
+            Position = 0;
+            writer.Write(underlyingStream.Length - underlyingStream.Position);
+            writer.CopyFrom(underlyingStream, underlyingStream.Length - underlyingStream.Position);
+            Position = initialPosition;
+            writer.Write(initialPosition);
+        }
+
+        public byte PaddingByte { get; private set; }
 
         public override bool CanRead { get { return underlyingStream.CanRead; } }
 
@@ -130,13 +160,13 @@ namespace Antmicro.Renode.Storage
 
         public override bool CanWrite { get { return underlyingStream.CanWrite; } }
 
-        public override long Length { get; }
+        public override long Length => length;
 
         public override long Position
         {
             get
             {
-                return underlyingStream.Position - offset + paddingOffset;
+                return underlyingStream.Position - underlyingStreamOffset + paddingOffset;
             }
             set
             {
@@ -144,29 +174,28 @@ namespace Antmicro.Renode.Storage
                 {
                     throw new ArgumentException("Setting position beyond the underlying stream is unsupported");
                 }
-                else if (value < 0)
+                else if(value < 0)
                 {
                     throw new ArgumentOutOfRangeException("Position");
                 }
 
-                if(underlyingStream.Length > offset + value)
+                if(underlyingStream.Length > underlyingStreamOffset + value)
                 {
-                    underlyingStream.Seek(offset + value, SeekOrigin.Begin);
+                    underlyingStream.Seek(underlyingStreamOffset + value, SeekOrigin.Begin);
                     paddingOffset = 0;
                 }
                 else
                 {
                     underlyingStream.Seek(0, SeekOrigin.End);
-                    paddingOffset = value - (underlyingStream.Length - offset);
+                    paddingOffset = value - (underlyingStream.Length - underlyingStreamOffset);
                 }
             }
         }
 
-        public string Name { get { return underlyingStream.Name; } }
-
         private long paddingOffset;
-        private readonly FileStream underlyingStream;
-        private readonly long offset;
+        private Stream underlyingStream;
+        private long underlyingStreamOffset;
+        private long length;
     }
 }
 

@@ -129,7 +129,7 @@
     <Compile Include="Utilities\Collections\AutoResizingList.cs" />
     <Compile Include="Core\Structure\NullRegistrationPoint.cs" />
     <Compile Include="Storage\LBABackend.cs" />
-    <Compile Include="Storage\SerializableFileStreamWrapper.cs" />
+    <Compile Include="Storage\SerializableStreamView.cs" />
     <Compile Include="Exceptions\RegistrationException.cs" />
     <Compile Include="Exceptions\RecoverableException.cs" />
     <Compile Include="Exceptions\ConstructionException.cs" />
@@ -270,7 +270,6 @@
     <Compile Include="Utilities\TypeSorter.cs" />
     <Compile Include="Utilities\BlobManager.cs" />
     <Compile Include="Utilities\IBlobProvider.cs" />
-    <Compile Include="Storage\FileStreamLimitWrapper.cs" />
     <Compile Include="Plugins\PluginAttribute.cs" />
     <Compile Include="Utilities\PluginDescriptor.cs" />
     <Compile Include="UserInterface\HideInMonitorAttribute.cs" />
