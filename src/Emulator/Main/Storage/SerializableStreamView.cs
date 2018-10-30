@@ -35,11 +35,7 @@ namespace Antmicro.Renode.Storage
                 throw new ArgumentException("This wrapper is suitable only for seekable streams");
             }
 
-            this.length = length ?? stream.Length - offset;
-            if(this.length < 0 || offset > this.length)
-            {
-                throw new ArgumentException("Wrong offset/length values");
-            }
+            SetLength(length ?? stream.Length - offset);
 
             underlyingStream = stream;
             underlyingStreamOffset = offset;
@@ -121,7 +117,12 @@ namespace Antmicro.Renode.Storage
 
         public override void SetLength(long value)
         {
-            throw new NotImplementedException();
+            if(value < 0 || underlyingStreamOffset > value)
+            {
+                throw new ArgumentException("Wrong offset/length values");
+            }
+
+            this.length = value;
         }
 
         public void Load(PrimitiveReader reader)

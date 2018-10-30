@@ -25,6 +25,9 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             dataBackend = DataStorage.Create(imageFile, size, persistent);
 
+            var sdCapacityParameters = SDCapacity.SeekForCapacityParametes(dataBackend.Length);
+            dataBackend.SetLength(sdCapacityParameters.MemoryCapacity);
+
             cardStatusGenerator = new VariableLengthValue(32)
                 .DefineFragment(5, 1, () => (treatNextCommandAsAppCommand ? 1 : 0u), name: "APP_CMD bit")
                 .DefineFragment(8, 1, 1, name: "READ_FOR_DATA bit");
@@ -34,9 +37,9 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             cardSpecificDataGenerator = new VariableLengthValue(128)
-                .DefineFragment(47, 3, (uint)SizeMultiplier.Multiplier512, name: "device size multiplier")
-                .DefineFragment(62, 12, 0xFFF, name: "device size")
-                .DefineFragment(80, 4, (uint)BlockLength.Block2048, name: "max read data block length")
+                .DefineFragment(47, 3, (uint)sdCapacityParameters.Multiplier, name: "device size multiplier")
+                .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
+                .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
                 .DefineFragment(84, 12, (uint)CardCommandClass.Class0, name: "card command classes")
                 .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
                 .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
@@ -380,26 +383,6 @@ namespace Antmicro.Renode.Peripherals.SD
             SendSDCardStatus_ACMD13 = 13,
             SendOperatingConditionRegister_ACMD41 = 41,
             SendSDConfigurationRegister_ACMD51 = 51
-        }
-
-        private enum SizeMultiplier
-        {
-            Multiplier4 = 0,
-            Multiplier8 = 1,
-            Multiplier16 = 2,
-            Multiplier32 = 3,
-            Multiplier64 = 4,
-            Multiplier128 = 5,
-            Multiplier256 = 6,
-            Multiplier512 = 7
-        }
-
-        private enum BlockLength
-        {
-            Block512 = 9,
-            Block1024 = 10,
-            Block2048 = 11
-            // other values are reserved
         }
 
         [Flags]
