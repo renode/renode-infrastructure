@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 result = eater.GetContents();
             }
 
-            return (result == null) ? PacketData.Success : new PacketData(string.Join(string.Empty, Encoding.UTF8.GetBytes(result).Select(x => x.ToString("X2"))));
+            return (string.IsNullOrEmpty(result)) ? PacketData.Success : new PacketData(string.Join(string.Empty, Encoding.UTF8.GetBytes(result).Select(x => x.ToString("X2"))));
         }
 
         private readonly OpenOcdOverlay openOcdOverlay;
