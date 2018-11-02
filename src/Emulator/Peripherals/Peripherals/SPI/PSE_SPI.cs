@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         }, name: "BIGFIFO")
                     .WithTag("OENOFF", 30, 1)
-                    .WithFlag(31, FieldMode.WriteOneToClear, valueProviderCallback: (_) => false, changeCallback: (_, __) => Reset(), name: "RESET");
+                    .WithFlag(31, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => Reset(), name: "RESET");
 
             maskedInterruptRegister = new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: (_) => enableIrqOnReceive.Value && transmitDone.Value, name: "TXDONE")
@@ -197,9 +197,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         }, name: "AUTOFILL")
                     .WithTag("AUTOEMPTY", 1, 1)
-                    .WithFlag(2, FieldMode.WriteOneToClear, valueProviderCallback: (_) => false, changeCallback: (_, __) => receiveBuffer.Clear(), name: "RXFIFORST")
-                    .WithFlag(3, FieldMode.WriteOneToClear, valueProviderCallback: (_) => false, changeCallback: (_, __) => transmitBuffer.Clear(), name: "TXFIFORST")
-                    .WithFlag(4, FieldMode.WriteOneToClear, valueProviderCallback: (_) => false,
+                    .WithFlag(2, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => receiveBuffer.Clear(), name: "RXFIFORST")
+                    .WithFlag(3, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => transmitBuffer.Clear(), name: "TXFIFORST")
+                    .WithFlag(4, FieldMode.WriteOneToClear | FieldMode.Read,
                         changeCallback: (_, __) =>
                         {
                             frameCounter.Value = 0;
