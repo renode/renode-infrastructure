@@ -118,7 +118,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(4, FieldMode.WriteOneToClear, writeCallback: (_, __) => fullCommandReceived.Value = false, name: "CMDINT")
                     .WithTag("SSEND", 5, 1)
                 },
-                
+
                 {(long)Registers.ReceiveData, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read,
                         valueProviderCallback: _ =>
@@ -226,8 +226,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.AliasedControlRegister0, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, 
-                        writeCallback: (_, newVal) => controlRegister.Write(0, BitHelper.SetBitsFrom(controlRegister.Value, newVal, 0, 8)), 
+                    .WithValueField(0, 8,
+                        writeCallback: (_, newVal) => controlRegister.Write(0, BitHelper.SetBitsFrom(controlRegister.Value, newVal, 0, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 0, 8), name: "CTRL0")
                 },
 
