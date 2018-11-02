@@ -95,6 +95,8 @@ namespace Antmicro.Renode.UserInterface
 
         public bool QuitEnvironment { get; set; }
 
+        public bool HasError => error.Length > 0;
+
         public string GetContents()
         {
             return data.ToString();

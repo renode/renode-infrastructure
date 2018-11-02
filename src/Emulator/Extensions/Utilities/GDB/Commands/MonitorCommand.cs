@@ -26,11 +26,10 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             {
                 var monitor = ObjectCreator.Instance.GetSurrogate<Monitor>();
                 var eater = new CommandInteractionEater();
-                if(!monitor.Parse(arg, eater))
-                {
-                    return PacketData.ErrorReply(1);
-                }
-                result = eater.GetContents();
+                monitor.Parse(arg, eater);
+                result = eater.HasError
+                    ? eater.GetError()
+                    : eater.GetContents();
             }
 
             return (string.IsNullOrEmpty(result)) ? PacketData.Success : new PacketData(string.Join(string.Empty, Encoding.UTF8.GetBytes(result).Select(x => x.ToString("X2"))));
