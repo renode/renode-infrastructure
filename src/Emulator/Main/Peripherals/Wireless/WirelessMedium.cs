@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(!mediumFunction.CanReach(senderPosition, radioAndPosition.Value) || receiver.Channel != sender.Channel)
                 {
                     this.NoisyLog("Packet {0} -> {1} NOT delivered, size {2}.", senderName, receiverName, packet.Length);
-                    return;
+                    continue;
                 }
 
                 receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packet.ToArray(), TimeDomainsManager.Instance.VirtualTimeStamp, () =>
