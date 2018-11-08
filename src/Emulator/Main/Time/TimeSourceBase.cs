@@ -174,13 +174,13 @@ namespace Antmicro.Renode.Time
         /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
         public void ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
         {
-            lock(delayedActions)
+            if(isInSyncPhase && executeImmediately)
             {
-                if(isInSyncPhase && executeImmediately)
-                {
-                    what(new TimeStamp(ElapsedVirtualTime, Domain));
-                }
-                else
+                what(new TimeStamp(ElapsedVirtualTime, Domain));
+            }
+            else
+            {
+                lock(delayedActions)
                 {
                     delayedActions.Add(new DelayedTask(what, new TimeStamp()));
                 }
@@ -598,23 +598,22 @@ namespace Antmicro.Renode.Time
             State = TimeSourceState.ExecutingSyncHook;
 
             DelayedTask[] tasksAsArray;
+            var timeNow = new TimeStamp(ElapsedVirtualTime, Domain);
+            isInSyncPhase = true;
+            SyncHook?.Invoke(ElapsedVirtualTime);
+            State = TimeSourceState.ExecutingDelayedActions;
             lock(delayedActions)
             {
-                isInSyncPhase = true;
-                SyncHook?.Invoke(ElapsedVirtualTime);
-
-                State = TimeSourceState.ExecutingDelayedActions;
-                var timeNow = new TimeStamp(ElapsedVirtualTime, Domain);
                 var tasksToExecute = delayedActions.GetViewBetween(DelayedTask.Zero, new DelayedTask(null, timeNow));
                 tasksAsArray = tasksToExecute.ToArray();
                 tasksToExecute.Clear();
-
-                foreach(var task in tasksAsArray)
-                {
-                    task.What(timeNow);
-                }
-                isInSyncPhase = false;
             }
+            foreach(var task in tasksAsArray)
+            {
+                task.What(timeNow);
+            }
+            isInSyncPhase = false;
+
             NumberOfSyncPoints++;
         }
 
