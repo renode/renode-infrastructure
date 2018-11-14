@@ -462,10 +462,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException("Cannot load ELF on an unpaused machine.");
             }
             this.DebugLog("Loading ELF {0}.", fileName);
-            if(cpu == null)
-            {
-                cpu = (IControllableCPU)GetCPUs().FirstOrDefault();
-            }
             using(var elf = GetELFFromFile(fileName))
             {
                 var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load);
@@ -484,9 +480,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 Lookup.LoadELF(elf, useVirtualAddress);
                 pcCache.Invalidate();
-                if (cpu != null)
+
+                if(cpu != null)
                 {
                     cpu.InitFromElf(elf);
+                }
+                else
+                {
+                    foreach(var c in GetCPUs().Cast<IControllableCPU>())
+                    {
+                        c.InitFromElf(elf);
+                    }
                 }
                 AddFingerprint(fileName);
             }
