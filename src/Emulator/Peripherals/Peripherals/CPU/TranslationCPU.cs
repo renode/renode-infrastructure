@@ -1704,6 +1704,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private ulong executedResiduum;
+
         private bool CpuThreadBodyInner(bool singleStep)
         {
             if(!TimeHandle.RequestTimeInterval(out var interval))
@@ -1720,7 +1722,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             var instructionsLeftThisRound = instructionsToExecuteThisRound;
 
-            var executedResiduum = 0ul;
             while(!isPaused && !isHalted && instructionsLeftThisRound > 0)
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
