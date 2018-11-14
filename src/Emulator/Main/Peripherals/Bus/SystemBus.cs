@@ -610,7 +610,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(!Lookup.TryGetSymbolByAddress(offset, out var symbol))
                 {
                     name = null;
-                } 
+                }
                 else
                 {
                     name = symbol.ToStringRelative(offset);
@@ -1204,7 +1204,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             return result;
         }
-        
+
         private bool IsTargetAccessible(IPeripheral peripheral)
         {
             if(lockedPeripherals.Contains(peripheral))
