@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             var bits = BitHelper.GetBits(val);
                             for(var i = 0; i < bits.Length; i++)
                             {
-                                if((irqManager.PinDirection[i] & GPIOInterruptManager.Direction.Input) != 0)
+                                if((irqManager.PinDirection[i] & GPIOInterruptManager.Direction.Output) != 0)
                                 {
                                     Connections[i].Set(bits[i]);
                                 }
