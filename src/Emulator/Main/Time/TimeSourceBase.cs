@@ -649,7 +649,7 @@ namespace Antmicro.Renode.Time
         private readonly SortedSet<DelayedTask> delayedActions;
         private readonly Sleeper sleeper;
 
-        private static readonly TimeInterval DefaultQuantum = TimeInterval.FromMilliseconds(10);
+        private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);
 
         /// <summary>
         /// Allows locking without starvation.
