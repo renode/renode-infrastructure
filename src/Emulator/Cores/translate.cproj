@@ -85,6 +85,8 @@
           <CompilationFlags Include="-DTARGET_WORDS_BIGENDIAN=1" Condition=" $(TargetEndianess) == 'be' " />
           <CompilationFlags Include="-DTARGET_LONG_BITS=$(TargetWordSize)" />
 
+          <CompilationFlags Include="-DDEBUG=1" Condition=" $(Configuration) == 'Debug'" />
+
           <CompilationFlags Include="$(AdditionalCompilationFlags)" />
 
           <!-- This define is a little hack: It is necessary for CLinkerTask to create separate entry in hashes cache -->
