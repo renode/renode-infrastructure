@@ -201,6 +201,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>> nonstandardCSR;
 
+        private readonly IEnumerable<InstructionSet> architectureSets;
+
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
         [Import]
@@ -276,9 +278,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             HypervisorExternalInterrupt = 0xa,
             MachineExternalInterrupt = 0xb
         }
-
-        private IEnumerable<InstructionSet> architectureSets = new List<InstructionSet>();
-
     }
 }
 
