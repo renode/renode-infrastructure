@@ -243,6 +243,7 @@
     <Compile Include="Peripherals\Timers\MiV_CoreTimer.cs" />
     <Compile Include="Peripherals\UART\MiV_CoreUART.cs" />
     <Compile Include="Peripherals\UART\LiteX_UART.cs" />
+    <Compile Include="Peripherals\UART\PicoSoC_SimpleUART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
     <Compile Include="Peripherals\Miscellaneous\Quark_SystemControlSubsystem.cs" />
     <Compile Include="Peripherals\UART\SiFive_UART.cs" />
