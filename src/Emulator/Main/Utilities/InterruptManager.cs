@@ -31,6 +31,7 @@ namespace Antmicro.Renode.Utilities
             subvectors = new Dictionary<IGPIO, HashSet<TInterrupt>>();
             gpioNames = new Dictionary<IGPIO, string>();
             nonsettableInterrupts = new HashSet<TInterrupt>();
+            enabledOnResetInterrupts = new HashSet<TInterrupt>();
 
             var subvectorIdToGpio = new Dictionary<int, IGPIO>();
 
@@ -58,6 +59,7 @@ namespace Antmicro.Renode.Utilities
                 var subvectorId = 0;
                 var subvectorAttribute = member.GetCustomAttributes(false).OfType<SubvectorAttribute>().SingleOrDefault();
                 var nonsettableAttribute = member.GetCustomAttributes(false).OfType<NotSettableAttribute>().SingleOrDefault();
+                var enabledOnResetAttribute = member.GetCustomAttributes(false).OfType<EnabledOnResetAttribute>().SingleOrDefault();
 
                 if(subvectorAttribute != null)
                 {
@@ -89,13 +91,24 @@ namespace Antmicro.Renode.Utilities
                 {
                     nonsettableInterrupts.Add(interrupt);
                 }
+
+                if(enabledOnResetAttribute != null)
+                {
+                    enabledOnResetInterrupts.Add(interrupt);
+                }
             }
+
+            Reset();
         }
 
         public void Reset()
         {
             activeInterrupts.Clear();
             enabledInterrupts.Clear();
+            foreach(var irq in enabledOnResetInterrupts)
+            {
+                enabledInterrupts.Add(irq);
+            }
             RefreshInterrupts();
         }
 
@@ -253,6 +266,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        private readonly HashSet<TInterrupt> enabledOnResetInterrupts;
         private readonly HashSet<TInterrupt> nonsettableInterrupts;
         private readonly Dictionary<IGPIO, string> gpioNames;
         private readonly Dictionary<IGPIO, HashSet<TInterrupt>> subvectors;
@@ -298,5 +312,10 @@ namespace Antmicro.Renode.Utilities
 
         public string Name { get; private set; }
         public int SubvectorId { get; private set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class EnabledOnResetAttribute : Attribute
+    {
     }
 }
