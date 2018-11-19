@@ -82,7 +82,7 @@ namespace Antmicro.Renode.Utilities.Collections
             return rights.TryGetValue(right, out left);
         }
 
-        public bool ExisitsEither(TLeft left, TRight right)
+        public bool ExistsEither(TLeft left, TRight right)
         {
             lock(lockObject)
             {
