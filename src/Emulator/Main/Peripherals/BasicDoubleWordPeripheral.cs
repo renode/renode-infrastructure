@@ -47,6 +47,16 @@ namespace Antmicro.Renode.Peripherals
 
     public static class BasicDoubleWordPeripheralExtensions
     {
+        public static void Tag32(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint resetValue = 0, string name = "")
+        {
+        }
+
+        // this method it for easier use in peripherals implementing registers of different width
+        public static DoubleWordRegister Define32(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint resetValue = 0, string name = "")
+        {
+            return Define(o, p, resetValue, name);
+        }
+
         // this method should be visible for enums only, but... it's not possible in C#
         public static DoubleWordRegister Define(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint resetValue = 0, string name = "")
         {

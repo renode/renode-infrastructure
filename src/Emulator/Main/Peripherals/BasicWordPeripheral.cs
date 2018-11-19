@@ -47,6 +47,15 @@ namespace Antmicro.Renode.Peripherals
 
     public static class BasicWordPeripheralExtensions
     {
+        public static void Tag16(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        {
+        }
+
+        public static WordRegister Define16(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        {
+            return Define(o, p, resetValue);
+        }
+
         // this method should be visible for enums only, but... it's not possible in C#
         public static WordRegister Define(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
         {

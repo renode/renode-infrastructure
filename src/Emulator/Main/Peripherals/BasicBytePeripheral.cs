@@ -47,6 +47,15 @@ namespace Antmicro.Renode.Peripherals
 
     public static class BasicBytePeripheralExtensions
     {
+        public static void Tag8(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
+        {
+        }
+
+        public static ByteRegister Define8(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
+        {
+            return Define(o, p, resetValue);
+        }
+
         // this method should be visible for enums only, but... it's not possible in C#
         public static ByteRegister Define(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
         {
