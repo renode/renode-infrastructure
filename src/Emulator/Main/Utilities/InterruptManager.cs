@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Utilities
     // it's not possible to limit generic type parameter to enum in C# directly, so we verify it in the constructor
     public class InterruptManager<TInterrupt> where TInterrupt : struct, IConvertible
     {
-        public InterruptManager(IPeripheral master)
+        public InterruptManager(IPeripheral master, IGPIO irq = null, string gpioName = null, int subvector = -1)
         {
             if(!typeof(TInterrupt).IsEnum)
             {
@@ -35,22 +35,31 @@ namespace Antmicro.Renode.Utilities
 
             var subvectorIdToGpio = new Dictionary<int, IGPIO>();
 
-            // scan for irq providers
-            foreach(var member in master.GetType().GetProperties())
+            if(irq != null)
             {
-                var irqProviderAttribute = (IrqProviderAttribute)member.GetCustomAttributes(typeof(IrqProviderAttribute), false).SingleOrDefault();
-                if(irqProviderAttribute == null)
+                subvectorIdToGpio.Add(subvector, irq);
+                gpioNames[irq] = gpioName ?? string.Empty;
+            }
+            else
+            {
+                // scan for irq providers
+                foreach(var member in master.GetType().GetProperties())
                 {
-                    continue;
-                }
+                    var irqProviderAttribute = (IrqProviderAttribute)member.GetCustomAttributes(typeof(IrqProviderAttribute), false).SingleOrDefault();
+                    if(irqProviderAttribute == null)
+                    {
+                        continue;
+                    }
 
-                var gpioField = member.GetMethod.Invoke(master, new object[0]) as IGPIO;
-                if(gpioField == null)
-                {
-                    throw new ArgumentException("IrqProviderAttribute can only be used on properties of type IGPIO.");
+                    var gpioField = member.GetMethod.Invoke(master, new object[0]) as IGPIO;
+                    if(gpioField == null)
+                    {
+                        throw new ArgumentException("IrqProviderAttribute can only be used on properties of type IGPIO.");
+                    }
+
+                    subvectorIdToGpio.Add(irqProviderAttribute.SubvectorId, gpioField);
+                    gpioNames[gpioField] = irqProviderAttribute.Name ?? member.Name;
                 }
-                subvectorIdToGpio.Add(irqProviderAttribute.SubvectorId, gpioField);
-                gpioNames[gpioField] = irqProviderAttribute.Name ?? member.Name;
             }
 
             // this iterates over all values of an enum (SpecialName here is to filter out non-value members of enum type)
