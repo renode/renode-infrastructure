@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             irqSources = new IrqSource[numberOfSources + 1];
             for(var i = 1u; i <= numberOfSources; i++)
             {
-                irqSources[i] = new IrqSource(i);
+                irqSources[i] = new IrqSource(i, this);
             }
 
             irqTargets = new IrqTarget[numberOfTargets];
@@ -54,8 +54,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var registersMap = new Dictionary<long, DoubleWordRegister>();
 
             registersMap.Add((long)Registers.Source0Priority, new DoubleWordRegister(this)
-                             .WithValueField(0, 3, FieldMode.Read,
-                                             writeCallback: (_, value) => { if(value != 0) { this.Log(LogLevel.Warning, $"Trying to set priority {value} to Source 0, which is illegal"); } }));
+                .WithValueField(0, 3, FieldMode.Read, writeCallback: (_, value) =>
+                {
+                    if(value != 0)
+                    {
+                        this.Log(LogLevel.Warning, $"Trying to set priority {value} for Source 0, which is illegal");
+                    }
+                }));
             for(var i = 1; i <= numberOfSources; i++)
             {
                 var j = i;
@@ -66,12 +71,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                     {
                                         if(prioritiesEnabled)
                                         {
-                                            this.Log(LogLevel.Noisy, "Setting priority {0} for source #{1}", value, j);
                                             irqSources[j].Priority = value;
                                             RefreshInterrupts();
                                         }
                                     });
-
             }
 
             AddTargetEnablesRegister(registersMap, (long)Registers.Target0MachineEnables, 0, PrivilegeLevel.Machine, numberOfSources);
@@ -124,8 +127,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             lock(irqSources)
             {
-                this.Log(LogLevel.Noisy, "Setting #{0} irq state to {1}", number, value);
-
                 var irq = irqSources[(uint)number];
                 irq.State = value;
                 irq.IsPending |= value;
@@ -152,12 +153,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             registersMap.Add(offset, new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
             {
-                var res = irqTargets[hartId].levels[(int)level].AcknowledgePendingInterrupt();
-                this.Log(LogLevel.Noisy, "Acknowledging pending interrupt for hart {0} on level {1}: {2}", hartId, level, res);
-                return res;
-            }, writeCallback: (_, value) =>
+                return irqTargets[hartId].levels[(int)level].AcknowledgePendingInterrupt();
+            },
+            writeCallback: (_, value) =>
             {
-                this.Log(LogLevel.Noisy, "Completing handling interrupt from source {0} for hart {1} on level {2}", value, hartId, level);
                 irqTargets[hartId].levels[(int)level].CompleteHandlingInterrupt(irqSources[value]);
             }));
         }
@@ -195,7 +194,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 continue;
                             }
 
-                            this.Log(LogLevel.Noisy, "{0} source #{1} for hart {2} on level {3}", bits[bit] ? "Enabling" : "Disabling", sourceNumber, hartId, level);
                             irqTargets[hartId].levels[(int)level].EnableSource(irqSources[sourceNumber], bits[bit]);
                         }
                         RefreshInterrupts();
@@ -212,8 +210,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private class IrqSource
         {
-            public IrqSource(uint id)
+            public IrqSource(uint id, PlatformLevelInterruptController irqController)
             {
+                this.irqController = irqController;
+
                 Id = id;
                 Reset();
             }
@@ -231,9 +231,56 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             public uint Id { get; private set; }
-            public uint Priority { get; set; }
-            public bool State { get; set; }
-            public bool IsPending { get; set; }
+
+            public uint Priority
+            {
+                 get { return priority; }
+                 set
+                 {
+                     if(value == priority)
+                     {
+                         return;
+                     }
+
+                     irqController.Log(LogLevel.Noisy, "Setting priority {0} for source #{1}", value, Id);
+                     priority = value;
+                 }
+            }
+
+            public bool State
+            {
+                get { return state; }
+                set
+                {
+                    if(value == state)
+                    {
+                        return;
+                    }
+
+                    state = value;
+                    irqController.Log(LogLevel.Noisy, "Setting state to {0} for source #{1}", value, Id);
+                }
+            }
+            public bool IsPending
+            {
+                get { return isPending; }
+                set
+                {
+                    if(value == isPending)
+                    {
+                        return;
+                    }
+
+                    isPending = value;
+                    irqController.Log(LogLevel.Noisy, "Setting pending status to {0} for source #{1}", value, Id);
+                }
+            }
+
+            private uint priority;
+            private bool state;
+            private bool isPending;
+
+            private readonly PlatformLevelInterruptController irqController;
 
             // 1 is the default, lowest value. 0 means "no interrupt".
             private const uint DefaultPriority = 1;
@@ -245,10 +292,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 levels = new IrqTargetHandler[]
                 {
-                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.User),
-                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.Supervisor),
-                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.Hypervisor),
-                    new IrqTargetHandler(irqController, 4 * id + (int)PrivilegeLevel.Machine)
+                    new IrqTargetHandler(irqController, id, PrivilegeLevel.User),
+                    new IrqTargetHandler(irqController, id, PrivilegeLevel.Supervisor),
+                    new IrqTargetHandler(irqController, id, PrivilegeLevel.Hypervisor),
+                    new IrqTargetHandler(irqController, id, PrivilegeLevel.Machine)
                 };
             }
 
@@ -272,17 +319,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public class IrqTargetHandler
             {
-                public IrqTargetHandler(PlatformLevelInterruptController irqController, uint irqId)
+                public IrqTargetHandler(PlatformLevelInterruptController irqController, uint targetId, PrivilegeLevel privilegeLevel)
                 {
                     this.irqController = irqController;
-                    this.irqId = irqId;
+                    this.targetId = targetId;
+                    this.privilegeLevel = privilegeLevel;
 
                     enabledSources = new HashSet<IrqSource>();
                     activeInterrupts = new Stack<IrqSource>();
                 }
 
-                public HashSet<IrqSource> enabledSources;
-                public Stack<IrqSource> activeInterrupts;
+                public override string ToString()
+                {
+                    return $"[Hart #{targetId} at {privilegeLevel} level (connection output #{ConnectionNumber})]";
+                }
 
                 public void Reset()
                 {
@@ -298,7 +348,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         var currentPriority = activeInterrupts.Count > 0 ? activeInterrupts.Peek().Priority : 0;
                         var isPending = enabledSources.Any(x => x.Priority > currentPriority && x.IsPending);
-                        irqController.Connections[(int)irqId].Set(isPending);
+                        irqController.Connections[ConnectionNumber].Set(isPending);
+                        irqController.Log(LogLevel.Noisy, "Setting irq to {0} @ {1}", isPending, this);
                     }
                 }
 
@@ -306,12 +357,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     lock(irqController.irqSources)
                     {
-                        irqController.Log(LogLevel.Noisy, "Completing irq {0} at target {1}", irq.Id, irqId);
+                        irqController.Log(LogLevel.Noisy, "Completing irq {0} at {1}", irq.Id, this);
 
                         var topActiveInterrupt = activeInterrupts.Pop();
                         if(topActiveInterrupt != irq)
                         {
-                            irqController.Log(LogLevel.Error, "Trying to complete irq {0} at target {1}, but {2} is the active one", irq.Id, irqId, topActiveInterrupt.Id);
+                            irqController.Log(LogLevel.Error, "Trying to complete irq {0} @ {1}, but {2} is the active one", irq.Id, this, topActiveInterrupt.Id);
                             return;
                         }
 
@@ -330,6 +381,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         enabledSources.Remove(s);
                     }
+                    irqController.Log(LogLevel.Noisy, "{0} source #{1} @ {2}", enabled ? "Enabling" : "Disabling", s.Id, this);
                     RefreshInterrupt();
                 }
 
@@ -342,21 +394,26 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             .ThenBy(x => x.Id).FirstOrDefault();
                         if(pendingIrq == null)
                         {
-                            irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for target {0}", irqId);
+                            irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for {0}", this);
                             return 0;
                         }
                         pendingIrq.IsPending = false;
                         activeInterrupts.Push(pendingIrq);
 
-                        irqController.Log(LogLevel.Noisy, "Acknowledging pending interrupt #{0} at target {1}", pendingIrq.Id, irqId);
+                        irqController.Log(LogLevel.Noisy, "Acknowledging pending interrupt #{0} @ {1}", pendingIrq.Id, this);
 
                         RefreshInterrupt();
                         return pendingIrq.Id;
                     }
                 }
 
-                private readonly uint irqId;
+                private int ConnectionNumber => (int)(4 * targetId + (int)privilegeLevel);
+
+                private readonly uint targetId;
+                private readonly PrivilegeLevel privilegeLevel;
                 private readonly PlatformLevelInterruptController irqController;
+                private readonly HashSet<IrqSource> enabledSources;
+                private readonly Stack<IrqSource> activeInterrupts;
             }
         }
 
