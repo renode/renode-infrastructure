@@ -23,18 +23,7 @@ namespace Antmicro.Renode.Peripherals.SD
     {
         public SDCard(string imageFile, long? size = null, bool persistent = false)
         {
-            if(string.IsNullOrEmpty(imageFile))
-            {
-                throw new ConstructionException("No card image file provided.");
-            }
-
-            if(!persistent)
-            {
-                var tempFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
-                FileCopier.Copy(imageFile, tempFileName, true);
-                imageFile = tempFileName;
-            }
-            file = new SerializableFileStreamWrapper(imageFile, size);
+            dataBackend = DataStorage.Create(imageFile, size, persistent);
 
             cardStatusGenerator = new VariableLengthValue(32)
                 .DefineFragment(5, 1, () => (treatNextCommandAsAppCommand ? 1 : 0u), name: "APP_CMD bit")
@@ -74,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public void Dispose()
         {
-            file.Dispose();
+            dataBackend.Dispose();
         }
 
         public BitStream HandleCommand(uint commandIndex, uint arg)
@@ -161,19 +150,19 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private void WriteDataToUnderlyingFile(long offset, int size, byte[] data)
         {
-            file.Stream.Position = offset;
-            var actualSize = checked((int)Math.Min(size, file.Stream.Length - file.Stream.Position));
+            dataBackend.Position = offset;
+            var actualSize = checked((int)Math.Min(size, dataBackend.Length - dataBackend.Position));
             if(actualSize < size)
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes of data to offset {1}, but space for only {2} is available.", size, offset, actualSize);
             }
-            file.Stream.Write(data, 0, actualSize);
+            dataBackend.Write(data, 0, actualSize);
         }
 
         private byte[] ReadDataFromUnderlyingFile(long offset, int size)
         {
-            file.Stream.Position = offset;
-            var actualSize = checked((int)Math.Min(size, file.Stream.Length - file.Stream.Position));
+            dataBackend.Position = offset;
+            var actualSize = checked((int)Math.Min(size, dataBackend.Length - dataBackend.Position));
             if(actualSize < size)
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes of data from offset {1}, but only {2} is available.", size, offset, actualSize);
@@ -182,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.SD
             var readSoFar = 0;
             while(readSoFar < actualSize)
             {
-                var readThisTime = file.Stream.Read(result, readSoFar, actualSize - readSoFar);
+                var readThisTime = dataBackend.Read(result, readSoFar, actualSize - readSoFar);
                 if(readThisTime == 0)
                 {
                     // this should not happen as we calculated the available data size
@@ -289,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private uint blockLengthInBytes;
         private IoContext writeContext;
         private IoContext readContext;
-        private readonly SerializableFileStreamWrapper file;
+        private readonly Stream dataBackend;
         private readonly VariableLengthValue cardStatusGenerator;
         private readonly VariableLengthValue operatingConditionsGenerator;
         private readonly VariableLengthValue cardSpecificDataGenerator;

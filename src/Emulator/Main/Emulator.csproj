@@ -406,6 +406,7 @@
     <Compile Include="Peripherals\Bus\ISymbolEntryExtensions.cs" />
     <Compile Include="Utilities\DisposableWrapper.cs" />
     <Compile Include="Testing\PWMTester.cs" />
+    <Compile Include="Storage\DataStorage.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
