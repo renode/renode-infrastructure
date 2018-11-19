@@ -33,6 +33,32 @@ namespace Antmicro.Renode.Utilities.Collections
             return Remove(left, out tmp);
         }
 
+        public bool TryExchange(TLeft left, TRight newRight, out TRight oldRight)
+        {
+            lock(lockObject)
+            {
+                if(!Remove(left, out oldRight))
+                {
+                    return false;
+                }
+                Add(left, newRight);
+                return true;
+            }
+        }
+
+        public bool TryExchange(TRight right, TLeft newLeft, out TLeft oldLeft)
+        {
+            lock(lockObject)
+            {
+                if(!Remove(right, out oldLeft))
+                {
+                    return false;
+                }
+                Add(newLeft, right);
+                return true;
+            }
+        }
+
         public bool Remove(TLeft left, out TRight right)
         {
             right = default(TRight);
@@ -43,6 +69,21 @@ namespace Antmicro.Renode.Utilities.Collections
                     return false;
                 }
                 right = lefts[left];
+                RemoveExistingMapping(left, right);
+            }
+            return true;
+        }
+
+        public bool Remove(TRight right, out TLeft left)
+        {
+            left = default(TLeft);
+            lock(lockObject)
+            {
+                if(!Exists(right))
+                {
+                    return false;
+                }
+                left = rights[right];
                 RemoveExistingMapping(left, right);
             }
             return true;
