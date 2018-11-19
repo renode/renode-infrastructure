@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.USB
         Device = 1,
         Configuration = 2,
         String = 3,
-        Intreface = 4,
+        Interface = 4,
         Endpoint = 5,
         DeviceQualifier = 6,
         OtherSpeedConfiguration = 7,

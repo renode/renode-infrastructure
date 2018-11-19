@@ -217,7 +217,7 @@ namespace Antmicro.Renode.Peripherals.USB
     {
         public InterfaceUSBDescriptor()
         {
-            Type = DescriptorType.Intreface;
+            Type = DescriptorType.Interface;
             Length = 0x9;
         }
 
