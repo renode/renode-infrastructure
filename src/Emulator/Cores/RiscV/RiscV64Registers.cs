@@ -90,6 +90,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue64((int)RiscV64Registers.MCAUSE, value);
             }
         }
+        [Register]
+        public RegisterValue MEPC
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.MEPC);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.MEPC, value);
+            }
+        }
         public RegistersGroup X { get; private set; }
         public RegistersGroup F { get; private set; }
 
@@ -255,6 +267,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV64Registers.F30,  new CPURegister(63, 64, false) },
             { RiscV64Registers.F31,  new CPURegister(64, 64, false) },
             { RiscV64Registers.MCAUSE,  new CPURegister(834, 64, false) },
+            { RiscV64Registers.MEPC,  new CPURegister(898, 64, false) },
             { RiscV64Registers.PRIV,  new CPURegister(4161, 64, false) },
         };
     }
@@ -265,6 +278,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         PC = 32,
         PRIV = 4161,
         MCAUSE = 834,
+        MEPC = 898,
         X0 = 0,
         X1 = 1,
         X2 = 2,
