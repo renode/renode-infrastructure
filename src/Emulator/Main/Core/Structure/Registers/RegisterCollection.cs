@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             if(!TryWrite(offset, value))
             {
-                parent.LogUnhandledRead(offset);
+                parent.LogUnhandledWrite(offset, value);
             }
         }
 
