@@ -407,6 +407,7 @@
     <Compile Include="Utilities\DisposableWrapper.cs" />
     <Compile Include="Testing\PWMTester.cs" />
     <Compile Include="Storage\DataStorage.cs" />
+    <Compile Include="Core\GPIOGate.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
