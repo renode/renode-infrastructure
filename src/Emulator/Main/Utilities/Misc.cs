@@ -978,6 +978,35 @@ namespace Antmicro.Renode.Utilities
                 minute ?? @this.Minute,
                 second ?? @this.Second);
         }
+
+        public static void EnqueueRange<T>(this Queue<T> @this, IEnumerable<T> data, int? limit = null)
+        {
+            foreach(var e in data.Take(limit ?? int.MaxValue))
+            {
+                @this.Enqueue(e);
+            }
+        }
+
+        public static T[] DequeueAll<T>(this Queue<T> @this)
+        {
+            var result = new T[@this.Count];
+            for(var i = 0; i < result.Length; i++)
+            {
+                result[i] = @this.Dequeue();
+            }
+            return result;
+        }
+
+        public static bool TryDequeue<T>(this Queue<T> @this, out T result)
+        {
+            if(@this.Count == 0)
+            {
+                result = default(T);
+                return false;
+            }
+            result = @this.Dequeue();
+            return true;
+        }
     }
 }
 
