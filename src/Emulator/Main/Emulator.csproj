@@ -173,6 +173,7 @@
     <Compile Include="Core\Structure\NumberRegistrationPoint.cs" />
     <Compile Include="Core\Structure\USBRegistrationPoint.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\WriteLoggingWrapper.cs" />
+    <Compile Include="Utilities\BitStream.cs" />
     <Compile Include="Utilities\BitHelper.cs" />
     <Compile Include="Core\Structure\MACAddress.cs" />
     <Compile Include="Peripherals\Input\IInputDevice.cs" />
