@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals
     public static class BasicBytePeripheralExtensions
     {
         // this method should be visible for enums only, but... it's not possible in C#
-        public static ByteRegister Define(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0)
+        public static ByteRegister Define(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
         {
             if(!o.GetType().IsEnum)
             {
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals
             return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue);
         }
 
-        public static ByteRegister Bind(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, ByteRegister reg)
+        public static ByteRegister Bind(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, ByteRegister reg, string name = "")
         {
             if(!o.GetType().IsEnum)
             {

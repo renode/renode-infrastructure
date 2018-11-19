@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals
     public static class BasicDoubleWordPeripheralExtensions
     {
         // this method should be visible for enums only, but... it's not possible in C#
-        public static DoubleWordRegister Define(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint resetValue = 0)
+        public static DoubleWordRegister Define(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint resetValue = 0, string name = "")
         {
             if(!o.GetType().IsEnum)
             {

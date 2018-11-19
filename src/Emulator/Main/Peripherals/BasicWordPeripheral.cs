@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals
     public static class BasicWordPeripheralExtensions
     {
         // this method should be visible for enums only, but... it's not possible in C#
-        public static WordRegister Define(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0)
+        public static WordRegister Define(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
         {
             if(!o.GetType().IsEnum)
             {
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals
             return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue);
         }
 
-        public static WordRegister Bind(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, WordRegister reg)
+        public static WordRegister Bind(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, WordRegister reg, string name = "")
         {
             if(!o.GetType().IsEnum)
             {
