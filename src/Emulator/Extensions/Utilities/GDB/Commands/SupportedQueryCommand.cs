@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("qSupported")]
         public PacketData Execute()
         {
-            return new PacketData(string.Format("PacketSize={0:x4};swbreak+;hwbreak+", 4096));
+            return new PacketData(string.Format("PacketSize={0:x4};qXfer:features:read+;swbreak+;hwbreak+", 4096));
         }
     }
 }
