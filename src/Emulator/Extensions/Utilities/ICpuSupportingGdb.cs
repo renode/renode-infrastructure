@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         void StartGdbServer(int port, bool autostartEmulation = false);
         void StopGdbServer();
+        string GDBArchitecture { get; }
     }
 }
 

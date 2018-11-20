@@ -24,6 +24,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "i386"; } }
 
+        public override string GDBArchitecture { get { return Architecture; } }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             if(number == 0)

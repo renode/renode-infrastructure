@@ -63,6 +63,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "ppc"; } }
 
+        public override string GDBArchitecture { get { return "powerpc:common"; } }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             if(number == 0)

@@ -18,5 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public override string Architecture { get { return "riscv64"; } }
+
+        public override string GDBArchitecture { get { return "riscv:rv64"; } }
     }
 }

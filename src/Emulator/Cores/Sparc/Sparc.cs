@@ -30,6 +30,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "sparc"; } }
 
+        public override string GDBArchitecture { get { return Architecture; } }
+
         private void Init()
         {
 

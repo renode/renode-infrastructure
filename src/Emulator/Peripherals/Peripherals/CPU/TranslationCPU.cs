@@ -965,6 +965,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract string Architecture { get; }
 
+        public abstract string GDBArchitecture { get; }
+
         private void InitInterruptEvents()
         {
             var gpioAttr = GetType().GetCustomAttributes(true).First(x => x is GPIOAttribute) as GPIOAttribute;
