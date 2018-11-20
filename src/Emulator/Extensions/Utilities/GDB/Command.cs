@@ -81,6 +81,8 @@ namespace Antmicro.Renode.Utilities.GDB
                     return valueToParse.Split(2).Select(x => byte.Parse(x, NumberStyles.HexNumber)).ToArray();
                 case ArgumentAttribute.ArgumentEncoding.HexString:
                     return Encoding.UTF8.GetString(valueToParse.Split(2).Select(x => byte.Parse(x, NumberStyles.HexNumber)).ToArray());
+                case ArgumentAttribute.ArgumentEncoding.String:
+                    return valueToParse;
                 default:
                     throw new ArgumentException(string.Format("Unsupported argument type: {0}", parameterInfo.ParameterType.Name));
             }

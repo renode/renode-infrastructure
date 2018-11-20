@@ -19,7 +19,8 @@ namespace Antmicro.Renode.Utilities.GDB
             HexNumber,
             HexBytesString, // two hex digits for each byte
             BinaryBytes,
-            HexString // two hex digits for every character
+            HexString, // two hex digits for every character
+            String
         }
     }
 }
