@@ -155,6 +155,7 @@
     <Compile Include="Utilities\ICpuSupportingGdb.cs" />
     <Compile Include="UserInterface\MonitorExecutorExtensions.cs" />
     <Compile Include="Utilities\GDB\Commands\MonitorCommand.cs" />
+    <Compile Include="Utilities\GDB\Commands\QueryCommand.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
