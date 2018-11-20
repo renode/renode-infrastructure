@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="Peripherals\Timers\PSE_RTC.cs" />
     <Compile Include="Peripherals\SD\PSE_SDController.cs" />
+    <Compile Include="Peripherals\SPI\PSE_QSPI.cs" />
     <Compile Include="Peripherals\SPI\Micron_MT25Q.cs" />
     <Compile Include="Peripherals\MTD\CFIFlash.cs" />
     <Compile Include="Peripherals\UART\NS16550.cs" />
