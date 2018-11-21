@@ -16,6 +16,7 @@ using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class PSE_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
         public PSE_GPIO(Machine machine) : base(machine, 32)
