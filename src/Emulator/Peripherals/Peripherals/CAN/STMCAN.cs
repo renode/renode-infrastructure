@@ -11,6 +11,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Antmicro.Renode.Core.CAN;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
@@ -54,9 +55,9 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public event Action<int, byte[]> FrameReceived;
 
-        public void OnFrameReceived(int id, byte[] data)
+        public void OnFrameReceived(CANMessageFrame message)
         {
-            this.Log(LogLevel.Warning, "TODO: Received data of id {0}", id);
+            this.Log(LogLevel.Warning, "TODO: Received data of id {0}", message.Id);
             if(registers.CAN_MCR.SleepRequest == true)
             {
                 // Wake up if autowake up is on
@@ -71,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
             else if(registers.CAN_BTR.LoopbackMode == false)
             {
-                CANMessage RxMsg = new CANMessage(id, data);
+                CANMessage RxMsg = new CANMessage(message);
                 for(int fifo = 0; fifo < NumberOfRxFifos; fifo++)
                 {
                     if(FilterCANMessage(fifo, RxMsg) == true)
@@ -80,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     }
                 }
             }
-            FrameReceived?.Invoke(id, data);
+            FrameReceived?.Invoke((int)message.Id, message.Data);
         }
 
         public void WriteDoubleWord(long address, uint value)  // cpu do per
@@ -321,10 +322,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 if(FrameSent != null)
                 {
-                    int id = (int)msg.CAN_RIR;
-                    byte[] Data = new byte[msg.DLC];
-                    Array.Copy(msg.Data, Data, msg.DLC);
-                    FrameSent(id, Data);
+                    FrameSent(new CANMessageFrame(msg.CAN_RIR, new byte[msg.DLC]));
                 }
                 else
                 {
@@ -1579,16 +1577,16 @@ namespace Antmicro.Renode.Peripherals.CAN
                 GenerateRegisters();
             }
 
-            public CANMessage(int Id, byte[] Data)
+            public CANMessage(CANMessageFrame message)
             {
-                CAN_RIR = (uint)Id & RIRMASK;
+                CAN_RIR = (uint)message.Id & RIRMASK;
                 ExtractRIRRegister();
 
                 //this.TimeStamp = (Data[6] << 8) | Data[7];
                 this.DLC = (uint)Data.Length;
                 GenerateRDTRRegister();
 
-                this.Data = Data;
+                this.Data = message.Data;
                 GenerateDataRegisters();
             }
 
@@ -1848,7 +1846,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private const int RxFifo1 = 1;
         private const int NumberOfFilterBanks = 28;
 
-        public event Action<int, byte[]> FrameSent;
+        public event Action<CANMessageFrame> FrameSent;
         private DeviceRegisters registers;
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
         private Queue<CANMessage>[] RxFifo = new Queue<CANMessage>[NumberOfRxFifos];

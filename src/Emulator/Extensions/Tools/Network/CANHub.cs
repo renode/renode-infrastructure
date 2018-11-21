@@ -13,6 +13,7 @@ using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CAN;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Core.CAN;
 
 namespace Antmicro.Renode.Tools.Network
 {
@@ -30,7 +31,7 @@ namespace Antmicro.Renode.Tools.Network
         {
             sync = new object();
             attached = new List<ICAN>();
-            handlers = new Dictionary<ICAN, Action<int, byte[]>>();
+            handlers = new Dictionary<ICAN, Action<CANMessageFrame>>();
         }
 
         public void AttachTo(ICAN iface)
@@ -42,7 +43,7 @@ namespace Antmicro.Renode.Tools.Network
                     throw new RecoverableException("Cannot attach to the provided CAN periperal as it is already registered in this hub.");
                 }
                 attached.Add(iface);
-                handlers.Add(iface, (id, data) => Transmit(iface, id, data));
+                handlers.Add(iface, message => Transmit(iface, message));
                 iface.FrameSent += handlers[iface];
             }
         }
@@ -79,7 +80,7 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
-        private void Transmit(ICAN sender, int id, byte[] data)
+        private void Transmit(ICAN sender, CANMessageFrame message)
         {
             lock(sync)
             {
@@ -89,13 +90,13 @@ namespace Antmicro.Renode.Tools.Network
                 }
                 foreach(var iface in attached.Where(x => x != sender))
                 {
-                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, id, data, TimeDomainsManager.Instance.VirtualTimeStamp);
+                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, TimeDomainsManager.Instance.VirtualTimeStamp);
                 }
             }
         }
 
         private readonly List<ICAN> attached;
-        private readonly Dictionary<ICAN, Action<int, byte[]>> handlers;
+        private readonly Dictionary<ICAN, Action<CANMessageFrame>> handlers;
         private bool started;
         private object sync;
     }

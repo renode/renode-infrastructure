@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Peripherals.CAN
@@ -13,8 +14,8 @@ namespace Antmicro.Renode.Peripherals.CAN
     [Icon("can")]
     public interface ICAN : IPeripheral
     {
-        event Action<int, byte[]> FrameSent;
-        void OnFrameReceived(int id, byte[] data);
+        event Action<CANMessageFrame> FrameSent;
+        void OnFrameReceived(CANMessageFrame message);
     }
 }
 
