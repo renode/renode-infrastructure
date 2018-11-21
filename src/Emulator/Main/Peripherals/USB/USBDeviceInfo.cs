@@ -1,0 +1,203 @@
+//
+// Copyright (c) 2010-2018 Antmicro
+//
+//  This file is licensed under the MIT License.
+//  Full license text is available in 'licenses/MIT.txt'.
+//
+using System;
+using System.Collections.Generic;
+using System.Dynamic;
+using System.Linq;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Packets;
+
+namespace Antmicro.Renode.Core.USB
+{
+    public class USBDeviceInfo : DescriptorProvider
+    {
+        public USBDeviceInfo(IUSBDevice device,
+                             USBClassCode classCode = USBClassCode.NotSpecified,
+                             byte subClassCode = 0,
+                             byte protocol = 0,
+                             USBProtocol usbProtocolVersion = USBProtocol.USB_2_0,
+                             short deviceReleaseNumber = 0,
+                             PacketSize maximalPacketSize = PacketSize.Size64,
+                             string manufacturerName = null,
+                             string productName = null,
+                             string serialNumber = null,
+                             short vendorId = 0,
+                             short productId = 0) : base(18, (byte)DescriptorType.Device)
+        {
+            if(maximalPacketSize != PacketSize.Size8
+                && maximalPacketSize != PacketSize.Size16
+                && maximalPacketSize != PacketSize.Size32
+                && maximalPacketSize != PacketSize.Size64)
+            {
+                throw new ConstructionException("Unsupported maximal packet size.");
+            }
+
+            this.device = device;
+            configurations = new List<USBConfiguration>();
+
+            CompatibleProtocolVersion = usbProtocolVersion;
+            Class = classCode;
+            SubClass = subClassCode;
+            Protocol = protocol;
+            DeviceReleaseNumber = deviceReleaseNumber;
+            MaximalPacketSize = maximalPacketSize;
+            ManufacturerName = manufacturerName;
+            ProductName = productName;
+            SerialNumber = serialNumber;
+            VendorId = vendorId;
+            ProductId = productId;
+
+            RegisterSubdescriptors(configurations);
+        }
+
+        public USBEndpoint GetEndpoint(int endpointNumber)
+        {
+            foreach(var iface in SelectedConfiguration.Interfaces)
+            {
+                return iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
+            }
+
+            return null;
+        }
+
+        public byte[] HandleSetupPacket(SetupPacket packet)
+        {
+            var result = BitStream.Empty;
+            switch(packet.Recipient)
+            {
+                case PacketRecipient.Device:
+                    result = HandleRequest(packet);
+                    break;
+                case PacketRecipient.Interface:
+                    if(SelectedConfiguration == null)
+                    {
+                        device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
+                        return new byte[0];
+                    }
+                    var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
+                    if(iface == null)
+                    {
+                        device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
+                    }
+                    result = iface.HandleRequest(packet);
+                    break;
+                default:
+                    device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
+                    break;
+            }
+
+            return result.AsByteArray(packet.Count * 8u);
+        }
+
+        private BitStream HandleRequest(SetupPacket packet)
+        {
+            if(packet.Type != PacketType.Standard)
+            {
+                device.Log(LogLevel.Warning, "Non standard requests are not supported");
+            }
+            else
+            {
+                switch((StandardRequest)packet.Request)
+                {
+                    case StandardRequest.SetAddress:
+                        device.Address = checked((byte)packet.Value);
+                        break;
+                    case StandardRequest.GetDescriptor:
+                        if(packet.Direction != Direction.DeviceToHost)
+                        {
+                            device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
+                            break;
+                        }
+                        return HandleGetDescriptor(packet.Value);
+                    case StandardRequest.SetConfiguration:
+                        SelectedConfiguration = Configurations.SingleOrDefault(x => x.Identifier == packet.Value);
+                        if(SelectedConfiguration == null)
+                        {
+                            device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
+                        }
+                        break;
+                    default:
+                        device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
+                        break;
+                }
+            }
+
+            return BitStream.Empty;
+        }
+
+        private BitStream HandleGetDescriptor(short value)
+        {
+            var descriptorType = (DescriptorType)(value >> 8);
+            var descriptorIndex = (byte)value;
+
+            switch(descriptorType)
+            {
+                case DescriptorType.Device:
+                    return GetDescriptor(false);
+                case DescriptorType.Configuration:
+                    if(Configurations.Count < descriptorIndex)
+                    {
+                        device.Log(LogLevel.Warning, "Tried to access a non-existing configuration #{0}", descriptorIndex);
+                        return BitStream.Empty;
+                    }
+                    return Configurations.ElementAt(descriptorIndex).GetDescriptor(true);
+                default:
+                    device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
+                    return BitStream.Empty;
+            }
+        }
+
+        public USBDeviceInfo WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
+        {
+            var newConfiguration = new USBConfiguration(device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
+            configurations.Add(newConfiguration);
+            configure?.Invoke(newConfiguration);
+            return this;
+        }
+
+        public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
+
+        public USBConfiguration SelectedConfiguration { get; private set; }
+
+        public USBProtocol CompatibleProtocolVersion { get; }
+        public USBClassCode Class { get; }
+        public byte SubClass { get; }
+        public byte Protocol { get; }
+        public PacketSize MaximalPacketSize { get; }
+
+        public short VendorId { get; }
+        public short ProductId { get; }
+
+        public short DeviceReleaseNumber { get; }
+
+        public string ManufacturerName { get; }
+        public string ProductName { get; }
+        public string SerialNumber { get; }
+
+        protected override void FillDescriptor(BitStream buffer)
+        {
+            buffer
+                .Append((short)CompatibleProtocolVersion)
+                .Append((byte)Class)
+                .Append(SubClass)
+                .Append(Protocol)
+                .Append((byte)MaximalPacketSize)
+                .Append(VendorId)
+                .Append(ProductId)
+                .Append(DeviceReleaseNumber)
+                .Append(USBString.FromString(ManufacturerName).Index)
+                .Append(USBString.FromString(ProductName).Index)
+                .Append(USBString.FromString(SerialNumber).Index)
+                .Append((byte)Configurations.Count);
+        }
+
+        private readonly List<USBConfiguration> configurations;
+        private readonly IUSBDevice device;
+    }
+}
