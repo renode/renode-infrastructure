@@ -140,6 +140,25 @@ namespace Antmicro.Renode.Peripherals.USB
             usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceDisconnectedSessionEnded);
         }
 
+        public void ReconnectAllDevices()
+        {
+            usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceDisconnectedSessionEnded);
+            lock(addressToDeviceCache)
+            {
+                addressToDeviceCache.Clear();
+                foreach(var child in this.Children.Select(x => x.Peripheral))
+                {
+                    child.Reset();
+                    nonInitializedDevices.Enqueue(child);
+                }
+
+                if(nonInitializedDevices.Count > 0)
+                {
+                    InitializeDevice(nonInitializedDevices.Dequeue());
+                }
+            }
+        }
+
         [IrqProvider]
         public GPIO MainIRQ { get; private set; }
         public GPIO DmaIRQ { get; private set; }
@@ -569,12 +588,6 @@ namespace Antmicro.Renode.Peripherals.USB
             addressToDeviceCache.Add(0, peripheral);
             peripheral.Address = 0;
 
-            usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
-        }
-
-        public void HackDeviceConnected()
-        {
-            usbInterruptsManager.ClearInterrupt(UsbInterrupt.DeviceConnected);
             usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
         }
 
