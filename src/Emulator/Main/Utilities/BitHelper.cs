@@ -69,7 +69,18 @@ namespace Antmicro.Renode.Utilities
             UpdateWith(ref reg, newValue << position, position, width);
         }
 
+        public static void UpdateWithShifted(ref ulong reg, ulong newValue, int position, int width)
+        {
+            UpdateWith(ref reg, newValue << position, position, width);
+        }
+
         public static void UpdateWith(ref uint reg, uint newValue, int position, int width)
+        {
+            var mask = CalculateMask(width, position);
+            reg = (reg & ~mask) | (newValue & mask);
+        }
+
+        public static void UpdateWith(ref ulong reg, ulong newValue, int position, int width)
         {
             var mask = CalculateMask(width, position);
             reg = (reg & ~mask) | (newValue & mask);
@@ -213,6 +224,11 @@ namespace Antmicro.Renode.Utilities
         public static uint GetValue(uint reg, int offset, int size)
         {
             return (uint)((reg >> offset) & ((0x1ul << size) - 1));
+        }
+
+        public static ulong GetValue(ulong reg, int offset, int size)
+        {
+            return (ulong)((reg >> offset) & ((0x1ul << size) - 1));
         }
 
         public static uint GetMaskedValue(uint reg, int maskOffset, int maskSize)

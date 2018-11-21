@@ -69,7 +69,7 @@ namespace Antmicro.Renode.UserInterface
                    && !typeof(Token).IsAssignableFrom(candidateParameters[candidateParameters.Length - 1].ParameterType)
                    && !lastIsArray))
                 {
-                    throw new RecoverableException(String.Format("Method {0} of command {1} has invalid signature, will not process further. You should file a bug report.", 
+                    throw new RecoverableException(String.Format("Method {0} of command {1} has invalid signature, will not process further. You should file a bug report.",
                         candidate.Name, command.Name));
                 }
                 IList<Token> parametersWithoutLastArray = null;
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.UserInterface
                 {
                     continue;
                 }
-              
+
                 bool constraintsOk = true;
                 //Check for constraints
                 for(var i = 0; i < parametersWithoutLastArray.Count; ++i)
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 if(foundCandidate != null && (lastIsAccurateMatch == isAccurateMatch)) // if one is not better than the other
                 {
-                    throw new RecoverableException(String.Format("Ambiguous choice between methods {0} and {1} of command {2}. You should file a bug report.", 
+                    throw new RecoverableException(String.Format("Ambiguous choice between methods {0} and {1} of command {2}. You should file a bug report.",
                         foundCandidate.Name, candidate.Name, command.Name));
                 }
                 if(lastIsAccurateMatch) // previous was better
@@ -304,11 +304,17 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(enumerable != null && !(result is string))
             {
+                var i = 0;
                 writer.Write("[\r\n");
                 foreach(var item in enumerable)
                 {
+                    ++i;
                     PrintActionResult(item, writer, false);
                     writer.Write(", ");
+                    if(i % 10 == 0)
+                    {
+                        writer.Write("\r\n");
+                    }
                 }
                 writer.Write("\r\n]" + endl);
             }
@@ -386,7 +392,7 @@ namespace Antmicro.Renode.UserInterface
                         writer.WriteLine();
                     }
                 }
-            }            
+            }
         }
 
         private void ProcessDeviceActionByName(string name, IEnumerable<Token> p, ICommandInteraction writer)
@@ -406,7 +412,7 @@ namespace Antmicro.Renode.UserInterface
                     ProcessDeviceAction(iface.GetType(), name, p, writer);
                     return;
                 }
-				
+
                 Type device;
                 string longestMatch;
                 string actualName;
@@ -435,8 +441,8 @@ namespace Antmicro.Renode.UserInterface
             string currentMatch;
             string longestPrefix = string.Empty;
             var ret = currentMachine.TryGetByName(name, out peripheral, out longestMatching);
-            longestMatch = longestMatching;			
-			
+            longestMatch = longestMatching;
+
             if(!ret)
             {
                 foreach(var prefix in usings)
@@ -588,7 +594,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 writer.WriteLine(string.Format("\n\rUsage:\n\r {0} MethodName param1 param2 ...\n\r", name));
             }
-         
+
             if(info.Properties != null && info.Properties.Any(x => lookup == null || x.Name == lookup))
             {
                 writer.WriteLine("\nThe following properties are available:");
@@ -810,7 +816,7 @@ namespace Antmicro.Renode.UserInterface
                         }
                     }
                 }
-			
+
                 IHostMachineElement @interface;
                 if(Emulation.ExternalsManager.TryGetByName((string)value, out @interface))
                 {
@@ -846,7 +852,7 @@ namespace Antmicro.Renode.UserInterface
                 {
                     throw new FormatException(String.Format("Enum value {0} is not defined for {1}!", value, type.Name));
                 }
-                return val;               
+                return val;
             }
             if(underlyingType != null)
             {
@@ -869,7 +875,7 @@ namespace Antmicro.Renode.UserInterface
             var context = CreateInvocationContext(device, info);
             if(context != null)
             {
-                return Dynamic.InvokeGet(context, info.Name);  
+                return Dynamic.InvokeGet(context, info.Name);
             }
             else
             {
@@ -914,7 +920,7 @@ namespace Antmicro.Renode.UserInterface
         }
 
         private object InvokeExtensionMethod(string name, MethodInfo method, List<object> parameters)
-        { 
+        {
             var device = IdentifyDevice(name);
             var context = InvokeContext.CreateStatic(method.ReflectedType);
             if(context != null)
@@ -1032,7 +1038,7 @@ namespace Antmicro.Renode.UserInterface
 
         private bool TryPrepareParameters(IList<Token> values, IList<ParameterInfo> parameters, out List<object> result)
         {
-            
+
             result = new List<object>();
             int autoFilledCount = 0;
             //this might be expanded - try all parameters with the attribute, try to fill from factory based on it's type
@@ -1131,7 +1137,7 @@ namespace Antmicro.Renode.UserInterface
             var parameterArray = p.Skip(command is LeftBraceToken ? 0 : 1).ToArray(); //Don't skip left brace, proper code to do that is below.
 
             var setValue = parameterArray.FirstOrDefault();
-            
+
             if(foundMethods.Any())
             {
                 foreach(var foundMethod in foundMethods.OrderBy(x=>x.GetParameters().Count())
@@ -1164,7 +1170,7 @@ namespace Antmicro.Renode.UserInterface
                     }
                 }
                 throw new ParametersMismatchException();
-                
+
             }
             else if(foundField != null)
             {

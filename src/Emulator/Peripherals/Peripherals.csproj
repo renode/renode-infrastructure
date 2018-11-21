@@ -111,6 +111,8 @@
     <Compile Include="Peripherals\USBDeprecated\USBSetupPacket.cs" />
     <Compile Include="Peripherals\USBDeprecated\PortStatusAndControlRegisterChanges.cs" />
     <Compile Include="Peripherals\PCI\VersatilePCI.cs" />
+    <Compile Include="Peripherals\PCI\PSE_PCIe.cs" />
+    <Compile Include="Peripherals\PCI\PCIeMemory.cs" />
     <Compile Include="Peripherals\SPI\FakeEfmSPITransmitter.cs" />
     <Compile Include="Peripherals\UART\LEUART.cs" />
     <Compile Include="Peripherals\USBDeprecated\MassStorage.cs" />

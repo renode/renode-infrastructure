@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     public static class PeripheralRegisterExtensions
     {
         /// <summary>
-        /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
         /// </summary>
         /// <returns>This register with a defined flag.</returns>
         public static T WithFlag<T>(this T register, int position, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<bool, bool> readCallback = null,
@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Fluent API for enum field creation. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// Fluent API for enum field creation. For parameters see <see cref="PeripheralRegister.DefineEnumField"/>.
         /// </summary>
         /// <returns>This register with a defined enum field.</returns>
         public static R WithEnumField<R, T>(this R register, int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
@@ -46,12 +46,22 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Fluent API for tagged field creation. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// Fluent API for tagged field creation. For parameters see <see cref="PeripheralRegister.Tag"/>.
         /// </summary>
         /// <returns>This register with a defined tag field.</returns>
         public static T WithTag<T>(this T register, string name, int position, int width) where T : PeripheralRegister
         {
             register.Tag(name, position, width);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for tagged flag creation - a tag of width equal to 1. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// </summary>
+        /// <returns>This register with a defined tag field.</returns>
+        public static T WithTaggedFlag<T>(this T register, string name, int position) where T : PeripheralRegister
+        {
+            register.Tag(name, position, 1);
             return register;
         }
 
@@ -68,7 +78,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Fluent API for enum field creation. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// Fluent API for enum field creation. For parameters see <see cref="PeripheralRegister.DefineEnumField"/>.
         /// This overload allows you to retrieve the created field via <c>enumFiled</c> parameter.
         /// </summary>
         /// <returns>This register with a defined enum field.</returns>
@@ -81,7 +91,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
         /// This overload allows you to retrieve the created field via <c>flagFiled</c> parameter.
         /// </summary>
         /// <returns>This register with a defined flag.</returns>
