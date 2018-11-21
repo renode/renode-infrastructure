@@ -82,6 +82,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Utilities\Packets\Packet.cs" />
+    <Compile Include="Utilities\Packets\OffsetAttribute.cs" />
+    <Compile Include="Utilities\Packets\WidthAttribute.cs" />
+    <Compile Include="Utilities\Packets\PacketFieldAttribute.cs" />
+    <Compile Include="Utilities\Packets\LeastSignificantByteFirst.cs" />
+    <Compile Include="Utilities\Packets\DynamicPropertiesObject.cs" />
     <Compile Include="Peripherals\BasicBytePeripheral.cs" />
     <Compile Include="Peripherals\BasicWordPeripheral.cs" />
     <Compile Include="Peripherals\BasicDoubleWordPeripheral.cs" />
