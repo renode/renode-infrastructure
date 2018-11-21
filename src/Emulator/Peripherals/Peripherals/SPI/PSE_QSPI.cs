@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class PSE_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_QSPI(Machine machine, Micron_MT25Q flash) : base(machine)
+        public PSE_QSPI(Machine machine) : base(machine)
         {
             locker = new object();
             IRQ = new GPIO();
