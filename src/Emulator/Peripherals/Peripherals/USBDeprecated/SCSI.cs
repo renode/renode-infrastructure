@@ -9,14 +9,14 @@ using System;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class SCSI
     {
         public SCSI ()
         {
         }
-        
+
         public class CommandDescriptorBlock
         {
             public byte Size;
@@ -25,12 +25,12 @@ namespace Antmicro.Renode.Peripherals.USB
             public uint LogicalBlockAddress;
             public byte MiscCDBInformation2;
             public byte ServiceAction;
-            
+
             public uint TransferLength;
             public uint ParameterListLength;
             public uint AllocationLength;
             public byte Control;
-            
+
             public enum GroupCode:byte
             {
                 TestUnitReady = 0x00,
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 Read10 = 0x28,
                 Write10 = 0x2A
             }
-            
+
             public void Fill(byte[] data)
             {
                 this.Size = (byte)data.Length;
@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 if(this.Size == 10)
                 {
                     this.ServiceAction = (byte)(data[1] & 0xE0u);
-                    this.LogicalBlockAddress = (uint)(data[2] << 24 | data[3] << 16 | data[4] << 8 | data[5]);    
+                    this.LogicalBlockAddress = (uint)(data[2] << 24 | data[3] << 16 | data[4] << 8 | data[5]);
                     this.MiscCDBInformation2 = data[6];
                     this.TransferLength = (uint)((data[7] << 8) | data[8]);
                     this.AllocationLength = this.TransferLength;
@@ -82,10 +82,10 @@ namespace Antmicro.Renode.Peripherals.USB
                 {
                     Logger.LogAs(this, LogLevel.Warning, "Unsupported Command Descriptor Block Length");
                 }
-                
+
             }
        }
-        
+
        public class StandardInquiryData
         {
             public byte PeripheralQualifier;
@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public bool BasingQueuing;
             public bool EnclosureServices;
             public bool VS1;
-            public bool MultiPort; 
+            public bool MultiPort;
             public bool MediumChanger;
             public bool ADDR16;
             public bool WBUS16a;
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public byte[] VendorIdentificationT10 = new byte[8];
             public byte[] ProductIdentification = new byte[16];
             public byte[] ProductRevisionLevel = new byte[4];
-            
+
             public void FillVendor(string vendorStr)
             {
                 for(int i=0;i<8;i++)
@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     this.VendorIdentificationT10[i] = (byte)vendorStr[i];
                 }
             }
-            
+
             public void FillIdentification(string identStr)
             {
                 for(int i=0;i<16;i++)
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     this.ProductIdentification[i] = (byte)identStr[i];
                 }
             }
-            
+
             public void FillRevision(string revisionStr)
             {
                 for(int i=0;i<4;i++)
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     this.ProductRevisionLevel[i] = (byte)revisionStr[i];
                 }
             }
-            
+
             public byte[] ToArray()
             {
                 arr[0] = (byte)(((this.PeripheralQualifier & 0x07)<<5) | (byte)(this.PeripheralDeviceType & 0x1fu));
@@ -155,12 +155,12 @@ namespace Antmicro.Renode.Peripherals.USB
                 Array.Copy(this.VendorIdentificationT10, 0, arr, 8, this.VendorIdentificationT10.Length);
                 Array.Copy(this.ProductIdentification, 0, arr, 16, this.ProductIdentification.Length);
                 Array.Copy(this.ProductRevisionLevel, 0, arr, 32, this.ProductRevisionLevel.Length);
-               
+
                 return arr;
             }
 
             private byte[] arr = new byte[36];
-            
+
         }
 
         public class CapacityDataStructure
@@ -174,16 +174,16 @@ namespace Antmicro.Renode.Peripherals.USB
                 arr[1] = (byte) ((ReturnedLBA & 0x00ff0000) >> 16);
                 arr[2] = (byte) ((ReturnedLBA & 0x0000ff00) >> 8);
                 arr[3] = (byte) ((ReturnedLBA & 0x000000ff) >> 0);
-                
+
                 arr[4] = (byte) ((BlockLength & 0xff000000) >> 24);
                 arr[5] = (byte) ((BlockLength & 0x00ff0000) >> 16);
                 arr[6] = (byte) ((BlockLength & 0x0000ff00) >> 8);
                 arr[7] = (byte) ((BlockLength & 0x000000ff) >> 0);
-                
+
                 return arr;
             }
         }
-        
+
         public class ModeSenseCommand
         {
             public byte OperationCode;
@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public byte SubpageCode;
             public byte AllocationLength;
             public byte Control;
-            
+
             public void Fill(byte[] data)
             {
                 this.OperationCode = data[0];
@@ -204,14 +204,14 @@ namespace Antmicro.Renode.Peripherals.USB
                 this.Control = data[5];
             }
         }
-        
+
         public enum PeripheralQualifier:byte
         {
             Connected = 0x0,
             Disconnected = 0x01,
             NotSuported = 0x3
         }
-         
+
         public enum PeripheralDeviceType:byte
         {
             DirectAccessBlockDevice = 0x00,
@@ -232,9 +232,9 @@ namespace Antmicro.Renode.Peripherals.USB
             ObjectBasedStorageDevice = 0x11,
             AutomationDriveInterface = 0x12,
             WellKnownLogicalUnit = 0x1E,
-            UnknownOrNoDevice = 0x1F        
+            UnknownOrNoDevice = 0x1F
         }
-        
+
         public enum VersionCode
         {
             NotStandard = 0x00,
@@ -242,7 +242,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ANSISPC2 = 0x04,
             Standard = 0x05
         }
-        
+
         public enum TargetGroupPortSupportCode:byte
         {
             AsimetricLogicalUnitAccesNotSupported = 0x00,
@@ -250,7 +250,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ExplicitAsimetricLogicalUnitAccessOnly = 0x02,
             BothAsimetricLogicalUnitAccess = 0x03,
         }
-        
+
     }
 }
 

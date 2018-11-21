@@ -8,7 +8,7 @@
 using System;
 using Antmicro.Renode.Utilities;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public abstract class USBDescriptor
     {
@@ -28,8 +28,8 @@ namespace Antmicro.Renode.Peripherals.USB
             }
             set
             {
-                length = value; 
-                array = new byte[value]; 
+                length = value;
+                array = new byte[value];
             }
         }
 
@@ -158,11 +158,11 @@ namespace Antmicro.Renode.Peripherals.USB
         public bool RemoteWakeup{ get; set; }
 
         public byte Attributes
-        { 
+        {
             get
             {
                 return (byte)((1 << 7) | ((SelfPowered ? 1 : 0) << 6) | ((RemoteWakeup ? 1 : 0) << 5));
-            } 
+            }
             set
             {
 
@@ -172,9 +172,9 @@ namespace Antmicro.Renode.Peripherals.USB
         }
 
         public byte MaxPower{ get; set; }
-  
+
         public InterfaceUSBDescriptor[] InterfaceDescriptor;
-                
+
         public override byte[] ToArray()
         {
             TotalLength = Length;
@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     TotalLength += InterfaceDescriptor[i].EndpointDescriptor[j].Length;
                 }
             }
-            
+
             var arr = new byte[TotalLength];
             var offset = Length;
             arr[0x0] = Length;
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.USB
             arr[0x6] = ConfigurationIndex;
             arr[0x7] = Attributes;
             arr[0x8] = MaxPower;
-            
+
             for(int i=0; i<NumberOfInterfaces; i++)
             {
                 InterfaceDescriptor[i].ToArray().CopyTo(arr, offset);
@@ -234,9 +234,9 @@ namespace Antmicro.Renode.Peripherals.USB
         public byte InterfaceProtocol{ get; set; }
 
         public byte InterfaceIndex{ get; set; }
-  
+
         public EndpointUSBDescriptor[] EndpointDescriptor;
-        
+
         public override byte[] ToArray()
         {
             var arr = base.ToArray();
@@ -264,17 +264,17 @@ namespace Antmicro.Renode.Peripherals.USB
         public bool InEnpoint{ get; set; }
 
         public byte EndpointAddress
-        { 
+        {
             get
             {
                 return (byte)(((InEnpoint ? 1 : 0) << 7) | (EndpointNumber & 7));
                 //6..4 reserved
-            } 
+            }
             set
             {
                 EndpointNumber = (byte)(value & 7);
                 InEnpoint = ((value >> 7) & 1) != 0;
-            } 
+            }
         }
 
         public TransferTypeEnum TransferType{ get; set; }
@@ -284,7 +284,7 @@ namespace Antmicro.Renode.Peripherals.USB
         public UsageTypeEnum UsageType{ get; set; }
 
         public byte Attributes
-        { 
+        {
             get
             {
                 return (byte)((((byte)UsageType & 3) << 4) | ((byte)SynchronizationType & 3) << 2 | ((byte)TransferType & 3));
@@ -376,7 +376,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 {
                     arr[i] = id.LoByte();
                     ++i;
-                    
+
                     arr[i] = id.HiByte();
                     ++i;
                 }

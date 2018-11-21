@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Core.Structure;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBEthernetControlModelDevice : USBEthernetControlModelDevicesSubclass, IUSBPeripheral, IMACInterface
     {
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.USB
         }
                 public void WriteDataBulk(USBPacket packet)
         {
-            
+
         }
 
         public void WriteDataControl(USBPacket packet)
@@ -84,42 +84,42 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
 
         public void SetAddress(uint address)
         {
             throw new NotImplementedException();
         }
-        
+
         public void CleanDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public bool GetDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
         {
-            
+
             throw new System.NotImplementedException();
         }
 
         public byte[] GetConfiguration()
         {
-            
+
             throw new System.NotImplementedException();
         }
 
-                
+
         public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new System.NotImplementedException();
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void WriteData(byte[] data)//data from system
         {
-            
+
         }
 
         public byte[] GetData()
@@ -177,14 +177,14 @@ namespace Antmicro.Renode.Peripherals.USB
             throw new NotImplementedException();
         }
     #endregion
-        
-        
+
+
     #region standard USB descriptors
 
         private EndpointUSBDescriptor[] endpointDescriptor;
         private InterfaceUSBDescriptor[] interfaceDescriptor;
 
-        
+
         private void setEndpointsDescriptors()
         {
             endpointDescriptor = new EndpointUSBDescriptor[endpointsAmount];
@@ -200,15 +200,15 @@ namespace Antmicro.Renode.Peripherals.USB
                 endpointDescriptor[i].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             }
             endpointDescriptor[2].MaxPacketSize = 16;
-            
+
             endpointDescriptor[0].InEnpoint = true;
             endpointDescriptor[1].InEnpoint = false;
             endpointDescriptor[2].InEnpoint = true;
-            
+
             endpointDescriptor[0].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
             endpointDescriptor[1].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
             endpointDescriptor[2].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Interrupt;
-                
+
         }
 
         private void setInterfaceDescriptors()
@@ -218,16 +218,16 @@ namespace Antmicro.Renode.Peripherals.USB
             {
                 interfaceDescriptor[i] = new InterfaceUSBDescriptor();
             }
-            
-            
+
+
         }
     #endregion
     #region class && subclass USB descriptors
         /*  private HeaderFunctionalDescriptor headerDescriptor = new HeaderFunctionalDescriptor ()
         {
             Subtype = DeviceSubclassCode,
-            
-            
+
+
         };
         private UnionFunctionalDescriptor unionDescriptor = new UnionFunctionalDescriptor (subordinateInterfaceAmount)
         {
@@ -238,9 +238,9 @@ namespace Antmicro.Renode.Peripherals.USB
         private EthernetNetworkingFuncionalDescriptor ethernetNetworkingDescriptor = new EthernetNetworkingFuncionalDescriptor ()
         {
         };*/
-        
+
     #endregion
-     
+
     #region device constans
         private const byte interfacesAmount = 0x01;
         private const byte endpointsAmount = 0x03;
@@ -248,12 +248,12 @@ namespace Antmicro.Renode.Peripherals.USB
         private const byte subordinateInterfaceAmount = 0x01;
         private const byte countryCodesAmount = 0x01;
         private const byte defaultNumberOfMulticastAdreses = 0x01;
-    #endregion    
-        
+    #endregion
+
     #region Ethernet subclass nethods
-        
+
         protected Dictionary <byte,byte[]> MulticastMacAdresses;
-        
+
         private void initializeMulticastList()
         {
             for(byte i = 0; i<defaultNumberOfMulticastAdreses; i++)
@@ -262,10 +262,10 @@ namespace Antmicro.Renode.Peripherals.USB
                 MulticastMacAdresses.Add(i, mac);
             }
         }
-        
+
         private void setEthernetMulticastFilters(uint numberOfFilters, Dictionary<byte,byte[]> multicastAdresses)
         {
-            
+
             for(byte i=0; i<numberOfFilters; i++)
             {
                 if(MulticastMacAdresses.ContainsKey(i))
@@ -278,9 +278,9 @@ namespace Antmicro.Renode.Peripherals.USB
                 }
             }
         }
-              
+
     #endregion
-        
+
         #region IUSBDevice implementation
         public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
         {

@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Core;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class SMSC9500 : IUSBPeripheral, IMACInterface
     {
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     {
                         stringDescriptor = new StringUSBDescriptor("");
                     }
-                        
+
                 }
                 controlPacket = new byte[stringDescriptor.ToArray().Length];
                 stringDescriptor.ToArray().CopyTo(controlPacket, 0);
@@ -427,11 +427,11 @@ namespace Antmicro.Renode.Peripherals.USB
                         }
                     }
                     return currentBuffer;
-                } 
+                }
                 return null;
             }
 
-            
+
         }
         #endregion
         #region ping hack variables
@@ -521,7 +521,7 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[0].Interval = 0;
-            
+
             endpointDesc[1].EndpointNumber = 2;
             endpointDesc[1].InEnpoint = false;
             endpointDesc[1].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
@@ -529,7 +529,7 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[1].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[1].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[1].Interval = 0;
-            
+
             endpointDesc[2].EndpointNumber = 3;
             endpointDesc[2].InEnpoint = true;
             endpointDesc[2].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Interrupt;
@@ -537,7 +537,7 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[2].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[2].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[2].Interval = 2;
-            
+
         }
         #endregion
         #region Device enums
@@ -675,7 +675,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     break;
                     case SCSR.MACControl:
                     if(packet.data != null)
-                        macControlRegister = BitConverter.ToUInt32(packet.data, 0); 
+                        macControlRegister = BitConverter.ToUInt32(packet.data, 0);
                     this.Log(LogLevel.Warning, "macControlRegister=0x{0:X}", macControlRegister);
                     break;
                     case SCSR.E2PData:

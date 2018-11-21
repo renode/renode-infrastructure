@@ -12,7 +12,7 @@ using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
 using System.IO;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class MassStorage: IUSBPeripheral, IDisposable
     {
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             lbaBackend = new LBABackend(underlyingFile, numberOfBlocks, blockSize, persistent);
             Init();
-            
+
         }
 
         public string ImageFile
@@ -175,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.USB
                         lbaBackend.Write((int)writeCDB.LogicalBlockAddress, data, (int)writeCDB.TransferLength);
                         writeCSW.DataResidue -= (uint)(data.Length);
                         transmissionQueue.Enqueue(writeCSW.ToArray());
-                        
+
                     }
                     else
                     {
@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 csw.DataResidue = 0x00;
                 csw.Status = 0x00;
                 transmissionQueue.Enqueue(inquiry.ToArray());
-                //enqueue inquiry data 
+                //enqueue inquiry data
                 transmissionQueue.Enqueue(csw.ToArray());
                 break;
             case SCSI.CommandDescriptorBlock.GroupCode.ModeSense:
@@ -274,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void WriteDataControl(USBPacket packet)
         {
-            
+
         }
 
         public byte[] WriteInterrupt(USBPacket packet)
@@ -315,13 +315,13 @@ namespace Antmicro.Renode.Peripherals.USB
                         currentIDataRegister = null;
                         currentIDataPointer = 0;
                     }
-                
+
                     return dataPacket;
                 }
                 //TODO: Rly? A nie przypadkiem "Trying to read 0 bytes"?
                 this.Log(LogLevel.Warning, "Trying to read from empty queue");
-                return new byte[0];    
-               
+                return new byte[0];
+
             }
             return null;
         }
@@ -342,7 +342,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
             switch((MassStorageRequestCode)request)
             {
-            case MassStorageRequestCode.MassStorageReset:                
+            case MassStorageRequestCode.MassStorageReset:
                 this.DebugLog("Mass storage reset");
                 break;
             default:
@@ -350,27 +350,27 @@ namespace Antmicro.Renode.Peripherals.USB
                 break;
             }
         }
-        
+
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public void CleanDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public bool GetDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new NotImplementedException();
@@ -404,7 +404,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
             return controlPacket;
         }
-        
+
         public void SetAddress(uint address)
         {
             addr = address;
@@ -442,8 +442,8 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public byte[] GetData()
         {
- 
-            return null; 
+
+            return null;
         }
 
         public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
@@ -472,34 +472,34 @@ namespace Antmicro.Renode.Peripherals.USB
             inquiry.FillRevision("0207");
             oData = new List<byte>();
         }
-        
+
         #region Massage Data Structure
-        
+
         private Queue<byte[]> transmissionQueue = new Queue<byte[]>();
-        
+
         #endregion
-        
+
         #region Device constans
         private const byte MaxLun = 0;
         private const byte NumberOfEndpoints = 2;
         private const ushort EnglishLangId = 0x09;
-        
+
         #endregion
-        
+
         #region Mass Storage data structures
-        
+
         private class CommandBlockWrapper
         {
-        
+
             public bool Fill(byte[] data)
             {
                 if(data.Length != 31)
                 {
                     return false;
                 }
-                
-                this.Signature = BitConverter.ToUInt32(data, 0);  
-                
+
+                this.Signature = BitConverter.ToUInt32(data, 0);
+
                 if(this.Signature != ProperSignature)
                 {
                     return false;
@@ -509,10 +509,10 @@ namespace Antmicro.Renode.Peripherals.USB
                 this.Flags = data[12];
                 this.LogicalUnitNumber = (byte)(data[13] & (byte)(0x0fu));
                 this.Length = (byte)(data[14] & (byte)(0x1fu));
-                
+
                 return true;
             }
-            
+
             private const uint ProperSignature = 0x43425355;
             public uint Signature;
             public uint Tag;
@@ -521,7 +521,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public byte LogicalUnitNumber;
             public byte Length;
         }
-        
+
         private class CommandStatusWrapper
         {
             public byte[] ToArray()
@@ -542,7 +542,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 arr[11] = (byte)((DataResidue & 0xFF000000) >> 24);
 
                 arr[12] = Status;
-                
+
                 return arr;
             }
             private byte[] arr = new byte[13];
@@ -551,11 +551,11 @@ namespace Antmicro.Renode.Peripherals.USB
             public uint DataResidue;
             public byte Status;
         }
-        
+
         #endregion
-        
+
         #region USB descriptors
-        
+
         private ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor
         {
             ConfigurationIndex = 0,
@@ -615,7 +615,7 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[0].Interval = 0;
-            
+
             endpointDesc[1].EndpointNumber = 2;
             endpointDesc[1].InEnpoint = false;
             endpointDesc[1].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
@@ -623,13 +623,13 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[1].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[1].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[1].Interval = 0;
-            
-       
+
+
         }
-        
+
         private SCSI.StandardInquiryData inquiry = new SCSI.StandardInquiryData//all data sniffed from real device
         {
-          
+
             PeripheralQualifier = (byte)SCSI.PeripheralQualifier.Connected,
             PeripheralDeviceType = (byte)SCSI.PeripheralDeviceType.DirectAccessBlockDevice,
             RMB = true,
@@ -653,9 +653,9 @@ namespace Antmicro.Renode.Peripherals.USB
             Sync = false,
             LinkedCommand = false,
             VS2 = false
-            
+
         };
-        
+
         private enum MassStorageRequestCode
         {
             AcceptDeviceSpecificCommand = 0x00,
@@ -665,17 +665,17 @@ namespace Antmicro.Renode.Peripherals.USB
             MassStorageReset = 0xFE//Bulk Only
         }
      #endregion
-        
+
      #region lba backend
-     
+
         private LBABackend lbaBackend;
         private CommandStatusWrapper writeCSW;
         private SCSI.CommandDescriptorBlock writeCDB;
         private bool writeFlag;
 
      #endregion
-        
-        
+
+
     }
 
 }

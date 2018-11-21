@@ -9,7 +9,7 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core.Structure;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public interface IUSBHub : IUSBPeripheral, IUSBHubBase
     {

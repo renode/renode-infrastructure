@@ -18,7 +18,7 @@ using System.Linq;
 using System.Threading;
 using Antmicro.Renode.Peripherals.Bus;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class UsbHub :  IUSBHub, IUSBPeripheral
     {
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void WriteDataControl(USBPacket packet)
         {
-            //throw new System.NotImplementedException(); 
+            //throw new System.NotImplementedException();
         }
 
         public byte GetTransferStatus()
@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 ports[i] = (uint)PortStatus.PortPower;
             }
         }
-  
+
         public UsbHub(Machine machine, byte nrPorts)
         {
             this.machine = machine;
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 ports[i] = (uint)PortStatus.PortPower;
             }
         }
-        
+
         public IUSBHub Parent
         {
             get;
@@ -224,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 ports[port - 1] |= ((uint)PortStatus.CPortEnable);
             }
             /* Disconnect device from controller and send interrupt*/
-            Disconnected(DeviceAddress, registeredDevices[port].GetAddress());  
+            Disconnected(DeviceAddress, registeredDevices[port].GetAddress());
             /* Unregister device from controller */
             registeredDevices.Remove(port);
         }
@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.USB
         #region IUSBDevice implementation
         public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
         {
-            byte[] returnValue; 
+            byte[] returnValue;
             //MessageRecipient recipient = (MessageRecipient)(setupPacket.requestType & 0x3);
             ushort index = setupPacket.index;
             byte request = setupPacket.request;
@@ -295,7 +295,7 @@ namespace Antmicro.Renode.Peripherals.USB
             byte request = setupPacket.request;
             ushort value = setupPacket.value;
             switch((HUBRequestCode)request)
-            {         
+            {
             case HUBRequestCode.ClearHubFeature:
                 if(index > 0)
                 {
@@ -316,7 +316,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     case PortFeature.PortSuspend:
                         ports[index - 1] = (uint)(ports[index - 1] & (uint)PortStatus.PortSuspend);
                         break;
-                    case PortFeature.CPortConnection:      
+                    case PortFeature.CPortConnection:
                         ports[index - 1] = (uint)(ports[index - 1] & (~((uint)PortStatus.CPortConnection)));
                         break;
                     case PortFeature.CPortReset:
@@ -326,7 +326,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     default:
                         this.Log(LogLevel.Warning, "Unsupported ClearHubFeature request!!!");
                         break;
-                    }    
+                    }
                 }
                 break;
             case HUBRequestCode.SetHubFeature:
@@ -355,27 +355,27 @@ namespace Antmicro.Renode.Peripherals.USB
                 break;
             }
         }
-        
+
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public void CleanDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public bool GetDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new NotImplementedException();
@@ -495,7 +495,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public byte[] WriteInterrupt(USBPacket packet)
         {
-             
+
             byte  [] buf = new byte[8];
             buf[0] = 0x00;
             buf[1] = 0x00;
@@ -548,17 +548,17 @@ namespace Antmicro.Renode.Peripherals.USB
         }
         #endregion
 
-        
+
         #region Device constans
         private const byte maxLun = 0;
         private const byte NumberOfEndpoints = 1;
-        private const ushort EnglishLangId = 0x09;  
+        private const ushort EnglishLangId = 0x09;
         #endregion
-        
 
-        
+
+
         #region USB descriptors
-        
+
         private ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor()
         {
             ConfigurationIndex = 0,
@@ -593,7 +593,7 @@ namespace Antmicro.Renode.Peripherals.USB
             InterfaceNumber = 0,
             NumberOfEndpoints = NumberOfEndpoints,
             InterfaceClass = 0x09, //vendor specific
-            InterfaceProtocol = 0x01, 
+            InterfaceProtocol = 0x01,
             InterfaceSubClass = 0x00,
             InterfaceIndex = 0
         }
@@ -642,7 +642,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public byte PwrOn2PwrGood { get; set; }
 
             public byte HubContrCurrent { get; set; }
-         
+
             public override byte[] ToArray()
             {
                 var arr = base.ToArray();
@@ -700,5 +700,5 @@ namespace Antmicro.Renode.Peripherals.USB
         public uint[] ports;
      #endregion
 
-    }   
+    }
 }

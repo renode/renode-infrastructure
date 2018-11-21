@@ -7,12 +7,13 @@
 //
 using System;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public enum USBLanguageIDCode : ushort
-    {
-        English = 0x09
-    }
-            
+    public enum USBRequestType
+        {
+            Standard = 0,
+            Class = 1,
+            Vendor = 2
+        }
 }
 

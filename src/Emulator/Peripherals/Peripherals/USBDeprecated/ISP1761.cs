@@ -15,7 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.UserInterface;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     [Icon("usb")]
     public class ISP1761 : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IPCIPeripheral
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.USB
             DetachDevice(port);
             machine.UnregisterAsAChildOf(this, peripheral);
             registeredDevices.Remove(port);
-            registeredHubs.Remove(port); 
+            registeredHubs.Remove(port);
         }
 
         public ISP1761(Machine machine)
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.USB
             {
                 ptd[i] = new PTD();
                 ptdi[i] = new PTD();
-                
+
             }
             intDoneMap = 0x00000000;
             intSkipMap = 0xFFFFFFFF;
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.USB
             for(int i = 0; i<portSc.Length; i++)
             {
                 portSc[i] = new PortStatusAndControlRegister();
-                
+
             }
             setupData = new USBSetupPacket();
 
@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.USB
             DetachDevice(port);
             machine.UnregisterAsAChildOf(this, peripheral);
             registeredDevices.Remove(port);
-            registeredHubs.Remove(port); 
+            registeredHubs.Remove(port);
         }
 
         public IEnumerable<USBRegistrationPoint> GetRegistrationPoints(IUSBPeripheral peripheral)
@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 }
                 if(((address - 0x800) / 4) % 8 == 3)
                 { //this.Log(LogType.Warning, "READ VAL 0{0:X}",ptd[(address - 0x800) / 32].DW3);
-                    return ptdi[(address - 0x800) / 32].DW3; 
+                    return ptdi[(address - 0x800) / 32].DW3;
                 }
                 if(((address - 0x800) / 4) % 8 == 4)
                 { //this.Log(LogType.Warning, "READ VAL 0{0:X}",ptd[(address - 0x800) / 32].DW4);
@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 }
                 if(((address - 0xc00) / 4) % 8 == 3)
                 { //this.Log(LogType.Warning, "READ VAL 0{0:X}",ptd[(address - 0xc00) / 32].DW3);
-                    return ptd[(address - 0xc00) / 32].DW3; 
+                    return ptd[(address - 0xc00) / 32].DW3;
                 }
                 if(((address - 0xc00) / 4) % 8 == 4)
                 { //this.Log(LogType.Warning, "READ VAL 0{0:X}",ptd[(address - 0xc00) / 32].DW4);
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
                 case Offset.StructuralParameters:
                     return hCSParams;
-                    
+
                 case Offset.CapabilityParameters:
                     return hCCParams;
 
@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
                 case Offset.ConfiguredFlag:
                     return configFlag;
-                    
+
                 case Offset.UsbInterruptEnable:
                     return interruptEnableRegister.getRegister();
 
@@ -290,7 +290,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     return  intSkipMap;
                 case Offset.INTPTDLastPTD:
                     return intLastPTD;
-                  
+
                 case (Offset)0x330:
                     return atlIRQMaskOR;
                 case (Offset)Offset.Memory:
@@ -333,7 +333,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             registeredHubs.Add((byte)(registeredHubs.Count() + 1), hub);
         }
-                                
+
         public void registerHub(IUSBHub hub)
         {
             regHub(hub);
@@ -341,7 +341,7 @@ namespace Antmicro.Renode.Peripherals.USB
             hub.RegisterHub += new Action<IUSBHub>(regHub);
             hub.Connected += new Action<uint>(AttachHUBDevice);
             hub.Disconnected += new Action<uint,uint>(DetachHUBDevice);
-            hub.ActiveDevice += new Action<IUSBPeripheral>(Active);           
+            hub.ActiveDevice += new Action<IUSBPeripheral>(Active);
         }
 
         public void AttachHUBDevice(uint addr)
@@ -404,7 +404,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 {
                                     usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.InterruptOnAsyncAdvance; //raise flags in status register
                                     interr |= 1 << 7;
-                                    IRQ.Set(true); //raise interrupt   
+                                    IRQ.Set(true); //raise interrupt
                                 }
                             }
                         }
@@ -414,7 +414,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void addressDevice(IUSBPeripheral device, byte address)
         {
-            
+
             if(!adressedDevices.ContainsKey(address))//XXX: Linux hack
             {
                 adressedDevices.Add(address, device);
@@ -440,9 +440,9 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void softReset()
         {
-        
+
             adressedDevices = new Dictionary<byte, IUSBPeripheral>();
-        
+
             hCSParams = (nCC & 0x0f) << 12 | (nPCC & 0x0f) << 8 | ((uint)portSc.Length & 0xf) << 0;
             //TODO: manage variable amount of ports
             for(int i=0; i < portSc.Length; i++)
@@ -453,20 +453,20 @@ namespace Antmicro.Renode.Peripherals.USB
                 if(firstReset)
                 {
                     PortStatusAndControlRegisterChanges change = portSc[i].Attach();
-                    firstReset = false;    
+                    firstReset = false;
                     //}
-                
+
                     if(change.ConnectChange == true)
                     {
-                        usbSts |= (uint)InterruptMask.PortChange;     
+                        usbSts |= (uint)InterruptMask.PortChange;
                     }
-                
+
                     if((interruptEnableRegister.Enable == true) && (interruptEnableRegister.PortChangeEnable == true))
                     {
                         usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange; //raise flags in status register
                         //  interr|=1<<8;
                         interr |= 1 << 8;
-                        IRQ.Set(true);  //raise interrupt   
+                        IRQ.Set(true);  //raise interrupt
                     }
                 }
             }
@@ -483,15 +483,15 @@ namespace Antmicro.Renode.Peripherals.USB
                 PortStatusAndControlRegisterChanges change = portSc[portNumber].setValue(value);
                 if(change.ConnectChange == true)
                 {
-                    usbSts |= (uint)InterruptMask.PortChange;     
+                    usbSts |= (uint)InterruptMask.PortChange;
                 }
-                
+
                 if((interruptEnableRegister.Enable == true) && (interruptEnableRegister.PortChangeEnable == true))
                 {
-        
+
                     usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange; //raise flags in status register
                     interr |= 1 << 8;
-                    IRQ.Set(true); //raise interrupt   
+                    IRQ.Set(true); //raise interrupt
                 }
             }
             else if(address >= (uint)0x800 && address < (uint)0xbff)
@@ -750,8 +750,8 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
                         }
                     }
-                    break;    
-                    
+                    break;
+
                 case Offset.UsbStatus:
                     if((value & (uint)InterruptMask.FrameListRollover) != 0)
                     {
@@ -849,9 +849,9 @@ namespace Antmicro.Renode.Peripherals.USB
                             {
                                 usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.InterruptOnAsyncAdvance; //raise flags in status register
                                 interr |= 1 << 8;
-                                IRQ.Set(true); //raise interrupt   
+                                IRQ.Set(true); //raise interrupt
                             }
-                        }  
+                        }
                     }
                     ProcessINT();
                     break;
@@ -908,7 +908,7 @@ namespace Antmicro.Renode.Peripherals.USB
         uint counter = 0;
 
         private IUSBPeripheral findDevice(byte hubNumber, byte portNumber)
-        {     
+        {
             if(registeredHubs.Count() > 0)
             {
                 if(portNumber != 0)
@@ -930,7 +930,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 {
                     IUSBPeripheral device = registeredDevices[(byte)(portNumber + (byte)1)];
                     return device;
-                }  
+                }
             }
             return null;
         }
@@ -954,7 +954,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 return;
 
             if(PTDh.V != 0)//if transfer descriptor active
-            { 
+            {
                 switch((PIDCode)PTDh.Token)
                 {
                 case PIDCode.In://data transfer from device to host
@@ -975,10 +975,10 @@ namespace Antmicro.Renode.Peripherals.USB
 
                             if(inData != null)
                             {
-                                Array.Copy(inData, 0, payLoad, PTDh.DataStartAddress, inData.Length);   
+                                Array.Copy(inData, 0, payLoad, PTDh.DataStartAddress, inData.Length);
                                 PTDh.Transferred((uint)inData.Length);
                                 PTDh.Done();
-                            } 
+                            }
                         }
                         else
                         {
@@ -993,7 +993,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             {
                                 targetDevice.GetDataBulk(packet);
                             }
-                        }       
+                        }
                         if(targetDevice.GetTransferStatus() == 6)
                         {
                             PTDh.Bubble();
@@ -1006,7 +1006,7 @@ namespace Antmicro.Renode.Peripherals.USB
                         }
                     }
                     break;
-                    
+
                 default:
                     this.Log(LogLevel.Warning, "Unkonwn PID");
                     break;
@@ -1018,7 +1018,7 @@ namespace Antmicro.Renode.Peripherals.USB
         public  USBSetupPacket setupData ;
 
         protected Object thisLock = new Object();
-        
+
         public void ProcessPacket(uint addr)
         {
             lock(thisLock)
@@ -1079,9 +1079,9 @@ namespace Antmicro.Renode.Peripherals.USB
                     {
                         usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.InterruptOnAsyncAdvance; //raise flags in status register
                         interr |= 1 << 8;
-                        IRQ.Set(true); //raise interrupt   
+                        IRQ.Set(true); //raise interrupt
                     }
-                }  
+                }
             }
         }
 
@@ -1142,7 +1142,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             {
                                 usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.InterruptOnAsyncAdvance; //raise flags in status register
                                 interr |= 1 << 7;
-                                IRQ.Set(true); //raise interrupt   
+                                IRQ.Set(true); //raise interrupt
                             }
                         }
                     }
@@ -1208,7 +1208,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 {
                                     usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.InterruptOnAsyncAdvance; //raise flags in status register
                                     interr |= 1 << 7;
-                                    IRQ.Set(true); //raise interrupt   
+                                    IRQ.Set(true); //raise interrupt
                                 }
                             }
                         }
@@ -1218,7 +1218,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void ProcessPacket(PTDheader PTDh)
         {
-      
+
             IUSBPeripheral targetDevice;
             if(PTDh.DeviceAddress != 0)
             {
@@ -1230,11 +1230,11 @@ namespace Antmicro.Renode.Peripherals.USB
                 targetDevice = activeDevice;
             }
             if(targetDevice == null)
-            { 
+            {
                 return;
             }
             if(PTDh.V != 0)//if transfer descriptor active
-            { 
+            {
                 USBPacket packet;
                 packet.bytesToTransfer = PTDh.NrBytesToTransfer;
                 switch((PIDCode)PTDh.Token)
@@ -1242,8 +1242,8 @@ namespace Antmicro.Renode.Peripherals.USB
                 case PIDCode.Setup://if setup command
                     this.Log(LogLevel.Noisy, "Setup");
                     this.Log(LogLevel.Noisy, "Device {0:d}", PTDh.DeviceAddress);
-                    
-                    setupData.requestType = payLoad[PTDh.DataStartAddress]; 
+
+                    setupData.requestType = payLoad[PTDh.DataStartAddress];
                     setupData.request = payLoad[PTDh.DataStartAddress + 1];
                     setupData.value = BitConverter.ToUInt16(payLoad, (int)(PTDh.DataStartAddress + 2));
                     setupData.index = BitConverter.ToUInt16(payLoad, (int)(PTDh.DataStartAddress + 4));
@@ -1265,29 +1265,29 @@ namespace Antmicro.Renode.Peripherals.USB
                             case DeviceRequestType.GetDescriptor:
                                 targetDevice.GetDescriptor(packet, setupData);
                                 break;
-                            case DeviceRequestType.GetConfiguration:  
+                            case DeviceRequestType.GetConfiguration:
                                 targetDevice.GetConfiguration();
                                 break;
                             case DeviceRequestType.GetInterface:
                                 targetDevice.GetInterface(packet, setupData);
                                 break;
-                            case DeviceRequestType.GetStatus:                                
+                            case DeviceRequestType.GetStatus:
                                 targetDevice.GetStatus(packet, setupData);
-                                break;                            
+                                break;
                             default:
                                 targetDevice.GetDescriptor(packet, setupData);
                                 this.Log(LogLevel.Warning, "Unsupported device request1");
                                 break;
-                                
+
                             }//end of switch request
                         }
                         else if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Class)
-                        {                                                        
+                        {
                             targetDevice.ProcessClassGet(packet, setupData);
 
                         }
                         else if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Vendor)
-                        {         
+                        {
                             targetDevice.ProcessVendorGet(packet, setupData);
 
                         }
@@ -1306,15 +1306,15 @@ namespace Antmicro.Renode.Peripherals.USB
                             break;
                         case DeviceRequestType.SetDescriptor:
                             targetDevice.GetDescriptor(packet, setupData);
-  
+
                             break;
                         case DeviceRequestType.SetFeature:
                             targetDevice.GetDescriptor(packet, setupData);
- 
+
                             break;
                         case DeviceRequestType.SetInterFace:
                             targetDevice.SetInterface(packet, setupData);
-  
+
                             break;
                         case DeviceRequestType.SetConfiguration:
 
@@ -1325,38 +1325,38 @@ namespace Antmicro.Renode.Peripherals.USB
                         default:
                             this.Log(LogLevel.Warning, "Unsupported device request2");
                             break;
-    
+
                         }//end of switch request
-                    }//end of request type.standard 
+                    }//end of request type.standard
                     else
-                
+
                     if((setupData.requestType >> 5) == (uint)USBRequestType.Class)
                     {
-                        targetDevice.ProcessClassSet(packet, setupData);   
+                        targetDevice.ProcessClassSet(packet, setupData);
                     }
                     else if((setupData.requestType >> 5) == (uint)USBRequestType.Vendor)
                     {
                         targetDevice.ProcessVendorSet(packet, setupData);
-                         
+
                     }
-         
+
                     PTDh.Transferred((uint)PTDh.NrBytesToTransfer);
                     PTDh.Done();
 
-                   
+
                     break;
-                    
+
                 case PIDCode.Out://data transfer from host to device
-                    {                   
+                    {
                         uint dataAmount;
 
                         dataAmount = PTDh.NrBytesToTransfer;
-                     
+
                         if(dataAmount > 0)
                         {
                             byte[] tdData = new byte[dataAmount];
                             Array.Copy(payLoad, PTDh.DataStartAddress, tdData, 0, dataAmount);
-                        
+
                             if(PTDh.EPType == 0)
                             {
                                 packet.ep = (byte)PTDh.EndPt;
@@ -1368,7 +1368,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 packet.data = tdData;
                                 packet.ep = (byte)PTDh.EndPt;
                                 targetDevice.WriteDataBulk(packet);
-                            }                    
+                            }
                         }
                         else
                         {
@@ -1413,8 +1413,8 @@ namespace Antmicro.Renode.Peripherals.USB
                                 {
                                     Array.Copy(inData, 0, payLoad, PTDh.DataStartAddress, inData.Length);
                                     PTDh.Transferred((uint)inData.Length);
-                                }   
-                            } 
+                                }
+                            }
                         }
                         else
                         {
@@ -1436,7 +1436,7 @@ namespace Antmicro.Renode.Peripherals.USB
                         PTDh.Done();
                     }
                     break;
-                    
+
                 default:
                     this.Log(LogLevel.Warning, "Unkonwn PID");
                     break;
@@ -1495,9 +1495,9 @@ namespace Antmicro.Renode.Peripherals.USB
             {
                 get;
                 set;
-            } 
+            }
         };
-        #region EHCI operational register set 
+        #region EHCI operational register set
         public PortStatusAndControlRegister[] portSc; //port status control
         public uint usbCmd = 0x00080000; //usb command
         public uint usbSts = 0x0000000; //usb status
@@ -1505,15 +1505,15 @@ namespace Antmicro.Renode.Peripherals.USB
         public uint asyncListAddress; //next async addres
         public uint configFlag; // configured flag registers
         public InterruptEnable interruptEnableRegister = new InterruptEnable();
-        #endregion  
-            
+        #endregion
+
         #region EHCI Host controller capability register
         private uint[] hscpPortRoute = new uint [2];
         private const uint capBase = (hciVersion & 0xffff) << 16 | ((opBase) & 0xff) << 0;//lenght + version (0x00) (RO)
         private uint hCSParams = 0; //structural parameters (addr 0x04) (RO)
         private uint hCCParams = 0; //capability parameters (addr 0x08) (RO)
         #endregion
-        
+
         #region EHCI controller configuration
         private const uint hciVersion = 0x0100;//hci version (16 bit BCD)
         public const uint opBase = 0x20;  //operational registers base addr
@@ -1548,7 +1548,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ISOPTDLastPTD = 0x0138,
             INTPTDDoneMap = 0x0140,
             INTPTDSkipMap = 0x0144,
-            INTPTDLastPTD = 0x0148, 
+            INTPTDLastPTD = 0x0148,
             ATLPTDDoneMap = 0x0150,
             ATLPTDSkipMap = 0x0154,
             ATLPTDLastPTD = 0x0158,
@@ -1577,14 +1577,14 @@ namespace Antmicro.Renode.Peripherals.USB
             INTIRQMaskAND = 0x0328,
             ATLIRQMaskAND = 0x032C
         }
-   
+
         protected enum PIDCode
         {
             Out = 0,
             In = 1,
             Setup = 2
         }
-        
+
         private enum DataDirection
         {
             HostToDevice = 0,
@@ -1627,7 +1627,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 return regValue;
             }
         }
-        
+
         public enum InterruptMask:uint //same mask for Int Enable ane USB Status registers
         {
             InterruptOnAsyncAdvance = (uint)(1 << 5),
@@ -1640,19 +1640,19 @@ namespace Antmicro.Renode.Peripherals.USB
         public void AttachHUBDevice(IUSBPeripheral device, byte port)
         {
             registeredDevices.Add(port, device);
-           
+
             PortStatusAndControlRegisterChanges change = portSc[port - 1].Attach();
-                
+
             if(change.ConnectChange == true)
             {
-                usbSts |= (uint)InterruptMask.PortChange;     
+                usbSts |= (uint)InterruptMask.PortChange;
             }
-                
+
             if((interruptEnableRegister.Enable == true) && (interruptEnableRegister.PortChangeEnable == true))
             {
                 usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange; //raise flags in status register
                 interr |= 1 << 7;
-                IRQ.Set(true); //raise interrupt   
+                IRQ.Set(true); //raise interrupt
             }
         }
 
@@ -1660,7 +1660,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             registeredDevices.Remove(port);
         }
-        
+
         public void DetachHUBDevice(uint addr, uint port)
         {
             PTDheader PTDh = new PTDheader();
@@ -1716,12 +1716,12 @@ namespace Antmicro.Renode.Peripherals.USB
                                 {
                                     usbSts |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.InterruptOnAsyncAdvance; //raise flags in status register
                                     interr |= 1 << 7;
-                                    IRQ.Set(true); //raise interrupt   
+                                    IRQ.Set(true); //raise interrupt
                                 }
                             }
                         }
 
-                        IUSBHub hub; 
+                        IUSBHub hub;
                         IUSBPeripheral device;
 
                         for(byte x=1; x<=registeredHubs.Count; x++)
@@ -1746,7 +1746,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void RemoveFromHub(IUSBPeripheral dev)
         {
-            IUSBHub hub; 
+            IUSBHub hub;
             IUSBPeripheral device;
             for(byte x=1; x<=registeredHubs.Count; x++)
             {
@@ -1762,7 +1762,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     registeredHubs.Remove((byte)x);
                 }
             }
-            adressedDevices.Remove((byte)dev.GetAddress());    
+            adressedDevices.Remove((byte)dev.GetAddress());
         }
 
         public Dictionary<byte,IUSBPeripheral> DeviceList

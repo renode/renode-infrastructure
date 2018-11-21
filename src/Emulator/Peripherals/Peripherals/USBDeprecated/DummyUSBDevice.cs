@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class DummyUSBDevice : IUSBPeripheral
     {
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void WriteDataBulk(USBPacket packet)
         {
-            
+
         }
 
         public void WriteDataControl(USBPacket packet)
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             return null;
         }
-            
+
         public byte[] GetDataControl(USBPacket packet)
         {
             return null;
@@ -80,32 +80,32 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             throw new System.NotImplementedException();
         }
-    
+
         public void ProcessClassSet(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new System.NotImplementedException();
         }
-        
+
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public void CleanDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public bool GetDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new USBRequestException();
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.USB
             throw new NotImplementedException();
         }
 
-   
+
          #region IUSBDevice
         public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
         {
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             throw new NotImplementedException();
         }
-        
+
         public void WriteData(byte[] data)
         {
             //throw new NotImplementedException ();
@@ -203,8 +203,8 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             throw new NotImplementedException();
         }
-   
-   
+
+
 
     #endregion
     }

@@ -8,7 +8,7 @@
 using System;
 using Antmicro.Renode.UserInterface;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     [Icon("usb")]
     public interface IUSBPeripheral : IPeripheral

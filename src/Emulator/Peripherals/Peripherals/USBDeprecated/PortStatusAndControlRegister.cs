@@ -10,7 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class PortStatusAndControlRegister
     {
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
             if((portValue & PortEnabledDisabled) == 0)
             {
-                // if(SystemBus != null) 
+                // if(SystemBus != null)
                 //   this.Log(LogType.Error,"zerowanie Enable current PC {0:x}", ((IControllableCPU)SystemBus.GetCPUs().First()).PC);
             }
             /* Remove reset bit */
@@ -118,7 +118,7 @@ namespace Antmicro.Renode.Peripherals.USB
         public PortStatusAndControlRegisterChanges powerUp()
         {
             uint oldPortValue = portValue;
-            //  portValue |= PortEnabledDisabled | CurrentConnectStatus | PortPower; //TODO: Port Power bit should be dependent on PPC 
+            //  portValue |= PortEnabledDisabled | CurrentConnectStatus | PortPower; //TODO: Port Power bit should be dependent on PPC
             //portValue |= PortEnabledDisabled | PortPower;
             //powered = true;
             if(attached)

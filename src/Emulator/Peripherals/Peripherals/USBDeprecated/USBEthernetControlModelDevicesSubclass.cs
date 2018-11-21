@@ -9,7 +9,7 @@ using System;
 using Antmicro.Renode.Utilities;
 
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBEthernetControlModelDevicesSubclass : USBCommunicationClass
     {
@@ -19,14 +19,14 @@ namespace Antmicro.Renode.Peripherals.USB
         }
         protected const byte DeviceSubclassCode = (byte)SubclassCode.EthernetNetworkingControlModel;
         protected const byte ProtocolSubclassCode = (byte)ProtocolCode.NoClassSpecific;
-          
+
         [Flags]
         protected enum EthernetStatisticsCapability : uint
         {
             XmitOK = 1 << 0,
             RvcOK = 1 << 1,
             XmitError = 1 << 2,
-            RvcError = 1 << 3, 
+            RvcError = 1 << 3,
             RvcNoBuffer = 1 << 4,
             DirectedBytesXmit = 1 << 5,
             DirectedFramesXmit = 1 << 6,
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.USB
             XmitTimesCrsLost = 1 << 27,
             XmitLateCollisions = 1 << 28
         }
-        
+
         protected enum SubclassSpecificRequestCode
         {
             SetEthernetMulticastFilters = 0x40,
@@ -61,16 +61,16 @@ namespace Antmicro.Renode.Peripherals.USB
             GetEthernetPowerManagementPatternFilter = 0x42,
             SetEthernetPacketFilter = 0x43,
             GetEthernetStatistic = 0x44
-            
+
         }
-        
+
         protected enum SubclassSpecificNotificationCode
         {
             NetworkConnection = 0x00,
             ResponseAvaliable = 0x01,
             ConnectionSpeedChange = 0x2A
         }
-        
+
         protected enum EthernetStatisticsFeatureSelectorCode : byte
         {
             XmitOK = 0x01,
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.USB
             XmitTimesCrsLost = 0x1D,
             XmitLateCollisions = 0x1D
         }
-        
+
         protected struct EthernetStatistics
         {
             public uint XmitOK;
@@ -136,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.USB
             public uint XmitTimesCrsLost;
             public uint XmitLateCollisions;
         }
-        
+
         protected class EthernetNetworkingFuncionalDescriptor : USBDescriptor
         {
             public EthernetNetworkingFuncionalDescriptor ()
@@ -144,15 +144,15 @@ namespace Antmicro.Renode.Peripherals.USB
                 base.Length = 0x0D;
                 base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
             }
-            
+
             public const byte DescriptorSubtype = DeviceSubclassCode;
             public byte MacAddressIndex;
             public uint EthernetStatistics;
             public ushort MaxSegmentSize;
             public ushort MulticastFiltersNumber;
             public byte PowerFiltersNumber;
-            
-            
+
+
             public override byte[] ToArray ()
             {
                 var arr = base.ToArray ();
@@ -164,10 +164,10 @@ namespace Antmicro.Renode.Peripherals.USB
                 arr[0x0C] = PowerFiltersNumber;
                 return arr;
             }
-            
+
         }
-        
-        
+
+
     }
 }
 

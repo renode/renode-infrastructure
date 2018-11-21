@@ -7,13 +7,12 @@
 //
 using System;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public enum USBRequestType
-        {
-            Standard = 0,
-            Class = 1,
-            Vendor = 2
-        }
+    public struct PortStatusAndControlRegisterChanges
+    {
+        public bool ConnectChange;
+        public bool EnableChange;
+    }
 }
 

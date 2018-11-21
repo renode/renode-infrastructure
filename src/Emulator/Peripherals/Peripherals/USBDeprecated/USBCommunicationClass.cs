@@ -8,7 +8,7 @@
 using System;
 using Antmicro.Renode.Utilities;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBCommunicationClass
     {
@@ -20,8 +20,8 @@ namespace Antmicro.Renode.Peripherals.USB
         protected const byte DeviceClassCode = 0x02;
         protected const byte InterfaceClassCode = 0x02;
         protected const byte DataInterfaceClassCode = 0x0A;
-        
-        
+
+
         protected enum SubclassCode : byte
         {
             Reserved = 0x00,
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.USB
             MobileDirectLineModel = 0x0A,
             OBEX = 0x0B
         }
-        
+
         protected enum ProtocolCode : byte
         {
             NoClassSpecific = 0x00,
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ExternalProtocol = 0xFE,
             VendorSpecific = 0xFF
         }
-        
+
         protected enum DataProtocolCode : byte
         {
             NoClassSpecific = 0x00,
@@ -69,14 +69,14 @@ namespace Antmicro.Renode.Peripherals.USB
             HostBasedDriver = 0xFD,
             CDCSpecification = 0xFE,
             VendorSpecific = 0xFF
-            
+
         }
         protected enum CommunicationClassDescriptorType : byte
         {
             Interface = 0x24,
             Endpoint = 0x25
         }
-        
+
         protected enum CommunicationClassFunctionalDescriptorsSubType : byte
         {
             Headerr = 0x00,
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.USB
             OBEXServiceIdentifier = 0x19,
             NCMFunctionalDescriptor = 0x1A
         }
-        
+
         protected enum ClassSpecificRequestCodes : byte
         {
             SendEncaplsulatedCommand = 0x00,
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.USB
             GetCRCMode = 0x89,
             SetCRCMode = 0x8A
         }
-        
+
         protected enum ClassSpecificNotificationCodes : byte
         {
             NetworkConnection = 0x00,
@@ -168,22 +168,22 @@ namespace Antmicro.Renode.Peripherals.USB
             LineStateChange = 0x29,
             ConnectedSpeedChange = 0x2A
         }
-        
-        
+
+
         protected class HeaderFunctionalDescriptor : USBDescriptor
         {
-            
+
             public HeaderFunctionalDescriptor()
             {
                 base.Length = 0x04;
                 base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
             }
-            public byte Subtype{get; set;}            
+            public byte Subtype{get; set;}
             public ushort bcdCDC{get; set;}
 
             public override byte[] ToArray ()
             {
-             
+
                 var arr = base.ToArray ();
                 arr[0x2] = Subtype;
                 arr[0x3] = bcdCDC.LoByte();
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 return arr;
             }
         }
-        
+
         protected class UnionFunctionalDescriptor : USBDescriptor
         {
             public UnionFunctionalDescriptor(byte subordinateInterfacesNumber)
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
                 SubordinateInterface = new byte[subordinateInterfacesNumber];
             }
-            public byte Subtype{get; set;}            
+            public byte Subtype{get; set;}
             public byte ControllInterface{get; set;}
             public byte[] SubordinateInterface{get; set;}
 
@@ -211,21 +211,21 @@ namespace Antmicro.Renode.Peripherals.USB
                 arr[0x3] = ControllInterface;
                 Array.Copy(SubordinateInterface, 0,arr, 0x4, SubordinateInterface.Length);
                 return arr;
-                
+
             }
         }
-        
+
         protected class CountrySelectionFunctionalDescriptor : USBDescriptor
         {
-            
+
             public CountrySelectionFunctionalDescriptor(byte countryCodesNumber)
             {
                 base.Length = (byte)(countryCodesNumber * 2 + 4);
                 base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
                 CountryCode = new byte[countryCodesNumber];
             }
-            
-            public byte Subtype{get; set;}            
+
+            public byte Subtype{get; set;}
             public byte CountryCodeReleaseDate{get; set;}
             public byte[] CountryCode{get; set;}
 
@@ -237,17 +237,17 @@ namespace Antmicro.Renode.Peripherals.USB
                 Array.Copy(CountryCode,0,arr,0x4,CountryCode.Length);
                 return arr;
             }
-            
+
         }
-          
-        
+
+
         //protected ConfigurationUSBDescriptor configurationDescriptor;
         //protected StandardUSBDescriptor deviceDescriptor;
         //protected InterfaceUSBDescriptor interfaceDescriptor;
         //protected EndpointUSBDescriptor endpointDescriptor;
         //protected StringUSBDescriptor stringDesriptor;
-        
-          
+
+
     }
 }
 

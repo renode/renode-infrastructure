@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Core.Structure;
 
-namespace Antmicro.Renode.Peripherals.USB 
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBEthernetEmulationModelDevice : IUSBPeripheral, IMACInterface
     {
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             return USBDeviceSpeed.Low;
         }
-        
+
         #region IUSBDevice implementation
         public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
         {
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.USB
         }
                 public void WriteDataBulk(USBPacket packet)
         {
-            
+
         }
                 public uint GetAddress()
         {
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.USB
                       public     byte GetTransferStatus()
         {
         return 0;
-        } 
+        }
         public byte[] GetDataControl(USBPacket packet)
         {
             return null;
@@ -81,24 +81,24 @@ namespace Antmicro.Renode.Peripherals.USB
         }
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException ();    
+            throw new NotImplementedException ();
         }
-        
+
         public void CleanDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException ();
         }
-        
+
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException ();    
+            throw new NotImplementedException ();
         }
-        
+
         public bool GetDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException ();
         }
-        
+
         public void ClearFeature (USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new NotImplementedException ();
@@ -174,8 +174,8 @@ namespace Antmicro.Renode.Peripherals.USB
 
 
         #endregion
-        
-        
+
+
         private class ethernetControllerSetting
         {
             public long MACAddress = 0xFFFFFFFFFFFF;

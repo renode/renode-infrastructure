@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBTablet :IUSBPeripheral, IAbsolutePositionPointerInput
     {
@@ -374,7 +374,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 AlternateSetting = 0,
                 InterfaceNumber = 0x00,
                 NumberOfEndpoints = 1,
-                InterfaceClass = 0x03, 
+                InterfaceClass = 0x03,
                 InterfaceProtocol = 0x02,
                 InterfaceSubClass = 0x01,
                 InterfaceIndex = 0x07
@@ -404,37 +404,37 @@ namespace Antmicro.Renode.Peripherals.USB
             NumberOfConfigurations = 1
         };
 
-        private byte[] tabletConfigDescriptor = {             
-            0x09,       
-            0x02,      
-            0x22, 0x00, 
-            0x01,      
-            0x01,   
-            0x05,    
-            0xa0,      
-            50,             
-            0x09,     
-            0x04,     
-            0x00,      
-            0x00,     
-            0x01,    
-            0x03,     
-            0x01,   
-            0x02,      
-            0x07,      
-            0x09,       
-            0x21,    
-            0x01, 0x00, 
-            0x00,      
-            0x01,    
-            0x22,       
-            74, 0,      
-            0x07,     
-            0x05,    
-            0x81,    
-            0x03,      
-            0x04, 0x00, 
-            0x0a    
+        private byte[] tabletConfigDescriptor = {
+            0x09,
+            0x02,
+            0x22, 0x00,
+            0x01,
+            0x01,
+            0x05,
+            0xa0,
+            50,
+            0x09,
+            0x04,
+            0x00,
+            0x00,
+            0x01,
+            0x03,
+            0x01,
+            0x02,
+            0x07,
+            0x09,
+            0x21,
+            0x01, 0x00,
+            0x00,
+            0x01,
+            0x22,
+            74, 0,
+            0x07,
+            0x05,
+            0x81,
+            0x03,
+            0x04, 0x00,
+            0x0a
         };
         private byte[] tabletHIDReportDescriptor = {
             0x05, 0x01,
@@ -468,11 +468,11 @@ namespace Antmicro.Renode.Peripherals.USB
             0x15, 0x81,
             0x25, 0x7f,
             0x35, 0x00,
-            0x45, 0x00,     
-            0x75, 0x08,     
-            0x95, 0x01,     
-            0x81, 0x06,     
-            0xc0,       
+            0x45, 0x00,
+            0x75, 0x08,
+            0x95, 0x01,
+            0x81, 0x06,
+            0xc0,
             0xc0,
         };
     }

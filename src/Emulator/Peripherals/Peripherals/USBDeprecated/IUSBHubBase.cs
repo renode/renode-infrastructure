@@ -8,7 +8,7 @@
 using System;
 using Antmicro.Renode.Core.Structure;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public interface IUSBHubBase : IPeripheralRegister<IUSBHub, USBRegistrationPoint>,  IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>
     {

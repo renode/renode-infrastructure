@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.Input;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBMouse : IUSBPeripheral, IRelativePositionPointerInput
     {
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.USB
             AlternateSetting = 0,
             InterfaceNumber = 0x00,
             NumberOfEndpoints = 1,
-            InterfaceClass = 0x03, 
+            InterfaceClass = 0x03,
             InterfaceProtocol = 0x02,
             InterfaceSubClass = 0x01,
             InterfaceIndex = 0x07
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void WriteDataBulk(USBPacket packet)
         {
-            
+
         }
 
         private void fillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)
@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[0].Interval = 0x0a;
-     
+
         }
 
         public void WriteDataControl(USBPacket packet)
@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
 
         public void CleanDataToggle(byte endpointNumber)
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
 
         public bool GetDataToggle(byte endpointNumber)
@@ -423,66 +423,66 @@ namespace Antmicro.Renode.Peripherals.USB
             SerialNumberIndex = 1,
             NumberOfConfigurations = 1
         };
-        byte[] mouseConfigDescriptor = {             
-            0x09,       
-            0x02,      
-            0x22, 0x00, 
-            0x01,      
-            0x01,   
-            0x04,    
-            0xe0,      
-            50,             
-            0x09,     
-            0x04,     
-            0x00,      
-            0x00,     
-            0x01,    
-            0x03,     
-            0x01,   
-            0x02,      
-            0x07,      
-            0x09,       
-            0x21,    
-            0x01, 0x00, 
-            0x00,      
-            0x01,    
-            0x22,       
-            52, 0,      
-            0x07,     
-            0x05,    
-            0x81,    
-            0x03,      
-            0x04, 0x00, 
-            0x0a    
+        byte[] mouseConfigDescriptor = {
+            0x09,
+            0x02,
+            0x22, 0x00,
+            0x01,
+            0x01,
+            0x04,
+            0xe0,
+            50,
+            0x09,
+            0x04,
+            0x00,
+            0x00,
+            0x01,
+            0x03,
+            0x01,
+            0x02,
+            0x07,
+            0x09,
+            0x21,
+            0x01, 0x00,
+            0x00,
+            0x01,
+            0x22,
+            52, 0,
+            0x07,
+            0x05,
+            0x81,
+            0x03,
+            0x04, 0x00,
+            0x0a
         };
         byte[] mouseHIDReportDescriptor = {
-            0x05, 0x01,   
-            0x09, 0x02, 
-            0xa1, 0x01,    
-            0x09, 0x01,   
-            0xa1, 0x00,   
-            0x05, 0x09,    
-            0x19, 0x01,   
-            0x29, 0x03,  
-            0x15, 0x00,    
-            0x25, 0x01,  
-            0x95, 0x03,    
-            0x75, 0x01,    
-            0x81, 0x02,   
-            0x95, 0x01,   
-            0x75, 0x05,    
-            0x81, 0x01,  
-            0x05, 0x01,    
-            0x09, 0x30, 
-            0x09, 0x31,  
-            0x09, 0x38,   
-            0x15, 0x81,   
-            0x25, 0x7f,    
-            0x75, 0x08,  
-            0x95, 0x03,    
-            0x81, 0x06,   
-            0xc0,     
-            0xc0 
+            0x05, 0x01,
+            0x09, 0x02,
+            0xa1, 0x01,
+            0x09, 0x01,
+            0xa1, 0x00,
+            0x05, 0x09,
+            0x19, 0x01,
+            0x29, 0x03,
+            0x15, 0x00,
+            0x25, 0x01,
+            0x95, 0x03,
+            0x75, 0x01,
+            0x81, 0x02,
+            0x95, 0x01,
+            0x75, 0x05,
+            0x81, 0x01,
+            0x05, 0x01,
+            0x09, 0x30,
+            0x09, 0x31,
+            0x09, 0x38,
+            0x15, 0x81,
+            0x25, 0x7f,
+            0x75, 0x08,
+            0x95, 0x03,
+            0x81, 0x06,
+            0xc0,
+            0xc0
         };
         private const ushort EnglishLangId = 0x09;
         #region IUSBDevice implementation

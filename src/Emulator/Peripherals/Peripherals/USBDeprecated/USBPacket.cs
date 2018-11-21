@@ -7,7 +7,7 @@
 //
 using System;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
       public enum MessageRecipient
         {

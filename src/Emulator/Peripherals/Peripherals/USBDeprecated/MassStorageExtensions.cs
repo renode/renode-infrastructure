@@ -9,7 +9,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public static class MassStorageExtensions
     {

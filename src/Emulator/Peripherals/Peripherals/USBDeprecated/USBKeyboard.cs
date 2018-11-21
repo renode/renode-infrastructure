@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.Input;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBKeyboard : IUSBPeripheral, IKeyboard
     {
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void WriteDataBulk(USBPacket packet)
         {
-            
+
         }
 
         private void fillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.USB
             endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
             endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
             endpointDesc[0].Interval = 0x0a;
-     
+
         }
 
         public void WriteDataControl(USBPacket packet)
@@ -170,7 +170,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             return null;
         }
-            
+
         public byte[] GetDataControl(USBPacket packet)
         {
             return controlPacket;
@@ -247,32 +247,32 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             return controlPacket;
         }
-    
+
         public void ProcessClassSet(USBPacket packet, USBSetupPacket setupPacket)
         {
 
         }
-        
+
         public void SetDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public void CleanDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ToggleDataToggle(byte endpointNumber)
         {
-            throw new NotImplementedException();    
+            throw new NotImplementedException();
         }
-        
+
         public bool GetDataToggle(byte endpointNumber)
         {
             throw new NotImplementedException();
         }
-        
+
         public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new USBRequestException();
@@ -283,7 +283,7 @@ namespace Antmicro.Renode.Peripherals.USB
             throw new NotImplementedException();
         }
 
-   
+
          #region IUSBDevice
         public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
         {
@@ -340,7 +340,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             throw new NotImplementedException();
         }
-        
+
         public void WriteData(byte[] data)
         {
             throw new NotImplementedException();
@@ -376,37 +376,37 @@ namespace Antmicro.Renode.Peripherals.USB
             NumberOfConfigurations = 1
         };
         byte[] keyboardHIDReportDescritpor = {
-            0x05, 0x01,   
-            0x09, 0x06,   
-            0xa1, 0x01, 
-            0x75, 0x01,   
-            0x95, 0x08, 
+            0x05, 0x01,
+            0x09, 0x06,
+            0xa1, 0x01,
+            0x75, 0x01,
+            0x95, 0x08,
             0x05, 0x07,
             0x19, 0xe0,
             0x29, 0xe7,
-            0x15, 0x00, 
-            0x25, 0x01, 
-            0x81, 0x02, 
-            0x95, 0x01,  
-            0x75, 0x08,   
-            0x81, 0x01,   
-            0x95, 0x05, 
-            0x75, 0x01,   
-            0x05, 0x08,    
-            0x19, 0x01,    
-            0x29, 0x05,  
-            0x91, 0x02,  
-            0x95, 0x01,  
-            0x75, 0x03,  
-            0x91, 0x01,   
-            0x95, 0x06,    
-            0x75, 0x08,    
-            0x15, 0x00,   
-            0x25, 0xff,   
-            0x05, 0x07,   
-            0x19, 0x00,    
-            0x29, 0xff,   
-            0x81, 0x00,   
+            0x15, 0x00,
+            0x25, 0x01,
+            0x81, 0x02,
+            0x95, 0x01,
+            0x75, 0x08,
+            0x81, 0x01,
+            0x95, 0x05,
+            0x75, 0x01,
+            0x05, 0x08,
+            0x19, 0x01,
+            0x29, 0x05,
+            0x91, 0x02,
+            0x95, 0x01,
+            0x75, 0x03,
+            0x91, 0x01,
+            0x95, 0x06,
+            0x75, 0x08,
+            0x15, 0x00,
+            0x25, 0xff,
+            0x05, 0x07,
+            0x19, 0x00,
+            0x29, 0xff,
+            0x81, 0x00,
             0xc0
         };
         byte[] keyboardConfigDescriptor = {
@@ -416,29 +416,29 @@ namespace Antmicro.Renode.Peripherals.USB
             0x01,
             0x01,
             0x06,
-            0xa0,     
-            0x32,      
-            0x09,     
-            0x04,  
-            0x00,   
-            0x00,      
-            0x01,      
-            0x03,       
-            0x01,       
-            0x01,       
-            0x07,    
-            0x09,      
-            0x21,  
-            0x11, 0x01,   
-            0x00,     
-            0x01,     
-            0x22,  
-            0x3f, 0x00,          
-            0x07,  
-            0x05,  
-            0x81,  
-            0x03,    
-            0x08, 0x00,    
+            0xa0,
+            0x32,
+            0x09,
+            0x04,
+            0x00,
+            0x00,
+            0x01,
+            0x03,
+            0x01,
+            0x01,
+            0x07,
+            0x09,
+            0x21,
+            0x11, 0x01,
+            0x00,
+            0x01,
+            0x22,
+            0x3f, 0x00,
+            0x07,
+            0x05,
+            0x81,
+            0x03,
+            0x08, 0x00,
             0x0a,
         };
         private const ushort EnglishLangId = 0x09;
@@ -454,10 +454,10 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             throw new NotImplementedException();
         }
-   
-   
 
-   
+
+
+
 
     #endregion
     }

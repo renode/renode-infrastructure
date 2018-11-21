@@ -7,7 +7,7 @@
 //
 using Antmicro.Renode.Logging;
 
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class Ulpi : IPhysicalLayer<byte>
     {
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 break;
             }
         }
-       
+
         public void Reset()
         {
             scratchRegister = 0;

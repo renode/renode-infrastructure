@@ -6,11 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-namespace Antmicro.Renode.Peripherals.USB
+
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public class USBRequestException : Exception
+    public enum USBLanguageIDCode : ushort
     {
-     
+        English = 0x09
     }
+
 }
 

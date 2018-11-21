@@ -6,13 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-
-namespace Antmicro.Renode.Peripherals.USB
+namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public struct PortStatusAndControlRegisterChanges
+    public class USBRequestException : Exception
     {
-        public bool ConnectChange;
-        public bool EnableChange;
+
     }
 }
 
