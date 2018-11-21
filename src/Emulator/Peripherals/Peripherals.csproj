@@ -134,6 +134,7 @@
     <Compile Include="Peripherals\USBDeprecated\IUSBHubBase.cs" />
     <Compile Include="Peripherals\USBDeprecated\USBPacket.cs" />
     <Compile Include="Peripherals\CAN\STMCAN.cs" />
+    <Compile Include="Peripherals\CAN\PSE_CAN.cs" />
     <Compile Include="Peripherals\USBDeprecated\EHCIHostController.cs" />
     <Compile Include="Peripherals\Timers\TegraUsecTimer.cs" />
     <Compile Include="Peripherals\I2C\TegraI2CController.cs" />
