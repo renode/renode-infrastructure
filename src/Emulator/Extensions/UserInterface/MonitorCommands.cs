@@ -304,11 +304,17 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(enumerable != null && !(result is string))
             {
+                var i = 0;
                 writer.Write("[\r\n");
                 foreach(var item in enumerable)
                 {
+                    ++i;
                     PrintActionResult(item, writer, false);
                     writer.Write(", ");
+                    if(i % 10 == 0)
+                    {
+                        writer.Write("\r\n");
+                    }
                 }
                 writer.Write("\r\n]" + endl);
             }
