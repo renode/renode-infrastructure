@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             dataBackend = DataStorage.Create(imageFile, size, persistent);
 
-            DeviceInfo = new USBDeviceInfo(this)
+            USBCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c => c.WithInterface<Core.USB.MSC.Interface>(
                     (byte)Core.USB.MSC.Subclass.ScsiTransparentCommandSet,
                     (byte)Core.USB.MSC.Protocol.BulkOnlyTransport,
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.USB
             deviceToHostEndpoint.Reset();
         }
 
-        public USBDeviceInfo DeviceInfo { get; }
+        public USBDeviceCore USBCore { get; }
 
         private void SendResult(BulkOnlyTransportCommandBlockWrapper commandBlockWrapper, CommandStatus status = CommandStatus.Success, uint dataResidue = 0)
         {

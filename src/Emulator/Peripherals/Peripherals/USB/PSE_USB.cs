@@ -390,7 +390,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            fifoFromDeviceToHost[0].EnqueueRange(peripheral.DeviceInfo.HandleSetupPacket(Packet.Decode<SetupPacket>(data)));
+                            fifoFromDeviceToHost[0].EnqueueRange(peripheral.USBCore.HandleSetupPacket(Packet.Decode<SetupPacket>(data)));
                             // peripheral's address changes as a result of setup packet
                             UpdateAddressCache(peripheral);
                             txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
@@ -442,7 +442,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            var endpoint = peripheral.DeviceInfo.GetEndpoint((int)receiveTargetEndpointNumber[endpointId].Value);
+                            var endpoint = peripheral.USBCore.GetEndpoint((int)receiveTargetEndpointNumber[endpointId].Value);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from a non-existing endpoint #{0}", receiveTargetEndpointNumber[endpointId].Value);
@@ -496,7 +496,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var mappedEndpointId = (int)transmitTargetEndpointNumber[endpointId].Value;
-                            var endpoint = peripheral.DeviceInfo.GetEndpoint(mappedEndpointId);
+                            var endpoint = peripheral.USBCore.GetEndpoint(mappedEndpointId);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to write to a non-existing endpoint #{0}", mappedEndpointId);
@@ -570,12 +570,12 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             lock(addressToDeviceCache)
             {
-                if(!addressToDeviceCache.TryExchange(peripheral, peripheral.DeviceInfo.Address, out var previousAddress))
+                if(!addressToDeviceCache.TryExchange(peripheral, peripheral.USBCore.Address, out var previousAddress))
                 {
                     throw new ArgumentException("This should not happen");
                 }
 
-                if(peripheral.DeviceInfo.Address != 0 && previousAddress == 0 && nonInitializedDevices.TryDequeue(out var newDevice))
+                if(peripheral.USBCore.Address != 0 && previousAddress == 0 && nonInitializedDevices.TryDequeue(out var newDevice))
                 {
                     // now we can initialize another device
                     InitializeDevice(newDevice);

@@ -15,9 +15,9 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB
 {
-    public class USBDeviceInfo : DescriptorProvider
+    public class USBDeviceCore : DescriptorProvider
     {
-        public USBDeviceInfo(IUSBDevice device,
+        public USBDeviceCore(IUSBDevice device,
                              USBClassCode classCode = USBClassCode.NotSpecified,
                              byte subClassCode = 0,
                              byte protocol = 0,
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Core.USB
             }
         }
 
-        public USBDeviceInfo WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
+        public USBDeviceCore WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
         {
             var newConfiguration = new USBConfiguration(device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
             configurations.Add(newConfiguration);

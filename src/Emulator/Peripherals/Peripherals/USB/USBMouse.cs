@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             this.machine = machine;
 
-            DeviceInfo = new USBDeviceInfo(this)
+            USBCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c =>
                     c.WithInterface(new Core.USB.HID.Interface(this, 0,
                         subClassCode: (byte)Core.USB.HID.SubclassCode.BootInterfaceSubclass,
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        public USBDeviceInfo DeviceInfo { get; }
+        public USBDeviceCore USBCore { get; }
 
         private MouseButton buttonState;
 

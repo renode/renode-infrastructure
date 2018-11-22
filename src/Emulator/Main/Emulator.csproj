@@ -110,7 +110,7 @@
     <Compile Include="Peripherals\USB\Direction.cs" />
     <Compile Include="Peripherals\USB\DescriptorProvider.cs" />
     <Compile Include="Peripherals\USB\IProvidesDescriptor.cs" />
-    <Compile Include="Peripherals\USB\USBDeviceInfo.cs" />
+    <Compile Include="Peripherals\USB\USBDeviceCore.cs" />
     <Compile Include="Peripherals\USB\DescriptorType.cs" />
     <Compile Include="Peripherals\USB\EndpointTransferType.cs" />
     <Compile Include="Peripherals\USB\USBEndpoint.cs" />
