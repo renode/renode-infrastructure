@@ -172,6 +172,25 @@ namespace Antmicro.Renode.Core.USB
                         return BitStream.Empty;
                     }
                     return Configurations.ElementAt(descriptorIndex).GetDescriptor(true);
+                case DescriptorType.String:
+                {
+                    if(descriptorIndex == 0)
+                    {
+                        // special String Index returning a list of supported languages
+                        return USBString.GetSupportedLanguagesDescriptor();
+                    }
+                    else
+                    {
+                        var usbString = USBString.FromId(descriptorIndex);
+                        if(usbString == null)
+                        {
+                            device.Log(LogLevel.Warning, "Tried to get non-existing string #{0}", descriptorIndex);
+                            return BitStream.Empty;
+                        }
+
+                        return usbString.GetDescriptor(false);
+                    }
+                }
                 default:
                     device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
                     return BitStream.Empty;

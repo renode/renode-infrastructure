@@ -6,10 +6,12 @@
 //
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB
 {
-    public class USBString
+    public class USBString : DescriptorProvider
     {
         static USBString()
         {
@@ -19,6 +21,11 @@ namespace Antmicro.Renode.Core.USB
 
         public static USBString FromString(string s)
         {
+            if(string.IsNullOrWhiteSpace(s))
+            {
+                return Empty;
+            }
+
             var usbString = strings.FirstOrDefault(x => x.Value == s);
             if(usbString == null)
             {
@@ -38,17 +45,42 @@ namespace Antmicro.Renode.Core.USB
             return strings[id - 1];
         }
 
+        public static BitStream GetSupportedLanguagesDescriptor()
+        {
+            // for now we hardcode just one language
+            return new BitStream()
+                .Append(4)
+                .Append((byte)DescriptorType.String)
+                .Append((short)LanguageCode.EnglishUnitedStates);
+        }
+
         public static USBString Empty { get; }
 
-        public USBString(string value, byte id)
+        private static List<USBString> strings;
+
+        public byte Index { get; }
+        public string Value { get; }
+
+        public override int DescriptorLength => 2 + Encoding.Unicode.GetByteCount(Value);
+
+        protected USBString(string value, byte id) : base((byte)DescriptorType.String)
         {
             Value = value;
             Index = id;
         }
 
-        public byte Index { get; }
-        public string Value { get; }
+        protected override void FillDescriptor(BitStream buffer)
+        {
+            var stringAsUnicodeBytes = Encoding.Unicode.GetBytes(Value);
+            foreach(var b in stringAsUnicodeBytes)
+            {
+                buffer.Append(b);
+            }
+        }
 
-        private static List<USBString> strings;
+        public enum LanguageCode : short
+        {
+            EnglishUnitedStates = 0x0409
+        }
     }
 }
