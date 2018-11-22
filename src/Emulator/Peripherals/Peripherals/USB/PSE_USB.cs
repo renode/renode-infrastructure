@@ -25,7 +25,6 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             this.mode = mode;
 
-            nonInitializedDevices = new Queue<IUSBDevice>();
             addressToDeviceCache = new TwoWayDictionary<byte, IUSBDevice>();
 
             fifoFromDeviceToHost = new Queue<byte>[NumberOfEndpoints];
@@ -120,42 +119,15 @@ namespace Antmicro.Renode.Peripherals.USB
             // if there are multiple devices attached they are reset by the controller one at a time -
             // it ensures that there is only one device with address 0 (the default one) at the bus;
             base.Register(peripheral, registrationPoint);
-            lock(nonInitializedDevices)
-            {
-                if(addressToDeviceCache.Exists(0))
-                {
-                    // there is some device with address 0 being initialized right now - this one must wait
-                    nonInitializedDevices.Enqueue(peripheral);
-                }
-                else
-                {
-                    InitializeDevice(peripheral);
-                }
-            }
+            TryInitializeConnectedDevice();
         }
 
         public override void Unregister(IUSBDevice peripheral)
         {
             base.Unregister(peripheral);
-            usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceDisconnectedSessionEnded);
-        }
-
-        public void ReconnectAllDevices()
-        {
-            usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceDisconnectedSessionEnded);
-            lock(addressToDeviceCache)
+            if(sessionInProgress.Value)
             {
-                addressToDeviceCache.Clear();
-                foreach(var child in this.Children.Select(x => x.Peripheral))
-                {
-                    child.Reset();
-                    nonInitializedDevices.Enqueue(child);
-                }
-
-                if(nonInitializedDevices.Count > 0)
-                {
-                    InitializeDevice(nonInitializedDevices.Dequeue());
-                }
+                usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceDisconnectedSessionEnded);
             }
         }
 
@@ -355,9 +327,22 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void DefineControlAndStatusRegisters()
         {
+            void HandleSessionStart()
+            {
+                lock(addressToDeviceCache)
+                {
+                    addressToDeviceCache.Clear();
+                    if(sessionInProgress.Value)
+                    {
+                        TryInitializeConnectedDevice();
+                    }
+                }
+            }
+
             Registers.DeviceControl.Define8(this, 0x80, name: "DEV_CTRL_REG")
                 .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => true, name: "FSDev")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => mode == ControllerMode.Host, name: "Host Mode")
+                .WithFlag(0, out sessionInProgress, changeCallback: (_, val) => HandleSessionStart(), name: "Session")
             ;
         }
 
@@ -390,9 +375,12 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            fifoFromDeviceToHost[0].EnqueueRange(peripheral.USBCore.HandleSetupPacket(Packet.Decode<SetupPacket>(data)));
-                            // peripheral's address changes as a result of setup packet
-                            UpdateAddressCache(peripheral);
+                            var packet = Packet.Decode<SetupPacket>(data);
+                            fifoFromDeviceToHost[0].EnqueueRange(peripheral.USBCore.HandleSetupPacket(packet));
+                            if(packet.Type == PacketType.Standard && packet.Request == (byte)StandardRequest.SetAddress)
+                            {
+                                UpdateAddressCache(peripheral);
+                            }
                             txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
                         }
 
@@ -575,23 +563,46 @@ namespace Antmicro.Renode.Peripherals.USB
                     throw new ArgumentException("This should not happen");
                 }
 
-                if(peripheral.USBCore.Address != 0 && previousAddress == 0 && nonInitializedDevices.TryDequeue(out var newDevice))
+                if(peripheral.USBCore.Address != 0 && previousAddress == 0)
                 {
                     // now we can initialize another device
-                    InitializeDevice(newDevice);
+                    TryInitializeConnectedDevice();
                 }
             }
         }
 
-        private void InitializeDevice(IUSBDevice peripheral)
+        private bool TryInitializeConnectedDevice()
         {
-            addressToDeviceCache.Add(0, peripheral);
+            if(!sessionInProgress.Value)
+            {
+                // we don't initialize devices when session is inactive
+                return false;
+            }
 
-            usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
+            lock(addressToDeviceCache)
+            {
+                if(addressToDeviceCache.Exists(0))
+                {
+                    // there is an enumeration in progress, the next device will be picked automatically later
+                    return false;
+                }
+
+                var peripheral = ChildCollection.Values.FirstOrDefault(x => !addressToDeviceCache.Exists(x));
+                if(peripheral == null)
+                {
+                    // no more devices to initialize
+                    return false;
+                }
+
+                addressToDeviceCache.Add(0, peripheral);
+                peripheral.Reset();
+
+                usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
+                return true;
+            }
         }
 
         private readonly TwoWayDictionary<byte, IUSBDevice> addressToDeviceCache;
-        private readonly Queue<IUSBDevice> nonInitializedDevices;
 
         private IFlagRegisterField[] requestInTransaction = new IFlagRegisterField[NumberOfEndpoints];
         private IValueRegisterField[] transmitDeviceAddress;
@@ -599,7 +610,7 @@ namespace Antmicro.Renode.Peripherals.USB
         private IValueRegisterField[] transmitTargetEndpointNumber;
         private IValueRegisterField[] receiveTargetEndpointNumber;
         private IValueRegisterField index;
-
+        private IFlagRegisterField sessionInProgress;
         private readonly Queue<byte>[] fifoFromHostToDevice;
         private readonly Queue<byte>[] fifoFromDeviceToHost;
 
