@@ -58,6 +58,11 @@ namespace Antmicro.Renode.Core.USB
 
         public USBEndpoint GetEndpoint(int endpointNumber)
         {
+            if(SelectedConfiguration == null)
+            {
+                return null;
+            }
+
             foreach(var iface in SelectedConfiguration.Interfaces)
             {
                 return iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
