@@ -12,11 +12,15 @@ namespace Antmicro.Renode.Core.USB
 {
     public abstract class DescriptorProvider : IProvidesDescriptor
     {
-        public DescriptorProvider(byte descriptorLength, byte type)
+        public DescriptorProvider(byte type)
         {
-            DescriptorLength = descriptorLength;
             this.type = type;
             subdescriptors = new List<IEnumerable<IProvidesDescriptor>>();
+        }
+
+        public DescriptorProvider(byte descriptorLength, byte type) : this(type)
+        {
+            DescriptorLength = descriptorLength;
         }
 
         public BitStream GetDescriptor(bool recursive, BitStream buffer = null)
@@ -46,7 +50,7 @@ namespace Antmicro.Renode.Core.USB
             return buffer;
         }
 
-        public int DescriptorLength { get; }
+        public virtual int DescriptorLength { get; }
         public int RecursiveDescriptorLength => DescriptorLength + subdescriptors.Sum(sds => sds.Sum(sd => sd.RecursiveDescriptorLength));
 
         protected abstract void FillDescriptor(BitStream buffer);
