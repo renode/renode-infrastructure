@@ -169,7 +169,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                     new DoubleWordRegister(this)
                         // The docs states that on write: "Acknowledges receipt of new message or transmission of RTR auto-reply message (...)"
                         // but as we don't have RTR implemented, this will be RO for now
-                        .WithFlag(0, FieldMode.Read,
+                        .WithFlag(0,
+                            writeCallback: (_, val) => rxMessageBuffers[index].IsMessageAvailable &= !val,
                             valueProviderCallback: _ => rxMessageBuffers[index].IsMessageAvailable,
                             name: "MsgAv")
                         .WithTag("RTRP", 1, 1)
@@ -412,17 +413,6 @@ namespace Antmicro.Renode.Peripherals.CAN
                 BufferId = id;
             }
 
-            public bool TrySetMessage(CANMessageFrame message)
-            {
-                if(Message == null)
-                {
-                    Message = message;
-                    parent.Log(LogLevel.Info, "Received message {0} in mailbox #{1}", message, BufferId);
-                    return true;
-                }
-                return false;
-            }
-
             public uint BufferId { get; private set; }
             public uint MessageId { get; set; }
             public CANMessageFrame Message { get; set; }
@@ -447,9 +437,9 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
             
-            private uint dataLengthCode;
+            protected readonly PSE_CAN parent;
 
-            private readonly PSE_CAN parent;
+            private uint dataLengthCode;
             private const int MaxDataLength = 8;
         }
 
@@ -509,13 +499,25 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return hasIdFilteringPassed && hasDataFilteringPassed;
             }
 
+            public bool TrySetMessage(CANMessageFrame message)
+            {
+                if(Message == null)
+                {
+                    Message = message;
+                    parent.Log(LogLevel.Info, "Received message {0} in mailbox #{1}", message, BufferId);
+                    IsMessageAvailable = true;
+                    return true;
+                }
+                return false;
+            }
+
             public bool Enabled { get; set; }
             public uint AcceptanceMask { get; set; }
             public uint AcceptanceMaskId { get; set; }
             public uint AcceptanceCode { get; set; }
             public bool IsLinked { get; set; }
             public bool IsAutoreplyEnabled { get; set; }
-            public bool IsMessageAvailable => Message != null;
+            public bool IsMessageAvailable { get; set; }
 
             private const int BitsToVerify = 16;
         }
