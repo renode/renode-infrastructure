@@ -56,6 +56,26 @@ namespace Antmicro.Renode.Core.USB
             RegisterSubdescriptors(configurations);
         }
 
+        public void Reset()
+        {
+            Address = 0;
+
+            if(SelectedConfiguration == null)
+            {
+                return;
+            }
+
+            foreach(var iface in SelectedConfiguration.Interfaces)
+            {
+                foreach(var epoint in iface.Endpoints)
+                {
+                    epoint.Reset();
+                }
+            }
+
+            SelectedConfiguration = null;
+        }
+
         public USBEndpoint GetEndpoint(int endpointNumber)
         {
             if(SelectedConfiguration == null)

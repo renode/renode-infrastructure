@@ -39,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.USB
         public void Reset()
         {
             buttonState = 0;
+            USBCore.Reset();
         }
 
         public void MoveBy(int x, int y)

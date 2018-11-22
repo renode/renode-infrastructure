@@ -113,8 +113,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Reset()
         {
-            // it will clear any pending data
-            deviceToHostEndpoint.Reset();
+            USBCore.Reset();
         }
 
         public USBDeviceCore USBCore { get; }
