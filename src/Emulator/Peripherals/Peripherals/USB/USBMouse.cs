@@ -75,8 +75,6 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        public byte Address { get; set; }
-
         public USBDeviceInfo DeviceInfo { get; }
 
         private MouseButton buttonState;

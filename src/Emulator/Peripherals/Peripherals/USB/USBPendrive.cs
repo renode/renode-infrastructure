@@ -117,8 +117,6 @@ namespace Antmicro.Renode.Peripherals.USB
             deviceToHostEndpoint.Reset();
         }
 
-        public byte Address { get; set; }
-
         public USBDeviceInfo DeviceInfo { get; }
 
         private void SendResult(BulkOnlyTransportCommandBlockWrapper commandBlockWrapper, CommandStatus status = CommandStatus.Success, uint dataResidue = 0)

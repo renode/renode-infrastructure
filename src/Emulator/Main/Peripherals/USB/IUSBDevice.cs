@@ -10,8 +10,6 @@ namespace Antmicro.Renode.Core.USB
 {
     public interface IUSBDevice : IPeripheral
     {
-        byte Address { get; set; }
-
         USBDeviceInfo DeviceInfo { get; }
     }
 }

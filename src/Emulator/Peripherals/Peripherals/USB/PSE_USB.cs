@@ -570,12 +570,12 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             lock(addressToDeviceCache)
             {
-                if(!addressToDeviceCache.TryExchange(peripheral, peripheral.Address, out var previousAddress))
+                if(!addressToDeviceCache.TryExchange(peripheral, peripheral.DeviceInfo.Address, out var previousAddress))
                 {
                     throw new ArgumentException("This should not happen");
                 }
 
-                if(peripheral.Address != 0 && previousAddress == 0 && nonInitializedDevices.TryDequeue(out var newDevice))
+                if(peripheral.DeviceInfo.Address != 0 && previousAddress == 0 && nonInitializedDevices.TryDequeue(out var newDevice))
                 {
                     // now we can initialize another device
                     InitializeDevice(newDevice);
@@ -586,7 +586,6 @@ namespace Antmicro.Renode.Peripherals.USB
         private void InitializeDevice(IUSBDevice peripheral)
         {
             addressToDeviceCache.Add(0, peripheral);
-            peripheral.Address = 0;
 
             usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
         }

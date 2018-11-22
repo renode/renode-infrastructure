@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Core.USB
                 switch((StandardRequest)packet.Request)
                 {
                     case StandardRequest.SetAddress:
-                        device.Address = checked((byte)packet.Value);
+                        Address = checked((byte)packet.Value);
                         break;
                     case StandardRequest.GetDescriptor:
                         if(packet.Direction != Direction.DeviceToHost)
@@ -164,6 +164,7 @@ namespace Antmicro.Renode.Core.USB
         public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
 
         public USBConfiguration SelectedConfiguration { get; private set; }
+        public byte Address { get; private set; }
 
         public USBProtocol CompatibleProtocolVersion { get; }
         public USBClassCode Class { get; }
