@@ -27,6 +27,11 @@ namespace Antmicro.Renode.Core.USB.MSC
             return true;
         }
 
+        public override string ToString()
+        {
+            return $"Tag: 0x{Tag:x}, DataTransferLength: {DataTransferLength}, Flags: 0x{Flags:x}, LogicalUnitNumber: {LogicalUnitNumber}, Length: {Length}";
+        }
+
         [PacketField, Offset(bytes:4)]
         public uint Tag { get; private set; }
 

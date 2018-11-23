@@ -18,6 +18,11 @@ namespace Antmicro.Renode.Core.USB.MSC.BOT
             Status = status;
         }
 
+        public override string ToString()
+        {
+            return $"Tag: 0x{Tag:x}, DataResidue: {DataResidue}, Status: {Status}";
+        }
+
         [PacketField, Offset(bytes: 4)]
         public uint Tag { get; }
 
