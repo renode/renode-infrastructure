@@ -130,6 +130,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     break;
                 default:
                     this.Log(LogLevel.Warning, "Unsupported SCSI command: {0}", command);
+                    SendResult(commandBlockWrapper, CommandStatus.Failure, commandBlockWrapper.DataTransferLength);
                     break;
             }
         }
