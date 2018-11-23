@@ -123,6 +123,11 @@ namespace Antmicro.Renode.Peripherals.USB
                     writeCommandDescriptor = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
                     this.Log(LogLevel.Debug, "Entering write mode and waiting for the actual data");
                     break;
+                case SCSICommand.ModeSense6:
+                    // this is just an empty stub
+                    SendData(new byte[192]);
+                    SendResult(commandBlockWrapper);
+                    break;
                 default:
                     this.Log(LogLevel.Warning, "Unsupported SCSI command: {0}", command);
                     break;

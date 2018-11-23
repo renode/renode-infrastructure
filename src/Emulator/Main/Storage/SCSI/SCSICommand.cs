@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Storage.SCSI
         RequestSense = 0x03,
         Inquiry = 0x12,
         ReadCapacity = 0x25,
-        ModeSense = 0x1A,
+        ModeSense6 = 0x1A,
         PreventAllowMediumRemoval = 0x1E,
         Read10 = 0x28,
         Write10 = 0x2A
