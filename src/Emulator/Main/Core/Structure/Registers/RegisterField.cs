@@ -146,6 +146,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 return currentValue;
             }
 
+            public override string ToString()
+            {
+                return $"[RegisterType<{typeof(T).Name}> Value={Value} Width={Width}]";
+            }
+
             protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<T, T> readCallback,
                 Action<T, T> writeCallback, Action<T, T> changeCallback, Func<T, T> valueProviderCallback) : base(parent, position, width, fieldMode)
             {
