@@ -354,16 +354,17 @@ namespace Antmicro.Renode.Utilities
             return -1;
         }
 
-        public static string Stringify<TSource>(this IEnumerable<TSource> source, string separator = " ")
+        public static string Stringify<TSource>(this IEnumerable<TSource> source, string separator = " ", int limitPerLine = 0)
         {
-            return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()), separator);
+            return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()), separator, limitPerLine);
         }
 
-        public static string Stringify(this IEnumerable<string> source, string separator = " ")
+        public static string Stringify(this IEnumerable<string> source, string separator = " ", int limitPerLine = 0)
         {
+            int idx = 0;
             if(source.Any())
             {
-                return source.Aggregate((x, y) => x + separator + y);
+                return source.Aggregate((x, y) => x + separator + y + (limitPerLine != 0 && (++idx % limitPerLine == 0) ? "\n" : string.Empty));
             }
             return String.Empty;
         }
