@@ -133,17 +133,18 @@
 
             // e.g., R_0_32 = 147,
             // X_32 = 155,
-            var match = Regex.Match(line, @"^\s*(?<name>[\p{L}0-9]+)(_(?<index>[0-9]+))?_(?<width>[0-9]+)\s*=\s*(?<value>[0-9]+)\s*,?\s*$");
+            var match = Regex.Match(line, @"^\s*(?<name>[\p{L}0-9]+)(_(?<index>[0-9]+))?_(?<width>[0-9]+)\s*=\s*(?<value>((0x)?[0-9a-fA-F]+)|([0-9]+))\s*,?\s*$");
             if(string.IsNullOrEmpty(match.Groups["name"].Value))
             {
                 throw new ArgumentException($"Register name was in a wrong format: {line}");
             }
 
+            var regValue = match.Groups["value"].Value;
             var regDesc = new RegisterDescriptor
             {
                 Name = match.Groups["name"].Value,
                 Width = int.Parse(match.Groups["width"].Value),
-                Value = int.Parse(match.Groups["value"].Value)
+                Value = Convert.ToInt32(regValue, regValue.StartsWith("0x") ? 16 : 10)
             };
 
             if(!string.IsNullOrEmpty(match.Groups["index"].Value))
