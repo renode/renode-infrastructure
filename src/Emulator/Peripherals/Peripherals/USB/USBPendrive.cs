@@ -9,6 +9,8 @@ using System.Collections.Generic;
 using System.Dynamic;
 using System.IO;
 using System.Linq;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Core.USB.MSC;
 using Antmicro.Renode.Core.USB.MSC.BOT;
@@ -22,6 +24,16 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
+    public static class USBPendriveExtensions
+    {
+        public static void PendriveFromFile(this Machine machine, string file, string name, IPeripheralRegister<IUSBDevice, NumberRegistrationPoint<int>> attachTo, int port, bool persistent = true)
+        {
+            var pendrive = new USBPendrive(file, persistent: persistent);
+            attachTo.Register(pendrive, new NumberRegistrationPoint<int>(port));
+            machine.SetLocalName(pendrive, name);
+        }
+    }
+
     public class USBPendrive : IUSBDevice, IDisposable
     {
         public USBPendrive(string imageFile, long? size = null, bool persistent = false)
