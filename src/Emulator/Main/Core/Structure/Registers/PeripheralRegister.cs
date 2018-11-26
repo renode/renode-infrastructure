@@ -523,14 +523,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     }
                     break;
                 case FieldMode.WriteOneToClear:
-                    if(BitHelper.AreAnyBitsSet(value, registerField.position, registerField.width))
+                    if(BitHelper.AreAnyBitsSet(~difference, registerField.position, registerField.width))
                     {
                         BitHelper.AndWithNot(ref UnderlyingValue, value, registerField.position, registerField.width);
                         changedRegisters.Add(registerField);
                     }
                     break;
                 case FieldMode.WriteZeroToClear:
-                    if(BitHelper.AreAnyBitsSet(~value, registerField.position, registerField.width))
+                    if(BitHelper.AreAnyBitsSet(difference, registerField.position, registerField.width))
                     {
                         BitHelper.AndWithNot(ref UnderlyingValue, ~value, registerField.position, registerField.width);
                         changedRegisters.Add(registerField);
