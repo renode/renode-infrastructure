@@ -561,6 +561,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool UpdateContextOnLoadAndStore { get; set; }
 
+        [Transient]
         protected GdbStub gdbStub;
 
         protected abstract Interrupt DecodeInterrupt(int number);
