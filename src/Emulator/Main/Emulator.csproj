@@ -331,6 +331,7 @@
     <Compile Include="Peripherals\Bus\BusAccess.cs" />
     <Compile Include="Utilities\SocketServerProvider.cs" />
     <Compile Include="Backends\Terminals\ServerSocketTerminal.cs" />
+    <Compile Include="Backends\Terminals\FileTerminal.cs" />
     <Compile Include="Utilities\PtyUnixStream.cs" />
     <Compile Include="Utilities\SocketIOSource.cs" />
     <Compile Include="UserInterface\IconAttribute.cs" />
