@@ -1847,7 +1847,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TotalElapsedTime, TimeHandle.TimeSource.Domain)))
                 {
 restart:
-                    while(!isPaused)
+                    while(!isPaused && !isAborted)
                     {
                         var singleStep = false;
                         // locking here is to ensure that execution mode does not change
