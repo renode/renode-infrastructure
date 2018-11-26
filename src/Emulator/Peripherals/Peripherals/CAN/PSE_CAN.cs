@@ -167,10 +167,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 registersMap.Add(
                     (long)ControllerRegisters.ReceiveMessageControlCommand + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
-                        // The docs states that on write: "Acknowledges receipt of new message or transmission of RTR auto-reply message (...)"
-                        // but as we don't have RTR implemented, this will be RO for now
-                        .WithFlag(0,
-                            writeCallback: (_, val) => rxMessageBuffers[index].IsMessageAvailable &= !val,
+                        .WithFlag(0, FieldMode.WriteOneToClear | FieldMode.Read,
+                            changeCallback: (_, __) => rxMessageBuffers[index].IsMessageAvailable = false,
                             valueProviderCallback: _ => rxMessageBuffers[index].IsMessageAvailable,
                             name: "MsgAv")
                         .WithTag("RTRP", 1, 1)
