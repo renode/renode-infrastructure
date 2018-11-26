@@ -413,9 +413,9 @@ namespace Antmicro.Renode.Peripherals.USB
             for(var i = 1; i < NumberOfEndpoints; i++)
             {
                 var endpointId = i;
+                IFlagRegisterField localReceivedPacketReady = null;
 
                 ((Registers)(Registers.Endpoint0ReceiveControlStatus + endpointId * 0x10)).Define16(this, name: $"EP{endpointId}_RX_CSR_REG")
-                    .WithFlag(0, out var rxPktRdy, name: "RxPktRdy")
                     .WithFlag(5, out requestInTransaction[endpointId], name: "ReqPkt",
                         writeCallback: (_, val) =>
                         {
@@ -441,10 +441,21 @@ namespace Antmicro.Renode.Peripherals.USB
                             {
                                 fifoFromDeviceToHost[endpointId].EnqueueRange(bytes);
                                 requestInTransaction[endpointId].Value = false;
-                                rxPktRdy.Value = true;
+                                localReceivedPacketReady.Value = true;
                                 rxInterruptsManager.SetInterrupt((RxInterrupt)endpointId);
                             });
                         })
+                    .WithFlag(4, FieldMode.WriteOneToClear, name: "FlushFIFO", writeCallback: (_, val) =>
+                    {
+                        if(!val)
+                        {
+                            return;
+                        }
+
+                        fifoFromDeviceToHost[endpointId].Clear();
+                        localReceivedPacketReady.Value = false;
+                    })
+                    .WithFlag(0, out localReceivedPacketReady, name: "RxPktRdy")
                 ;
 
                 ((Registers)(Registers.Endpoint0ReceivePacketSize + endpointId * 0x10)).Define16(this, name: $"EP{endpointId}_RX_COUNT_REG")
