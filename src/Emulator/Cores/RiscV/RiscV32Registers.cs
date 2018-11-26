@@ -67,15 +67,195 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         [Register]
-        public RegisterValue PRIV
+        public RegisterValue SSTATUS
         {
             get
             {
-                return GetRegisterValue32((int)RiscV32Registers.PRIV);
+                return GetRegisterValue32((int)RiscV32Registers.SSTATUS);
             }
             set
             {
-                SetRegisterValue32((int)RiscV32Registers.PRIV, value);
+                SetRegisterValue32((int)RiscV32Registers.SSTATUS, value);
+            }
+        }
+        [Register]
+        public RegisterValue SIE
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SIE);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SIE, value);
+            }
+        }
+        [Register]
+        public RegisterValue STVEC
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.STVEC);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.STVEC, value);
+            }
+        }
+        [Register]
+        public RegisterValue SSCRATCH
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SSCRATCH);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SSCRATCH, value);
+            }
+        }
+        [Register]
+        public RegisterValue SEPC
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SEPC);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SEPC, value);
+            }
+        }
+        [Register]
+        public RegisterValue SCAUSE
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SCAUSE);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SCAUSE, value);
+            }
+        }
+        [Register]
+        public RegisterValue STVAL
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.STVAL);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.STVAL, value);
+            }
+        }
+        [Register]
+        public RegisterValue SIP
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SIP);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SIP, value);
+            }
+        }
+        [Register]
+        public RegisterValue MSTATUS
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MSTATUS);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MSTATUS, value);
+            }
+        }
+        [Register]
+        public RegisterValue MISA
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MISA);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MISA, value);
+            }
+        }
+        [Register]
+        public RegisterValue MEDELEG
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MEDELEG);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MEDELEG, value);
+            }
+        }
+        [Register]
+        public RegisterValue MIDELEG
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MIDELEG);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MIDELEG, value);
+            }
+        }
+        [Register]
+        public RegisterValue MIE
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MIE);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MIE, value);
+            }
+        }
+        [Register]
+        public RegisterValue MTVEC
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MTVEC);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MTVEC, value);
+            }
+        }
+        [Register]
+        public RegisterValue MSCRATCH
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MSCRATCH);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MSCRATCH, value);
+            }
+        }
+        [Register]
+        public RegisterValue MEPC
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MEPC);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MEPC, value);
             }
         }
         [Register]
@@ -88,6 +268,42 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 SetRegisterValue32((int)RiscV32Registers.MCAUSE, value);
+            }
+        }
+        [Register]
+        public RegisterValue MTVAL
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MTVAL);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MTVAL, value);
+            }
+        }
+        [Register]
+        public RegisterValue MIP
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MIP);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MIP, value);
+            }
+        }
+        [Register]
+        public RegisterValue PRIV
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.PRIV);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.PRIV, value);
             }
         }
         public RegistersGroup X { get; private set; }
@@ -254,7 +470,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.F29,  new CPURegister(62, 32, false) },
             { RiscV32Registers.F30,  new CPURegister(63, 32, false) },
             { RiscV32Registers.F31,  new CPURegister(64, 32, false) },
-            { RiscV32Registers.MCAUSE,  new CPURegister(834, 32, false) },
+            { RiscV32Registers.SSTATUS,  new CPURegister(321, 32, false) },
+            { RiscV32Registers.SIE,  new CPURegister(325, 32, false) },
+            { RiscV32Registers.STVEC,  new CPURegister(326, 32, false) },
+            { RiscV32Registers.SSCRATCH,  new CPURegister(385, 32, false) },
+            { RiscV32Registers.SEPC,  new CPURegister(386, 32, false) },
+            { RiscV32Registers.SCAUSE,  new CPURegister(387, 32, false) },
+            { RiscV32Registers.STVAL,  new CPURegister(388, 32, false) },
+            { RiscV32Registers.SIP,  new CPURegister(389, 32, false) },
+            { RiscV32Registers.MSTATUS,  new CPURegister(833, 32, false) },
+            { RiscV32Registers.MISA,  new CPURegister(834, 32, false) },
+            { RiscV32Registers.MEDELEG,  new CPURegister(835, 32, false) },
+            { RiscV32Registers.MIDELEG,  new CPURegister(836, 32, false) },
+            { RiscV32Registers.MIE,  new CPURegister(837, 32, false) },
+            { RiscV32Registers.MTVEC,  new CPURegister(838, 32, false) },
+            { RiscV32Registers.MSCRATCH,  new CPURegister(897, 32, false) },
+            { RiscV32Registers.MEPC,  new CPURegister(898, 32, false) },
+            { RiscV32Registers.MCAUSE,  new CPURegister(899, 32, false) },
+            { RiscV32Registers.MTVAL,  new CPURegister(900, 32, false) },
+            { RiscV32Registers.MIP,  new CPURegister(901, 32, false) },
             { RiscV32Registers.PRIV,  new CPURegister(4161, 32, false) },
         };
     }
@@ -263,8 +497,26 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         ZERO = 0,
         PC = 32,
+        SSTATUS = 321,
+        SIE = 325,
+        STVEC = 326,
+        SSCRATCH = 385,
+        SEPC = 386,
+        SCAUSE = 387,
+        STVAL = 388,
+        SIP = 389,
+        MSTATUS = 833,
+        MISA = 834,
+        MEDELEG = 835,
+        MIDELEG = 836,
+        MIE = 837,
+        MTVEC = 838,
+        MSCRATCH = 897,
+        MEPC = 898,
+        MCAUSE = 899,
+        MTVAL = 900,
+        MIP = 901,
         PRIV = 4161,
-        MCAUSE = 834,
         X0 = 0,
         X1 = 1,
         X2 = 2,
