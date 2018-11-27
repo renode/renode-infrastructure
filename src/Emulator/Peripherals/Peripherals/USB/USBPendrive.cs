@@ -100,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.USB
                     var result = new ReadCapcity10Result
                     {
                         BlockLengthInBytes = BlockSize,
+                        ReturnedLogicalBlockAddress = (uint)(dataBackend.Length / BlockSize - 1)
                     };
                     SendData(Packet.Encode(result));
                     SendResult(commandBlockWrapper);
