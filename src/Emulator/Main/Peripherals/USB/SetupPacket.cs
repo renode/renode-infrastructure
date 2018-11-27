@@ -8,6 +8,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB
 {
+    [LeastSignificantByteFirst]
     public struct SetupPacket
     {
         [PacketField, Width(5)]
@@ -18,11 +19,11 @@ namespace Antmicro.Renode.Core.USB
         public Direction Direction;
         [PacketField]
         public byte Request;
-        [PacketField, LeastSignificantByteFirst]
+        [PacketField]
         public short Value;
-        [PacketField, LeastSignificantByteFirst]
+        [PacketField]
         public short Index;
-        [PacketField, LeastSignificantByteFirst]
+        [PacketField]
         public ushort Count;
     }
 }

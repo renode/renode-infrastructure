@@ -9,6 +9,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB.MSC
 {
+    [LeastSignificantByteFirst]
     public struct BulkOnlyTransportCommandBlockWrapper
     {
         public static bool TryParse(byte[] bytes, out BulkOnlyTransportCommandBlockWrapper cbw)
@@ -26,10 +27,10 @@ namespace Antmicro.Renode.Core.USB.MSC
             return true;
         }
 
-        [PacketField, LeastSignificantByteFirst]
+        [PacketField, Offset(bytes:4)]
         public uint Tag { get; private set; }
 
-        [PacketField, LeastSignificantByteFirst]
+        [PacketField]
         public uint DataTransferLength  { get; private set; }
 
         [PacketField]

@@ -8,6 +8,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB.MSC.BOT
 {
+    [LeastSignificantByteFirst]
     public class CommandStatusWrapper
     {
         public CommandStatusWrapper(uint tag, uint dataResidue, CommandStatus status)

@@ -22,8 +22,6 @@ namespace Antmicro.Renode.Utilities.Packets
             var offset = dataOffset;
             foreach(var field in fieldsAndProperties)
             {
-                var isLsb = field.GetAttribute<LeastSignificantByteFirst>() != null;
-
                 var type = field.ElementType;
                 if(type.IsEnum)
                 {
@@ -37,7 +35,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 if(type == typeof(uint))
                 {
-                    var v = isLsb
+                    var v = field.IsLSBFirst
                         ? (uint)((data[offset + 3] << 24) | (data[offset + 2] << 16) | (data[offset + 1] << 8) | (data[offset]))
                         : (uint)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | (data[offset + 3]));
                     offset += 4;
@@ -45,7 +43,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else if(type == typeof(short))
                 {
-                    var v = isLsb
+                    var v = field.IsLSBFirst
                         ? (short)((data[offset + 1] << 8) | (data[offset]))
                         : (short)((data[offset] << 8) | (data[offset + 1]));
                     offset += 2;
@@ -53,7 +51,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else if(type == typeof(ushort))
                 {
-                    var v = isLsb
+                    var v = field.IsLSBFirst
                         ? (ushort)((data[offset + 1] << 8) | (data[offset]))
                         : (ushort)((data[offset] << 8) | (data[offset + 1]));
                     offset += 2;
@@ -160,11 +158,12 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 if(type == typeof(uint))
                 {
+                    var isLsb = element.IsLSBFirst;
                     var value = (uint)element.GetValue(packet);
-                    result[offset] = (byte)(value >> 24);
-                    result[offset + 1] = (byte)(value >> 16);
-                    result[offset + 2] = (byte)(value >> 8);
-                    result[offset + 3] = (byte)value;
+                    result[offset] = (byte)(value >> (isLsb ? 0: 24));
+                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 16));
+                    result[offset + 2] = (byte)(value >> (isLsb ? 16 : 8));
+                    result[offset + 3] = (byte)(value >> (isLsb ? 24 : 0));
                     offset += 4;
                 }
                 else if(type == typeof(byte))
@@ -232,6 +231,9 @@ namespace Antmicro.Renode.Utilities.Packets
             {
                 return (T)((MemberInfo)fieldInfo ?? propertyInfo).GetCustomAttributes(typeof(T), false).FirstOrDefault();
             }
+
+            public bool IsLSBFirst => ((MemberInfo)fieldInfo ?? propertyInfo).DeclaringType.GetCustomAttribute<LeastSignificantByteFirst>() != null
+                    || GetAttribute<LeastSignificantByteFirst>() != null;
 
             public int? Offset
             {
