@@ -48,13 +48,13 @@ namespace Antmicro.Renode.Peripherals.USB
                         x.WithEndpoint(
                             Direction.HostToDevice,
                             EndpointTransferType.Bulk,
-                            BlockSize,
+                            USBBlockSize,
                             0x10,
                             out hostToDeviceEndpoint)
                         .WithEndpoint(
                             Direction.DeviceToHost,
                             EndpointTransferType.Bulk,
-                            BlockSize,
+                            USBBlockSize,
                             0x10,
                             out deviceToHostEndpoint))
                 );
@@ -174,5 +174,6 @@ namespace Antmicro.Renode.Peripherals.USB
         private readonly Stream dataBackend;
 
         private const int BlockSize = 512;
+        private const int USBBlockSize = 512;
     }
 }
