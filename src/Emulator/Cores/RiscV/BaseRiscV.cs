@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
-            clint?.RegisterCPU(this);
             this.clint = clint;
             this.privilegeArchitecture = privilegeArchitecture;
             ShouldEnterDebugMode = true;

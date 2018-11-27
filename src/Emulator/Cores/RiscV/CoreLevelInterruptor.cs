@@ -21,6 +21,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             this.machine = machine;
             this.timerFrequency = frequency;
+            if(numberOfTargets < 1)
+            {
+                throw new ConstructionException("Invalid numberOfTargets: provided {numberOfTargets} but should be greater or equal to 1.");
+            }
+            for(var i = 0; i < numberOfTargets; i++)
+            {
+                var hartId = i;
+                irqs[2 * hartId] = new GPIO();
+                irqs[2 * hartId + 1] = new GPIO();
+
+                var timer = new ComparingTimer(machine.ClockSource, timerFrequency, enabled: true, eventEnabled: true);
+                timer.CompareReached += () => irqs[2 * hartId + 1].Set(true);
+
+                mTimers.Add(timer);
+            }
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -32,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         var timerValue = mTimers[0].Value;
                         timerValue &= ~0xffffffffUL;
                         timerValue |= value;
-                        foreach(var timer in mTimers.Values)
+                        foreach(var timer in mTimers)
                         {
                             timer.Value = timerValue;
                         }
@@ -47,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         var timerValue = mTimers[0].Value;
                         timerValue &= 0xffffffffUL;
                         timerValue |= (ulong)value << 32;
-                        foreach(var timer in mTimers.Values) 
+                        foreach(var timer in mTimers) 
                         {
                             timer.Value = timerValue;
                         }
@@ -92,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 irq.Set(false);
             }
-            foreach(var timer in mTimers.Values)
+            foreach(var timer in mTimers)
             {
                 timer.Reset();
             }
@@ -108,27 +123,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registers.Write(offset, value);
         }
 
-        public void RegisterCPU(BaseRiscV cpu)
-        {
-            var hartId = (int)cpu.HartId;
-            if(cpus.ContainsKey(hartId))
-            {
-                throw new ConstructionException($"CPU with hart id {hartId} already registered in CLINT.");
-            }
-            if(cpus.ContainsValue(cpu))
-            {
-                throw new ConstructionException("CPU already registered in CLINT");
-            }
-            cpus.Add(hartId, cpu);
-            irqs[2 * hartId] = new GPIO();
-            irqs[2 * hartId + 1] = new GPIO();
-
-            var timer = new ComparingTimer(machine.ClockSource, timerFrequency, enabled: true, eventEnabled: true);
-            timer.CompareReached += () => irqs[2 * hartId + 1].Set(true);
-
-            mTimers.Add(hartId, timer);
-        }
-
         public ulong TimerValue => mTimers[0]?.Value ?? 0; // "?." returns "(ulong?)null" instead of "default(ulong)", thus "?? 0"
 
         public long Size => 0x10000;
@@ -139,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly Dictionary<int, BaseRiscV> cpus = new Dictionary<int, BaseRiscV>();
-        private readonly Dictionary<int, ComparingTimer> mTimers = new Dictionary<int, ComparingTimer>();
+        private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
         private readonly long timerFrequency;
 
         private enum Registers : long
