@@ -36,9 +36,15 @@ namespace Antmicro.Renode.Peripherals.USB
 
     public class USBPendrive : IUSBDevice, IDisposable
     {
-        public USBPendrive(string imageFile, long? size = null, bool persistent = false)
+        public USBPendrive(string imageFile, long? size = null, bool persistent = false, uint blockSize = 512)
         {
+            BlockSize = blockSize;
             dataBackend = DataStorage.Create(imageFile, size, persistent);
+
+            if(dataBackend.Length % blockSize != 0)
+            {
+                this.Log(LogLevel.Warning, "Underlying data size ({0} bytes) is not aligned to the block size ({1} bytes)", dataBackend.Length, blockSize);
+            }
 
             USBCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c => c.WithInterface<Core.USB.MSC.Interface>(
@@ -59,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             out deviceToHostEndpoint))
                 );
 
-                hostToDeviceEndpoint.DataWritten += HandleData;
+                hostToDeviceEndpoint.DataWritten += HandleInput;
         }
 
         public void Dispose()
@@ -67,28 +73,75 @@ namespace Antmicro.Renode.Peripherals.USB
             dataBackend.Dispose();
         }
 
-        public void HandleData(byte[] packet)
+        public void HandleInput(byte[] packet)
         {
-            this.Log(LogLevel.Debug, "Received {0} bytes of data.", packet.Length);
-            if(writeCommandWrapper != null)
+            this.Log(LogLevel.Debug, "Received a packet of {0} bytes in {1} mode.", packet.Length, mode);
+            switch(mode)
             {
-                var cmd = (dynamic)writeCommandDescriptor;
-                this.Log(LogLevel.Debug, "In write mode. Command args: LogicalBlockAddress: 0x{0:x}, TransferLength: {1}", (uint)cmd.LogicalBlockAddress, (ushort)cmd.TransferLength);
-                // this means that the previous command was Write and the current packet contains data to be written
-                var position = (long)cmd.LogicalBlockAddress * BlockSize;
-                dataBackend.Position = position;
-                if((cmd.TransferLength * BlockSize) != packet.Length)
-                {
-                    this.Log(LogLevel.Warning, "Lengths inconsistency: received {0} bytes of data, but declared TransferLength was {1} blocks (i.e., {2} bytes)", packet.Length, (uint)cmd.TransferLength, (uint)cmd.TransferLength * BlockSize);
-                }
-                dataBackend.Write(packet, 0, packet.Length);
+                case Mode.Command:
+                    HandleCommand(packet);
+                    break;
 
-                this.Log(LogLevel.Debug, "In write mode. Written {0} bytes at 0x{0}", packet.Length, position);
-                SendResult(writeCommandWrapper.Value);
-                writeCommandWrapper = null;
+                case Mode.Data:
+                    HandleData(packet);
+                    break;
+
+                default:
+                    throw new ArgumentException($"Unexpected mode: {mode}");
+            }
+        }
+
+        public void Reset()
+        {
+            USBCore.Reset();
+            mode = Mode.Command;
+            dataBackend.Position = 0;
+            bytesToWrite = 0;
+            writeCommandDescriptor = null;
+        }
+
+        public USBDeviceCore USBCore { get; }
+        public uint BlockSize { get; }
+
+        private void SendResult(BulkOnlyTransportCommandBlockWrapper commandBlockWrapper, CommandStatus status = CommandStatus.Success, uint dataResidue = 0)
+        {
+            var response = new CommandStatusWrapper(commandBlockWrapper.Tag, dataResidue, status);
+            this.Log(LogLevel.Debug, "Sending result: {0}", response);
+            deviceToHostEndpoint.HandlePacket(Packet.Encode(response));
+        }
+
+        private void SendData(byte[] data)
+        {
+            this.Log(LogLevel.Debug, "Sending data of length {0}.", data.Length);
+#if DEBUG
+            // stringification might be slow, so we do it in debug only
+            this.Log(LogLevel.Noisy, "[{0}]", data.Select(x => "0x{0:x}".FormatWith(x)).Stringify(limitPerLine: 16));
+#endif
+            deviceToHostEndpoint.HandlePacket(data);
+        }
+
+        private void HandleData(byte[] packet)
+        {
+            if(packet.Length > bytesToWrite)
+            {
+                this.Log(LogLevel.Warning, "Received more data ({0} bytes) than expected ({1} bytes). Aborting the operation", packet.Length, bytesToWrite);
+                SendResult(writeCommandWrapper, CommandStatus.Failure);
                 return;
             }
 
+            this.Log(LogLevel.Noisy, "Writing {0} bytes of data at address 0x{1:x}", packet.Length, dataBackend.Position);
+            dataBackend.Write(packet, 0, packet.Length);
+            bytesToWrite -= (uint)packet.Length;
+            if(bytesToWrite == 0)
+            {
+                SendResult(writeCommandWrapper);
+                this.Log(LogLevel.Noisy, "All data written, switching to Command mode");
+                mode = Mode.Command;
+            }
+        }
+
+        private void HandleCommand(byte[] packet)
+        {
             if(!BulkOnlyTransportCommandBlockWrapper.TryParse(packet, out var commandBlockWrapper))
             {
                 this.Log(LogLevel.Warning, "Broken SCSI command block wrapper detected. Ignoring it.");
@@ -104,8 +157,8 @@ namespace Antmicro.Renode.Peripherals.USB
                     SendResult(commandBlockWrapper);
                     break;
                 case SCSICommand.Inquiry:
-                    // TODO: here we should include Standard INQUIRY Data Format
-                    SendData(Enumerable.Repeat((byte)0, 36).ToArray());
+                    // this is just an empty stub
+                    SendData(new byte[36]);
                     SendResult(commandBlockWrapper);
                     break;
                 case SCSICommand.ReadCapacity:
@@ -120,7 +173,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 case SCSICommand.Read10:
                     var cmd = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
                     this.Log(LogLevel.Noisy, "Command args: LogicalBlockAddress: 0x{0:x}, TransferLength: {1}", (uint)cmd.LogicalBlockAddress, (ushort)cmd.TransferLength);
-                    var bytesCount = (int)cmd.TransferLength * BlockSize;
+                    var bytesCount = (int)(cmd.TransferLength * BlockSize);
                     var readPosition = (long)cmd.LogicalBlockAddress * BlockSize;
                     dataBackend.Position = readPosition;
                     var data = dataBackend.ReadBytes(bytesCount);
@@ -133,7 +186,11 @@ namespace Antmicro.Renode.Peripherals.USB
                     // we should not send result now
                     writeCommandWrapper = commandBlockWrapper;
                     writeCommandDescriptor = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
-                    this.Log(LogLevel.Debug, "Entering write mode and waiting for the actual data");
+                    var position = (long)((dynamic)writeCommandDescriptor).LogicalBlockAddress * BlockSize;
+                    dataBackend.Position = position;
+                    bytesToWrite = (uint)((dynamic)writeCommandDescriptor).TransferLength * BlockSize;
+                    this.Log(LogLevel.Noisy, "Preparing to write {1} bytes of data at address: 0x{0:x}", dataBackend.Position, bytesToWrite);
+                    mode = Mode.Data;
                     break;
                 case SCSICommand.ModeSense6:
                     // this is just an empty stub
@@ -147,33 +204,20 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        public void Reset()
-        {
-            USBCore.Reset();
-        }
-
-        public USBDeviceCore USBCore { get; }
-
-        private void SendResult(BulkOnlyTransportCommandBlockWrapper commandBlockWrapper, CommandStatus status = CommandStatus.Success, uint dataResidue = 0)
-        {
-            var response = new CommandStatusWrapper(commandBlockWrapper.Tag, dataResidue, status);
-            this.Log(LogLevel.Debug, "Sending result: {0}", response);
-            deviceToHostEndpoint.HandlePacket(Packet.Encode(response));
-        }
-
-        private void SendData(byte[] data)
-        {
-            this.Log(LogLevel.Debug, "Sending data of length {0}: [{1}]", data.Length, data.Select(x => "0x{0:x}".FormatWith(x)).Stringify());
-            deviceToHostEndpoint.HandlePacket(data);
-        }
-
+        private uint bytesToWrite;
+        private Mode mode;
         private USBEndpoint hostToDeviceEndpoint;
         private USBEndpoint deviceToHostEndpoint;
-        private BulkOnlyTransportCommandBlockWrapper? writeCommandWrapper;
+        private BulkOnlyTransportCommandBlockWrapper writeCommandWrapper;
         private object writeCommandDescriptor;
         private readonly Stream dataBackend;
 
-        private const int BlockSize = 512;
         private const int USBBlockSize = 512;
+
+        private enum Mode
+        {
+            Command,
+            Data
+        }
     }
 }
