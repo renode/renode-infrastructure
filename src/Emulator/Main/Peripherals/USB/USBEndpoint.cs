@@ -109,11 +109,19 @@ namespace Antmicro.Renode.Core.USB
                 .Append(Interval);
         }
 
-        public void HandlePacket(IEnumerable<byte> data)
+        public void HandlePacket(ICollection<byte> data)
         {
             lock(buffer)
             {
-                buffer.Enqueue(data);
+                // split packet into chunks of size not exceeding `MaximumPacketSize`
+                var offset = 0;
+                while(offset < data.Count)
+                {
+                    var chunk = data.Skip(offset).Take(MaximumPacketSize);
+                    offset += MaximumPacketSize;
+                    buffer.Enqueue(chunk);
+                }
+
                 if(dataCallback != null)
                 {
                     dataCallback(this, buffer.Dequeue());
@@ -131,7 +139,7 @@ namespace Antmicro.Renode.Core.USB
 
         public class PacketCreator : IDisposable
         {
-            public PacketCreator(Action<IEnumerable<byte>> dataReadyCallback)
+            public PacketCreator(Action<ICollection<byte>> dataReadyCallback)
             {
                 this.dataReadyCallback = dataReadyCallback;
                 localBuffer = new List<byte>();
@@ -157,7 +165,7 @@ namespace Antmicro.Renode.Core.USB
             }
 
             private List<byte> localBuffer;
-            private readonly Action<IEnumerable<byte>> dataReadyCallback;
+            private readonly Action<ICollection<byte>> dataReadyCallback;
         }
 
         public enum EndpointSynchronizationType
