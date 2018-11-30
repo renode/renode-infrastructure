@@ -18,7 +18,6 @@ using Antmicro.Renode.Peripherals.UART;
 using System.Linq;
 using Antmicro.OptionsParser;
 using System.IO;
-using Antmicro.Renode.Analyzers;
 
 namespace Antmicro.Renode.UI
 {
@@ -51,13 +50,14 @@ namespace Antmicro.Renode.UI
 
                     EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
-                    var analyzerType = options.DisableXwt ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
-
-                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
-                    EmulationManager.Instance.EmulationChanged += () =>
+                    if(options.Port == -1)
                     {
-                        EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
-                    };
+                        EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), typeof(ConsoleWindowBackendAnalyzer));
+                        EmulationManager.Instance.EmulationChanged += () =>
+                        {
+                            EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), typeof(ConsoleWindowBackendAnalyzer));
+                        };
+                    }
 
                     var shell = PrepareShell(options, monitor);
                     new System.Threading.Thread(x => shell.Start(true))
@@ -93,8 +93,7 @@ namespace Antmicro.Renode.UI
             Shell shell = null;
             if(options.Port >= 0)
             {
-                var io = new IOProvider();
-                io.Backend = options.HideMonitor ? (IIOSource)new DummyIOSource() : (IIOSource)new SocketIOSource(options.Port);
+                var io = new IOProvider { Backend = new SocketIOSource(options.Port) };
                 shell = ShellProvider.GenerateShell(io, monitor, true);
             }
             else

@@ -20,7 +20,7 @@ namespace Antmicro.Renode.UI
         [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with -s and startup script passed as an argument).")]
         public string Execute { get; set; }
 
-        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support.")]
+        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. (requires -P or --robot-server-port)")]
         public bool DisableXwt { get; set; }
 
         [Name("script"), PositionalArgument(0)]
@@ -40,7 +40,12 @@ namespace Antmicro.Renode.UI
 
         public bool Validate(out string error)
         {
-            HideMonitor |= DisableXwt;
+            if(DisableXwt && Port == -1 && RobotFrameworkRemoteServerPort == -1)
+            {
+                error = "X11 support can be disabled in socket mode or when robot framework remote server is on.";
+                return false;
+            }
+
             if(!string.IsNullOrEmpty(ScriptPath) && !string.IsNullOrEmpty(Execute))
             {
                 error = "Script path and execute command cannot be set at the same time";
@@ -50,6 +55,6 @@ namespace Antmicro.Renode.UI
             error = null;
             return true;
         }
-    }
+	}
 }
 
