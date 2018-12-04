@@ -13,10 +13,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(Core.Machine machine, uint hartId = 0) : base(null, "rv32imc", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public VexRiscv(Core.Machine machine, uint hartId = 0) : base(null, "rv32im", machine, hartId, PrivilegeArchitecture.Priv1_10, Endianess.LittleEndian)
         {
             RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value => { irqMask = (uint)value; Update(); });
-            RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value => { irqPending = (uint)value; Update(); });
+            RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, null /* value => { irqPending = (uint)value; Update(); }*/);
             RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
         }
 
@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void Update()
         {
             //We support only Machine mode, with external interrupts. An additional interrupt controller would be required to have more advanced handling.
-            base.OnGPIO((int)IrqType.MachineExternalInterrupt, (irqPending & irqMask) != 0);
+            base.OnGPIO((int)IrqType.SupervisorExternalInterrupt, (irqPending & irqMask) != 0);
         }
 
         private uint irqMask;
