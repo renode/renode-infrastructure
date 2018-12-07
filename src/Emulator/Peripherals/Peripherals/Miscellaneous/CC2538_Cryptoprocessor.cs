@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(6, out ctrEnabled)
                     .WithEnumField(7, 2, out counterWidth)
                     .WithFlag(15, out cbcMacEnabled)
-                    .WithTag("GCM", 16, 2)
+                    .WithValueField(16, 2, out gcmEnabled, name: "GCM")
                     .WithFlag(18, out ccmEnabled)
                     .WithValueField(19, 3, out ccmLengthField, name: "CCM_L")
                     .WithValueField(22, 3, out ccmLengthOfAuthenticationField, name: "CCM_M")
@@ -287,11 +287,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 HandleCtr(length);
             }
+            else if(gcmEnabled.Value != 0)
+            {
+                this.Log(LogLevel.Error, "GCM mode is not supported");
+            }
+            else if(!cbcEnabled.Value && !ctrEnabled.Value && (counterWidth.Value == 0) && !cbcMacEnabled.Value && (gcmEnabled.Value == 0) && !ccmEnabled.Value && (ccmLengthField.Value == 0) && (ccmLengthOfAuthenticationField.Value == 0))
+            {
+                // ECB mode is selected only if bits [28:5] in AesControl register are set to 0.
+                HandleEcb(length);
+            }
             else
             {
-                // the only unimplemented mode for now is GCM
-                this.Log(LogLevel.Error, "None of supported cipher modes selected: CBC, CTR, CCM");
-                return;
+                this.Log(LogLevel.Error, "No supported cipher mode selected: CCM, CBC-MAC, CBC, CTR, ECB");
             }
 
             dmaDoneInterrupt = true;
@@ -313,10 +320,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return false; // the real crypto operation will start on output transfer
             }
+            else if(!cbcEnabled.Value && !ctrEnabled.Value && (counterWidth.Value == 0) && !cbcMacEnabled.Value && (gcmEnabled.Value == 0) && !ccmEnabled.Value && (ccmLengthField.Value == 0) && (ccmLengthOfAuthenticationField.Value == 0))
+
+            {
+                // ECB mode is selected only if bits [28:5] in AesControl register are set to 0.
+                return false;
+            }
             else
             {
-                this.Log(LogLevel.Error, "No supported cipher mode selected: CCM, CBC-MAC, CBC, CTR.");
-                return false;
+                this.Log(LogLevel.Error, "No supported cipher mode selected: CCM, CBC-MAC, CBC, CTR, ECB");
             }
 
             if(saveContext.Value)
@@ -404,6 +416,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     b.XorWith(encryptedNonceCounterBlock);
                     IncrementCounter(ivBlock.Buffer, (int)counterWidth.Value);
                 });
+            }
+        }
+
+        private void HandleEcb(int length)
+        {
+            var encryptedNonceCounterBlock = Block.OfSize(AesBlockSizeInBytes);
+            using(var aes = AesProvider.GetEcbProvider(GetSelectedKey()))
+            {
+                var processor = direction.Value == Direction.Encryption
+                    ? (Action<Block>)aes.EncryptBlockInSitu
+                    : aes.DecryptBlockInSitu;
+
+                ProcessDataInMemory(dmaInputAddress.Value, dmaOutputAddress.Value, length, processor);
             }
         }
 
@@ -622,6 +647,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IFlagRegisterField ctrEnabled;
         private readonly IEnumRegisterField<CounterWidth> counterWidth;
         private readonly IFlagRegisterField cbcMacEnabled;
+        private readonly IValueRegisterField gcmEnabled;
         private readonly IFlagRegisterField ccmEnabled;
         private readonly IValueRegisterField ccmLengthField;
         private readonly IValueRegisterField ccmLengthOfAuthenticationField;
