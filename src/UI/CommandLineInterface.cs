@@ -93,8 +93,10 @@ namespace Antmicro.Renode.UI
             Shell shell = null;
             if(options.Port >= 0)
             {
-                var io = new IOProvider();
-                io.Backend = options.HideMonitor ? (IIOSource)new DummyIOSource() : (IIOSource)new SocketIOSource(options.Port);
+                var io = new IOProvider()
+                {
+                    Backend = new SocketIOSource(options.Port)
+                };
                 shell = ShellProvider.GenerateShell(io, monitor, true);
             }
             else
