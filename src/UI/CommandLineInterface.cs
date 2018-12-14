@@ -69,6 +69,8 @@ namespace Antmicro.Renode.UI
                     Emulator.BeforeExit += () =>
                     {
                         Emulator.DisposeAll();
+                        xwt?.Dispose();
+                        xwt = null;
                     };
 
                     if(beforeRun != null)
@@ -121,6 +123,7 @@ namespace Antmicro.Renode.UI
                 {
                     try
                     {
+                        Emulator.BeforeExit += shell.Stop;
                         terminal.Quitted += Emulator.Exit;
                         terminal.Show();
                     }
