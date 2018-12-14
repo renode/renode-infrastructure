@@ -41,9 +41,13 @@ namespace Antmicro.Renode
 
         public static void DisposeAll()
         {
-            EmulationManager.Instance.Clear();
-            TypeManager.Instance.Dispose();
-            Logger.Dispose();
+            if(!disposed)
+            {
+                disposed = true;
+                EmulationManager.Instance.Clear();
+                TypeManager.Instance.Dispose();
+                Logger.Dispose();
+            }
         }
 
         public static IUserInterfaceProvider UserInterfaceProvider
@@ -104,6 +108,7 @@ namespace Antmicro.Renode
         public static event Action BeforeExit;
         private static IUserInterfaceProvider userInterfaceProvider;
         private static ManualResetEventSlim exitEvent = new ManualResetEventSlim();
+        private static bool disposed;
     }
 }
 
