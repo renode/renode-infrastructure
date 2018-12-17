@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Core
             }
             if(this.End == this.Start && offset != this.Start)
             {
-                return "{0}+0x{1} (guessed)".FormatWith(this.Name, offset.RawValue - this.Start);
+                return "{0}+0x{1:X} (guessed)".FormatWith(this.Name, offset.RawValue - this.Start.RawValue);
             }
             return this.Name;
         }
