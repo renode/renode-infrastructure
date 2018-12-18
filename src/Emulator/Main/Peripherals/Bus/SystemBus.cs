@@ -1380,18 +1380,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             return string.Format("(tag: '{0}') {1}", tag, str);
         }
 
-        private string DecorateWithCPUNumberAndPC(string str)
+        private string DecorateWithCPUNameAndPC(string str)
         {
             var cpuAppended = false;
             var builder = new StringBuilder(str.Length + 27);
             builder.Append('[');
             ICPU cpu;
-            if(!TryGetCurrentCPU(out cpu))
+            if(!TryGetCurrentCPU(out cpu) || !machine.TryGetLocalName(cpu, out var cpuName))
             {
                 return str;
             }
-            builder.Append("CPU");
-            builder.Append(GetCPUId(cpu));
+            builder.Append(cpuName);
             cpuAppended = true;
             if(TryGetPCForCPU(cpu, out var pc))
             {
@@ -1412,7 +1411,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             bool tagged;
             uint defaultValue;
             var warning = EnterTag(NonExistingRead, address, out tagged, out defaultValue);
-            warning = DecorateWithCPUNumberAndPC(warning);
+            warning = DecorateWithCPUNameAndPC(warning);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
             {
                 return defaultValue;
@@ -1451,7 +1450,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             bool tagged;
             uint dummy;
             var warning = EnterTag(NonExistingWrite, address, out tagged, out dummy);
-            warning = DecorateWithCPUNumberAndPC(warning);
+            warning = DecorateWithCPUNameAndPC(warning);
             if((UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfTagged && !tagged)
                 || (UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfNotTagged && tagged))
             {
