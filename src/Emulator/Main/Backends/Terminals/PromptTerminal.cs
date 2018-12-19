@@ -22,12 +22,12 @@ namespace Antmicro.Renode.Backends.Terminals
     {
         public PromptTerminal(Action<string, TimeInterval> onLine = null, Action<TimeInterval> onPrompt = null, string prompt = null)
         {
+            internalLock = new object();
             buffer = new StringBuilder();
             if(!string.IsNullOrEmpty(prompt))
             {
                 Prompt = prompt;
             }
-            internalLock = new object();
             this.onLine = onLine;
             this.onPrompt = onPrompt;
         }
@@ -113,10 +113,13 @@ namespace Antmicro.Renode.Backends.Terminals
 
             set
             {
-                prompt = value;
-                promptBytes = prompt == null ? null : Encoding.UTF8.GetBytes(prompt);
-                index = 0;
-                while(CheckForPrompt());
+                lock(internalLock)
+                {
+                    prompt = value;
+                    promptBytes = prompt == null ? null : Encoding.UTF8.GetBytes(prompt);
+                    index = 0;
+                    while(CheckForPrompt());
+                }
             }
         }
 
