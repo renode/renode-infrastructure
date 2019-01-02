@@ -847,6 +847,31 @@ namespace Antmicro.Renode.Peripherals.Bus
             pcCache.Invalidate();
         }
 
+        public string DecorateWithCPUNameAndPC(string str)
+        {
+            var cpuAppended = false;
+            var builder = new StringBuilder(str.Length + 27);
+            builder.Append('[');
+            ICPU cpu;
+            if(!TryGetCurrentCPU(out cpu) || !machine.TryGetLocalName(cpu, out var cpuName))
+            {
+                return str;
+            }
+            builder.Append(cpuName);
+            cpuAppended = true;
+            if(TryGetPCForCPU(cpu, out var pc))
+            {
+                if(cpuAppended)
+                {
+                    builder.Append(": ");
+                }
+                builder.AppendFormat("0x{0:X}", pc.RawValue);
+            }
+            builder.Append("] ");
+            builder.Append(str);
+            return builder.ToString();
+        }
+
         public Machine Machine
         {
             get
@@ -1378,31 +1403,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 machine.Pause();
             }
             return string.Format("(tag: '{0}') {1}", tag, str);
-        }
-
-        private string DecorateWithCPUNameAndPC(string str)
-        {
-            var cpuAppended = false;
-            var builder = new StringBuilder(str.Length + 27);
-            builder.Append('[');
-            ICPU cpu;
-            if(!TryGetCurrentCPU(out cpu) || !machine.TryGetLocalName(cpu, out var cpuName))
-            {
-                return str;
-            }
-            builder.Append(cpuName);
-            cpuAppended = true;
-            if(TryGetPCForCPU(cpu, out var pc))
-            {
-                if(cpuAppended)
-                {
-                    builder.Append(": ");
-                }
-                builder.AppendFormat("0x{0:X}", pc.RawValue);
-            }
-            builder.Append("] ");
-            builder.Append(str);
-            return builder.ToString();
         }
 
         private uint ReportNonExistingRead(ulong address, SysbusAccessWidth type)

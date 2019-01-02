@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Bus.Wrappers
@@ -16,16 +17,17 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             base(peripheral, originalMethod)
         {
             mapper = new RegisterMapper(peripheral.GetType());
+            machine = peripheral.GetMachine();
         }
 
         public override T Read(long offset)
         {
             var originalValue = OriginalMethod(offset);
-            Peripheral.DebugLog("Read{0} from 0x{1:X}{3}, returned 0x{2:X}.", Name, offset, originalValue, mapper.ToString(offset, " ({0})"));
+            Peripheral.DebugLog(machine.SystemBus.DecorateWithCPUNameAndPC($"Read{Name} from 0x{offset:X}{(mapper.ToString(offset, " ({0})"))}, returned 0x{originalValue:X}."));
             return originalValue;
         }
 
+        private readonly Machine machine;
         private readonly RegisterMapper mapper;
     }
 }
-

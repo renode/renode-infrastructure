@@ -8,6 +8,7 @@
 using System;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {
@@ -16,15 +17,16 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         public WriteLoggingWrapper(IBusPeripheral peripheral, Action<long, T> originalMethod) : base(peripheral, originalMethod, null, null)
         {
             mapper = new RegisterMapper(peripheral.GetType());
+            machine = peripheral.GetMachine();
         }
 
         public override void Write(long offset, T value)
         {
-            Peripheral.DebugLog("Write{0} to 0x{1:X}{3}, value 0x{2:X}.", Name, offset, value, mapper.ToString(offset, " ({0})"));
+            Peripheral.DebugLog(machine.SystemBus.DecorateWithCPUNameAndPC($"Write{Name} to 0x{offset:X}{(mapper.ToString(offset, " ({0})"))}, value 0x{value:X}."));
             OriginalMethod(offset, value);
         }
 
+        private readonly Machine machine;
         private readonly RegisterMapper mapper;
     }
 }
-
