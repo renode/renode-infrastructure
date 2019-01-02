@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using System.Threading;
 using Antmicro.Renode.Time;
 using System.Text;
 using Antmicro.Renode.Peripherals.CPU;
@@ -26,7 +25,6 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.EventRecording;
 using System.IO;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Antmicro.Renode.Core
