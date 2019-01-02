@@ -69,6 +69,27 @@ namespace Antmicro.Renode.UserInterface
             return @this.MasterTimeSource.ToString();
         }
 
+        public static void SetGlobalSerialExecution(this Emulation @this, bool val)
+        {
+            SetSerialExecutionRecursively(@this.MasterTimeSource);
+
+            void SetSerialExecutionRecursively(TimeSourceBase source)
+            {
+                source.ExecuteInSerial = val;
+                foreach(var sink in source.Sinks.OfType<TimeSourceBase>())
+                {
+                     SetSerialExecutionRecursively(sink);
+                }
+            }
+        }
+
+        public static bool SetSerialExecution(this Machine @this, bool val)
+        {
+            var previousValue = @this.LocalTimeSource.ExecuteInSerial;
+            @this.LocalTimeSource.ExecuteInSerial = val;
+            return previousValue;
+        }
+
         private static void SetAdvanceImmediatelyRecursively(TimeSourceBase source, bool val)
         {
             source.AdvanceImmediately = val;

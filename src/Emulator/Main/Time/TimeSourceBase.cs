@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -348,6 +349,14 @@ namespace Antmicro.Renode.Time
         public long NumberOfSyncPoints { get; private set; }
 
         /// <summary>
+        /// Forces the execution phase of time sinks to be done in serial.
+        /// </summary>
+        /// <remarks>
+        /// Using this option might reduce the performance of the execution, but ensures the determinism.
+        /// </remarks>
+        public bool ExecuteInSerial { get; set; }
+
+        /// <summary>
         /// Action to be executed on every synchronization point.
         /// </summary>
         public event Action<TimeInterval> SyncHook;
@@ -395,7 +404,6 @@ namespace Antmicro.Renode.Time
             this.Trace($"Starting a loop with #{quantum.Ticks} ticks");
 
             virtualTimeElapsed = TimeInterval.Empty;
-            State = TimeSourceState.ReportingElapsedTime;
             using(sync.LowPriority)
             {
                 handles.LatchAllAndCollectGarbage();
@@ -403,57 +411,33 @@ namespace Antmicro.Renode.Time
 
                 this.Trace($"Iteration start: slaves left {handles.ActiveCount}; will we try to grant time? {shouldGrantTime}");
                 elapsedAtLastGrant = stopwatch.Elapsed;
+
                 if(handles.ActiveCount > 0)
                 {
+                    var executor = new PhaseExecutor<LinkedListNode<TimeHandle>>();
+
                     if(shouldGrantTime && quantum != TimeInterval.Empty)
                     {
-                        this.Trace($"Granting {quantum.Ticks} ticks");
-                        // inform all slaves about elapsed time
-                        foreach(var slave in handles)
-                        {
-                            slave.GrantTimeInterval(quantum);
-                        }
+                        executor.RegisterPhase(s => ExecuteGrantPhase(s, quantum));
                     }
 
-                    // in case we did not grant any time due to quantum being empty, we must not call wait as well
                     if(!(shouldGrantTime && quantum == TimeInterval.Empty))
                     {
-                        this.Trace("Waiting for slaves");
-                        // wait for everyone to report back
-                        State = TimeSourceState.WaitingForReportBack;
-                        TimeInterval? minInterval = null;
-                        foreach(var slave in handles.WithLinkedListNode)
-                        {
-                            var result = slave.Value.WaitUntilDone(out var usedInterval);
-                            if(!result.IsDone)
-                            {
-                                EnterBlockedState();
-                            }
-
-                            handles.UpdateHandle(slave);
-
-                            if(result.IsUnblockedRecently)
-                            {
-                                Antmicro.Renode.Debugging.DebugHelper.Assert(recentlyUnblockedSlaves.Contains(slave.Value), $"Expected slave to be in {nameof(recentlyUnblockedSlaves)} collection.");
-                                recentlyUnblockedSlaves.Remove(slave.Value);
-                                this.Trace($"Number of unblocked slaves set to {recentlyUnblockedSlaves.Count}");
-                                if(recentlyUnblockedSlaves.Count == 0)
-                                {
-                                    sync.Pulse();
-                                }
-                            }
-                            if(minInterval == null || minInterval > slave.Value.TotalElapsedTime)
-                            {
-                                minInterval = slave.Value.TotalElapsedTime;
-                            }
-                        }
-
-                        if(minInterval != null)
-                        {
-                            DebugHelper.Assert(minInterval.Value >= ElapsedVirtualTime, $"A slave reports time from the past! The current virtual time is {ElapsedVirtualTime}, but {minInterval.Value} has been reported");
-                            virtualTimeElapsed = minInterval.Value - ElapsedVirtualTime;
-                        }
+                        executor.RegisterPhase(ExecuteWaitPhase);
                     }
+
+                    if(ExecuteInSerial)
+                    {
+                        executor.ExecuteInSerial(handles.WithLinkedListNode);
+                    }
+                    else
+                    {
+                        executor.ExecuteInParallel(handles.WithLinkedListNode);
+                    }
+
+                    var commonElapsedTime = handles.CommonElapsedTime;
+                    DebugHelper.Assert(commonElapsedTime >= ElapsedVirtualTime, $"A slave reports time from the past! The current virtual time is {ElapsedVirtualTime}, but {commonElapsedTime} has been reported");
+                    virtualTimeElapsed = commonElapsedTime - ElapsedVirtualTime;
                 }
                 else
                 {
@@ -461,6 +445,7 @@ namespace Antmicro.Renode.Time
                     // if there are no slaves just make the time pass
                     virtualTimeElapsed = quantum;
 
+                    // here we must trigger `TimePassed` manually as no handles has been updated so they won't reflect the passed time
                     TimePassed?.Invoke(quantum);
                 }
 
@@ -568,6 +553,44 @@ namespace Antmicro.Renode.Time
                     {
                         handle.Reset();
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Grants time interval to a single handle.
+        /// </summary>
+        private void ExecuteGrantPhase(LinkedListNode<TimeHandle> handle, TimeInterval quantum)
+        {
+            State = TimeSourceState.ReportingElapsedTime;
+            handle.Value.GrantTimeInterval(quantum);
+        }
+
+        /// <summary>
+        /// Waits until the handle finishes its execution.
+        /// </summary>
+        /// <remarks>
+        /// This method must be called with a <see cref="sync"/> locked.
+        /// </remarks>
+        private void ExecuteWaitPhase(LinkedListNode<TimeHandle> handle)
+        {
+            State = TimeSourceState.WaitingForReportBack;
+            var result = handle.Value.WaitUntilDone(out var usedInterval);
+            if(!result.IsDone)
+            {
+                EnterBlockedState();
+            }
+
+            handles.UpdateHandle(handle);
+
+            if(result.IsUnblockedRecently)
+            {
+                Antmicro.Renode.Debugging.DebugHelper.Assert(recentlyUnblockedSlaves.Contains(handle.Value), $"Expected slave to be in {nameof(recentlyUnblockedSlaves)} collection.");
+                recentlyUnblockedSlaves.Remove(handle.Value);
+                this.Trace($"Number of unblocked slaves set to {recentlyUnblockedSlaves.Count}");
+                if(recentlyUnblockedSlaves.Count == 0)
+                {
+                    sync.Pulse();
                 }
             }
         }
@@ -803,6 +826,51 @@ namespace Antmicro.Renode.Time
 
             private readonly int id;
             private static int Id;
+        }
+
+        /// <summary>
+        /// Allows to execute registered actions in serial or in parallel.
+        /// </summary>
+        private class PhaseExecutor<T>
+        {
+            public PhaseExecutor()
+            {
+                phases = new List<Action<T>>();
+            }
+
+            public void RegisterPhase(Action<T> action)
+            {
+                phases.Add(action);
+            }
+
+            public void ExecuteInSerial(IEnumerable<T> targets)
+            {
+                if(phases.Count == 0)
+                {
+                    return;
+                }
+
+                foreach(var target in targets)
+                {
+                    foreach(var phase in phases)
+                    {
+                        phase(target);
+                    }
+                }
+            }
+
+            public void ExecuteInParallel(IEnumerable<T> targets)
+            {
+                foreach(var phase in phases)
+                {
+                    foreach(var target in targets)
+                    {
+                        phase(target);
+                    }
+                }
+            }
+
+            private readonly List<Action<T>> phases;
         }
     }
 }
