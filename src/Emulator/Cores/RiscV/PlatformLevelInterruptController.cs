@@ -139,6 +139,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public long Size => 0x4000000;
 
+        /// <summary>
+        /// Setting this property to a value different than -1 causes all interrupts to be reported to a target with a given id.
+        ///
+        /// This is mostly for debugging purposes.
+        /// It allows to designate a single core (in a multi-core setup) to handle external interrupts making it easier to debug trap handlers.
+        /// </summary>
+        public int ForcedTarget { get; set; } = -1;
+
         private void RefreshInterrupts()
         {
             lock(irqSources)
@@ -347,6 +355,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     lock(irqController.irqSources)
                     {
+                        var forcedTarget = irqController.ForcedTarget;
+                        if(forcedTarget != -1 && this.targetId != forcedTarget)
+                        {
+                            irqController.Connections[ConnectionNumber].Set(false);
+                            return;
+                        }
+
                         var currentPriority = activeInterrupts.Count > 0 ? activeInterrupts.Peek().Priority : 0;
                         var isPending = enabledSources.Any(x => x.Priority > currentPriority && x.IsPending);
                         irqController.Connections[ConnectionNumber].Set(isPending);
@@ -389,9 +404,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     lock(irqController.irqSources)
                     {
-                        var pendingIrq = enabledSources.Where(x => x.IsPending)
-                            .OrderByDescending(x => x.Priority)
-                            .ThenBy(x => x.Id).FirstOrDefault();
+                        IrqSource pendingIrq;
+
+                        var forcedTarget = irqController.ForcedTarget;
+                        if(forcedTarget != -1 && this.targetId != forcedTarget)
+                        {
+                            pendingIrq = null;
+                        }
+                        else
+                        {
+                            pendingIrq = enabledSources.Where(x => x.IsPending)
+                                .OrderByDescending(x => x.Priority)
+                                .ThenBy(x => x.Id).FirstOrDefault();
+                        }
+
                         if(pendingIrq == null)
                         {
                             irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for {0}. Currently enabled sources: {1}", this, string.Join(", ", enabledSources.Select(x => x.ToString())));
