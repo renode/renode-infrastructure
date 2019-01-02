@@ -18,6 +18,7 @@ using Antmicro.Renode.Peripherals.UART;
 using System.Linq;
 using Antmicro.OptionsParser;
 using System.IO;
+using System.Diagnostics;
 using Antmicro.Renode.Analyzers;
 
 namespace Antmicro.Renode.UI
@@ -31,6 +32,11 @@ namespace Antmicro.Renode.UI
             XwtProvider xwt = null;
             try
             {
+                if(options.PidFile != null)
+                {
+                    var pid = Process.GetCurrentProcess().Id;
+                    File.WriteAllText(options.PidFile, pid.ToString());
+                }
                 if(!options.DisableXwt)
                 {
                     xwt = new XwtProvider(new WindowedUserInterfaceProvider());

@@ -35,6 +35,9 @@ namespace Antmicro.Renode.UI
         [Name("hide-analyzers"), DefaultValue(false), Description("Do not show analyzers.")]
         public bool HideAnalyzers { get; set; }
 
+        [Name("pid-file"), Description("Write PID of the Renode instance to the provided file.")]
+        public string PidFile { get; set; }
+
         [Name("robot-server-port"), DefaultValue(-1), Description("Start robot framework remote server on the specified port.")]
         public int RobotFrameworkRemoteServerPort { get; set; }
 
