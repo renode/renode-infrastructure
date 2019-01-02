@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Gets an enumerator over the part of handles collection - either not-ready-for-a-new-time-grant handles (if any) or ready ones (otherwise) returning objects of <see cref="LinkedListNode{TimeHandle}"/>.
         /// </summary>
-        public IEnumerable<LinkedListNode<TimeHandle>> WithLinkedListNode 
+        public IEnumerable<LinkedListNode<TimeHandle>> WithLinkedListNode
         {
             get
             {
