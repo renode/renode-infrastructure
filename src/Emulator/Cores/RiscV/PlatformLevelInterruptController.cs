@@ -127,6 +127,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             lock(irqSources)
             {
+                this.Log(LogLevel.Noisy, "Setting GPIO number #{0} to value {1}", number, value);
                 var irq = irqSources[(uint)number];
                 irq.State = value;
                 irq.IsPending |= value;
@@ -349,7 +350,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         var currentPriority = activeInterrupts.Count > 0 ? activeInterrupts.Peek().Priority : 0;
                         var isPending = enabledSources.Any(x => x.Priority > currentPriority && x.IsPending);
                         irqController.Connections[ConnectionNumber].Set(isPending);
-                        irqController.Log(LogLevel.Noisy, "Setting irq to {0} @ {1}", isPending, this);
                     }
                 }
 
@@ -394,7 +394,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             .ThenBy(x => x.Id).FirstOrDefault();
                         if(pendingIrq == null)
                         {
-                            irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for {0}", this);
+                            irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for {0}. Currently enabled sources: {1}", this, string.Join(", ", enabledSources.Select(x => x.ToString())));
                             return 0;
                         }
                         pendingIrq.IsPending = false;
