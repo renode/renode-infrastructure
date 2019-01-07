@@ -18,4 +18,5 @@
     var AFTER_WRITE_HOOKS = new Dictionary<string, string>();
     var REGISTERS_FROM_BASE_CLASS = new List<string>();
     var GENERAL_REGISTERS = new List<string>();
+    var UNSETTABLE_REGISTERS = new List<string>();
 #>

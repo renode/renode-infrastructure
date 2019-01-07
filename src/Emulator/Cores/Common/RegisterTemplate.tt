@@ -77,6 +77,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
+<#
+    if(UNSETTABLE_REGISTERS.Any())
+    {
+#>
+            if(r.IsReadonly)
+            {
+                throw new RecoverableException($"Register: {register} value is not writable.");
+            }
+<# 
+    }
+#>
 
 <#
     if(widths.Length == 1)
@@ -253,7 +264,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         .OrderBy(x => x.Key))
     {
 #>
-            { <#=CLASS_NAME#>Registers.<#=register.First().Name#>,  new CPURegister(<#=register.Key#>, <#=register.Select(x => x.Width).First()#>, <#= register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false" #>) },
+            { <#=CLASS_NAME#>Registers.<#=register.First().Name#>,  new CPURegister(<#=register.Key#>, <#=register.Select(x => x.Width).First()#>, isGeneral: <#= register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false" #>, isReadonly: <#= register.Any(x => UNSETTABLE_REGISTERS.Contains(x.Name)) ? "true" : "false" #>) },
 <#
     }
 #>
