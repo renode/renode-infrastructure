@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private static readonly Dictionary<PowerPcRegisters, CPURegister> mapping = new Dictionary<PowerPcRegisters, CPURegister>
         {
-            { PowerPcRegisters.NIP,  new CPURegister(0, 32, true) },
+            { PowerPcRegisters.NIP,  new CPURegister(0, 32, isGeneral: true, isReadonly: false) },
         };
     }
 

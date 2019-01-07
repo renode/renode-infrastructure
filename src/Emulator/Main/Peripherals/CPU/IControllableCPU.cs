@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public struct CPURegister
     {
-        public CPURegister(int index, int width, bool isGeneral)
+        public CPURegister(int index, int width, bool isGeneral, bool isReadonly)
         {
             if(width != 8 && width != 16 && width != 32 && width != 64)
             {
@@ -42,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Index = index;
             IsGeneral = isGeneral;
             Width = width;
+            IsReadonly = isReadonly; 
         }
 
         public ulong ValueFromBytes(byte[] bytes)
@@ -76,6 +77,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public int Index { get; private set; }
         public bool IsGeneral { get; private set; }
         public int Width { get; private set; }
+        public bool IsReadonly { get; private set; }
 
         // this is to support monitor output
         public override string ToString()
