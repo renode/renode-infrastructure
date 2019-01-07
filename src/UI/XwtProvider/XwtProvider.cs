@@ -99,7 +99,7 @@ namespace Antmicro.Renode.UI
                 {
                     return;
                 }
-                ApplicationExtensions.InvokeInUIThreadAndWait(Application.Exit);
+                ApplicationExtensions.InvokeInUIThread(Application.Exit);
             }
         }
 
