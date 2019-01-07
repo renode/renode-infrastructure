@@ -30,69 +30,59 @@ namespace Antmicro.Renode.UI
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => CrashHandler.HandleCrash((Exception)e.ExceptionObject);
             Emulator.ShowAnalyzers = !options.HideAnalyzers;
             XwtProvider xwt = null;
-            try
+            if(options.PidFile != null)
             {
-                if(options.PidFile != null)
-                {
-                    var pid = Process.GetCurrentProcess().Id;
-                    File.WriteAllText(options.PidFile, pid.ToString());
-                }
-                if(!options.DisableXwt)
-                {
-                    xwt = new XwtProvider(new WindowedUserInterfaceProvider());
-                }
-                using(var context = ObjectCreator.Instance.OpenContext())
-                {
-                    var monitor = new Antmicro.Renode.UserInterface.Monitor();
-                    context.RegisterSurrogate(typeof(Antmicro.Renode.UserInterface.Monitor), monitor);
-
-                    // we must initialize plugins AFTER registering monitor surrogate
-                    // as some plugins might need it for construction
-                    TypeManager.Instance.PluginManager.Init("CLI");
-
-                    if(!options.HideLog)
-                    {
-                        Logger.AddBackend(ConsoleBackend.Instance, "console");
-                    }
-
-                    EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
-
-                    var analyzerType = options.DisableXwt ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
-
-                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
-                    EmulationManager.Instance.EmulationChanged += () =>
-                    {
-                        EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
-                    };
-
-                    var shell = PrepareShell(options, monitor);
-                    new System.Threading.Thread(x => shell.Start(true))
-                    {
-                        IsBackground = true,
-                        Name = "Shell thread"
-                    }.Start();
-
-                    Emulator.BeforeExit += () =>
-                    {
-                        Emulator.DisposeAll();
-                        xwt?.Dispose();
-                        xwt = null;
-                    };
-
-                    if(beforeRun != null)
-                    {
-                        beforeRun(context);
-                    }
-
-                    Emulator.WaitForExit();
-                }
+                var pid = Process.GetCurrentProcess().Id;
+                File.WriteAllText(options.PidFile, pid.ToString());
             }
-            finally
+            if(!options.DisableXwt)
             {
-                if(xwt != null)
+                xwt = new XwtProvider(new WindowedUserInterfaceProvider());
+            }
+            using(var context = ObjectCreator.Instance.OpenContext())
+            {
+                var monitor = new Antmicro.Renode.UserInterface.Monitor();
+                context.RegisterSurrogate(typeof(Antmicro.Renode.UserInterface.Monitor), monitor);
+
+                // we must initialize plugins AFTER registering monitor surrogate
+                // as some plugins might need it for construction
+                TypeManager.Instance.PluginManager.Init("CLI");
+
+                if(!options.HideLog)
                 {
-                    xwt.Dispose();
+                    Logger.AddBackend(ConsoleBackend.Instance, "console");
                 }
+
+                EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
+
+                var analyzerType = options.DisableXwt ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
+
+                EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
+                EmulationManager.Instance.EmulationChanged += () =>
+                {
+                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
+                };
+
+                var shell = PrepareShell(options, monitor);
+                new System.Threading.Thread(x => shell.Start(true))
+                {
+                    IsBackground = true,
+                    Name = "Shell thread"
+                }.Start();
+
+                Emulator.BeforeExit += () =>
+                {
+                    Emulator.DisposeAll();
+                    xwt?.Dispose();
+                    xwt = null;
+                };
+
+                if(beforeRun != null)
+                {
+                    beforeRun(context);
+                }
+
+                Emulator.WaitForExit();
             }
         }
 
