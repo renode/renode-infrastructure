@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 divider = value;
                 var effectiveFrequency = initialFrequency / divider;
-                clockSource.ExchangeClockEntryWith(OnCompareReached, oldEntry => oldEntry.With(ratio: ClockEntry.FrequencyToRatio(this, effectiveFrequency)));
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(ratio: ClockEntry.FrequencyToRatio(this, effectiveFrequency)));
             }
         }
 
