@@ -632,9 +632,9 @@ namespace Antmicro.Renode.Utilities
                 sum += (ushort)(packet.Length - startOfPayload);
             }
             // 16 bit 1's compliment
-            while ((sum >> 16) != 0) 
-            { 
-                sum = ((sum & 0xFFFF) + (sum >> 16)); 
+            while((sum >> 16) != 0)
+            {
+                sum = ((sum & 0xFFFF) + (sum >> 16));
             }
             return (ushort)~sum;
         }
@@ -646,7 +646,7 @@ namespace Antmicro.Renode.Utilities
         }
 
 
-        public enum TransportLayerProtocol 
+        public enum TransportLayerProtocol
         {
             ICMP = 0x1,
             TCP = 0x6,
@@ -718,7 +718,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public static string DumpPacket(EthernetFrame packet, bool isSend, Machine machine)
-        {           
+        {
             var builder = new StringBuilder();
             string machName;
             if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machName))
