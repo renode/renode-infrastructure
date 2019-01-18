@@ -888,17 +888,17 @@ namespace Antmicro.Renode.Utilities
                 mi.GetParameters().Select(x => x.ParameterType).SequenceEqual(delegateMethodInfo.GetParameters().Select(x => x.ParameterType));
         }
 
-        public static int Clamp(this int a, int b, int c)
+        public static int Clamp(this int value, int min, int max)
         {
-            if(a < b)
+            if(value < min)
             {
-                return b;
+                return min;
             }
-            if(a > c)
+            if(value > max)
             {
-                return c;
+                return max;
             }
-            return a;
+            return value;
         }
 
         public static string[] Split(this string value, int size)
