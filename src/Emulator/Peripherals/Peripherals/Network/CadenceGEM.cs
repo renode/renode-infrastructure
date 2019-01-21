@@ -50,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(26, out ignoreRxFCS, name: "FCSIGNORE")
                 },
 
-                {(long)Registers.NetworkStatus, new DoubleWordRegister(this, 0x4)},
+                {(long)Registers.NetworkStatus, new DoubleWordRegister(this)
+                    .WithFlag(2, FieldMode.Read, name: "PHY_MGMT_IDLE", valueProviderCallback: _ => true)
+                },
 
                 {(long)Registers.DmaConfiguration, new DoubleWordRegister(this, 0x00020784)
                     .WithFlag(11, out checksumGeneratorEnabled, name: "TCPCKSUM")
