@@ -19,8 +19,12 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class CadenceGEM : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
-        public CadenceGEM(Machine machine) : base(machine)
+        // the default moduleRevision/moduleId are correct for Zynq with GEM p23
+        public CadenceGEM(Machine machine, ushort moduleRevision = 0x118, ushort moduleId = 0x2) : base(machine)
         {
+            ModuleId = moduleId;
+            ModuleRevision = moduleRevision;
+
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             sync = new object();
@@ -139,7 +143,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(0, 32, valueProviderCallback: _ => BitConverter.ToUInt16(MAC.Bytes, 4))
                 },
 
-                {(long)Registers.ModuleId, new DoubleWordRegister(this, 0x00020118)},
+                {(long)Registers.ModuleId, new DoubleWordRegister(this)
+                    .WithValueField(16, 16, FieldMode.Read, name: "MODULE_ID", valueProviderCallback: _ => ModuleId)
+                    .WithValueField(0, 16, FieldMode.Read, name: "MODULE_REV", valueProviderCallback: _ => ModuleRevision)
+                },
             };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -219,6 +226,9 @@ namespace Antmicro.Renode.Peripherals.Network
         public long Size => 0x1000;
 
         public MACAddress MAC { get; set; }
+
+        public ushort ModuleRevision { get; private set; }
+        public ushort ModuleId { get; private set; }
 
         [IrqProvider]
         public GPIO IRQ { get; private set; }
