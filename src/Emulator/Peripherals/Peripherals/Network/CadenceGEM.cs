@@ -149,6 +149,16 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(16, 16, FieldMode.Read, name: "MODULE_ID", valueProviderCallback: _ => ModuleId)
                     .WithValueField(0, 16, FieldMode.Read, name: "MODULE_REV", valueProviderCallback: _ => ModuleRevision)
                 },
+
+                {(long)Registers.DesignConfiguration1, new DoubleWordRegister(this)
+                    .WithFlag(23, FieldMode.Read, name: "IRQCOR", valueProviderCallback: _ => false) // IRQ clear on read
+                    .WithValueField(25, 3, FieldMode.Read, name: "DBWDEF", valueProviderCallback: _ => 1) // DMA data bus width - 32 bits
+                },
+
+                {(long)Registers.DesignConfiguration2, new DoubleWordRegister(this)
+                    .WithFlag(21, FieldMode.Read, name: "GEM_TX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the transmitter packet buffer
+                    .WithFlag(20, FieldMode.Read, name: "GEM_RX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the receiver packet buffer
+                },
             };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -651,6 +661,7 @@ namespace Antmicro.Renode.Peripherals.Network
             PtpPeerEventFrameReceivedSeconds = 0x1F8,
             PtpPeerEventFrameReceivedNanoseconds = 0x1FC,
             // gap intended
+            DesignConfiguration1 = 0x280, // this register's implementation is based on linux driver as Zynq-7000 documentation does not mention it
             DesignConfiguration2 = 0x284,
             DesignConfiguration3 = 0x288,
             DesignConfiguration4 = 0x28C,
