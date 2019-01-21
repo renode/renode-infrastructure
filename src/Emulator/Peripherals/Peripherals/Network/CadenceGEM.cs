@@ -349,11 +349,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     // this is the first descriptor - read it from baseAddress
                     descriptors.Add(creator(bus, baseAddress));
+                    currentDescriptorIndex = 0;
                 }
                 else
                 {
-                    var shouldInvalidate = true;
-
                     CurrentDescriptor.Update();
 
                     if(CurrentDescriptor.Wrap)
@@ -366,17 +365,12 @@ namespace Antmicro.Renode.Peripherals.Network
                         {
                             // we need to generate new descriptor
                             descriptors.Add(creator(bus, CurrentDescriptor.BaseAddress + DmaBufferDescriptor.LengthInBytes));
-                            // there is no need to invalidate newly created descriptor as it is invalidated in the constructor
-                            shouldInvalidate = false;
                         }
                         currentDescriptorIndex++;
                     }
-
-                    if(shouldInvalidate)
-                    {
-                        CurrentDescriptor.Invalidate();
-                    }
                 }
+
+                CurrentDescriptor.Invalidate();
             }
 
             public T CurrentDescriptor => descriptors[currentDescriptorIndex];
@@ -399,7 +393,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 BaseAddress = address;
 
                 words = new uint[2];
-                Invalidate();
             }
 
             public void Invalidate()
