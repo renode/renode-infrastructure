@@ -422,6 +422,28 @@ namespace Antmicro.Renode.Peripherals.Network
             protected readonly SystemBus bus;
         }
 
+        /// RX buffer descriptor format:
+        /// * bits 0-31:
+        ///     * 0: Ownership flag
+        ///     * 1: Wrap flag
+        ///     * 2-31: Address of beginning of buffer
+        /// * bits 32-63:
+        ///     * 32-44: Length of received frame
+        ///     * 45: Bad FCS flag
+        ///     * 46: Start of frame flag
+        ///     * 47: End of frame flag
+        ///     * 48: Cannonical form indicator flag
+        ///     * 49-51: VLAN priority
+        ///     * 52: Priority tag detected flag
+        ///     * 53: VLAN tag detected flag
+        ///     * 54-55: Type ID match
+        ///     * 56: Type ID match meaning flag
+        ///     * 57-58: Specific address register match
+        ///     * 59: Reserved
+        ///     * 60: External address match flag
+        ///     * 61: Unicash hash match flag
+        ///     * 62: Multicast hash match flag
+        ///     * 63: Broadcast address detected flag
         private class DmaRxBufferDescriptor : DmaBufferDescriptor
         {
             public DmaRxBufferDescriptor(SystemBus bus, uint address) : base(bus, address)
@@ -461,6 +483,23 @@ namespace Antmicro.Renode.Peripherals.Network
             private const int MaximumBufferLength = (1 << 13) - 1;
         }
 
+        /// TX buffer descriptor format:
+        /// * bits 0-31:
+        ///     * 0-31: Byte address of buffer
+        /// * bits 32-63:
+        ///     * 32-45: Lenght of buffer
+        ///     * 46: Reserved
+        ///     * 47: Last buffer flag
+        ///     * 48: CRC appended flag
+        ///     * 49-51: Reserved
+        ///     * 52-54: Transmit checksum errors
+        ///     * 55-57: Reserved
+        ///     * 58: Late collision detected flag
+        ///     * 59: Transmit frame corruption flag
+        ///     * 60: Reserved (always set to 0)
+        ///     * 61: Retry limit exceeded
+        ///     * 62: Wrap flag
+        ///     * 63: Used flag
         private class DmaTxBufferDescriptor : DmaBufferDescriptor
         {
             public DmaTxBufferDescriptor(SystemBus bus, uint address) : base(bus, address)
