@@ -202,7 +202,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, receiveBufferOffset.Value))
                     {
-                        this.Log(LogLevel.Warning, "Could not write the incoming packet to the DMA buffer");
+                        // The current implementation doesn't handle packets that do not fit into a single buffer.
+                        // In case we encounter this error, we probably should implement partitioning/scattering procedure.
+                        this.Log(LogLevel.Warning, "Could not write the incoming packet to the DMA buffer: maximum packet length exceeded.");
                         return;
                     }
 
