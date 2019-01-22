@@ -76,7 +76,7 @@ namespace Antmicro.Renode.TAPHelper
             generator.Emit(OpCodes.Ldarg_0);
             generator.Emit(OpCodes.Ldc_I4, 1);
             generator.Emit(OpCodes.Ldelem, typeof(string));
-            generator.Emit(OpCodes.Call, typeof(bool).GetMethod("Parse"));
+            generator.Emit(OpCodes.Call, typeof(bool).GetMethod("Parse", new [] { typeof(string) }));
 
             // call OpenTAP method
 			generator.Emit(OpCodes.Callvirt, typeof(Func<IntPtr, bool, int>).GetMethod("Invoke", new [] { typeof(IntPtr), typeof(bool) }));
