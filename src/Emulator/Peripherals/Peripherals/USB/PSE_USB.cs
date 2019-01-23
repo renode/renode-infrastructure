@@ -340,7 +340,9 @@ namespace Antmicro.Renode.Peripherals.USB
             }
 
             Registers.DeviceControl.Define8(this, 0x80, name: "DEV_CTRL_REG")
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "B-Device")
                 .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => true, name: "FSDev")
+                .WithEnumField<ByteRegister, VBusLevel>(3, 2, FieldMode.Read, valueProviderCallback: _ => VBusLevel.AboveVBusValid, name: "VBus")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => mode == ControllerMode.Host, name: "Host Mode")
                 .WithFlag(0, out sessionInProgress, changeCallback: (_, val) => HandleSessionStart(), name: "Session")
             ;
@@ -882,6 +884,14 @@ namespace Antmicro.Renode.Peripherals.USB
 
             ReceiveControlStatusLow = 0x16,
             ReceiveControlStatusHigh = 0x17
+        }
+
+        private enum VBusLevel
+        {
+            BelowSessionEnd = 0,
+            AboveSessionEndBelowAvalid = 1,
+            AboveAvalidBelowVBusValid = 2,
+            AboveVBusValid = 3
         }
     }
 }
