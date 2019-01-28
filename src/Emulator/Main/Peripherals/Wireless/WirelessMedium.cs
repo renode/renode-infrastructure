@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public WirelessMedium()
         {
             radios = new Dictionary<IRadio, Position>();
+            radioHooks = new Dictionary<IRadio, Action<byte[]>>();
             mediumFunction = SimpleMediumFunction.Instance;
         }
 
@@ -44,6 +45,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public void DetachFrom(IRadio radio)
         {
             radios.Remove(radio);
+            radioHooks.Remove(radio);
             radio.FrameSent -= FrameSentHandler;
         }
 
@@ -67,7 +69,24 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public IEnumerable<string> GetNames()
         {
-            return new[] {mediumFunction.FunctionName};
+            return new[] { mediumFunction.FunctionName };
+        }
+
+        public IEnumerable<string> GetAttachedRadiosNames()
+        {
+            var result = new List<string>();
+            var currentEmulation = EmulationManager.Instance.CurrentEmulation;
+            foreach(var radio in radios)
+            {
+                currentEmulation.TryGetEmulationElementName(radio.Key, out var name);
+                result.Add(name);
+            }
+            return result;
+        }
+
+        public void AttachHookToRadio(IRadio radio, Action<byte[]> hook)
+        {
+            radioHooks[radio] = hook;
         }
 
         public IMediumFunction TryGetByName(string name, out bool success)
@@ -109,16 +128,22 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     continue;
                 }
 
-                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packet.ToArray(), TimeDomainsManager.Instance.VirtualTimeStamp, () =>
+                var packetCopy = packet.ToArray();
+                if(radioHooks.TryGetValue(receiver, out var hook))
                 {
-                    this.NoisyLog("Packet {0} -> {1} delivered, size {2}.", senderName, receiverName, packet.Length);
-                    FrameTransmitted?.Invoke(this, sender, receiver, packet);
+                    hook(packetCopy);
+                }
+
+                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packetCopy, TimeDomainsManager.Instance.VirtualTimeStamp, () =>
+                {
+                    this.NoisyLog("Packet {0} -> {1} delivered, size {2}.", senderName, receiverName, packetCopy.Length);
+                    FrameTransmitted?.Invoke(this, sender, receiver, packetCopy);
                 });
             }
         }
 
         private IMediumFunction mediumFunction;
+        private readonly Dictionary<IRadio, Action<byte[]>> radioHooks;
         private readonly Dictionary<IRadio, Position> radios;
     }
 }
-
