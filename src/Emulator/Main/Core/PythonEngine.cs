@@ -59,7 +59,8 @@ namespace Antmicro.Renode.Core
                     "__file__",
                     "__name__",
                     "sys",
-                    "LogLevel"
+                    "LogLevel",
+                    "emulationManager"
                 };
             } 
         }
@@ -72,6 +73,7 @@ namespace Antmicro.Renode.Core
         private void InnerInit()
         {
             Scope = Engine.CreateScope();
+            Scope.SetVariable("emulationManager", EmulationManager.Instance);
             PythonTime.localtime();
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
