@@ -5,13 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
