@@ -156,6 +156,7 @@
     <Compile Include="UserInterface\MonitorExecutorExtensions.cs" />
     <Compile Include="Utilities\GDB\Commands\MonitorCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\QueryCommand.cs" />
+    <Compile Include="Hooks\PacketInterceptionPythonEngine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
