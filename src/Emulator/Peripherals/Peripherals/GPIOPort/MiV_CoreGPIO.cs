@@ -28,6 +28,27 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
+                {(long)Registers.InterruptClearRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write,
+                    writeCallback: (_, value) =>
+                    {
+                        lock(innerLock)
+                        {
+                            foreach(var i in BitHelper.GetSetBits(value))
+                            {
+                                irqManager.ClearInterrupt((uint)i);
+                            }
+                        }
+                    })},
+
+                {(long)Registers.InputRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read,
+                    valueProviderCallback: _ =>
+                    {
+                        lock(innerLock)
+                        {
+                            return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Input);
+                        }
+                    })},
+
                 {(long)Registers.OutputRegister, new DoubleWordRegister(this).WithValueField(0, 32,
                     writeCallback: (_, value) =>
                     {
@@ -47,27 +68,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         lock(innerLock)
                         {
                             return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Output);
-                        }
-                    })},
-
-                {(long)Registers.InputRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read,
-                    valueProviderCallback: _ =>
-                    {
-                        lock(innerLock)
-                        {
-                            return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Input);
-                        }
-                    })},
-
-                {(long)Registers.InterruptClearRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write,
-                    writeCallback: (_, value) =>
-                    {
-                        lock(innerLock)
-                        {
-                            foreach(var i in BitHelper.GetSetBits(value))
-                            {
-                                irqManager.ClearInterrupt((uint)i);
-                            }
                         }
                     })}
             };
