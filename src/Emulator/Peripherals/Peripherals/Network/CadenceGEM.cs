@@ -19,8 +19,12 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class CadenceGEM : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
-        public CadenceGEM(Machine machine) : base(machine)
+        // the default moduleRevision/moduleId are correct for Zynq with GEM p23
+        public CadenceGEM(Machine machine, ushort moduleRevision = 0x118, ushort moduleId = 0x2) : base(machine)
         {
+            ModuleId = moduleId;
+            ModuleRevision = moduleRevision;
+
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             sync = new object();
@@ -46,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(26, out ignoreRxFCS, name: "FCSIGNORE")
                 },
 
-                {(long)Registers.NetworkStatus, new DoubleWordRegister(this, 0x4)},
+                {(long)Registers.NetworkStatus, new DoubleWordRegister(this)
+                    .WithFlag(2, FieldMode.Read, name: "PHY_MGMT_IDLE", valueProviderCallback: _ => true)
+                },
 
                 {(long)Registers.DmaConfiguration, new DoubleWordRegister(this, 0x00020784)
                     .WithFlag(11, out checksumGeneratorEnabled, name: "TCPCKSUM")
@@ -139,7 +145,20 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(0, 32, valueProviderCallback: _ => BitConverter.ToUInt16(MAC.Bytes, 4))
                 },
 
-                {(long)Registers.ModuleId, new DoubleWordRegister(this, 0x00020118)},
+                {(long)Registers.ModuleId, new DoubleWordRegister(this)
+                    .WithValueField(16, 16, FieldMode.Read, name: "MODULE_ID", valueProviderCallback: _ => ModuleId)
+                    .WithValueField(0, 16, FieldMode.Read, name: "MODULE_REV", valueProviderCallback: _ => ModuleRevision)
+                },
+
+                {(long)Registers.DesignConfiguration1, new DoubleWordRegister(this)
+                    .WithFlag(23, FieldMode.Read, name: "IRQCOR", valueProviderCallback: _ => false) // IRQ clear on read
+                    .WithValueField(25, 3, FieldMode.Read, name: "DBWDEF", valueProviderCallback: _ => 1) // DMA data bus width - 32 bits
+                },
+
+                {(long)Registers.DesignConfiguration2, new DoubleWordRegister(this)
+                    .WithFlag(21, FieldMode.Read, name: "GEM_TX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the transmitter packet buffer
+                    .WithFlag(20, FieldMode.Read, name: "GEM_RX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the receiver packet buffer
+                },
             };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -193,7 +212,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, receiveBufferOffset.Value))
                     {
-                        this.Log(LogLevel.Warning, "Could not write the incoming packet to the DMA buffer");
+                        // The current implementation doesn't handle packets that do not fit into a single buffer.
+                        // In case we encounter this error, we probably should implement partitioning/scattering procedure.
+                        this.Log(LogLevel.Warning, "Could not write the incoming packet to the DMA buffer: maximum packet length exceeded.");
                         return;
                     }
 
@@ -219,6 +240,9 @@ namespace Antmicro.Renode.Peripherals.Network
         public long Size => 0x1000;
 
         public MACAddress MAC { get; set; }
+
+        public ushort ModuleRevision { get; private set; }
+        public ushort ModuleId { get; private set; }
 
         [IrqProvider]
         public GPIO IRQ { get; private set; }
@@ -349,11 +373,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     // this is the first descriptor - read it from baseAddress
                     descriptors.Add(creator(bus, baseAddress));
+                    currentDescriptorIndex = 0;
                 }
                 else
                 {
-                    var shouldInvalidate = true;
-
                     CurrentDescriptor.Update();
 
                     if(CurrentDescriptor.Wrap)
@@ -366,17 +389,12 @@ namespace Antmicro.Renode.Peripherals.Network
                         {
                             // we need to generate new descriptor
                             descriptors.Add(creator(bus, CurrentDescriptor.BaseAddress + DmaBufferDescriptor.LengthInBytes));
-                            // there is no need to invalidate newly created descriptor as it is invalidated in the constructor
-                            shouldInvalidate = false;
                         }
                         currentDescriptorIndex++;
                     }
-
-                    if(shouldInvalidate)
-                    {
-                        CurrentDescriptor.Invalidate();
-                    }
                 }
+
+                CurrentDescriptor.Invalidate();
             }
 
             public T CurrentDescriptor => descriptors[currentDescriptorIndex];
@@ -399,7 +417,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 BaseAddress = address;
 
                 words = new uint[2];
-                Invalidate();
             }
 
             public void Invalidate()
@@ -422,6 +439,28 @@ namespace Antmicro.Renode.Peripherals.Network
             protected readonly SystemBus bus;
         }
 
+        /// RX buffer descriptor format:
+        /// * bits 0-31:
+        ///     * 0: Ownership flag
+        ///     * 1: Wrap flag
+        ///     * 2-31: Address of beginning of buffer
+        /// * bits 32-63:
+        ///     * 32-44: Length of received frame
+        ///     * 45: Bad FCS flag
+        ///     * 46: Start of frame flag
+        ///     * 47: End of frame flag
+        ///     * 48: Cannonical form indicator flag
+        ///     * 49-51: VLAN priority
+        ///     * 52: Priority tag detected flag
+        ///     * 53: VLAN tag detected flag
+        ///     * 54-55: Type ID match
+        ///     * 56: Type ID match meaning flag
+        ///     * 57-58: Specific address register match
+        ///     * 59: Reserved
+        ///     * 60: External address match flag
+        ///     * 61: Unicash hash match flag
+        ///     * 62: Multicast hash match flag
+        ///     * 63: Broadcast address detected flag
         private class DmaRxBufferDescriptor : DmaBufferDescriptor
         {
             public DmaRxBufferDescriptor(SystemBus bus, uint address) : base(bus, address)
@@ -461,6 +500,23 @@ namespace Antmicro.Renode.Peripherals.Network
             private const int MaximumBufferLength = (1 << 13) - 1;
         }
 
+        /// TX buffer descriptor format:
+        /// * bits 0-31:
+        ///     * 0-31: Byte address of buffer
+        /// * bits 32-63:
+        ///     * 32-45: Lenght of buffer
+        ///     * 46: Reserved
+        ///     * 47: Last buffer flag
+        ///     * 48: CRC appended flag
+        ///     * 49-51: Reserved
+        ///     * 52-54: Transmit checksum errors
+        ///     * 55-57: Reserved
+        ///     * 58: Late collision detected flag
+        ///     * 59: Transmit frame corruption flag
+        ///     * 60: Reserved (always set to 0)
+        ///     * 61: Retry limit exceeded
+        ///     * 62: Wrap flag
+        ///     * 63: Used flag
         private class DmaTxBufferDescriptor : DmaBufferDescriptor
         {
             public DmaTxBufferDescriptor(SystemBus bus, uint address) : base(bus, address)
@@ -605,6 +661,7 @@ namespace Antmicro.Renode.Peripherals.Network
             PtpPeerEventFrameReceivedSeconds = 0x1F8,
             PtpPeerEventFrameReceivedNanoseconds = 0x1FC,
             // gap intended
+            DesignConfiguration1 = 0x280, // this register's implementation is based on linux driver as Zynq-7000 documentation does not mention it
             DesignConfiguration2 = 0x284,
             DesignConfiguration3 = 0x288,
             DesignConfiguration4 = 0x28C,
