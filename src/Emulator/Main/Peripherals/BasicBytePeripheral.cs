@@ -51,6 +51,26 @@ namespace Antmicro.Renode.Peripherals
         {
         }
 
+        public static void Define8Many(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        {
+            DefineMany(o, p, count, setup, stepInBytes, resetValue, name);
+        }
+
+        public static void DefineMany(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        {
+            if(!o.GetType().IsEnum)
+            {
+                throw new ArgumentException("This method should be called on enumerated type");
+            }
+
+            var baseAddress = Convert.ToInt64(o);
+            for(var i = 0; i < count; i++)
+            {
+                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue);
+                setup(register, i);
+            }
+        }
+
         public static ByteRegister Define8(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
         {
             return Define(o, p, resetValue);

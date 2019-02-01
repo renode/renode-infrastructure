@@ -51,6 +51,26 @@ namespace Antmicro.Renode.Peripherals
         {
         }
 
+        public static void Define32Many(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint count, Action<DoubleWordRegister, int> setup, uint stepInBytes = 4, uint resetValue = 0, string name = "")
+        {
+            DefineMany(o, p, count, setup, stepInBytes, resetValue, name);
+        }
+
+        public static void DefineMany(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint count, Action<DoubleWordRegister, int> setup, uint stepInBytes = 4, uint resetValue = 0, string name = "")
+        {
+            if(!o.GetType().IsEnum)
+            {
+                throw new ArgumentException("This method should be called on enumerated type");
+            }
+
+            var baseAddress = Convert.ToInt64(o);
+            for(var i = 0; i < count; i++)
+            {
+                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue);
+                setup(register, i);
+            }
+        }
+
         // this method it for easier use in peripherals implementing registers of different width
         public static DoubleWordRegister Define32(this IConvertible o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint resetValue = 0, string name = "")
         {
