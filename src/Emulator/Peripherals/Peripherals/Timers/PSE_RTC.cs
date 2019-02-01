@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             case ClockMode.BinaryCounter:
                                 var currentValue = CalculateElapsedSeconds(timeToUpload);
-                                var newValue = BitHelper.CopyBitsFrom(currentValue, value, 0, 32);
+                                var newValue = currentValue.ReplaceBits(source: value, width: 32);
                                 timeToUpload = ResetTimeValue.AddSeconds(newValue);
                                 break;
                             case ClockMode.DateTimeCounter:
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             case ClockMode.BinaryCounter:
                                 var currentValue = CalculateElapsedSeconds(timeToUpload);
-                                var newValue = BitHelper.CopyBitsFrom(currentValue, value, 32, 11);
+                                var newValue = currentValue.ReplaceBits(source: value, width: 11, destinationPosition: 32);
                                 timeToUpload = ResetTimeValue.AddSeconds(newValue);
                                 break;
                             case ClockMode.DateTimeCounter:

@@ -31,11 +31,11 @@ namespace Antmicro.Renode.Utilities
             return source | bitsToSet;
         }
 
-        public static ulong CopyBitsFrom(ulong source, ulong newValue, int position, int width)
+        public static ulong SetBitsFrom(ulong source, ulong newValue, int position, int width)
         {
             var mask = ((1u << width) - 1) << position;
             var bitsToSet = newValue & mask;
-            return (source & ~mask) | bitsToSet;
+            return source | bitsToSet;
         }
 
         public static void ClearBits(ref uint reg, params byte[] bits)
@@ -56,6 +56,30 @@ namespace Antmicro.Renode.Utilities
                 mask -= 1u << (position + i);
             }
             reg &= mask;
+        }
+
+        public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
+        {
+            var mask = (1u << width) - 1;
+            source &= mask << sourcePosition;
+            destination &= (~mask << destinationPosition);
+
+            var positionDifference = sourcePosition - destinationPosition; 
+            destination |= (positionDifference >= 0)
+                ? (source >> positionDifference)
+                : (source << -positionDifference);
+        }
+
+        public static ulong ReplaceBits(this ulong destination, ulong source, int width, int destinationPosition = 0, int sourcePosition = 0)
+        {
+            var mask = (1u << width) - 1;
+            source &= mask << sourcePosition;
+            destination &= (~mask << destinationPosition);
+
+            var positionDifference = sourcePosition - destinationPosition; 
+            return destination | ((positionDifference >= 0)
+                ? (source >> positionDifference)
+                : (source << -positionDifference));
         }
 
         public static bool AreAnyBitsSet(uint reg, int position, int width)
