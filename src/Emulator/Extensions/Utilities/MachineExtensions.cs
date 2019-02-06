@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Utilities
 
         }
 
-        public static void LoadFdt(this SystemBus sysbus, string file, ulong address, string bootargs = null, bool append = true, string excludedNodes = "")
+        public static void LoadFdt(this SystemBus sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "")
         {
             var fdtBlob = File.ReadAllBytes(file);
             if(bootargs == null)
@@ -82,9 +82,9 @@ namespace Antmicro.Renode.Utilities
             }
             bootargsProperty.PutDataAsString(bootargs);
 
-            var excludedNodeNames = excludedNodes.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var disabledNodeNames = disabledNodes.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             byte[] disabledValue = Encoding.ASCII.GetBytes("disabled");
-            foreach(var deviceName in excludedNodeNames)
+            foreach(var deviceName in disabledNodeNames)
             {
                 TreeNode node = fdt.Root.Descendants.FirstOrDefault(x => x.Name == deviceName);
                 if(node == null)
