@@ -176,7 +176,7 @@ namespace Antmicro.Renode.Storage
                 }
                 else if(value < 0)
                 {
-                    throw new ArgumentOutOfRangeException("Position");
+                    throw new ArgumentOutOfRangeException("Setting negative position is unsupported");
                 }
 
                 if(underlyingStream.Length > underlyingStreamOffset + value)
