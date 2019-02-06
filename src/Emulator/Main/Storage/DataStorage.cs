@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Storage
                 imageFile = tempFileName;
             }
 
-            return new SerializableFileStreamWrapper(imageFile, size).Stream;
+            return new SerializableStreamView(new FileStream(imageFile, FileMode.OpenOrCreate), size);
         }
     }
 }
