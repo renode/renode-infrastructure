@@ -1971,12 +1971,12 @@ restart:
 
         private enum ExecutionResult
         {
-            Ok,
-            Aborted,
             WaitingForInterrupt = 0x10001,
             StoppedAtBreakpoint = 0x10002,
             StoppedAtWatchpoint = 0x10004,
-            ReturnRequested = 0x10005
+            ReturnRequested = 0x10005,
+            // tlib returns int32, so this value won't overlap with an actual result
+            Aborted = ulong.MaxValue
         }
 
         private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
