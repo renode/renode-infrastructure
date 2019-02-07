@@ -95,6 +95,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Interrupt.Hard;
         }
 
+        protected void PCWritten()
+        {
+            pcWrittenFlag = true;
+        }
+
         private void EnableArchitectureVariants()
         {
             foreach(var @set in architectureSets)
@@ -193,6 +198,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             MipChanged?.Invoke(value);
         }
+
+
+        private bool pcWrittenFlag;
 
         private readonly CoreLevelInterruptor clint;
 

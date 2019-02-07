@@ -67,6 +67,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             set
             {
+                value = BeforePCWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.PC, value);
             }
         }
