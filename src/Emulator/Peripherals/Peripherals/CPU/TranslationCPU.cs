@@ -1533,7 +1533,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action TlibRestartTranslationBlock;
 
         [Import]
-        private Action TlibSetReturnRequest;
+        protected Action TlibSetReturnRequest;
          
         [Import]
         private ActionInt32IntPtr TlibAtomicMemoryStateInit;
@@ -1766,6 +1766,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     TimeHandle.ReportProgress(elapsed);
                 }
 
+                ExecutionFinished(result);
+
                 if(result == ExecutionResult.StoppedAtBreakpoint)
                 {
                     this.Trace();
@@ -1834,6 +1836,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             return instructionsLeftThisRound != instructionsToExecuteThisRound;
+        }
+
+        protected virtual void ExecutionFinished(ExecutionResult result)
+        {
+            // the default implementation intentionally does nothing
         }
 
         private void CpuThreadBody()
@@ -1969,7 +1976,7 @@ restart:
             }
         }
 
-        private enum ExecutionResult
+        protected enum ExecutionResult : ulong
         {
             WaitingForInterrupt = 0x10001,
             StoppedAtBreakpoint = 0x10002,
