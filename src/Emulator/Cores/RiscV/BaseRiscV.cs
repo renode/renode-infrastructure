@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.privilegeArchitecture = privilegeArchitecture;
             ShouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
+            customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
 
             architectureSets = DecodeArchitecture(cpuType);
             EnableArchitectureVariants();
@@ -98,6 +99,58 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected void PCWritten()
         {
             pcWrittenFlag = true;
+        }
+
+        protected bool InstallCustomInstruction(string pattern, Action<UInt64> handler)
+        {
+            if(pattern == null)
+            {
+                throw new ArgumentException("Pattern cannot be null");
+            }
+            if(handler == null)
+            {
+                throw new ArgumentException("Handler cannot be null");
+            }
+
+            if(pattern.Length != 64 && pattern.Length != 32 && pattern.Length != 16)
+            {
+                throw new ArgumentException($"Unsupported custom instruction length: {pattern.Length}. Supported values are: 16, 32, 64 bits");
+            }
+
+            var currentBit = pattern.Length - 1;
+            var bitMask = 0uL;
+            var bitPattern = 0uL;
+
+            foreach(var p in pattern)
+            {
+                switch(p)
+                {
+                    case '0':
+                        bitMask |= (1u << currentBit);
+                        break;
+
+                    case '1':
+                        bitMask |= (1u << currentBit);
+                        bitPattern |= (1u << currentBit);
+                        break;
+
+                    default:
+                        // all characters other than '0' or '1' are treated as 'any-value'
+                        break;
+                }
+
+                currentBit--;
+            }
+
+            var length = (ulong)pattern.Length / 8;
+            var id = TlibInstallCustomInstruction(bitMask, bitPattern, length);
+            if(id == 0)
+            {
+                throw new ConstructionException($"Could not install custom instruction handler for length {length},  mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
+            }
+
+            customInstructionsMapping[id] = handler;
+            return true;
         }
 
         private void EnableArchitectureVariants()
@@ -199,6 +252,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             MipChanged?.Invoke(value);
         }
 
+        [Export]
+        private int HandleCustomInstruction(UInt64 id, UInt64 opcode)
+        {
+            if(!customInstructionsMapping.TryGetValue(id, out var handler))
+            {
+                throw new CpuAbortException($"Unexpected instruction of id {id} and opcode 0x{opcode:X}");
+            }
+
+            pcWrittenFlag = false;
+            handler(opcode);
+            return pcWrittenFlag ? 1 : 0;
+        }
 
         private bool pcWrittenFlag;
 
@@ -209,6 +274,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>> nonstandardCSR;
 
         private readonly IEnumerable<InstructionSet> architectureSets;
+
+        private readonly Dictionary<ulong, Action<UInt64>> customInstructionsMapping;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -235,6 +302,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetHartId;
+
+        [Import]
+        private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
+
 #pragma warning restore 649
 
         public enum PrivilegeArchitecture

@@ -15,3 +15,5 @@ EXTERNAL_AS(func_int32_uint64, HasCSR, tlib_has_nonstandard_csr)
 EXTERNAL_AS(func_uint64_uint64, ReadCSR, tlib_read_csr)
 EXTERNAL_AS(action_uint64_uint64, WriteCSR, tlib_write_csr)
 EXTERNAL(action_uint64, tlib_mip_changed)
+
+EXTERNAL_AS(func_int32_uint64_uint64, HandleCustomInstruction, tlib_handle_custom_instruction)
