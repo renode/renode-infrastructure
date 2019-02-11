@@ -4,32 +4,66 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using System.Linq;
+using System;
+using System.IO;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     public class Micron_MT25Q : ISPIPeripheral, IDoubleWordPeripheral, IBytePeripheral
     {
-        public Micron_MT25Q(MappedMemory memory)
+        public Micron_MT25Q(MicronFlashSize size)
         {
-            mappedMemory = memory;
-            volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, out xip, name: "XIP");
-            nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out bytes, name: "addressWith3Bytes");
+            if(!Enum.IsDefined(typeof(MicronFlashSize), size))
+            {
+                throw new ConstructionException($"Undefined memory size: {size}");
+            }
+            volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
+            nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out numberOfAddressBytes, name: "addressWith3Bytes");
             statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
+            fileBackendSize = (uint)size;
+            isCustomFileBackend = false;
+            dataBackend = DataStorage.Create(fileBackendSize, 0xFF);
+            deviceData = GetDeviceData();
+        }
+
+        public void UseDataFromFile(string imageFile, bool persistent = false)
+        {
+            if(isCustomFileBackend)
+            {
+                throw new RecoverableException("Cannot override existing file storage.");
+            }
+            if(!File.Exists(imageFile))
+            {
+                throw new RecoverableException($"File {imageFile} does not exist.");
+            }
+            var fileLength = new FileInfo(imageFile).Length;
+            if(fileLength > fileBackendSize)
+            {
+                this.Log(LogLevel.Warning, "The provided file is bigger than the configured memory size and as a result part of the file's data will not be accessible in the emulation.");
+            }
+            dataBackend = DataStorage.Create(imageFile, fileBackendSize, persistent);
+            isCustomFileBackend = true;
         }
 
         public void FinishTransmission()
         {
+            switch(state)
+            {
+                case State.RecognizeOperation:
+                case State.AccumulateCommandAddressBytes:
+                case State.AccumulateNoDataCommandAddressBytes:
+                    this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", state);
+                    break;
+            }
             // If an operation has at least 1 data byte or more than 0 address bytes,
             // we can clear the write enable flag only when we are finishing a transmission.
-            switch(status)
+            switch(currentOperation)
             {
                 case Operation.Program:
                 case Operation.Erase:
@@ -37,233 +71,403 @@ namespace Antmicro.Renode.Peripherals.SPI
                     enable.Value = false;
                     break;
             }
-            status = Operation.Finished;
-
-            offset = 0;
-            bytesSent = 0;
-            addressBytes = 0;
-            reg = 0;
+            address = null;
+            currentAddressByte = 0;
+            commandBytesHandled = 0;
+            commandAddressBytesCount = 0;
+            state = State.RecognizeOperation;
+            currentOperation = Operation.None;
         }
 
         public void Reset()
         {
-            mappedMemory.Reset();
             volatileConfigurationRegister.Reset();
             nonVolatileConfigurationRegister.Reset();
             FinishTransmission();
         }
 
+        public void Dispose()
+        {
+            dataBackend.Dispose();
+        }
+
         public byte Transmit(byte data)
         {
-            byte result = 0;
-            if(status == Operation.Finished)
+            switch(state)
             {
-                // First byte denotes the command
-                switch(data)
-                {
-                    case (byte)Commands.ReadID:
-                        status = Operation.Read;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.Read:
-                    case (byte)Commands.FastRead:
-                    case (byte)Commands.DualOutputFastRead:
-                    case (byte)Commands.DualInputOutputFastRead:
-                    case (byte)Commands.QuadOutputFastRead:
-                    case (byte)Commands.QuadInputOutputFastRead:
-                    case (byte)Commands.DtrFastRead:
-                    case (byte)Commands.DtrDualOutputFastRead:
-                    case (byte)Commands.DtrDualInputOutputFastRead:
-                    case (byte)Commands.DtrQuadOutputFastRead:
-                    case (byte)Commands.DtrQuadInputOutputFastRead:
-                    case (byte)Commands.QuadInputOutputWordRead:
-                        status = Operation.Read;
-                        addressBytes = bytes.Value ? 3 : 4;
-                        break;
-                    case (byte)Commands.ReadStatusRegister:
-                        status = Operation.Read;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.PageProgram:
-                    case (byte)Commands.DualInputFastProgram:
-                    case (byte)Commands.ExtendedDualInputFastProgram:
-                    case (byte)Commands.QuadInputFastProgram:
-                    case (byte)Commands.ExtendedQuadInputFastProgram:
-                        status = Operation.Program;
-                        addressBytes = bytes.Value ? 3 : 4;
-                        break;
-                    case (byte)Commands.WriteEnable:
-                        enable.Value = true;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.WriteDisable:
-                        enable.Value = false;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.SectorErase:
-                        status = Operation.Erase;
-                        addressBytes = bytes.Value ? 3 : 4;
-                        break;
-                    case (byte)Commands.ReadVolatileConfigurationRegister:
-                        status = Operation.ReadVolatileConfigurationRegister;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.WriteVolatileConfigurationRegister:
-                        status = Operation.WriteVolatileConfigurationRegister;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.ReadNonVolatileConfigurationRegister:
-                        status = Operation.ReadNonVolatileConfigurationRegister;
-                        addressBytes = 0;
-                        break;
-                    case (byte)Commands.WriteNonVolatileConfigurationRegister:
-                        status = Operation.WriteNonVolatileConfigurationRegister;
-                        addressBytes = 0;
-                        break;
-                    default:
-                        this.Log(LogLevel.Error, $"Trying to execute illegal command: {data}.");
-                        break;
-                }
+                case State.RecognizeOperation:
+                    // When the command is decoded, depending on the operation we will either start accumulating address bytes
+                    // or immediately handle the command bytes
+                    currentOperation = RecognizeOperation(data);
+                    break;
+                case State.AccumulateCommandAddressBytes:
+                    // Warning: `commandExecutionAddress` value is intentionally `0` during the aggregation process
+                    commandExecutionAddress = AccumulateAddressBytes(data, State.HandleCommand);
+                    break;
+                case State.AccumulateNoDataCommandAddressBytes:
+                    // Warning: `commandExecutionAddress` value is intentionally `0` during the aggregation process
+                    commandExecutionAddress = AccumulateAddressBytes(data, State.HandleNoDataCommand);
+                    break;
+                case State.HandleCommand:
+                    // Process the remaining command bytes
+                    return HandleCommand(data);
             }
-            else
-            {
-                // After the command is decoded, we continue its execution on subsequent transfers
-                BitHelper.UpdateWithShifted(ref offset, data, addressBytes * 8, 8);
-                if(addressBytes == 0)
-                {
-                    switch(status)
-                    {
-                        case Operation.Read:
-                            result = ReadFromMemory();
-                            break;
-                        case Operation.Program:
-                            if(enable.Value)
-                            {
-                                WriteToMemory(data);
-                                result = data;
-                            }
-                            else
-                            {
-                                this.Log(LogLevel.Error, "Memory write operations are disabled.");
-                            }
-                            break;
-                        case Operation.Erase:
-                            if(enable.Value)
-                            {
-                                EraseSector();
-                            }
-                            else
-                            {
-                                this.Log(LogLevel.Error, "Sector erase operations are disabled.");
-                            }
-                            break;
-                        case Operation.ReadVolatileConfigurationRegister:
-                            result = (byte)volatileConfigurationRegister.Value;
-                            break;
-                        case Operation.WriteVolatileConfigurationRegister:
-                            if(enable.Value)
-                            {
-                                volatileConfigurationRegister.Write(0, data);
-                            }
-                            else
-                            {
-                                this.Log(LogLevel.Error, "Volatile register writes are disabled.");
-                            }
-                            break;
-                        case Operation.ReadNonVolatileConfigurationRegister:
-                            if(bytesSent == 2)
-                            {
-                                result = 0;
-                            }
-                            else
-                            {
-                                result = (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Value, (int)bytesSent * 8, 8);
-                            }
-                            break;
-                        case Operation.WriteNonVolatileConfigurationRegister:
-                            if(enable.Value)
-                            {
-                                BitHelper.UpdateWithShifted(ref reg, data, (int)bytesSent * 8, 8);
-                                if(bytesSent == 1)
-                                {
-                                    bytes.Value = BitHelper.IsBitSet(reg, 0);
-                                }
 
-                            }
-                            else
-                            {
-                                this.Log(LogLevel.Error, "Nonvolatile register writes are disabled.");
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                    bytesSent++;
+            // Warning: commands without data require immediate handling after the address was accumulated
+            if(state == State.HandleNoDataCommand)
+            {
+                HandleNoDataCommand();
+            }
+            return 0;
+        }
+
+        public uint ReadDoubleWord(long localOffset)
+        {
+            if(localOffset + 4 > fileBackendSize)
+            {
+                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", localOffset);
+                return 0;
+            }
+            dataBackend.Position = localOffset;
+            return BitHelper.ToUInt32(dataBackend.ReadBytes(4), 0, 4, false);
+        }
+
+        public void WriteDoubleWord(long localOffset, uint value)
+        {
+            this.Log(LogLevel.Error, "Illegal write to flash in XIP mode.");
+        }
+
+        public byte ReadByte(long localOffset)
+        {
+            if(localOffset >= fileBackendSize)
+            {
+                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", localOffset);
+                return 0;
+            }
+            dataBackend.Position = localOffset;
+            return (byte)dataBackend.ReadByte();
+        }
+
+        public void WriteByte(long localOffset, byte value)
+        {
+            this.Log(LogLevel.Error, "Illegal write to flash in XIP mode.");
+        }
+
+        private byte[] GetDeviceData()
+        {
+            byte capacityCode = 0;
+            switch(fileBackendSize)
+            {
+                case (int)MicronFlashSize.Gb_2:
+                    capacityCode = 0x22;
+                    break;
+                case (int)MicronFlashSize.Gb_1:
+                    capacityCode = 0x21;
+                    break;
+                case (int)MicronFlashSize.Mb_512:
+                    capacityCode = 0x20;
+                    break;
+                case (int)MicronFlashSize.Mb_256:
+                    capacityCode = 0x19;
+                    break;
+                case (int)MicronFlashSize.Mb_128:
+                    capacityCode = 0x18;
+                    break;
+                case (int)MicronFlashSize.Mb_64:
+                    capacityCode = 0x17;
+                    break;
+                default:
+                    throw new ConstructionException($"Cannot retrieve capacity code for undefined memory size: 0x{fileBackendSize:X}");
+            }
+
+            var data = new byte[20];
+            data[0] = ManufacturerID;
+            data[1] = MemoryType;
+            data[2] = capacityCode;
+            data[3] = RemainingIDBytes;
+            data[4] = ExtendedDeviceID;
+            data[5] = DeviceConfiguration;
+            // unique ID code (bytes 7:20)
+            return data;
+        }
+
+        private Operation RecognizeOperation(byte firstByte)
+        {
+            // The type of the command is distinguished by its first byte.
+            if(TryDecodeFirstCommandByte(firstByte, out var operation))
+            {
+                if(commandAddressBytesCount > 0)
+                {
+                    address = new byte[commandAddressBytesCount];
                 }
             }
-            if(addressBytes > 0)
+            return operation;
+        }
+
+        private bool TryDecodeFirstCommandByte(byte firstByte, out Operation decodedOperation)
+        {
+            decodedOperation = Operation.None;
+            commandAddressBytesCount = 0;
+            state = State.HandleCommand;
+            switch(firstByte)
             {
-                --addressBytes;
+                case (byte)Commands.ReadID:
+                    decodedOperation = Operation.ReadID;
+                    break;
+                case (byte)Commands.Read:
+                case (byte)Commands.FastRead:
+                case (byte)Commands.DualOutputFastRead:
+                case (byte)Commands.DualInputOutputFastRead:
+                case (byte)Commands.QuadOutputFastRead:
+                case (byte)Commands.QuadInputOutputFastRead:
+                case (byte)Commands.DtrFastRead:
+                case (byte)Commands.DtrDualOutputFastRead:
+                case (byte)Commands.DtrDualInputOutputFastRead:
+                case (byte)Commands.DtrQuadOutputFastRead:
+                case (byte)Commands.DtrQuadInputOutputFastRead:
+                case (byte)Commands.QuadInputOutputWordRead:
+                    decodedOperation = Operation.Read;
+                    commandAddressBytesCount = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateCommandAddressBytes;
+                    break;
+                case (byte)Commands.ReadStatusRegister:
+                    decodedOperation = Operation.ReadStatusRegister;
+                    break;
+                case (byte)Commands.PageProgram:
+                case (byte)Commands.DualInputFastProgram:
+                case (byte)Commands.ExtendedDualInputFastProgram:
+                case (byte)Commands.QuadInputFastProgram:
+                case (byte)Commands.ExtendedQuadInputFastProgram:
+                    decodedOperation = Operation.Program;
+                    commandAddressBytesCount = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateCommandAddressBytes;
+                    break;
+                case (byte)Commands.WriteEnable:
+                    enable.Value = true;
+                    break;
+                case (byte)Commands.WriteDisable:
+                    enable.Value = false;
+                    break;
+                case (byte)Commands.SectorErase:
+                    decodedOperation = Operation.Erase;
+                    commandAddressBytesCount = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateNoDataCommandAddressBytes;
+                    break;
+                case (byte)Commands.ReadVolatileConfigurationRegister:
+                    decodedOperation = Operation.ReadVolatileConfigurationRegister;
+                    break;
+                case (byte)Commands.WriteVolatileConfigurationRegister:
+                    decodedOperation = Operation.WriteVolatileConfigurationRegister;
+                    break;
+                case (byte)Commands.ReadNonVolatileConfigurationRegister:
+                    decodedOperation = Operation.ReadNonVolatileConfigurationRegister;
+                    break;
+                case (byte)Commands.WriteNonVolatileConfigurationRegister:
+                    decodedOperation = Operation.WriteNonVolatileConfigurationRegister;
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Command decoding failed on byte: {0}.", firstByte);
+                    return false;
+            }
+            return true;
+        }
+
+        private uint AccumulateAddressBytes(byte data, State nextState)
+        {
+            uint result = 0;
+            if(TryGetAccumulatedAddress(data, out result))
+            {
+                state = nextState;
             }
             return result;
         }
 
-        public uint ReadDoubleWord(long offset)
+        private bool TryGetAccumulatedAddress(byte data, out uint result)
         {
-            return mappedMemory.ReadDoubleWord(offset);
+            result = 0;
+            address[currentAddressByte] = data;
+            currentAddressByte++;
+            if(currentAddressByte == commandAddressBytesCount)
+            {
+                result = BitHelper.ToUInt32(address, 0, commandAddressBytesCount, false);
+                return true;
+            }
+            return false;
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private byte HandleCommand(byte data)
         {
-            this.Log(LogLevel.Error, "Illegal write to flash in XIP mode.");
+            byte result = 0;
+            switch(currentOperation)
+            {
+                case Operation.Read:
+                    result = ReadFromMemory();
+                    break;
+                case Operation.ReadID:
+                    if(commandBytesHandled < deviceData.Length)
+                    {
+                        result = deviceData[commandBytesHandled];
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
+                        result = 0;
+                    }
+                    break;
+                case Operation.ReadStatusRegister:
+                    // The documentation states that at least 1 byte will be read
+                    // If more than 1 byte is read, the same byte is returned
+                    result = statusRegister.Value;
+                    break;
+                case Operation.Program:
+                    if(enable.Value)
+                    {
+                        WriteToMemory(data);
+                        result = data;
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Error, "Memory write operations are disabled.");
+                    }
+                    break;
+                case Operation.ReadVolatileConfigurationRegister:
+                    // The documentation states that at least 1 byte will be read
+                    // If more than 1 byte is read, the same byte is returned
+                    result = volatileConfigurationRegister.Value;
+                    break;
+                case Operation.WriteVolatileConfigurationRegister:
+                    if(enable.Value)
+                    {
+                        volatileConfigurationRegister.Write(0, data);
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Error, "Volatile register writes are disabled.");
+                    }
+                    break;
+                case Operation.ReadNonVolatileConfigurationRegister:
+                    // The documentation states that at least 2 bytes will be read
+                    // After all 16 bits of the register have been read, 0 is returned
+                    result = 0;
+                    // `commandBytesHandled` is incremented and the end of this method and we want its value to match the comment above
+                    if((commandBytesHandled + 1) <= 2)
+                    {
+                        result = (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Value, (int)commandBytesHandled * 8, 8);
+                    }
+                    break;
+                case Operation.WriteNonVolatileConfigurationRegister:
+                    // `commandBytesHandled` is incremented and the end of this method and we want its value to match the log message below
+                    if((commandBytesHandled + 1) > 2)
+                    {
+                        this.Log(LogLevel.Error, "Operation {0} is longer than expected 2 bytes.", Operation.WriteNonVolatileConfigurationRegister);
+                        break;
+                    }
+                    if(enable.Value)
+                    {
+                        nonVolatileConfigurationRegister.Write((int)commandBytesHandled * 8, data);
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Error, "Nonvolatile register writes are disabled.");
+                    }
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation);
+                    break;
+            }
+            commandBytesHandled++;
+            return result;
         }
 
-        public byte ReadByte(long offset)
+        private void HandleNoDataCommand()
         {
-            return mappedMemory.ReadByte(offset);
-        }
-
-        public void WriteByte(long offset, byte value)
-        {
-            this.Log(LogLevel.Error, "Illegal write to flash in XIP mode.");
+            // The documentation describes more commands that don't have any data bytes (just code + address)
+            // but at the moment we have implemented only one
+            switch(currentOperation)
+            {
+                case Operation.Erase:
+                    if(enable.Value)
+                    {
+                        EraseSector();
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Error, "Sector erase operations are disabled.");
+                    }
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Encountered unexpected command: {0}", currentOperation);
+                    break;
+            }
         }
 
         private void EraseSector()
         {
+            if(commandExecutionAddress >= fileBackendSize)
+            {
+                this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} is bigger than configured memory size.", commandExecutionAddress);
+                return;
+            }
             var segment = new byte[SegmentSize];
             for(var i = 0; i < SegmentSize; i++)
             {
                 segment[i] = EmptySegment;
             }
-            mappedMemory.WriteBytes(offset, segment, SegmentSize);
+            // The documentations states that on erase the operation address is
+            // aligned to the segment size
+            dataBackend.Position = SegmentSize * (commandExecutionAddress / SegmentSize);
+            dataBackend.Write(segment, 0, SegmentSize);
         }
 
         private void WriteToMemory(byte val)
         {
-            mappedMemory.WriteByte(bytesSent, val);
+            if(commandExecutionAddress + commandBytesHandled > fileBackendSize)
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", commandExecutionAddress);
+                return;
+            }
+            dataBackend.Position = commandExecutionAddress + commandBytesHandled;
+            dataBackend.WriteByte(val);
         }
 
         private byte ReadFromMemory()
         {
-            return mappedMemory.ReadByte(bytesSent);
+            if(commandExecutionAddress + commandBytesHandled > fileBackendSize)
+            {
+                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", commandExecutionAddress);
+                return 0;
+            }
+            dataBackend.Position = commandExecutionAddress + commandBytesHandled;
+            return (byte)dataBackend.ReadByte();
         }
 
-        private uint offset;
-        private uint reg;
-        private uint bytesSent;
-        private int addressBytes;
-        private Operation status;
+        private State state;
+        private byte[] address;
+        private Stream dataBackend;
+        private int currentAddressByte;
+        private uint commandBytesHandled;
+        private bool isCustomFileBackend;
+        private Operation currentOperation;
+        private uint commandExecutionAddress;
+        private int commandAddressBytesCount;
 
-        private readonly MappedMemory mappedMemory;
+        private readonly byte[] deviceData;
+        private readonly uint fileBackendSize;
+        private readonly int SegmentSize = 64.KB();
+        private readonly IFlagRegisterField enable;
+        private readonly ByteRegister statusRegister;
+        private readonly IFlagRegisterField numberOfAddressBytes;
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
-        private readonly ByteRegister statusRegister;
-        private readonly IFlagRegisterField xip;
-        private readonly IFlagRegisterField bytes;
-        private readonly IFlagRegisterField enable;
 
-        private const int SegmentSize = 0x10000;
         private const byte EmptySegment = 0xff;
+
+        private const byte ManufacturerID = 0x20;
+        private const byte RemainingIDBytes = 0x10;
+        private const byte MemoryType = 0xBB;           // device voltage: 1.8V
+        private const byte DeviceConfiguration = 0x0;   // standard
+        private const byte DeviceGeneration = 0x1;      // 2nd generation
+        private const byte ExtendedDeviceID = DeviceGeneration << 6;
 
         private enum Commands : byte
         {
@@ -390,16 +594,38 @@ namespace Antmicro.Renode.Peripherals.SPI
             CyclicRedundancyCheck = 0x27
         }
 
+        private enum State
+        {
+            RecognizeOperation,
+            AccumulateCommandAddressBytes,
+            AccumulateNoDataCommandAddressBytes,
+            HandleCommand,
+            HandleNoDataCommand
+        }
+
         private enum Operation
         {
-            Finished,
+            None,
             Read,
+            ReadID,
             Program,
             Erase,
+            ReadStatusRegister,
             ReadVolatileConfigurationRegister,
             WriteVolatileConfigurationRegister,
             ReadNonVolatileConfigurationRegister,
-            WriteNonVolatileConfigurationRegister,
+            WriteNonVolatileConfigurationRegister
         }
+    }
+
+    public enum MicronFlashSize : uint
+    {
+        // On the left side we have Gigabits/Megabits, on the right side we have Megabytes
+        Gb_2 = 0x10000000,  //256 MB
+        Gb_1 = 0x8000000,   //128 MB
+        Mb_512 = 0x4000000, //64 MB
+        Mb_256 = 0x2000000, //32 MB
+        Mb_128 = 0x1000000, //16 MB
+        Mb_64 = 0x800000,   //8 MB
     }
 }
