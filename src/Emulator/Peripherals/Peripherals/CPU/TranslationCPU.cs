@@ -827,18 +827,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void Step(int count = 1)
+        public ulong Step(int count = 1)
         {
             lock(singleStepSynchronizer.Guard)
             {
-                if(ExecutionMode != ExecutionMode.SingleStep)
-                {
-                    throw new RecoverableException("Stepping is available in single step execution mode only.");
-                }
+                ExecutionMode = ExecutionMode.SingleStep;
+                Resume();
 
                 this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
                 singleStepSynchronizer.CommandStep(count);
                 singleStepSynchronizer.WaitForStepFinished();
+
+                return PC;
             }
         }
 
