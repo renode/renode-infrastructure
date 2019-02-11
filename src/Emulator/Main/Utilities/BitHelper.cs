@@ -265,6 +265,20 @@ namespace Antmicro.Renode.Utilities
             return GetValueFromBitsArray((IEnumerable<bool>)array);
         }
 
+        public static uint ToUInt32(byte[] data, int index, int length, bool reverse)
+        {
+            uint result = 0;
+            if(index + length > data.Length)
+            {
+                throw new ArgumentException("index/length combination exceeds buffer length");
+            }
+            for(var i = 0; i < length; i++)
+            {
+                result = (result << 8) | data[index + (reverse ? length - 1 - i : i)];
+            }
+            return result;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
