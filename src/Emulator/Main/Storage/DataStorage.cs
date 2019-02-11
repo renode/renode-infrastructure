@@ -23,5 +23,10 @@ namespace Antmicro.Renode.Storage
 
             return new SerializableStreamView(new FileStream(imageFile, FileMode.OpenOrCreate), size);
         }
+
+        public static Stream Create(long size, byte paddingByte = 0)
+        {
+            return new SerializableStreamView(new FileStream(TemporaryFilesManager.Instance.GetTemporaryFile(), FileMode.OpenOrCreate), size, paddingByte);
+        }
     }
 }
