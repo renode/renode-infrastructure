@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     {
                         lock(innerLock)
                         {
-                            return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Input);
+                            return GetConnectedInputPinsState();
                         }
                     })},
 
@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     {
                         lock(innerLock)
                         {
-                            return ActivePinsSetToDirection(GPIOInterruptManager.Direction.Output);
+                            return GetConnectedOutputPinsState();
                         }
                     })}
             };
@@ -177,9 +177,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public long Size => 0xA4;
 
-        private uint ActivePinsSetToDirection(GPIOInterruptManager.Direction direction)
+        private uint GetConnectedInputPinsState()
         {
-            var pins = irqManager.PinDirection.Select(x => (x & direction) != 0);
+            var pins = irqManager.PinDirection.Select(x => (x & GPIOInterruptManager.Direction.Input) != 0);
+            var result = pins.Zip(State, (pin, state) => pin && state);
+            return BitHelper.GetValueFromBitsArray(result);
+        }
+
+        private uint GetConnectedOutputPinsState()
+        {
+            var pins = irqManager.PinDirection.Select(x => (x & GPIOInterruptManager.Direction.Output) != 0);
             var result = pins.Zip(Connections.Values, (pin, state) => pin && state.IsSet);
             return BitHelper.GetValueFromBitsArray(result);
         }
