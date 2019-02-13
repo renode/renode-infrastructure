@@ -157,7 +157,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.NoisyLog("Systick timer {0}.", systick.Enabled ? "enabled" : "disabled");
                 break;
             case Registers.SysTickReloadValue:
-                systick.Limit = value;
+                systick.Limit = value & SysTickMaximumValue;
+                if(value > SysTickMaximumValue)
+                {
+                    this.Log(LogLevel.Warning, "Given value {0} exceeds maximum available {1}. Writing {2}", value, SysTickMaximumValue, systick.Limit);
+                }
                 break;
             case Registers.SysTickValue:
                 systick.Value = systick.Limit;
@@ -603,6 +607,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const uint CPUID            = 0x412FC231;
         private const int VectKey           = 0x5FA;
         private const int VectKeyStat       = 0xFA05;
+        private const uint SysTickMaximumValue = 0x00FFFFFF;
     }
 }
 
