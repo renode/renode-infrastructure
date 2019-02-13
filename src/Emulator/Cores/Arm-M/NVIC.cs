@@ -592,21 +592,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private CortexM cpu;
         private readonly LimitTimer systick;
 
-        private const int SpuriousInterrupt = 256;
-        private const int SetEnableStart    = 0x100;
-        private const int SetEnableEnd      = 0x120;
-        private const int ClearEnableStart  = 0x180;
-        private const int ClearEnableEnd    = 0x200;
-        private const int ClearPendingStart = 0x280;
-        private const int ClearPendingEnd   = 0x300;
-        private const int SetPendingStart   = 0x200;
-        private const int SetPendingEnd     = 0x280;
-        private const int PriorityStart     = 0x400;
-        private const int PriorityEnd       = 0x4F0;
-        private const int IRQCount          = 256 + 16;
-        private const uint CPUID            = 0x412FC231;
-        private const int VectKey           = 0x5FA;
-        private const int VectKeyStat       = 0xFA05;
+        private const int SpuriousInterrupt    = 256;
+        private const int SetEnableStart       = 0x100;
+        private const int SetEnableEnd         = 0x120;
+        private const int ClearEnableStart     = 0x180;
+        private const int ClearEnableEnd       = 0x200;
+        private const int ClearPendingStart    = 0x280;
+        private const int ClearPendingEnd      = 0x300;
+        private const int SetPendingStart      = 0x200;
+        private const int SetPendingEnd        = 0x280;
+        private const int PriorityStart        = 0x400;
+        private const int PriorityEnd          = 0x4F0;
+        private const int IRQCount             = 256 + 16;
+        private const uint CPUID               = 0x412FC231;
+        private const int VectKey              = 0x5FA;
+        private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
     }
 }
