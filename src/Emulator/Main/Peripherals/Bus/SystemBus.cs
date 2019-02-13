@@ -849,26 +849,29 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public string DecorateWithCPUNameAndPC(string str)
         {
-            var cpuAppended = false;
-            var builder = new StringBuilder(str.Length + 27);
-            builder.Append('[');
-            ICPU cpu;
-            if(!TryGetCurrentCPU(out cpu) || !machine.TryGetLocalName(cpu, out var cpuName))
+            if(!TryGetCurrentCPU(out var cpu) || !machine.TryGetLocalName(cpu, out var cpuName))
             {
                 return str;
             }
-            builder.Append(cpuName);
-            cpuAppended = true;
+
+            // you probably wonder why 26?
+            // * we assume at least 3 characters for cpu name
+            // * 64-bit PC value nees 18 characters
+            // * there are 5 more separating characters
+            var builder = new StringBuilder(str.Length + 26);
+            builder
+                .Append("[")
+                .Append(cpuName);
+
             if(TryGetPCForCPU(cpu, out var pc))
             {
-                if(cpuAppended)
-                {
-                    builder.Append(": ");
-                }
-                builder.AppendFormat("0x{0:X}", pc.RawValue);
+                builder.AppendFormat(": 0x{0:X}", pc.RawValue);
             }
-            builder.Append("] ");
-            builder.Append(str);
+
+            builder
+                .Append("] ")
+                .Append(str);
+
             return builder.ToString();
         }
 
