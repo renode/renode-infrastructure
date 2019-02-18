@@ -113,10 +113,6 @@ namespace Antmicro.Renode.Peripherals.USB
         private void SendData(byte[] data)
         {
             this.Log(LogLevel.Debug, "Sending data of length {0}.", data.Length);
-#if DEBUG
-            // stringification might be slow, so we do it in debug only
-            this.Log(LogLevel.Noisy, "[{0}]", data.Select(x => "0x{0:x}".FormatWith(x)).Stringify(limitPerLine: 16));
-#endif
             deviceToHostEndpoint.HandlePacket(data);
         }
 
