@@ -83,6 +83,12 @@
     <Compile Include="Mocks\MockRegister.cs" />
     <Compile Include="SVDParserTests.cs" />
     <Compile Include="Mocks\MockPeripheralWithEnumAttribute.cs" />
+    <Compile Include="Mocks\MockPeripheralWithNumericalAttrubute.cs" />
+    <Compile Include="Mocks\MockPeripheralWithStringAttribute.cs" />
+    <Compile Include="Mocks\MockPeripheralWithRangeAttribute.cs" />
+    <Compile Include="Mocks\MockPeripheralWithObjectAttribute.cs" />
+    <Compile Include="Mocks\MockPeripheralWithBoolAttribute.cs" />
+    <Compile Include="Mocks\MockPeripheralUsingReferenceAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
