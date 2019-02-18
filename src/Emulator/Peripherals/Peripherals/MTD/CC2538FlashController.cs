@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithReservedBits(10, 22)
                 },
                 {(long)Registers.FlashAddress, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out address, valueProviderCallback: value => value >> 2, name: "FADDR")
+                    .WithValueField(0, 16, valueProviderCallback: _ => writeAddress >> 2, writeCallback: (_, value) => { writeAddress = value; }, name : "FADDR")
                     .WithReservedBits(17, 15)
                 },
                 {(long)Registers.FlashData, new DoubleWordRegister(this)
@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         public void Reset()
         {
             registers.Reset();
-
+            writeAddress = 0;
             // Clear the whole flash memory
             for(uint i = 0; i < PageNumber; ++i)
             {
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private void Write(uint newValue)
         {
-            var targetAddress = address.Value;
+            var targetAddress = writeAddress;
             if(!write.Value)
             {
                 this.Log(LogLevel.Warning, "Writing 0x{0:X} to 0x{1:X} when not in write mode", newValue, targetAddress);
@@ -111,11 +111,11 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private void Erase()
         {
-            flash.WriteBytes((long)((address.Value) & ~(PageSize - 1)), ErasePattern, 0, PageSize);
-            this.Log(LogLevel.Noisy, "Erasing on address 0x{0:X}", (address.Value & ~(PageSize - 1)));
+            flash.WriteBytes((long)((writeAddress) & ~(PageSize - 1)), ErasePattern, 0, PageSize);
+            this.Log(LogLevel.Noisy, "Erasing on address 0x{0:X}", (writeAddress & ~(PageSize - 1)));
         }
 
-        private readonly IValueRegisterField address;
+        private uint writeAddress;
         private readonly IValueRegisterField cacheMode;
         private readonly IFlagRegisterField write;
         private readonly IFlagRegisterField selInfoPage;
