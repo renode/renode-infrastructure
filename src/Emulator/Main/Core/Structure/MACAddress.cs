@@ -53,33 +53,41 @@ namespace Antmicro.Renode.Core.Structure
             return result;
         }
 
-        public MACAddress Next()
+        public MACAddress Next(int count = 1)
         {
             var result = this;
 
-            var cp = 5;
-            while(true)
+            for(var i = 0; i < count; i++)
             {
-                if(result.GetByte(cp) == byte.MaxValue)
-                {
-                    if(cp == 0)
-                    {
-                        throw new OverflowException();
-                    }
-                    cp--;
-                }
-                else
-                {
-                    result.SetByte(cp, (byte)(result.GetByte(cp) + 1));
-                    for(int i = cp + 1; i < 6; i++)
-                    {
-                        result.SetByte(i, 0);
-                    }
-                    break;
-                }
+                InnerNext();
             }
 
             return result;
+
+            void InnerNext()
+            {
+                var cp = 5;
+                while(true)
+                {
+                    if(result.GetByte(cp) == byte.MaxValue)
+                    {
+                        if(cp == 0)
+                        {
+                            throw new OverflowException();
+                        }
+                        cp--;
+                    }
+                    else
+                    {
+                        result.SetByte(cp, (byte)(result.GetByte(cp) + 1));
+                        for(int i = cp + 1; i < 6; i++)
+                        {
+                            result.SetByte(i, 0);
+                        }
+                        break;
+                    }
+                }
+            }
         }
 
         public MACAddress Previous()
