@@ -97,8 +97,12 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 
             lock(imgLock)
             {
-                converter = PixelManipulationTools.GetConverter(colorFormat, endianess, PixelFormat.RGBA8888, Endianess.BigEndian);
-                outBuffer = new byte[desiredWidth * desiredHeight * PixelFormat.RGBA8888.GetColorDepth()];
+                var pixelFormat = PixelFormat.RGBA8888;
+#if PLATFORM_WINDOWS
+                pixelFormat = PixelFormat.BGRA8888;
+#endif
+                converter = PixelManipulationTools.GetConverter(colorFormat, endianess, pixelFormat, Endianess.BigEndian);
+                outBuffer = new byte[desiredWidth * desiredHeight * pixelFormat.GetColorDepth()];
 
                 img = new ImageBuilder(DesiredDisplayWidth, DesiredDisplayHeight).ToBitmap();
                 drawMethod = CalculateDrawMethod();
