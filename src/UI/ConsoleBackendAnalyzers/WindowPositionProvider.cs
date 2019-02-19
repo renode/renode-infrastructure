@@ -8,7 +8,7 @@
 #if PLATFORM_WINDOWS
 using System.Windows;
 #endif
-using Xwt;
+using Point = Xwt.Point;
 
 namespace Antmicro.Renode.UI
 {
