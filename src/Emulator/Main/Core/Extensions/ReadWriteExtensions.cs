@@ -8,6 +8,8 @@
 
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using System.Text;
+using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core.Extensions
 {
@@ -253,35 +255,49 @@ namespace Antmicro.Renode.Core.Extensions
 
         public static byte ReadByteNotTranslated(this IBusPeripheral peripheral, long address)
         {
-            peripheral.Log(LogLevel.Warning, "Attempt to read byte from peripheral that doesn't support byte interface. Offset 0x{0:X}.", address);
+            LogNotTranslated(peripheral, SysbusAccessWidth.Byte, address);
             return 0;
         }
 
         public static ushort ReadWordNotTranslated(this IBusPeripheral peripheral, long address)
         {
-            peripheral.Log(LogLevel.Warning, "Attempt to read word from peripheral that doesn't support word interface. Offset 0x{0:X}.", address);
+            LogNotTranslated(peripheral, SysbusAccessWidth.Word, address);
             return 0;
         }
 
         public static uint ReadDoubleWordNotTranslated(this IBusPeripheral peripheral, long address)
         {
-            peripheral.Log(LogLevel.Warning, "Attempt to read dword from peripheral that doesn't support dword interface. Offset 0x{0:X}.", address);
+            LogNotTranslated(peripheral, SysbusAccessWidth.DoubleWord, address);
             return 0;
         }
 
         public static void WriteByteNotTranslated(this IBusPeripheral peripheral, long address, byte value)
         {
-            peripheral.Log(LogLevel.Warning, "Attempt to write byte to peripheral that doesn't support byte interface. Offset 0x{0:X}, value 0x{1:X}.", address, value);
+            LogNotTranslated(peripheral, SysbusAccessWidth.Byte, address, value);
         }
 
         public static void WriteWordNotTranslated(this IBusPeripheral peripheral, long address, ushort value)
         {
-            peripheral.Log(LogLevel.Warning, "Attempt to write word to peripheral that doesn't support word interface. Offset 0x{0:X}, value 0x{1:X}.", address, value);
+            LogNotTranslated(peripheral, SysbusAccessWidth.Word, address, value);
         }
 
         public static void WriteDoubleWordNotTranslated(this IBusPeripheral peripheral, long address, uint value)
         {
-            peripheral.Log(LogLevel.Warning, "Attempt to write dword to peripheral that doesn't support dword interface. Offset 0x{0:X}, value 0x{1:X}.", address, value);
+            LogNotTranslated(peripheral, SysbusAccessWidth.DoubleWord, address, value);
+        }
+
+        private static void LogNotTranslated(IBusPeripheral peripheral, SysbusAccessWidth operationWidth, long address, uint? value = null)
+        {
+            var strBldr = new StringBuilder();
+            strBldr.AppendFormat("Attempt to {0} {1} from peripheral that doesn't support {1} interface.", value.HasValue ? "write" : "read", operationWidth);
+            strBldr.AppendFormat(" Offset 0x{0:X}", address);
+            if(value.HasValue)
+            {
+                strBldr.AppendFormat(", value 0x{0:X}", value.Value);
+            }
+            strBldr.Append(".");
+
+            peripheral.Log(LogLevel.Warning, peripheral.GetMachine().SystemBus.DecorateWithCPUNameAndPC(strBldr.ToString()));
         }
     }
 }
