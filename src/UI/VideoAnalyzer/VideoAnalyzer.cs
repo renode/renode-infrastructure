@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             EnsureAnalyserWidget();
 
             videoPeripheral.ConfigurationChanged += (w, h, f, e) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.SetDisplayParameters(w, h, f, e));
-            videoPeripheral.FrameRendered += displayWidget.DrawFrame;
+            videoPeripheral.FrameRendered += (f) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.DrawFrame(f));
 
             displayWidget.InputAttached += i =>
             {
