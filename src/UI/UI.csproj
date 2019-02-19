@@ -62,12 +62,12 @@
     <Compile Include="XwtProvider\XwtProvider.cs" />
     <Compile Include="XwtProvider\Progress\ProgressWidget.cs" />
     <Compile Include="IConsoleBackendAnalyzerProvider.cs" />
-    <Compile Include="ConsoleBackendAnalyzers/XTermProvider.cs" />
-    <Compile Include="ConsoleBackendAnalyzers/GnomeTerminalProvider.cs" />
-    <Compile Include="ConsoleBackendAnalyzers/PuttyProvider.cs" />
-    <Compile Include="ConsoleBackendAnalyzers/TerminalAppProvider.cs" />
-    <Compile Include="ConsoleBackendAnalyzers/WindowPositionProvider.cs" />
-    <Compile Include="ConsoleBackendAnalyzers/ProcessBasedProvider.cs" />
+    <Compile Include="ConsoleBackendAnalyzers\XTermProvider.cs" />
+    <Compile Include="ConsoleBackendAnalyzers\GnomeTerminalProvider.cs" />
+    <Compile Include="ConsoleBackendAnalyzers\PuttyProvider.cs" />
+    <Compile Include="ConsoleBackendAnalyzers\TerminalAppProvider.cs" />
+    <Compile Include="ConsoleBackendAnalyzers\WindowPositionProvider.cs" />
+    <Compile Include="ConsoleBackendAnalyzers\ProcessBasedProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="VideoAnalyzer\FrameBufferDisplayWidget.cs" />
