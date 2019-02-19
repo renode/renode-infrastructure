@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         private void HandleKeyReleased(object sender, KeyEventArgs e)
         {
+#if !PLATFORM_WINDOWS
             e.Handled = true;
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
@@ -41,12 +42,13 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
                 handler.KeyReleased(key.Value);
                 return;
             }
-
-            Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", entryKey);
+#endif
+            Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", e.Key);
         }
 
         private void HandleKeyPressed(object sender, KeyEventArgs e)
         {
+#if !PLATFORM_WINDOWS
             e.Handled = true;
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
@@ -56,8 +58,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
                 handler.KeyPressed(key.Value);
                 return;
             }
-
-            Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", entryKey);
+#endif
+            Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", e.Key);
         }
 
         private void HandleButtonReleased(object sender, ButtonEventArgs e)
