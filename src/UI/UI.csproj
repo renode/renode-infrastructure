@@ -35,6 +35,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="PresentationFramework" Condition=" $(CurrentPlatform) == 'Windows'" />
+    <Reference Include="PresentationCore" Condition=" $(CurrentPlatform) == 'Windows'" />
+    <Reference Include="WindowsBase" Condition=" $(CurrentPlatform) == 'Windows'" />
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
