@@ -11,3 +11,4 @@ obj
 *.pidb
 *.userprefs
 .vscode
+*.swp
