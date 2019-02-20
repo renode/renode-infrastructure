@@ -12,6 +12,7 @@ using System.Threading;
 using System.Diagnostics;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -22,7 +23,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldBeAscending()
         {
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 100, 100000, Direction.Ascending, true);
+            var timer = new LimitTimer(manualClockSource, 100, null, String.Empty, 100000, Direction.Ascending, true);
             var oldValue = 0UL;
             for(var i = 0; i < 100; i++)
             {
@@ -37,7 +38,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldBeDescending()
         {
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 100, 100000, Direction.Descending, true);
+            var timer = new LimitTimer(manualClockSource, 100, null, String.Empty, 100000, Direction.Descending, true);
             var oldValue = timer.Limit;
             for(var i = 0; i < 100; i++)
             {
@@ -53,7 +54,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var limit = 100UL;
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 1, limit, Direction.Ascending, true);
+            var timer = new LimitTimer(manualClockSource, 1, null, String.Empty, limit, Direction.Ascending, true);
             manualClockSource.AdvanceBySeconds(limit - 1);
             for(var i = 0; i < 3; ++i)
             {
@@ -69,7 +70,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var limit = 100UL;
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 1, limit, Direction.Descending, true);
+            var timer = new LimitTimer(manualClockSource, 1, null, String.Empty, limit, Direction.Ascending, true);
             manualClockSource.AdvanceBySeconds(limit - 1);
             for(var i = 0; i < 3; i++)
             {
@@ -84,7 +85,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldSwitchDirectionProperly()
         {
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 100, 100000, Direction.Ascending, true);
+            var timer = new LimitTimer(manualClockSource, 100, null, String.Empty, 100000, Direction.Ascending, true);
             timer.EventEnabled = true;
             var ticked = false;
             timer.LimitReached += () => ticked = true;
@@ -98,7 +99,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldNotFireAlarmWhenInterruptsAreDisabled()
         {
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 1, 10, Direction.Descending, true);
+            var timer = new LimitTimer(manualClockSource, 1, null, String.Empty, 10, Direction.Descending, true);
             var ticked = false;
             timer.LimitReached += () => ticked = true;
             manualClockSource.AdvanceBySeconds(11);
@@ -109,7 +110,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldFireAlarmWhenInterruptsAreEnabled()
         {
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 1, 10, Direction.Descending, true);
+            var timer = new LimitTimer(manualClockSource, 1, null, String.Empty, 10, Direction.Descending, true);
             timer.EventEnabled = true;
             var ticked = false;
             timer.LimitReached += () => ticked = true;

@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public void Reset()
         {
-            var clockEntry = new ClockEntry((1 << 29) - 1, ClockEntry.FrequencyToRatio(this, 1000000), OnLimitReached, false) { Value = 0 };
+            var clockEntry = new ClockEntry((1 << 29) - 1, ClockEntry.FrequencyToRatio(this, 1000000), OnLimitReached, this, string.Empty, enabled: false) { Value = 0 };
             clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);
         }
 

@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             irqSync = new object();
             machine.ClockSource.AddClockEntry(
-                new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, false, Direction.Descending));
+                new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, this, String.Empty, false, Direction.Descending));
         }
 
         public override void InitFromUImage(UImage uImage)

@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.X86
             runningMode = new RunningMode[NumberOfInternalTimers];
             for(int i = 0; i < timers.Length; i++)
             {
-                timers[i] = new LimitTimer(machine.ClockSource, 32000000, eventEnabled: true);
+                timers[i] = new LimitTimer(machine.ClockSource, 32000000, this, i.ToString(), eventEnabled: true);
                 var j = i;
                 timers[i].LimitReached += () => HandleLimitReached(j);
             }

@@ -34,14 +34,14 @@ namespace Antmicro.Renode.Peripherals
             interruptPending = new IFlagRegisterField[NumberOfComparers];
             compare = new IValueRegisterField[NumberOfComparers];
 
-            rawTimer = new LimitTimer(machine.ClockSource, frequency, TimerLimit + 1, workMode: WorkMode.Periodic, direction: Direction.Ascending, eventEnabled: true);
+            rawTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(rawTimer), TimerLimit + 1, workMode: WorkMode.Periodic, direction: Direction.Ascending, eventEnabled: true);
             rawTimer.LimitReached += HandleLimitReached;
 
             timers = new ComparingTimer[NumberOfComparers];
             for(var i = 0; i < timers.Length; i++)
             {
                 var j = i;
-                timers[i] = new ComparingTimer(machine.ClockSource, frequency, CompareMask + 1, workMode: WorkMode.Periodic, compare: CompareMask, direction: Direction.Ascending, eventEnabled: true);
+                timers[i] = new ComparingTimer(machine.ClockSource, frequency, this, (i + 1).ToString(), CompareMask + 1, workMode: WorkMode.Periodic, compare: CompareMask, direction: Direction.Ascending, eventEnabled: true);
                 timers[i].CompareReached += () =>
                 {
                     // handle 'pwmzerocmp' flag (defined only for timer0)

@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             for(var i = 0; i < numberOfTimers; i++)
             {
                 var j = i;
-                timers[i] = new InnerTimer(machine, frequency);
+                timers[i] = new InnerTimer(machine, frequency, this);
                 timers[i].CoreTimer.LimitReached += () => OnTimerAlarm(j);
                 innerConnections[i] = new GPIO();
             }
@@ -264,9 +264,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 CoreTimer.Reset();
             }
             
-            public InnerTimer(Machine machine, int frequency)
+            public InnerTimer(Machine machine, int frequency, GaislerGPTimer parent)
             {
-                CoreTimer = new LimitTimer(machine.ClockSource, frequency, limit: InitialLimit, direction : Direction.Descending, eventEnabled: true);
+                CoreTimer = new LimitTimer(machine.ClockSource, frequency, parent, nameof(CoreTimer), InitialLimit, Direction.Descending, eventEnabled: true);
             }
 
             public LimitTimer CoreTimer;

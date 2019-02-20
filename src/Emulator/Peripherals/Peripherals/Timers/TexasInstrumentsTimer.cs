@@ -21,8 +21,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ12 = new GPIO();
             IRQ34 = new GPIO();
 
-            timer12 = new LimitTimer(machine.ClockSource, 24000000, direction: Direction.Ascending, eventEnabled: true); // clocked from AUXCLK (default 24 MHz)
-            timer34 = new LimitTimer(machine.ClockSource, 24000000, direction: Direction.Ascending, eventEnabled: true);
+            timer12 = new LimitTimer(machine.ClockSource, 24000000, this, nameof(timer12), direction: Direction.Ascending, eventEnabled: true); // clocked from AUXCLK (default 24 MHz)
+            timer34 = new LimitTimer(machine.ClockSource, 24000000, this, nameof(timer34), direction: Direction.Ascending, eventEnabled: true);
             timer12.LimitReached += () => OnTimerLimitReached(timer12);
             timer34.LimitReached += () => OnTimerLimitReached(timer34);
 

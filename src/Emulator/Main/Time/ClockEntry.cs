@@ -7,13 +7,13 @@
 //
 using System;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Time
 {
     public struct ClockEntry
     {
-        public ClockEntry(ulong period, long ratio, Action handler, bool enabled = true,
-            Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic) : this()
+        public ClockEntry(ulong period, long ratio, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic) : this()
         {
             this.Value = direction == Direction.Ascending ? 0 : period;
             this.Ratio = ratio;
@@ -22,6 +22,8 @@ namespace Antmicro.Renode.Time
             this.Enabled = enabled;
             this.Direction = direction;
             this.WorkMode = workMode;
+            this.Owner = owner;
+            this.LocalName = localName;
         }
 
         public ClockEntry With(ulong? period = null, long? ratio = null, Action handler = null, bool? enabled = null,
@@ -45,6 +47,8 @@ namespace Antmicro.Renode.Time
         public bool Enabled { get; private set; }
         public Direction Direction { get; private set; }
         public WorkMode WorkMode { get; private set; }
+        public IEmulationElement Owner { get; private set; }
+        public string LocalName { get; private set; }
 
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick (when ratio is positive)
         // or how many clock entry tick are needed for emulator tick (when ratio is negative)

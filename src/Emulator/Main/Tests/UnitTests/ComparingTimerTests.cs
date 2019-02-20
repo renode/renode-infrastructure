@@ -7,6 +7,7 @@
 //
 using System;
 using NUnit.Framework;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
@@ -18,7 +19,7 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldThrowOnCompareHigherThanLimit()
         {
-            var timer = new ComparingTimer(new BaseClockSource(), 10, 20, compare: 5);
+            var timer = new ComparingTimer(new BaseClockSource(), 10, null, String.Empty, 20, compare: 5);
             Assert.Throws<InvalidOperationException>(() => timer.Compare = 30);
         }
 
@@ -27,7 +28,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var compareCounter = 0;
             var clockSource = new BaseClockSource();
-            var timer = new ComparingTimer(clockSource, 1000000, 65535 + 1, enabled: true, workMode: WorkMode.Periodic, eventEnabled: true, compare: 65535);
+            var timer = new ComparingTimer(clockSource, 1000000, null, String.Empty, 65535 + 1, enabled: true, workMode: WorkMode.Periodic, eventEnabled: true, compare: 65535);
             timer.CompareReached += delegate { compareCounter++; };
 
             clockSource.Advance(TimeInterval.FromTicks(65535), true);

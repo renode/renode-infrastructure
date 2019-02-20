@@ -487,7 +487,7 @@ namespace Antmicro.Renode.Core
 
         public IManagedThread ObtainManagedThread(Action action, int frequency)
         {
-            var ce = new ClockEntry(1, ClockEntry.FrequencyToRatio(this, frequency), action, false);
+            var ce = new ClockEntry(1, ClockEntry.FrequencyToRatio(this, frequency), action, this, "managed thread", enabled: false);
             ClockSource.AddClockEntry(ce);
             return new ManagedThreadWrappingClockEntry(ClockSource, action);
         }
@@ -528,12 +528,22 @@ namespace Antmicro.Renode.Core
             var entries = ClockSource.GetAllClockEntries();
 
             var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Value", "Event frequency", "Event period");
-            table.AddRows(entries, x =>
-            {
-                var owner = x.Handler.Target;
-                var ownerAsPeripheral = owner as IPeripheral;
-                return ownerAsPeripheral != null ? GetAnyNameOrTypeName(ownerAsPeripheral) : owner.GetType().Name;
-            },
+            table.AddRows(entries, 
+                x =>
+                {
+                    var owner = x.Handler.Target;
+                    var ownerAsPeripheral = owner as IPeripheral;
+                    if(x.Owner != null)
+                    {
+                        if(EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementName(x.Owner, out var name, out var _))
+                        {
+                            return name + (String.IsNullOrWhiteSpace(x.LocalName) ? String.Empty : $": {x.LocalName}");
+                        }
+                    }
+                    return ownerAsPeripheral != null
+                                ? GetAnyNameOrTypeName(ownerAsPeripheral)
+                                : owner.GetType().Name;
+                },
                 x => x.Enabled.ToString(),
                 x => Misc.NormalizeDecimal(x.Frequency) + "Hz",
                 x => x.Period.ToString(),

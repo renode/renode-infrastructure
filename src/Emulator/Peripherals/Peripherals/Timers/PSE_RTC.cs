@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             WakeupIRQ = new GPIO();
             MatchIRQ = new GPIO();
 
-            ticker = new LimitTimer(machine.ClockSource, 1, 1, direction: Direction.Ascending, eventEnabled: true);
+            ticker = new LimitTimer(machine.ClockSource, 1, this, nameof(ticker), 1, Direction.Ascending, eventEnabled: true);
             ticker.LimitReached += HandleTick;
             ResetInnerTimer();
         }

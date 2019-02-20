@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.latchedIrqs = latchedIrqs;
 
             // the frequency value is picked at random and not tested
-            internalTimer = new LimitTimer(machine.ClockSource, 1000000, workMode: WorkMode.OneShot, eventEnabled: true);
+            internalTimer = new LimitTimer(machine.ClockSource, 1000000, this, nameof(internalTimer), workMode: WorkMode.OneShot, eventEnabled: true);
             internalTimer.LimitReached += () =>
             {
                 pendingInterrupts |= (1u << TimerInterruptSource);

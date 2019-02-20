@@ -21,18 +21,18 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             IRQ = new GPIO();
 
-            PeriodIntervalTimer = new LimitTimer(machine.ClockSource, 32768, int.MaxValue); // long.MaxValue couses crashes
+            PeriodIntervalTimer = new LimitTimer(machine.ClockSource, 32768, this, nameof(PeriodIntervalTimer), int.MaxValue); // long.MaxValue couses crashes
             PeriodIntervalTimer.Value = 0x00000000;
             PeriodIntervalTimer.AutoUpdate = true;
             PeriodIntervalTimer.LimitReached += PeriodIntervalTimerAlarmHandler;
 
-            WatchdogTimer = new LimitTimer(machine.ClockSource, 32768, int.MaxValue);
+            WatchdogTimer = new LimitTimer(machine.ClockSource, 32768, this, nameof(WatchdogTimer), int.MaxValue);
             WatchdogTimer.Value = 0x00020000;
             WatchdogTimer.AutoUpdate = true;
             WatchdogTimer.Divider = 128;
             WatchdogTimer.LimitReached += WatchdogTimerAlarmHandler;
 
-            RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, (ulong)BitHelper.Bits(20), Direction.Ascending);
+            RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, this, nameof(RealTimeTimer), (ulong)BitHelper.Bits(20), Direction.Ascending);
             RealTimeTimer.Divider = 0x00008000;
             RealTimeTimer.OnUpdate += () => {
                 lock (localLock)
@@ -244,9 +244,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public event Action OnUpdate;
 
-            public AT91_InterruptibleTimer(Machine machine, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
+            public AT91_InterruptibleTimer(Machine machine, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
             {
-                timer = new LimitTimer(machine.ClockSource, frequency, limit, direction, enabled);
+                timer = new LimitTimer(machine.ClockSource, frequency, owner, localName, limit, direction, enabled);
                 timer.LimitReached += () => { if (OnUpdate != null) OnUpdate(); };
             }
 

@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             this.memory = memory;
             IRQ = new GPIO();
-            hvTimer = new LimitTimer(machine.ClockSource, Frequency, direction: Direction.Descending,
+            hvTimer = new LimitTimer(machine.ClockSource, Frequency, this, nameof(hvTimer), direction: Direction.Descending,
                 workMode: WorkMode.OneShot, eventEnabled: true);
             hvTimer.LimitReached += TimerTick;
 

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public LiteX_Timer(Machine machine, long frequency) : base(machine)
         {
-            innerTimer = new LimitTimer(machine.ClockSource, frequency, eventEnabled: true, autoUpdate: true);
+            innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);
             innerTimer.LimitReached += delegate
             {
                 irqPending.Value = true;

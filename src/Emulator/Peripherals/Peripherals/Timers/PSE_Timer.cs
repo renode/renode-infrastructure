@@ -27,9 +27,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             timer = new LimitTimer[NumberOfInternalTimers]
             {
-                new LimitTimer(machine.ClockSource, frequency, uint.MaxValue, autoUpdate: true, eventEnabled: true),
-                new LimitTimer(machine.ClockSource, frequency, uint.MaxValue, autoUpdate: true, eventEnabled: true),
-                new LimitTimer(machine.ClockSource, frequency, autoUpdate: true, eventEnabled: true)
+                new LimitTimer(machine.ClockSource, frequency, this, "0", uint.MaxValue, autoUpdate: true, eventEnabled: true),
+                new LimitTimer(machine.ClockSource, frequency, this, "1", uint.MaxValue, autoUpdate: true, eventEnabled: true),
+                new LimitTimer(machine.ClockSource, frequency, this, "2", eventEnabled: true)
             };
 
             for (var i = 0; i < NumberOfInternalTimers; i++)

@@ -15,8 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ComparingTimer : ITimer, IPeripheral
     {
-        public ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending,
-            bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1)
+        public ComparingTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1)
         {
             if(compare > limit)
             {
@@ -45,7 +44,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             initialWorkMode = workMode;
             initialEventEnabled = eventEnabled;
             initialDivider = divider;
+            this.owner = this is IPeripheral && owner == null ? this : owner;
+            this.localName = localName;
             InternalReset();
+        }
+
+        protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1) 
+            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider)
+        {
         }
 
         public bool Enabled
@@ -176,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             divider = initialDivider;
 
-            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency / divider), CompareReachedInternal, initialEnabled, initialDirection, initialWorkMode)
+            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency / divider), CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
             clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
             valueAccumulatedSoFar = 0;
@@ -197,6 +203,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly ulong initialCompare;
         private readonly bool initialEnabled;
         private readonly bool initialEventEnabled;
+        private readonly IPeripheral owner;
+        private readonly string localName;
 
         private const string CompareHigherThanLimitMessage = "Compare value ({0}) cannot be higher than limit ({1}).";
     }

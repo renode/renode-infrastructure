@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2010-2018 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
@@ -14,8 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class LimitTimer : ITimer, IPeripheral
     {
-        public LimitTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending,
-            bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
+        public LimitTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
         {
             if(limit == 0)
             {
@@ -41,7 +40,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             initialEventEnabled = eventEnabled;
             initialAutoUpdate = autoUpdate;
             initialDivider = divider;
+            this.owner = this is IPeripheral && owner == null ? this : owner;
+            this.localName = localName;
             InternalReset();
+        }
+
+        protected LimitTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1) 
+            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, autoUpdate, divider)
+        {
         }
 
         public ulong GetValueAndLimit(out ulong currentLimit)
@@ -266,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             frequency = initialFrequency;
             divider = initialDivider;
 
-            var clockEntry = new ClockEntry(initialLimit, ClockEntry.FrequencyToRatio(this, frequency / divider), OnLimitReached, initialEnabled, initialDirection, initialWorkMode)
+            var clockEntry = new ClockEntry(initialLimit,  ClockEntry.FrequencyToRatio(this, frequency / divider), OnLimitReached, owner, localName, initialEnabled, initialDirection, initialWorkMode)
                 { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
 
             clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);
@@ -286,6 +292,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly bool initialEventEnabled;
         private readonly bool initialAutoUpdate;
         private readonly int initialDivider;
+        private readonly IPeripheral owner;
+        private readonly string localName; 
 
         private bool eventEnabled;
         private bool rawInterrupt;

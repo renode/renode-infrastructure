@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             for(var i = 0; i < timers.Length; i++)
             {
                 var j = i;
-                timers[i].CoreTimer = new LimitTimer(machine.ClockSource, TimerFrequency) { AutoUpdate = true };
+                timers[i].CoreTimer = new LimitTimer(machine.ClockSource, TimerFrequency, this, i.ToString()) { AutoUpdate = true };
                 timers[i].Control = InnerTimer.ControlRegister.InterruptEnable;
                 timers[i].CoreTimer.Limit = 0xFFFFFFFF;
                 timers[i].CoreTimer.LimitReached += () => UpdateInterrupt(j, true);

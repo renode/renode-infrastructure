@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 irqs[2 * hartId] = new GPIO();
                 irqs[2 * hartId + 1] = new GPIO();
 
-                var timer = new ComparingTimer(machine.ClockSource, timerFrequency, enabled: true, eventEnabled: true);
+                var timer = new ComparingTimer(machine.ClockSource, timerFrequency, this, hartId.ToString(), enabled: true, eventEnabled: true);
                 timer.CompareReached += () => irqs[2 * hartId + 1].Set(true);
 
                 mTimers.Add(timer);

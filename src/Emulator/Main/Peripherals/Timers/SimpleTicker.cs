@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public SimpleTicker(ulong periodInMs, Machine machine)
         {
-            machine.ClockSource.AddClockEntry(new ClockEntry(periodInMs, ClockEntry.FrequencyToRatio(this, 1000), OnTick));
+            machine.ClockSource.AddClockEntry(new ClockEntry(periodInMs, ClockEntry.FrequencyToRatio(this, 1000), OnTick, this, String.Empty));
         }
 
         public virtual uint ReadDoubleWord(long offset)

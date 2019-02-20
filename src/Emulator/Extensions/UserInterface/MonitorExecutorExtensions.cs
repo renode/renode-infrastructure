@@ -14,7 +14,7 @@ namespace Antmicro.Renode.UserInterface
         public static void ExecutePythonEvery(this Machine machine, string name, int milliseconds, string script)
         {
             var engine = new ExecutorPythonEngine(machine, script);
-            var clockEntry = new ClockEntry((ulong)milliseconds, ClockEntry.FrequencyToRatio(machine, 1000), engine.Action);
+            var clockEntry = new ClockEntry((ulong)milliseconds, ClockEntry.FrequencyToRatio(machine, 1000), engine.Action, machine, name);
             machine.ClockSource.AddClockEntry(clockEntry);
 
             events.Add(machine, name, engine.Action);
