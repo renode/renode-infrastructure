@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         {
             var color = img.GetPixel(x, y);
             var invertedColor = Color.FromBytes((byte)(255 * (1.0 - color.Red)), (byte)(255 * (1.0 - color.Green)), (byte)(255 * (1.0 - color.Blue)));
-            img.SetPixelDirectly(x, y, invertedColor);
+            img.SetPixel(x, y, invertedColor);
         }
 
         public static bool IsInImage(this BitmapImage img, int x, int y)
