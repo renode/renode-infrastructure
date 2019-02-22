@@ -17,12 +17,13 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class Micron_MT25Q : ISPIPeripheral, IDoubleWordPeripheral, IBytePeripheral
     {
-        public Micron_MT25Q(MicronFlashSize size)
+        public Micron_MT25Q(MicronFlashSize size, bool reverseOrder = false)
         {
             if(!Enum.IsDefined(typeof(MicronFlashSize), size))
             {
                 throw new ConstructionException($"Undefined memory size: {size}");
             }
+            this.reverseOrder = reverseOrder;
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
             nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out numberOfAddressBytes, name: "addressWith3Bytes");
             statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
@@ -129,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return 0;
             }
             dataBackend.Position = localOffset;
-            return BitHelper.ToUInt32(dataBackend.ReadBytes(4), 0, 4, false);
+            return BitHelper.ToUInt32(dataBackend.ReadBytes(4), 0, 4, reverseOrder);
         }
 
         public void WriteDoubleWord(long localOffset, uint value)
@@ -451,6 +452,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint commandExecutionAddress;
         private int commandAddressBytesCount;
 
+        private readonly bool reverseOrder;
         private readonly byte[] deviceData;
         private readonly uint fileBackendSize;
         private readonly int SegmentSize = 64.KB();
