@@ -131,12 +131,24 @@ namespace Antmicro.Renode.Peripherals.Network
             Registers.WriterEvPending.Define(this)
                 .WithFlag(0, out writerEventPending, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, val) =>
                 {
-                    if(!val || latchedWriterSlot == -1)
+                    if(!val)
                     {
                         return;
                     }
 
-                    writeSlots[latchedWriterSlot].Release();
+                    if(latchedWriterSlot == -1)
+                    {
+                        // if no slot has been latched, release all (this might happen at startup when resetting the state)
+                        foreach(var slot in writeSlots) 
+                        {
+                            slot.Release();
+                        }
+                    }
+                    else
+                    {
+                        writeSlots[latchedWriterSlot].Release();
+                    }
+
                     latchedWriterSlot = -1;
                     UpdateEvents();
                 })
