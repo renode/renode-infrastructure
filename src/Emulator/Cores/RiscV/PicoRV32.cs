@@ -106,6 +106,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case Result.ECall:
                     pendingInterrupts |= (1u << EBreakECallIllegalInstructionInterruptSource);
                     break;
+
+                case Result.LoadAddressMisaligned:
+                case Result.StoreAddressMisaligned:
+                    Pause();
+                    pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
+                    break;
+
+                default:
+                    this.Log(LogLevel.Warning, "Unexpected execution result: {0}", result);
+                    break;
             }
 
             if(IrqIsPending(out var interruptsToHandle))
@@ -224,11 +234,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private const int TimerInterruptSource = 0;
         private const int EBreakECallIllegalInstructionInterruptSource = 1;
+        private const int UnalignedMemoryAccessInterruptSource = 2;
 
         private enum Result
         {
             IllegalInstruction = 0x2,
             EBreak = 0x3,
+            LoadAddressMisaligned = 0x4,
+            StoreAddressMisaligned = 0x6,
             ECall = 0x8
         }
     }
