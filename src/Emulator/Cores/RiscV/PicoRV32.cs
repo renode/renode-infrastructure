@@ -47,6 +47,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
+            this.Log(LogLevel.Noisy, "External interrupt #{0} set to {1}", number, value);
             if(value)
             {
                 pendingInterrupts |= (1u << number);
@@ -99,6 +100,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void ExecutionFinished(TranslationCPU.ExecutionResult result)
         {
+            this.Log(LogLevel.Noisy, "PC@0x{1:X}: Execution finished with result: {0}", result, PC.RawValue);
+
             switch((Result)result)
             {
                 case Result.IllegalInstruction:
@@ -146,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 X[rd] = qRegisters[qs];
             }
             
-            this.Log(LogLevel.Noisy, "Handling getq instruction: setting X[{0}] to the value of q[{1}]: 0x{2:X}", rd, qs, qRegisters[qs]);
+            this.Log(LogLevel.Noisy, "PC@0x{3:X}: Handling getq instruction: setting X[{0}] to the value of q[{1}]: 0x{2:X}", rd, qs, qRegisters[qs], PC.RawValue);
         }
 
         private void HandleSetqInstruction(UInt64 opcode)
@@ -156,15 +159,17 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             qRegisters[qd] = X[rs];
 
-            this.Log(LogLevel.Noisy, "Handling setq instruction: setting q[{0}] to the value of X[{1}]: 0x{2:X}", qd, rs, X[rs].RawValue);
+            this.Log(LogLevel.Noisy, "PC@0x{3:X}: Handling setq instruction: setting q[{0}] to the value of X[{1}]: 0x{2:X}", qd, rs, X[rs].RawValue, PC.RawValue);
         }
 
         private void HandleRetirqInstruction(UInt64 opcode)
         {
+            var currentPC = PC.RawValue;
+
             PC = qRegisters[0];
             interruptsMasked = false;
 
-            this.Log(LogLevel.Noisy, "Handling retirq instruction: jumping back to 0x{0:X}", qRegisters[0]);
+            this.Log(LogLevel.Noisy, "PC@0x{1:X}: Handling retirq instruction: jumping back to 0x{0:X}", qRegisters[0], currentPC);
         }
 
         private void HandleMaskirqInstruction(UInt64 opcode)
@@ -185,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibSetReturnRequest();
             }
 
-            this.Log(LogLevel.Noisy, "Handling maskirq instruction: setting new mask of value 0x{0:X} read from register X[{1}]; old value 0x{2:X} written to X[{3}]", newValue, rs, previousValue, rd);
+            this.Log(LogLevel.Noisy, "PC@0x{4:X}: Handling maskirq instruction: setting new mask of value 0x{0:X} read from register X[{1}]; old value 0x{2:X} written to X[{3}]", newValue, rs, previousValue, rd, PC.RawValue);
         }
 
         private void HandleWaitirqInstruction(UInt64 opcode)
