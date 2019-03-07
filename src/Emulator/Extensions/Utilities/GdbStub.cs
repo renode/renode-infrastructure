@@ -22,6 +22,8 @@ namespace Antmicro.Renode.Utilities
             this.cpu = cpu;
             Port = port;
 
+            LogsEnabled = true;
+
             pcktBuilder = new PacketBuilder();
             commands = new CommandsManager(cpu);
             commands.ShouldAutoStart = autostartEmulation;
@@ -54,6 +56,8 @@ namespace Antmicro.Renode.Utilities
         public int Port { get; private set; }
 
         public bool DebuggerConnected { get; set; }
+
+        public bool LogsEnabled { get; set; }
 
         private void OnHalted(HaltArguments args)
         {
@@ -100,7 +104,10 @@ namespace Antmicro.Renode.Utilities
 
             if(result.Interrupt)
             {
-                cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
+                if(LogsEnabled)
+                {
+                    cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
+                }
                 // we need to pause CPU in order to escape infinite loops
                 cpu.Pause();
                 cpu.ExecutionMode = ExecutionMode.SingleStep;
@@ -112,20 +119,29 @@ namespace Antmicro.Renode.Utilities
             {
                 if(result.CorruptedPacket)
                 {
-                    cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.DataAsString);
+                    if(LogsEnabled)
+                    {
+                        cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.DataAsString);
+                    }
                     // send NACK
                     ctx.Send((byte)'-');
                     return;
                 }
 
-                cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.DataAsString);
+                if(LogsEnabled)
+                {
+                    cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.DataAsString);
+                }
                 // send ACK
                 ctx.Send((byte)'+');
 
                 Command command;
                 if(!commands.TryGetCommand(result.Packet, out command))
                 {
-                    cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.DataAsString);
+                    if(LogsEnabled)
+                    {
+                        cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.DataAsString);
+                    }
                     ctx.Send(new Packet(PacketData.Empty));
                 }
                 else
@@ -165,7 +181,10 @@ namespace Antmicro.Renode.Utilities
                     counter++;
                     if(counter > 1)
                     {
-                        stub.cpu.Log(LogLevel.Debug, "Gdb stub: entering nested communication context. All bytes will be queued.");
+                        if(stub.LogsEnabled)
+                        {
+                            stub.cpu.Log(LogLevel.Debug, "Gdb stub: entering nested communication context. All bytes will be queued.");
+                        }
                     }
                     return new Context(this, counter > 1);
                 }
@@ -200,7 +219,10 @@ namespace Antmicro.Renode.Utilities
                     counter--;
                     if(counter == 0 && queue.Count > 0)
                     {
-                        stub.cpu.Log(LogLevel.Debug, "Gdb stub: leaving nested communication context. Sending {0} queued bytes.", queue.Count);
+                        if(stub.LogsEnabled)
+                        {
+                            stub.cpu.Log(LogLevel.Debug, "Gdb stub: leaving nested communication context. Sending {0} queued bytes.", queue.Count);
+                        }
                         SendAllBufferedData();
                     }
                 }
@@ -229,7 +251,10 @@ namespace Antmicro.Renode.Utilities
 
                 public void Send(Packet packet)
                 {
-                    commHandler.stub.cpu.Log(LogLevel.Debug, "Sending response to GDB: {0}", packet.Data.DataAsString);
+                    if(commHandler.stub.LogsEnabled)
+                    {
+                        commHandler.stub.cpu.Log(LogLevel.Debug, "Sending response to GDB: {0}", packet.Data.DataAsString);
+                    }
                     foreach(var b in packet.GetCompletePacket())
                     {
                         Send(b);

@@ -99,6 +99,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void EnableGdbLogging(bool enabled)
+        {
+            if(gdbStub == null)
+            {
+                return;
+            }
+
+            gdbStub.LogsEnabled = enabled;
+        }
+
         public void StartGdbServer(int port, bool autostartEmulation = false)
         {
             if(gdbStub != null)
