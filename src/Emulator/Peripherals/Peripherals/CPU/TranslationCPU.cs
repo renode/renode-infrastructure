@@ -1978,6 +1978,7 @@ restart:
 
         protected enum ExecutionResult : ulong
         {
+            Ok = 0x10000,
             WaitingForInterrupt = 0x10001,
             StoppedAtBreakpoint = 0x10002,
             StoppedAtWatchpoint = 0x10004,
