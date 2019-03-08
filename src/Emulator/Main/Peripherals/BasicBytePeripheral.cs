@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals
 
         protected abstract void DefineRegisters();
 
-        private readonly Machine machine;
+        protected readonly Machine machine;
     }
 
     public static class BasicBytePeripheralExtensions
