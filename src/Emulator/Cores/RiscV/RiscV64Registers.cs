@@ -59,6 +59,66 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         [Register]
+        public RegisterValue RA
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.RA);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.RA, value);
+            }
+        }
+        [Register]
+        public RegisterValue SP
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.SP);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.SP, value);
+            }
+        }
+        [Register]
+        public RegisterValue GP
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.GP);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.GP, value);
+            }
+        }
+        [Register]
+        public RegisterValue TP
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.TP);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.TP, value);
+            }
+        }
+        [Register]
+        public RegisterValue FP
+        {
+            get
+            {
+                return GetRegisterValue64((int)RiscV64Registers.FP);
+            }
+            set
+            {
+                SetRegisterValue64((int)RiscV64Registers.FP, value);
+            }
+        }
+        [Register]
         public override RegisterValue PC
         {
             get
@@ -312,6 +372,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         public RegistersGroup X { get; private set; }
+        public RegistersGroup T { get; private set; }
+        public RegistersGroup S { get; private set; }
+        public RegistersGroup A { get; private set; }
         public RegistersGroup F { get; private set; }
 
         protected override void InitializeRegisters()
@@ -355,6 +418,57 @@ namespace Antmicro.Renode.Peripherals.CPU
                 indexValueMapX.Keys,
                 i => GetRegisterUnsafe((int)indexValueMapX[i]),
                 (i, v) => SetRegisterUnsafe((int)indexValueMapX[i], v));
+
+            var indexValueMapT = new Dictionary<int, RiscV64Registers>
+            {
+                { 0, RiscV64Registers.T0 },
+                { 1, RiscV64Registers.T1 },
+                { 2, RiscV64Registers.T2 },
+                { 3, RiscV64Registers.T3 },
+                { 4, RiscV64Registers.T4 },
+                { 5, RiscV64Registers.T5 },
+                { 6, RiscV64Registers.T6 },
+            };
+            T = new RegistersGroup(
+                indexValueMapT.Keys,
+                i => GetRegisterUnsafe((int)indexValueMapT[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapT[i], v));
+
+            var indexValueMapS = new Dictionary<int, RiscV64Registers>
+            {
+                { 0, RiscV64Registers.S0 },
+                { 1, RiscV64Registers.S1 },
+                { 2, RiscV64Registers.S2 },
+                { 3, RiscV64Registers.S3 },
+                { 4, RiscV64Registers.S4 },
+                { 5, RiscV64Registers.S5 },
+                { 6, RiscV64Registers.S6 },
+                { 7, RiscV64Registers.S7 },
+                { 8, RiscV64Registers.S8 },
+                { 9, RiscV64Registers.S9 },
+                { 10, RiscV64Registers.S10 },
+                { 11, RiscV64Registers.S11 },
+            };
+            S = new RegistersGroup(
+                indexValueMapS.Keys,
+                i => GetRegisterUnsafe((int)indexValueMapS[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapS[i], v));
+
+            var indexValueMapA = new Dictionary<int, RiscV64Registers>
+            {
+                { 0, RiscV64Registers.A0 },
+                { 1, RiscV64Registers.A1 },
+                { 2, RiscV64Registers.A2 },
+                { 3, RiscV64Registers.A3 },
+                { 4, RiscV64Registers.A4 },
+                { 5, RiscV64Registers.A5 },
+                { 6, RiscV64Registers.A6 },
+                { 7, RiscV64Registers.A7 },
+            };
+            A = new RegistersGroup(
+                indexValueMapA.Keys,
+                i => GetRegisterUnsafe((int)indexValueMapA[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapA[i], v));
 
             var indexValueMapF = new Dictionary<int, RiscV64Registers>
             {
@@ -411,14 +525,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         private static readonly Dictionary<RiscV64Registers, CPURegister> mapping = new Dictionary<RiscV64Registers, CPURegister>
         {
             { RiscV64Registers.ZERO,  new CPURegister(0, 64, isGeneral: true, isReadonly: true) },
-            { RiscV64Registers.X1,  new CPURegister(1, 64, isGeneral: true, isReadonly: false) },
-            { RiscV64Registers.X2,  new CPURegister(2, 64, isGeneral: true, isReadonly: false) },
-            { RiscV64Registers.X3,  new CPURegister(3, 64, isGeneral: true, isReadonly: false) },
-            { RiscV64Registers.X4,  new CPURegister(4, 64, isGeneral: true, isReadonly: false) },
+            { RiscV64Registers.RA,  new CPURegister(1, 64, isGeneral: true, isReadonly: false) },
+            { RiscV64Registers.SP,  new CPURegister(2, 64, isGeneral: true, isReadonly: false) },
+            { RiscV64Registers.GP,  new CPURegister(3, 64, isGeneral: true, isReadonly: false) },
+            { RiscV64Registers.TP,  new CPURegister(4, 64, isGeneral: true, isReadonly: false) },
             { RiscV64Registers.X5,  new CPURegister(5, 64, isGeneral: true, isReadonly: false) },
             { RiscV64Registers.X6,  new CPURegister(6, 64, isGeneral: true, isReadonly: false) },
             { RiscV64Registers.X7,  new CPURegister(7, 64, isGeneral: true, isReadonly: false) },
-            { RiscV64Registers.X8,  new CPURegister(8, 64, isGeneral: true, isReadonly: false) },
+            { RiscV64Registers.FP,  new CPURegister(8, 64, isGeneral: true, isReadonly: false) },
             { RiscV64Registers.X9,  new CPURegister(9, 64, isGeneral: true, isReadonly: false) },
             { RiscV64Registers.X10,  new CPURegister(10, 64, isGeneral: true, isReadonly: false) },
             { RiscV64Registers.X11,  new CPURegister(11, 64, isGeneral: true, isReadonly: false) },
@@ -501,6 +615,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     public enum RiscV64Registers
     {
         ZERO = 0,
+        RA = 1,
+        SP = 2,
+        GP = 3,
+        TP = 4,
+        FP = 8,
         PC = 32,
         SSTATUS = 321,
         SIE = 325,
@@ -554,6 +673,33 @@ namespace Antmicro.Renode.Peripherals.CPU
         X29 = 29,
         X30 = 30,
         X31 = 31,
+        T0 = 5,
+        T1 = 6,
+        T2 = 7,
+        T3 = 28,
+        T4 = 29,
+        T5 = 30,
+        T6 = 31,
+        S0 = 8,
+        S1 = 9,
+        S2 = 18,
+        S3 = 19,
+        S4 = 20,
+        S5 = 21,
+        S6 = 22,
+        S7 = 23,
+        S8 = 24,
+        S9 = 25,
+        S10 = 26,
+        S11 = 27,
+        A0 = 10,
+        A1 = 11,
+        A2 = 12,
+        A3 = 13,
+        A4 = 14,
+        A5 = 15,
+        A6 = 16,
+        A7 = 17,
         F0 = 33,
         F1 = 34,
         F2 = 35,
