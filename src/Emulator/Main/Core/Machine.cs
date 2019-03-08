@@ -445,6 +445,11 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void RequestReset()
+        {
+            LocalTimeSource.ExecuteInNearestSyncedState(_ => Reset());
+        }
+
         public void Dispose()
         {
             lock(disposedSync)
