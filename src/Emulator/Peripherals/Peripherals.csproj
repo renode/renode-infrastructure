@@ -47,6 +47,7 @@
     <Compile Include="Peripherals\USB\PSE_USB.cs" />
     <Compile Include="Peripherals\USB\USBPendrive.cs" />
     <Compile Include="Peripherals\Timers\PSE_RTC.cs" />
+    <Compile Include="Peripherals\Timers\PSE_Watchdog.cs" />
     <Compile Include="Peripherals\SD\PSE_SDController.cs" />
     <Compile Include="Peripherals\SPI\PSE_QSPI.cs" />
     <Compile Include="Peripherals\SPI\Micron_MT25Q.cs" />
