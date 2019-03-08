@@ -36,11 +36,16 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
                 },
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
-                    .WithFlag(1, valueProviderCallback: _ => Count != 0, writeCallback: (_, value) => { if(value) IRQ.Unset(); })
+                    // fields implement `WriteOneToClear` semantincs to avoid fake warnings
+                    // `txEventPending` is true when fifo is not full; in our case it means always
+                    .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => true, name: "txEventPending")
+                    .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => Count != 0, name: "rxEventPending")
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
-                    .WithTag("tx_event_enabled", 0, 1)
-                    .WithFlag(1, out rxEventEnabled, changeCallback: (_, value) => { if(!value) IRQ.Unset(); } )
+                    .WithFlag(0, out txEventEnabled)
+                    .WithFlag(1, out rxEventEnabled)
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
              };
 
@@ -55,8 +60,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public override void Reset()
         {
             base.Reset();
-            IRQ.Unset();
             registers.Reset();
+
+            UpdateInterrupts();
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -76,18 +82,24 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            if(rxEventEnabled.Value)
-            {
-                // we do not filter IRQ.Unset, as it should not really influence anything.
-                IRQ.Set();
-            }
+            UpdateInterrupts();
         }
 
         protected override void QueueEmptied()
         {
-            IRQ.Unset(); // I'm not certain about this
+            UpdateInterrupts();
         }
 
+        private void UpdateInterrupts()
+        {
+            // tx fifo is never full, so `txEventPending` is always true
+            var eventPending = (rxEventEnabled.Value && Count != 0)
+                || (txEventEnabled.Value);
+
+            IRQ.Set(eventPending);
+        }
+
+        private IFlagRegisterField txEventEnabled;
         private IFlagRegisterField rxEventEnabled;
         private readonly DoubleWordRegisterCollection registers;
 
