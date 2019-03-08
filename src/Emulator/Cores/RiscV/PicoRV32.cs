@@ -24,8 +24,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             internalTimer = new LimitTimer(machine.ClockSource, 1000000, this, nameof(internalTimer), workMode: WorkMode.OneShot, eventEnabled: true);
             internalTimer.LimitReached += () =>
             {
-                pendingInterrupts |= (1u << TimerInterruptSource);
-                TlibSetReturnRequest();
+                lock(irqLock)
+                {
+                    pendingInterrupts |= (1u << TimerInterruptSource);
+                    TlibSetReturnRequest();
+                }
             };
 
             qRegisters = new uint[NumberOfQRegisters];
@@ -48,18 +51,26 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void OnGPIO(int number, bool value)
         {
             this.Log(LogLevel.Noisy, "External interrupt #{0} set to {1}", number, value);
-            if(value)
+            lock(irqLock)
             {
-                pendingInterrupts |= (1u << number);
-            }
-            else if(!latchedIrqs)
-            {
-                pendingInterrupts &= ~(1u << number);
-            }
+                if(value)
+                {
+                    irqState |= (1u << number);
+                    pendingInterrupts |= (1u << number);
+                }
+                else 
+                {
+                    irqState &= ~(1u << number);
+                    if(!latchedIrqs)
+                    {
+                        pendingInterrupts &= ~(1u << number);
+                    }
+                }
 
-            if(IrqIsPending(out var _))
-            {
-                TlibSetReturnRequest();
+                if(IrqIsPending(out var _))
+                {
+                    TlibSetReturnRequest();
+                }
             }
         }
 
@@ -69,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             interruptsMasked = false;
             pendingInterrupts = 0;
+            irqState = 0;
             // the cpu starts with all interrutps disabled
             disabledInterrupts = 0xFFFFFFFF;
 
@@ -102,41 +114,62 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             this.Log(LogLevel.Noisy, "PC@0x{1:X}: Execution finished with result: {0}", result, PC.RawValue);
 
-            switch((Result)result)
+            lock(irqLock)
             {
-                case Result.IllegalInstruction:
-                case Result.EBreak:
-                case Result.ECall:
-                    pendingInterrupts |= (1u << EBreakECallIllegalInstructionInterruptSource);
-                    break;
+                switch((Result)result)
+                {
+                    case Result.IllegalInstruction:
+                    case Result.EBreak:
+                    case Result.ECall:
+                        pendingInterrupts |= (1u << EBreakECallIllegalInstructionInterruptSource);
+                        break;
 
-                case Result.LoadAddressMisaligned:
-                case Result.StoreAddressMisaligned:
-                    Pause();
-                    pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
-                    break;
+                    case Result.LoadAddressMisaligned:
+                    case Result.StoreAddressMisaligned:
+                        Pause();
+                        pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
+                        break;
 
-                default:
-                    this.Log(LogLevel.Warning, "Unexpected execution result: {0}", result);
-                    break;
-            }
+                    default:
+                        this.Log(LogLevel.Warning, "Unexpected execution result: {0}", result);
+                        break;
+                }
 
-            if(IrqIsPending(out var interruptsToHandle))
-            {
-                qRegisters[0] = PC; 
-                qRegisters[1] = interruptsToHandle;
-                pendingInterrupts &= ~interruptsToHandle;
-                PC = resetVectorAddress;
-                interruptsMasked = true;
+                if(IrqIsPending(out var interruptsToHandle))
+                {
+                    qRegisters[0] = PC;
+                    qRegisters[1] = interruptsToHandle;
+                    pendingInterrupts &= ~interruptsToHandle;
+                    PC = resetVectorAddress;
+                    interruptsMasked = true;
 
-                this.Log(LogLevel.Noisy, "Entering interrupt, return address: 0x{0:X}, interrupts: 0x{1:X}", qRegisters[0], qRegisters[1]);
+                    this.Log(LogLevel.Noisy, "Entering interrupt, return address: 0x{0:X}, interrupts: 0x{1:X}", qRegisters[0], qRegisters[1]);
+                }
             }
         }
 
         private bool IrqIsPending(out uint interruptsToHandle)
         {
+            if(((disabledInterrupts & pendingInterrupts) & 0b11) != 0)
+            {
+                // according to the readme:
+                // An illegal instruction or bus error while the illegal instruction or bus error interrupt is disabled will cause the processor to halt.
+                // since we currently have no nice way of halting emulation from random thread, error message must do
+                this.Log(LogLevel.Error, "Illegal instruction / bus error detected, but respective interrupt is disabled");
+                interruptsToHandle = 0;
+                return false;
+            }
+
             interruptsToHandle = pendingInterrupts & (~disabledInterrupts);
-            return !interruptsMasked && interruptsToHandle != 0;
+            if(interruptsMasked)
+            {
+                // here I'm not sure what to do:
+                // on one hand we don't support nested events,
+                // but BUS ERROR migh happen inside the irq handler
+                interruptsToHandle &= (1u << UnalignedMemoryAccessInterruptSource);
+            }
+
+            return interruptsToHandle != 0;
         }
 
         private void HandleGetqInstruction(UInt64 opcode)
@@ -148,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 X[rd] = qRegisters[qs];
             }
-            
+
             this.Log(LogLevel.Noisy, "PC@0x{3:X}: Handling getq instruction: setting X[{0}] to the value of q[{1}]: 0x{2:X}", rd, qs, qRegisters[qs], PC.RawValue);
         }
 
@@ -164,12 +197,21 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleRetirqInstruction(UInt64 opcode)
         {
-            var currentPC = PC.RawValue;
+            lock(irqLock)
+            {
+                var currentPC = PC.RawValue;
 
-            PC = qRegisters[0];
-            interruptsMasked = false;
+                PC = qRegisters[0];
+                interruptsMasked = false;
 
-            this.Log(LogLevel.Noisy, "PC@0x{1:X}: Handling retirq instruction: jumping back to 0x{0:X}", qRegisters[0], currentPC);
+                pendingInterrupts |= irqState;
+                if(IrqIsPending(out var _))
+                {
+                    TlibSetReturnRequest();
+                }
+
+                this.Log(LogLevel.Noisy, "PC@0x{1:X}: Handling retirq instruction: jumping back to 0x{0:X}", qRegisters[0], currentPC);
+            }
         }
 
         private void HandleMaskirqInstruction(UInt64 opcode)
@@ -179,15 +221,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             var newValue = (uint)X[rs].RawValue;
             var previousValue = disabledInterrupts;
-            disabledInterrupts = newValue;
-            if(rd != 0)
-            {
-                X[rd] = previousValue;
-            }
 
-            if(IrqIsPending(out var _))
+            lock(irqLock)
             {
-                TlibSetReturnRequest();
+                disabledInterrupts = newValue;
+                if(rd != 0)
+                {
+                    X[rd] = previousValue;
+                }
+
+                if(IrqIsPending(out var _))
+                {
+                    TlibSetReturnRequest();
+                }
             }
 
             this.Log(LogLevel.Noisy, "PC@0x{4:X}: Handling maskirq instruction: setting new mask of value 0x{0:X} read from register X[{1}]; old value 0x{2:X} written to X[{3}]", newValue, rs, previousValue, rd, PC.RawValue);
@@ -218,11 +264,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool interruptsMasked;
         private uint pendingInterrupts;
         private uint disabledInterrupts;
+        private uint irqState;
 
         private readonly bool latchedIrqs;
         private readonly uint resetVectorAddress;
         private readonly uint[] qRegisters;
         private readonly LimitTimer internalTimer;
+        private readonly object irqLock = new object();
 
 // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
