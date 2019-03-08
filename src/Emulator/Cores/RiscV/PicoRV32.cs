@@ -130,6 +130,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                         pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
                         break;
 
+                    case (Result)TranslationCPU.ExecutionResult.Ok:
+                        // to avoid warning
+                        break;
+
                     default:
                         this.Log(LogLevel.Warning, "Unexpected execution result: {0}", result);
                         break;
