@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Core
 
         // TODO: this probably should be dynamically get from Tlib, but how to nicely do that in `Machine` class?
         private const int AtomicMemoryStateSize = 25600;
-        
+
         public IEnumerable<IPeripheral> GetParentPeripherals(IPeripheral peripheral)
         {
             var node = registeredPeripherals.TryGetNode(peripheral);
@@ -533,7 +533,7 @@ namespace Antmicro.Renode.Core
             var entries = ClockSource.GetAllClockEntries();
 
             var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Value", "Event frequency", "Event period");
-            table.AddRows(entries, 
+            table.AddRows(entries,
                 x =>
                 {
                     var owner = x.Handler.Target;
