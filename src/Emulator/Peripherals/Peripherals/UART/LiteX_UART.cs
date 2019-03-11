@@ -12,6 +12,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
         public LiteX_UART(Machine machine) : base(machine)
