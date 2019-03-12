@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(1, out rxEventEnabled)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-             };
+            };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
