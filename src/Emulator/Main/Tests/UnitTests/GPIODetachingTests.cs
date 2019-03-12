@@ -40,7 +40,7 @@ namespace Antmicro.Renode.UnitTests
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
 
             //assert
-            Assert.AreEqual(1, connections.Count());
+            Assert.AreEqual(1, connections.Count);
         }
 
         [Test]
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.UnitTests
 
             //assert
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
-            Assert.IsNull(connections[0].Endpoint);
+            Assert.IsEmpty(connections[0].Endpoints);
         }
 
 
@@ -85,9 +85,9 @@ namespace Antmicro.Renode.UnitTests
 
             //assert
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
-            Assert.IsNull(connections[0].Endpoint);
-            Assert.IsNotNull(connections[1].Endpoint);
-            Assert.IsNotNull(connections[2].Endpoint);
+            Assert.IsEmpty(connections[0].Endpoints);
+            Assert.IsNotEmpty(connections[1].Endpoints);
+            Assert.IsNotEmpty(connections[2].Endpoints);
 
         }
 
@@ -136,12 +136,10 @@ namespace Antmicro.Renode.UnitTests
             var BConnections = B.Connections;
 
             //assert
-            Assert.IsNull(AConnections[0].Endpoint);
-            Assert.IsNull(BConnections[0].Endpoint);
-            Assert.IsNull(BConnections[1].Endpoint);
-            Assert.IsNotNull(AConnections[1].Endpoint);
-            Assert.IsTrue(BConnections.All(x => x.Value.Endpoint == null));
-            // TODO: o co tu chodzi? dlaczego dwa razy sprawdzamy BConnections czy są nullami?
+            Assert.IsEmpty(AConnections[0].Endpoints);
+            Assert.IsEmpty(BConnections[0].Endpoints);
+            Assert.IsEmpty(BConnections[1].Endpoints);
+            Assert.IsNotEmpty(AConnections[1].Endpoints);
         }
 
         [Test]
@@ -157,8 +155,11 @@ namespace Antmicro.Renode.UnitTests
 
             //act
             var gpioConnections = gpioByNumberConnectorPeripheralMock.Connections;
-            var receiver = gpioConnections[0].Endpoint.Receiver;
+            var receiver = gpioConnections[0].Endpoints[0].Receiver;
 
+            Assert.True(gpioConnections[0].Endpoints.Count == 1);
+            Assert.IsEmpty(gpioConnections[1].Endpoints);
+            Assert.IsEmpty(gpioConnections[2].Endpoints);
             Assert.True(gpioReceiverMock == receiver);
         }
     }

@@ -6,9 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core
 {
@@ -18,17 +19,7 @@ namespace Antmicro.Renode.Core
         public GPIO()
         {
             sync = new object();
-        }
-
-        public bool IsSet
-        {
-            get
-            {
-                lock(sync)
-                {
-                    return state;
-                }
-            }
+            targets = new List<GPIOEndpoint>();
         }
 
         public void Set(bool value)
@@ -41,9 +32,9 @@ namespace Antmicro.Renode.Core
                     return;
                 }
                 state = value;
-                if(target != null)
+                for(var i = 0; i < targets.Count; ++i)
                 {
-                    target.OnGPIO(targetNumber, state);
+                    targets[i].Receiver.OnGPIO(targets[i].Number, state);
                 }
             }
         }
@@ -65,9 +56,11 @@ namespace Antmicro.Renode.Core
             Validate(destination, destinationNumber);
             lock(sync)
             {
-                target = destination;
-                targetNumber = destinationNumber;
-                target.OnGPIO(destinationNumber, state);
+                if(!targets.Any(x => x.Receiver == destination && x.Number == destinationNumber))
+                {
+                    targets.Add(new GPIOEndpoint(destination, destinationNumber));
+                    destination.OnGPIO(destinationNumber, state);
+                }
             }
         }
 
@@ -75,8 +68,31 @@ namespace Antmicro.Renode.Core
         {
             lock(sync)
             {
-                target = null;
-                targetNumber = default(int);
+                targets.Clear();
+            }
+        }
+
+        public void Disconnect(GPIOEndpoint endpoint)
+        {
+            lock(sync)
+            {
+                targets.Remove(endpoint);
+            }
+        }
+
+        public override string ToString()
+        {
+            return IsSet ? "GPIO: set" : "GPIO: unset";
+        }
+
+        public bool IsSet
+        {
+            get
+            {
+                lock(sync)
+                {
+                    return state;
+                }
             }
         }
 
@@ -86,32 +102,27 @@ namespace Antmicro.Renode.Core
             {
                 lock(sync)
                 {
-                    return target != null;
+                    return targets.Count > 0;
                 }
             }
         }
 
-        public GPIOEndpoint Endpoint
+        public IList<GPIOEndpoint> Endpoints
         {
             get
             {
                 lock(sync)
                 {
-                    return target == null ? null : new GPIOEndpoint(target, targetNumber);
+                    return targets;
                 }
             }
-        }
-
-        public override string ToString()
-        {
-            return IsSet ? "GPIO: set":"GPIO: unset";
         }
 
         private static GPIOAttribute GetAttribute(IGPIOReceiver per)
         {
             return (GPIOAttribute)per.GetType().GetCustomAttributes(true).FirstOrDefault(x => x is GPIOAttribute);
         }
-
+        
         private static void Validate(IGPIOReceiver to, int toNumber)
         {
             var destPeriAttribute = GetAttribute(to);
@@ -124,10 +135,9 @@ namespace Antmicro.Renode.Core
             }           
         }
 
-        private IGPIOReceiver target;
-        private int targetNumber;
         private bool state;
         private readonly object sync;
+        private readonly IList<GPIOEndpoint> targets;
     }
 }
 

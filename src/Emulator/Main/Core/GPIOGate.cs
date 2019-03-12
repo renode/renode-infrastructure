@@ -60,6 +60,11 @@ namespace Antmicro.Renode.Core
                 throw new NotImplementedException();
             }
 
+            public void Disconnect(GPIOEndpoint endpoint)
+            {
+                throw new NotImplementedException();
+            }
+
             public void Set(bool value)
             {
                 LocalState = value;
@@ -77,7 +82,7 @@ namespace Antmicro.Renode.Core
 
             public bool IsConnected => destination.IsConnected;
 
-            public GPIOEndpoint Endpoint => destination.Endpoint;
+            public IList<GPIOEndpoint> Endpoints => destination.Endpoints;
 
             private readonly IGPIO destination;
             private readonly Action changeCallback;

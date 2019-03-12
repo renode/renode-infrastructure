@@ -94,11 +94,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                     var gaislerMics = machine.GetPeripheralsOfType<GaislerMIC>();
                     foreach (var mic in gaislerMics) 
                     {
-                        for(int micIndex=0; micIndex < mic.GetNumberOfProcessors(); micIndex++)
+                        for(var micIndex=0; micIndex < mic.GetNumberOfProcessors(); micIndex++)
                         {
-                            if (mic.GetCurrentCpuIrq(micIndex).Endpoint.Receiver == this) 
+                            var endpoints = mic.GetCurrentCpuIrq(micIndex).Endpoints;
+                            for(var i = 0; i < endpoints.Count; ++i)
                             {
-                                connectedMIC = mic;
+                                if(endpoints[i].Receiver == this)
+                                {
+                                    connectedMIC = mic;
+                                    return connectedMIC;
+                                }
                             }
                         }
                     }

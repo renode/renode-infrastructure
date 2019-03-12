@@ -5,6 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
+
 namespace Antmicro.Renode.Core
 {
     public interface IGPIO
@@ -17,8 +19,9 @@ namespace Antmicro.Renode.Core
         bool IsConnected { get; }
         void Connect(IGPIOReceiver destination, int destinationNumber);
         void Disconnect();
+        void Disconnect(GPIOEndpoint endpoint);
 
-        GPIOEndpoint Endpoint { get; }
+        IList<GPIOEndpoint> Endpoints { get; }
     }
 
     public static class IGPIOExtensions

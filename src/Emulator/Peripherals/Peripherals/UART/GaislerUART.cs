@@ -190,15 +190,12 @@ namespace Antmicro.Renode.Peripherals.UART
         
         public uint GetInterruptNumber()
         {
-            var irqEndpoint = IRQ.Endpoint;
-            if ( irqEndpoint != null )
-            {              
-                return (uint)irqEndpoint.Number;
-            }
-            else
+            var irqEndpoints = IRQ.Endpoints;
+            if(irqEndpoints.Count > 0)
             {
-                return 0;
+                return (uint)irqEndpoints[0].Number;
             }
+            return 0;
         }
         #endregion
 

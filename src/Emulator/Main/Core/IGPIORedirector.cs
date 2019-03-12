@@ -120,6 +120,11 @@ namespace Antmicro.Renode.Core
                 throw new NotImplementedException();
             }
 
+            public void Disconnect(GPIOEndpoint enpoint)
+            {
+                throw new NotImplementedException();
+            }
+
             public bool IsSet
             {
                 get
@@ -136,7 +141,7 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            public GPIOEndpoint Endpoint
+            public IList<GPIOEndpoint> Endpoints
             {
                 get
                 {

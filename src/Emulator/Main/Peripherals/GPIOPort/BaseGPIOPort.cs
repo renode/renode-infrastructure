@@ -45,10 +45,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             machine.UnregisterAsAChildOf(this, peripheral);
             foreach(var gpio in Connections.Values)
             {
-                var endpoint = gpio.Endpoint;
-                if(endpoint != null && endpoint.Number == 0 && endpoint.Receiver == peripheral)
+                var endpoints = gpio.Endpoints;
+                for(var i = 0; i < endpoints.Count; ++i)
                 {
-                    gpio.Disconnect();
+                    if(endpoints[i].Number == 0 && endpoints[i].Receiver == peripheral)
+                    {
+                        gpio.Disconnect(endpoints[i]);
+                    }
                 }
             }
         }

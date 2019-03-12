@@ -163,15 +163,12 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public uint GetInterruptNumber()
         {
-            var irqEndpoint = IRQ.Endpoint;
-            if(irqEndpoint != null)
+            var irqEndpoints = IRQ.Endpoints;
+            if(irqEndpoints.Count > 0)
             {              
-                return (uint)irqEndpoint.Number;
+                return (uint)irqEndpoints[0].Number;
             }
-            else
-            {
-                return 0;
-            }
+            return 0;
 
         }
 

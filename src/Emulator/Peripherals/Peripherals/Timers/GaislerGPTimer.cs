@@ -318,15 +318,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         
         public uint GetInterruptNumber()
         {
-            var irqEndpoint = Connections[0].Endpoint;
-            if ( irqEndpoint != null )
-            {              
-                return (uint)irqEndpoint.Number;
-            }
-            else
+            var irqEndpoints = Connections[0].Endpoints;
+            if(irqEndpoints.Count > 0)
             {
-                return 0;
+                return (uint)irqEndpoints[0].Number;
             }
+            return 0;
         }
 
         private readonly int numberOfTimers;

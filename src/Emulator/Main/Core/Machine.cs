@@ -995,9 +995,13 @@ namespace Antmicro.Renode.Core
                 {
                     foreach(var gpio in peripheral.GetGPIOs().Select(x => x.Item2))
                     {
-                        if(gpio.Endpoint != null && gpio.Endpoint.Receiver == detachedPeripheral)
+                        var endpoints = gpio.Endpoints;
+                        for(var i = 0; i < endpoints.Count; ++i)
                         {
-                            gpio.Disconnect();
+                            if(endpoints[i].Receiver == detachedPeripheral)
+                            {
+                                gpio.Disconnect(endpoints[i]);
+                            }
                         }
                     }
                 }

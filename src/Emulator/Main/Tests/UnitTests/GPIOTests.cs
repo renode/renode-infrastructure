@@ -24,17 +24,17 @@ namespace Antmicro.Renode.UnitTests
             var source = new GPIO();
             var destination = new MockReceiver();
             source.Connect(destination, 2);
-            var endpoint = source.Endpoint;
-            Assert.AreEqual(2, endpoint.Number);
-            Assert.AreEqual(destination, endpoint.Receiver);
+            var endpoint = source.Endpoints;
+            Assert.AreEqual(2, endpoint[0].Number);
+            Assert.AreEqual(destination, endpoint[0].Receiver);
         }
 
         [Test]
-        public void ShouldGiveNullOnNotConnected()
+        public void ShouldBeEmptyWhenNotConnected()
         {
             var source = new GPIO();
-            var endpoint = source.Endpoint;
-            Assert.AreEqual(null, endpoint);
+            var endpoint = source.Endpoints;
+            Assert.IsEmpty(endpoint);
         }
 
         [Test]

@@ -116,12 +116,14 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldSerializeGPIOs()
         {
-            var mocks = new GPIOMock[3];
+            var mocks = new GPIOMock[4];
             mocks[0] = new GPIOMock { Id = 1 };
             mocks[1] = new GPIOMock { Id = 2 };
             mocks[2] = new GPIOMock { Id = 3 };
+            mocks[3] = new GPIOMock { Id = 4 };
 
             mocks[0].Connections[0].Connect(mocks[1], 5);
+            mocks[0].Connections[0].Connect(mocks[3], 7);
             mocks[1].Connections[1].Connect(mocks[2], 0);
             mocks[2].Connections[2].Connect(mocks[1], 6);
             mocks[0].GPIOSet(0, true);
@@ -129,21 +131,24 @@ namespace Antmicro.Renode.UnitTests
             mocks[2].GPIOSet(2, true);
 
             var devs = Serializer.DeepClone(mocks).ToList();
-            Assert.AreEqual(3, devs.Count);
+            Assert.AreEqual(4, devs.Count);
             var mock1 = devs.First(x => x.Id == 1);
             var mock2 = devs.First(x => x.Id == 2);
             var mock3 = devs.First(x => x.Id == 3);
+            var mock4 = devs.First(x => x.Id == 4);
 
             // checking connections
-            var conn1 = mock1.Connections[0].Endpoint;
-            Assert.AreEqual(5, conn1.Number);
-            Assert.AreEqual(mock2, conn1.Receiver);
-            var conn2 = mock2.Connections[1].Endpoint;
-            Assert.AreEqual(0, conn2.Number);
-            Assert.AreEqual(mock3, conn2.Receiver);
-            var conn3 = mock3.Connections[2].Endpoint;
-            Assert.AreEqual(6, conn3.Number);
-            Assert.AreEqual(mock2, conn3.Receiver);
+            var conn1 = mock1.Connections[0].Endpoints;
+            Assert.AreEqual(5, conn1[0].Number);
+            Assert.AreEqual(7, conn1[1].Number);
+            Assert.AreEqual(mock2, conn1[0].Receiver);
+            Assert.AreEqual(mock4, conn1[1].Receiver);
+            var conn2 = mock2.Connections[1].Endpoints;
+            Assert.AreEqual(0, conn2[0].Number);
+            Assert.AreEqual(mock3, conn2[0].Receiver);
+            var conn3 = mock3.Connections[2].Endpoints;
+            Assert.AreEqual(6, conn3[0].Number);
+            Assert.AreEqual(mock2, conn3[0].Receiver);
 
             // checking signaled state
             Assert.IsTrue(mock2.HasSignaled(5), "Mock 2:5 is not signaled!");
