@@ -68,7 +68,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             currentMappings = new List<SegmentMapping>();
             isPaused = true;
             InitializeRegisters();
-            InitInterruptEvents();
             Init();
             InitDisas();
         }
@@ -290,8 +289,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [PreSerialization]
         private void PrepareState()
         {
-            interruptState = interruptEvents.Select(x => x.WaitOne(0)).ToArray();
-
             var statePtr = TlibExportState();
             BeforeSave(statePtr);
             cpuState = new byte[TlibGetStateSize()];
@@ -301,14 +298,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         [PostSerialization]
         private void FreeState()
         {
-            interruptState = null;
             cpuState = null;
         }
 
         [LatePostDeserialization]
         private void RestoreState()
         {
-            InitInterruptEvents();
             Init();
             // TODO: state of the reset events
             FreeState();
@@ -364,11 +359,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get { return DisasEngine.LogFile; }
             set { DisasEngine.LogFile = value; }
-        }
-
-        public bool IsSetEvent(int number)
-        {
-            return interruptEvents[number].WaitOne(0);
         }
 
         public SystemBus Bus
@@ -462,14 +452,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
                 {
                     TlibSetIrqWrapped(number, value);
-                }
-                if(value)
-                {
-                    interruptEvents[number].Set();
-                }
-                else
-                {
-                    interruptEvents[number].Reset();
                 }
             }
         }
@@ -768,11 +750,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected void ResetInterruptEvent(int number)
-        {
-            interruptEvents[number].Reset();
-        }
-
         private bool insideBlockHook;
 
         [Export]
@@ -978,17 +955,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract string GDBArchitecture { get; }
 
-        private void InitInterruptEvents()
-        {
-            var gpioAttr = GetType().GetCustomAttributes(true).First(x => x is GPIOAttribute) as GPIOAttribute;
-            var numberOfGPIOInputs = gpioAttr.NumberOfInputs;
-            interruptEvents = new ManualResetEvent[numberOfGPIOInputs];
-            for(var i = 0; i < interruptEvents.Length; i++)
-            {
-                interruptEvents[i] = new ManualResetEvent(interruptState != null && interruptState[i]);
-            }
-        }
-
         public uint Id { get; }
 
         private void Init()
@@ -1071,9 +1037,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 0414
         private Timer currentTimer;
         #pragma warning restore 0414
-
-        [Transient]
-        private ManualResetEvent[] interruptEvents;
 
         [Transient]
         private SimpleMemoryManager memoryManager;
@@ -1169,7 +1132,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #endregion
 
-        private bool[] interruptState;
         private Action<ulong, uint> blockBeginInternalHook;
         private Action<ulong, uint> blockBeginUserHook;
         private Action<ulong, uint> blockFinishedHook;
