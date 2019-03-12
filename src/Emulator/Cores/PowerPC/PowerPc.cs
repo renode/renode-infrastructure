@@ -129,15 +129,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void ResetInterruptEvent()
-        {
-            lock(irqSync)
-            {
-                ResetInterruptEvent(0);
-            }
-        }
-
-        [Export]
         private uint IsVleEnabled()
         {
             //this should present the current state. Now it's a stub only.
