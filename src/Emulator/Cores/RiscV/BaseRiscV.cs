@@ -36,10 +36,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
-            if(!IsValidInterrupt(number))
-            {
-                throw new ArgumentOutOfRangeException($"Unsupported exception #{number}");
-            }
 
             // we don't log warning when value is false to handle gpio initial reset
             if(privilegeArchitecture == PrivilegeArchitecture.Priv1_10 && !IsValidInterruptInV10(number) && value)
