@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // we don't log warning when value is false to handle gpio initial reset
             if(privilegeArchitecture == PrivilegeArchitecture.Priv1_10 && !IsValidInterruptInV10(number) && value)
             {
-                this.Log(LogLevel.Warning, "Interrupt {0} not supported in Privileged ISA v1.09", (IrqType)number);
+                this.Log(LogLevel.Warning, "Interrupt {0} not supported in Privileged ISA v1.10", (IrqType)number);
                 return;
             }
 
