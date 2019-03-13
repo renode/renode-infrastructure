@@ -12,6 +12,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Collections.Concurrent;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -26,7 +27,14 @@ namespace Antmicro.Renode.Utilities
         public void Start(int port)
         {
             server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            server.Bind(new IPEndPoint(IPAddress.Any, port));
+            try
+            {
+                server.Bind(new IPEndPoint(IPAddress.Any, port));
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException(e);
+            }
             server.Listen(1);
 
             listenerThread = new Thread(ListenerThreadBody) 
