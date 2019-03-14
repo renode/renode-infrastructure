@@ -107,6 +107,7 @@ namespace Antmicro.Renode.Time
             this.Trace("Starting...");
             lock(locker)
             {
+                sleeper.Enable();
                 if(!base.Start())
                 {
                     this.Trace();
@@ -126,6 +127,7 @@ namespace Antmicro.Renode.Time
             this.Trace("Stopping...");
             lock(locker)
             {
+                sleeper.Disable();
                 base.Stop();
                 this.Trace("Waiting for dispatcher thread");
                 dispatcherThread?.Join();

@@ -52,7 +52,6 @@ namespace Antmicro.Renode.Time
         public virtual void Dispose()
         {
             stopwatch.Stop();
-            sleeper.Cancel();
             using(sync.HighPriority)
             {
                 foreach(var slave in handles.All)
@@ -654,6 +653,7 @@ namespace Antmicro.Renode.Time
         protected readonly HashSet<TimeHandle> recentlyUnblockedSlaves;
         // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
         protected readonly PrioritySynchronizer sync;
+        protected readonly Sleeper sleeper;
 
         /// <summary>
         /// Used to request a pause on sinks before trying to acquire their locks.
@@ -675,7 +675,6 @@ namespace Antmicro.Renode.Time
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
-        private readonly Sleeper sleeper;
         private readonly object reportTimeProgressLock;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);
