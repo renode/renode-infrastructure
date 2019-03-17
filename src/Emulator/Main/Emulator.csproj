@@ -235,7 +235,6 @@
     <Compile Include="Peripherals\Input\IInputDevice.cs" />
     <Compile Include="Peripherals\Input\MouseButton.cs" />
     <Compile Include="Peripherals\Input\IPointerInput.cs" />
-    <Compile Include="Backends\Terminals\PromptTerminal.cs" />
     <Compile Include="Core\ExternalsManager.cs" />
     <Compile Include="Core\IExternal.cs" />
     <Compile Include="Core\Connector.cs" />
