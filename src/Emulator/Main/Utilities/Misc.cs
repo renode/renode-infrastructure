@@ -1076,6 +1076,11 @@ namespace Antmicro.Renode.Utilities
                     EthernetFrame.MinFrameSizeWithoutCRC + (addCrc ? 0 : EthernetFrame.CRCLength), data.Length);
             return false;
         }
+
+        public static string StripNonSafeCharacters(this string input)
+        {
+            return Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(input).Where(x => (x >= 32 && x <= 126) || (x == '\n')).ToArray());
+        }
     }
 }
 
