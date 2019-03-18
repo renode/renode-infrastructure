@@ -325,11 +325,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
         }
 
-        private static bool IsValidInterrupt(int irq)
-        {
-            return irq >= (int)IrqType.UserSoftwareInterrupt && irq <= (int)IrqType.MachineExternalInterrupt;
-        }
-
         private static bool IsValidInterruptInV10(int irq)
         {
             return irq != (int)IrqType.HypervisorExternalInterrupt
