@@ -8,14 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Endianess = ELFSharp.ELF.Endianess;
-using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
