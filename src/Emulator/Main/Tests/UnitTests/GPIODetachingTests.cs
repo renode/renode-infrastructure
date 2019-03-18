@@ -143,6 +143,36 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldDisconnectEndpointOfUnregisteredPeripheral()
+        {
+            // init
+            var A = new MockGPIOByNumberConnectorPeripheral(1);
+            var B = new MockGPIOByNumberConnectorPeripheral(1);
+            var C = new MockReceiver();
+
+            machine.SystemBus.Register(A, new BusRangeRegistration(0x0, 0x10));
+            machine.SystemBus.Register(B, new BusRangeRegistration(0x10, 0x10));
+            machine.SystemBus.Register(C, new BusRangeRegistration(0x20, 0x10));
+
+            // act
+            A.Connections[0].Connect(B, 1);
+            A.Connections[0].Connect(C, 1);
+            B.Connections[0].Connect(C, 1);
+            Assert.True(A.Connections[0].Endpoints.Count == 2);
+            Assert.True(B.Connections[0].Endpoints.Count == 1);
+
+            // try to connect the same endpoint as before
+            A.Connections[0].Connect(C, 1);
+            Assert.True(A.Connections[0].Endpoints.Count(x => x.Receiver == C && x.Number == 1) == 1);
+
+            machine.SystemBus.Unregister(C);
+
+            Assert.True(A.Connections[0].Endpoints.Count == 1);
+            Assert.True(A.Connections[0].Endpoints[0].Receiver == B);
+            Assert.IsEmpty(B.Connections[0].Endpoints);
+        }
+
+        [Test]
         public void ShouldConnectGPIOToReceiverAndReturnTheSameReceiver()
         {
             //init
