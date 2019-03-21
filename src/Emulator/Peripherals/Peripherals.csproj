@@ -127,6 +127,7 @@
     <Compile Include="Peripherals\Video\VybridDCU.cs" />
     <Compile Include="Peripherals\Video\PL110.cs" />
     <Compile Include="Peripherals\Video\TegraDisplay.cs" />
+    <Compile Include="Peripherals\Video\MusteinGenericGPU.cs" />
     <Compile Include="Peripherals\Network\SMC91X.cs" />
     <Compile Include="Peripherals\I2C\XIIC.cs" />
     <Compile Include="Peripherals\I2C\VybridI2C.cs" />
