@@ -153,12 +153,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool IrqIsPending(out uint interruptsToHandle)
         {
-            if(((disabledInterrupts & pendingInterrupts) & 0b11) != 0)
+            var pendingExceptions = (pendingInterrupts & ExceptionsMask);
+            if((pendingExceptions != 0) 
+                    && (interruptsMasked || ((disabledInterrupts & pendingExceptions) != 0)))
             {
                 // according to the readme:
                 // An illegal instruction or bus error while the illegal instruction or bus error interrupt is disabled will cause the processor to halt.
                 // since we currently have no nice way of halting emulation from random thread, error message must do
-                this.Log(LogLevel.Error, "Illegal instruction / bus error detected, but respective interrupt is disabled");
+                this.Log(LogLevel.Error, "Illegal instruction / bus error detected, but respective interrupt is disabled or the cpu is currently handling an IRQ");
                 interruptsToHandle = 0;
                 return false;
             }
@@ -166,10 +168,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             interruptsToHandle = pendingInterrupts & (~disabledInterrupts);
             if(interruptsMasked)
             {
-                // here I'm not sure what to do:
-                // on one hand we don't support nested events,
-                // but BUS ERROR migh happen inside the irq handler
-                interruptsToHandle &= (1u << UnalignedMemoryAccessInterruptSource);
+                interruptsToHandle = 0;
             }
 
             return interruptsToHandle != 0;
@@ -291,6 +290,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private const int TimerInterruptSource = 0;
         private const int EBreakECallIllegalInstructionInterruptSource = 1;
         private const int UnalignedMemoryAccessInterruptSource = 2;
+
+        private const uint ExceptionsMask = ((1u << UnalignedMemoryAccessInterruptSource) 
+                | (1u << EBreakECallIllegalInstructionInterruptSource));
 
         private enum Result
         {
