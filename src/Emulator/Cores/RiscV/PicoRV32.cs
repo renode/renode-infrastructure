@@ -126,7 +126,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     case Result.LoadAddressMisaligned:
                     case Result.StoreAddressMisaligned:
-                        Pause();
                         pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
                         break;
 
