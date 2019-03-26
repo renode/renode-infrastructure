@@ -8,12 +8,14 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     // this is a model of LiteX timer in the default configuration:
     // * width: 32 bits
     // * csr data width: 8 bit 
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LiteX_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
         public LiteX_Timer(Machine machine, long frequency) : base(machine)
