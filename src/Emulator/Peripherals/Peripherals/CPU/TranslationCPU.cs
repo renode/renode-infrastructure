@@ -1574,7 +1574,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncInt32 TlibGetStateSize;
 
         [Import]
-        protected FuncInt32 TlibGetExecutedInstructions;
+        protected FuncUInt64 TlibGetExecutedInstructions;
 
         [Import]
         private ActionUInt32 TlibSetBlockFinishedHookPresent;
@@ -1981,7 +1981,7 @@ restart:
             }
             finally
             {
-                numberOfExecutedInstructions = checked((ulong)TlibGetExecutedInstructions());
+                numberOfExecutedInstructions = TlibGetExecutedInstructions();
                 if(numberOfExecutedInstructions == 0)
                 {
                     this.Trace($"Asked tlib to execute {numberOfInstructionsToExecute}, but did nothing");
