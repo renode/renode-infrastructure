@@ -37,10 +37,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
                 },
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
-                    // fields implement `WriteOneToClear` semantincs to avoid fake warnings
-                    // `txEventPending` is true when fifo is not full; in our case it means always
-                    .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => true, name: "txEventPending")
-                    .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => Count != 0, name: "rxEventPending")
+                    // `txEventPending` implements `WriteOneToClear` semantics to avoid fake warnings
+                    // `txEventPending` is generated on the falling edge of TxFull; in our case it means never
+                    .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txEventPending")
+                    .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
@@ -93,15 +93,17 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            // tx fifo is never full, so `txEventPending` is always true
-            var eventPending = (rxEventEnabled.Value && Count != 0)
-                || (txEventEnabled.Value);
+            // rxEventPending is latched
+            rxEventPending.Value = (Count != 0);
 
+            // tx fifo is never full, so `txEventPending` is always false
+            var eventPending = (rxEventEnabled.Value && rxEventPending.Value);
             IRQ.Set(eventPending);
         }
 
         private IFlagRegisterField txEventEnabled;
         private IFlagRegisterField rxEventEnabled;
+        private IFlagRegisterField rxEventPending;
         private readonly DoubleWordRegisterCollection registers;
 
         private enum Registers : long
