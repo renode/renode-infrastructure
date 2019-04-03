@@ -238,6 +238,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     break;
                 case (byte)Commands.SectorErase:
                     currentOperation.Operation = Operation.Erase;
+                    currentOperation.EraseSize = EraseSize.Sector;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateNoDataCommandAddressBytes;
+                    break;
+                case (byte)Commands.DieErase:
+                    currentOperation.Operation = Operation.Erase;
+                    currentOperation.EraseSize = EraseSize.Die;
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateNoDataCommandAddressBytes;
                     break;
@@ -385,17 +392,33 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void HandleNoDataCommand()
         {
             // The documentation describes more commands that don't have any data bytes (just code + address)
-            // but at the moment we have implemented only one
+            // but at the moment we have implemented just these ones
             switch(currentOperation.Operation)
             {
                 case Operation.Erase:
                     if(enable.Value)
                     {
-                        EraseSector();
+                        if(currentOperation.ExecutionAddress >= fileBackendSize)
+                        {
+                            this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
+                            return;
+                        }
+                        switch(currentOperation.EraseSize)
+                        {
+                            case EraseSize.Sector:
+                                EraseSector();
+                                break;
+                            case EraseSize.Die:
+                                EraseDie();
+                                break;
+                            default:
+                                this.Log(LogLevel.Warning, "Unsupported erase type: {0}", currentOperation.EraseSize);
+                                break;
+                        }
                     }
                     else
                     {
-                        this.Log(LogLevel.Error, "Sector erase operations are disabled.");
+                        this.Log(LogLevel.Error, "Erase operations are disabled.");
                     }
                     break;
                 default:
@@ -404,13 +427,25 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private void EraseDie()
+        {
+            var position = 0;
+            var segment = new byte[SegmentSize];
+            for(var i = 0; i < SegmentSize; i++)
+            {
+                segment[i] = EmptySegment;
+            }
+            while(position < dataBackend.Length)
+            {
+                var length = (int)Math.Min(SegmentSize, dataBackend.Length - position);
+                dataBackend.Position = position;
+                dataBackend.Write(segment, 0, length);
+                position += length;
+            }
+        }
+
         private void EraseSector()
         {
-            if(currentOperation.ExecutionAddress >= fileBackendSize)
-            {
-                this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} is bigger than configured memory size.", currentOperation.ExecutionAddress);
-                return;
-            }
             var segment = new byte[SegmentSize];
             for(var i = 0; i < SegmentSize; i++)
             {
@@ -472,6 +507,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             public Operation Operation;
             public Register Register;
+            public EraseSize EraseSize;
             public int AddressLength
             {
                 get
@@ -505,6 +541,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             private byte[] AddressBytes;
             private int addressLength;
             private int currentAddressByte;
+        }
+
+        private enum EraseSize
+        {
+            Die = 1, // starting from 1 to leave 0 as explicitly unused
+            Sector,
+            Subsector32K,
+            Subsector4K
         }
 
         private enum Commands : byte
