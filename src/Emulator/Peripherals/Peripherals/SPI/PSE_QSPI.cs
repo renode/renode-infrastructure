@@ -40,7 +40,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.Frames, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out totalBytes, writeCallback: (_,__) => bytesSent = 0, name: "TOTALBYTES")
+                    .WithValueField(0, 16, writeCallback: (_, value) =>
+                        {
+                            BitHelper.UpdateWith(ref totalBytes, value, 0, 16);
+                            bytesSent = 0;
+                        }, valueProviderCallback: _ => totalBytes, name: "TOTALBYTES")
                     .WithValueField(16, 9, out commandBytes, name: "CMDBYTES")
                     .WithTag("QSPI", 25, 1)
                     .WithTag("IDLE", 26, 4)
@@ -139,6 +143,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                         },
                         name: "TXDATA4")
                 },
+                // this register intentionally exposes the whole register for reading and the upper bytes for writing
+                {(long)Registers.FramesUpper, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: (_) => totalBytes, name: "BYTESLOWER")
+                    .WithValueField(16, 16, writeCallback: (_, value) => BitHelper.UpdateWithShifted(ref totalBytes, value, 16, 16),
+                        valueProviderCallback: _ => totalBytes >> 16, name: "BYTESUPPER")
+                }
             };
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
@@ -216,13 +226,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(enabled.Value)
             {
                 // reception
-                if(commandBytes.Value != totalBytes.Value)
+                if(commandBytes.Value != totalBytes)
                 {
                     // 1 command byte
                     if(commandBytes.Value == 1)
                     {
                         HandleByteTransmission(val);
-                        for(var i = bytesSent; i < totalBytes.Value; i++)
+                        for(var i = bytesSent; i < totalBytes; i++)
                         {
                             HandleByteReception();
                         }
@@ -236,7 +246,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                         if(bytesSent == commandBytes.Value)
                         {
-                            for(var i = bytesSent; i < totalBytes.Value; i++)
+                            for(var i = bytesSent; i < totalBytes; i++)
                             {
                                 HandleByteReception();
                             }
@@ -246,7 +256,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 // transmission
                 else
                 {
-                    if(bytesSent < totalBytes.Value)
+                    if(bytesSent < totalBytes)
                     {
                         HandleByteTransmission(val);
                     }
@@ -269,7 +279,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void TryFinishTransmission()
         {
             bytesSent++;
-            if(bytesSent == totalBytes.Value)
+            if(bytesSent == totalBytes)
             {
                 RegisteredPeripheral.FinishTransmission();
             }
@@ -302,7 +312,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField enabled;
         private readonly IFlagRegisterField xipMode;
         private readonly IEnumRegisterField<XIPAddressBytes> xipAddressBytes;
-        private readonly IValueRegisterField totalBytes;
         private readonly IValueRegisterField commandBytes;
         private readonly IFlagRegisterField x4Enabled;
         private readonly IValueRegisterField upperAddress;
@@ -313,6 +322,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField rxAvailableInterruptEnabled;
         private readonly IFlagRegisterField txAvailableInterruptEnabled;
         private readonly IFlagRegisterField rxFifoEmptyInterruptEnabled;
+        private uint totalBytes;
 
         //Registers are aliased every 256 bytes
         private const int RegisterAliasSize = 256;
@@ -336,7 +346,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             RxData1 = 0x40,
             TxData1 = 0x44,
             RxData4 = 0x48,
-            TxData4 = 0x4c
+            TxData4 = 0x4c,
+            FramesUpper = 0x50,
         }
     }
 }
