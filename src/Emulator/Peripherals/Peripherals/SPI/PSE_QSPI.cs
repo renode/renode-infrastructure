@@ -119,8 +119,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                                 var value = 0u;
                                 for(var i = 0; i < 4; ++i)
                                 {
-                                    value <<= 8;
-                                    value |= receiveFifo.Dequeue();
+                                    value |= (uint)receiveFifo.Dequeue() << (8 * i);
                                 }
                                 return value;
                             }
@@ -136,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithValueField(0, 32, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
-                            for(var i = 3; i >= 0; i--)
+                            for(var i = 0; i < 4; i++)
                             {
                                 HandleByte(BitHelper.GetValue(val, i * 8, 8));
                             }
