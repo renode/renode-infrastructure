@@ -27,6 +27,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.dataEndianess = dataEndianess;
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
             nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out numberOfAddressBytes, name: "addressWith3Bytes");
+            enhancedVolatileConfigurationRegister = new ByteRegister(this, 0xff)
+                .WithValueField(0, 3, name: "Output driver strength")
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("Reset/hold", 4)
+                //these flags are intentionally not implemented, as they described physical details
+                .WithFlag(5, name: "Double transfer rate protocol")
+                .WithFlag(6, name: "Dual I/O protocol")
+                .WithFlag(7, name: "Quad I/O protocol");
             statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
             fileBackendSize = (uint)size;
             isCustomFileBackend = false;
@@ -264,6 +272,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.Operation = Operation.WriteRegister;
                     currentOperation.Register = Register.NonVolatileConfiguration;
                     break;
+                case (byte)Commands.ReadEnhancedVolatileConfigurationRegister:
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.EnhancedVolatileConfiguration;
+                    break;
+                case (byte)Commands.WriteEnhancedVolatileConfigurationRegister:
+                    currentOperation.Operation = Operation.WriteRegister;
+                    currentOperation.Register = Register.EnhancedVolatileConfiguration;
+                    break;
                 default:
                     this.Log(LogLevel.Error, "Command decoding failed on byte: {0}.", firstByte);
                     return;
@@ -352,8 +368,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                     break;
                 //listing all cases as other registers are not writable at all
-                case Register.Status:
                 case Register.EnhancedVolatileConfiguration:
+                    enhancedVolatileConfigurationRegister.Write(0, data);
+                    break;
+                case Register.Status:
                 default:
                     this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
                     break;
@@ -382,6 +400,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return 0;
                 case Register.FlagStatus:
                 case Register.EnhancedVolatileConfiguration:
+                    return enhancedVolatileConfigurationRegister.Read();
                 case Register.ExtendedAddress:
                 default:
                     this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
@@ -492,6 +511,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly ByteRegister statusRegister;
         private readonly IFlagRegisterField numberOfAddressBytes;
         private readonly ByteRegister volatileConfigurationRegister;
+        private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
 
         private const byte EmptySegment = 0xff;
