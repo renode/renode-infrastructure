@@ -583,6 +583,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             SubsectorErase4kb = 0x20,
             SectorErase = 0xD8,
             BulkErase = 0x60,
+            DieErase = 0xC4,
 
             // ERASE Operations with 4-Byte Address
             SectorErase4byte = 0xDC,
