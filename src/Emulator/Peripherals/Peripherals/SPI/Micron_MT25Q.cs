@@ -613,11 +613,23 @@ namespace Antmicro.Renode.Peripherals.SPI
             ReadID,
             Program,
             Erase,
+            ReadRegister,
+            WriteRegister,
             ReadStatusRegister,
             ReadVolatileConfigurationRegister,
             WriteVolatileConfigurationRegister,
             ReadNonVolatileConfigurationRegister,
             WriteNonVolatileConfigurationRegister
+        }
+
+        private enum Register
+        {
+            Status = 1, //starting from 1 to leave 0 as an unused value
+            FlagStatus,
+            ExtendedAddress,
+            NonVolatileConfiguration,
+            VolatileConfiguration,
+            EnhancedVolatileConfiguration
         }
     }
 
