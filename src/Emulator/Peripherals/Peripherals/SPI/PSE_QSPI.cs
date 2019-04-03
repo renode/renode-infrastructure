@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                 {(long)Registers.Frames, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out totalBytes, writeCallback: (_,__) => bytesSent = 0, name: "TOTALBYTES")
-                    .WithValueField(16, 8, out commandBytes, name: "CMDBYTES")
+                    .WithValueField(16, 9, out commandBytes, name: "CMDBYTES")
                     .WithTag("QSPI", 25, 1)
                     .WithTag("IDLE", 26, 4)
                     .WithFlag(30, valueProviderCallback: (_) => false,
@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 // The documentation is ambiguous on this register.
                 // It says 4 bytes must be read from the FIFO, but does not state precisely what happens
                 // when there is not enough data. This model ignores the read until there are at least 4 bytes to be read.
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: (_) =>
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) =>
                     {
                         lock(locker)
                         {
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.TxData4, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Write,
+                    .WithValueField(0, 32, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
                             for(var i = 3; i >= 0; i--)
