@@ -25,9 +25,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.Control, new DoubleWordRegister(this, 0x502)
+                {(long)Registers.Control, new DoubleWordRegister(this, 0x402) //the docs report 0x502, but this lights up a reserved bit.
                     .WithFlag(0, out enabled, name: "ENABLE")
-                    .WithTag("MASTER", 1, 1)
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "MASTER")
                     .WithFlag(2, out xipMode, name: "XIP")
                     .WithEnumField(3, 1, out xipAddressBytes, name: "XIPADDR")
                     .WithReservedBits(4, 6)
