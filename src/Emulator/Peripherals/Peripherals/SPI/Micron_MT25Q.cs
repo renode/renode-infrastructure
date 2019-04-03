@@ -36,6 +36,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(6, name: "Dual I/O protocol")
                 .WithFlag(7, name: "Quad I/O protocol");
             statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
+            flagStatusRegister = new ByteRegister(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
+                //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
+                .WithReservedBits(3, 1);
             fileBackendSize = (uint)size;
             isCustomFileBackend = false;
             dataBackend = DataStorage.Create(fileBackendSize, 0xFF);
@@ -256,6 +260,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateNoDataCommandAddressBytes;
                     break;
+                case (byte)Commands.ReadFlagStatusRegister:
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.FlagStatus;
+                    break;
                 case (byte)Commands.ReadVolatileConfigurationRegister:
                     currentOperation.Operation = Operation.ReadRegister;
                     currentOperation.Register = Register.VolatileConfiguration;
@@ -386,6 +394,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     // The documentation states that at least 1 byte will be read
                     // If more than 1 byte is read, the same byte is returned
                     return statusRegister.Value;
+                case Register.FlagStatus:
+                    // The documentation states that at least 1 byte will be read
+                    // If more than 1 byte is read, the same byte is returned
+                    return flagStatusRegister.Read();
                 case Register.VolatileConfiguration:
                     // The documentation states that at least 1 byte will be read
                     // If more than 1 byte is read, the same byte is returned
@@ -398,7 +410,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                         return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Value, currentOperation.CommandBytesHandled * 8, 8);
                     }
                     return 0;
-                case Register.FlagStatus:
                 case Register.EnhancedVolatileConfiguration:
                     return enhancedVolatileConfigurationRegister.Read();
                 case Register.ExtendedAddress:
@@ -509,6 +520,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly int SegmentSize = 64.KB();
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister statusRegister;
+        private readonly ByteRegister flagStatusRegister;
         private readonly IFlagRegisterField numberOfAddressBytes;
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
