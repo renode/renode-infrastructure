@@ -570,6 +570,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return false;
             }
 
+            public override string ToString()
+            {
+                return $"Operation: {Operation}"
+                    .AppendIf(Operation == Operation.ReadRegister || Operation == Operation.WriteRegister, $", register: {Register}")
+                    .AppendIf(EraseSize != 0, $", erase size: {EraseSize}")
+                    .AppendIf(AddressLength != 0, $", address length: {AddressLength}")
+                    .ToString();
+            }
+
             private byte[] AddressBytes;
             private int addressLength;
             private int currentAddressByte;
