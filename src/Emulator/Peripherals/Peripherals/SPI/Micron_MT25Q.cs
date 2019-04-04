@@ -88,6 +88,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             state = State.RecognizeOperation;
             currentOperation = default(DecodedOperation);
+            temporaryNonVolatileConfiguration = 0;
         }
 
         public void Reset()
@@ -374,7 +375,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                         this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", Register.NonVolatileConfiguration);
                         break;
                     }
-                    nonVolatileConfigurationRegister.Write(currentOperation.CommandBytesHandled * 8, data);
+                    BitHelper.UpdateWithShifted(ref temporaryNonVolatileConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
+                    if(currentOperation.CommandBytesHandled == 1)
+                    {
+                        nonVolatileConfigurationRegister.Write(0, (ushort)temporaryNonVolatileConfiguration);
+                    }
                     break;
                 //listing all cases as other registers are not writable at all
                 case Register.EnhancedVolatileConfiguration:
@@ -514,6 +519,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private Stream dataBackend;
         private bool isCustomFileBackend;
         private DecodedOperation currentOperation;
+        private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly Endianess dataEndianess;
         private readonly byte[] deviceData;
