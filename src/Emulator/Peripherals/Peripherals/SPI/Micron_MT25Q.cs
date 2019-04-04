@@ -92,8 +92,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void Reset()
         {
+            statusRegister.Reset();
+            flagStatusRegister.Reset();
             volatileConfigurationRegister.Reset();
             nonVolatileConfigurationRegister.Reset();
+            enhancedVolatileConfigurationRegister.Reset();
             FinishTransmission();
         }
 
