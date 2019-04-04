@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2019 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -534,7 +534,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly WordRegister nonVolatileConfigurationRegister;
 
         private const byte EmptySegment = 0xff;
-
         private const byte ManufacturerID = 0x20;
         private const byte RemainingIDBytes = 0x10;
         private const byte MemoryType = 0xBB;           // device voltage: 1.8V
