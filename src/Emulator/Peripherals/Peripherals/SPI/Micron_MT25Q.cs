@@ -82,10 +82,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case Operation.Program:
                 case Operation.Erase:
                 case Operation.WriteRegister:
-                    if(currentOperation.Register == Register.VolatileConfiguration)
-                    {
-                        enable.Value = false;
-                    }
+                    //although the docs are not clear, it seems that all register writes should clear the flag
+                    enable.Value = false;
                     break;
             }
             state = State.RecognizeOperation;
