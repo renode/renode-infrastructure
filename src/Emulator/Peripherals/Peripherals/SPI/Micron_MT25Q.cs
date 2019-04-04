@@ -230,10 +230,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateCommandAddressBytes;
                     break;
-                case (byte)Commands.ReadStatusRegister:
-                    currentOperation.Operation = Operation.ReadRegister;
-                    currentOperation.Register = Register.Status;
-                    break;
                 case (byte)Commands.PageProgram:
                 case (byte)Commands.DualInputFastProgram:
                 case (byte)Commands.ExtendedDualInputFastProgram:
@@ -262,6 +258,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.EraseSize = EraseSize.Die;
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateNoDataCommandAddressBytes;
+                    break;
+                case (byte)Commands.ReadStatusRegister:
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.Status;
+                    break;
+                case (byte)Commands.WriteStatusRegister:
+                    currentOperation.Operation = Operation.WriteRegister;
+                    currentOperation.Register = Register.Status;
                     break;
                 case (byte)Commands.ReadFlagStatusRegister:
                     currentOperation.Operation = Operation.ReadRegister;
@@ -353,17 +357,15 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void WriteRegister(Register register, byte data)
         {
+            if(!enable.Value)
+            {
+                this.Log(LogLevel.Error, "Trying to write a register, but write enable latch is not set");
+                return;
+            }
             switch(register)
             {
                 case Register.VolatileConfiguration:
-                    if(enable.Value)
-                    {
-                        volatileConfigurationRegister.Write(0, data);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Volatile register writes are disabled.");
-                    }
+                    volatileConfigurationRegister.Write(0, data);
                     break;
                 case Register.NonVolatileConfiguration:
                     if((currentOperation.CommandBytesHandled) >= 2)
@@ -371,14 +373,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", Register.NonVolatileConfiguration);
                         break;
                     }
-                    if(enable.Value)
-                    {
-                        nonVolatileConfigurationRegister.Write(currentOperation.CommandBytesHandled * 8, data);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Nonvolatile register writes are disabled.");
-                    }
+                    nonVolatileConfigurationRegister.Write(currentOperation.CommandBytesHandled * 8, data);
                     break;
                 //listing all cases as other registers are not writable at all
                 case Register.EnhancedVolatileConfiguration:
@@ -398,7 +393,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case Register.Status:
                     // The documentation states that at least 1 byte will be read
                     // If more than 1 byte is read, the same byte is returned
-                    return statusRegister.Value;
+                    return statusRegister.Read();
                 case Register.FlagStatus:
                     // The documentation states that at least 1 byte will be read
                     // If more than 1 byte is read, the same byte is returned
@@ -406,13 +401,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case Register.VolatileConfiguration:
                     // The documentation states that at least 1 byte will be read
                     // If more than 1 byte is read, the same byte is returned
-                    return volatileConfigurationRegister.Value;
+                    return volatileConfigurationRegister.Read();
                 case Register.NonVolatileConfiguration:
                     // The documentation states that at least 2 bytes will be read
                     // After all 16 bits of the register have been read, 0 is returned
                     if((currentOperation.CommandBytesHandled) < 2)
                     {
-                        return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Value, currentOperation.CommandBytesHandled * 8, 8);
+                        return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Read(), currentOperation.CommandBytesHandled * 8, 8);
                     }
                     return 0;
                 case Register.EnhancedVolatileConfiguration:
