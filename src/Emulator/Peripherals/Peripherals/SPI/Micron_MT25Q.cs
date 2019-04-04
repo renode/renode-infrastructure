@@ -106,6 +106,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public byte Transmit(byte data)
         {
+            this.Log(LogLevel.Noisy, "Transmitting data 0x{0:X}, current state: {1}", data, state);
             switch(state)
             {
                 case State.RecognizeOperation:
@@ -243,11 +244,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     state = State.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.WriteEnable:
+                    this.Log(LogLevel.Noisy, "Setting write enable latch");
                     enable.Value = true;
-                    break;
+                    return; //return to prevent further logging
                 case (byte)Commands.WriteDisable:
+                    this.Log(LogLevel.Noisy, "Unsetting write enable latch");
                     enable.Value = false;
-                    break;
+                    return; //return to prevent further logging
                 case (byte)Commands.SectorErase:
                     currentOperation.Operation = Operation.Erase;
                     currentOperation.EraseSize = EraseSize.Sector;
@@ -289,9 +292,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.Register = Register.EnhancedVolatileConfiguration;
                     break;
                 default:
-                    this.Log(LogLevel.Error, "Command decoding failed on byte: {0}.", firstByte);
+                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X}.", firstByte);
                     return;
             }
+            this.Log(LogLevel.Noisy, "Decoded operation: {0}, write enabled {1}", currentOperation, enable.Value);
         }
 
         private void AccumulateAddressBytes(byte data, State nextState)
@@ -343,6 +347,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     break;
             }
             currentOperation.CommandBytesHandled++;
+            this.Log(LogLevel.Noisy, "Handled command: {0}, returning 0x{1:X}", currentOperation, result);
             return result;
         }
 
