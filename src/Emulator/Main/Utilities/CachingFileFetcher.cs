@@ -212,7 +212,15 @@ namespace Antmicro.Renode.Utilities
             strBldr.AppendFormat("Downloading: {0}", uri);
             if(bytesDownloaded.HasValue && totalBytes.HasValue)
             {
-                strBldr.AppendFormat("\nProgress: {0}% ({1}B/{2}B)", progressPercentage, Misc.NormalizeBinary(bytesDownloaded.Value), Misc.NormalizeBinary(totalBytes.Value));
+                // A workaround for a bug in Mono misreporting TotalBytesToReceive
+                if(totalBytes == -1)
+                {
+                    strBldr.AppendFormat("\nProgress: {0}B downloaded", Misc.NormalizeBinary(bytesDownloaded.Value));
+                }
+                else
+                {
+                    strBldr.AppendFormat("\nProgress: {0}% ({1}B/{2}B)", progressPercentage, Misc.NormalizeBinary(bytesDownloaded.Value), Misc.NormalizeBinary(totalBytes.Value));
+                }
             }
             if(speed != null)
             {
