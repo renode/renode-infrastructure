@@ -47,6 +47,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 {(long)Registers.NetworkConfiguration, new DoubleWordRegister(this, 0x80000)
                     .WithValueField(14, 2, out receiveBufferOffset, name: "RXOFFS")
+                    .WithFlag(17, out removeFrameChecksum, name: "RFCS")
                     .WithFlag(26, out ignoreRxFCS, name: "FCSIGNORE")
                 },
 
@@ -216,7 +217,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 rxDescriptorsQueue.CurrentDescriptor.Invalidate();
                 if(!rxDescriptorsQueue.CurrentDescriptor.Ownership)
                 {
-                    if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, receiveBufferOffset.Value))
+                    var actualLength = (uint)(removeFrameChecksum.Value ? frame.Bytes.Length - 4 : frame.Bytes.Length);
+                    if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, actualLength, receiveBufferOffset.Value))
                     {
                         // The current implementation doesn't handle packets that do not fit into a single buffer.
                         // In case we encounter this error, we probably should implement partitioning/scattering procedure.
@@ -362,6 +364,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IFlagRegisterField ignoreRxFCS;
         private readonly IFlagRegisterField bufferNotAvailable;
         private readonly IFlagRegisterField frameReceived;
+        private readonly IFlagRegisterField removeFrameChecksum;
         private readonly IValueRegisterField receiveBufferOffset;
 
         private readonly InterruptManager<Interrupts> interruptManager;
@@ -480,14 +483,14 @@ namespace Antmicro.Renode.Peripherals.Network
             {
             }
 
-            public bool WriteBuffer(byte[] bytes, uint offset = 0)
+            public bool WriteBuffer(byte[] bytes, uint length, uint offset = 0)
             {
                 if(Ownership || bytes.Length > MaximumBufferLength)
                 {
                     return false;
                 }
 
-                Length = (uint)bytes.Length;
+                Length = length;
                 bus.WriteBytes(bytes, BufferAddress + offset, true);
                 Ownership = true;
 
