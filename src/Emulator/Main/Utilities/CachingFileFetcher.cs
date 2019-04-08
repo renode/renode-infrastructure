@@ -213,6 +213,7 @@ namespace Antmicro.Renode.Utilities
             if(bytesDownloaded.HasValue && totalBytes.HasValue)
             {
                 // A workaround for a bug in Mono misreporting TotalBytesToReceive
+                // https://github.com/mono/mono/issues/9808
                 if(totalBytes == -1)
                 {
                     strBldr.AppendFormat("\nProgress: {0}B downloaded", Misc.NormalizeBinary(bytesDownloaded.Value));
