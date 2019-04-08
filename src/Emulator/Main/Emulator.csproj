@@ -263,6 +263,7 @@
     <Compile Include="Peripherals\CPU\IControllableCPU.cs" />
     <Compile Include="Utilities\ConfigurationManager.cs" />
     <Compile Include="Testing\LEDTester.cs" />
+    <Compile Include="Testing\NetworkInterfaceTester.cs" />
     <Compile Include="Core\IGPIOSender.cs" />
     <Compile Include="Testing\TimeoutExecutor.cs" />
     <Compile Include="Core\BinaryFingerprint.cs" />
