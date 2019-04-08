@@ -89,7 +89,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     valueProviderCallback: _ => (uint)innerTimers[(int)Timer.TimerA].Limit,
                     writeCallback: (_, value) =>
                     {
-                        innerTimers[idx].Limit = value;
+                        // the effective limit value is 1 higher than the value written to the register
+                        innerTimers[idx].Limit = value + 1; 
                     }
                 );
             });
