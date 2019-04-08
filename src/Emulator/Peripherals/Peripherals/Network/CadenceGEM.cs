@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2019 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,8 @@
 using System;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -30,6 +32,14 @@ namespace Antmicro.Renode.Peripherals.Network
             sync = new object();
 
             interruptManager = new InterruptManager<Interrupts>(this);
+
+            nanoTimer = new LimitTimer(machine.ClockSource, NanosPerSecond, this, "PTP nanos",
+                    limit: NanosPerSecond,
+                    direction: Direction.Ascending,
+                    workMode: WorkMode.Periodic,
+                    eventEnabled: true);
+
+            nanoTimer.LimitReached += () => secTimer.Value++;
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -166,6 +176,100 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(21, FieldMode.Read, name: "GEM_TX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the transmitter packet buffer
                     .WithFlag(20, FieldMode.Read, name: "GEM_RX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the receiver packet buffer
                 },
+
+                {(long)Registers.Timer1588SecondsLow, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, out secTimer, name: "TCS")
+                },
+
+                {(long)Registers.Timer1588SecondsHigh, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
+                    {
+                        if(value != 0)
+                        {
+                            this.Log(LogLevel.Warning, "Writing a non-zero value to the SecondsHigh register, timer values over 32 bits are not supported.");
+                        }
+                    }, name: "TSH")
+                },
+
+                {(long)Registers.Timer1588Nanoseconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 29, valueProviderCallback: _ =>
+                    {
+                        return (uint)nanoTimer.Value;
+                    }, writeCallback: (_, value) =>
+                    {
+                        nanoTimer.Value = value;
+                    }, name: "TNS")
+                    .WithReservedBits(30, 2)
+                },
+
+                {(long)Registers.Timer1588Adjust, new DoubleWordRegister(this)
+                    .WithValueField(0, 29, out var timerIncrementDecrement, FieldMode.Write, name: "ITDT")
+                    .WithReservedBits(30, 1)
+                    .WithFlag(31, out var timerAdjust, FieldMode.Write, name: "ADJ")
+                    .WithWriteCallback((_, __) =>
+                    {
+                        if(timerAdjust.Value)
+                        {
+                            secTimer.Value -= nanoTimer.Decrement(timerIncrementDecrement.Value);
+                        }
+                        else
+                        {
+                            secTimer.Value += nanoTimer.Increment(timerIncrementDecrement.Value);
+                        }
+                    })
+                },
+
+                {(long)Registers.PtpEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                },
+
+                {(long)Registers.PtpEventFrameTransmittedSeconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "RUD")
+                },
+
+                {(long)Registers.PtpEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "RUD")
+                    .WithReservedBits(30, 2)
+                },
+
+                {(long)Registers.PtpEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                },
+
+                {(long)Registers.PtpEventFrameReceivedSeconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "RUD")
+                },
+
+                {(long)Registers.PtpEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "RUD")
+                    .WithReservedBits(30, 2)
+                },
+
+                {(long)Registers.PtpPeerEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                },
+
+                {(long)Registers.PtpPeerEventFrameTransmittedSeconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "RUD")
+                },
+
+                {(long)Registers.PtpPeerEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "RUD")
+                    .WithReservedBits(30, 2)
+                },
+
+                {(long)Registers.PtpPeerEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                },
+
+                {(long)Registers.PtpPeerEventFrameReceivedSeconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "RUD")
+                },
+
+                {(long)Registers.PtpPeerEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "RUD")
+                    .WithReservedBits(30, 2)
+                }
             };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -179,6 +283,8 @@ namespace Antmicro.Renode.Peripherals.Network
             txDescriptorsQueue = null;
             rxDescriptorsQueue = null;
             phyDataRead = 0;
+            nanoTimer.Reset();
+            nanoTimer.Enabled = true;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -241,6 +347,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     interruptManager.SetInterrupt(Interrupts.ReceiveUsedBitRead);
                 }
             }
+
+            // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
+            // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
+            rxPacketTimestamp.seconds = secTimer.Value;
+            rxPacketTimestamp.nanos = (uint)nanoTimer.Value;
         }
 
         public event Action<EthernetFrame> FrameReady;
@@ -308,6 +419,11 @@ namespace Antmicro.Renode.Peripherals.Network
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
             FrameReady?.Invoke(frame);
 
+            // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
+            // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
+            txPacketTimestamp.seconds = secTimer.Value;
+            txPacketTimestamp.nanos = (uint)nanoTimer.Value;
+
             void EnsureArrayLength(int length)
             {
                 if(bytesArray.Length < length)
@@ -366,10 +482,16 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IFlagRegisterField frameReceived;
         private readonly IFlagRegisterField removeFrameChecksum;
         private readonly IValueRegisterField receiveBufferOffset;
+        private readonly IValueRegisterField secTimer;
 
         private readonly InterruptManager<Interrupts> interruptManager;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object sync;
+
+        private readonly LimitTimer nanoTimer;
+
+        private PTPTimestamp txPacketTimestamp;
+        private PTPTimestamp rxPacketTimestamp;
 
         private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
         {
@@ -559,6 +681,14 @@ namespace Antmicro.Renode.Peripherals.Network
                 get { return BitHelper.IsBitSet(words[1], 31); }
                 set { BitHelper.SetBit(ref words[1], 31, value); }
             }
+        }
+
+        private const uint NanosPerSecond = 1000000000;
+
+        private struct PTPTimestamp
+        {
+            public uint seconds;
+            public uint nanos;
         }
 
         private enum Interrupts
