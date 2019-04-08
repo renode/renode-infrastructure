@@ -99,7 +99,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.InterruptStatus, interruptManager.GetRegister<DoubleWordRegister>(
-                    valueProviderCallback: (interrupt, oldValue) => interruptManager.IsSet(interrupt) && interruptManager.IsEnabled(interrupt),
+                    valueProviderCallback: (interrupt, oldValue) =>
+                    {
+                        var status = interruptManager.IsSet(interrupt) && interruptManager.IsEnabled(interrupt);
+                        interruptManager.ClearInterrupt(interrupt);
+
+                        return status;
+                    },
                     writeCallback: (interrupt, oldValue, newValue) =>
                     {
                         if(newValue)
