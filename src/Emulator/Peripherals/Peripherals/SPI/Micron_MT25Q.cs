@@ -133,6 +133,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 HandleNoDataCommand();
             }
             return 0;
+
+            void AccumulateAddressBytes(byte addressByte, State nextState)
+            {
+                if(currentOperation.TryAccumulateAddress(addressByte))
+                {
+                    state = nextState;
+                }
+            }
         }
 
         public uint ReadDoubleWord(long localOffset)
@@ -302,14 +310,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return;
             }
             this.Log(LogLevel.Noisy, "Decoded operation: {0}, write enabled {1}", currentOperation, enable.Value);
-        }
-
-        private void AccumulateAddressBytes(byte data, State nextState)
-        {
-            if(currentOperation.TryAccumulateAddress(data))
-            {
-                state = nextState;
-            }
         }
 
         private byte HandleCommand(byte data)
