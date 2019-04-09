@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2019 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -27,7 +27,19 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.dataEndianess = dataEndianess;
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
             nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out numberOfAddressBytes, name: "addressWith3Bytes");
+            enhancedVolatileConfigurationRegister = new ByteRegister(this, 0xff)
+                .WithValueField(0, 3, name: "Output driver strength")
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("Reset/hold", 4)
+                //these flags are intentionally not implemented, as they described physical details
+                .WithFlag(5, name: "Double transfer rate protocol")
+                .WithFlag(6, name: "Dual I/O protocol")
+                .WithFlag(7, name: "Quad I/O protocol");
             statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
+            flagStatusRegister = new ByteRegister(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
+                //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
+                .WithReservedBits(3, 1);
             fileBackendSize = (uint)size;
             isCustomFileBackend = false;
             dataBackend = DataStorage.Create(fileBackendSize, 0xFF);
@@ -65,26 +77,27 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             // If an operation has at least 1 data byte or more than 0 address bytes,
             // we can clear the write enable flag only when we are finishing a transmission.
-            switch(currentOperation)
+            switch(currentOperation.Operation)
             {
                 case Operation.Program:
                 case Operation.Erase:
-                case Operation.WriteVolatileConfigurationRegister:
+                case Operation.WriteRegister:
+                    //although the docs are not clear, it seems that all register writes should clear the flag
                     enable.Value = false;
                     break;
             }
-            address = null;
-            currentAddressByte = 0;
-            commandBytesHandled = 0;
-            commandAddressBytesCount = 0;
             state = State.RecognizeOperation;
-            currentOperation = Operation.None;
+            currentOperation = default(DecodedOperation);
+            temporaryNonVolatileConfiguration = 0;
         }
 
         public void Reset()
         {
+            statusRegister.Reset();
+            flagStatusRegister.Reset();
             volatileConfigurationRegister.Reset();
             nonVolatileConfigurationRegister.Reset();
+            enhancedVolatileConfigurationRegister.Reset();
             FinishTransmission();
         }
 
@@ -95,20 +108,19 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public byte Transmit(byte data)
         {
+            this.Log(LogLevel.Noisy, "Transmitting data 0x{0:X}, current state: {1}", data, state);
             switch(state)
             {
                 case State.RecognizeOperation:
                     // When the command is decoded, depending on the operation we will either start accumulating address bytes
                     // or immediately handle the command bytes
-                    currentOperation = RecognizeOperation(data);
+                    RecognizeOperation(data);
                     break;
                 case State.AccumulateCommandAddressBytes:
-                    // Warning: `commandExecutionAddress` value is intentionally `0` during the aggregation process
-                    commandExecutionAddress = AccumulateAddressBytes(data, State.HandleCommand);
+                    AccumulateAddressBytes(data, State.HandleCommand);
                     break;
                 case State.AccumulateNoDataCommandAddressBytes:
-                    // Warning: `commandExecutionAddress` value is intentionally `0` during the aggregation process
-                    commandExecutionAddress = AccumulateAddressBytes(data, State.HandleNoDataCommand);
+                    AccumulateAddressBytes(data, State.HandleNoDataCommand);
                     break;
                 case State.HandleCommand:
                     // Process the remaining command bytes
@@ -121,6 +133,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 HandleNoDataCommand();
             }
             return 0;
+
+            void AccumulateAddressBytes(byte addressByte, State nextState)
+            {
+                if(currentOperation.TryAccumulateAddress(addressByte))
+                {
+                    state = nextState;
+                }
+            }
         }
 
         public uint ReadDoubleWord(long localOffset)
@@ -193,28 +213,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             return data;
         }
 
-        private Operation RecognizeOperation(byte firstByte)
+        private void RecognizeOperation(byte firstByte)
         {
-            // The type of the command is distinguished by its first byte.
-            if(TryDecodeFirstCommandByte(firstByte, out var operation))
-            {
-                if(commandAddressBytesCount > 0)
-                {
-                    address = new byte[commandAddressBytesCount];
-                }
-            }
-            return operation;
-        }
-
-        private bool TryDecodeFirstCommandByte(byte firstByte, out Operation decodedOperation)
-        {
-            decodedOperation = Operation.None;
-            commandAddressBytesCount = 0;
+            currentOperation.Operation = Operation.None;
+            currentOperation.AddressLength = 0;
             state = State.HandleCommand;
             switch(firstByte)
             {
                 case (byte)Commands.ReadID:
-                    decodedOperation = Operation.ReadID;
+                case (byte)Commands.MultipleIoReadID:
+                    currentOperation.Operation = Operation.ReadID;
                     break;
                 case (byte)Commands.Read:
                 case (byte)Commands.FastRead:
@@ -228,98 +236,100 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.DtrQuadOutputFastRead:
                 case (byte)Commands.DtrQuadInputOutputFastRead:
                 case (byte)Commands.QuadInputOutputWordRead:
-                    decodedOperation = Operation.Read;
-                    commandAddressBytesCount = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.Operation = Operation.Read;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateCommandAddressBytes;
-                    break;
-                case (byte)Commands.ReadStatusRegister:
-                    decodedOperation = Operation.ReadStatusRegister;
                     break;
                 case (byte)Commands.PageProgram:
                 case (byte)Commands.DualInputFastProgram:
                 case (byte)Commands.ExtendedDualInputFastProgram:
                 case (byte)Commands.QuadInputFastProgram:
                 case (byte)Commands.ExtendedQuadInputFastProgram:
-                    decodedOperation = Operation.Program;
-                    commandAddressBytesCount = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.Operation = Operation.Program;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.WriteEnable:
+                    this.Log(LogLevel.Noisy, "Setting write enable latch");
                     enable.Value = true;
-                    break;
+                    return; //return to prevent further logging
                 case (byte)Commands.WriteDisable:
+                    this.Log(LogLevel.Noisy, "Unsetting write enable latch");
                     enable.Value = false;
-                    break;
+                    return; //return to prevent further logging
                 case (byte)Commands.SectorErase:
-                    decodedOperation = Operation.Erase;
-                    commandAddressBytesCount = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.Operation = Operation.Erase;
+                    currentOperation.EraseSize = EraseSize.Sector;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     state = State.AccumulateNoDataCommandAddressBytes;
                     break;
+                case (byte)Commands.DieErase:
+                    currentOperation.Operation = Operation.Erase;
+                    currentOperation.EraseSize = EraseSize.Die;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateNoDataCommandAddressBytes;
+                    break;
+                case (byte)Commands.ReadStatusRegister:
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.Status;
+                    break;
+                case (byte)Commands.WriteStatusRegister:
+                    currentOperation.Operation = Operation.WriteRegister;
+                    currentOperation.Register = Register.Status;
+                    break;
+                case (byte)Commands.ReadFlagStatusRegister:
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.FlagStatus;
+                    break;
                 case (byte)Commands.ReadVolatileConfigurationRegister:
-                    decodedOperation = Operation.ReadVolatileConfigurationRegister;
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.VolatileConfiguration;
                     break;
                 case (byte)Commands.WriteVolatileConfigurationRegister:
-                    decodedOperation = Operation.WriteVolatileConfigurationRegister;
+                    currentOperation.Operation = Operation.WriteRegister;
+                    currentOperation.Register = Register.VolatileConfiguration;
                     break;
                 case (byte)Commands.ReadNonVolatileConfigurationRegister:
-                    decodedOperation = Operation.ReadNonVolatileConfigurationRegister;
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.NonVolatileConfiguration;
                     break;
                 case (byte)Commands.WriteNonVolatileConfigurationRegister:
-                    decodedOperation = Operation.WriteNonVolatileConfigurationRegister;
+                    currentOperation.Operation = Operation.WriteRegister;
+                    currentOperation.Register = Register.NonVolatileConfiguration;
+                    break;
+                case (byte)Commands.ReadEnhancedVolatileConfigurationRegister:
+                    currentOperation.Operation = Operation.ReadRegister;
+                    currentOperation.Register = Register.EnhancedVolatileConfiguration;
+                    break;
+                case (byte)Commands.WriteEnhancedVolatileConfigurationRegister:
+                    currentOperation.Operation = Operation.WriteRegister;
+                    currentOperation.Register = Register.EnhancedVolatileConfiguration;
                     break;
                 default:
-                    this.Log(LogLevel.Error, "Command decoding failed on byte: {0}.", firstByte);
-                    return false;
+                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X}.", firstByte);
+                    return;
             }
-            return true;
-        }
-
-        private uint AccumulateAddressBytes(byte data, State nextState)
-        {
-            uint result = 0;
-            if(TryGetAccumulatedAddress(data, out result))
-            {
-                state = nextState;
-            }
-            return result;
-        }
-
-        private bool TryGetAccumulatedAddress(byte data, out uint result)
-        {
-            result = 0;
-            address[currentAddressByte] = data;
-            currentAddressByte++;
-            if(currentAddressByte == commandAddressBytesCount)
-            {
-                result = BitHelper.ToUInt32(address, 0, commandAddressBytesCount, false);
-                return true;
-            }
-            return false;
+            this.Log(LogLevel.Noisy, "Decoded operation: {0}, write enabled {1}", currentOperation, enable.Value);
         }
 
         private byte HandleCommand(byte data)
         {
             byte result = 0;
-            switch(currentOperation)
+            switch(currentOperation.Operation)
             {
                 case Operation.Read:
                     result = ReadFromMemory();
                     break;
                 case Operation.ReadID:
-                    if(commandBytesHandled < deviceData.Length)
+                    if(currentOperation.CommandBytesHandled < deviceData.Length)
                     {
-                        result = deviceData[commandBytesHandled];
+                        result = deviceData[currentOperation.CommandBytesHandled];
                     }
                     else
                     {
                         this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
                         result = 0;
                     }
-                    break;
-                case Operation.ReadStatusRegister:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    result = statusRegister.Value;
                     break;
                 case Operation.Program:
                     if(enable.Value)
@@ -332,69 +342,119 @@ namespace Antmicro.Renode.Peripherals.SPI
                         this.Log(LogLevel.Error, "Memory write operations are disabled.");
                     }
                     break;
-                case Operation.ReadVolatileConfigurationRegister:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    result = volatileConfigurationRegister.Value;
+                case Operation.ReadRegister:
+                    result = ReadRegister(currentOperation.Register);
                     break;
-                case Operation.WriteVolatileConfigurationRegister:
-                    if(enable.Value)
-                    {
-                        volatileConfigurationRegister.Write(0, data);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Volatile register writes are disabled.");
-                    }
-                    break;
-                case Operation.ReadNonVolatileConfigurationRegister:
-                    // The documentation states that at least 2 bytes will be read
-                    // After all 16 bits of the register have been read, 0 is returned
-                    result = 0;
-                    // `commandBytesHandled` is incremented and the end of this method and we want its value to match the comment above
-                    if((commandBytesHandled + 1) <= 2)
-                    {
-                        result = (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Value, (int)commandBytesHandled * 8, 8);
-                    }
-                    break;
-                case Operation.WriteNonVolatileConfigurationRegister:
-                    // `commandBytesHandled` is incremented and the end of this method and we want its value to match the log message below
-                    if((commandBytesHandled + 1) > 2)
-                    {
-                        this.Log(LogLevel.Error, "Operation {0} is longer than expected 2 bytes.", Operation.WriteNonVolatileConfigurationRegister);
-                        break;
-                    }
-                    if(enable.Value)
-                    {
-                        nonVolatileConfigurationRegister.Write((int)commandBytesHandled * 8, data);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Nonvolatile register writes are disabled.");
-                    }
+                case Operation.WriteRegister:
+                    WriteRegister(currentOperation.Register, data);
                     break;
                 default:
-                    this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation);
+                    this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
                     break;
             }
-            commandBytesHandled++;
+            currentOperation.CommandBytesHandled++;
+            this.Log(LogLevel.Noisy, "Handled command: {0}, returning 0x{1:X}", currentOperation, result);
             return result;
+        }
+
+        private void WriteRegister(Register register, byte data)
+        {
+            if(!enable.Value)
+            {
+                this.Log(LogLevel.Error, "Trying to write a register, but write enable latch is not set");
+                return;
+            }
+            switch(register)
+            {
+                case Register.VolatileConfiguration:
+                    volatileConfigurationRegister.Write(0, data);
+                    break;
+                case Register.NonVolatileConfiguration:
+                    if((currentOperation.CommandBytesHandled) >= 2)
+                    {
+                        this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", Register.NonVolatileConfiguration);
+                        break;
+                    }
+                    BitHelper.UpdateWithShifted(ref temporaryNonVolatileConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
+                    if(currentOperation.CommandBytesHandled == 1)
+                    {
+                        nonVolatileConfigurationRegister.Write(0, (ushort)temporaryNonVolatileConfiguration);
+                    }
+                    break;
+                //listing all cases as other registers are not writable at all
+                case Register.EnhancedVolatileConfiguration:
+                    enhancedVolatileConfigurationRegister.Write(0, data);
+                    break;
+                case Register.Status:
+                default:
+                    this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
+                    break;
+            }
+        }
+
+        private byte ReadRegister(Register register)
+        {
+            switch(register)
+            {
+                case Register.Status:
+                    // The documentation states that at least 1 byte will be read
+                    // If more than 1 byte is read, the same byte is returned
+                    return statusRegister.Read();
+                case Register.FlagStatus:
+                    // The documentation states that at least 1 byte will be read
+                    // If more than 1 byte is read, the same byte is returned
+                    return flagStatusRegister.Read();
+                case Register.VolatileConfiguration:
+                    // The documentation states that at least 1 byte will be read
+                    // If more than 1 byte is read, the same byte is returned
+                    return volatileConfigurationRegister.Read();
+                case Register.NonVolatileConfiguration:
+                    // The documentation states that at least 2 bytes will be read
+                    // After all 16 bits of the register have been read, 0 is returned
+                    if((currentOperation.CommandBytesHandled) < 2)
+                    {
+                        return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Read(), currentOperation.CommandBytesHandled * 8, 8);
+                    }
+                    return 0;
+                case Register.EnhancedVolatileConfiguration:
+                    return enhancedVolatileConfigurationRegister.Read();
+                case Register.ExtendedAddress:
+                default:
+                    this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
+                    return 0;
+            }
         }
 
         private void HandleNoDataCommand()
         {
             // The documentation describes more commands that don't have any data bytes (just code + address)
-            // but at the moment we have implemented only one
-            switch(currentOperation)
+            // but at the moment we have implemented just these ones
+            switch(currentOperation.Operation)
             {
                 case Operation.Erase:
                     if(enable.Value)
                     {
-                        EraseSector();
+                        if(currentOperation.ExecutionAddress >= fileBackendSize)
+                        {
+                            this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
+                            return;
+                        }
+                        switch(currentOperation.EraseSize)
+                        {
+                            case EraseSize.Sector:
+                                EraseSector();
+                                break;
+                            case EraseSize.Die:
+                                EraseDie();
+                                break;
+                            default:
+                                this.Log(LogLevel.Warning, "Unsupported erase type: {0}", currentOperation.EraseSize);
+                                break;
+                        }
                     }
                     else
                     {
-                        this.Log(LogLevel.Error, "Sector erase operations are disabled.");
+                        this.Log(LogLevel.Error, "Erase operations are disabled.");
                     }
                     break;
                 default:
@@ -403,13 +463,25 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private void EraseDie()
+        {
+            var position = 0;
+            var segment = new byte[SegmentSize];
+            for(var i = 0; i < SegmentSize; i++)
+            {
+                segment[i] = EmptySegment;
+            }
+            while(position < dataBackend.Length)
+            {
+                var length = (int)Math.Min(SegmentSize, dataBackend.Length - position);
+                dataBackend.Position = position;
+                dataBackend.Write(segment, 0, length);
+                position += length;
+            }
+        }
+
         private void EraseSector()
         {
-            if(commandExecutionAddress >= fileBackendSize)
-            {
-                this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} is bigger than configured memory size.", commandExecutionAddress);
-                return;
-            }
             var segment = new byte[SegmentSize];
             for(var i = 0; i < SegmentSize; i++)
             {
@@ -417,41 +489,37 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             // The documentations states that on erase the operation address is
             // aligned to the segment size
-            dataBackend.Position = SegmentSize * (commandExecutionAddress / SegmentSize);
+            dataBackend.Position = SegmentSize * (currentOperation.ExecutionAddress / SegmentSize);
             dataBackend.Write(segment, 0, SegmentSize);
         }
 
         private void WriteToMemory(byte val)
         {
-            if(commandExecutionAddress + commandBytesHandled > fileBackendSize)
+            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > fileBackendSize)
             {
-                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", commandExecutionAddress);
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
                 return;
             }
-            dataBackend.Position = commandExecutionAddress + commandBytesHandled;
+            dataBackend.Position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
             dataBackend.WriteByte(val);
         }
 
         private byte ReadFromMemory()
         {
-            if(commandExecutionAddress + commandBytesHandled > fileBackendSize)
+            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > fileBackendSize)
             {
-                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", commandExecutionAddress);
+                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
                 return 0;
             }
-            dataBackend.Position = commandExecutionAddress + commandBytesHandled;
+            dataBackend.Position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
             return (byte)dataBackend.ReadByte();
         }
 
         private State state;
-        private byte[] address;
         private Stream dataBackend;
-        private int currentAddressByte;
-        private uint commandBytesHandled;
         private bool isCustomFileBackend;
-        private Operation currentOperation;
-        private uint commandExecutionAddress;
-        private int commandAddressBytesCount;
+        private DecodedOperation currentOperation;
+        private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly Endianess dataEndianess;
         private readonly byte[] deviceData;
@@ -459,18 +527,76 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly int SegmentSize = 64.KB();
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister statusRegister;
+        private readonly ByteRegister flagStatusRegister;
         private readonly IFlagRegisterField numberOfAddressBytes;
         private readonly ByteRegister volatileConfigurationRegister;
+        private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
 
         private const byte EmptySegment = 0xff;
-
         private const byte ManufacturerID = 0x20;
         private const byte RemainingIDBytes = 0x10;
         private const byte MemoryType = 0xBB;           // device voltage: 1.8V
         private const byte DeviceConfiguration = 0x0;   // standard
         private const byte DeviceGeneration = 0x1;      // 2nd generation
         private const byte ExtendedDeviceID = DeviceGeneration << 6;
+
+        private struct DecodedOperation
+        {
+            public Operation Operation;
+            public Register Register;
+            public EraseSize EraseSize;
+            public int AddressLength
+            {
+                get
+                {
+                    return addressLength;
+                }
+                set
+                {
+                    addressLength = value;
+                    if(addressLength > 0)
+                    {
+                        AddressBytes = new byte[addressLength];
+                    }
+                }
+            }
+            public uint ExecutionAddress;
+            public int CommandBytesHandled;
+
+            public bool TryAccumulateAddress(byte data)
+            {
+                AddressBytes[currentAddressByte] = data;
+                currentAddressByte++;
+                if(currentAddressByte == AddressLength)
+                {
+                    ExecutionAddress = BitHelper.ToUInt32(AddressBytes, 0, AddressLength, false);
+                    return true;
+                }
+                return false;
+            }
+
+            public override string ToString()
+            {
+                return $"Operation: {Operation}"
+                    .AppendIf(Operation == Operation.ReadRegister || Operation == Operation.WriteRegister, $", register: {Register}")
+                    .AppendIf(EraseSize != 0, $", erase size: {EraseSize}")
+                    .AppendIf(AddressLength != 0, $", address length: {AddressLength}")
+                    .ToString();
+            }
+
+            private byte[] AddressBytes;
+            private int addressLength;
+            private int currentAddressByte;
+        }
+
+        private enum EraseSize
+        {
+            Die = 1, // starting from 1 to leave 0 as explicitly unused
+            Sector,
+            Subsector32K,
+            Subsector4K
+        }
 
         private enum Commands : byte
         {
@@ -548,6 +674,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             SubsectorErase4kb = 0x20,
             SectorErase = 0xD8,
             BulkErase = 0x60,
+            DieErase = 0xC4,
 
             // ERASE Operations with 4-Byte Address
             SectorErase4byte = 0xDC,
@@ -613,11 +740,18 @@ namespace Antmicro.Renode.Peripherals.SPI
             ReadID,
             Program,
             Erase,
-            ReadStatusRegister,
-            ReadVolatileConfigurationRegister,
-            WriteVolatileConfigurationRegister,
-            ReadNonVolatileConfigurationRegister,
-            WriteNonVolatileConfigurationRegister
+            ReadRegister,
+            WriteRegister,
+        }
+
+        private enum Register
+        {
+            Status = 1, //starting from 1 to leave 0 as an unused value
+            FlagStatus,
+            ExtendedAddress,
+            NonVolatileConfiguration,
+            VolatileConfiguration,
+            EnhancedVolatileConfiguration
         }
     }
 

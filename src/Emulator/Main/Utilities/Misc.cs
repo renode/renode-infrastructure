@@ -285,6 +285,21 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public static StringBuilder AppendIf(this String value, bool condition, string what)
+        {
+            var builder = new StringBuilder(value);
+            return AppendIf(builder, condition, what);
+        }
+
+        public static StringBuilder AppendIf(this StringBuilder value, bool condition, string what)
+        {
+            if(condition)
+            {
+                value.Append(what);
+            }
+            return value;
+        }
+
         public static String Indent(this String value, int count)
         {
             return "".PadLeft(count) + value;

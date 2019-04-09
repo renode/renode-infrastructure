@@ -25,9 +25,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.Control, new DoubleWordRegister(this, 0x502)
+                {(long)Registers.Control, new DoubleWordRegister(this, 0x402) //the docs report 0x502, but this lights up a reserved bit.
                     .WithFlag(0, out enabled, name: "ENABLE")
-                    .WithTag("MASTER", 1, 1)
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "MASTER")
                     .WithFlag(2, out xipMode, name: "XIP")
                     .WithEnumField(3, 1, out xipAddressBytes, name: "XIPADDR")
                     .WithReservedBits(4, 6)
@@ -40,14 +40,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.Frames, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out totalBytes, writeCallback: (_,__) => bytesSent = 0, name: "TOTALBYTES")
-                    .WithValueField(16, 8, out commandBytes, name: "CMDBYTES")
+                    .WithValueField(0, 16, writeCallback: (_, value) =>
+                        {
+                            BitHelper.UpdateWith(ref totalBytes, value, 0, 16);
+                            bytesSent = 0;
+                        }, valueProviderCallback: _ => totalBytes, name: "TOTALBYTES")
+                    .WithValueField(16, 9, out commandBytes, name: "CMDBYTES")
                     .WithTag("QSPI", 25, 1)
                     .WithTag("IDLE", 26, 4)
-                    .WithFlag(30, valueProviderCallback: (_) => false,
+                    .WithFlag(30, valueProviderCallback: _ => false,
                         // If set then the FIFO flags are set to byte mode
                         changeCallback: (_, value) => x4Enabled.Value = false, name: "FLAGBYTE")
-                    .WithFlag(31, valueProviderCallback: (_) => false,
+                    .WithFlag(31, valueProviderCallback: _ => false,
                         // If set then the FIFO flags are set to word mode
                         changeCallback: (_, value) => x4Enabled.Value = true, name: "FLAGWORD")
                     .WithWriteCallback((_, __) =>
@@ -71,13 +75,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithFlag(0, out txDone, FieldMode.WriteOneToClear | FieldMode.Read, name: "TXDONE")
                     .WithFlag(1, out rxDone, FieldMode.WriteOneToClear | FieldMode.Read, name: "RXDONE")
-                    .WithFlag(2, valueProviderCallback: (_) => IsRxAvailable(), name: "RXAVAILABLE")
-                    .WithFlag(3, valueProviderCallback: (_) => true, name: "TXAVAILABLE")
-                    .WithFlag(4, valueProviderCallback: (_) => !IsRxAvailable(), name: "RXFIFOEMPTY")
-                    .WithFlag(5, valueProviderCallback: (_) => false, name: "TXFIFOFULL")
+                    .WithFlag(2, valueProviderCallback: _ => IsRxAvailable(), name: "RXAVAILABLE")
+                    .WithFlag(3, valueProviderCallback: _ => true, name: "TXAVAILABLE")
+                    .WithFlag(4, valueProviderCallback: _ => !IsRxAvailable(), name: "RXFIFOEMPTY")
+                    .WithFlag(5, valueProviderCallback: _ => false, name: "TXFIFOFULL")
                     .WithReservedBits(6, 1)
-                    .WithFlag(7, valueProviderCallback: (_) => true, name: "READY")
-                    .WithFlag(8, valueProviderCallback: (_) => x4Enabled.Value, name: "FLAGSX4")
+                    .WithFlag(7, valueProviderCallback: _ => true, name: "READY")
+                    .WithFlag(8, valueProviderCallback: _ => x4Enabled.Value, name: "FLAGSX4")
                     .WithWriteCallback((_, __) => RefreshInterrupt())
                 },
 
@@ -87,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                 {(long)Registers.RxData1, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read,
-                        valueProviderCallback: (_) =>
+                        valueProviderCallback: _ =>
                         {
                             lock(locker)
                             {
@@ -106,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 // The documentation is ambiguous on this register.
                 // It says 4 bytes must be read from the FIFO, but does not state precisely what happens
                 // when there is not enough data. This model ignores the read until there are at least 4 bytes to be read.
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: (_) =>
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
                     {
                         lock(locker)
                         {
@@ -115,8 +119,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                                 var value = 0u;
                                 for(var i = 0; i < 4; ++i)
                                 {
-                                    value <<= 8;
-                                    value |= receiveFifo.Dequeue();
+                                    value |= (uint)receiveFifo.Dequeue() << (8 * i);
                                 }
                                 return value;
                             }
@@ -129,16 +132,22 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.TxData4, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Write,
+                    .WithValueField(0, 32, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
-                            for(var i = 3; i >= 0; i--)
+                            for(var i = 0; i < 4; i++)
                             {
                                 HandleByte(BitHelper.GetValue(val, i * 8, 8));
                             }
                         },
                         name: "TXDATA4")
                 },
+                // this register intentionally exposes the whole register for reading and the upper bytes for writing
+                {(long)Registers.FramesUpper, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => totalBytes, name: "BYTESLOWER")
+                    .WithValueField(16, 16, writeCallback: (_, value) => BitHelper.UpdateWithShifted(ref totalBytes, value, 16, 16),
+                        valueProviderCallback: _ => totalBytes >> 16, name: "BYTESUPPER")
+                }
             };
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
@@ -216,13 +225,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(enabled.Value)
             {
                 // reception
-                if(commandBytes.Value != totalBytes.Value)
+                if(commandBytes.Value != totalBytes)
                 {
                     // 1 command byte
                     if(commandBytes.Value == 1)
                     {
                         HandleByteTransmission(val);
-                        for(var i = bytesSent; i < totalBytes.Value; i++)
+                        for(var i = bytesSent; i < totalBytes; i++)
                         {
                             HandleByteReception();
                         }
@@ -236,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                         if(bytesSent == commandBytes.Value)
                         {
-                            for(var i = bytesSent; i < totalBytes.Value; i++)
+                            for(var i = bytesSent; i < totalBytes; i++)
                             {
                                 HandleByteReception();
                             }
@@ -246,7 +255,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 // transmission
                 else
                 {
-                    if(bytesSent < totalBytes.Value)
+                    if(bytesSent < totalBytes)
                     {
                         HandleByteTransmission(val);
                     }
@@ -269,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void TryFinishTransmission()
         {
             bytesSent++;
-            if(bytesSent == totalBytes.Value)
+            if(bytesSent == totalBytes)
             {
                 RegisteredPeripheral.FinishTransmission();
             }
@@ -302,7 +311,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField enabled;
         private readonly IFlagRegisterField xipMode;
         private readonly IEnumRegisterField<XIPAddressBytes> xipAddressBytes;
-        private readonly IValueRegisterField totalBytes;
         private readonly IValueRegisterField commandBytes;
         private readonly IFlagRegisterField x4Enabled;
         private readonly IValueRegisterField upperAddress;
@@ -313,6 +321,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField rxAvailableInterruptEnabled;
         private readonly IFlagRegisterField txAvailableInterruptEnabled;
         private readonly IFlagRegisterField rxFifoEmptyInterruptEnabled;
+        private uint totalBytes;
 
         //Registers are aliased every 256 bytes
         private const int RegisterAliasSize = 256;
@@ -336,7 +345,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             RxData1 = 0x40,
             TxData1 = 0x44,
             RxData4 = 0x48,
-            TxData4 = 0x4c
+            TxData4 = 0x4c,
+            FramesUpper = 0x50,
         }
     }
 }
