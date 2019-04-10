@@ -284,6 +284,8 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendSingleFrame(IEnumerable<byte> bytes, bool isCRCIncluded)
         {
             var bytesArray = bytes.ToArray();
+            EnsureArrayLength(isCRCIncluded ? 64 : 60);
+
             EthernetFrame frame;
             if(isCRCIncluded || !checksumGeneratorEnabled.Value)
             {
@@ -297,6 +299,14 @@ namespace Antmicro.Renode.Peripherals.Network
 
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
             FrameReady?.Invoke(frame);
+
+            void EnsureArrayLength(int length)
+            {
+                if(bytesArray.Length < length)
+                {
+                    Array.Resize(ref bytesArray, length);
+                }
+            }
         }
 
         private void SendFrames()
