@@ -150,6 +150,14 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
 
                     latchedWriterSlot = -1;
+
+                    // update writerSlotNumber
+                    writerSlotNumber.Value = (uint)writeSlots
+                        .Select((v, idx) => new { v, idx })
+                        .Where(x => x.v.IsBusy)
+                        .Select(x => x.idx)
+                        .FirstOrDefault();
+
                     UpdateEvents();
                 })
             ;
