@@ -283,19 +283,16 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void SendSingleFrame(IEnumerable<byte> bytes, bool isCRCIncluded)
         {
-            var frame = EthernetFrame.CreateEthernetFrameWithoutCRC(bytes.ToArray());
-
-            if(!isCRCIncluded)
+            var bytesArray = bytes.ToArray();
+            EthernetFrame frame;
+            if(isCRCIncluded || !checksumGeneratorEnabled.Value)
             {
-                if(checksumGeneratorEnabled.Value)
-                {
-                    this.Log(LogLevel.Noisy, "Generating checksum for the frame");
-                    frame.FillWithChecksums(new [] { EtherType.IpV4 }, new [] { IPProtocolType.TCP, IPProtocolType.UDP });
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, "The frame has no CRC, but the automatic checksum generation is disabled");
-                }
+                this.Log(LogLevel.Noisy, "Generating frame without checksum");
+                frame = EthernetFrame.CreateEthernetFrameWithoutCRC(bytesArray);
+            }
+            else
+            {
+                frame = EthernetFrame.CreateEthernetFrameWithCRC(bytesArray);
             }
 
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
