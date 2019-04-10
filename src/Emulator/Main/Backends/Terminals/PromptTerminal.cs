@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Backends.Terminals
                 }
                 onLine?.Invoke(buffer.ToString(), machine.ElapsedVirtualTime.TimeElapsed);
                 buffer.Clear();
-                index = 0;
+                skipDataInBuffer = false;
             }
         }
 
@@ -116,9 +116,7 @@ namespace Antmicro.Renode.Backends.Terminals
                 lock(internalLock)
                 {
                     prompt = value;
-                    promptBytes = prompt == null ? null : Encoding.UTF8.GetBytes(prompt);
-                    index = 0;
-                    while(CheckForPrompt());
+                    CheckForPrompt();
                 }
             }
         }
@@ -133,32 +131,32 @@ namespace Antmicro.Renode.Backends.Terminals
             }
         }
 
-        private bool CheckForPrompt()
+        private void CheckForPrompt()
         {
-            if(promptBytes != null && index < promptBytes.Length && buffer.Length > 0)
+            if(skipDataInBuffer || prompt == null || buffer.Length < prompt.Length)
             {
-                if(promptBytes[index] != buffer[buffer.Length - 1])
-                {
-                    index = promptBytes.Length + 1; // this way it will never match on this line
-                    return false;
-                }
-                if(index == promptBytes.Length - 1 && onPrompt != null)
-                {
-                    onPrompt(machine.ElapsedVirtualTime.TimeElapsed);
-                }
-                index++;
-                return true;
+                return;
             }
-            return false;
+
+            for(var i = 0; i < prompt.Length; i++)
+            {
+                if(prompt[i] != buffer[i])
+                {
+                    return;
+                }
+            }
+
+            // this is to avoid accepting the same prompt twice
+            skipDataInBuffer = true;
+            onPrompt?.Invoke(machine.ElapsedVirtualTime.TimeElapsed);
         }
 
         private readonly StringBuilder buffer;
         private readonly Action<string, TimeInterval> onLine;
         private readonly Action<TimeInterval> onPrompt;
-        private byte[] promptBytes;
         private string prompt;
-        private int index;
         private Machine machine;
         private object internalLock;
+        private bool skipDataInBuffer;
     }
 }
