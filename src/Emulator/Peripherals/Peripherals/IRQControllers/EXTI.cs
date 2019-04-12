@@ -24,44 +24,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     /// </summary>
     public class EXTI :  IDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        static EXTI()
-        {
-            gpioMapping = new Dictionary<int, int> {
-                //Mapping 1<->1 for lines 0..4
-                { 0, 0 },
-                { 1, 1 },
-                { 2, 2 },
-                { 3, 3 },
-                { 4, 4 },
-                //Additional output lines, currently not supported.
-                //According to docs:
-                //* 16 to PVD output
-                //* 17 to RTC Alarm event
-                //* 18 to USB OTG FS Wakeup event
-                //* 19 to Ethernet Wakeup event
-                //* 20 to USB OTG HS (configured in FS) Wakeup event (whatever that means)
-                //* 21 to RTC Tamper and TimeStamp events
-                //* 22 to RTC Wakeup event
-                { 16,7 },
-                { 17,8 },
-                { 18,9 },
-                { 19,10 },
-                { 20,11 },
-                { 21,12 },
-                { 22,13 },
-            };
-            //Common interrupt for lines 5..9
-            for(var i = 5; i < 10; ++i)
-            {
-                gpioMapping[i] = 5;
-            }
-            //Common interrupt for lines 10..15
-            for(var i = 10; i < 16; ++i)
-            {
-                gpioMapping[i] = 6;
-            }
-        }
-
         public EXTI()
         {
             Reset();
@@ -69,7 +31,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void OnGPIO(int number, bool value)
         {
-            var lineNumber = (byte)(number % MaxNumberOfPinsPerPort);
+            // Theoretically there could be up to 256 GPIOs connected to 16 EXTI lines - 16 GPIOs per port.
+            // GPIOs are connected in this order: 0 indexed to EXTI0 line, 1 -> EXTI1 etc.
+            // If we get `number` higher than 15, it means we will address other 7 EXTI lines
+            // which are connected to PVD, RTC etc.
+            //
+            // EXTI map:
+            // `number = 0` -> PA0, PB0, PC0 ... (EXTI0 - Interrupt 0)
+            // `number = 1` -> PA1, PB1, PC1 ... (EXTI1 - Interrupt 1)
+            // ...
+            // `number = 4` -> PA4, PB4, PC4 ... (EXTI4 - Interrupt 4)
+            // `number = 5` -> PA5, PB5, PC5 ... (EXTI5 - Interrupt 5)
+            // `number = 6` -> PA6, PB6, PC6 ... (EXTI6 - Interrupt 5)
+            // ...
+            // `number = 14` -> PA14, PB14, PC14 ... (EXTI14 - Interrupt 6)
+            // `number = 15` -> PA15, PB15, PC15 ... (EXTI15 - Interrupt 6)
+            // `number = 16` -> PVD (EXTI16 - Interrupt 7)
+            // `number = 17` -> RTC Alarm event (EXTI17 - Interrupt 8)
+            // ...
+            // `number = 22` -> RTC Wakeup event (EXTI22 - Interrupt 13)
+
+            if(number > MaxEXTILines)
+            {
+                this.Log(LogLevel.Error, "Given value: {0} exceeds maximum EXTI lines: {1}", number, MaxEXTILines);
+                return;
+            }
+            var lineNumber = (byte)number;
             var irqNumber = gpioMapping[lineNumber];
             if(BitHelper.IsBitSet(interruptMask, lineNumber) && // irq unmasked
                ((BitHelper.IsBitSet(risingTrigger, lineNumber) && value) // rising edge
@@ -172,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
-        private static readonly Dictionary<int, int> gpioMapping;
+        private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13 };
 
         private uint interruptMask;
         private uint eventMask;
@@ -181,7 +168,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint pending;
         private uint softwareInterrupt;
 
-        private const int MaxNumberOfPinsPerPort = 16;
+        private const int MaxEXTILines = 22;
         private const int NumberOfOutputLines = 14;
 
         private enum Registers
