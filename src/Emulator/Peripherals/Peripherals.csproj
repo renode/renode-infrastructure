@@ -198,6 +198,7 @@
     <Compile Include="Peripherals\Timers\TexasInstrumentsTimer.cs" />
     <Compile Include="Peripherals\IRQControllers\AINTC.cs" />
     <Compile Include="Peripherals\I2C\STM32F4_I2C.cs" />
+    <Compile Include="Peripherals\Timers\STM32F4_RTC.cs" />
     <Compile Include="Peripherals\Miscellaneous\BitBanding.cs">
       <DependentUpon>BitBanding.tt</DependentUpon>
     </Compile>
