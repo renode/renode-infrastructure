@@ -118,6 +118,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // this is not a full implementation but should be enough to get lazy FPU implementations to work.
                 this.DebugLog("ConfigurableFaultStatus read. Returning NOCP.");
                 return (1 << 19) /* NOCP */;
+            case Registers.MPUType:
+                return 0x800; // 8 MPU regions
             default:
                 this.LogUnhandledRead(offset);
                 return 0;
@@ -603,7 +605,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             HardFaultStatus = 0xD2C,
             DebugFaultStatus = 0xD30,
             // FPU registers 0xD88 .. F3C
-            CoprocessorAccessControl = 0xD88
+            CoprocessorAccessControl = 0xD88,
+            MPUType = 0xD90,
         }
 
         private uint CPACR = 0x0;
