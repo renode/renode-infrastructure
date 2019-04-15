@@ -315,6 +315,11 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public static ushort ToUInt16(byte[] data, int index, bool reverse)
+        {
+            return (ushort)ToUInt32(data, index, 2, reverse);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
