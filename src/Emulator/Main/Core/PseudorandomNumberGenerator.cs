@@ -5,6 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+using System.Text;
+using System.Threading;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Core
@@ -13,26 +16,26 @@ namespace Antmicro.Renode.Core
     {
         public PseudorandomNumberGenerator()
         {
-            instanceSeed = new Random().Next();
             locker = new object();
+            generator = new ThreadLocal<Random>(() => new Random(GetSeedForThread()), true);
         }
 
         public void ResetSeed(int newSeed)
         {
             lock(locker)
             {
-                if(generator != null)
+                if(generator.Values.Count != 0)
                 {
-                    Logger.Log(LogLevel.Warning, "Pseudorandom Number Generator has already been used with seed {0}. Next time it will use a new one {1}. It won't be possible to repeat this exact execution.", instanceSeed, newSeed);
-                    generator = null;
+                    Logger.Log(LogLevel.Warning, "Pseudorandom Number Generator has already been used with seed {0}. Next time it will use a new one {1}. It won't be possible to repeat this exact execution.", baseSeed, newSeed);
+                    generator = new ThreadLocal<Random>(() => new Random(GetSeedForThread()), true);
                 }
-                instanceSeed = newSeed;
+                baseSeed = newSeed;
             }
         }
 
         public int GetCurrentSeed()
         {
-            return instanceSeed;
+            return baseSeed;
         }
 
         public double NextDouble()
@@ -60,23 +63,37 @@ namespace Antmicro.Renode.Core
             GetOrCreateGenerator().NextBytes(buffer);
         }
 
+        private int GetSeedForThread()
+        {
+            if(Thread.CurrentThread.IsThreadPoolThread)
+            {
+                throw new InvalidOperationException($"Cannot access {typeof(PseudorandomNumberGenerator)} from a thread pool.");
+            }
+            var name = Thread.CurrentThread.Name;
+            if(string.IsNullOrEmpty(name))
+            {
+                throw new InvalidOperationException($"Cannot access {typeof(PseudorandomNumberGenerator)} from an unnamed thread.");
+            }
+
+            return Encoding.UTF8.GetBytes(name).Sum(x => (int)x) ^ baseSeed;
+        }
+
         private Random GetOrCreateGenerator()
         {
             lock(locker)
             {
-                if(generator == null)
+                if(generator.Values.Count == 0)
                 {
-                    generator = new Random(instanceSeed);
-                    Logger.Log(LogLevel.Info, "Pseudorandom Number Generator was created with seed: {0}", instanceSeed);
+                    Logger.Log(LogLevel.Info, "Pseudorandom Number Generator was created with seed: {0}", baseSeed);
                 }
-                return generator;
+                return generator.Value;
             }
         }
 
-        private int instanceSeed;
-        private Random generator;
-
+        private ThreadLocal<Random> generator;
         private readonly object locker;
+
+        private static int baseSeed = new Random().Next();
     }
 }
 
