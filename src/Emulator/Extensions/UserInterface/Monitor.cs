@@ -796,11 +796,7 @@ namespace Antmicro.Renode.UserInterface
                 //We change "\" characters to "/", unless they were followed by the space character, in which case they treated as escape char.
                 foreach(var file in files.Concat(dirs))
                 {
-                    var sanitizedFile = file.Replace("\\", "/");
-                    if(sanitizedFile.Contains("/ "))
-                    {
-                        sanitizedFile = sanitizedFile.Replace("/ ", "\\ ");
-                    }
+                    var sanitizedFile = SanitizePathSeparator(file);
                     result.Add(sanitizedFile);
                 }
                 return result;

@@ -43,6 +43,16 @@ namespace Antmicro.Renode.UserInterface
 
         public NumberModes CurrentNumberFormat{ get; set; }
 
+        public static string SanitizePathSeparator(string baseString)
+        {
+            var sanitizedFile = baseString.Replace("\\", "/");
+            if(sanitizedFile.Contains("/ "))
+            {
+                sanitizedFile = sanitizedFile.Replace("/ ", "\\ ");
+            }
+            return sanitizedFile;
+        }
+
         private bool RunCommand(ICommandInteraction writer, Command command, IList<Token> parameters)
         {
             var commandType = command.GetType();
