@@ -45,6 +45,8 @@ namespace Antmicro.Renode.Utilities
             };
             terminal.Start(port);
             commHandler = new CommunicationHandler(this);
+
+            LogsEnabled = false;
         }
 
         public void Dispose()
