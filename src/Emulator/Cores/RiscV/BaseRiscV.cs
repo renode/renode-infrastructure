@@ -68,6 +68,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             nonstandardCSR.Add(csr, Tuple.Create(readOperation, writeOperation));
         }
 
+        public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
+        {
+            TlibMarkFeatureSilent((uint)set, silent ? 1 : 0u);
+        }
+
         public uint HartId
         {
             get
@@ -307,6 +312,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
+
+        [Import]
+        private ActionUInt32UInt32 TlibMarkFeatureSilent;
 
 #pragma warning restore 649
 
