@@ -17,15 +17,32 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             TlibSetCsrValidation(0);
 
-            RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value => { irqMask = (uint)value; Update(); });
-            RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value => { irqPending = (uint)value; Update(); });
+            RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value => 
+            { 
+                lock(locker)
+                {
+                    irqMask = (uint)value; 
+                    Update(); 
+                }
+            });
+            RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value => 
+            { 
+                lock(locker)
+                {
+                    irqPending = (uint)value;
+                    Update(); 
+                }
+            });
             RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
         }
 
         public override void OnGPIO(int number, bool value)
         {
-            BitHelper.SetBit(ref irqPending, (byte)number, value);
-            Update();
+            lock(locker)
+            {
+                BitHelper.SetBit(ref irqPending, (byte)number, value);
+                Update();
+            }
         }
 
         private void Update()
@@ -37,6 +54,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint irqMask;
         private uint irqPending;
         private uint dCacheInfo;
+
+        private readonly object locker = new object();
 
         private enum CSRs
         {
