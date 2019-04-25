@@ -147,6 +147,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+#pragma warning disable 649
+
+        [Import]
+        protected FuncUInt32UInt32 TlibSetCsrValidation;
+
+#pragma warning restore 649
+
         private void EnableArchitectureVariants()
         {
             foreach(var @set in architectureSets)

@@ -15,6 +15,8 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public VexRiscv(Core.Machine machine, uint hartId = 0) : base(null, "rv32im", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
+            TlibSetCsrValidation(0);
+
             RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value => { irqMask = (uint)value; Update(); });
             RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value => { irqPending = (uint)value; Update(); });
             RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
