@@ -8,6 +8,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using ELFSharp.ELF;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -22,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 lock(locker)
                 {
                     irqMask = (uint)value; 
+                    this.Log(LogLevel.Noisy, "IRQ mask set to 0x{0:X}", irqMask);
                     Update(); 
                 }
             });
@@ -30,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 lock(locker)
                 {
                     irqPending = (uint)value;
+                    this.Log(LogLevel.Noisy, "IRQ pending set to 0x{0:X}", irqPending);
                     Update(); 
                 }
             });
@@ -40,6 +43,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             lock(locker)
             {
+                this.Log(LogLevel.Noisy, "GPIO #{0} set to: {1}", number, value);
                 BitHelper.SetBit(ref irqPending, (byte)number, value);
                 Update();
             }
