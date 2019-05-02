@@ -89,6 +89,7 @@
     <Compile Include="Mocks\MockPeripheralWithObjectAttribute.cs" />
     <Compile Include="Mocks\MockPeripheralWithBoolAttribute.cs" />
     <Compile Include="Mocks\MockPeripheralUsingReferenceAttribute.cs" />
+    <Compile Include="Utilities\ThreadSyncTester.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
