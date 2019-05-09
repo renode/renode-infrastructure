@@ -25,12 +25,28 @@ namespace Antmicro.Renode.Utilities
 #if !PLATFORM_WINDOWS                
                 if (ConfigurationManager.Instance.Get("file-system", "use-cow", false))
                 {
-                    var sfd = Syscall.open(src, OpenFlags.O_RDONLY);
-                    var dfd = Syscall.open(dst, overwrite ? OpenFlags.O_CREAT | OpenFlags.O_TRUNC | OpenFlags.O_WRONLY : (OpenFlags.O_CREAT | OpenFlags.O_EXCL), FilePermissions.S_IRUSR | FilePermissions.S_IWUSR);
-
-                    if (sfd != -1 && dfd != -1 && ioctl(dfd, 0x40049409 , sfd) != -1)
+                    int sfd = -1, dfd = -1;
+                    try
                     {
-                        return;
+                        sfd = Syscall.open(src, OpenFlags.O_RDONLY);
+                        dfd = Syscall.open(dst, overwrite ? OpenFlags.O_CREAT | OpenFlags.O_TRUNC | OpenFlags.O_WRONLY : (OpenFlags.O_CREAT | OpenFlags.O_EXCL), FilePermissions.S_IRUSR | FilePermissions.S_IWUSR);
+
+                        if(sfd != -1 && dfd != -1 && ioctl(dfd, 0x40049409, sfd) != -1)
+                        {
+                            return;
+                        }
+                    }
+                    finally
+                    {
+                        if(sfd != -1)
+                        {
+                            Syscall.close(sfd);
+                        }
+
+                        if(dfd != -1)
+                        {
+                            Syscall.close(dfd);
+                        }
                     }
                 }
 #endif
