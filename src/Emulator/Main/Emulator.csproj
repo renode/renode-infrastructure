@@ -321,6 +321,7 @@
     <Compile Include="Core\IHostMachineElement.cs" />
     <Compile Include="Utilities\Table.cs" />
     <Compile Include="Peripherals\Timers\ITimer.cs" />
+    <Compile Include="Peripherals\Timers\IRiscVTimeProvider.cs" />
     <Compile Include="Core\IPeripheralsGroup.cs" />
     <Compile Include="Utilities\TypeSorter.cs" />
     <Compile Include="Utilities\BlobManager.cs" />

@@ -10,7 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities.Binding;
 using Endianess = ELFSharp.ELF.Endianess;
@@ -19,10 +19,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(CoreLevelInterruptor clint, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(hartId, cpuType, machine, endianness, bitness)
+        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
-            this.clint = clint;
+            this.timeProvider = timeProvider;
             this.privilegeArchitecture = privilegeArchitecture;
             ShouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
@@ -200,9 +200,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private ulong GetCPUTime()
         {
-            if(clint == null)
+            if(timeProvider == null)
             {
-                this.Log(LogLevel.Warning, "Trying to read CPU time from CLINT, but CLINT is not registered.");
+                this.Log(LogLevel.Warning, "Trying to read time from CPU, but no time provider is registered.");
                 return 0;
             }
 
@@ -213,7 +213,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibResetExecutedInstructions(residuum);
                 machine.HandleTimeProgress(elapsed);
             }
-            return clint.TimerValue;
+            return timeProvider.TimerValue;
         }
 
         [Export]
@@ -274,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool pcWrittenFlag;
 
-        private readonly CoreLevelInterruptor clint;
+        private readonly IRiscVTimeProvider timeProvider;
 
         private readonly PrivilegeArchitecture privilegeArchitecture;
 
@@ -363,4 +363,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

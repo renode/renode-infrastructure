@@ -12,10 +12,11 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
+    public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider
     {
         public CoreLevelInterruptor(Machine machine, long frequency, int numberOfTargets = 1)
         {

@@ -5,16 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.IRQControllers;
 using ELFSharp.ELF;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(Core.Machine machine, uint hartId = 0) : base(null, "rv32im", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(timeProvider, "rv32im", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
             TlibSetCsrValidation(0);
 
