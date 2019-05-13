@@ -44,8 +44,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(locker)
             {
                 this.Log(LogLevel.Noisy, "GPIO #{0} set to: {1}", number, value);
-                BitHelper.SetBit(ref irqPending, (byte)number, value);
-                Update();
+                if(number == MachineTimerInterruptCustomNumber)
+                {
+                    base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
+                }
+                else
+                {
+                    BitHelper.SetBit(ref irqPending, (byte)number, value);
+                    Update();
+                }
             }
         }
 
@@ -60,6 +67,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint dCacheInfo;
 
         private readonly object locker = new object();
+
+        // this is non-standard number for Machine Timer Interrupt,
+        // but it's moved to 100 to avoid conflicts with VexRiscv
+        // built-in interrupt manager that is mapped to IRQs 0-31
+        private const int MachineTimerInterruptCustomNumber = 100;
 
         private enum CSRs
         {
