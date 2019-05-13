@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(timeProvider, "rv32im", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_09) : base(timeProvider, "rv32im", machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
         {
             TlibSetCsrValidation(0);
 
