@@ -11,9 +11,7 @@ using Xwt;
 using Xwt.GtkBackend;
 #endif
 using System.Threading;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.UserInterface;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.UI
 {
