@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2019 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,8 +22,25 @@ namespace Antmicro.Renode.Utilities
     {
         static TypeManager()
         {
-            Instance = new TypeManager();
-            Instance.Scan(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+            string assemblyLocation;
+            var isBundled = BundleHelper.InitializeBundledAssemblies();
+
+            Instance = new TypeManager(isBundled);
+            if(isBundled)
+            {
+                foreach(var name in BundleHelper.GetBundledAssembliesNames())
+                {
+                    Instance.ScanFile(name, bundled: true);
+                }
+
+                // in case of a bundled version `Assembly.GetExecutingAssembly().Location` returns an empty string
+                assemblyLocation = Directory.GetCurrentDirectory();
+            }
+            else
+            {
+                assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            }
+            Instance.Scan(assemblyLocation);
         }
 
         public static TypeManager Instance { get; private set; }
@@ -64,14 +81,14 @@ namespace Antmicro.Renode.Utilities
             Scan(Directory.GetCurrentDirectory());
         }
 
-        public bool ScanFile(string path)
+        public bool ScanFile(string path, bool bundled = false)
         {
             lock(dictSync)
             {
                 Logger.LogAs(this, LogLevel.Noisy, "Loading assembly {0}.", path);
                 ClearExtensionMethodsCache();
                 BuildAssemblyCache();
-                if(!AnalyzeAssembly(path, true))
+                if(!AnalyzeAssembly(path, true, bundled))
                 {
                     return false;
                 }
@@ -199,10 +216,10 @@ namespace Antmicro.Renode.Utilities
                 return true;
             }
 
-            return (type.BaseType != null && ImplementsInterface(type.BaseType.Resolve(), @interface)) || type.Interfaces.Any(i => ImplementsInterface(i.Resolve(), @interface));
+            return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i), @interface));
         }
 
-        private TypeManager()
+        private TypeManager(bool isBundled)
         {
             assembliesFromTypeName = new Dictionary<string, List<AssemblyDescription>>();
             assemblyFromTypeName = new Dictionary<string, AssemblyDescription>();
@@ -216,6 +233,8 @@ namespace Antmicro.Renode.Utilities
             foundPeripherals = new List<TypeDefinition>();
             foundPlugins = new List<PluginDescriptor>();
             PluginManager = new PluginManager();
+
+            this.isBundled = isBundled;
         }
 
         private Assembly ResolveAssembly(object sender, ResolveEventArgs args)
@@ -331,6 +350,43 @@ namespace Antmicro.Renode.Utilities
             Logger.LogAs(this, LogLevel.Noisy, "Assembly cache with {0} distinct assemblies built.", assemblyFromAssemblyPath.Count);
         }
 
+        private TypeDefinition ResolveInner(TypeReference tp)
+        {
+            if(isBundled)
+            {
+                try
+                {
+                    var scope = tp.GetElementType().Scope.ToString();
+                    var bundled = BundleHelper.GetBundledAssemblyByFullName(scope);
+                    if(bundled != null)
+                    {
+                        if(tp.IsArray)
+                        {
+                            // this supports only one-dimensional arrays for now
+                            var elementType = bundled.MainModule.GetType(tp.Namespace, tp.GetElementType().Name);
+                            return new ArrayType(elementType).Resolve();
+                        }
+
+                        return bundled.MainModule.GetType(tp.Namespace, tp.Name);
+                    }
+                }
+                catch
+                {
+                    // intentionally do nothing, we'll try to resolve it later
+                }
+            }
+
+            try
+            {
+                return tp.Resolve();
+            }
+            catch
+            {
+                // we couldn't resolve it in any way, just give up
+                return null;
+            }
+        }
+
         private bool ExtractExtensionMethods(TypeDefinition type)
         {
             // type is enclosing type
@@ -346,7 +402,8 @@ namespace Antmicro.Renode.Utilities
                     // so this is extension method
                     // let's check the type of the first parameter
                     var paramReference = method.Parameters[0];
-                    var paramType = paramReference.ParameterType.Resolve();
+                    var paramType = ResolveInner(paramReference.ParameterType);
+
                     if(paramType == null)
                     {
                         if(paramReference.ParameterType.IsGenericParameter || paramReference.ParameterType.GetElementType().IsGenericParameter)
@@ -411,7 +468,7 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
-        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false)
+        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false, bool bundled = false)
         {
             Logger.LogAs(this, LogLevel.Noisy, "Analyzing assembly {0}.", path);
             if(assemblyFromAssemblyName.Values.Any(x => x.Path == path))
@@ -422,7 +479,9 @@ namespace Antmicro.Renode.Utilities
             AssemblyDefinition assembly;
             try
             {
-                assembly = AssemblyDefinition.ReadAssembly(path);
+                assembly = (bundled)
+                    ? BundleHelper.GetBundledAssemblyByName(path)
+                    : AssemblyDefinition.ReadAssembly(path);
             }
             catch(DirectoryNotFoundException)
             {
@@ -483,13 +542,13 @@ namespace Antmicro.Renode.Utilities
 
             foreach(var type in types)
             {
-                if(type.Interfaces.Any(i => i.Resolve().GetFullNameOfMember() == typeof(IPeripheral).FullName))
+                if(type.Interfaces.Any(i => ResolveInner(i)?.GetFullNameOfMember() == typeof(IPeripheral).FullName))
                 {
                     Logger.LogAs(this, LogLevel.Noisy, "Peripheral type {0} found.", type.Resolve().GetFullNameOfMember());
                     foundPeripherals.Add(type);
                 }
 
-                if(type.CustomAttributes.Any(x => x.AttributeType.Resolve().GetFullNameOfMember() == typeof(PluginAttribute).FullName))
+                if(type.CustomAttributes.Any(x => ResolveInner(x.AttributeType)?.GetFullNameOfMember() == typeof(PluginAttribute).FullName))
                 {
                     Logger.LogAs(this, LogLevel.Noisy, "Plugin type {0} found.", type.Resolve().GetFullNameOfMember());
                     try
@@ -549,7 +608,7 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
-        private static bool IsAutoLoadType(TypeDefinition type)
+        private bool IsAutoLoadType(TypeDefinition type)
         {
             var isAutoLoad = type.Interfaces.Select(x => x.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
             if(isAutoLoad)
@@ -564,28 +623,16 @@ namespace Antmicro.Renode.Utilities
             return IsAutoLoadType(resolved);
         }
 
-        static TypeDefinition ResolveBaseType(TypeDefinition type)
+        private TypeDefinition ResolveBaseType(TypeDefinition type)
         {
-            if(type.BaseType == null)
-            {
-                return null;
-            }
-            TypeDefinition resolved;
-            try
-            {
-                resolved = type.BaseType.Resolve();
-            }
-            catch(AssemblyResolutionException)
-            {
-                resolved = null;
-            }
-
-            return resolved;
+            return (type.BaseType == null)
+                ? null
+                : ResolveInner(type.BaseType);
         }
 
         private bool IsInterestingType(TypeDefinition type)
         {
-            if(type.CustomAttributes.Any(x => x.AttributeType.Resolve().Interfaces.Select(y => y.GetFullNameOfMember()).Contains(typeof(IInterestingType).FullName)))
+            if(type.CustomAttributes.Any(x => ResolveInner(x.AttributeType)?.Interfaces.Select(y => y.GetFullNameOfMember()).Contains(typeof(IInterestingType).FullName) == true))
             {
                 return true;
             }
@@ -665,6 +712,8 @@ namespace Antmicro.Renode.Utilities
 
         private readonly List<TypeDefinition> foundPeripherals;
         private readonly List<PluginDescriptor> foundPlugins;
+
+        private readonly bool isBundled;
 
         private class AssemblyDescription
         {
