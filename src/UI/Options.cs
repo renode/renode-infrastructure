@@ -43,7 +43,6 @@ namespace Antmicro.Renode.UI
 
         public bool Validate(out string error)
         {
-            HideMonitor |= DisableXwt;
             if(!string.IsNullOrEmpty(ScriptPath) && !string.IsNullOrEmpty(Execute))
             {
                 error = "Script path and execute command cannot be set at the same time";

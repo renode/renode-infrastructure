@@ -36,10 +36,25 @@ namespace Antmicro.Renode.UI
                 var pid = Process.GetCurrentProcess().Id;
                 File.WriteAllText(options.PidFile, pid.ToString());
             }
+
             if(!options.DisableXwt)
             {
-                xwt = new XwtProvider(new WindowedUserInterfaceProvider());
+                xwt = XwtProvider.Create(new WindowedUserInterfaceProvider());
             }
+
+            if(xwt == null)
+            {
+                if(options.Port == -1)
+                {
+                    options.Port = 1234;
+                }
+
+                if(!options.DisableXwt)
+                {
+                    Logger.Log(LogLevel.Warning, "Couldn't start UI - falling back to telnet mode");
+                }
+            }
+
             using(var context = ObjectCreator.Instance.OpenContext())
             {
                 var monitor = new Antmicro.Renode.UserInterface.Monitor();
@@ -60,7 +75,7 @@ namespace Antmicro.Renode.UI
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
-                var analyzerType = options.DisableXwt ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
+                var analyzerType = (xwt == null) ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
 
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
                 EmulationManager.Instance.EmulationChanged += () =>
@@ -101,6 +116,8 @@ namespace Antmicro.Renode.UI
                     Backend = new SocketIOSource(options.Port)
                 };
                 shell = ShellProvider.GenerateShell(io, monitor, true);
+
+                Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
             else
             {

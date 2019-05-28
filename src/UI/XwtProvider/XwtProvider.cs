@@ -25,13 +25,13 @@ namespace Antmicro.Renode.UI
             UiThreadId = -1;
         }
 
-        public XwtProvider(IUserInterfaceProvider uiProvider, bool autostart = true)
+        public static XwtProvider Create(IUserInterfaceProvider uiProvider)
         {
             Emulator.UserInterfaceProvider = uiProvider;
-            if(autostart)
-            {
-                StartXwtThreadOnMainThread();
-            }
+            var xwtProvider = new XwtProvider();
+            return (xwtProvider.StartXwtThreadOnMainThread())
+                ? xwtProvider
+                : null;
         }
 
         public void Dispose()
@@ -39,13 +39,21 @@ namespace Antmicro.Renode.UI
             StopXwtThread();
         }
 
-        public void Initialize()
+        public bool Initialize()
         {
+            try
+            {
 #if PLATFORM_WINDOWS
-            Application.Initialize(ToolkitType.Wpf);
+                Application.Initialize(ToolkitType.Wpf);
 #else
-            Application.Initialize(ToolkitType.Gtk);
+                Application.Initialize(ToolkitType.Gtk);
 #endif
+                return true;
+            }
+            catch(Exception)
+            {
+                return false;
+            }
         }
 
         public void RunMainLoopInCurrentThread()
@@ -76,19 +84,28 @@ namespace Antmicro.Renode.UI
 
         public static int UiThreadId { get; private set; }
 
-        private void StartXwtThreadOnMainThread()
+        private XwtProvider()
         {
+        }
+
+        private bool StartXwtThreadOnMainThread()
+        {
+            var initialized = false;
             var manualResetEvent = new ManualResetEventSlim();
             Emulator.ExecuteOnMainThread(() =>
             {
                 // XWT thread has to be initialized on the first thread at OSX
-                Initialize();
+                initialized = Initialize();
                 manualResetEvent.Set();
-                RunMainLoopInCurrentThread();
+                if(initialized)
+                {
+                    RunMainLoopInCurrentThread();
+                }
             });
             // we should wait here for the initalization of XWT
             // as further code might want to use it
             manualResetEvent.Wait();
+            return initialized;
         }
 
         private void StopXwtThread()
