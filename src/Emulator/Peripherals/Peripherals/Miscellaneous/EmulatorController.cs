@@ -31,7 +31,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class EmulatorController : IDoubleWordPeripheral, IKnownSize
     {
-     
         public EmulatorController(Machine machine)
         {
             this.machine = machine;
