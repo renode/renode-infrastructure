@@ -52,6 +52,10 @@ namespace Antmicro.Renode.UI
                 {
                     Logger.AddBackend(ConsoleBackend.Instance, "console");
                 }
+                else
+                {
+                    Logger.AddBackend(new DummyLoggerBackend(), "dummy");
+                }
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
