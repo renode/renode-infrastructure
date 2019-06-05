@@ -13,20 +13,10 @@ namespace Antmicro.Renode.Logging.Backends
     public class DummyLoggerBackend : ILoggerBackend
     {
         public bool IsControllable { get { return true; } }
-        public bool AcceptEverything { get { return false; } }
 
         public IDictionary<int, LogLevel> GetCustomLogLevels()
         {
             return new Dictionary<int, LogLevel>();
-        }
-
-        public LogEntry NextEntry()
-        {
-            if(entries.Count > 0)
-            {
-                return entries.Dequeue();
-            }
-            return null;
         }
 
         public LogLevel GetLogLevel()
@@ -36,12 +26,6 @@ namespace Antmicro.Renode.Logging.Backends
 
         public void Log(LogEntry entry)
         {
-            entries.Enqueue(entry);
-        }
-
-        public void Clear()
-        {
-            entries.Clear();
         }
 
         public void Reset()
@@ -55,13 +39,6 @@ namespace Antmicro.Renode.Logging.Backends
         public void SetLogLevel(LogLevel level, int sourceId = -1)
         {
         }
-
-        public bool ShouldBePrinted(object obj, LogLevel level)
-        {
-            return true;
-        }
-
-        private readonly Queue<LogEntry> entries = new Queue<LogEntry>();
     }
 }
 
