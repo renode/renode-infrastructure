@@ -7,6 +7,7 @@
 //
 using System;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Logging.Backends;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Backends.Terminals;
