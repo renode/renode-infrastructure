@@ -12,8 +12,6 @@ namespace Antmicro.Renode.Logging.Backends
 {
     public class DummyLoggerBackend : ILoggerBackend
     {
-        public bool IsControllable { get { return true; } }
-
         public IDictionary<int, LogLevel> GetCustomLogLevels()
         {
             return new Dictionary<int, LogLevel>();
@@ -39,6 +37,8 @@ namespace Antmicro.Renode.Logging.Backends
         public void SetLogLevel(LogLevel level, int sourceId = -1)
         {
         }
+
+        public bool IsControllable { get { return true; } }
     }
 }
 
