@@ -140,8 +140,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         {
             monitor = new Monitor();
             commandEater = new CommandInteractionEater();
-            loggerBackend = new DummyLoggerBackend();
-            Logger.AddBackend(loggerBackend, "dummy");
+            Logger.AddBackend(new DummyLoggerBackend(), "dummy");
         }
 
         [TearDown]
@@ -149,14 +148,12 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         {
             EmulationManager.Instance.Clear();
             commandEater.Clear();
-            loggerBackend.Clear();
         }
 
         private const uint MemoryOffset = 0x1000;
         private CommandInteractionEater commandEater;
         private Monitor monitor;
         private Machine machine;
-        private DummyLoggerBackend loggerBackend;
     }
 }
 
