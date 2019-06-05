@@ -133,8 +133,7 @@ namespace Antmicro.Renode.Utilities
                 AssemblyDescription assembly;
                 if(assemblyFromTypeName.TryGetValue(name, out assembly))
                 {
-                    var typeName = string.Format("{0}, {1}", name, assembly.FullName);
-                    return GetTypeWithLazyLoad(typeName, assembly.Path);
+                    return GetTypeWithLazyLoad(name, assembly.FullName, assembly.Path);
                 }
                 if(assembliesFromTypeName.ContainsKey(name))
                 {
@@ -153,11 +152,10 @@ namespace Antmicro.Renode.Utilities
                             "Assembly resolver returned path {0} which is not one of the proposed paths {1}.",
                             selectedAssembly, possibleAssemblies.Select(x => x.Path).Aggregate((x, y) => x + ", " + y)));
                     }
-                    var typeName = string.Format("{0}, {1}", name, selectedAssemblyDescription.FullName);
                     // once conflict is resolved, we can move this type to assemblyFromTypeName
                     assembliesFromTypeName.Remove(name);
                     assemblyFromTypeName.Add(name, selectedAssemblyDescription);
-                    return GetTypeWithLazyLoad(typeName, selectedAssembly);
+                    return GetTypeWithLazyLoad(name, selectedAssemblyDescription.FullName, selectedAssembly);
                 }
                 return null;
             }
@@ -308,13 +306,16 @@ namespace Antmicro.Renode.Utilities
             return methodInfos;
         }
 
-        private Type GetTypeWithLazyLoad(string fullName, string path)
+        private Type GetTypeWithLazyLoad(string name, string assemblyFullName, string path)
         {
+            var fullName = string.Format("{0}, {1}", name, assemblyFullName);
             var type = Type.GetType(fullName);
             if(type == null)
             {
-                Assembly.LoadFrom(path);
-                type = Type.GetType(fullName, true);
+                //While Type.GetType on Mono is very liberal, finding the types even without the AQN provided, on Windows we have to either provide the assembly to search in or the full type name with AQN.
+                //This is useful when we're generating dynamic assemblies, via loading a cs file and compiling it ad-hoc.
+                var assembly = Assembly.LoadFrom(path);
+                type = assembly.GetType(name, true);
                 Logger.LogAs(this, LogLevel.Noisy, "Loaded assembly {0} ({1} triggered).", path, type.FullName);
             }
             return type;
@@ -504,8 +505,7 @@ namespace Antmicro.Renode.Utilities
 
                 if(IsAutoLoadType(type))
                 {
-                    var typeName = string.Format("{0}, {1}", type.GetFullNameOfMember(), assembly.FullName);
-                    var loadedType = GetTypeWithLazyLoad(typeName, path);
+                    var loadedType = GetTypeWithLazyLoad(type.GetFullNameOfMember(), assembly.FullName, path);
                     lock(autoLoadedTypeLocker)
                     {
                         autoLoadedTypes.Add(loadedType);
