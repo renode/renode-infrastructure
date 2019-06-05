@@ -91,6 +91,7 @@
     <Compile Include="Mocks\MockPeripheralUsingReferenceAttribute.cs" />
     <Compile Include="Utilities\ThreadSyncTester.cs" />
     <Compile Include="PseudorandomNumberGeneratorTests.cs" />
+    <Compile Include="AdHocCompilerTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -124,6 +125,11 @@
       <Project>{66400796-0C5B-4386-A859-50A2AC3F3DB7}</Project>
       <Name>Peripherals</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Mocks\MockExtension.cs">
+      <LogicalName>MockExtension.cs</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
