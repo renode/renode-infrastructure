@@ -8,7 +8,7 @@
 using Antmicro.Renode.Logging;
 using System.Collections.Generic;
 
-namespace Antmicro.Renode.MonitorTests
+namespace Antmicro.Renode.Logging.Backends
 {
     public class DummyLoggerBackend : ILoggerBackend
     {

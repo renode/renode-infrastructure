@@ -384,6 +384,7 @@
     <Compile Include="Logging\Lucene\SearchResults.cs" />
     <Compile Include="Logging\Lucene\SearchContext.cs" />
     <Compile Include="Logging\Backends\LuceneLoggerBackend.cs" />
+    <Compile Include="Logging\Backends\DummyLoggerBackend.cs" />
     <Compile Include="Peripherals\Timers\LimitTimer.cs" />
     <Compile Include="Peripherals\Bus\ConnectionRegionAttribute.cs" />
     <Compile Include="Peripherals\Bus\BusAccess.cs" />

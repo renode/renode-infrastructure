@@ -10,6 +10,7 @@ using NUnit.Framework;
 using Antmicro.Renode.UserInterface;
 using System.Diagnostics;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Logging.Backends;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
