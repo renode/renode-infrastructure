@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using Dynamitey;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -23,102 +24,116 @@ namespace Antmicro.Renode.Utilities
     {
         public static bool IsCallable(this PropertyInfo info)
         {
-            return IsTypeConvertible(info.PropertyType) && info.GetIndexParameters().Length == 0 && info.IsBaseCallable(); //disallow indexers
+            bool M(PropertyInfo i) => IsTypeConvertible(i.PropertyType) && i.GetIndexParameters().Length == 0 && i.IsBaseCallable(); //disallow indexers
+            return cache.Get(info, M); 
         }
 
         public static bool IsCallableIndexer(this PropertyInfo info)
         {
-            return IsTypeConvertible(info.PropertyType) && info.GetIndexParameters().Length != 0 && info.IsBaseCallable(); //only indexers
+            bool M(PropertyInfo i) => IsTypeConvertible(i.PropertyType) && i.GetIndexParameters().Length != 0 && i.IsBaseCallable(); //only indexers
+            return cache.Get(info, M); 
         }
 
         public static bool IsCallable(this FieldInfo info)
         {
-            return IsTypeConvertible(info.FieldType) && info.IsBaseCallable();
+            bool M(FieldInfo i) => IsTypeConvertible(i.FieldType) && i.IsBaseCallable();
+            return cache.Get(info, M);
         }
 
         public static bool IsCallable(this MethodInfo info)
         {
-            return info.GetParameters().All(x => !x.IsOut && IsTypeConvertible(x.ParameterType) || x.IsOptional) && info.IsBaseCallable();
+            bool M(MethodInfo i) => i.GetParameters().All(y => !y.IsOut && IsTypeConvertible(y.ParameterType) || y.IsOptional) && i.IsBaseCallable();
+            return cache.Get(info, M);
         }
 
         public static bool IsExtensionCallable(this MethodInfo info)
         {
-            return !info.IsGenericMethod && info.GetParameters().Skip(1).All(x => !x.IsOut && IsTypeConvertible(x.ParameterType) || x.IsOptional) && info.IsBaseCallable();
-        }
-
-        private static bool IsBaseCallable(this MemberInfo info)
-        {
-            return !info.IsDefined(typeof(HideInMonitorAttribute));
+            bool M(MethodInfo i) => !i.IsGenericMethod && i.GetParameters().Skip(1).All(y => !y.IsOut && IsTypeConvertible(y.ParameterType) || y.IsOptional) && i.IsBaseCallable();
+            return cache.Get(info, M);
         }
 
         public static bool IsStatic(this MemberInfo info)
         {
-            var eventInfo = info as EventInfo;
-            var fieldInfo = info as FieldInfo;
-            var methodInfo = info as MethodInfo;
-            var propertyInfo = info as PropertyInfo;
-            var type = info as Type;
+            return cache.Get(info, InnerIsStatic);
 
-            if(eventInfo != null)
+            bool InnerIsStatic(MemberInfo i)
             {
-                var addMethod = eventInfo.GetAddMethod(true);
-                if(addMethod != null)
+                var eventInfo = i as EventInfo;
+                var fieldInfo = i as FieldInfo;
+                var methodInfo = i as MethodInfo;
+                var propertyInfo = i as PropertyInfo;
+                var type = i as Type;
+
+                if(eventInfo != null)
                 {
-                    return addMethod.IsStatic;
+                    var addMethod = eventInfo.GetAddMethod(true);
+                    if(addMethod != null)
+                    {
+                        return addMethod.IsStatic;
+                    }
+                    var rmMethod = eventInfo.GetRemoveMethod(true);
+                    if(rmMethod != null)
+                    {
+                        return rmMethod.IsStatic;
+                    }
+                    throw new ArgumentException(String.Format("Unhandled type of event: {0} in {1}.", eventInfo.Name, eventInfo.DeclaringType));
                 }
-                var rmMethod = eventInfo.GetRemoveMethod(true);
-                if(rmMethod != null)
+
+                if(fieldInfo != null)
                 {
-                    return rmMethod.IsStatic;
+                    return (fieldInfo.Attributes & FieldAttributes.Static) != 0;
                 }
-                throw new ArgumentException(String.Format("Unhandled type of event: {0} in {1}.", eventInfo.Name, eventInfo.DeclaringType));
-            }
 
-            if(fieldInfo != null)
-            {
-                return (fieldInfo.Attributes & FieldAttributes.Static) != 0;
-            }
-
-            if(methodInfo != null)
-            {
-                return methodInfo.IsStatic;
-            }
-
-            if(propertyInfo != null)
-            {
-                var getMethod = propertyInfo.GetGetMethod(true);
-                if(getMethod != null)
+                if(methodInfo != null)
                 {
-                    return getMethod.IsStatic;
+                    return methodInfo.IsStatic;
                 }
-                var setMethod = propertyInfo.GetSetMethod(true);
-                if(setMethod != null)
-                {
-                    return setMethod.IsStatic;
-                }
-                throw new ArgumentException(String.Format("Unhandled type of property: {0} in {1}.", propertyInfo.Name, propertyInfo.DeclaringType));
-            }
 
-            if(type != null)
-            {
-                return type.IsAbstract && type.IsSealed;
+                if(propertyInfo != null)
+                {
+                    var getMethod = propertyInfo.GetGetMethod(true);
+                    if(getMethod != null)
+                    {
+                        return getMethod.IsStatic;
+                    }
+                    var setMethod = propertyInfo.GetSetMethod(true);
+                    if(setMethod != null)
+                    {
+                        return setMethod.IsStatic;
+                    }
+                    throw new ArgumentException(String.Format("Unhandled type of property: {0} in {1}.", propertyInfo.Name, propertyInfo.DeclaringType));
+                }
+
+                if(type != null)
+                {
+                    return type.IsAbstract && type.IsSealed;
+                }
+                throw new ArgumentException(String.Format("Unhandled type of MemberInfo: {0} in {1}.", i.Name, i.DeclaringType));
             }
-            throw new ArgumentException(String.Format("Unhandled type of MemberInfo: {0} in {1}.", info.Name, info.DeclaringType));
         }
 
         public static bool IsCurrentlyGettable(this PropertyInfo info, BindingFlags flags)
         {
-            return info.CanRead && info.GetGetMethod((flags & BindingFlags.NonPublic) > 0) != null;
+            bool M(PropertyInfo i, BindingFlags f) => i.CanRead && i.GetGetMethod((f & BindingFlags.NonPublic) > 0) != null;
+            return cache.Get(info, flags, M);
         }
 
         public static bool IsCurrentlySettable(this PropertyInfo info, BindingFlags flags)
         {
-            return info.CanWrite && info.GetSetMethod((flags & BindingFlags.NonPublic) > 0) != null;
+            bool M(PropertyInfo i, BindingFlags f) => i.CanWrite && i.GetSetMethod((f & BindingFlags.NonPublic) > 0) != null;
+            return cache.Get(info, flags, M);
         }
 
         public static bool IsExtension(this MethodInfo info)
         {
-            return info.IsDefined(typeof(ExtensionAttribute), true);
+            bool M(MethodInfo i) => i.IsDefined(typeof(ExtensionAttribute), true);
+            return cache.Get(info, M);
+        }
+
+        private static bool IsBaseCallable(this MemberInfo info)
+        {
+            bool M(MemberInfo i) => !i.IsDefined(typeof(HideInMonitorAttribute));
+            return cache.Get(info, M);
         }
 
         private static Type GetEnumerableType(Type type)
@@ -150,7 +165,13 @@ namespace Antmicro.Renode.Utilities
             typeof(TimeStamp),
             typeof(TimerResult)
         };
+
         private static bool IsTypeConvertible(Type type)
+        {
+            return cache.Get(type, InnerIsTypeConvertible);
+        }
+
+        private static bool InnerIsTypeConvertible(Type type)
         {
             var underlyingType = GetEnumerableType(type);
             if(underlyingType != null)
@@ -200,6 +221,8 @@ namespace Antmicro.Renode.Utilities
             }
             return false;
         }
+
+        private static readonly SimpleCache cache = new SimpleCache();
     }
 }
 
