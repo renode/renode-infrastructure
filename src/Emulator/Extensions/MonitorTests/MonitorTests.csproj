@@ -65,6 +65,11 @@
       <Name>Migrant</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\Main\Tests\UnitTests\Mocks\MockExtension.cs">
+      <LogicalName>MockExtension.cs</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
       <Properties>
