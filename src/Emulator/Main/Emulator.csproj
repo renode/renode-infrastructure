@@ -463,6 +463,7 @@
     <Compile Include="Storage\DataStorage.cs" />
     <Compile Include="Core\GPIOGate.cs" />
     <Compile Include="Peripherals\CAN\CANMessageFrame.cs" />
+    <Compile Include="Utilities\Collections\SimpleCache.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
