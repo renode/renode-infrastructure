@@ -30,10 +30,12 @@ namespace Antmicro.Renode.UserInterface.Commands
             if(allow.Value)
             {
                 monitor.CurrentBindingFlags |= BindingFlags.NonPublic;
+                monitor.ClearCache();
             }
             else
             {
                 monitor.CurrentBindingFlags &= ~BindingFlags.NonPublic;
+                monitor.ClearCache();
             }
         }
 

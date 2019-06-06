@@ -12,6 +12,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -735,31 +736,33 @@ namespace Antmicro.Renode.UserInterface
         {
             var info = new MonitorInfo();
             var methodsAndExtensions = new List<MethodInfo>();
-            var methods = GetAvailableMethods(device);
+
+            var methods = cache.Get(device, GetAvailableMethods);
             if(methods.Any())
             {
                 methodsAndExtensions.AddRange(methods);
             }
 
-            var properties = GetAvailableProperties(device);
+            var properties = cache.Get(device, GetAvailableProperties);
             if(properties.Any())
             {
                 info.Properties = properties.OrderBy(x => x.Name);
             }
 
-            var indexers = GetAvailableIndexers(device);
+            var indexers = cache.Get(device, GetAvailableIndexers);
             if(indexers.Any())
             {
                 info.Indexers = indexers.OrderBy(x => x.Name);
             }
 
-            var fields = GetAvailableFields(device);
+            var fields = cache.Get(device, GetAvailableFields);
             if(fields.Any())
             {
                 info.Fields = fields.OrderBy(x => x.Name);
             }
 
-            var extensions = TypeManager.Instance.GetExtensionMethods(device).Where(x => x.IsExtensionCallable()).OrderBy(x=>x.Name);
+            var extensions = cache.Get(device, GetAvailableExtensions);
+
             if(extensions.Any())
             {
                 methodsAndExtensions.AddRange(extensions);
@@ -1131,11 +1134,11 @@ namespace Antmicro.Renode.UserInterface
                 throw new RecoverableException("Bad syntax");
             }
 
-            var methods = GetAvailableMethods(type);
-            var fields = GetAvailableFields(type);
-            var properties = GetAvailableProperties(type);
-            var indexers = GetAvailableIndexers(type).ToList();
-            var extensions = TypeManager.Instance.GetExtensionMethods(type).Where(x => x.IsExtensionCallable()).OrderBy(x=>x.Name);
+            var methods = cache.Get(type, GetAvailableMethods);
+            var fields = cache.Get(type, GetAvailableFields);
+            var properties = cache.Get(type, GetAvailableProperties);
+            var indexers = cache.Get(type, GetAvailableIndexers).ToList();
+            var extensions = cache.Get(type, GetAvailableExtensions);
 
             var foundMethods = methods.Where(x => x.Name == commandValue).ToList();
             var foundField = fields.FirstOrDefault(x => x.Name == commandValue);
@@ -1370,7 +1373,15 @@ namespace Antmicro.Renode.UserInterface
             return methods.DistinctBy(x=> x.ToString()); //This acutally gives us a full, easily comparable signature. Brilliant solution to avoid duplicates from overloaded methods.
         }
 
+        private IEnumerable<MethodInfo> GetAvailableExtensions(Type type) => TypeManager.Instance.GetExtensionMethods(type).Where(y => y.IsExtensionCallable()).OrderBy(y => y.Name);
+
+        public void ClearCache()
+        {
+            cache.ClearCache();
+        }
+
         public BindingFlags CurrentBindingFlags { get; set; }
+        private readonly SimpleCache cache = new SimpleCache();
 
         #endregion
     }

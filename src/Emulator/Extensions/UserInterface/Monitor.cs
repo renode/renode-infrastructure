@@ -524,6 +524,7 @@ namespace Antmicro.Renode.UserInterface
             try
             {
                 var result = compiler.Compile(filename, AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location));
+                cache.ClearCache();
                 return TypeManager.Instance.ScanFile(result);
             }
             catch(RecoverableException e)
