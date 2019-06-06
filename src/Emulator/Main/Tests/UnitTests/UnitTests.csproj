@@ -92,6 +92,7 @@
     <Compile Include="Utilities\ThreadSyncTester.cs" />
     <Compile Include="PseudorandomNumberGeneratorTests.cs" />
     <Compile Include="AdHocCompilerTests.cs" />
+    <Compile Include="SimpleCacheTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
