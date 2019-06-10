@@ -219,12 +219,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private int HasCSR(ulong csr)
         {
-            if(nonstandardCSR.ContainsKey(csr))
-            {
-                return 1;
-            }
-            this.Log(LogLevel.Noisy, "Missing nonstandard CSR: 0x{0:X}", csr);
-            return 0;
+            return nonstandardCSR.ContainsKey(csr) ? 1 : 0;
         }
 
         [Export]
