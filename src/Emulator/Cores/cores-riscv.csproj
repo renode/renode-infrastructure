@@ -50,6 +50,7 @@
     <Compile Include="RiscV\PlatformLevelInterruptController.cs" />
     <Compile Include="RiscV\PrivilegeLevel.cs" />
     <Compile Include="RiscV\Minerva.cs" />
+    <Compile Include="RiscV\Ri5cy.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
