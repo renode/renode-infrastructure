@@ -280,6 +280,7 @@
     <Compile Include="Peripherals\Timers\Murax_Timer.cs" />
     <Compile Include="Peripherals\GPIOPort\Murax_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SAM_TRNG.cs" />
+    <Compile Include="Peripherals\UART\LowPower_UART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
