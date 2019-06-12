@@ -29,6 +29,16 @@ namespace Antmicro.Renode.UI
         public static void Run(Options options, Action<ObjectCreator.Context> beforeRun = null)
         {
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => CrashHandler.HandleCrash((Exception)e.ExceptionObject);
+
+            if(!options.HideLog)
+            {
+                Logger.AddBackend(ConsoleBackend.Instance, "console");
+            }
+            else
+            {
+                Logger.AddBackend(new DummyLoggerBackend(), "dummy");
+            }
+
             Emulator.ShowAnalyzers = !options.HideAnalyzers;
             XwtProvider xwt = null;
             if(options.PidFile != null)
@@ -63,15 +73,6 @@ namespace Antmicro.Renode.UI
                 // we must initialize plugins AFTER registering monitor surrogate
                 // as some plugins might need it for construction
                 TypeManager.Instance.PluginManager.Init("CLI");
-
-                if(!options.HideLog)
-                {
-                    Logger.AddBackend(ConsoleBackend.Instance, "console");
-                }
-                else
-                {
-                    Logger.AddBackend(new DummyLoggerBackend(), "dummy");
-                }
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
