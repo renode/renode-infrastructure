@@ -5,13 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
-using Antmicro.Renode.Core.Structure;
-using System.Net;
-using PacketDotNet;
-using PacketDotNet.Utils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using Antmicro.Renode.Core.Structure;
+using PacketDotNet;
+using PacketDotNet.Utils;
 
 namespace Antmicro.Renode.Network
 {
