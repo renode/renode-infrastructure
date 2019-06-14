@@ -1023,6 +1023,17 @@ namespace Antmicro.Renode.Utilities
             result = @this.Dequeue();
             return true;
         }
+
+        public static bool TryCreateFrameOrLogWarning(IEmulationElement source, byte[] data, out EthernetFrame frame, bool addCrc)
+        {
+            if(EthernetFrame.TryCreateEthernetFrame(data, addCrc, out frame))
+            {
+                return true;
+            }
+            source.Log(LogLevel.Warning, "Insufficient data to create an ethernet frame, expected {0} bytes but got {1} bytes.",
+                    EthernetFrame.MinFrameSizeWithoutCRC + (addCrc ? 0 : EthernetFrame.CRCLength), data.Length);
+            return false;
+        }
     }
 }
 

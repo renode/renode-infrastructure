@@ -366,8 +366,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     this.Log(LogLevel.Noisy, "Sending frame of {0} bytes.", packetData.Count);
 
-                    var frame = EthernetFrame.CreateEthernetFrameWithoutCRC(packetData.ToArray());
-
+                    if(!Misc.TryCreateFrameOrLogWarning(this, packetData.ToArray(), out var frame, addCrc: false))
+                    {
+                        continue;
+                    }
                     if(transmitDescriptor.ChecksumInstertionControl > 0)
                     {
                         this.Log(LogLevel.Noisy, "Calculating checksum (mode {0}).", transmitDescriptor.ChecksumInstertionControl);
@@ -386,7 +388,10 @@ namespace Antmicro.Renode.Peripherals.Network
 
                     packetSent = true;
                     //We recreate the EthernetFrame because the CRC should be appended after creating inner checksums.
-                    var frameWithCrc = EthernetFrame.CreateEthernetFrameWithCRC(frame.Bytes);
+                    if(!Misc.TryCreateFrameOrLogWarning(this, packetData.ToArray(), out var frameWithCrc, addCrc: true))
+                    {
+                        continue;
+                    }
                     FrameReady?.Invoke(frameWithCrc);
                 }
                 transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);

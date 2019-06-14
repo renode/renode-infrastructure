@@ -502,7 +502,10 @@ namespace Antmicro.Renode.Peripherals.Network
             var packetSize = transmitBufferEnd - transmitBufferStart; // -1 for the per packet control byte, but transmitBufferEnd points to the last byte of the packet
             var data = new byte[packetSize];
             Array.Copy(ethernetBuffer, transmitBufferStart + 1, data, 0, packetSize);
-            var frame = EthernetFrame.CreateEthernetFrameWithCRC(data);
+            if(!Misc.TryCreateFrameOrLogWarning(this, data, out var frame, addCrc: true))
+            {
+                return;
+            }
             // status vector is not implemented yet
             this.Log(LogLevel.Debug, "Sending frame {0}.", frame);
             FrameReady?.Invoke(frame);

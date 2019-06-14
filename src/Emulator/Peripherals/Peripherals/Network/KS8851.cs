@@ -12,6 +12,7 @@ using Antmicro.Renode.Peripherals.SPI;
 using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -205,7 +206,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 var frame = new byte[currentLength];
                 Array.Copy(request, 0, frame, 0, currentLength);
                 //TODO: CRC handling
-                var ethernetFrame = EthernetFrame.CreateEthernetFrameWithoutCRC(frame);
+                if(!Misc.TryCreateFrameOrLogWarning(this, frame, out var ethernetFrame, addCrc: false))
+                {
+                    return;
+                }
                 FrameReady?.Invoke(ethernetFrame);
                 mode = Mode.Standard;
                 currentLength = 4;

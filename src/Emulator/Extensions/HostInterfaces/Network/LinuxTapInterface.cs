@@ -237,8 +237,10 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     continue;
                 }
-                var ethernetFrame = EthernetFrame.CreateEthernetFrameWithCRC(buffer);
-                FrameReady?.Invoke(ethernetFrame);
+                if(Misc.TryCreateFrameOrLogWarning(this, buffer, out var frame, addCrc: true))
+                {
+                    FrameReady?.Invoke(frame);
+                }
             }
         }
 

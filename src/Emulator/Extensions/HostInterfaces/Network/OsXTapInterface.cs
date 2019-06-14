@@ -127,7 +127,10 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     if(await deviceFile.ReadAsync(buffer, 0, buffer.Length, cts.Token) > 0)
                     {
-                        var frame = EthernetFrame.CreateEthernetFrameWithCRC(buffer);
+                        if(!Misc.TryCreateFrameOrLogWarning(this, buffer, out var frame, addCrc: true))
+                        {
+                            return;
+                        }
                         FrameReady?.Invoke(frame);
                         this.NoisyLog("Frame of length {0} received from host.", frame.Bytes.Length);
                     }

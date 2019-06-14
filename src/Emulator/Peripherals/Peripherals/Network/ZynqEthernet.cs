@@ -12,6 +12,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using System.Collections.Generic;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -240,14 +241,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
 
                     EthernetFrame frame;
-
-                    if(!txBD.NoCRC)
+                    if(!Misc.TryCreateFrameOrLogWarning(this, packet.ToArray(), out frame, !txBD.NoCRC))
                     {
-                        frame = EthernetFrame.CreateEthernetFrameWithCRC(packet.ToArray());
-                    }
-                    else
-                    {
-                        frame = EthernetFrame.CreateEthernetFrameWithoutCRC(packet.ToArray());
+                        continue;
                     }
 
                     this.Log(LogLevel.Noisy, "Sending packet length {0}", packet.ToArray().Length);

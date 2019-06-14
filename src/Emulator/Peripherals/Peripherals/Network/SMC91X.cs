@@ -453,8 +453,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         sentFifo.Enqueue((byte)whichPacket);
                     }
-                    var frame = EthernetFrame.CreateEthernetFrameWithCRC(indata);
-                    FrameReady?.Invoke(frame);
+                    if(Misc.TryCreateFrameOrLogWarning(this, indata, out var frame, addCrc: true))
+                    {
+                        FrameReady?.Invoke(frame);
+                    }
                 }
                 Update();
                 return 0;

@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -264,7 +265,10 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             var packetBytes = machine.SystemBus.ReadBytes(td.PacketAddress, (int)td.Length);
-            var packet = EthernetFrame.CreateEthernetFrameWithCRC(packetBytes);
+            if(!Misc.TryCreateFrameOrLogWarning(this, packetBytes, out var packet, addCrc: true))
+            {
+                return;
+            }
 
             this.Log(LogLevel.Info, "Sending packet length {0}", packet.Bytes.Length);
             this.Log(LogLevel.Info, "Packet address = 0x{0:X}", td.PacketAddress);

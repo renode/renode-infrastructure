@@ -406,14 +406,10 @@ namespace Antmicro.Renode.Peripherals.Network
             EnsureArrayLength(isCRCIncluded ? 64 : 60);
 
             EthernetFrame frame;
-            if(isCRCIncluded || !checksumGeneratorEnabled.Value)
+            var addCrc = !isCRCIncluded && checksumGeneratorEnabled.Value;
+            if(!Misc.TryCreateFrameOrLogWarning(this, bytesArray, out frame, addCrc))
             {
-                this.Log(LogLevel.Noisy, "Generating frame without checksum");
-                frame = EthernetFrame.CreateEthernetFrameWithoutCRC(bytesArray);
-            }
-            else
-            {
-                frame = EthernetFrame.CreateEthernetFrameWithCRC(bytesArray);
+                return;
             }
 
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);

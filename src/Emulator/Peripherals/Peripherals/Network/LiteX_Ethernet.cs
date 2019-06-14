@@ -233,7 +233,10 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendPacket()
         {
             var slot = readSlots[readerSlotNumber.Value];
-            var frame = EthernetFrame.CreateEthernetFrameWithCRC(slot.Read());
+            if(!Misc.TryCreateFrameOrLogWarning(this, slot.Read(), out var frame, addCrc: true))
+            {
+                return;
+            }
 
             this.Log(LogLevel.Noisy, "Sending packet of length {0} bytes.", frame.Length);
             FrameReady?.Invoke(frame);

@@ -17,14 +17,15 @@ namespace Antmicro.Renode.Network
 {
     public class EthernetFrame
     {
-        public static EthernetFrame CreateEthernetFrameWithCRC(byte[] data)
+        public static bool TryCreateEthernetFrame(byte[] data, bool addCrc, out EthernetFrame frame)
         {
-            return new EthernetFrame(data, ComputeCRC(data).ToArray());
-        }
-
-        public static EthernetFrame CreateEthernetFrameWithoutCRC(byte[] data)
-        {
-            return new EthernetFrame(data);
+            frame = null;
+            if(data.Length >= MinFrameSizeWithoutCRC + (addCrc ? 0 : CRCLength))
+            {
+                frame = addCrc ? new EthernetFrame(data, ComputeCRC(data).ToArray()) : new EthernetFrame(data);
+                return true;
+            }
+            return false;
         }
 
         public static bool CheckCRC(byte[] data)
@@ -101,6 +102,20 @@ namespace Antmicro.Renode.Network
             }
         }
 
+        // note: the length 18 covers only:
+        // * mac destination (6)
+        // * mac source (6)
+        // * 802.1Q tag (4)
+        // * ether type or length (2)
+        // and is chosen so that Packet .NET doesn't crash
+        // when parsing the packet;
+        // according to the ethernet specs the packet must
+        // be at least 64 bits long, but since not all
+        // ethernet models in Renode support automatic
+        // padding the selected value is a compromise
+        public static int MinFrameSizeWithoutCRC = 18;
+        public static int CRCLength = 4;
+
         private EthernetFrame(byte[] data, byte[] crc = null)
         {
             this.crc = crc;
@@ -116,12 +131,12 @@ namespace Antmicro.Renode.Network
 
         private static IEnumerable<byte> CalculateCRCFromPayload(byte[] data)
         {
-            return ComputeCRC(data, data.Length - 4);
+            return ComputeCRC(data, data.Length - CRCLength);
         }
 
         private static IEnumerable<byte> GetCRCFromPacket(byte[] data)
         {
-            return data.Skip(data.Length - 4);
+            return data.Skip(data.Length - CRCLength);
         }
 
         private static bool CompareCRC(IEnumerable<byte> receivedCrc, IEnumerable<byte> computedCrc)

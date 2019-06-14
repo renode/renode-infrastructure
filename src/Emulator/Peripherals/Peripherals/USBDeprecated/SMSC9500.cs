@@ -12,6 +12,7 @@ using Antmicro.Renode.Peripherals.Network;
 using System.Collections.Generic;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
@@ -318,8 +319,10 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             }
 
-            var frame = EthernetFrame.CreateEthernetFrameWithCRC(packetToSend);
-            FrameReady?.Invoke(frame);
+            if(Misc.TryCreateFrameOrLogWarning(this, packetToSend, out var frame, addCrc: true))
+            {
+                FrameReady?.Invoke(frame);
+            }
         }
 
         private ushort CalculateChecksumRX(byte[] data)
