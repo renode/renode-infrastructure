@@ -18,10 +18,11 @@ namespace Antmicro.Renode.Utilities
 {
     public class SocketServerProvider : IDisposable
     {
-        public SocketServerProvider()
+        public SocketServerProvider(bool emitConfigBytes = true)
         {
             queue = new BlockingCollection<byte>();
-            queueCancellationToken = new CancellationTokenSource();        
+            queueCancellationToken = new CancellationTokenSource();
+            this.emitConfigBytes = emitConfigBytes;  
         }
 
         public void Start(int port)
@@ -78,24 +79,32 @@ namespace Antmicro.Renode.Utilities
 
         private void WriterThreadBody(Stream stream)
         {
-            while(true)
+            try
             {
-                try
+                if(emitConfigBytes)
+                {
+                    var initBytes = new byte[] {
+                    255, 253, 000, // IAC DO    BINARY
+                    255, 251, 001, // IAC WILL  ECHO
+                    255, 251, 003, // IAC WILL  SUPPRESS_GO_AHEAD
+                    255, 252, 034, // IAC WONT  LINEMODE
+                };
+                    stream.Write(initBytes, 0, initBytes.Length);
+                }
+
+                while(true)
                 {
                     stream.WriteByte(queue.Take(queueCancellationToken.Token));
                 }
-                catch(OperationCanceledException)
-                {
-                    break;
-                }
-                catch(IOException)
-                {
-                    break;
-                }
-                catch(ObjectDisposedException)
-                {
-                    break;
-                }
+            }
+            catch(OperationCanceledException)
+            {
+            }
+            catch(IOException)
+            {
+            }
+            catch(ObjectDisposedException)
+            {
             }
         }
 
@@ -184,6 +193,7 @@ namespace Antmicro.Renode.Utilities
         private readonly BlockingCollection<byte> queue;
 
         private bool listenerThreadStopped;
+        private bool emitConfigBytes;
         private Thread listenerThread;
         private Thread readerThread;
         private Thread writerThread;

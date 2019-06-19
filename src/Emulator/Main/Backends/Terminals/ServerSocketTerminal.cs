@@ -24,22 +24,10 @@ namespace Antmicro.Renode.Backends.Terminals
     {
         public ServerSocketTerminal(int port, bool emitConfigBytes = true)
         {
-            server = new SocketServerProvider();
+            server = new SocketServerProvider(emitConfigBytes);
             server.DataReceived += b => CallCharReceived((byte)b);
             server.ConnectionAccepted += s =>
             {
-                if(!emitConfigBytes)
-                {
-                    return;
-                }
-
-                var initBytes = new byte[] { 
-                    255, 253, 000, // IAC DO    BINARY
-                    255, 251, 001, // IAC WILL  ECHO
-                    255, 251, 003, // IAC WILL  SUPPRESS_GO_AHEAD
-                    255, 252, 034, // IAC WONT  LINEMODE
-                };
-                s.Write(initBytes, 0, initBytes.Length);
                 try
                 {
                     // we expect 9 bytes as a result of sending
