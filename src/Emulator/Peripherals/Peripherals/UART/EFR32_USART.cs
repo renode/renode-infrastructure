@@ -36,7 +36,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.Command, new DoubleWordRegister(this)
                     .WithFlag(11, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue){ ClearBuffer(); }}, name: "CLEARRX")
                     .WithFlag(3, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) transmitterEnableFlag.Value = false; }, name: "TXDIS")
-                    .WithFlag(2, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) transmitterEnableFlag.Value = true; }, name: "TXEN")
+                    .WithFlag(2, FieldMode.Set, writeCallback: (_, newValue) =>
+                    {
+                        if(newValue)
+                        {
+                            transmitterEnableFlag.Value = true;
+                            interruptsManager.SetInterrupt(Interrupt.TransmitBufferLevel);
+                        }
+                    }, name: "TXEN")
                     .WithFlag(1, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) receiverEnableFlag.Value = false; }, name: "RXDIS")
                     .WithFlag(0, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) receiverEnableFlag.Value = true; }, name: "RXEN")},
                 {(long)Registers.Status, new DoubleWordRegister(this, 0x2040)
@@ -208,6 +215,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
+                interruptsManager.SetInterrupt(Interrupt.TransmitBufferLevel);
                 interruptsManager.SetInterrupt(Interrupt.TransmitComplete);
                 TransmitCharacter(data);
             }
