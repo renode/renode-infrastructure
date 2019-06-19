@@ -52,7 +52,7 @@ namespace Antmicro.Renode.UI
                 xwt = XwtProvider.Create(new WindowedUserInterfaceProvider());
             }
 
-            if(xwt == null)
+            if(xwt == null && options.RobotFrameworkRemoteServerPort == -1)
             {
                 if(options.Port == -1)
                 {
