@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Backends.Terminals
 {
     public static class ServerSocketTerminalExtensions
     {
-        public static void CreateServerSocketTerminal(this Emulation emulation, int port, string name, bool emitConfig = false)
+        public static void CreateServerSocketTerminal(this Emulation emulation, int port, string name, bool emitConfig = true)
         {
             emulation.ExternalsManager.AddExternal(new ServerSocketTerminal(port, emitConfig), name);
         }
