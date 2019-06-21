@@ -1737,8 +1737,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                                 (filters[i].STID == msg.STID) &&
                                 ((filters[i].EXID & filters[i].EXIDMask) == (msg.EXID & filters[i].EXIDMask)) &&
                                 (filters[i].IDE == msg.IDE) &&
-                                (filters[i].RTR == msg.RTR) &&
-                                (filters[i].STID == msg.STID)
+                                (filters[i].RTR == msg.RTR)
                            )
                         {
                             msg.FilterMatchIndex = FilterNumber;
