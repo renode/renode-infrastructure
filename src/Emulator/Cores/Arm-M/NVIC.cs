@@ -185,9 +185,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 binaryPointPosition = (int)(value >> 8) & 7;
                 break;
             case Registers.SystemControlRegister:
-                if(value != 0)
+                if((value & DeepSleep) != 0)
                 {
-                    this.Log(LogLevel.Warning, "Unhandled value written to System Control Register: 0x{0:X}.", value);
+                    systick.Enabled = false;
+                    this.NoisyLog("Entering deep sleep");
+                }
+                else if((value & ~DeepSleep) != 0)
+                {
+                    this.Log(LogLevel.Warning, "Unhandled value written to System Control Register: 0x{0:X}.", value & ~DeepSleep);
                 }
                 break;
             case Registers.SystemHandlerPriority1:
@@ -316,6 +321,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if(value)
                 {
+                    systick.Enabled = true;
+                    this.NoisyLog("Waking up from deep sleep");
                     irqs[number] |= IRQState.Running;
                     // let's latch it if not active
                     if((irqs[number] & IRQState.Active) == 0)
@@ -608,6 +615,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int VectKey              = 0x5FA;
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
+        private const uint DeepSleep           = 0x4;
     }
 }
 
