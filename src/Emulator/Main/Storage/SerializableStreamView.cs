@@ -192,6 +192,11 @@ namespace Antmicro.Renode.Storage
             }
         }
 
+        private SerializableStreamView()
+        {
+            // this is intended for deserialization only
+        }
+
         private long paddingOffset;
         private Stream underlyingStream;
         private long underlyingStreamOffset;
