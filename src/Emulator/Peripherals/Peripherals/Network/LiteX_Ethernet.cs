@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 this.Log(LogLevel.Warning, "Packet is too long. Dropping");
                 return;
             }
-            
+
             UpdateEvents();
         }
 
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 .WithFlag(0, out readerEventPending, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, __) => RefreshIrq())
             ;
 
-            Registers.WriterLength0.DefineMany(this, NumberOfWriterLengthSubRegisters, (reg, idx) => 
+            Registers.WriterLength0.DefineMany(this, NumberOfWriterLengthSubRegisters, (reg, idx) =>
                 reg.WithValueField(0, DataWidth, FieldMode.Read, name: $"writer_length_{idx}", valueProviderCallback: _ =>
                 {
                     return BitHelper.GetValue(writeSlots[writerSlotNumber.Value].DataLength,
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     if(latchedWriterSlot == -1)
                     {
                         // if no slot has been latched, release all (this might happen at startup when resetting the state)
-                        foreach(var slot in writeSlots) 
+                        foreach(var slot in writeSlots)
                         {
                             slot.Release();
                         }
@@ -176,24 +176,24 @@ namespace Antmicro.Renode.Peripherals.Network
             Registers.WriterSlot.Define(this)
                 .WithValueField(0, 32, out writerSlotNumber, FieldMode.Read, name: "writer_slot", readCallback: (_, val) =>
                 {
-                    // this is a bit hacky - here we remember the last returned writer slot number to release it later 
+                    // this is a bit hacky - here we remember the last returned writer slot number to release it later
                     latchedWriterSlot = (int)val;
                 })
             ;
 
-            Registers.ReaderLengthHi.DefineMany(this, NumberOfReaderLengthSubRegisters, (reg, idx) => 
-                reg.WithValueField(0, DataWidth, name: $"reader_length_{idx}", 
+            Registers.ReaderLengthHi.DefineMany(this, NumberOfReaderLengthSubRegisters, (reg, idx) =>
+                reg.WithValueField(0, DataWidth, name: $"reader_length_{idx}",
                 writeCallback: (_, val) =>
                 {
-                    readSlots[readerSlotNumber.Value].DataLength = 
-                        BitHelper.ReplaceBits(readSlots[readerSlotNumber.Value].DataLength, val, 
-                            width: DataWidth, 
+                    readSlots[readerSlotNumber.Value].DataLength =
+                        BitHelper.ReplaceBits(readSlots[readerSlotNumber.Value].DataLength, val,
+                            width: DataWidth,
                             destinationPosition: (int)((NumberOfReaderLengthSubRegisters - idx - 1) * DataWidth));
                 },
                 valueProviderCallback: _ =>
                 {
-                    return BitHelper.GetValue(readSlots[readerSlotNumber.Value].DataLength, 
-                        offset: (NumberOfReaderLengthSubRegisters - idx - 1) * DataWidth, 
+                    return BitHelper.GetValue(readSlots[readerSlotNumber.Value].DataLength,
+                        offset: (NumberOfReaderLengthSubRegisters - idx - 1) * DataWidth,
                         size: DataWidth);
                 }))
             ;
@@ -223,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void RefreshIrq()
         {
-            var anyEventPending = (writerEventEnabled.Value && writerEventPending.Value) 
+            var anyEventPending = (writerEventEnabled.Value && writerEventPending.Value)
                 || (readerEventEnabled.Value && readerEventPending.Value);
 
             this.Log(LogLevel.Noisy, "Setting IRQ to: {0}", anyEventPending);
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             var slotId = offset / SlotSize;
             slotOffset = (int)(offset % SlotSize);
-                
+
             if(slotId < writeSlots.Length)
             {
                 return writeSlots[slotId];
@@ -352,7 +352,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 DataLength = 0;
                 Array.Clear(buffer, 0, buffer.Length);
             }
-            
+
             public bool IsBusy => DataLength > 0;
 
             public uint DataLength { get; set; }
