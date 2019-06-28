@@ -326,7 +326,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte ReverseBits (byte b)
+        public static byte ReverseBits(byte b)
         {
             return (byte)(((b << 7) & 0x80) | ((b << 5) & 0x40) | ((b << 3) & 0x20) | ((b << 1) & 0x10) |
                           ((b >> 1) & 0x08) | ((b >> 3) & 0x04) | ((b >> 5) & 0x02) | ((b >> 7) & 0x01));
