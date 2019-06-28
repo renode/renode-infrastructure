@@ -495,7 +495,9 @@ namespace Antmicro.Renode.Utilities
             }
             catch(BadImageFormatException)
             {
-                Logger.LogAs(this, LogLevel.Warning, "File {0} could not be analyzed due to invalid format.", path);
+                // we hush this log because it is issued in binary Windows packages - we look for DLL files, but we
+                // also bundle libgcc etc.
+                Logger.LogAs(this, LogLevel.Noisy, "File {0} could not be analyzed due to invalid format.", path);
                 return false;
             }
             var assemblyName = assembly.FullName;
