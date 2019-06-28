@@ -465,6 +465,7 @@
     <Compile Include="Core\GPIOGate.cs" />
     <Compile Include="Peripherals\CAN\CANMessageFrame.cs" />
     <Compile Include="Utilities\Collections\SimpleCache.cs" />
+    <Compile Include="Utilities\BitBangHelper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
