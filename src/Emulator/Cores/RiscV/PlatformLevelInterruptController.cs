@@ -194,12 +194,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         for(var bit = 0u; bit < bits.Length; bit++)
                         {
                             var sourceNumber = sourceIdBase + bit;
-                            if(sourceNumber == 0)
-                            {
-                                // Source number 0 is not used.
-                                continue;
-                            }
-                            if(irqSources.Length <= sourceNumber)
+                            if(sourceNumber == 0 || irqSources.Length <= sourceNumber)
                             {
                                 if(bits[bit])
                                 {
