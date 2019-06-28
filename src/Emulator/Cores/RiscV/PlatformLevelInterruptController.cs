@@ -374,6 +374,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         irqController.Log(LogLevel.Noisy, "Completing irq {0} at {1}", irq.Id, this);
 
+                        if(activeInterrupts.Count == 0)
+                        {
+                            irqController.Log(LogLevel.Error, "Trying to complete irq {0} @ {1}, there are no active interrupts left", irq.Id, this);
+                            return;
+                        }
                         var topActiveInterrupt = activeInterrupts.Pop();
                         if(topActiveInterrupt != irq)
                         {
