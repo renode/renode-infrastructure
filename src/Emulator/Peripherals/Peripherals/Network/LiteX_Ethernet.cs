@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.Network
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class LiteX_Ethernet : BasicDoubleWordPeripheral, IMACInterface
+    public class LiteX_Ethernet : NetworkWithPHY, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IMACInterface
     {
         public LiteX_Ethernet(Machine machine, int numberOfWriteSlots = 2, int numberOfReadSlots = 2) : base(machine)
         {
@@ -37,13 +37,21 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 readSlots[i] = new Slot();
             }
+
+            bbHelper = new BitBangHelper(width: 16, loggingParent: this);
+
+            RegistersCollection = new DoubleWordRegisterCollection(this);
+            DefineRegisters();
         }
 
         public override void Reset()
         {
-            base.Reset();
+            RegistersCollection.Reset();
+            bbHelper.Reset();
 
             latchedWriterSlot = -1;
+            lastPhyAddress = 0;
+            lastRegisterAddress = 0;
 
             foreach(var slot in writeSlots.Union(readSlots))
             {
@@ -51,6 +59,16 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             RefreshIrq();
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return RegistersCollection.Read(offset);
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            RegistersCollection.Write(offset, value);
         }
 
         public void ReceiveFrame(EthernetFrame frame)
@@ -107,13 +125,142 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        [ConnectionRegionAttribute("phy")]
+        public uint ReadDoubleWordOverMDIO(long offset)
+        {
+            this.Log(LogLevel.Noisy, "Reading from PHY: offset 0x{0:X}", offset);
+            if(offset == (long)MDIORegisters.Read)
+            {
+                var result = bbHelper.EncodedInput
+                    ? 1
+                    : 0u;
+
+                this.Log(LogLevel.Noisy, "Returning value: 0x{0:X}", result);
+                return result;
+            }
+
+            this.Log(LogLevel.Warning, "Unhandled read from PHY register: 0x{0:X}", offset);
+            return 0;
+        }
+
+        [ConnectionRegionAttribute("phy")]
+        public void WriteDoubleWordOverMDIO(long offset, uint value)
+        {
+            this.Log(LogLevel.Noisy, "Writing to PHY: offset 0x{0:X}, value 0x{1:X}", offset, value);
+
+            if(offset != (long)MDIORegisters.Write)
+            {
+                this.Log(LogLevel.Warning, "Unhandled write to PHY register: 0x{0:X}", offset);
+                return;
+            }
+
+            var dataDecoded = bbHelper.Update(value, dataBit: 2, clockBit: 0);
+            if(!dataDecoded)
+            {
+                return;
+            }
+
+            this.Log(LogLevel.Noisy, "Got a 16-bit packet in {0} state, the value is 0x{1:X}", phyState, bbHelper.DecodedOutput);
+
+            switch(phyState)
+            {
+            case PhyState.Idle:
+            {
+                if(bbHelper.DecodedOutput == 0xffff)
+                {
+                    // sync, move on
+                    phyState = PhyState.Syncing;
+                }
+                // if not, wait for sync pattern
+                break;
+            }
+            case PhyState.Syncing:
+            {
+                if(bbHelper.DecodedOutput == 0xffff)
+                {
+                    phyState = PhyState.WaitingForCommand;
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Unexpected bit pattern when syncing (0x{0:X}), returning to idle state", bbHelper.DecodedOutput);
+                    phyState = PhyState.Idle;
+                }
+                break;
+            }
+            case PhyState.WaitingForCommand:
+            {
+                const int OpCodeRead = 0x1;
+                const int OpCodeWrite = 0x2;
+
+                var startField = bbHelper.DecodedOutput & 0x3;
+                var opCode = (bbHelper.DecodedOutput >> 2) & 0x3;
+                var phyAddress = (ushort)(BitHelper.ReverseBits((ushort)((bbHelper.DecodedOutput >> 4) & 0x1f)) >> 11);
+                var registerAddress = (ushort)(BitHelper.ReverseBits((ushort)((bbHelper.DecodedOutput >> 9) & 0x1f)) >> 11);
+
+                if(startField != 0x2
+                    || (opCode != OpCodeRead && opCode != OpCodeWrite))
+                {
+                    this.Log(LogLevel.Warning, "Received an invalid PHY command: 0x{0:X}. Ignoring it", bbHelper.DecodedOutput);
+                    phyState = PhyState.Idle;
+                    break;
+                }
+
+                if(opCode == OpCodeWrite)
+                {
+                    phyState = PhyState.WaitingForData;
+                    this.Log(LogLevel.Noisy, "Write command to PHY 0x{0:X}, register 0x{1:X}. Waiting for data", phyAddress, registerAddress);
+
+                    lastPhyAddress = phyAddress;
+                    lastRegisterAddress = registerAddress;
+                }
+                else
+                {
+                    ushort readValue = 0;
+                    if(!phys.TryGetValue(phyAddress, out var phy))
+                    {
+                        this.Log(LogLevel.Warning, "Trying to read from non-existing PHY #{0}", phyAddress);
+                    }
+                    else
+                    {
+                        readValue = (ushort)phy.Read(registerAddress);
+                    }
+
+                    this.Log(LogLevel.Noisy, "Read value 0x{0:X} from PHY 0x{1:X}, register 0x{2:X}", readValue, phyAddress, registerAddress);
+
+                    bbHelper.SetInputBuffer(readValue);
+                    phyState = PhyState.Idle;
+                }
+                break;
+            }
+            case PhyState.WaitingForData:
+            {
+                if(!phys.TryGetValue(lastPhyAddress, out var phy))
+                {
+                    this.Log(LogLevel.Warning, "Trying to write to non-existing PHY #{0}", lastPhyAddress);
+                }
+                else
+                {
+                    this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to PHY 0x{1:X}, register 0x{2:X}", bbHelper.DecodedOutput, lastPhyAddress, lastRegisterAddress);
+                    phy.Write(lastRegisterAddress, (ushort)bbHelper.DecodedOutput);
+                }
+
+                phyState = PhyState.Idle;
+                break;
+            }
+            default:
+                throw new ArgumentOutOfRangeException("Unexpected PHY state: {0}".FormatWith(phyState));
+            }
+        }
+
         public MACAddress MAC { get; set; }
 
         public event Action<EthernetFrame> FrameReady;
 
         public GPIO IRQ { get; } = new GPIO();
 
-        protected override void DefineRegisters()
+        public DoubleWordRegisterCollection RegistersCollection { get; private set; }
+
+        private void DefineRegisters()
         {
             Registers.ReaderEvPending.Define(this)
                 .WithFlag(0, out readerEventPending, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, __) => RefreshIrq())
@@ -271,6 +418,10 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField writerSlotNumber;
         private IValueRegisterField readerSlotNumber;
         private int latchedWriterSlot = -1;
+        private ushort lastPhyAddress;
+        private ushort lastRegisterAddress;
+        private PhyState phyState;
+        private BitBangHelper bbHelper;
 
         // WARNING:
         // read slots contains packets to be sent
@@ -383,6 +534,21 @@ namespace Antmicro.Renode.Peripherals.Network
             PreambleCRC        = 0x54,
             PreambleErrors     = 0x58,
             CrcErrors          = 0x68
+        }
+
+        private enum MDIORegisters
+        {
+            Reset = 0x0,
+            Write = 0x4,
+            Read = 0x8
+        }
+
+        private enum PhyState
+        {
+            Idle,
+            Syncing,
+            WaitingForCommand,
+            WaitingForData
         }
     }
 }
