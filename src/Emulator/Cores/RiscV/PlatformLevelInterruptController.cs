@@ -166,6 +166,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             },
             writeCallback: (_, value) =>
             {
+                if(value == 0 || value >= irqSources.Length)
+                {
+                    this.Log(LogLevel.Error, "Trying to complete handling of non-existing interrupt source {0}", value);
+                    return;
+                }
                 irqTargets[hartId].levels[(int)level].CompleteHandlingInterrupt(irqSources[value]);
             }));
         }
