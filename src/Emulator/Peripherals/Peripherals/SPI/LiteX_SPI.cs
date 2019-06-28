@@ -21,8 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public LiteX_SPI(Machine machine) : base(machine)
         {
-            inputBuffer = new bool[8];
-            outputBuffer = new bool[8];
+            bbHelper = new BitBangHelper(8, loggingParent: this, outputMsbFirst: true);
 
             var registers = new Dictionary<long, DoubleWordRegister>
             {
@@ -39,54 +38,33 @@ namespace Antmicro.Renode.Peripherals.SPI
                             return;
                         }
 
+                        if(RegisteredPeripheral == null)
+                        {
+                            this.Log(LogLevel.Warning, "Trying to send bytes over SPI, but there is no device attached");
+                            return;
+                        }
+
                         if(chipSelectNegatedSignal.Value && !previousChipSelectNegatedSignal)
                         {
                             this.Log(LogLevel.Noisy, "ChipSelect signal down - finishing the transmission");
-                            RegisteredPeripheral?.FinishTransmission();
+                            RegisteredPeripheral.FinishTransmission();
                         }
                         previousChipSelectNegatedSignal = chipSelectNegatedSignal.Value;
 
                         // do not latch bits when dqInputSignal is set or chipSelect is not set
-                        if(clockSignal.Value && !previousClockSignal && !dqInputSignal.Value && !chipSelectNegatedSignal.Value)
+                        if(bbHelper.Update(clockSignal.Value, valueSignal.Value, !dqInputSignal.Value && !chipSelectNegatedSignal.Value))
                         {
-                            this.Log(LogLevel.Noisy, "Latching bit #{0}: {1}", inputBufferPosition, valueSignal.Value);
-                            inputBuffer[inputBufferPosition--] = valueSignal.Value;
-                            if(inputBufferPosition == -1)
-                            {
-                                var input = (byte)BitHelper.GetValueFromBitsArray(inputBuffer);
-                                var output = (byte)0;
+                            this.Log(LogLevel.Noisy, "Sending byte 0x{0:X}", bbHelper.DecodedOutput);
+                            var input = RegisteredPeripheral.Transmit((byte)bbHelper.DecodedOutput);
+                            this.Log(LogLevel.Noisy, "Received byte 0x{0:X}", input);
 
-                                inputBufferPosition = inputBuffer.Length - 1;
-                                if(RegisteredPeripheral == null)
-                                {
-                                    this.Log(LogLevel.Warning, "Tried to send 0x{0:X} byte over SPI, but there is no ready device waiting for it", input);
-                                }
-                                else
-                                {
-                                    this.Log(LogLevel.Noisy, "Sending byte 0x{0:X}", input);
-                                    output = RegisteredPeripheral.Transmit(input);
-                                    this.Log(LogLevel.Noisy, "Received byte 0x{0:X}", output);
-                                }
-
-                                Array.Copy(BitHelper.GetBits(output), outputBuffer, outputBuffer.Length);
-                                outputBufferPosition = 0;
-                            }
+                            bbHelper.SetInputBuffer(input);
                         }
-                        previousClockSignal = clockSignal.Value;
                     })
                 },
 
                 {(long)Registers.Miso, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ =>
-                    {
-                        if(outputBufferPosition >= outputBuffer.Length)
-                        {
-                            this.Log(LogLevel.Warning, "Tried to read MISO without sending any MOSI signal. Don't know what to do");
-                            return false;
-                        }
-
-                        return outputBuffer[outputBufferPosition++];
-                    })
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => bbHelper.EncodedInput)
                 },
 
                 {(long)Registers.BitBangEnable, new DoubleWordRegister(this)
@@ -100,10 +78,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public override void Reset()
         {
+            bbHelper.Reset();
             registersCollection.Reset();
-            inputBufferPosition = inputBuffer.Length - 1;
-            outputBufferPosition = 0;
-            previousClockSignal = false;
             previousChipSelectNegatedSignal = true;
         }
 
@@ -131,15 +107,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public long Size => 0x10;
 
-        private int inputBufferPosition;
-        private int outputBufferPosition;
-        private bool previousClockSignal;
         private bool previousChipSelectNegatedSignal;
 
         private readonly DoubleWordRegisterCollection registersCollection;
         private readonly IFlagRegisterField bitBangEnabled;
-        private readonly bool[] inputBuffer;
-        private readonly bool[] outputBuffer;
+        private readonly BitBangHelper bbHelper;
 
         private enum Registers
         {
