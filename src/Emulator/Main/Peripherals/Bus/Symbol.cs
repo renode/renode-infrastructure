@@ -269,7 +269,7 @@ namespace Antmicro.Renode.Core
             int success;
             var result = CxaDemangle(symbolName, IntPtr.Zero, IntPtr.Zero, out success);
 
-            if(success != 0)
+            if(success != 0 || result.Length == 0)
             {
                 return symbolName;
             }
