@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.TxBufferData, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, v) => HandleTxBufferData((byte)v))},
             };
-            registersMap.Add((long)Registers.InterruptFlag, interruptsManager.GetInterruptFlagRegister<DoubleWordRegister>());
+            registersMap.Add((long)Registers.InterruptFlag, interruptsManager.GetMaskedInterruptFlagRegister<DoubleWordRegister>());
             registersMap.Add((long)Registers.InterruptEnable, interruptsManager.GetInterruptEnableRegister<DoubleWordRegister>());
             registersMap.Add((long)Registers.InterruptFlagSet, interruptsManager.GetInterruptSetRegister<DoubleWordRegister>());
             registersMap.Add((long)Registers.InterruptFlagClear, interruptsManager.GetInterruptClearRegister<DoubleWordRegister>());
