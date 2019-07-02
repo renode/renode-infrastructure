@@ -144,14 +144,14 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
-        public TRegister GetInterruptFlagRegister<TRegister>() where TRegister : PeripheralRegister
+        public TRegister GetMaskedInterruptFlagRegister<TRegister>() where TRegister : PeripheralRegister
         {
             var result = CreateRegister<TRegister>();
             foreach(TInterrupt interruptType in Enum.GetValues(typeof(TInterrupt)))
             {
                 var local = interruptType;
                 result.DefineFlagField((int)(object)interruptType, FieldMode.Read, name: interruptType.ToString(),
-                                       valueProviderCallback: _ => IsSet(local));
+                                       valueProviderCallback: _ => IsSet(local)  && IsEnabled(local));
             }
             return result;
         }

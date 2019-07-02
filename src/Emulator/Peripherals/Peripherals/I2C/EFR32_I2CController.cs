@@ -45,9 +45,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }
             };
 
-            map.Add((long)Registers.InterruptFlag, interruptsManager.GetInterruptFlagRegister<DoubleWordRegister>());
+            map.Add((long)Registers.InterruptFlag, interruptsManager.GetMaskedInterruptFlagRegister<DoubleWordRegister>());
             map.Add((long)Registers.InterruptEnable, interruptsManager.GetInterruptEnableRegister<DoubleWordRegister>());
-            map.Add((long)Registers.InterruptFlagSet, interruptsManager.GetInterruptFlagRegister<DoubleWordRegister>());
+            map.Add((long)Registers.InterruptFlagSet, interruptsManager.GetMaskedInterruptFlagRegister<DoubleWordRegister>());
             map.Add((long)Registers.InterruptFlagClear, interruptsManager.GetInterruptClearRegister<DoubleWordRegister>());
 
             registers = new DoubleWordRegisterCollection(this, map);
