@@ -403,12 +403,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         {
                             if(enable)
                             {
-                                this.DebugLog("Enabled IRQ {0}.", i);
+                                this.NoisyLog("Enabled IRQ {0}.", i);
                                 irqs[i] |= IRQState.Enabled;
                             }
                             else
                             {
-                                this.DebugLog("Disabled IRQ {0}.", i);
+                                this.NoisyLog("Disabled IRQ {0}.", i);
                                 irqs[i] &= ~IRQState.Enabled;
                             }
                         }
