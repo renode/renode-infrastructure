@@ -520,6 +520,16 @@ namespace Antmicro.Renode.Utilities
 
         public static bool TryGetRootDirectory(out string directory)
         {
+#if PLATFORM_LINUX
+            if(BundleHelper.BundledAssembliesCount > 0)
+            {
+                // we are bundled, so we need a custom way of detecting the root directory
+                var thisFile = new StringBuilder(2048);
+                Mono.Unix.Native.Syscall.readlink("/proc/self/exe", thisFile);
+                return TryGetRootDirectory(Path.GetDirectoryName(thisFile.ToString()), out directory);
+            }
+#endif
+
             return TryGetRootDirectory(AppDomain.CurrentDomain.BaseDirectory, out directory);
         }
 
