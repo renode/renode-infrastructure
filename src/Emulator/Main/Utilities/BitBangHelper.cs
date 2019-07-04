@@ -20,6 +20,11 @@ namespace Antmicro.Renode.Utilities
             Reset();
         }
 
+        public void ResetOutput()
+        {
+            outputDecoder.Reset();
+        }
+
         public bool Update(uint encodedSignals, int dataBit, int clockBit, bool dataEnabled = true)
         {
             var clockSignal = (encodedSignals & (1 << clockBit)) != 0;
