@@ -153,6 +153,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void SetPCOnAllCores(ulong pc)
+        {
+            using(machine.ObtainPausedState())
+            {
+                lock(cpuSync)
+                {
+                    foreach(var p in idByCpu.Keys.Cast<ICPU>())
+                    {
+                        p.PC = pc;
+                    }
+                }
+            }
+        }
+
         public void LogAllPeripheralsAccess(bool enable = true)
         {
             lock(cpuSync)
