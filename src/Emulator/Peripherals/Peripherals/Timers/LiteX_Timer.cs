@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     // this is a model of LiteX timer in the default configuration:
     // * width: 32 bits
-    // * csr data width: 8 bit 
+    // * csr data width: 8 bit
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LiteX_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
@@ -52,8 +52,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         protected override void DefineRegisters()
         {
             // LOAD0 contains most significant 8 bits
-            // LOAD3 contains least significant 8 bits 
-            Registers.Load0.DefineMany(this, SubregistersCount, (reg, idx) => 
+            // LOAD3 contains least significant 8 bits
+            Registers.Load0.DefineMany(this, SubregistersCount, (reg, idx) =>
             {
                 reg.WithValueField(0, 8, name: $"LOAD{idx}", writeCallback: (_, val) =>
                 {
@@ -62,8 +62,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             });
 
             // RELOAD0 contains most significant 8 bits
-            // RELOAD3 contains least significant 8 bits 
-            Registers.Reload0.DefineMany(this, SubregistersCount, (reg, idx) => 
+            // RELOAD3 contains least significant 8 bits
+            Registers.Reload0.DefineMany(this, SubregistersCount, (reg, idx) =>
             {
                 reg.WithValueField(0, 8, name: $"RELOAD{idx}", writeCallback: (_, val) =>
                 {
@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             });
 
             Registers.TimerEnable.Define32(this)
-                .WithFlag(0, name: "ENABLE", writeCallback: (_, val) => 
+                .WithFlag(0, name: "ENABLE", writeCallback: (_, val) =>
                 {
                     if(innerTimer.Enabled == val)
                     {
@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Registers.TimerUpdateValue.Define32(this)
-                .WithFlag(0, FieldMode.WriteOneToClear, name: "UPDATE_VALUE", writeCallback: (_, val) => 
+                .WithFlag(0, FieldMode.WriteOneToClear, name: "UPDATE_VALUE", writeCallback: (_, val) =>
                 {
                     if(val)
                     {
@@ -99,8 +99,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             // VALUE0 contains most significant 8 bits
-            // VALUE3 contains least significant 8 bits 
-            Registers.Value0.DefineMany(this, SubregistersCount, (reg, idx) => 
+            // VALUE3 contains least significant 8 bits
+            Registers.Value0.DefineMany(this, SubregistersCount, (reg, idx) =>
             {
                 reg.WithValueField(0, 8, FieldMode.Read, name: $"VALUE{idx}", valueProviderCallback: _ =>
                 {
