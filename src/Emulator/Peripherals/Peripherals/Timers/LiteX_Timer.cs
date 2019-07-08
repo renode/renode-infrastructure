@@ -23,11 +23,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);
             innerTimer.LimitReached += delegate
             {
+                this.Log(LogLevel.Noisy, "Limit reached");
                 irqPending.Value = true;
                 UpdateInterrupts();
 
                 if(reloadValue == 0)
                 {
+                    this.Log(LogLevel.Noisy, "No realod value - disabling the timer");
                     innerTimer.Enabled = false;
                 }
                 innerTimer.Limit = reloadValue;
@@ -82,6 +84,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     if(val)
                     {
                         innerTimer.Limit = loadValue;
+                        this.Log(LogLevel.Noisy, "Enabling timer. Load value: 0x{0:X}, reload value: 0x{1:X}", loadValue, reloadValue);
                     }
 
                     innerTimer.Enabled = val;
@@ -123,6 +126,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateInterrupts()
         {
+            this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irqPending.Value && irqEnabled.Value);
             IRQ.Set(irqPending.Value && irqEnabled.Value);
         }
 
