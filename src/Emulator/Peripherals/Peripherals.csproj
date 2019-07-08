@@ -286,6 +286,7 @@
     <Compile Include="Peripherals\EtherBoneBridge.cs" />
     <Compile Include="Peripherals\SPI\LiteX_SPI.cs" />
     <Compile Include="Peripherals\GPIOPort\LiteX_ControlAndStatus.cs" />
+    <Compile Include="Peripherals\GPIOPort\LiteX_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
