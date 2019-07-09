@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Tools.Network
                 foreach(var iface in interestingIfaces)
                 {
                     this.Log(LogLevel.Noisy, "Forwarding frame to interface {0}", iface.Interface.MAC);
-                    
+
                     if(iface.AsTap != null)
                     {
                         iface.AsTap.ReceiveFrame(frame.Clone());
