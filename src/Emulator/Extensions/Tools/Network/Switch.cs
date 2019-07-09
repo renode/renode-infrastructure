@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
-        private bool started;
+        private bool started = true;
 
         private readonly object innerLock = new object();
         private readonly HashSet<InterfaceDescriptor> ifaces = new HashSet<InterfaceDescriptor>();
