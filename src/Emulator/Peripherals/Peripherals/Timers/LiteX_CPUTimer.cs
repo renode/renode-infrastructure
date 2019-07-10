@@ -10,7 +10,7 @@ using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
-{ 
+{
     public class LiteX_CPUTimer : BasicDoubleWordPeripheral, IKnownSize, IRiscVTimeProvider
     {
         public LiteX_CPUTimer(Machine machine, long frequency) : base(machine)
@@ -58,7 +58,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 reg.WithValueField(0, 8, valueProviderCallback: (_) =>
                 {
                     return (uint)(latchedValue >> ((7 - idx) * 8) & 0xff);
-
                 });
             });
 
