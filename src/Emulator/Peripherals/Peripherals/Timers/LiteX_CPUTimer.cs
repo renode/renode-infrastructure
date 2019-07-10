@@ -7,6 +7,7 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -18,7 +19,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ = new GPIO();
 
             innerTimer = new ComparingTimer(machine.ClockSource, frequency, this, "cpu timer", enabled: true, eventEnabled: true);
-            innerTimer.CompareReached += () => IRQ.Set(true);
+            innerTimer.CompareReached += () =>
+            {
+                this.Log(LogLevel.Noisy, "Limit reached, setting IRQ");
+                IRQ.Set(true);
+            };
         }
 
         public long Size => 0x100;
@@ -71,8 +76,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 reg.WithValueField(0, 32, writeCallback: (_, val) =>
                 {
                     innerTimer.Compare = innerTimer.Compare.ReplaceBits((ulong)(val & 0xFF), 8, (7 - idx) * 8);
+                    this.Log(LogLevel.Noisy, "Compare value set to 0x{0:X}, dpos: {1}", innerTimer.Compare, (7 - idx) * 8);
                     if(innerTimer.Value < innerTimer.Compare)
                     {
+                        this.Log(LogLevel.Noisy, "Current timer value is 0x{0:X} - clearing IRQ", innerTimer.Value);
                         IRQ.Set(false);
                     }
                 });
