@@ -60,11 +60,11 @@ namespace Antmicro.Renode.Utilities
 
         public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
-            var mask = (1u << width) - 1;
+            uint mask = (1u << width) - 1;
             source &= mask << sourcePosition;
-            destination &= (~mask << destinationPosition);
+            destination &= ~(mask << destinationPosition);
 
-            var positionDifference = sourcePosition - destinationPosition; 
+            var positionDifference = sourcePosition - destinationPosition;
             destination |= (positionDifference >= 0)
                 ? (source >> positionDifference)
                 : (source << -positionDifference);
@@ -72,11 +72,11 @@ namespace Antmicro.Renode.Utilities
 
         public static uint ReplaceBits(this uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
-            var mask = (1u << width) - 1;
+            uint mask = (1u << width) - 1;
             source &= mask << sourcePosition;
-            destination &= (~mask << destinationPosition);
+            destination &= ~(mask << destinationPosition);
 
-            var positionDifference = sourcePosition - destinationPosition; 
+            var positionDifference = sourcePosition - destinationPosition;
             return destination | ((positionDifference >= 0)
                 ? (source >> positionDifference)
                 : (source << -positionDifference));
@@ -84,11 +84,11 @@ namespace Antmicro.Renode.Utilities
 
         public static ulong ReplaceBits(this ulong destination, ulong source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
-            var mask = (1u << width) - 1;
+            ulong mask = (1u << width) - 1;
             source &= mask << sourcePosition;
-            destination &= (~mask << destinationPosition);
+            destination &= ~(mask << destinationPosition);
 
-            var positionDifference = sourcePosition - destinationPosition; 
+            var positionDifference = sourcePosition - destinationPosition;
             return destination | ((positionDifference >= 0)
                 ? (source >> positionDifference)
                 : (source << -positionDifference));
