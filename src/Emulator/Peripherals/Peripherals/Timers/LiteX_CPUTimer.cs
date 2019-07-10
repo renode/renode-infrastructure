@@ -6,7 +6,6 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
