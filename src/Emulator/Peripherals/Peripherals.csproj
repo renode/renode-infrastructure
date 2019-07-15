@@ -232,6 +232,7 @@
     <Compile Include="Peripherals\GPIOPort\Quark_PWM.cs" />
     <Compile Include="Peripherals\GPIOPort\HiFive_PWM.cs" />
     <Compile Include="Peripherals\Wireless\CC2520.cs" />
+    <Compile Include="Peripherals\Wireless\CC1200.cs" />
     <Compile Include="Peripherals\Miscellaneous\CC2538_Cryptoprocessor.cs" />
     <Compile Include="Peripherals\GPIOPort\EFR32_GPIOPort.cs" />
     <Compile Include="Peripherals\I2C\EFR32_I2CController.cs" />
