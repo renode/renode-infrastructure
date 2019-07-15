@@ -62,9 +62,9 @@ namespace Antmicro.Renode.Utilities
         {
             var mask = (1u << width) - 1;
             source &= mask << sourcePosition;
-            destination &= (~mask << destinationPosition);
+            destination &= ~(mask << destinationPosition);
 
-            var positionDifference = sourcePosition - destinationPosition; 
+            var positionDifference = sourcePosition - destinationPosition;
             destination |= (positionDifference >= 0)
                 ? (source >> positionDifference)
                 : (source << -positionDifference);
@@ -74,9 +74,9 @@ namespace Antmicro.Renode.Utilities
         {
             var mask = (1u << width) - 1;
             source &= mask << sourcePosition;
-            destination &= (~mask << destinationPosition);
+            destination &= ~(mask << destinationPosition);
 
-            var positionDifference = sourcePosition - destinationPosition; 
+            var positionDifference = sourcePosition - destinationPosition;
             return destination | ((positionDifference >= 0)
                 ? (source >> positionDifference)
                 : (source << -positionDifference));
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Utilities
             source &= mask << sourcePosition;
             destination &= (~mask << destinationPosition);
 
-            var positionDifference = sourcePosition - destinationPosition; 
+            var positionDifference = sourcePosition - destinationPosition;
             return destination | ((positionDifference >= 0)
                 ? (source >> positionDifference)
                 : (source << -positionDifference));

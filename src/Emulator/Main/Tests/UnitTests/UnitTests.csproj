@@ -47,7 +47,7 @@
     <Compile Include="Mocks\EmptyPeripheral.cs" />
     <Compile Include="Collections\MultiTreeTests.cs" />
     <Compile Include="StorageTests.cs" />
-    <Compile Include="Collections\ClampingBufferTests.cs" />
+    <Compile Include="Collections\CircularBufferTests.cs" />
     <Compile Include="PythonPeripherals\SerializationTests.cs" />
     <Compile Include="SystemBusTests.cs" />
     <Compile Include="Mocks\MockReceiverConstrained.cs" />
