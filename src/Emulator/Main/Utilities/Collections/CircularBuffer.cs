@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public void Clear() 
         {
-            wasOverflow = false;
+            isWrapped = false;
             lastPosition = 0;
         }
 
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            if(!wasOverflow)
+            if(!isWrapped)
             {
                 Array.Copy(buffer, array, lastPosition);
                 return;
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public IEnumerator<T> GetEnumerator()
         {
-            if(wasOverflow)
+            if(isWrapped)
             {
                 var end = lastPosition;
                 var currentYield = lastPosition + 1;
@@ -90,14 +90,14 @@ namespace Antmicro.Renode.Utilities.Collections
             lastPosition++;
             if(lastPosition == buffer.Length)
             {
-                wasOverflow = true;
+                isWrapped = true;
                 lastPosition = 0;
             }
         }
 
         private readonly T[] buffer;
         private int lastPosition;
-        private bool wasOverflow;
+        private bool isWrapped;
     }
 }
 
