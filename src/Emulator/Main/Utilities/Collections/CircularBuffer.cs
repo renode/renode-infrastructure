@@ -21,12 +21,12 @@ namespace Antmicro.Renode.Utilities.Collections
         public void Clear() 
         {
             wasOverflow = false;
-            currentPosition = 0;
+            lastPosition = 0;
         }
 
         public void Add(T element)
         {
-            buffer[currentPosition] = element;
+            buffer[lastPosition] = element;
             UpdateIndex();
         }
 
@@ -34,10 +34,10 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             if(!wasOverflow)
             {
-                Array.Copy(buffer, array, currentPosition);
+                Array.Copy(buffer, array, lastPosition);
                 return;
             }
-            var start = currentPosition + 1;
+            var start = lastPosition + 1;
             var rightSideLength = buffer.Length - start;
             Array.Copy(buffer, start, array, arrayIndex, rightSideLength);
             Array.Copy(buffer, 0, array, arrayIndex + rightSideLength, start - 1);
@@ -47,8 +47,8 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             if(wasOverflow)
             {
-                var end = currentPosition;
-                var currentYield = currentPosition + 1;
+                var end = lastPosition;
+                var currentYield = lastPosition + 1;
                 while(currentYield != end)
                 {
                     yield return buffer[currentYield];
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             else
             {
-                for(var i = 0; i < currentPosition; i++)
+                for(var i = 0; i < lastPosition; i++)
                 {
                     yield return buffer[i];
                 }
@@ -75,16 +75,16 @@ namespace Antmicro.Renode.Utilities.Collections
 
         private void UpdateIndex()
         {
-            currentPosition++;
-            if(currentPosition == buffer.Length)
+            lastPosition++;
+            if(lastPosition == buffer.Length)
             {
                 wasOverflow = true;
-                currentPosition = 0;
+                lastPosition = 0;
             }
         }
 
         private readonly T[] buffer;
-        private int currentPosition;
+        private int lastPosition;
         private bool wasOverflow;
     }
 }
