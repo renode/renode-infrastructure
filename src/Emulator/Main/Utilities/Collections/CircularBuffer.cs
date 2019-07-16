@@ -68,6 +68,18 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
+        public T this[int i]
+        {
+            get
+            {
+                return buffer[i];
+            }
+            set
+            {
+                buffer[i] = value;
+            }
+        }
+
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
