@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     // it happens when writing from uart analyzer
                     vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
                 }
-                
+
                 UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
             };
 
