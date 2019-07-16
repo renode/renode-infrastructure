@@ -22,7 +22,7 @@ namespace Antmicro.Renode.CoresSourceParser
             handlers = new Dictionary<Mode, Action<string>>
             {
                 { Mode.ScanForEnum,          ScanForEnumHandler          },
-                { Mode.InsideEnum,           InsideEnumHanlder           },
+                { Mode.InsideEnum,           InsideEnumHandler           },
                 { Mode.InsideUndefinedIfdef, InsideUndefinedIfdefHandler },
                 { Mode.InsideDefinedIfdef,   InsideDefinedIfdefHandler   }
             };
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.CoresSourceParser
             }
         }
 
-        private void InsideEnumHanlder(string line)
+        private void InsideEnumHandler(string line)
         {
             if(line.Trim().StartsWith(BeginningOfIfder, StringComparison.CurrentCulture))
             {
@@ -162,7 +162,7 @@ namespace Antmicro.Renode.CoresSourceParser
             }
             else
             {
-                InsideEnumHanlder(line);
+                InsideEnumHandler(line);
             }
         }
 
