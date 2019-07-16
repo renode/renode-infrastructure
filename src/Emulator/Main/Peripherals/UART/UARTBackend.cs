@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 lock(lockObject)
                 {
-                    history.Add(b);
+                    history.Enqueue(b);
                 }
             };
         }

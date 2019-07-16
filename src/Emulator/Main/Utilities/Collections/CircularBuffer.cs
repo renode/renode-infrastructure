@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.Collections
             lastPosition = 0;
         }
 
-        public void Add(T element)
+        public void Enqueue(T element)
         {
             buffer[lastPosition] = element;
             UpdateIndex();

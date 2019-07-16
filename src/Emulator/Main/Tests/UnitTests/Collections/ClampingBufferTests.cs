@@ -17,9 +17,9 @@ namespace Antmicro.Renode.UnitTests.Collections
 		public void ShouldSaveWithoutOverflow()
 		{
 			var buffer = new CircularBuffer<int>(5);
-			buffer.Add(1);
-			buffer.Add(2);
-			buffer.Add(3);
+			buffer.Enqueue(1);
+			buffer.Enqueue(2);
+			buffer.Enqueue(3);
 			CollectionAssert.AreEqual(new [] { 1, 2, 3 }, buffer);
 		}
 
@@ -30,7 +30,7 @@ namespace Antmicro.Renode.UnitTests.Collections
 			var array = new [] { 1, 2, 3, -1, 0 };
 			for(var i = 0; i < 3; i++)
 			{
-				buffer.Add(array[i]);
+				buffer.Enqueue(array[i]);
 			}
 			var copy = new int[5];
 			copy[3] = -1;
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.UnitTests.Collections
 			var buffer = new CircularBuffer<int>(4);
 			for(var i = 0; i < 6; i++)
 			{
-				buffer.Add(i);
+				buffer.Enqueue(i);
 			}
 			Assert.AreEqual(buffer, new [] { 3, 4, 5 });
 		}
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.UnitTests.Collections
 			var buffer = new CircularBuffer<int>(4);
 			for(var i = 0; i < 6; i++)
 			{
-				buffer.Add(i);
+				buffer.Enqueue(i);
 			}
 			var result = new [] { 3, 4, 5 };
 			var copy = new int[3];
