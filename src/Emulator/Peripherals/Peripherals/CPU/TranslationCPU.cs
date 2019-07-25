@@ -955,7 +955,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract string GDBArchitecture { get; }
 
+        public bool DebuggerConnected { get; set; }
+
         public uint Id { get; }
+
+        public string Name => this.GetCPUThreadName(machine);
 
         private void Init()
         {
