@@ -150,6 +150,7 @@
     <Compile Include="Hooks\PacketInterceptionExtensions.cs" />
     <Compile Include="Utilities\GDB\Commands\CurrentThreadCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\MultithreadContinueCommand.cs" />
+    <Compile Include="Utilities\GDB\Commands\ThreadAliveCommand.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
