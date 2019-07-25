@@ -98,44 +98,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void EnableGdbLogging(bool enabled)
-        {
-            if(gdbStub == null)
-            {
-                return;
-            }
-
-            gdbStub.LogsEnabled = enabled;
-        }
-
-        public void StartGdbServer(int port, bool autostartEmulation = false)
-        {
-            if(gdbStub != null)
-            {
-                throw new RecoverableException(string.Format("GDB server already started for this cpu on port: {0}", gdbStub.Port));
-            }
-
-            try
-            {
-                gdbStub = new GdbStub(port, this, autostartEmulation);
-            }
-            catch(SocketException e)
-            {
-                throw new RecoverableException(string.Format("Could not start GDB server: {0}", e.Message));
-            }
-        }
-
-        public void StopGdbServer()
-        {
-            if(gdbStub == null)
-            {
-                return;
-            }
-
-            gdbStub.Dispose();
-            gdbStub = null;
-        }
-
         public virtual void InitFromElf(IELF elf)
         {
             if(elf.GetBitness() > (int)bitness)
@@ -553,9 +515,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool UpdateContextOnLoadAndStore { get; set; }
 
-        [Transient]
-        protected GdbStub gdbStub;
-
         protected abstract Interrupt DecodeInterrupt(int number);
 
         public void ClearHookAtBlockBegin()
@@ -929,7 +888,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("Disposing translation library.");
             }
-            StopGdbServer();
             RemoveAllHooks();
             TlibDispose();
             RenodeFreeHostBlocks();

@@ -55,6 +55,7 @@ namespace Antmicro.Renode.Core
             };
             userState = string.Empty;
             SetLocalName(SystemBus, SystemBusName);
+            gdbStubs = new Dictionary<int, GdbStub>();
         }
 
         [PreSerialization]
@@ -472,6 +473,11 @@ namespace Antmicro.Renode.Core
                 player.Dispose();
                 LocalTimeSource.SyncHook -= player.Play;
             }
+            foreach(var stub in gdbStubs)
+            {
+                stub.Value.Dispose();
+            }
+            gdbStubs.Clear();
 
             // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed last
             foreach(var peripheral in GetPeripheralsOfType<IDisposable>().OrderBy(x => x is ICPU ? 0 : 1))
@@ -658,6 +664,82 @@ namespace Antmicro.Renode.Core
                     hook(currentState);
                 }
             };
+        }
+
+        public void EnableGdbLogging(int port, bool enabled)
+        {
+            if(!gdbStubs.ContainsKey(port))
+            {
+                return;
+            }
+            gdbStubs[port].LogsEnabled = enabled;
+        }
+
+        public void StartGdbServer(int port, bool autostartEmulation = false, ICpuSupportingGdb cpu = null)
+        {
+            try
+            {
+                if(cpu == null)
+                {
+                    if(gdbStubs.ContainsKey(port))
+                    {
+                        throw new RecoverableException(string.Format("GDB server already started for this machine on port :{0}", port));
+                    }
+                    var cpus = SystemBus.GetCPUs().Cast<ICpuSupportingGdb>();
+                    foreach(var c in cpus)
+                    {
+                        if(gdbStubs.Values.Any(x => x.IsCPUAttached(c)))
+                        {
+                            throw new RecoverableException("One or more CPUs already added to an existing GDB server");
+                        }
+                    }
+                    gdbStubs.Add(port, new GdbStub(this, cpus, port, autostartEmulation));
+                    this.Log(LogLevel.Info, "GDB server with all CPUs started on port :{0}", port);
+                    return;
+                }
+                if(gdbStubs.Values.Any(x => x.IsCPUAttached(cpu)))
+                {
+                    throw new RecoverableException(string.Format("CPU is already attached to a stub"));
+                }
+                if(gdbStubs.ContainsKey(port))
+                {
+                    gdbStubs[port].AttachCPU(cpu);
+                    this.Log(LogLevel.Info, "CPU was added to GDB server running on port :{0}", port);
+                }
+                else
+                {
+                    gdbStubs.Add(port, new GdbStub(this, new[] { cpu }, port, autostartEmulation));
+                    this.Log(LogLevel.Info, "CPU was added to new GDB server created on port :{0}", port);
+                }
+            }
+            catch(SocketException e)
+            {
+                throw new RecoverableException(string.Format("Could not start GDB server: {0}", e.Message));
+            }
+        }
+
+        public void StopGdbServer(int? port = null)
+        {
+            if(!gdbStubs.Any())
+            {
+                throw new RecoverableException("Nothing to stop.");
+            }
+            if(!port.HasValue)
+            {
+                if(gdbStubs.Count > 1)
+                {
+                    throw new RecoverableException("Port number required to stop a GDB server.");
+                }
+                gdbStubs.Single().Value.Dispose();
+                gdbStubs.Clear();
+                return;
+            }
+            if(!gdbStubs.ContainsKey(port.Value))
+            {
+                throw new RecoverableException(string.Format("There is no GDB server on port :{0}.", port.Value));
+            }
+            gdbStubs[port.Value].Dispose();
+            gdbStubs.Remove(port.Value);
         }
 
         public override string ToString()
@@ -1046,6 +1128,8 @@ namespace Antmicro.Renode.Core
             clockSource.Advance(diff);
         }
 
+        [Constructor]
+        private Dictionary<int, GdbStub> gdbStubs;
         private string userState;
         private Action<string> userStateHook;
         private bool alreadyDisposed;

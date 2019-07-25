@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint IsInDebugMode()
         {
-            return (gdbStub?.DebuggerConnected == true && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
+            return (DebuggerConnected == true && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
         }
 
         [Export]
