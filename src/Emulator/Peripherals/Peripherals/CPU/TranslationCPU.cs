@@ -473,12 +473,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetPageAccessViaIo(ulong address)
         {
-            pagesAccessedByIo.Add(address & TlibGetPageSize());
+            pagesAccessedByIo.Add(address & ~(TlibGetPageSize() - 1));
         }
 
         public void ClearPageAccessViaIo(ulong address)
         {
-            pagesAccessedByIo.Remove(address & TlibGetPageSize());
+            pagesAccessedByIo.Remove(address & ~(TlibGetPageSize() - 1));
         }
 
         public bool DisableInterruptsWhileStepping { get; set; }
@@ -904,7 +904,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private int IsIoAccessed(ulong address)
         {
-            return pagesAccessedByIo.Contains(address & TlibGetPageSize()) ? 1 : 0;
+            return pagesAccessedByIo.Contains(address & ~(TlibGetPageSize() - 1)) ? 1 : 0;
         }
 
         public abstract string Architecture { get; }
