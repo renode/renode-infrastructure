@@ -6,31 +6,29 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Binding;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using Machine = Antmicro.Renode.Core.Machine;
-using Antmicro.Migrant;
-using System.Collections.Concurrent;
-using System.Text;
-using System.IO;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Time;
-using System.Threading.Tasks;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Peripherals.CPU.Registers;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
 using ELFSharp.UImage;
-using System.Diagnostics;
-using System.Net.Sockets;
-using Antmicro.Renode.Debugging;
+using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
