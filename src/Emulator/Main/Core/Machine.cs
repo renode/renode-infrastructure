@@ -6,28 +6,28 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Net.Sockets;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.EventRecording;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Collections;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Time;
-using System.Text;
 using Antmicro.Renode.Peripherals.CPU;
-using System.Reflection;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
-using Antmicro.Renode.EventRecording;
-using System.IO;
-using System.Runtime.InteropServices;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.GDB;
-using System.Net.Sockets;
 
 namespace Antmicro.Renode.Core
 {
