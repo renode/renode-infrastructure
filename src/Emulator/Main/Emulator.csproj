@@ -466,6 +466,16 @@
     <Compile Include="Peripherals\CAN\CANMessageFrame.cs" />
     <Compile Include="Utilities\Collections\SimpleCache.cs" />
     <Compile Include="Utilities\BitBangHelper.cs" />
+    <Compile Include="Utilities\GDB\ArgumentAttribute.cs" />
+    <Compile Include="Utilities\GDB\BreakpointTypeExtensions.cs" />
+    <Compile Include="Utilities\GDB\Command.cs" />
+    <Compile Include="Utilities\GDB\CommandsManager.cs" />
+    <Compile Include="Utilities\GDB\ExecuteAttribute.cs" />
+    <Compile Include="Utilities\GDB\Packet.cs" />
+    <Compile Include="Utilities\GDB\PacketBuilder.cs" />
+    <Compile Include="Utilities\GDB\PacketData.cs" />
+    <Compile Include="Utilities\GDB\GdbStub.cs" />
+    <Compile Include="Peripherals\CPU\ICpuSupportingGdb.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
@@ -509,5 +519,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Peripherals\Sensor\" />
+    <Folder Include="Utilities\GDB\" />
   </ItemGroup>
 </Project>
