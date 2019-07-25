@@ -474,11 +474,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void SetPageAccessViaIo(ulong address)
         {
             pagesAccessedByIo.Add(address & ~(TlibGetPageSize() - 1));
+            TlibFlushPage(address);
         }
 
         public void ClearPageAccessViaIo(ulong address)
         {
             pagesAccessedByIo.Remove(address & ~(TlibGetPageSize() - 1));
+            TlibFlushPage(address);
         }
 
         public bool DisableInterruptsWhileStepping { get; set; }
@@ -1538,6 +1540,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 TlibSetBlockFinishedHookPresent;
+
+        [Import]
+        private ActionUInt64 TlibFlushPage;
 
         #pragma warning restore 649
 
