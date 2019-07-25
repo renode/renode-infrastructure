@@ -29,10 +29,16 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             switch(type)
             {
                 case BreakpointType.MemoryBreakpoint:
-                    manager.Cpu.AddHook(address, MemoryBreakpointHook);
+                    foreach(var cpu in manager.ManagedCpus.Values)
+                    {
+                        cpu.AddHook(address, MemoryBreakpointHook);
+                    }
                     break;
                 case BreakpointType.HardwareBreakpoint:
-                    manager.Cpu.AddHook(address, HardwareBreakpointHook);
+                    foreach(var cpu in manager.ManagedCpus.Values)
+                    {
+                        cpu.AddHook(address, HardwareBreakpointHook);
+                    }
                     break;
                 case BreakpointType.AccessWatchpoint:
                     AddWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
@@ -60,10 +66,16 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             switch(type)
             {
                 case BreakpointType.MemoryBreakpoint:
-                    manager.Cpu.RemoveHook(address, MemoryBreakpointHook);
+                    foreach(var cpu in manager.ManagedCpus.Values)
+                    {
+                        cpu.RemoveHook(address, MemoryBreakpointHook);
+                    }
                     break;
                 case BreakpointType.HardwareBreakpoint:
-                    manager.Cpu.RemoveHook(address, HardwareBreakpointHook);
+                    foreach(var cpu in manager.ManagedCpus.Values)
+                    {
+                        cpu.RemoveHook(address, HardwareBreakpointHook);
+                    }
                     break;
                 case BreakpointType.AccessWatchpoint:
                     RemoveWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);

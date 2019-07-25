@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Text;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -24,18 +25,31 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int length
         )
         {
-            if(objectType != "features" || operation != "read")
+            if((objectType != "features" && objectType != "threads") || operation != "read")
             {
                 return PacketData.Empty;
             }
-            if(annex != "target.xml" || offset > length)
+            if((objectType == "features" && annex != "target.xml") || offset > length)
             {
                 return PacketData.ErrorReply(0);
             }
-          
-            var xmlFile = $"<?xml version=\"1.0\"?>\n<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n<architecture>{manager.Cpu.GDBArchitecture}</architecture>\n</target>";
+            var xmlFile = new StringBuilder();
+            if(objectType == "features")
+            {
+                xmlFile.Append($"<?xml version=\"1.0\"?>\n<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n<architecture>{manager.Cpu.GDBArchitecture}</architecture>\n</target>");
+            }
+            else if(objectType == "threads")
+            {
+                xmlFile.Append("<?xml version=\"1.0\"?>\n<threads>\n");
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    xmlFile.Append($"<thread id=\"{cpu.Key}\" core=\"{cpu.Key - 1}\" name=\"{cpu.Value.Name}\"></thread>\n");
+                }
+                xmlFile.Append("</threads>\n");
+            }
+
             var prefix = offset + length >= xmlFile.Length ? "l" : "m";
-            var xmlSubstring = xmlFile.Substring(offset, Math.Min(length, xmlFile.Length - offset));
+            var xmlSubstring = xmlFile.ToString().Substring(offset, Math.Min(length, xmlFile.Length - offset));
             return new PacketData(prefix + xmlSubstring);
         }
     }

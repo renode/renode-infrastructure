@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Text;
+
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
     internal class SupportedQueryCommand : Command
@@ -15,7 +17,13 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("qSupported")]
         public PacketData Execute()
         {
-            return new PacketData(string.Format("PacketSize={0:x4};qXfer:features:read+;swbreak+;hwbreak+", 4096));
+            var command = new StringBuilder();
+            command.Append(string.Format("PacketSize={0:x4};qXfer:features:read+;swbreak+;hwbreak+", 4096));
+            if(manager.Machine.SystemBus.IsMultiCore)
+            {
+                command.Append(";qXfer:threads:read+;vContSupported+");
+            }
+            return new PacketData(command.ToString());
         }
     }
 }
