@@ -26,6 +26,8 @@ using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.EventRecording;
 using System.IO;
 using System.Runtime.InteropServices;
+using Antmicro.Renode.Utilities.GDB;
+using System.Net.Sockets;
 
 namespace Antmicro.Renode.Core
 {
