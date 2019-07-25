@@ -152,6 +152,7 @@
     <Compile Include="Utilities\GDB\Commands\MultithreadContinueCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ThreadAliveCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ThreadAttachedCommand.cs" />
+    <Compile Include="Utilities\GDB\Commands\ThreadContextCommand.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
