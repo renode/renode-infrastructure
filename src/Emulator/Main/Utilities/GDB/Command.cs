@@ -12,7 +12,7 @@ using System.Text;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
-    internal abstract class Command : IAutoLoadType
+    public abstract class Command : IAutoLoadType
     {
         public static PacketData Execute(Command command, Packet packet)
         {
@@ -51,7 +51,8 @@ namespace Antmicro.Renode.Utilities.GDB
                 return null;
             }
 
-            return interestingMethods.SingleOrDefault(x => packet.Data.DataAsString.StartsWith(x.GetCustomAttribute<ExecuteAttribute>().Mnemonic, StringComparison.Ordinal));
+            var methods = interestingMethods.Where(x => packet.Data.DataAsString.StartsWith(x.GetCustomAttribute<ExecuteAttribute>().Mnemonic, StringComparison.Ordinal));
+            return methods.OrderByDescending(x => x.GetCustomAttribute<ExecuteAttribute>().Mnemonic.Length).FirstOrDefault();
         }
 
         private static object HandleArgumentNotResolved(ParsingContext context, ParameterInfo parameterInfo)
@@ -63,10 +64,16 @@ namespace Antmicro.Renode.Utilities.GDB
             }
 
             var startPosition = context.CurrentPosition;
+
+            // we do not support multiple sets of operation+coreId parameters
+            if(startPosition > context.Packet.Data.DataAsString.Length)
+            {
+                return parameterInfo.DefaultValue;
+            }
+
             var separatorPosition = attribute.Separator == '\0' ? -1 : context.Packet.Data.DataAsString.IndexOf(attribute.Separator, startPosition);
             var length = (separatorPosition == -1 ? context.Packet.Data.DataAsString.Length : separatorPosition) - startPosition;
             var valueToParse = context.Packet.Data.DataAsString.Substring(startPosition, length);
-
             context.CurrentPosition += length + 1;
 
             switch(attribute.Encoding)

@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
-    internal class PacketBuilder
+    public class PacketBuilder
     {
         public PacketBuilder()
         {
@@ -55,7 +55,6 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
                 return new Result(packet);
             }
-
             return null;
         }
 
@@ -77,7 +76,7 @@ namespace Antmicro.Renode.Utilities.GDB
             Checksum2
         }
 
-        internal class Result
+        public class Result
         {
             public Result(Packet packet = null, bool corruptedPacket = false, bool interrupt = false)
             {

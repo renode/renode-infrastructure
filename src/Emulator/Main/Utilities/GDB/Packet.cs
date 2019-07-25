@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
-    internal class Packet
+    public class Packet
     {
         public static bool TryCreate(PacketData data, byte checksum, out Packet p)
         {

@@ -9,7 +9,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
-    internal static class BreakpointTypeExtensions
+    public static class BreakpointTypeExtensions
     {
         public static string GetStopReason(this BreakpointType type)
         {

@@ -15,22 +15,50 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
-    internal class CommandsManager
+    public class CommandsManager
     {
-        public CommandsManager(ICpuSupportingGdb cpu)
+        public CommandsManager(Machine machine, IEnumerable<ICpuSupportingGdb> cpus)
         {
             availableCommands = new HashSet<CommandDescriptor>();
             activeCommands = new HashSet<Command>();
-
-            Machine machine;
-            EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(cpu, out machine);
-            Cpu = cpu;
             Machine = machine;
+            CanAttachCPU = true;
+
+            ManagedCpus = new Dictionary<uint, ICpuSupportingGdb>();
+            foreach(var cpu in cpus)
+            {
+                ManagedCpus.Add(cpu.Id + 1, cpu);
+            }
+            selectedCpuNumber = ManagedCpus.OrderBy(x => x.Key).First().Key;
+        }
+
+        public void AttachCPU(ICpuSupportingGdb cpu)
+        {
+            if(!CanAttachCPU)
+            {
+                throw new RecoverableException("Cannot attach CPU because GDB is already connected.");
+            }
+            ManagedCpus.Add(cpu.Id, cpu);
+        }
+
+        public bool IsCPUAttached(ICpuSupportingGdb cpu)
+        {
+            return ManagedCpus.ContainsValue(cpu);
+        }
+
+        public void SelectCpuForDebugging(uint cpuNumber)
+        {
+            if(!ManagedCpus.ContainsKey(cpuNumber))
+            {
+                Logger.Log(LogLevel.Error, "Tried to set invalid CPU number: {0}", cpuNumber);
+                return;
+            }
+            selectedCpuNumber = cpuNumber;
         }
 
         public void Register(Type t)
         {
-            if(t == typeof(Command) || !typeof(Command).IsAssignableFrom(t))
+            if((!Machine.SystemBus.IsMultiCore && typeof(IMultithreadCommand).IsAssignableFrom(t)) || t == typeof(Command) || !typeof(Command).IsAssignableFrom(t))
             {
                 return;
             }
@@ -50,20 +78,29 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public bool TryGetCommand(Packet packet, out Command command)
         {
-            var commandDescriptor = availableCommands.SingleOrDefault(x => packet.Data.DataAsString.StartsWith(x.Mnemonic, StringComparison.Ordinal));
-            if(commandDescriptor == null)
+            var commandDescriptors = availableCommands.Where(x => packet.Data.DataAsString.StartsWith(x.Mnemonic, StringComparison.Ordinal));
+            if(!commandDescriptors.Any())
             {
                 command = null;
                 return false;
             }
 
-            command = GetOrCreateCommand(commandDescriptor.Method.DeclaringType);
+            var descriptor = commandDescriptors.OrderByDescending(x => x.Mnemonic.Length).FirstOrDefault();
+            command = GetOrCreateCommand(descriptor.Method.DeclaringType);
             return true;
         }
 
         public Machine Machine { get; private set; }
-        public ICpuSupportingGdb Cpu { get; private set; }
+        public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
         public bool ShouldAutoStart { get; set; }
+        public bool CanAttachCPU { get; set; }
+        public ICpuSupportingGdb Cpu
+        {
+            get
+            {
+                return ManagedCpus[selectedCpuNumber];
+            }
+        }
 
         private Command GetOrCreateCommand(Type t)
         {
@@ -79,6 +116,8 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<Command> activeCommands;
+
+        private uint selectedCpuNumber;
 
         private class CommandDescriptor
         {

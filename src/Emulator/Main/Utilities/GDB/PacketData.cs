@@ -13,7 +13,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
-    internal class PacketData
+    public class PacketData
     {
         static PacketData()
         {
@@ -36,10 +36,10 @@ namespace Antmicro.Renode.Utilities.GDB
             return new PacketData(string.Format("S{0:X2}", signal));
         }
 
-        public static PacketData StopReply(BreakpointType reason, ulong? address)
+        public static PacketData StopReply(BreakpointType reason, uint cpuId, ulong? address)
         {
-            return new PacketData(string.Format("T05{0}:{1};", reason.GetStopReason(),
-                                                !address.HasValue ? string.Empty : string.Format("{0:X2}", address)));
+            return new PacketData(string.Format("T05{0}:{1};thread:{2};", reason.GetStopReason(),
+                                                !address.HasValue ? string.Empty : string.Format("{0:X2}", address), cpuId));
         }
 
         public PacketData(string data)

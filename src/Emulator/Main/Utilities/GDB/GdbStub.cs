@@ -10,51 +10,70 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 
-namespace Antmicro.Renode.Utilities
+namespace Antmicro.Renode.Utilities.GDB
 {
     public class GdbStub : IDisposable, IExternal
     {
-        public GdbStub(int port, ICpuSupportingGdb cpu, bool autostartEmulation)
+        public GdbStub(Machine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation)
         {
-            this.cpu = cpu;
+            this.cpus = cpus;
             Port = port;
 
             LogsEnabled = true;
 
             pcktBuilder = new PacketBuilder();
-            commands = new CommandsManager(cpu);
-            commands.ShouldAutoStart = autostartEmulation;
-            TypeManager.Instance.AutoLoadedType += commands.Register;
+            commandsManager = new CommandsManager(machine, cpus);
+            commandsManager.ShouldAutoStart = autostartEmulation;
+            TypeManager.Instance.AutoLoadedType += commandsManager.Register;
 
             terminal = new SocketServerProvider();
             terminal.DataReceived += OnByteWritten;
             terminal.ConnectionAccepted += delegate
             {
-                DebuggerConnected = true;
-                cpu.Halted += OnHalted;
-                cpu.ExecutionMode = ExecutionMode.SingleStep;
+                commandsManager.CanAttachCPU = false;
+                foreach(var cpu in cpus)
+                {
+                    cpu.Halted += OnHalted;
+                    cpu.ExecutionMode = ExecutionMode.SingleStep;
+                    cpu.DebuggerConnected = true;
+                }
             };
             terminal.ConnectionClosed += delegate
             {
-                DebuggerConnected = false;
-                cpu.Halted -= OnHalted;
-                cpu.ExecutionMode = ExecutionMode.Continuous;
+                foreach(var cpu in cpus)
+                {
+                    cpu.Halted -= OnHalted;
+                    cpu.ExecutionMode = ExecutionMode.Continuous;
+                    cpu.DebuggerConnected = false;
+                }
+                commandsManager.CanAttachCPU = true;
             };
             terminal.Start(port);
-            commHandler = new CommunicationHandler(this);
+            commHandler = new CommunicationHandler(this, commandsManager);
 
             LogsEnabled = false;
         }
 
+        public void AttachCPU(ICpuSupportingGdb cpu)
+        {
+            commandsManager.AttachCPU(cpu);
+        }
+
+        public bool IsCPUAttached(ICpuSupportingGdb cpu)
+        {
+            return commandsManager.IsCPUAttached(cpu);
+        }
+
         public void Dispose()
         {
-            cpu.Halted -= OnHalted;
+            foreach(var cpu in cpus)
+            {
+                cpu.Halted -= OnHalted;
+            }
             terminal.Dispose();
         }
 
         public int Port { get; private set; }
-
-        public bool DebuggerConnected { get; set; }
 
         public bool LogsEnabled { get; set; }
 
@@ -72,7 +91,15 @@ namespace Antmicro.Renode.Utilities
                     case BreakpointType.ReadWatchpoint:
                     case BreakpointType.HardwareBreakpoint:
                     case BreakpointType.MemoryBreakpoint:
-                        ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, args.Address)));
+                        var cpuId = args.CpuId;
+                        if(commandsManager.Machine.SystemBus.IsMultiCore)
+                        {
+                            // GDB counts threads starting from `1`, while Renode counts them from `0` - hence the incrementation
+                            cpuId++;
+
+                            commandsManager.SelectCpuForDebugging(cpuId);
+                        }
+                        ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, cpuId, args.Address)));
                         break;
                     }
                     return;
@@ -105,12 +132,12 @@ namespace Antmicro.Renode.Utilities
             {
                 if(LogsEnabled)
                 {
-                    cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
+                    commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
                 }
                 // we need to pause CPU in order to escape infinite loops
-                cpu.Pause();
-                cpu.ExecutionMode = ExecutionMode.SingleStep;
-                cpu.Resume();
+                commandsManager.Cpu.Pause();
+                commandsManager.Cpu.ExecutionMode = ExecutionMode.SingleStep;
+                commandsManager.Cpu.Resume();
                 return;
             }
 
@@ -120,7 +147,7 @@ namespace Antmicro.Renode.Utilities
                 {
                     if(LogsEnabled)
                     {
-                        cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.DataAsString);
+                        commandsManager.Cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.DataAsString);
                     }
                     // send NACK
                     ctx.Send((byte)'-');
@@ -129,17 +156,17 @@ namespace Antmicro.Renode.Utilities
 
                 if(LogsEnabled)
                 {
-                    cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.DataAsString);
+                    commandsManager.Cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.DataAsString);
                 }
                 // send ACK
                 ctx.Send((byte)'+');
 
                 Command command;
-                if(!commands.TryGetCommand(result.Packet, out command))
+                if(!commandsManager.TryGetCommand(result.Packet, out command))
                 {
                     if(LogsEnabled)
                     {
-                        cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.DataAsString);
+                        commandsManager.Cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.DataAsString);
                     }
                     ctx.Send(new Packet(PacketData.Empty));
                 }
@@ -156,9 +183,9 @@ namespace Antmicro.Renode.Utilities
         }
 
         private readonly PacketBuilder pcktBuilder;
-        private readonly ICpuSupportingGdb cpu;
+        private readonly IEnumerable<ICpuSupportingGdb> cpus;
         private readonly SocketServerProvider terminal;
-        private readonly CommandsManager commands;
+        private readonly CommandsManager commandsManager;
         private readonly CommunicationHandler commHandler;
 
         private const int TrapSignal = 5;
@@ -166,9 +193,10 @@ namespace Antmicro.Renode.Utilities
 
         private class CommunicationHandler
         {
-            public CommunicationHandler(GdbStub stub)
+            public CommunicationHandler(GdbStub stub, CommandsManager manager)
             {
                 this.stub = stub;
+                this.manager = manager;
                 queue = new Queue<byte>();
                 internalLock = new object();
             }
@@ -182,7 +210,7 @@ namespace Antmicro.Renode.Utilities
                     {
                         if(stub.LogsEnabled)
                         {
-                            stub.cpu.Log(LogLevel.Debug, "Gdb stub: entering nested communication context. All bytes will be queued.");
+                            manager.Cpu.Log(LogLevel.Debug, "Gdb stub: entering nested communication context. All bytes will be queued.");
                         }
                     }
                     return new Context(this, counter > 1);
@@ -220,7 +248,7 @@ namespace Antmicro.Renode.Utilities
                     {
                         if(stub.LogsEnabled)
                         {
-                            stub.cpu.Log(LogLevel.Debug, "Gdb stub: leaving nested communication context. Sending {0} queued bytes.", queue.Count);
+                            manager.Cpu.Log(LogLevel.Debug, "Gdb stub: leaving nested communication context. Sending {0} queued bytes.", queue.Count);
                         }
                         SendAllBufferedData();
                     }
@@ -228,6 +256,7 @@ namespace Antmicro.Renode.Utilities
             }
 
             private readonly GdbStub stub;
+            private readonly CommandsManager manager;
             private readonly Queue<byte> queue;
             private readonly object internalLock;
             private int counter;
@@ -252,7 +281,7 @@ namespace Antmicro.Renode.Utilities
                 {
                     if(commHandler.stub.LogsEnabled)
                     {
-                        commHandler.stub.cpu.Log(LogLevel.Debug, "Sending response to GDB: {0}", packet.Data.DataAsString);
+                        commHandler.manager.Cpu.Log(LogLevel.Debug, "Sending response to GDB: {0}", packet.Data.DataAsString);
                     }
                     foreach(var b in packet.GetCompletePacket())
                     {
