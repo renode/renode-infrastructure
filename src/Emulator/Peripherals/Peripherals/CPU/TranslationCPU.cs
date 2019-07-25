@@ -786,7 +786,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void AddHook(ulong addr, Action<ulong> hook)
+        public void AddHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook)
         {
             lock(hooks)
             {
@@ -800,7 +800,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void RemoveHook(ulong addr, Action<ulong> hook)
+        public void RemoveHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook)
         {
             lock(hooks)
             {
@@ -1240,7 +1240,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         parent.UpdateContext();
                         alreadyUpdated = true;
                     }
-                    enabledWatchpoint.Invoke(address, width);
+                    enabledWatchpoint.Invoke(parent, address, width);
                     anyEnabled = true;
                 }
 
@@ -1965,24 +1965,24 @@ restart:
             {
                 this.cpu = cpu;
                 this.address = address;
-                callbacks = new HashSet<Action<ulong>>();
+                callbacks = new HashSet<Action<ICpuSupportingGdb, ulong>>();
             }
 
             public void ExecuteCallbacks()
             {
                 foreach(var callback in callbacks)
                 {
-                    callback(address);
+                    callback(cpu, address);
                 }
             }
 
-            public void AddCallback(Action<ulong> action)
+            public void AddCallback(Action<ICpuSupportingGdb, ulong> action)
             {
                 callbacks.Add(action);
                 Activate();
             }
 
-            public bool RemoveCallback(Action<ulong> action)
+            public bool RemoveCallback(Action<ICpuSupportingGdb, ulong> action)
             {
                 var result = callbacks.Remove(action);
                 if(result && IsEmpty)
@@ -2025,7 +2025,7 @@ restart:
 
             private readonly ulong address;
             private readonly TranslationCPU cpu;
-            private readonly HashSet<Action<ulong>> callbacks;
+            private readonly HashSet<Action<ICpuSupportingGdb, ulong>> callbacks;
         }
 
         private class Synchronizer

@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Hooks
 
             InnerInit();
 
-            Hook = (pc) =>
+            Hook = (_, pc) =>
             {
                 Scope.SetVariable("pc", pc);
                 Source.Value.Execute(Scope);
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Hooks
             Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(Script));
         }
 
-        public Action<ulong> Hook { get; private set; }
+        public Action<ICpuSupportingGdb, ulong> Hook { get; private set; }
 
         public Action<ulong, uint> HookWithSize { get; private set; }
 

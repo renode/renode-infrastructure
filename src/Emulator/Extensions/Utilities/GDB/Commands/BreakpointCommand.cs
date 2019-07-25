@@ -82,35 +82,35 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return PacketData.Success;
         }
 
-        private void HardwareBreakpointHook(ulong address)
+        private void HardwareBreakpointHook(ICpuSupportingGdb cpu, ulong address)
         {
-            manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, breakpointType: BreakpointType.HardwareBreakpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.HardwareBreakpoint));
         }
 
-        private void MemoryBreakpointHook(ulong address)
+        private void MemoryBreakpointHook(ICpuSupportingGdb cpu, ulong address)
         {
-            manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, breakpointType: BreakpointType.MemoryBreakpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.MemoryBreakpoint));
         }
 
-        private void AccessWatchpointHook(ulong address, SysbusAccessWidth width)
+        private void AccessWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width)
         {
             //? I See a possible problem here.
             //? Here we call `Halt` event with T05 argument, but in a second we will call it once again with S05 in HandleStepping@TranlationCPU.
             //? It seems to work fine with GDB, but... I don't know if it is fully correct.
-            manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.AccessWatchpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.AccessWatchpoint));
         }
 
-        private void WriteWatchpointHook(ulong address, SysbusAccessWidth width)
+        private void WriteWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width)
         {
-            manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.WriteWatchpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.WriteWatchpoint));
         }
 
-        private void ReadWatchpointHook(ulong address, SysbusAccessWidth width)
+        private void ReadWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width)
         {
-            manager.Cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, address, BreakpointType.ReadWatchpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.ReadWatchpoint));
         }
 
-        private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ulong, SysbusAccessWidth> hook)
+        private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
         {
             // we need to register hooks for all possible access widths covering memory fragment
             // [address, address + kind) referred by GDB
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private void RemoveWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ulong, SysbusAccessWidth> hook)
+        private void RemoveWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
         {
             // we need to unregister hooks from all possible access widths convering memory fragment
             // [address, address + kind) referred by GDB
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, Action<ulong, SysbusAccessWidth> hook)
+        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
         {
             foreach(SysbusAccessWidth width in Enum.GetValues(typeof(SysbusAccessWidth)))
             {
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private class WatchpointDescriptor
         {
-            public WatchpointDescriptor(ulong address, SysbusAccessWidth width, Access access, Action<ulong, SysbusAccessWidth> hook)
+            public WatchpointDescriptor(ulong address, SysbusAccessWidth width, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
             {
                 Address = address;
                 Width = width;
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             public readonly ulong Address;
             public readonly SysbusAccessWidth Width;
             public readonly Access Access;
-            public readonly Action<ulong, SysbusAccessWidth> Hook;
+            public readonly Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> Hook;
         }
     }
 }

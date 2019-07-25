@@ -57,14 +57,14 @@ namespace Antmicro.Renode.Debug
 
             var traceInfo = new TraceInfo();
             traceInfo.Begin = symbol.Start.RawValue;
-            traceInfo.BeginCallback = (pc) => EvaluateTraceCallback(pc, name, parameters, callback);
+            traceInfo.BeginCallback = (cpu, pc) => EvaluateTraceCallback(pc, name, parameters, callback);
 
             cpu.AddHook(traceInfo.Begin, traceInfo.BeginCallback);
             if(returnCallback != null && returnParameter.HasValue)
             {
                 traceInfo.HasEnd = true;
                 traceInfo.End = symbol.End.RawValue - (symbol.IsThumbSymbol ? 2 : 4UL);
-                traceInfo.EndCallback = (pc) => EvaluateTraceCallback(pc, name, new[] { returnParameter.Value }, returnCallback);
+                traceInfo.EndCallback = (cpu, pc) => EvaluateTraceCallback(pc, name, new[] { returnParameter.Value }, returnCallback);
                 cpu.Log(LogLevel.Debug, "Address is @ 0x{0:X}, end is @ 0x{1:X}.", traceInfo.Begin, traceInfo.End);
                 cpu.AddHook(traceInfo.End, traceInfo.EndCallback);
             }
@@ -186,8 +186,8 @@ namespace Antmicro.Renode.Debug
             public ulong Begin;
             public bool HasEnd;
             public ulong End;
-            public Action<ulong> BeginCallback;
-            public Action<ulong> EndCallback;
+            public Action<ICpuSupportingGdb, ulong> BeginCallback;
+            public Action<ICpuSupportingGdb, ulong> EndCallback;
         }
     }
 }

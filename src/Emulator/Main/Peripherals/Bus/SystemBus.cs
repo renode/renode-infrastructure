@@ -688,7 +688,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void AddWatchpointHook(ulong address, SysbusAccessWidth width, Access access, Action<ulong, SysbusAccessWidth> hook)
+        public void AddWatchpointHook(ulong address, SysbusAccessWidth width, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
         {
             if(!Enum.IsDefined(typeof(Access), access))
             {
@@ -725,7 +725,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             UpdatePageAccesses();
         }
 
-        public void RemoveWatchpointHook(ulong address, Action<ulong, SysbusAccessWidth> hook)
+        public void RemoveWatchpointHook(ulong address, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
         {
             foreach(var hookDictionary in new [] { hooksOnRead, hooksOnWrite })
             {
@@ -923,6 +923,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     yield return peripheral;
                 }
+            }
+        }
+
+        public bool IsMultiCore
+        {
+            get
+            {
+                return cpuById.Count() > 1;
             }
         }
 

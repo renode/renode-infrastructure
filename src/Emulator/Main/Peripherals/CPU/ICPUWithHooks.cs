@@ -15,8 +15,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         void SetHookAtBlockBegin(Action<ulong, uint> hook);
         void SetHookAtBlockEnd(Action<ulong, uint> hook);
 
-        void AddHook(ulong addr, Action<ulong> hook);
-        void RemoveHook(ulong addr, Action<ulong> hook);
+        void AddHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook);
+        void RemoveHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook);
         void RemoveHooksAt(ulong addr);
         void RemoveAllHooks();
     }

@@ -5,34 +5,35 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusHookHandler
     {
-        public BusHookHandler(Action<ulong, SysbusAccessWidth> action, SysbusAccessWidth width)
+        public BusHookHandler(Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> action, SysbusAccessWidth width)
         {
             this.action = action;
             this.width = width;
             Enabled = true;
         }
 
-        public void Invoke(ulong currentAddress, SysbusAccessWidth currentWidth)
+        public void Invoke(ICpuSupportingGdb cpu, ulong currentAddress, SysbusAccessWidth currentWidth)
         {
             if((currentWidth & width) != 0)
             {
-                action(currentAddress, currentWidth);
+                action(cpu, currentAddress, currentWidth);
             }
         }
 
-        public bool ContainsAction(Action<ulong, SysbusAccessWidth> actionToTest)
+        public bool ContainsAction(Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> actionToTest)
         {
             return action == actionToTest;
         }
 
         public bool Enabled { get; set; }
 
-        private readonly Action<ulong, SysbusAccessWidth> action;
+        private readonly Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> action;
         private readonly SysbusAccessWidth width;
     }
 }

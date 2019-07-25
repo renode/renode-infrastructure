@@ -10,6 +10,7 @@ using Antmicro.Migrant.Hooks;
 using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -21,15 +22,16 @@ namespace Antmicro.Renode.Hooks
             this.script = script;
 
             InnerInit();
-            Hook = (address, width) =>
+            Hook = (cpu, address, width) =>
             {
+                Scope.SetVariable("cpu", cpu);
                 Scope.SetVariable("address", address);
                 Scope.SetVariable("width", width);
                 source.Value.Execute(Scope);
             };
         }
 
-        public Action<ulong, SysbusAccessWidth> Hook { get; private set; }
+        public Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> Hook { get; private set; }
 
         [PostDeserialization]
         private void InnerInit()
