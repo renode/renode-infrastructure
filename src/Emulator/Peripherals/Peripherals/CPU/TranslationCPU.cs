@@ -331,7 +331,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Pause()
         {
-            InnerPause(new HaltArguments(HaltReason.Pause));
+            InnerPause(new HaltArguments(HaltReason.Pause, Id));
         }
 
         private void RequestPause()
@@ -879,7 +879,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("About to dispose CPU.");
             }
-            InnerPause(new HaltArguments(HaltReason.Abort));
+            InnerPause(new HaltArguments(HaltReason.Abort, Id));
             TimeHandle.Dispose();
             started = false;
             if(!silent)
@@ -1801,7 +1801,7 @@ restart:
                                 using(this.ObtainSinkInactiveState())
                                 {
                                     this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
-                                    InvokeHalted(new HaltArguments(HaltReason.Step));
+                                    InvokeHalted(new HaltArguments(HaltReason.Step, Id));
                                     if(!singleStepSynchronizer.WaitForStepCommand())
                                     {
                                         this.Trace();
@@ -1936,7 +1936,7 @@ restart:
             {
                 this.NoisyLog("CPU abort detected, halting.");
                 isAborted = true;
-                InvokeHalted(new HaltArguments(HaltReason.Abort));
+                InvokeHalted(new HaltArguments(HaltReason.Abort, Id));
                 return ExecutionResult.Aborted;
             }
             finally

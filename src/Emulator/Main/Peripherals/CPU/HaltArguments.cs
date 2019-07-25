@@ -9,14 +9,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class HaltArguments
     {
-        public HaltArguments(HaltReason reason, ulong? address = null, BreakpointType? breakpointType = null)
+        public HaltArguments(HaltReason reason, uint cpuId, ulong? address = null, BreakpointType? breakpointType = null)
         {
             Reason = reason;
+            CpuId = cpuId;
             Address = address;
             BreakpointType = breakpointType;
         }
 
         public HaltReason Reason { get; private set; }
+        public uint CpuId { get; private set; }
         public ulong? Address { get; private set; }
         public BreakpointType? BreakpointType { get; private set; }
     }
