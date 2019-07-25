@@ -149,6 +149,7 @@
     <Compile Include="Hooks\PacketInterceptionPythonEngine.cs" />
     <Compile Include="Hooks\PacketInterceptionExtensions.cs" />
     <Compile Include="Utilities\GDB\Commands\CurrentThreadCommand.cs" />
+    <Compile Include="Utilities\GDB\Commands\MultithreadContinueCommand.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
