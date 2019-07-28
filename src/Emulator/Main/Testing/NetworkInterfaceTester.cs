@@ -11,6 +11,7 @@ using System.Globalization;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Network;
+using Antmicro.Renode.Peripherals.Wireless;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Testing
@@ -18,6 +19,11 @@ namespace Antmicro.Renode.Testing
     public static class NetworkInterfaceTesterExtensions
     {
         public static void CreateNetworkInterfaceTester(this Emulation emulation, string name, IMACInterface iface)
+        {
+            emulation.ExternalsManager.AddExternal(new NetworkInterfaceTester(iface), name);
+        }
+
+        public static void CreateNetworkInterfaceTester(this Emulation emulation, string name, IRadio iface)
         {
             emulation.ExternalsManager.AddExternal(new NetworkInterfaceTester(iface), name);
         }
@@ -29,6 +35,12 @@ namespace Antmicro.Renode.Testing
         {
             this.iface = iface;
             iface.FrameReady += HandleFrame;
+        }
+
+        public NetworkInterfaceTester(IRadio iface)
+        {
+            this.iface = iface;
+            iface.FrameSent += HandleFrame;
         }
 
         public bool TryWaitForOutgoingPacket(int timeoutInSeconds, out NetworkInterfaceTesterResult result)
@@ -83,17 +95,34 @@ namespace Antmicro.Renode.Testing
 
         public void Dispose()
         {
-            iface.FrameReady -= HandleFrame;
+            if(iface is IMACInterface mac)
+            {
+                mac.FrameReady -= HandleFrame;
+            }
+            if(iface is IRadio radio)
+            {
+                radio.FrameSent -= HandleFrame;
+            }
+        }
+
+        private void HandleFrame(IRadio radio, byte[] frame)
+        {
+            HandleFrameInner(frame);
         }
 
         private void HandleFrame(EthernetFrame frame)
+        {
+            HandleFrameInner(frame.Bytes);
+        }
+
+        private void HandleFrameInner(byte[] bytes)
         {
             if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
             {
                 vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
             }
 
-            frames.Add(new NetworkInterfaceTesterResult(frame.Bytes, vts.TimeElapsed.TotalMilliseconds));
+            frames.Add(new NetworkInterfaceTesterResult(bytes, vts.TimeElapsed.TotalMilliseconds));
         }
 
         private byte HexCharToByte(char c)
@@ -142,7 +171,7 @@ namespace Antmicro.Renode.Testing
             return IsNibbleEqual(input, index, (byte)((data & 0xF0) >> 4)) && IsNibbleEqual(input, index + 1, (byte)(data & 0x0F));
         }
 
-        private readonly IMACInterface iface;
+        private readonly INetworkInterface iface;
         private readonly BlockingCollection<NetworkInterfaceTesterResult> frames = new BlockingCollection<NetworkInterfaceTesterResult>();
     }
 
