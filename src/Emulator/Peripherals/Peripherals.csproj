@@ -270,6 +270,7 @@
     <Compile Include="Peripherals\Miscellaneous\SiLabs\EZR32DeviceInformation.cs" />
     <Compile Include="Peripherals\Miscellaneous\SiLabs\DeviceFamily.cs" />
     <Compile Include="Peripherals\Miscellaneous\SiLabs\DeviceInformation.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\EFR32_GPCRC.cs" />
     <Compile Include="Peripherals\Network\CadenceGEM.cs" />
     <Compile Include="Peripherals\GPIOPort\PSE_GPIO.cs" />
     <Compile Include="Peripherals\MTD\PSE_eNVM.cs" />
