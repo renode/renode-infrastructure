@@ -124,7 +124,7 @@ namespace Antmicro.Renode.UI
             {
                 ConsoleWindowBackendAnalyzer terminal = null;
                 IOProvider io;
-                if(options.HideMonitor || options.DisableXwt)
+                if(options.HideMonitor)
                 {
                     io = new IOProvider { Backend = new DummyIOSource() };
                 }
