@@ -1110,6 +1110,42 @@ namespace Antmicro.Renode.Utilities
         {
             return Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(input).Where(x => (x >= 32 && x <= 126) || (x == '\n')).ToArray());
         }
+
+        // allocate file of a given name
+        // if it already exists - rename it using pattern path.III (III being an integer)
+        // returns information if there was a rename and III of the last renamed file 
+        public static bool AllocateFile(string path, out int counter)
+        {
+            counter = 0;
+            var renamed = false;
+            var dstName = $"{path}.{counter}";
+
+            while(!TryCreateEmptyFile(path))
+            {
+                while(File.Exists(dstName))
+                {
+                    counter++;
+                    dstName = $"{path}.{counter}";
+                }
+                File.Move(path, dstName);
+                renamed = true;
+            }
+            return renamed;
+
+            bool TryCreateEmptyFile(string p)
+            {
+                try
+                {
+                    File.Open(p, FileMode.CreateNew).Dispose();
+                    return true;
+                }
+                catch(IOException)
+                {
+                    // this is expected - the file already exists
+                    return false;
+                }
+            }
+        }
     }
 }
 
