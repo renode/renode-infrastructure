@@ -10,6 +10,7 @@ using AntShell.Commands;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using System.IO;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
@@ -36,19 +37,10 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private void InnerRun(string path, bool flushAfterEveryWrite)
         {
-            var counter = 0;
-            var dstName = $"{path}.{counter}";
-            if(File.Exists(path))
+            if(Misc.AllocateFile(path, out var counter))
             {
-                while(File.Exists(dstName))
-                {
-                    counter++;
-                    dstName = $"{path}.{counter}";
-                }
-                File.Copy(path, dstName);
-                Logger.LogAs(null, LogLevel.Warning, "Previous log file detected and renamed to: {0}", dstName);
+                Logger.LogAs(null, LogLevel.Warning, "Previous log file detected and renamed to: {0}.{1}", path, counter);
             }
-
             Logger.AddBackend(new FileBackend(path, flushAfterEveryWrite), "file", true);
         }
 
