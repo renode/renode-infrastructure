@@ -27,7 +27,10 @@ namespace Antmicro.Renode.Utilities.GDB
             ManagedCpus = new Dictionary<uint, ICpuSupportingGdb>();
             foreach(var cpu in cpus)
             {
-                ManagedCpus.Add(cpu.Id + 1, cpu);
+                if(!TryAddManagedCPU(cpu))
+                {
+                    throw new RecoverableException(string.Format("Could not create GDB server with CPU: {0}", cpu.Name));
+                }
             }
             selectedCpuNumber = ManagedCpus.OrderBy(x => x.Key).First().Key;
         }
@@ -38,7 +41,10 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 throw new RecoverableException("Cannot attach CPU because GDB is already connected.");
             }
-            ManagedCpus.Add(cpu.Id, cpu);
+            if(!TryAddManagedCPU(cpu))
+            {
+                throw new RecoverableException("CPU already attached to this GDB server.");
+            }
         }
 
         public bool IsCPUAttached(ICpuSupportingGdb cpu)
@@ -100,6 +106,16 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 return ManagedCpus[selectedCpuNumber];
             }
+        }
+
+        private bool TryAddManagedCPU(ICpuSupportingGdb cpu)
+        {
+            if(IsCPUAttached(cpu))
+            {
+                return false;
+            }
+            ManagedCpus.Add(cpu.Id + 1, cpu);
+            return true;
         }
 
         private Command GetOrCreateCommand(Type t)
