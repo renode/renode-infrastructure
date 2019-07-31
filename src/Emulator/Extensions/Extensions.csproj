@@ -165,6 +165,7 @@
     <Compile Include="Utilities\USB\ConfigurationDescriptor.cs" />
     <Compile Include="Utilities\USB\DeviceDescriptor.cs" />
     <Compile Include="Utilities\USB\InterfaceDescriptor.cs" />
+    <Compile Include="Utilities\UartFileBackend.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
