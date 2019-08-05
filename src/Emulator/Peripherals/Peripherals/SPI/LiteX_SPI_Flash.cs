@@ -17,9 +17,9 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class LiteX_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
+    public class LiteX_SPI_Flash : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_SPI(Machine machine) : base(machine)
+        public LiteX_SPI_Flash(Machine machine) : base(machine)
         {
             bbHelper = new BitBangHelper(8, loggingParent: this, outputMsbFirst: true);
 
