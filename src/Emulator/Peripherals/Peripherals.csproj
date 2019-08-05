@@ -284,7 +284,7 @@
     <Compile Include="Peripherals\UART\LowPower_UART.cs" />
     <Compile Include="Peripherals\Timers\LowPower_Timer.cs" />
     <Compile Include="Peripherals\EtherBoneBridge.cs" />
-    <Compile Include="Peripherals\SPI\LiteX_SPI.cs" />
+    <Compile Include="Peripherals\SPI\LiteX_SPI_Flash.cs" />
     <Compile Include="Peripherals\GPIOPort\LiteX_ControlAndStatus.cs" />
     <Compile Include="Peripherals\GPIOPort\LiteX_GPIO.cs" />
   </ItemGroup>
