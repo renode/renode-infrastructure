@@ -18,6 +18,12 @@ namespace Antmicro.Renode.Utilities
             Length = (uint)segments.Count * 8;
         }
 
+        public void Clear()
+        {
+            Length = 0;
+            segments.Clear();
+        }
+
         public BitStream Append(byte b)
         {
             EnsureIsAligned();
