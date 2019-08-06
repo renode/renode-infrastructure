@@ -287,6 +287,7 @@
     <Compile Include="Peripherals\SPI\LiteX_SPI.cs" />
     <Compile Include="Peripherals\GPIOPort\LiteX_ControlAndStatus.cs" />
     <Compile Include="Peripherals\GPIOPort\LiteX_GPIO.cs" />
+    <Compile Include="Peripherals\I2C\LiteX_I2C.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
