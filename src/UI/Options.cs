@@ -20,7 +20,7 @@ namespace Antmicro.Renode.UI
         [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with -s and startup script passed as an argument).")]
         public string Execute { get; set; }
 
-        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor and HideAnalyzers.")]
+        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
         public bool DisableXwt { get; set; }
 
         [Name("script"), PositionalArgument(0)]
@@ -46,7 +46,6 @@ namespace Antmicro.Renode.UI
             if(DisableXwt)
             {
                 HideMonitor = true;
-                HideAnalyzers = true;
             }
 
             if(!string.IsNullOrEmpty(ScriptPath) && !string.IsNullOrEmpty(Execute))
