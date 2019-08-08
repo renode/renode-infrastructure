@@ -21,6 +21,8 @@ using Antmicro.OptionsParser;
 using System.IO;
 using System.Diagnostics;
 using Antmicro.Renode.Analyzers;
+using Antmicro.Renode.Extensions.Analyzers.Video;
+using Antmicro.Renode.Backends.Video;
 
 namespace Antmicro.Renode.UI
 {
@@ -76,12 +78,15 @@ namespace Antmicro.Renode.UI
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
-                var analyzerType = (xwt == null) ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
+                var uartAnalyzerType = (xwt == null) ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
+                var videoAnalyzerType = (xwt == null) ? typeof(DummyVideoAnalyzer) : typeof(VideoAnalyzer);
 
-                EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
+                EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
+                EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
                 EmulationManager.Instance.EmulationChanged += () =>
                 {
-                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), analyzerType);
+                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
+                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
                 };
 
                 var shell = PrepareShell(options, monitor);
