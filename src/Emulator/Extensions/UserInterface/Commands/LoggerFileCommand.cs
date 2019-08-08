@@ -45,7 +45,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                     counter++;
                     dstName = $"{path}.{counter}";
                 }
-                File.Move(path, dstName);
+                File.Copy(path, dstName);
                 Logger.LogAs(null, LogLevel.Warning, "Previous log file detected and renamed to: {0}", dstName);
             }
 
