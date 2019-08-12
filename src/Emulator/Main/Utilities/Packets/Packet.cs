@@ -127,6 +127,45 @@ namespace Antmicro.Renode.Utilities.Packets
                     offset += 1;
                     field.SetValue(result, v);
                 }
+                else if(type == typeof(byte[]))
+                {
+                    var width = field.GetAttribute<WidthAttribute>()?.Value ?? 0;
+                    if(width == 0)
+                    {
+                        throw new ArgumentException("Positive width must be provided to decode byte array");
+                    }
+
+                    var v = new byte[width];
+                    for(var i = 0; i < width; i++)
+                    {
+                        v[i] = data[offset + i];
+                    }
+
+                    offset += width;
+                    field.SetValue(result, v);
+                }
+                else if(type == typeof(ulong))
+                {
+                    var v = field.IsLSBFirst
+                        ? (((ulong)data[offset + 7] << 56)
+                                | ((ulong)data[offset + 6] << 48)
+                                | ((ulong)data[offset + 5] << 40)
+                                | ((ulong)data[offset + 4] << 32)
+                                | ((ulong)data[offset + 3] << 24)
+                                | ((ulong)data[offset + 2] << 16)
+                                | ((ulong)data[offset + 1] << 8)
+                                | ((ulong)data[offset]))
+                        : (((ulong)data[offset] << 56)
+                                | ((ulong)data[offset + 1] << 48)
+                                | ((ulong)data[offset + 2] << 40)
+                                | ((ulong)data[offset + 3] << 32)
+                                | ((ulong)data[offset + 4] << 24)
+                                | ((ulong)data[offset + 5] << 16)
+                                | ((ulong)data[offset + 6] << 8)
+                                | ((ulong)data[offset + 7]));
+                    offset += 8;
+                    field.SetValue(result, v);
+                }
                 else
                 {
                     throw new ArgumentException($"Unsupported field type: {type.Name}");
@@ -220,6 +259,38 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     result[offset] = (byte)element.GetValue(packet);
                     offset++;
+                }
+                else if(type == typeof(byte[]))
+                {
+                    var width = element.GetAttribute<WidthAttribute>()?.Value ?? 0;
+                    if(width == 0)
+                    {
+                        throw new ArgumentException("Positive width must be provided to decode byte array");
+                    }
+
+                    var val = (byte[])element.GetValue(packet);
+
+                    if(width != val.Length)
+                    {
+                        throw new ArgumentException("Declared and actual width is different: {0} vs {1}".FormatWith(width, val.Length));
+                    }
+
+                    Array.Copy(val, 0, result, offset, width);
+                    offset += width;
+                }
+                else if(type == typeof(ulong))
+                {
+                    var isLsb = element.IsLSBFirst;
+                    var value = (ulong)element.GetValue(packet);
+                    result[offset] = (byte)(value >> (isLsb ? 0: 56));
+                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 48));
+                    result[offset + 2] = (byte)(value >> (isLsb ? 16 : 40));
+                    result[offset + 3] = (byte)(value >> (isLsb ? 24 : 32));
+                    result[offset + 4] = (byte)(value >> (isLsb ? 32 : 24));
+                    result[offset + 5] = (byte)(value >> (isLsb ? 40 : 16));
+                    result[offset + 6] = (byte)(value >> (isLsb ? 48 : 8));
+                    result[offset + 7] = (byte)(value >> (isLsb ? 56 : 0));
+                    offset += 8;
                 }
                 else
                 {
@@ -330,6 +401,14 @@ namespace Antmicro.Renode.Utilities.Packets
                     if(type == typeof(uint))
                     {
                         return 4;
+                    }
+                    if(type == typeof(ulong))
+                    {
+                        return 8;
+                    }
+                    if(type == typeof(byte[]))
+                    {
+                        return GetAttribute<WidthAttribute>()?.Value ?? 0;
                     }
 
                     throw new ArgumentException($"Unknown width of type: {type}");
