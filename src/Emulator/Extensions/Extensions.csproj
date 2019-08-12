@@ -153,6 +153,18 @@
     <Compile Include="Utilities\GDB\Commands\ThreadAliveCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ThreadAttachedCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ThreadContextCommand.cs" />
+    <Compile Include="Utilities\USBIP\USBIPServer.cs" />
+    <Compile Include="Utilities\USBIP\InterfaceDescriptor.cs" />
+    <Compile Include="Utilities\USBIP\DeviceDescriptor.cs" />
+    <Compile Include="Utilities\USBIP\AttachDeviceCommandDescriptor.cs" />
+    <Compile Include="Utilities\USBIP\DeviceListCount.cs" />
+    <Compile Include="Utilities\USBIP\Header.cs" />
+    <Compile Include="Utilities\USBIP\URBHeader.cs" />
+    <Compile Include="Utilities\USBIP\URBReply.cs" />
+    <Compile Include="Utilities\USBIP\URBRequest.cs" />
+    <Compile Include="Utilities\USB\ConfigurationDescriptor.cs" />
+    <Compile Include="Utilities\USB\DeviceDescriptor.cs" />
+    <Compile Include="Utilities\USB\InterfaceDescriptor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
