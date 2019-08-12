@@ -13,6 +13,7 @@ using System.Net;
 using System.Threading;
 using System.Collections.Concurrent;
 using Antmicro.Renode.Exceptions;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -65,6 +66,14 @@ namespace Antmicro.Renode.Utilities
         public void SendByte(byte b)
         {
             queue.Add(b);
+        }
+
+        public void Send(IEnumerable<byte> bytes)
+        {
+            foreach(var b in bytes)
+            {
+                SendByte(b);
+            }
         }
 
         public bool IsAnythingReceiving { get { return DataReceived != null; } }
