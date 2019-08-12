@@ -13,10 +13,9 @@ using System.Linq;
 
 namespace Antmicro.Renode.Core.Structure
 {
-    public abstract class SimpleContainer<T> : IPeripheralContainer<T, NumberRegistrationPoint<int>>, IPeripheral
+    public abstract class SimpleContainerBase<T> : IPeripheralContainer<T, NumberRegistrationPoint<int>>
          where T : IPeripheral
     {
-
         public virtual IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(T peripheral)
         {
             return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x)).ToList();
@@ -30,8 +29,6 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-        public abstract void Reset();
-
         public virtual void Register(T peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
             if(ChildCollection.ContainsKey(registrationPoint.Address))
@@ -39,7 +36,6 @@ namespace Antmicro.Renode.Core.Structure
                 throw new RegistrationException("The specified registration point is already in use.");
             }
             ChildCollection.Add(registrationPoint.Address, peripheral);
-            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
         }
 
         public virtual void Unregister(T peripheral)
@@ -53,7 +49,6 @@ namespace Antmicro.Renode.Core.Structure
             {
                 ChildCollection.Remove(key);
             }
-            machine.UnregisterAsAChildOf(this, peripheral);
         }
 
         protected T GetByAddress(int address)
@@ -71,13 +66,36 @@ namespace Antmicro.Renode.Core.Structure
             return ChildCollection.TryGetValue(address, out peripheral);
         }
 
-        protected SimpleContainer(Machine machine)
+        protected SimpleContainerBase()
         {
-            this.machine = machine;
             ChildCollection =  new Dictionary<int, T>();
         }
 
         protected Dictionary<int, T> ChildCollection;
+    }
+
+    public abstract class SimpleContainer<T> : SimpleContainerBase<T>, IPeripheral
+         where T : IPeripheral
+    {
+        public abstract void Reset();
+
+        public override void Register(T peripheral, NumberRegistrationPoint<int> registrationPoint)
+        {
+            base.Register(peripheral, registrationPoint);
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public override void Unregister(T peripheral)
+        {
+            base.Unregister(peripheral);
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        protected SimpleContainer(Machine machine) : base()
+        {
+            this.machine = machine;
+        }
+
         protected readonly Machine machine;
     }
 }
