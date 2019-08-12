@@ -5,6 +5,7 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -12,7 +13,7 @@ namespace Antmicro.Renode.Utilities.Packets
 {
     public class Packet
     {
-        public static T Decode<T>(byte[] data, int dataOffset = 0)
+        public static T Decode<T>(IList<byte> data, int dataOffset = 0)
         {
             // we need to do the casting as otherwise setting value would not work on structs
             var result = (object)default(T);
