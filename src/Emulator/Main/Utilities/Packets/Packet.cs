@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else
                 {
-                    throw new ArgumentException($"Unsupported field type: {typeof(T).Name}");
+                    throw new ArgumentException($"Unsupported field type: {type.Name}");
                 }
             }
 
