@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Utilities
         {
             queue = new BlockingCollection<byte>();
             queueCancellationToken = new CancellationTokenSource();
-            this.emitConfigBytes = emitConfigBytes;  
+            this.emitConfigBytes = emitConfigBytes;
         }
 
         public void Start(int port)
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Utilities
             }
             server.Listen(1);
 
-            listenerThread = new Thread(ListenerThreadBody) 
+            listenerThread = new Thread(ListenerThreadBody)
             {
                 IsBackground = true,
                 Name = GetType().Name
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Utilities
             queueCancellationToken.Cancel();
             listenerThreadStopped = true;
             server.Dispose();
-            if(Thread.CurrentThread != readerThread && Thread.CurrentThread != writerThread) 
+            if(Thread.CurrentThread != readerThread && Thread.CurrentThread != writerThread)
             {
                 listenerThread.Join();
             }
@@ -162,12 +162,14 @@ namespace Antmicro.Renode.Utilities
                     connectionAccepted(stream);
                 }
 
-                writerThread = new Thread(() => WriterThreadBody(stream)) {
+                writerThread = new Thread(() => WriterThreadBody(stream))
+                {
                     Name = GetType().Name + "_WriterThread",
                     IsBackground = true
                 };
 
-                readerThread = new Thread(() => ReaderThreadBody(stream)) {
+                readerThread = new Thread(() => ReaderThreadBody(stream))
+                {
                     Name = GetType().Name + "_ReaderThread",
                     IsBackground = true
                 };
