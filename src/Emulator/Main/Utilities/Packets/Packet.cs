@@ -208,6 +208,14 @@ namespace Antmicro.Renode.Utilities.Packets
                     result[offset + 3] = (byte)(value >> (isLsb ? 24 : 0));
                     offset += 4;
                 }
+                else if(type == typeof(ushort))
+                {
+                    var isLsb = element.IsLSBFirst;
+                    var value = (ushort)element.GetValue(packet);
+                    result[offset] = (byte)(value >> (isLsb ? 0: 8));
+                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 0));
+                    offset += 2;
+                }
                 else if(type == typeof(byte))
                 {
                     result[offset] = (byte)element.GetValue(packet);
