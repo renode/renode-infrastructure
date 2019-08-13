@@ -15,6 +15,7 @@ using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Core.USB.MSC;
 using Antmicro.Renode.Core.USB.MSC.BOT;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Extensions.Utilities.USBIP;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Storage.SCSI;
@@ -31,6 +32,12 @@ namespace Antmicro.Renode.Peripherals.USB
             var pendrive = new USBPendrive(file, persistent: persistent);
             attachTo.Register(pendrive, new NumberRegistrationPoint<int>(port));
             machine.SetLocalName(pendrive, name);
+        }
+
+        public static void PendriveFromFile(this USBIPServer usbController, string file, bool persistent = true, int? port = null)
+        {
+            var pendrive = new USBPendrive(file, persistent: persistent);
+            usbController.Register(pendrive, port);
         }
     }
 
