@@ -17,10 +17,8 @@ namespace Antmicro.Renode.Peripherals.USB
 {
     public class USBMouse : IUSBDevice, IRelativePositionPointerInput
     {
-        public USBMouse(Machine machine)
+        public USBMouse()
         {
-            this.machine = machine;
-
             USBCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c =>
                     c.WithInterface(new Core.USB.HID.Interface(this, 0,
@@ -81,8 +79,6 @@ namespace Antmicro.Renode.Peripherals.USB
         private MouseButton buttonState;
 
         private USBEndpoint endpoint;
-
-        private readonly Machine machine;
 
         private readonly byte[] ReportHidDescriptor = new byte[]
         {
