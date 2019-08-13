@@ -193,6 +193,11 @@ namespace Antmicro.Renode.Peripherals.USB
                     SendData(new byte[192]);
                     SendResult(commandBlockWrapper);
                     break;
+                case SCSICommand.RequestSense:
+                    // this is just an empty stub
+                    SendData(new byte[commandBlockWrapper.DataTransferLength]);
+                    SendResult(commandBlockWrapper);
+                    break;
                 default:
                     this.Log(LogLevel.Warning, "Unsupported SCSI command: {0}", command);
                     SendResult(commandBlockWrapper, CommandStatus.Failure, commandBlockWrapper.DataTransferLength);
