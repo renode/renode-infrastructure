@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Utilities.Collections
                 var isDefaultT2 = EqualityComparer<T2>.Default.Equals(parameterT2, default(T2));
 
                 var hash = generator.GetHashCode();
-               
+
                 if(!isDefaultT1)
                 {
                     hash ^= ShiftAndWrap(parameterT1.GetHashCode(), 2);
