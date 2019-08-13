@@ -290,6 +290,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     executionMode = value;
                     singleStepSynchronizer.Enabled = (executionMode == ExecutionMode.SingleStep);
+                    UpdateBlockBeginHookPresent();
                     if(executionMode == ExecutionMode.SingleStep)
                     {
                         TlibSetReturnRequest();
@@ -531,6 +532,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     ClearTranslationCache();
                 }
                 blockBeginUserHook = hook;
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -640,6 +642,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     ClearTranslationCache();
                 }
                 blockBeginInternalHook = hook;
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -960,12 +963,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 halted(arguments);
             }
-        }
-
-        [Export]
-        private uint IsBlockBeginEventEnabled()
-        {
-            return (blockBeginInternalHook != null || blockBeginUserHook != null || executionMode == ExecutionMode.SingleStep || isAnyInactiveHook) ? 1u : 0u;
         }
 
         [Transient]
@@ -1436,6 +1433,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
         }
 
+        private void UpdateBlockBeginHookPresent()
+        {
+            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || ExecutionMode == ExecutionMode.SingleStep || isAnyInactiveHook) ? 1u : 0u);
+        }
+
         // 649:  Field '...' is never assigned to, and will always have its default value null
         #pragma warning disable 649
 
@@ -1542,6 +1544,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 TlibSetBlockFinishedHookPresent;
 
         [Import]
+        private ActionUInt32 TlibSetBlockBeginHookPresent;
+
+        [Import]
         private ActionUInt64 TlibFlushPage;
 
         #pragma warning restore 649
@@ -1632,6 +1637,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 hooks.Clear();
                 isAnyInactiveHook = false;
+                UpdateBlockBeginHookPresent();
             }
         }
 
