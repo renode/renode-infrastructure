@@ -27,8 +27,8 @@ namespace Antmicro.Renode.Core.USB
                              string manufacturerName = null,
                              string productName = null,
                              string serialNumber = null,
-                             short vendorId = 0,
-                             short productId = 0) : base(18, (byte)DescriptorType.Device)
+                             ushort vendorId = 0,
+                             ushort productId = 0) : base(18, (byte)DescriptorType.Device)
         {
             if(maximalPacketSize != PacketSize.Size8
                 && maximalPacketSize != PacketSize.Size16
@@ -216,8 +216,8 @@ namespace Antmicro.Renode.Core.USB
         public byte Protocol { get; }
         public PacketSize MaximalPacketSize { get; }
 
-        public short VendorId { get; }
-        public short ProductId { get; }
+        public ushort VendorId { get; }
+        public ushort ProductId { get; }
 
         public short DeviceReleaseNumber { get; }
 
