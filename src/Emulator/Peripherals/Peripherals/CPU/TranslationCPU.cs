@@ -2060,7 +2060,6 @@ restart:
                 }
             }
 
-
             public void StepFinished()
             {
                 lock(guard)
