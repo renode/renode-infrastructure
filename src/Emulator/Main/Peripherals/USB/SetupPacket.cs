@@ -20,9 +20,9 @@ namespace Antmicro.Renode.Core.USB
         [PacketField]
         public byte Request;
         [PacketField]
-        public short Value;
+        public ushort Value;
         [PacketField]
-        public short Index;
+        public ushort Index;
         [PacketField]
         public ushort Count;
 

@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Core.USB.HID
             }
         }
 
-        private BitStream HandleClassRequest(Direction direction, HidClassRequest request, short value)
+        private BitStream HandleClassRequest(Direction direction, HidClassRequest request, ushort value)
         {
             switch(request)
             {
@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Core.USB.HID
             }
         }
 
-        private BitStream HandleStandardRequest(Direction direction, StandardRequest request, short value)
+        private BitStream HandleStandardRequest(Direction direction, StandardRequest request, ushort value)
         {
             switch(request)
             {
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Core.USB.HID
             }
         }
 
-        private BitStream HandleGetDescriptor(short value)
+        private BitStream HandleGetDescriptor(ushort value)
         {
             var descriptorType = (DescriptorType)(value >> 8);
             var descriptorIndex = (byte)value;

@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Core.USB
             return BitStream.Empty;
         }
 
-        private BitStream HandleGetDescriptor(short value)
+        private BitStream HandleGetDescriptor(ushort value)
         {
             var descriptorType = (DescriptorType)(value >> 8);
             var descriptorIndex = (byte)value;
