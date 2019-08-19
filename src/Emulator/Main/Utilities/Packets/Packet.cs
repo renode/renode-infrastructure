@@ -237,6 +237,19 @@ namespace Antmicro.Renode.Utilities.Packets
                     offset = element.Offset.Value;
                 }
 
+                var widthAttribute = element.GetAttribute<WidthAttribute>();
+                var offsetAttribute = element.GetAttribute<OffsetAttribute>();
+
+                if(widthAttribute != null && !(type == typeof(byte) || type == (typeof(byte[]))))
+                {
+                    throw new Exception("Width attribtue is currently supported only for byte/byte[] types");
+                }
+
+                if(offsetAttribute != null && type != typeof(byte))
+                {
+                    throw new Exception("Offset attribtue is currently supported only for byte type");
+                }
+
                 if(type == typeof(uint))
                 {
                     var isLsb = element.IsLSBFirst;
@@ -257,12 +270,42 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else if(type == typeof(byte))
                 {
-                    result[offset] = (byte)element.GetValue(packet);
+                    var val = (byte)element.GetValue(packet);
+                    if(offsetAttribute != null)
+                    {
+                        var width = widthAttribute?.Value ?? 0;
+                        if(width == 0)
+                        {
+                            throw new ArgumentException("Positive width must be provided together with offset attribute");
+                        }
+
+                        if(offsetAttribute.OffsetInBytes != 0)
+                        {
+                            throw new Exception("Non-zero byte offset is currently not supported");
+                        }
+
+                        if(offsetAttribute.OffsetInBits > 7)
+                        {
+                            throw new Exception("Offset in bits can be only in range 0 to 7");
+                        }
+
+                        if(offsetAttribute.OffsetInBits + width > 8)
+                        {
+                            throw new Exception($"Offset/width combination has a wrong value: {(offsetAttribute.OffsetInBits + width)}");
+                        }
+
+                        result[offset] = result[offset].ReplaceBits(val, width, offsetAttribute.OffsetInBits);
+                    }
+                    else
+                    {
+                        result[offset] = val;
+                    }
+
                     offset++;
                 }
                 else if(type == typeof(byte[]))
                 {
-                    var width = element.GetAttribute<WidthAttribute>()?.Value ?? 0;
+                    var width = widthAttribute?.Value ?? 0;
                     if(width == 0)
                     {
                         throw new ArgumentException("Positive width must be provided to decode byte array");
