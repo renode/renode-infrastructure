@@ -221,5 +221,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
             register.Reserved(position, width);
             return register;
         }
+
+        /// <summary>
+        /// Fluent API for tagging bits as ignored.
+        /// </summary>
+        /// <returns>This defines a value field to avoid warnings about unhandled bits.</returns>
+        public static R WithIgnoredBits<R>(this R register, int position, int width) where R : PeripheralRegister
+        {
+            return register.WithValueField(position, width, name: "ignored");
+        }
     }
 }
