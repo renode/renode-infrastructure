@@ -1013,14 +1013,19 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public static T[] DequeueAll<T>(this Queue<T> @this)
+        public static T[] DequeueRange<T>(this Queue<T> @this, int limit)
         {
-            var result = new T[@this.Count];
+            var result = new T[Math.Min(@this.Count, limit)];
             for(var i = 0; i < result.Length; i++)
             {
                 result[i] = @this.Dequeue();
             }
             return result;
+        }
+
+        public static T[] DequeueAll<T>(this Queue<T> @this)
+        {
+            return DequeueRange(@this, @this.Count);
         }
 
         public static bool TryDequeue<T>(this Queue<T> @this, out T result)
