@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     : propertyInfo.GetValue(o);
             }
 
-            public void SetValue(object o, object v)
+            public bool SetValue(object o, object v)
             {
                 if(fieldInfo != null)
                 {
@@ -223,8 +223,14 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else
                 {
+                    if(!propertyInfo.CanWrite)
+                    {
+                        return false;
+                    }
                     propertyInfo.SetValue(o, v);
                 }
+
+                return true;
             }
 
             public T GetAttribute<T>()

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Core.USB.MSC
         {
             if(bytes == null
                 || bytes.Length != 31
-                || BitConverter.ToUInt32(bytes, 0) != Signature)
+                || BitConverter.ToUInt32(bytes, 0) != SignatureValue)
             {
                 cbw = default(BulkOnlyTransportCommandBlockWrapper);
                 return false;
@@ -32,7 +32,10 @@ namespace Antmicro.Renode.Core.USB.MSC
             return $"Tag: 0x{Tag:x}, DataTransferLength: {DataTransferLength}, Flags: 0x{Flags:x}, LogicalUnitNumber: {LogicalUnitNumber}, Length: {Length}";
         }
 
-        [PacketField, Offset(bytes:4)]
+        [PacketField]
+        public uint Signature => SignatureValue;
+
+        [PacketField]
         public uint Tag { get; private set; }
 
         [PacketField]
@@ -48,7 +51,6 @@ namespace Antmicro.Renode.Core.USB.MSC
         public byte Length { get; private set; }
 
         public const int CommandOffset = 15;
-
-        private const uint Signature = 0x43425355;
+        public const uint SignatureValue = 0x43425355;
     }
 }

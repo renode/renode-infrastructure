@@ -23,7 +23,10 @@ namespace Antmicro.Renode.Core.USB.MSC.BOT
             return $"Tag: 0x{Tag:x}, DataResidue: {DataResidue}, Status: {Status}";
         }
 
-        [PacketField, Offset(bytes: 4)]
+        [PacketField]
+        public uint Signature => 0x53425355;
+
+        [PacketField]
         public uint Tag { get; }
 
         [PacketField]
@@ -31,8 +34,5 @@ namespace Antmicro.Renode.Core.USB.MSC.BOT
 
         [PacketField]
         public CommandStatus Status { get; }
-
-        [PacketField, Offset(bytes: 0)]
-        private const uint Signature = 0x53425355;
     }
 }
