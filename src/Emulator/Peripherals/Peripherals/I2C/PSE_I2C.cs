@@ -15,12 +15,12 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class PSE_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<ByteRegisterCollection>, IBytePeripheral, IKnownSize
+    public class PSE_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<ByteRegisterCollection>, II2CPeripheral, IBytePeripheral, IKnownSize
     {
         public PSE_I2C(Machine machine) : base(machine)
         {
-            dataToSlave = new Queue<byte>();
-            dataFromSlave = new Queue<byte>();
+            transferBuffer = new Queue<byte>();
+            receiveBuffer = new Queue<byte>();
             IRQ = new GPIO();
 
             RegistersCollection = new ByteRegisterCollection(this);
@@ -32,8 +32,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         public override void Reset()
         {
             Interlocked.Exchange(ref irqResubmitCounter, 0);
-            dataToSlave.Clear();
-            dataFromSlave.Clear();
+            pendingMasterTransaction = false;
+            isReadOperation = false;
+            selectedSlave = null;
+            transferBuffer.Clear();
+            receiveBuffer.Clear();
             RegistersCollection.Reset();
             // setting current state will update interrupts
             CurrentState = State.Idle;
@@ -47,6 +50,21 @@ namespace Antmicro.Renode.Peripherals.I2C
         public void WriteByte(long offset, byte value)
         {
             RegistersCollection.Write(offset, value);
+        }
+
+        public void Write(byte[] data)
+        {
+            foreach(var b in data)
+            {
+                receiveBuffer.Enqueue(b);
+            }
+            CurrentState = State.PreviouslyAddressedWithOwnAddressDataReceivedAckReturned;
+        }
+
+        public byte[] Read(int count = 1)
+        {
+            // at the moment we do not take `count` into account because of API changes in the near future
+            return transferBuffer.ToArray();
         }
 
         public long Size => 0x1000;
@@ -71,30 +89,30 @@ namespace Antmicro.Renode.Peripherals.I2C
                 return;
             }
 
-            if(dataToSlave.Count > 0)
+            if(transferBuffer.Count > 0)
             {
-                selectedSlave.Write(dataToSlave.ToArray());
-                dataToSlave.Clear();
+                selectedSlave.Write(transferBuffer.ToArray());
+                transferBuffer.Clear();
                 CurrentState = State.DataTransmittedAckReceived;
             }
             else
             {
                 CurrentState = State.Idle;
             }
-            selectedSlave = null;
         }
 
         private void UpdateInterrupt()
         {
-            IRQ.Set(coreEnable.Value && serialInterruptFlag.Value);
+            IRQ.Set(isCoreEnabled.Value && serialInterruptFlag.Value);
         }
 
         private void DefineRegisters()
         {
             Registers.Control.Define(this)
                 .WithTag("CR2", 7, 1)
-                .WithFlag(6, out coreEnable, name: "ens1")
-                .WithFlag(5, name: "sta", writeCallback: (_, val) =>
+                .WithFlag(6, out isCoreEnabled, name: "ens1")
+                .WithFlag(5, FieldMode.WriteOneToClear | FieldMode.Read, name: "sta",
+                    writeCallback: (_, val) =>
                     {
                         if(!val)
                         {
@@ -106,25 +124,36 @@ namespace Antmicro.Renode.Peripherals.I2C
                             case State.Idle:
                             case State.SlaveAddressReadBitTransmittedAckNotReceived:
                             case State.SlaveAddressWriteBitTransmittedAckNotReceived:
+                                pendingMasterTransaction = true;
                                 CurrentState = State.StartConditionTransmitted;
                                 break;
                             case State.StartConditionTransmitted:
+                            case State.RepeatedStartConditionTransmitted:
                                 SendDataToSlave();
                                 CurrentState = State.RepeatedStartConditionTransmitted;
+                                break;
+                            case State.DataTransmittedAckReceived:
+                                if(pendingMasterTransaction)
+                                {
+                                    isReadOperation = true;
+                                    CurrentState = State.RepeatedStartConditionTransmitted;
+                                }
                                 break;
                             default:
                                 this.Log(LogLevel.Warning, "Setting START bit in unhandled state: {0}", CurrentState);
                                 break;
                         }
                     })
-                .WithFlag(4, name: "sto", writeCallback: (_, val) =>
+                .WithFlag(4, FieldMode.WriteOneToClear | FieldMode.Read, name: "sto",
+                    writeCallback: (_, val) =>
                     {
-                        if(!val)
+                        if(val)
                         {
-                            return;
+                            selectedSlave = null;
+                            isReadOperation = false;
+                            pendingMasterTransaction = false;
+                            CurrentState = State.Idle;
                         }
-
-                        SendDataToSlave();
                     })
                 .WithFlag(3, out serialInterruptFlag, name: "si", writeCallback: (previousValue, currentValue) =>
                     {
@@ -138,6 +167,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                             // if there are any queued irqs set the flag again
                             serialInterruptFlag.Value = true;
                         }
+                        else
+                        {
+                            Interlocked.Increment(ref irqResubmitCounter);
+                        }
                         UpdateInterrupt();
                     })
                 .WithFlag(2, name: "aa")
@@ -145,20 +178,39 @@ namespace Antmicro.Renode.Peripherals.I2C
 
 
             Registers.Status.Define(this)
-                .WithEnumField<ByteRegister, State>(0, 8, FieldMode.Read, valueProviderCallback: _ => CurrentState);
+                .WithEnumField<ByteRegister, State>(0, 8, FieldMode.Read,
+                    valueProviderCallback: _ =>
+                    {
+                        return CurrentState;
+                    }
+                );
 
 
             Registers.Data.Define(this)
                 .WithValueField(0, 8, name: "sd",
                     valueProviderCallback: _ =>
                     {
-                        if(dataFromSlave.Count == 0)
+                        if(receiveBuffer.Count == 0)
                         {
-                            this.Log(LogLevel.Warning, "Trying to read from empty data buffer");
+                            this.Log(LogLevel.Warning, "{0} trying to read from empty data buffer, transaction will halt", pendingMasterTransaction ? "Master" : "Slave");
+                            if(pendingMasterTransaction)
+                            {
+                                pendingMasterTransaction = false;
+                                CurrentState = State.DataReceivedAckNotReturned;
+                            }
+                            else
+                            {
+                                CurrentState = State.Stop;
+                            }
                             return 0;
                         }
-
-                        return dataFromSlave.Dequeue();
+                        var result = receiveBuffer.Dequeue();
+                        if(receiveBuffer.Count > 0)
+                        {
+                            // the state machine requires states in which master and slave are reading from the data register
+                            CurrentState = pendingMasterTransaction ? State.DataReceivedAckReturned : State.PreviouslyAddressedWithOwnAddressDataReceivedAckReturned;
+                        }
+                        return result;
                     },
                     writeCallback: (_, val) =>
                     {
@@ -167,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                             case State.StartConditionTransmitted:
                             case State.RepeatedStartConditionTransmitted:
                                 var slaveAddress = val >> 1;
-                                var isReadOperation = BitHelper.IsBitSet(val, 0);
+                                isReadOperation = BitHelper.IsBitSet(val, 0);
                                 if(!ChildCollection.TryGetValue((int)slaveAddress, out selectedSlave))
                                 {
                                     this.Log(LogLevel.Warning, "Addressing unregistered slave: 0x{0:X}", slaveAddress);
@@ -177,11 +229,15 @@ namespace Antmicro.Renode.Peripherals.I2C
                                 {
                                     if(isReadOperation)
                                     {
-                                        foreach(var b in selectedSlave.Read())
+                                        var bytes = selectedSlave.Read();
+                                        if(bytes.Length > 0)
                                         {
-                                            dataFromSlave.Enqueue(b);
+                                            foreach(var b in bytes)
+                                            {
+                                                receiveBuffer.Enqueue(b);
+                                            }
+                                            CurrentState = State.DataReceivedAckReturned;
                                         }
-                                        CurrentState = State.DataReceivedAckReturned;
                                     }
                                     else
                                     {
@@ -191,14 +247,22 @@ namespace Antmicro.Renode.Peripherals.I2C
                                 break;
                             case State.SlaveAddressWriteBitTransmittedAckReceived:
                             case State.DataTransmittedAckReceived:
-                                dataToSlave.Enqueue((byte)val);
-                                CurrentState = State.DataTransmittedAckReceived;
+                                transferBuffer.Enqueue((byte)val);
+                                SendDataToSlave();
                                 break;
                             default:
                                 this.Log(LogLevel.Warning, "Writing to data register in unhandled state: {0}", CurrentState);
                                 break;
                         }
                     });
+
+            Registers.Slave0Address.Define(this)
+                .WithValueField(1, 7, out slave0Address, name: "adr")
+                .WithFlag(0, name: "gc");
+
+            Registers.Slave1Address.Define(this)
+                .WithValueField(1, 7, out slave1Address, name: "adr")
+                .WithFlag(0, name: "gc");
         }
 
         private State CurrentState
@@ -210,26 +274,27 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             set
             {
-                if(state == value)
-                {
-                    return;
-                }
                 state = value;
                 SubmitInterrupt();
             }
         }
 
+        private readonly Queue<byte> receiveBuffer;
+        private readonly Queue<byte> transferBuffer;
+
         private State state;
         private II2CPeripheral selectedSlave;
-
-        private readonly Queue<byte> dataFromSlave;
-        private readonly Queue<byte> dataToSlave;
         private IFlagRegisterField serialInterruptFlag;
-        private IFlagRegisterField coreEnable;
+        private IFlagRegisterField isCoreEnabled;
+        private IValueRegisterField slave0Address;
+        private IValueRegisterField slave1Address;
+        private bool pendingMasterTransaction;
+        private bool isReadOperation;
         private int irqResubmitCounter;
 
         private enum State
         {
+            // MASTER states
             StartConditionTransmitted = 0x08,
             RepeatedStartConditionTransmitted = 0x10,
             SlaveAddressWriteBitTransmittedAckReceived = 0x18,
@@ -238,7 +303,13 @@ namespace Antmicro.Renode.Peripherals.I2C
             SlaveAddressReadBitTransmittedAckReceived = 0x40,
             SlaveAddressReadBitTransmittedAckNotReceived = 0x48,
             DataReceivedAckReturned = 0x50,
-            Idle = 0xF8
+            DataReceivedAckNotReturned = 0x58,
+            Idle = 0xF8,
+
+            // SLAVE states
+            OwnSlaveAddressWriteBitReceivedAckReturned = 0x60,
+            PreviouslyAddressedWithOwnAddressDataReceivedAckReturned = 0x80,
+            Stop = 0xA0
         }
 
         private enum Registers
