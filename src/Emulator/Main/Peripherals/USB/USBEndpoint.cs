@@ -93,6 +93,39 @@ namespace Antmicro.Renode.Core.USB
             }
         }
 
+        public byte[] Read(uint limit, System.Threading.CancellationToken cancellationToken)
+        {
+            var result = Enumerable.Empty<byte>();
+
+            var endOfPacketDetected = false;
+            while(!endOfPacketDetected
+                    && (!cancellationToken.IsCancellationRequested)
+                    && (limit == 0 || result.Count() < limit))
+            {
+                var mre = new System.Threading.ManualResetEvent(false);
+                SetDataReadCallbackOneShot((e, bytes) =>
+                {
+                    var arr = bytes.ToArray();
+                    result = result.Concat(arr);
+                    if(arr.Length < MaximumPacketSize)
+                    {
+                        endOfPacketDetected = true;
+                    }
+                    mre.Set();
+                });
+
+                System.Threading.WaitHandle.WaitAny(new System.Threading.WaitHandle[] { cancellationToken.WaitHandle, mre });
+            }
+
+            if(result.Count() > limit)
+            {
+                Logger.Log(LogLevel.Warning, "Read more data from the USB endpoint ({0}) than limit ({1}). Some bytes will be dropped, expect problems!");
+                result = result.Take((int)limit);
+            }
+
+            return result.ToArray();
+        }
+
         public byte Identifier { get; }
         public Direction Direction { get; }
         public EndpointTransferType TransferType { get; }
