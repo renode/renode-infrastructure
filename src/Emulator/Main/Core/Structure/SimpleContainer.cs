@@ -13,7 +13,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Core.Structure
 {
-    public abstract class SimpleContainerBase<T> : IPeripheralContainer<T, NumberRegistrationPoint<int>>
+    public abstract class SimpleContainerBase<T> : IPeripheralContainer<T, NumberRegistrationPoint<int>>, IDisposable
          where T : IPeripheral
     {
         public virtual IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(T peripheral)
@@ -49,6 +49,16 @@ namespace Antmicro.Renode.Core.Structure
             {
                 ChildCollection.Remove(key);
             }
+        }
+
+        public virtual void Dispose()
+        {
+            foreach(var child in ChildCollection.Values.OfType<IDisposable>())
+            {
+                child.Dispose();
+            }
+
+            ChildCollection.Clear();
         }
 
         protected T GetByAddress(int address)
