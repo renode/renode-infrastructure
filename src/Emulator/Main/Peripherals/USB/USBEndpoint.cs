@@ -117,9 +117,19 @@ namespace Antmicro.Renode.Core.USB
                 var offset = 0;
                 while(offset < data.Count)
                 {
-                    var chunk = data.Skip(offset).Take(MaximumPacketSize);
-                    offset += MaximumPacketSize;
+                    var toTake = Math.Min(MaximumPacketSize, data.Count - offset);
+                    var chunk = data.Skip(offset).Take(toTake);
+                    offset += toTake;
                     buffer.Enqueue(chunk);
+
+                    if(offset == data.Count && toTake == MaximumPacketSize)
+                    {
+                        // in order to indicate the end of a packet
+                        // the chunk should be shorter than `MaximumPacketSize`;
+                        // in case there is no data to send, empty chunk
+                        // is generated
+                        buffer.Enqueue(new byte[0]);
+                    }
                 }
 
                 if(dataCallback != null)
