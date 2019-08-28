@@ -25,5 +25,10 @@ namespace Antmicro.Renode.Core.USB
         public short Index;
         [PacketField]
         public ushort Count;
+
+        public override string ToString()
+        {
+            return $"[Recipient: {Recipient}, Type: {Type}, Direction: {Direction}, Request: 0x{Request:X}, Value: 0x{Value:X}, Index: 0x{Index:X}, Count: 0x{Count:X}]";
+        }
     }
 }
