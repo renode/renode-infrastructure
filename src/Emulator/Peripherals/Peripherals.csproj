@@ -291,6 +291,7 @@
     <Compile Include="Peripherals\SPI\LiteX_SPI.cs" />
     <Compile Include="Peripherals\SD\SDCapacity.cs" />
     <Compile Include="Peripherals\MTD\EFR32xg13FlashController.cs" />
+    <Compile Include="Peripherals\USB\ValentyUSB.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
