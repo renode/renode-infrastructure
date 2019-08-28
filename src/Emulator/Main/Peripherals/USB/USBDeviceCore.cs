@@ -28,7 +28,8 @@ namespace Antmicro.Renode.Core.USB
                              string productName = null,
                              string serialNumber = null,
                              ushort vendorId = 0,
-                             ushort productId = 0) : base(18, (byte)DescriptorType.Device)
+                             ushort productId = 0,
+                             Func<SetupPacket, byte[], byte[]> customSetupPacketHandler = null) : base(18, (byte)DescriptorType.Device)
         {
             if(maximalPacketSize != PacketSize.Size8
                 && maximalPacketSize != PacketSize.Size16
@@ -38,6 +39,7 @@ namespace Antmicro.Renode.Core.USB
                 throw new ConstructionException("Unsupported maximal packet size.");
             }
 
+            this.customSetupPacketHandler = customSetupPacketHandler;
             this.device = device;
             configurations = new List<USBConfiguration>();
 
@@ -91,30 +93,38 @@ namespace Antmicro.Renode.Core.USB
             return null;
         }
 
-        public byte[] HandleSetupPacket(SetupPacket packet)
+        public byte[] HandleSetupPacket(SetupPacket packet, byte[] additionalData = null)
         {
             var result = BitStream.Empty;
-            switch(packet.Recipient)
+
+            if(customSetupPacketHandler != null)
             {
-                case PacketRecipient.Device:
-                    result = HandleRequest(packet);
-                    break;
-                case PacketRecipient.Interface:
-                    if(SelectedConfiguration == null)
-                    {
-                        device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
-                        return new byte[0];
-                    }
-                    var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
-                    if(iface == null)
-                    {
-                        device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
-                    }
-                    result = iface.HandleRequest(packet);
-                    break;
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
-                    break;
+                result = new BitStream(customSetupPacketHandler(packet, additionalData));
+            }
+            else
+            {
+                switch(packet.Recipient)
+                {
+                    case PacketRecipient.Device:
+                        result = HandleRequest(packet);
+                        break;
+                    case PacketRecipient.Interface:
+                        if(SelectedConfiguration == null)
+                        {
+                            device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
+                            return new byte[0];
+                        }
+                        var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
+                        if(iface == null)
+                        {
+                            device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
+                        }
+                        result = iface.HandleRequest(packet);
+                        break;
+                    default:
+                        device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
+                        break;
+                }
             }
 
             return result.AsByteArray(packet.Count * 8u);
@@ -244,5 +254,7 @@ namespace Antmicro.Renode.Core.USB
 
         private readonly List<USBConfiguration> configurations;
         private readonly IUSBDevice device;
+
+        private Func<SetupPacket, byte[], byte[]> customSetupPacketHandler;
     }
 }
