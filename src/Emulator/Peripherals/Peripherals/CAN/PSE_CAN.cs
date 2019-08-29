@@ -152,14 +152,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.TransmitMessageDataHigh + shiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Write,
-                            writeCallback: (_, val) => SetData(txMessageBuffers[index], val, Offset.High),
+                            writeCallback: (_, val) => txMessageBuffers[index].SetData(val, Offset.High),
                             name: $"TX_MSG{index}_DATA_HIGH")
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.TransmitMessageDataLow + shiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Write,
-                            writeCallback: (_, val) => SetData(txMessageBuffers[index], val, Offset.Low),
+                            writeCallback: (_, val) => txMessageBuffers[index].SetData(val, Offset.Low),
                             name: $"TX_MSG{index}_DATA_LOW")
                 );
 
@@ -190,8 +190,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                             valueProviderCallback: _ => rxMessageBuffers[index].IsLinked,
                             name: "LF")
                         .WithFlag(7, name: "WPNL")
-                        .WithValueField(16, 4,
-                            writeCallback: (_, val) => rxMessageBuffers[index].DataLengthCode = val,
+                        .WithValueField(16, 4, FieldMode.Read,
                             valueProviderCallback: _ => rxMessageBuffers[index].DataLengthCode,
                             name: "DLC")
                         .WithTag("IDE", 20, 1)
@@ -210,14 +209,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.ReceiveMessageDataHigh + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Read,
-                            valueProviderCallback: _ => GetDataHigh(rxMessageBuffers[index], swapEndian.Value),
+                            valueProviderCallback: _ => rxMessageBuffers[index].GetData(swapEndian.Value, Offset.High),
                             name: $"RX_MSG{index}_DATA_HIGH")
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.ReceiveMessageDataLow + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Read,
-                            valueProviderCallback: _ => GetDataLow(rxMessageBuffers[index], swapEndian.Value),
+                            valueProviderCallback: _ => rxMessageBuffers[index].GetData(swapEndian.Value, Offset.Low),
                             name: $"RX_MSG{index}_DATA_LOW")
                 );
                 registersMap.Add(
@@ -228,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                         .WithTag("IDE", 2, 1)
                         .WithValueField(3, 29,
                             writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMaskId = val,
-                            valueProviderCallback: (val) => rxMessageBuffers[index].AcceptanceMaskId,
+                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMaskId,
                             name: "Identifier")
                 );
                 registersMap.Add(
@@ -242,17 +241,17 @@ namespace Antmicro.Renode.Peripherals.CAN
                 registersMap.Add(
                     (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegisterData + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
-                    .WithValueField(0, 32,
+                    .WithValueField(0, 16,
                         writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMask = val,
-                        valueProviderCallback: (val) => rxMessageBuffers[index].AcceptanceMask,
+                        valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMask,
                         name: $"RX_MSG{index}_AMR_DATA")
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegisterData + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
-                        .WithValueField(0, 32,
+                        .WithValueField(0, 16,
                             writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCode = val,
-                            valueProviderCallback: (val) => rxMessageBuffers[index].AcceptanceCode,
+                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceCode,
                             name: $"RX_MSG{index}_ACR_DATA")
                 );
             }
@@ -330,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private void RequestSendingMessage(TxMessageBuffer buffer)
         {
-            var message = buffer.GetMessageFromBuffer(swapEndian.Value);
+            var message = buffer.UnloadMessage(swapEndian.Value);
             if(message == null)
             {
                 this.Log(LogLevel.Error, "No message in mailbox.");
@@ -352,37 +351,6 @@ namespace Antmicro.Renode.Peripherals.CAN
                 || (rxMessageLossEnabled.Value && rxMessageLossStatus.Value);
 
             IRQ.Set(interruptsEnabled.Value && (rxInterrupt || txInterrupt || configInterrupt));
-        }
-
-        private uint GetDataHigh(MessageBuffer buffer, bool isSwapped)
-        {
-            if(buffer.Message == null)
-            {
-                return 0;
-            }
-            return BitConverter.ToUInt32(isSwapped ? buffer.Message.Data.Reverse().ToArray() : buffer.Message.Data, 4);
-        }
-
-        private uint GetDataLow(MessageBuffer buffer, bool isSwapped)
-        {
-            if(buffer.Message == null)
-            {
-                return 0;
-            }
-            return BitConverter.ToUInt32(isSwapped ? buffer.Message.Data.Reverse().Take(4).ToArray() : buffer.Message.Data.Take(4).ToArray(), 0);
-        }
-
-        private void SetData(MessageBuffer buffer, uint registerValue, Offset offset)
-        {
-            if(buffer.Message == null)
-            {
-                buffer.Message = new CANMessageFrame(0, new byte[8]);
-            }
-            var bits = BitHelper.GetBits(registerValue);
-            for(var i = 0; i < 4; ++i)
-            {
-                buffer.Message.Data[i + (int)offset] = (byte)BitHelper.GetValueFromBitsArray(bits.Skip(i * 8).Take(8));
-            }
         }
 
         private TxMessageBuffer[] txMessageBuffers;
@@ -413,7 +381,6 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public uint BufferId { get; private set; }
             public uint MessageId { get; set; }
-            public CANMessageFrame Message { get; set; }
             public bool InterruptEnable { get; set; }
             public uint DataLengthCode
             {
@@ -434,34 +401,51 @@ namespace Antmicro.Renode.Peripherals.CAN
                     }
                 }
             }
-            
+
             protected readonly PSE_CAN parent;
+            protected const int MaxDataLength = 8;
 
             private uint dataLengthCode;
-            private const int MaxDataLength = 8;
         }
 
         private class TxMessageBuffer : MessageBuffer
         {
             public TxMessageBuffer(PSE_CAN parent, uint bufferId) : base(parent, bufferId)
             {
+                data = new byte[MaxDataLength];
             }
 
-            public CANMessageFrame GetMessageFromBuffer(bool isSwapped)
+            public CANMessageFrame UnloadMessage(bool isSwapped)
             {
-                if(Message == null)
+                if(!HasValidData)
                 {
                     return null;
                 }
-                var data = isSwapped
-                    ? Message.Data.Take((int)DataLengthCode).ToArray()
-                    : Message.Data.Reverse().Take((int)DataLengthCode).ToArray();
+                var messageData = isSwapped
+                    ? data.Take((int)DataLengthCode).ToArray()
+                    : data.Reverse().Take((int)DataLengthCode).ToArray();
                 IsRequestPending = false;
-                Message = null;
-                return new CANMessageFrame(MessageId, data);
+                HasValidData = false;
+                return new CANMessageFrame(MessageId, messageData);
+            }
+
+            public void SetData(uint registerValue, Offset offset)
+            {
+                if(!HasValidData)
+                {
+                    Array.Clear(data, 0, MaxDataLength);
+                    HasValidData = true;
+                }
+                for(var i = 0; i < 4; ++i)
+                {
+                    data[i + (int)offset] = (byte)BitHelper.GetValue(registerValue, (i * 8), 8);
+                }
             }
 
             public bool IsRequestPending { get; set; }
+            public bool HasValidData { get; set; }
+
+            private readonly byte[] data;
         }
 
         private class RxMessageBuffer : MessageBuffer
@@ -476,24 +460,11 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     return false;
                 }
-                // we take only 16 bits because AMR/ACR data registers use filters based on 2 first message bytes
+                // AMR/ACR data registers use filters based on 2 first message bytes
+                var data = BitHelper.ToUInt16(message.Data, 0, reverse: isSwapped);
 
-                var idBits = BitHelper.GetBits(message.Id);
-                var idBitComparison = BitHelper.GetBits(message.Id).Skip(BitsToVerify)
-                        .Zip(BitHelper.GetBits(AcceptanceMaskId).Skip(BitsToVerify),
-                             (idBit, comparisonBit) => idBit != comparisonBit);
-                var hasIdFilteringPassed = !idBitComparison.Any(x => x == true);
-                
-
-                var dataVal = BitConverter.ToUInt32(isSwapped ? message.Data : message.Data.Reverse().ToArray(), (int)Offset.High);
-                var dataBitComparison = BitHelper.GetBits(dataVal).Skip(BitsToVerify)
-                        .Zip(BitHelper.GetBits(AcceptanceCode).Skip(BitsToVerify),
-                             (dataBits, codeBits) => dataBits != codeBits);
-                var result = BitHelper.GetBits(AcceptanceMask).Skip(BitsToVerify)
-                        .Zip(dataBitComparison,
-                             (maskBit, comparisonBit) => !maskBit && comparisonBit);
-                var hasDataFilteringPassed = !result.Any(x => x == true);
-
+                var hasIdFilteringPassed = (message.Id == AcceptanceMaskId);
+                var hasDataFilteringPassed = (~AcceptanceMask & (data ^ AcceptanceCode)) == 0;
                 return hasIdFilteringPassed && hasDataFilteringPassed;
             }
 
@@ -509,15 +480,23 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return false;
             }
 
+            public uint GetData(bool isSwapped, Offset offset)
+            {
+                if(Message == null)
+                {
+                    return 0;
+                }
+                return BitHelper.ToUInt32(Message.Data, (int)offset, 4, isSwapped);
+            }
+
             public bool Enabled { get; set; }
-            public uint AcceptanceMask { get; set; }
-            public uint AcceptanceMaskId { get; set; }
-            public uint AcceptanceCode { get; set; }
             public bool IsLinked { get; set; }
+            public uint AcceptanceMask { get; set; }
+            public uint AcceptanceCode { get; set; }
+            public uint AcceptanceMaskId { get; set; }
             public bool IsAutoreplyEnabled { get; set; }
             public bool IsMessageAvailable { get; set; }
-
-            private const int BitsToVerify = 16;
+            public CANMessageFrame Message { get; private set; }
         }
 
         private enum Offset
