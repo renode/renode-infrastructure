@@ -4,6 +4,8 @@
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities.GDB;
@@ -17,18 +19,9 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
         }
 
         [Execute("vCont;")]
-        public PacketData Continue(
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)]string operation1,
-            [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]int coreId1 = -1,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)]string operation2 = "",
-            [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]int coreId2 = -1
-            )
+        public PacketData Continue([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.String)]string data)
         {
-            ProcessOperation(operation1, coreId1);
-            if(operation2 != "")
-            {
-                ProcessOperation(operation2, coreId2);
-            }
+            ProcessCommandData(data);
             return null;
         }
 
@@ -39,45 +32,79 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             return new PacketData("vCont;c;C;s");
         }
 
-        private void ProcessOperation(string operation, int coreId)
+        private void ProcessCommandData(string data)
+        {
+            var cpuIdsToHandle = new HashSet<uint>(manager.ManagedCpus.Keys);
+            foreach(var pair in data.Split(';'))
+            {
+                // If no coreId is provided use `-1` as an indicator of all cores
+                var coreId = -1;
+                var operation = pair.Split(':');
+                if(pair.Length > 1)
+                {
+                    coreId = int.Parse(operation[1]);
+                }
+                ManageOperation(operation[0], coreId, cpuIdsToHandle);
+            }
+        }
+
+        private void ManageOperation(string operation, int coreId, HashSet<uint> managedCpuIds)
         {
             switch(operation)
             {
                 case "c":
                     if(coreId == -1)
                     {
-                        foreach(var cpu in manager.ManagedCpus.Values)
+                        foreach(var id in managedCpuIds)
                         {
-                            cpu.ExecutionMode = ExecutionMode.Continuous;
-                            cpu.Resume();
+                            manager.ManagedCpus[id].ExecutionMode = ExecutionMode.Continuous;
+                            manager.ManagedCpus[id].Resume();
                         }
+                        managedCpuIds.Clear();
                     }
                     else if(coreId == 0)
                     {
-                        manager.Cpu.ExecutionMode = ExecutionMode.Continuous;
-                        manager.Cpu.Resume();
+                        if(managedCpuIds.Count == 0)
+                        {
+                            manager.Cpu.Log(LogLevel.Warning, "No CPUs available to execute {0} command", operation);
+                            break;
+                        }
+                        var firstAvailable = managedCpuIds.First();
+                        manager.ManagedCpus[firstAvailable].ExecutionMode = ExecutionMode.Continuous;
+                        manager.ManagedCpus[firstAvailable].Resume();
+                        managedCpuIds.Remove(firstAvailable);
                     }
                     else
                     {
                         manager.ManagedCpus[(uint)coreId].ExecutionMode = ExecutionMode.Continuous;
                         manager.ManagedCpus[(uint)coreId].Resume();
+                        managedCpuIds.Remove((uint)coreId);
                     }
                     break;
                 case "s":
                     if(coreId == -1)
                     {
-                        foreach(var cpu in manager.ManagedCpus.Values)
+                        foreach(var id in managedCpuIds)
                         {
-                            cpu.Step();
+                            manager.ManagedCpus[id].Step();
                         }
+                        managedCpuIds.Clear();
                     }
                     else if(coreId == 0)
                     {
-                        manager.Cpu.Step();
+                        if(managedCpuIds.Count == 0)
+                        {
+                            manager.Cpu.Log(LogLevel.Warning, "No CPUs available to execute {0} command", operation);
+                            break;
+                        }
+                        var firstAvailable = managedCpuIds.First();
+                        manager.ManagedCpus[firstAvailable].Step();
+                        managedCpuIds.Remove(firstAvailable);
                     }
                     else
                     {
                         manager.ManagedCpus[(uint)coreId].Step();
+                        managedCpuIds.Remove((uint)coreId);
                     }
                     break;
                 default:
