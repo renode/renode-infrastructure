@@ -36,6 +36,17 @@ namespace Antmicro.Renode.Utilities.GDB
             return new PacketData(string.Format("S{0:X2}", signal));
         }
 
+        public static PacketData StopReply(int signal, uint id)
+        {
+            return new PacketData(string.Format("T{0:X2}thread:{1:X2};", signal, id));
+        }
+
+        public static PacketData StopReply(BreakpointType reason, ulong? address)
+        {
+            return new PacketData(string.Format("T05{0}:{1};", reason.GetStopReason(),
+                                                !address.HasValue ? string.Empty : string.Format("{0:X2}", address)));
+        }
+
         public static PacketData StopReply(BreakpointType reason, uint cpuId, ulong? address)
         {
             return new PacketData(string.Format("T05{0}:{1};thread:{2};", reason.GetStopReason(),
