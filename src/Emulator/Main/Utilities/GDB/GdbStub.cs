@@ -81,6 +81,8 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             using(var ctx = commHandler.OpenContext())
             {
+                // GDB counts threads starting from `1`, while Renode counts them from `0` - hence the incrementation
+                var cpuId = args.CpuId + 1;
                 switch(args.Reason)
                 {
                 case HaltReason.Breakpoint:
@@ -91,21 +93,29 @@ namespace Antmicro.Renode.Utilities.GDB
                     case BreakpointType.ReadWatchpoint:
                     case BreakpointType.HardwareBreakpoint:
                     case BreakpointType.MemoryBreakpoint:
-                        var cpuId = args.CpuId;
                         if(commandsManager.Machine.SystemBus.IsMultiCore)
                         {
-                            // GDB counts threads starting from `1`, while Renode counts them from `0` - hence the incrementation
-                            cpuId++;
-
                             commandsManager.SelectCpuForDebugging(cpuId);
+                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, cpuId, args.Address)));
                         }
-                        ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, cpuId, args.Address)));
+                        else
+                        {
+                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, args.Address)));
+                        }
                         break;
                     }
                     return;
                 case HaltReason.Step:
                 case HaltReason.Pause:
-                    ctx.Send(new Packet(PacketData.StopReply(TrapSignal)));
+                    if(commandsManager.Machine.SystemBus.IsMultiCore)
+                    {
+                        commandsManager.SelectCpuForDebugging(cpuId);
+                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal, cpuId)));
+                    }
+                    else
+                    {
+                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal)));
+                    }
                     return;
                 case HaltReason.Abort:
                     ctx.Send(new Packet(PacketData.AbortReply(AbortSignal)));
