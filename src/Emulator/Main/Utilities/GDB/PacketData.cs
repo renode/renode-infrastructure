@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public static PacketData StopReply(BreakpointType reason, uint cpuId, ulong? address)
         {
-            return new PacketData(string.Format("T05{0}:{1};thread:{2};", reason.GetStopReason(),
+            return new PacketData(string.Format("T05{0}:{1};thread:{2:X2};", reason.GetStopReason(),
                                                 !address.HasValue ? string.Empty : string.Format("{0:X2}", address), cpuId));
         }
 
