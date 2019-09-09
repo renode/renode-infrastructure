@@ -52,7 +52,7 @@
       </ItemGroup>
       <ItemGroup>
           <CompilationFlags Include="-fomit-frame-pointer" />
-          <CompilationFlags Include="-shared" />
+          <CompilationFlags Include="-shared" Condition=" $(CurrentPlatform) != 'OSX' " />
           <CompilationFlags Include="-fPIC" Condition=" $(CurrentPlatform) != 'Windows'" />
           <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug'" />
           <CompilationFlags Include="-O2" Condition=" $(Configuration) == 'Release' or $(Configuration) == ''" />
