@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                     if(offsetInBits + width > 8)
                     {
-                        throw new ArgumentException($"Unsupported offset/width combination");
+                        throw new ArgumentException($"Unsupported offset/width combination: {(offsetInBits + width)}");
                     }
 
                     var v = (byte)BitHelper.GetValue(data[offset], offsetInBits, width);
