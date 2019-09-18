@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 else if(type == typeof(byte))
                 {
                     // TODO: support Offset.bits/Width in other type as well
-                    var offsetInBits = field.GetAttribute<OffsetAttribute>()?.OffsetInBits ?? 0;
+                    var offsetInBits = (int)(field.GetAttribute<OffsetAttribute>()?.OffsetInBits ?? 0);
                     var width = (int)(field.GetAttribute<WidthAttribute>()?.Value ?? 8);
 
                     if(offsetInBits + width > 8)
@@ -294,7 +294,7 @@ namespace Antmicro.Renode.Utilities.Packets
                             throw new Exception($"Offset/width combination has a wrong value: {(offsetAttribute.OffsetInBits + width)}");
                         }
 
-                        result[offset] = result[offset].ReplaceBits(val, width, offsetAttribute.OffsetInBits);
+                        result[offset] = result[offset].ReplaceBits(val, width, (int)offsetAttribute.OffsetInBits);
                     }
                     else
                     {
@@ -416,7 +416,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     var offsetAttribute = GetAttribute<OffsetAttribute>();
                     return (offsetAttribute != null)
-                        ? offsetAttribute.OffsetInBytes
+                        ? (int)offsetAttribute.OffsetInBytes
                         : (int?)null;
                 }
             }

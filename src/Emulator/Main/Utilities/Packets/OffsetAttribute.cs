@@ -11,13 +11,18 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class OffsetAttribute : Attribute
     {
-        public OffsetAttribute(int bytes = 0, int bits = 0)
+        public OffsetAttribute(uint bytes = 0, uint bits = 0)
         {
+            if(bytes != 0 && bits != 0)
+            {
+                throw new ArgumentException("Setting both offsets is currently not supported");
+            }
+
             OffsetInBytes = bytes;
             OffsetInBits = bits;
         }
 
-        public int OffsetInBytes { get; }
-        public int OffsetInBits { get; }
+        public uint OffsetInBytes { get; }
+        public uint OffsetInBits { get; }
     }
 }
