@@ -11,11 +11,11 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class WidthAttribute : Attribute
     {
-        public WidthAttribute(int value)
+        public WidthAttribute(uint value)
         {
             Value = value;
         }
 
-        public int Value { get; }
+        public uint Value { get; }
     }
 }

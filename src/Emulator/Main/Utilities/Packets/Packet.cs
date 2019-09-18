@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     // TODO: support Offset.bits/Width in other type as well
                     var offsetInBits = field.GetAttribute<OffsetAttribute>()?.OffsetInBits ?? 0;
-                    var width = field.GetAttribute<WidthAttribute>()?.Value ?? 8;
+                    var width = (int)(field.GetAttribute<WidthAttribute>()?.Value ?? 8);
 
                     if(offsetInBits + width > 8)
                     {
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else if(type == typeof(byte[]))
                 {
-                    var width = field.GetAttribute<WidthAttribute>()?.Value ?? 0;
+                    var width = (int)(field.GetAttribute<WidthAttribute>()?.Value ?? 0);
                     if(width == 0)
                     {
                         throw new ArgumentException("Positive width must be provided to decode byte array");
@@ -273,7 +273,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     var val = (byte)element.GetValue(packet);
                     if(offsetAttribute != null)
                     {
-                        var width = widthAttribute?.Value ?? 0;
+                        var width = (int)(widthAttribute?.Value ?? 0);
                         if(width == 0)
                         {
                             throw new ArgumentException("Positive width must be provided together with offset attribute");
@@ -305,7 +305,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
                 else if(type == typeof(byte[]))
                 {
-                    var width = widthAttribute?.Value ?? 0;
+                    var width = (int)(widthAttribute?.Value ?? 0);
                     if(width == 0)
                     {
                         throw new ArgumentException("Positive width must be provided to decode byte array");
@@ -451,7 +451,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
                     if(type == typeof(byte[]))
                     {
-                        return GetAttribute<WidthAttribute>()?.Value ?? 0;
+                        return (int)(GetAttribute<WidthAttribute>()?.Value ?? 0);
                     }
 
                     throw new ArgumentException($"Unknown width of type: {type}");
