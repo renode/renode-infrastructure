@@ -14,6 +14,59 @@ namespace Antmicro.Renode.Utilities.Packets
 {
     public class Packet
     {
+        public static int CalculateLength<T>()
+        {
+            return cache.Get(typeof(T), _ =>
+            {
+                var fieldsAndProperties = GetFieldsAndProperties<T>();
+
+                var maxOffset = 0;
+                var offset = 0;
+                foreach(var element in fieldsAndProperties)
+                {
+                    if(element.Offset.HasValue)
+                    {
+                        offset = element.Offset.Value;
+                    }
+
+                    var co = offset + element.Width;
+                    maxOffset = Math.Max(co, maxOffset);
+                    offset += element.Width;
+                }
+
+                return maxOffset;
+            });
+        }
+
+        public static int CalculateOffset<T>(string fieldName)
+        {
+            return cache.Get(Tuple.Create(typeof(T), fieldName), _ =>
+            {
+                var fieldsAndProperties = GetFieldsAndProperties<T>();
+
+                var maxOffset = 0;
+                var offset = 0;
+                foreach(var element in fieldsAndProperties)
+                {
+                    if(element.ElementName == fieldName)
+                    {
+                        return maxOffset;
+                    }
+
+                    if(element.Offset.HasValue)
+                    {
+                        offset = element.Offset.Value;
+                    }
+
+                    var co = offset + element.Width;
+                    maxOffset = Math.Max(co, maxOffset);
+                    offset += element.Width;
+                }
+
+                return -1;
+            });
+        }
+
         public static T Decode<T>(IList<byte> data, int dataOffset = 0)
         {
             // we need to do the casting as otherwise setting value would not work on structs
@@ -128,23 +181,10 @@ namespace Antmicro.Renode.Utilities.Packets
         public static byte[] Encode<T>(T packet)
         {
             var fieldsAndProperties = GetFieldsAndProperties<T>();
+            var size = CalculateLength<T>();
+            var result = new byte[size];
 
-            var maxOffset = 0;
             var offset = 0;
-            foreach(var element in fieldsAndProperties)
-            {
-                if(element.Offset.HasValue)
-                {
-                    offset = element.Offset.Value;
-                }
-
-                var co = offset + element.Width;
-                maxOffset = Math.Max(co, maxOffset);
-                offset += element.Width;
-            }
-            var result = new byte[maxOffset];
-
-            offset = 0;
             foreach(var element in fieldsAndProperties)
             {
                 var type = element.ElementType;
