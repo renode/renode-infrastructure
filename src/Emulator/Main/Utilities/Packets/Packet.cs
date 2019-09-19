@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Utilities.Packets
 {
@@ -188,14 +189,19 @@ namespace Antmicro.Renode.Utilities.Packets
 
         private static FieldPropertyInfoWrapper[] GetFieldsAndProperties<T>()
         {
-            return typeof(T).GetFields()
-                .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
-                .Select(x => new FieldPropertyInfoWrapper(x))
-                .Union(typeof(T).GetProperties()
+            return cache.Get(typeof(T), _ =>
+            {
+                return typeof(T).GetFields()
                     .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
                     .Select(x => new FieldPropertyInfoWrapper(x))
-                ).OrderBy(x => x.Order).ToArray();
+                    .Union(typeof(T).GetProperties()
+                        .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
+                        .Select(x => new FieldPropertyInfoWrapper(x))
+                    ).OrderBy(x => x.Order).ToArray();
+            });
         }
+
+        private static readonly SimpleCache cache = new SimpleCache();
 
         private class FieldPropertyInfoWrapper
         {
