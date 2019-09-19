@@ -1039,6 +1039,20 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public static IEnumerable<T> PopRange<T>(this Stack<T> @this, int limit)
+        {
+            while(@this.Count > 0 && limit > 0)
+            {
+                limit--;
+                yield return @this.Pop();
+            }
+        }
+
+        public static IEnumerable<T> PopAll<T>(this Stack<T> @this)
+        {
+            return PopRange(@this, @this.Count);
+        }
+
         public static bool TryCreateFrameOrLogWarning(IEmulationElement source, byte[] data, out EthernetFrame frame, bool addCrc)
         {
             if(EthernetFrame.TryCreateEthernetFrame(data, addCrc, out frame))
