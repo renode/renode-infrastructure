@@ -19,7 +19,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(hartId, cpuType, machine, endianness, bitness)
+        public uint? nmiVectAddr { get; protected set; }
+
+        public uint? nmiVectLen { get; protected set; }
+
+        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, uint? nmiVectAddr = null, uint? nmiVectLen = null)
+                : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             this.timeProvider = timeProvider;
@@ -27,9 +32,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             ShouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
+            this.nmiVectLen = nmiVectLen;
+            this.nmiVectAddr = nmiVectAddr;
 
             architectureSets = DecodeArchitecture(cpuType);
             EnableArchitectureVariants();
+            TlibSetNmiVector(this.nmiVectAddr ?? 0, this.nmiVectLen ?? 0);
+        }
+
+        public virtual void OnNMI(int number, bool value)
+        {
+            if (this.nmiVectLen == null | this.nmiVectAddr == null) {
+                this.Log(LogLevel.Warning, "Non maskable interrupt not supported on this CPU. NmiVectAddr or NmiVectLen not set");
+            } else {
+                TlibSetNmi(number, value ? 1 : 0);
+            }
         }
 
         public override void OnGPIO(int number, bool value)
@@ -310,6 +327,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibMarkFeatureSilent;
+
+        [Import]
+        private ActionUInt32UInt32 TlibSetNmiVector;
+
+        [Import]
+        private ActionInt32Int32 TlibSetNmi;
+
 
 #pragma warning restore 649
 

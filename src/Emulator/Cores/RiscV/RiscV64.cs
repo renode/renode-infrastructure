@@ -12,7 +12,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class RiscV64 : BaseRiscV
     {
-        public RiscV64(IRiscVTimeProvider timeProvider, string cpuType, Machine machine, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian) : base(timeProvider, hartId, cpuType, machine, privilegeArchitecture, endianness, CpuBitness.Bits64)
+        public RiscV64(IRiscVTimeProvider timeProvider, string cpuType, Machine machine, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian, uint? nmiVectAddr = null, uint? nmiVectLen = null)
+                : base(timeProvider, hartId, cpuType, machine, privilegeArchitecture, endianness, CpuBitness.Bits64, nmiVectAddr, nmiVectLen)
         {
         }
 

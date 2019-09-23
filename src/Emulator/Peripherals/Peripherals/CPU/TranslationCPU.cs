@@ -35,17 +35,13 @@ namespace Antmicro.Renode.Peripherals.CPU
     public abstract class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, IDisposable, IDisassemblable, ITimeSink
     {
         public Endianess Endianness { get; protected set; }
-        
-        public uint nmiVectAddr { get; protected set; }
 
-        public uint nmiVectLen { get; protected set; }
-
-        protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32, uint nmiVectAddr  = 0, uint nmiVectLen = 0)
-		: this(0, cpuType, machine, endianness, bitness, nmiVectAddr, nmiVectLen)
+        protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+		: this(0, cpuType, machine, endianness, bitness)
         {
         }
 
-        protected TranslationCPU(uint id, string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32, uint nmiVectAddr = 0, uint nmiVectLen = 0)
+        protected TranslationCPU(uint id, string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
         {
             Id = id;
 
@@ -60,8 +56,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.translationCacheSize = DefaultTranslationCacheSize;
             this.machine = machine;
             this.bitness = bitness;
-            this.nmiVectAddr = nmiVectAddr;
-            this.nmiVectLen = nmiVectLen;
             started = false;
             isHalted = false;
             translationCacheSync = new object();
@@ -404,25 +398,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             Pause();
             HandleRamSetup();
             TlibReset();
-        }
-
-        public virtual void OnNMI(int number, bool value)
-        { 
-            if (this.nmiVectLen == 0 | this.nmiVectAddr == 0)
-            {
-                this.Log(LogLevel.Warning, "Non maskable interrupt not supported on this CPU. NmiVectAddr or NmiVectLen equals 0")
-            }
-            else
-            {
-                if(number < this.nmiVectLen)
-                {
-                    TlibSetNMI(number, value ? 1 : 0);
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, "NMI number {} to high for NMIVectLen = {}", number, this.nmiVectLen);
-                }
-            }
         }
 
         public virtual void OnGPIO(int number, bool value)
@@ -973,7 +948,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Marshal.Copy(cpuState, 0, statePtr, cpuState.Length);
                 AfterLoad(statePtr);
             }
-            TlibSetNmiVectorBase(this.nmiVectAddr);
             TlibAtomicMemoryStateInit(checked((int)this.Id), machine.AtomicMemoryStatePointer);
             HandleRamSetup();
             foreach(var hook in hooks)
@@ -1489,12 +1463,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action TlibReset;
 
         [Import]
-        private ActionUint32 TlibSetNmiVectorBase;
-
-        [Import]
-        private ActionInt32Int32 TlibSetNMI;
-
-        [Import]
         private FuncInt32Int32 TlibExecute;
 
         [Import]
@@ -1502,7 +1470,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected Action TlibSetReturnRequest;
-         
+
         [Import]
         private ActionInt32IntPtr TlibAtomicMemoryStateInit;
 
