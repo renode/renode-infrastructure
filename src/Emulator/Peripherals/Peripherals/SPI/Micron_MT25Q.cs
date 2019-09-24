@@ -10,21 +10,27 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class Micron_MT25Q : ISPIPeripheral, IDoubleWordPeripheral, IBytePeripheral
+    public class Micron_MT25Q : ISPIPeripheral
     {
-        public Micron_MT25Q(MicronFlashSize size, Endianess dataEndianess = Endianess.LittleEndian)
+        public Micron_MT25Q(MappedMemory underlyingMemory)
         {
-            if(!Enum.IsDefined(typeof(MicronFlashSize), size))
+            if(underlyingMemory.Size != 256.MB()
+                    && underlyingMemory.Size != 128.MB()
+                    && underlyingMemory.Size != 64.MB()
+                    && underlyingMemory.Size != 32.MB()
+                    && underlyingMemory.Size != 16.MB()
+                    && underlyingMemory.Size != 8.MB())
             {
-                throw new ConstructionException($"Undefined memory size: {size}");
+                throw new ConstructionException("Size of the underlying memory must be one of: 8/16/32/64/128/256 MB");
             }
-            this.dataEndianess = dataEndianess;
+
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
             nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out numberOfAddressBytes, name: "addressWith3Bytes");
             enhancedVolatileConfigurationRegister = new ByteRegister(this, 0xff)
@@ -40,29 +46,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
                 //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
                 .WithReservedBits(3, 1);
-            fileBackendSize = (uint)size;
-            isCustomFileBackend = false;
-            dataBackend = DataStorage.Create(fileBackendSize, 0xFF);
-            deviceData = GetDeviceData();
-        }
 
-        public void UseDataFromFile(string imageFile, bool persistent = false)
-        {
-            if(isCustomFileBackend)
-            {
-                throw new RecoverableException("Cannot override existing file storage.");
-            }
-            if(!File.Exists(imageFile))
-            {
-                throw new RecoverableException($"File {imageFile} does not exist.");
-            }
-            var fileLength = new FileInfo(imageFile).Length;
-            if(fileLength > fileBackendSize)
-            {
-                this.Log(LogLevel.Warning, "The provided file is bigger than the configured memory size and as a result part of the file's data will not be accessible in the emulation.");
-            }
-            dataBackend = DataStorage.Create(imageFile, fileBackendSize, persistent);
-            isCustomFileBackend = true;
+            this.underlyingMemory = underlyingMemory;
+            underlyingMemory.ResetByte = EmptySegment;
+
+            deviceData = GetDeviceData();
         }
 
         public void FinishTransmission()
@@ -99,11 +87,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             nonVolatileConfigurationRegister.Reset();
             enhancedVolatileConfigurationRegister.Reset();
             FinishTransmission();
-        }
-
-        public void Dispose()
-        {
-            dataBackend.Dispose();
         }
 
         public byte Transmit(byte data)
@@ -143,63 +126,35 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        public uint ReadDoubleWord(long localOffset)
-        {
-            if(localOffset + 4 > fileBackendSize)
-            {
-                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", localOffset);
-                return 0;
-            }
-            dataBackend.Position = localOffset;
-            return BitHelper.ToUInt32(dataBackend.ReadBytes(4), 0, 4, dataEndianess == Endianess.LittleEndian);
-        }
-
-        public void WriteDoubleWord(long localOffset, uint value)
-        {
-            this.Log(LogLevel.Error, "Illegal write to flash in XIP mode.");
-        }
-
-        public byte ReadByte(long localOffset)
-        {
-            if(localOffset >= fileBackendSize)
-            {
-                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", localOffset);
-                return 0;
-            }
-            dataBackend.Position = localOffset;
-            return (byte)dataBackend.ReadByte();
-        }
-
-        public void WriteByte(long localOffset, byte value)
-        {
-            this.Log(LogLevel.Error, "Illegal write to flash in XIP mode.");
-        }
+        public MappedMemory UnderlyingMemory => underlyingMemory;
 
         private byte[] GetDeviceData()
         {
             byte capacityCode = 0;
-            switch(fileBackendSize)
+            if(underlyingMemory.Size == 256.MB())
             {
-                case (int)MicronFlashSize.Gb_2:
-                    capacityCode = 0x22;
-                    break;
-                case (int)MicronFlashSize.Gb_1:
-                    capacityCode = 0x21;
-                    break;
-                case (int)MicronFlashSize.Mb_512:
-                    capacityCode = 0x20;
-                    break;
-                case (int)MicronFlashSize.Mb_256:
-                    capacityCode = 0x19;
-                    break;
-                case (int)MicronFlashSize.Mb_128:
-                    capacityCode = 0x18;
-                    break;
-                case (int)MicronFlashSize.Mb_64:
-                    capacityCode = 0x17;
-                    break;
-                default:
-                    throw new ConstructionException($"Cannot retrieve capacity code for undefined memory size: 0x{fileBackendSize:X}");
+                capacityCode = 0x22;
+            }
+            else if(underlyingMemory.Size == 128.MB())
+            {
+                capacityCode = 0x21;
+            }
+            else if(underlyingMemory.Size == 64.MB())
+            {
+                capacityCode = 0x20;
+            }
+            else if(underlyingMemory.Size == 32.MB())
+            {
+                capacityCode = 0x19;
+            }
+            else if(underlyingMemory.Size == 16.MB())
+            {
+                capacityCode = 0x18;
+            }
+            else
+            {
+                // it must be 8MB
+                capacityCode = 0x17;
             }
 
             var data = new byte[20];
@@ -434,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case Operation.Erase:
                     if(enable.Value)
                     {
-                        if(currentOperation.ExecutionAddress >= fileBackendSize)
+                        if(currentOperation.ExecutionAddress >= underlyingMemory.Size)
                         {
                             this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
                             return;
@@ -471,11 +426,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 segment[i] = EmptySegment;
             }
-            while(position < dataBackend.Length)
+
+            while(position < underlyingMemory.Size)
             {
-                var length = (int)Math.Min(SegmentSize, dataBackend.Length - position);
-                dataBackend.Position = position;
-                dataBackend.Write(segment, 0, length);
+                var length = (int)Math.Min(SegmentSize, underlyingMemory.Size - position);
+
+                underlyingMemory.WriteBytes(position, segment, length);
                 position += length;
             }
         }
@@ -489,41 +445,40 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             // The documentations states that on erase the operation address is
             // aligned to the segment size
-            dataBackend.Position = SegmentSize * (currentOperation.ExecutionAddress / SegmentSize);
-            dataBackend.Write(segment, 0, SegmentSize);
+
+            var position = SegmentSize * (currentOperation.ExecutionAddress / SegmentSize);
+            underlyingMemory.WriteBytes(position, segment);
         }
 
         private void WriteToMemory(byte val)
         {
-            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > fileBackendSize)
+            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
             {
                 this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
                 return;
             }
-            dataBackend.Position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            dataBackend.WriteByte(val);
+
+            var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            underlyingMemory.WriteByte(position, val);
         }
 
         private byte ReadFromMemory()
         {
-            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > fileBackendSize)
+            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
             {
                 this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
                 return 0;
             }
-            dataBackend.Position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            return (byte)dataBackend.ReadByte();
+
+            var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            return  underlyingMemory.ReadByte(position);
         }
 
         private State state;
-        private Stream dataBackend;
-        private bool isCustomFileBackend;
         private DecodedOperation currentOperation;
         private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
-        private readonly Endianess dataEndianess;
         private readonly byte[] deviceData;
-        private readonly uint fileBackendSize;
         private readonly int SegmentSize = 64.KB();
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister statusRegister;
@@ -532,6 +487,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
+        private readonly MappedMemory underlyingMemory;
 
         private const byte EmptySegment = 0xff;
         private const byte ManufacturerID = 0x20;
@@ -753,16 +709,5 @@ namespace Antmicro.Renode.Peripherals.SPI
             VolatileConfiguration,
             EnhancedVolatileConfiguration
         }
-    }
-
-    public enum MicronFlashSize : uint
-    {
-        // On the left side we have Gigabits/Megabits, on the right side we have Megabytes
-        Gb_2 = 0x10000000,  //256 MB
-        Gb_1 = 0x8000000,   //128 MB
-        Mb_512 = 0x4000000, //64 MB
-        Mb_256 = 0x2000000, //32 MB
-        Mb_128 = 0x1000000, //16 MB
-        Mb_64 = 0x800000,   //8 MB
     }
 }

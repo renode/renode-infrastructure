@@ -155,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public uint ReadDoubleWord(long offset)
         {
             return xipMode.Value
-                ? RegisteredPeripheral.ReadDoubleWord(BitHelper.SetBitsFrom((uint)offset, upperAddress.Value, 24, 8))
+                ? RegisteredPeripheral.UnderlyingMemory.ReadDoubleWord(BitHelper.SetBitsFrom((uint)offset, upperAddress.Value, 24, 8))
                 : registers.Read(offset);
         }
 
