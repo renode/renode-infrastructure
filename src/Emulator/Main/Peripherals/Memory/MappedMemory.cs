@@ -256,7 +256,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 this.NoisyLog(string.Format("Segment no {1} allocated at 0x{0:X} (aligned to 0x{2:X}).",
                     allocSeg.ToInt64(), segmentNo, alignedPointer.ToInt64()));
                 originalPointers[segmentNo] = allocSeg;
-                MemSet(alignedPointer, (byte)0, SegmentSize);
+                MemSet(alignedPointer, ResetByte, SegmentSize);
                 var segmentTouched = SegmentTouched;
                 if(segmentTouched != null)
                 {
@@ -264,6 +264,8 @@ namespace Antmicro.Renode.Peripherals.Memory
                 }
             }
         }
+
+        public byte ResetByte { get; set; }
 
         public long Size
         {
@@ -289,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         {
             foreach(var segment in segments.Where(x => x != IntPtr.Zero))
             {
-                MemSet(segment, (byte)0, SegmentSize);
+                MemSet(segment, ResetByte, SegmentSize);
             }
         }
 
