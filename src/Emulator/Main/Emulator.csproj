@@ -478,6 +478,7 @@
     <Compile Include="Peripherals\CPU\ICpuSupportingGdb.cs" />
     <Compile Include="Utilities\GDB\IMultithreadCommand.cs" />
     <Compile Include="Utilities\BitPatternDetector.cs" />
+    <Compile Include="Testing\SysbusTester.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
