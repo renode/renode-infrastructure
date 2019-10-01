@@ -166,7 +166,7 @@ namespace Antmicro.Renode.UI
 
             if(options.Execute != null)
             {
-                shell.Started += s => s.InjectInput(string.Format("{0}\n", options.Execute));
+                shell.Started += s => s.InjectInput(string.Format("{0}\n", string.Join("\n", options.Execute)));
             }
             else if(!string.IsNullOrEmpty(options.ScriptPath))
             {

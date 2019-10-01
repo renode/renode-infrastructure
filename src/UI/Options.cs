@@ -17,8 +17,8 @@ namespace Antmicro.Renode.UI
         [Name('P', "port"), DefaultValue(-1), Description("Instead of opening a window, listen for monitor commands on the specified port.")]
         public int Port { get; set; }
 
-        [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with -s and startup script passed as an argument).")]
-        public string Execute { get; set; }
+        [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with -s and startup script passed as an argument). May be used many times.")]
+        public string[] Execute { get; set; }
 
         [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
         public bool DisableXwt { get; set; }
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.UI
                 HideMonitor = true;
             }
 
-            if(!string.IsNullOrEmpty(ScriptPath) && !string.IsNullOrEmpty(Execute))
+            if(!string.IsNullOrEmpty(ScriptPath) && Execute.Length > 0)
             {
                 error = "Script path and execute command cannot be set at the same time";
                 return false;
