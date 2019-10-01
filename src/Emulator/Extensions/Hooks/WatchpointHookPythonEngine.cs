@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Hooks
             };
         }
 
-        public Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> Hook { get; private set; }
+        public BusHookDelegate Hook { get; private set; }
 
         [PostDeserialization]
         private void InnerInit()

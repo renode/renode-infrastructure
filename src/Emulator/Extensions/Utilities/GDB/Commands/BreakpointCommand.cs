@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.ReadWatchpoint));
         }
 
-        private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
+        private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, BusHookDelegate hook)
         {
             // we need to register hooks for all possible access widths covering memory fragment
             // [address, address + kind) referred by GDB
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private void RemoveWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
+        private void RemoveWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, BusHookDelegate hook)
         {
             // we need to unregister hooks from all possible access widths convering memory fragment
             // [address, address + kind) referred by GDB
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
+        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, BusHookDelegate hook)
         {
             foreach(SysbusAccessWidth width in Enum.GetValues(typeof(SysbusAccessWidth)))
             {
@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private class WatchpointDescriptor
         {
-            public WatchpointDescriptor(ulong address, SysbusAccessWidth width, Access access, Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> hook)
+            public WatchpointDescriptor(ulong address, SysbusAccessWidth width, Access access, BusHookDelegate hook)
             {
                 Address = address;
                 Width = width;
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             public readonly ulong Address;
             public readonly SysbusAccessWidth Width;
             public readonly Access Access;
-            public readonly Action<ICpuSupportingGdb, ulong, SysbusAccessWidth> Hook;
+            public readonly BusHookDelegate Hook;
         }
     }
 }
