@@ -22,11 +22,12 @@ namespace Antmicro.Renode.Hooks
             this.script = script;
 
             InnerInit();
-            Hook = (cpu, address, width) =>
+            Hook = (cpu, address, width, value) =>
             {
                 Scope.SetVariable("cpu", cpu);
                 Scope.SetVariable("address", address);
                 Scope.SetVariable("width", width);
+                Scope.SetVariable("value", value);
                 source.Value.Execute(Scope);
             };
         }
