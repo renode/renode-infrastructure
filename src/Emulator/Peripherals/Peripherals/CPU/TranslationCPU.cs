@@ -556,7 +556,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(true, offset, SysbusAccessWidth.Byte))
+            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
             {
                 return machine.SystemBus.ReadByte(offset);
             }
@@ -569,7 +569,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(true, offset, SysbusAccessWidth.Word))
+            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
             {
                 return machine.SystemBus.ReadWord(offset);
             }
@@ -582,7 +582,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(true, offset, SysbusAccessWidth.DoubleWord))
+            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
             {
                 return machine.SystemBus.ReadDoubleWord(offset);
             }
@@ -595,7 +595,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(false, offset, SysbusAccessWidth.Byte))
+            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
             {
                 machine.SystemBus.WriteByte(offset, unchecked((byte)value));
             }
@@ -608,7 +608,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(false, offset, SysbusAccessWidth.Word))
+            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
             {
                 machine.SystemBus.WriteWord(offset, unchecked((ushort)value));
             }
@@ -621,7 +621,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 UpdateContext();
             }
-            using(ObtainPauseGuard(false, offset, SysbusAccessWidth.DoubleWord))
+            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
             {
                 machine.SystemBus.WriteDoubleWord(offset, value);
             }
@@ -1063,9 +1063,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private CpuThreadPauseGuard ObtainPauseGuard(bool forReading, ulong address, SysbusAccessWidth width)
+        private CpuThreadPauseGuard ObtainPauseGuardForReading(ulong address, SysbusAccessWidth width)
         {
-            pauseGuard.Initialize(forReading, address, width);
+            pauseGuard.InitializeForReading(address, width);
+            return pauseGuard;
+        }
+
+        private CpuThreadPauseGuard ObtainPauseGuardForWriting(ulong address, SysbusAccessWidth width, uint value)
+        {
+            pauseGuard.InitializeForWriting(address, width, value);
             return pauseGuard;
         }
 
@@ -1211,10 +1217,20 @@ namespace Antmicro.Renode.Peripherals.CPU
                 guard.Value = new object();
             }
 
-            public void Initialize(bool forReading, ulong address, SysbusAccessWidth width)
+            public void InitializeForWriting(ulong address, SysbusAccessWidth width, uint value)
+            {
+                Initialize(address, width, value);
+            }
+
+            public void InitializeForReading(ulong address, SysbusAccessWidth width)
+            {
+                Initialize(address, width, null);
+            }
+
+            private void Initialize(ulong address, SysbusAccessWidth width, uint? value)
             {
                 Initialize();
-                if(!parent.machine.SystemBus.TryGetWatchpointsAt(address, forReading ? Access.Read : Access.Write, out var watchpoints))
+                if(!parent.machine.SystemBus.TryGetWatchpointsAt(address, value.HasValue ? Access.Write : Access.Read, out var watchpoints))
                 {
                     return;
                 }
@@ -1239,7 +1255,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                         parent.UpdateContext();
                         alreadyUpdated = true;
                     }
-                    enabledWatchpoint.Invoke(parent, address, width);
+
+                    // for reading value is always set to 0
+                    enabledWatchpoint.Invoke(parent, address, width, value ?? 0);
                     anyEnabled = true;
                 }
 
