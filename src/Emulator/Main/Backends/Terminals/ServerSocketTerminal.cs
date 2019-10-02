@@ -26,22 +26,6 @@ namespace Antmicro.Renode.Backends.Terminals
         {
             server = new SocketServerProvider(emitConfigBytes);
             server.DataReceived += b => CallCharReceived((byte)b);
-            server.ConnectionAccepted += s =>
-            {
-                try
-                {
-                    // we expect 9 bytes as a result of sending
-                    // config bytes
-                    for(int i = 0; i < 9; i++)
-                    {
-                        s.ReadByte();
-                    }
-                }
-                catch(ObjectDisposedException)
-                {
-                    // intentionally left blank
-                }
-            };
 
             server.Start(port);
         }

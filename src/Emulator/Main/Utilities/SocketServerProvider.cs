@@ -86,17 +86,6 @@ namespace Antmicro.Renode.Utilities
         {
             try
             {
-                if(emitConfigBytes)
-                {
-                    var initBytes = new byte[] {
-                    255, 253, 000, // IAC DO    BINARY
-                    255, 251, 001, // IAC WILL  ECHO
-                    255, 251, 003, // IAC WILL  SUPPRESS_GO_AHEAD
-                    255, 252, 034, // IAC WONT  LINEMODE
-                };
-                    stream.Write(initBytes, 0, initBytes.Length);
-                }
-
                 while(!queueCancellationToken.IsCancellationRequested)
                 {
                     stream.WriteByte(queue.Take(queueCancellationToken.Token));
@@ -159,6 +148,34 @@ namespace Antmicro.Renode.Utilities
                 catch(ObjectDisposedException)
                 {
                     break;
+                }
+                try
+                {
+                    if(emitConfigBytes)
+                    {
+                        var initBytes = new byte[] {
+                            255, 253, 000, // IAC DO    BINARY
+                            255, 251, 001, // IAC WILL  ECHO
+                            255, 251, 003, // IAC WILL  SUPPRESS_GO_AHEAD
+                            255, 252, 034, // IAC WONT  LINEMODE
+                        };
+                        stream.Write(initBytes, 0, initBytes.Length);
+                        // we expect 9 bytes as a result of sending
+                        // config bytes
+                        for (int i = 0; i < 9; i++)
+                        {
+                            stream.ReadByte();
+                        }
+                    }
+                }
+                catch(OperationCanceledException)
+                {
+                }
+                catch(IOException)
+                {
+                }
+                catch(ObjectDisposedException)
+                {
                 }
 
                 var connectionAccepted = ConnectionAccepted;
