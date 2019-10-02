@@ -48,7 +48,7 @@ namespace Antmicro.Renode.UI
                 HideMonitor = true;
             }
 
-            if(!string.IsNullOrEmpty(ScriptPath) && Execute.Length > 0)
+            if(!string.IsNullOrEmpty(ScriptPath) && Execute?.Length > 0)
             {
                 error = "Script path and execute command cannot be set at the same time";
                 return false;
