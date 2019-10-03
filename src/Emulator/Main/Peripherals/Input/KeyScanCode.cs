@@ -118,5 +118,103 @@ namespace Antmicro.Renode.Peripherals.Input
         PageUp = 0x4B,
         PageDown = 0x4E
     }
+
+    public static class KeyScanCodeExtensions
+    {
+        public static KeyScanCode[] ToKeyScanCodes(this char c)
+        {
+            if(c >= 'a' && c <= 'z')
+            {
+                return new[] { KeyScanCode.A + (c - 'a') };
+            }
+
+            if(c >= 'A' && c <= 'Z')
+            {
+                return new[] { KeyScanCode.ShiftL, KeyScanCode.A + (c - 'A') };
+            }
+
+            // `0` is handled in the switch below as Number0 is after Number9
+            // and in ACII 0 is before 1
+            if(c >= '1' && c <= '9')
+            {
+                return new [] { KeyScanCode.Number1 + (c - '1') };
+            }
+
+            switch(c)
+            {
+                case '0':
+                    return new [] { KeyScanCode.Number0 };
+                case ' ':
+                    return new [] { KeyScanCode.Space };
+                case '`':
+                    return new [] { KeyScanCode.Tilde };
+                case '~':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Tilde };
+                case '!':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number1 };
+                case '@':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number2 };
+                case '#':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number3 };
+                case '$':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number4 };
+                case '%':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number5 };
+                case '^':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number6 };
+                case '&':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number7 };
+                case '*':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number8 };
+                case '(':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number9 };
+                case ')':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.Number0 };
+                case '-':
+                    return new [] { KeyScanCode.OemMinus };
+                case '_':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemMinus };
+                case '=':
+                    return new [] { KeyScanCode.OemPlus };
+                case '+':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemPlus };
+                case '[':
+                    return new [] { KeyScanCode.OemOpenBrackets };
+                case '{':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemOpenBrackets };
+                case ']':
+                    return new [] { KeyScanCode.OemCloseBrackets };
+                case '}':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemCloseBrackets };
+                case '\\':
+                    return new [] { KeyScanCode.OemPipe };
+                case '|':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemPipe };
+                case ';':
+                    return new [] { KeyScanCode.OemSemicolon };
+                case ':':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemSemicolon };
+                case '\'':
+                    return new [] { KeyScanCode.OemQuotes };
+                case '"':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemQuotes };
+                case ',':
+                    return new [] { KeyScanCode.OemComma };
+                case '<':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemComma };
+                case '.':
+                    return new [] { KeyScanCode.OemPeriod };
+                case '>':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemPeriod };
+                case '/':
+                    return new [] { KeyScanCode.OemQuestion };
+                case '?':
+                    return new [] { KeyScanCode.ShiftL, KeyScanCode.OemQuestion };
+            }
+
+            return new KeyScanCode[0];
+        }
+    }
 }
+
 
