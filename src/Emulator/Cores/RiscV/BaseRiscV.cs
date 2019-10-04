@@ -19,7 +19,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness) : base(hartId, cpuType, machine, endianness, bitness)
+        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null)
+                : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             this.timeProvider = timeProvider;
@@ -27,9 +28,36 @@ namespace Antmicro.Renode.Peripherals.CPU
             ShouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
+            this.NMIVectorLength = nmiVectorLength;
+            this.NMIVectorAddress = nmiVectorAddress;
 
             architectureSets = DecodeArchitecture(cpuType);
             EnableArchitectureVariants();
+            if(this.NMIVectorAddress.HasValue && this.NMIVectorLength.HasValue && this.NMIVectorLength > 0)
+            {
+                this.Log(LogLevel.Noisy, "Non maskable interrupts enabled with paramters: {0} = {1}, {2} = {3}",
+                        nameof(this.NMIVectorAddress), this.NMIVectorAddress, nameof(this.NMIVectorLength), this.NMIVectorLength);
+                TlibSetNmiVector(this.NMIVectorAddress.Value, this.NMIVectorLength.Value);
+            }
+            else
+            {
+                this.Log(LogLevel.Noisy, "Non maskable interrupts disabled");
+                TlibSetNmiVector(0, 0);
+            }
+
+        }
+
+        public virtual void OnNMI(int number, bool value)
+        {
+            if(this.NMIVectorLength == null || this.NMIVectorAddress == null)
+            {
+                this.Log(LogLevel.Warning, "Non maskable interrupt not supported on this CPU. {0} or {1} not set",
+                        nameof(this.NMIVectorAddress) , nameof(this.NMIVectorLength));
+            }
+            else
+            {
+                TlibSetNmi(number, value ? 1 : 0);
+            }
         }
 
         public override void OnGPIO(int number, bool value)
@@ -85,6 +113,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibSetHartId(value);
             }
         }
+
+        public ulong? NMIVectorAddress { get; }
+
+        public uint? NMIVectorLength { get; }
 
         public bool ShouldEnterDebugMode { get; set; }
 
@@ -310,6 +342,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibMarkFeatureSilent;
+
+        [Import]
+        private ActionUInt64UInt32 TlibSetNmiVector;
+
+        [Import]
+        private ActionInt32Int32 TlibSetNmi;
+
 
 #pragma warning restore 649
 
