@@ -1488,7 +1488,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected Action TlibSetReturnRequest;
-         
+
         [Import]
         private ActionInt32IntPtr TlibAtomicMemoryStateInit;
 
