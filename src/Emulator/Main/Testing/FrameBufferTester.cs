@@ -125,6 +125,11 @@ namespace Antmicro.Renode.Testing
 
         private void HandleConfigurationChange(int width, int height, Backends.Display.PixelFormat format, ELFSharp.ELF.Endianess endianess)
         {
+            if(width == 0 || height == 0)
+            {
+                return;
+            }
+
             converter = PixelManipulationTools.GetConverter(format, endianess, Backends.Display.PixelFormat.ARGB8888, ELFSharp.ELF.Endianess.LittleEndian);
             frameSize = width * height * 4;
         }
