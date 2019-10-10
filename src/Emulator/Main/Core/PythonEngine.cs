@@ -33,6 +33,7 @@ namespace Antmicro.Renode.Core
         {
             "import clr",
             "clr.AddReference('Emulator')",
+            "clr.AddReference('Renode')",
             "import Antmicro.Renode",
             "import System",
             "import time",
@@ -60,7 +61,8 @@ namespace Antmicro.Renode.Core
                     "__name__",
                     "sys",
                     "LogLevel",
-                    "emulationManager"
+                    "emulationManager",
+                    "pythonEngine",
                 };
             }
         }
@@ -74,6 +76,7 @@ namespace Antmicro.Renode.Core
         {
             Scope = Engine.CreateScope();
             Scope.SetVariable("emulationManager", EmulationManager.Instance);
+            Scope.SetVariable("pythonEngine", Engine);
             PythonTime.localtime();
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
