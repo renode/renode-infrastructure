@@ -25,13 +25,13 @@ namespace Antmicro.Renode.Utilities
         public static bool IsCallable(this PropertyInfo info)
         {
             bool M(PropertyInfo i) => IsTypeConvertible(i.PropertyType) && i.GetIndexParameters().Length == 0 && i.IsBaseCallable(); //disallow indexers
-            return cache.Get(info, M); 
+            return cache.Get(info, M);
         }
 
         public static bool IsCallableIndexer(this PropertyInfo info)
         {
             bool M(PropertyInfo i) => IsTypeConvertible(i.PropertyType) && i.GetIndexParameters().Length != 0 && i.IsBaseCallable(); //only indexers
-            return cache.Get(info, M); 
+            return cache.Get(info, M);
         }
 
         public static bool IsCallable(this FieldInfo info)

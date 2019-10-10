@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Core
         protected ScriptScope Scope;
 
         private readonly string[] Imports =
-        {   
+        {
             "import clr",
             "clr.AddReference('Emulator')",
             "import Antmicro.Renode",
@@ -42,10 +42,10 @@ namespace Antmicro.Renode.Core
             "import Antmicro.Renode.Logging.LogLevel as LogLevel"
         };
 
-        protected virtual string[] ReservedVariables 
-        { 
-            get 
-            { 
+        protected virtual string[] ReservedVariables
+        {
+            get
+            {
                 return new []
                 {
                     "__doc__",
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Core
                     "LogLevel",
                     "emulationManager"
                 };
-            } 
+            }
         }
 
         protected PythonEngine()
