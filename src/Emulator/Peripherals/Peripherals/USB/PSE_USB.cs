@@ -608,7 +608,6 @@ namespace Antmicro.Renode.Peripherals.USB
                 }
 
                 addressToDeviceCache.Add(0, peripheral);
-                peripheral.Reset();
 
                 usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
                 return true;
