@@ -479,6 +479,7 @@
     <Compile Include="Utilities\GDB\IMultithreadCommand.cs" />
     <Compile Include="Utilities\BitPatternDetector.cs" />
     <Compile Include="Testing\SysbusTester.cs" />
+    <Compile Include="Peripherals\USB\USBConnector.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
