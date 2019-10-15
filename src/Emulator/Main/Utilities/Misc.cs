@@ -257,6 +257,11 @@ namespace Antmicro.Renode.Utilities
             return type.Name;
         }
 
+        public static bool IsPowerOfTwo(ulong value)
+        {
+            return (value != 0) && (value & (value - 1)) == 0;
+        }
+
         public static int NextPowerOfTwo(int value)
         {
             value--;
