@@ -21,14 +21,12 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public Micron_MT25Q(MappedMemory underlyingMemory)
         {
-            if(underlyingMemory.Size != 256.MB()
-                    && underlyingMemory.Size != 128.MB()
-                    && underlyingMemory.Size != 64.MB()
-                    && underlyingMemory.Size != 32.MB()
-                    && underlyingMemory.Size != 16.MB()
-                    && underlyingMemory.Size != 8.MB())
+            // original MT25Q supports capacity 8MB to 256MB,
+            // but we extended it down to 64KB
+            // to become compatible with N25Q line
+            if(underlyingMemory.Size < 64.KB() || underlyingMemory.Size > 256.MB() || !Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
-                throw new ConstructionException("Size of the underlying memory must be one of: 8/16/32/64/128/256 MB");
+                throw new ConstructionException("Size of the underlying memory must be a power of 2 value in range 64KB - 256MB");
             }
 
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
@@ -130,31 +128,25 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private byte[] GetDeviceData()
         {
+            // capacity code:
+            // 0x10 -  64 KB
+            // 0x11 - 128 KB
+            // 0x12 - 256 KB
+            // ..
+            // 0x19 -  32 MB
+            //     NOTE: there is a gap between 0x19 and 0x20
+            // 0x20 -  64 MB
+            // 0x21 - 128 MB
+            // 0x22 - 256 MB
             byte capacityCode = 0;
-            if(underlyingMemory.Size == 256.MB())
+
+            if(underlyingMemory.Size <= 32.MB())
             {
-                capacityCode = 0x22;
-            }
-            else if(underlyingMemory.Size == 128.MB())
-            {
-                capacityCode = 0x21;
-            }
-            else if(underlyingMemory.Size == 64.MB())
-            {
-                capacityCode = 0x20;
-            }
-            else if(underlyingMemory.Size == 32.MB())
-            {
-                capacityCode = 0x19;
-            }
-            else if(underlyingMemory.Size == 16.MB())
-            {
-                capacityCode = 0x18;
+                capacityCode = (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)underlyingMemory.Size);
             }
             else
             {
-                // it must be 8MB
-                capacityCode = 0x17;
+                capacityCode = (byte)((BitHelper.GetMostSignificantSetBitIndex((ulong)underlyingMemory.Size) - 26) + 0x20);
             }
 
             var data = new byte[20];
