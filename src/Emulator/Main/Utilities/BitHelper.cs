@@ -14,6 +14,25 @@ namespace Antmicro.Renode.Utilities
 {
     public static class BitHelper
     {
+        public static int GetMostSignificantSetBitIndex(ulong value)
+        {
+            var mask = 1UL << 63;
+            var result = 63;
+
+            while(mask != 0)
+            {
+                if((value & mask) != 0)
+                {
+                    return result;
+                }
+
+                mask >>= 1;
+                result--;
+            }
+
+            return -1;
+        }
+
         public static long Bits(byte b)
         {
             return (0x1 << b);
