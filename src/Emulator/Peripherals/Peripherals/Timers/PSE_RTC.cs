@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public PSE_RTC(Machine machine) : base(machine)
         {
+            DefineRegisters();
             WakeupIRQ = new GPIO();
             MatchIRQ = new GPIO();
 
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO WakeupIRQ { get; private set; }
         public long Size => 0x1000;
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Registers.Control.Define(this)
                 .WithFlag(0, writeCallback: (_, value) => { if(value) ticker.Enabled = true; }, valueProviderCallback: _ => ticker.Enabled, name: "Start/Running")

@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             maxPacketSize = maximumPacketSize;
             USBCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);
+            DefineRegisters();
         }
 
         public override void Reset()
@@ -43,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public GPIO IRQ { get; } = new GPIO();
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Registers.Endpoint0OutEventPending.Define(this)
                 .WithFlag(0, out endpoint0OutErrorPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "error")

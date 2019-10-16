@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public STM32_UART(Machine machine, uint frequency = 8000000) : base(machine)
         {
             this.frequency = frequency;
+            DefineRegisters();
         }
 
         public void WriteChar(byte value)
@@ -82,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public event Action<byte> CharReceived;
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Register.Status.Define(this, 0xC0, "USART_SR")
                 .WithTaggedFlag("PE", 0)

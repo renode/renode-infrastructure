@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 innerTimer.Limit = reloadValue;
             };
+            DefineRegisters();
         }
 
         public override void Reset()
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x44;
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             // LOAD0 contains most significant 8 bits
             // LOAD3 contains least significant 8 bits

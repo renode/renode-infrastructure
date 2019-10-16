@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public PSE_Watchdog(Machine machine, long frequency) : base(machine)
         {
+            DefineRegisters();
             internalTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, TimeDefault - MSVPDefault, workMode: WorkMode.OneShot, eventEnabled: true);
             internalTimer.LimitReached += TimerLimitReached;
 
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x1000;
 
         //TODO: Locking of registers. `locked` field has a correct value, but it is not actively used
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Registers.Refresh.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, value) =>

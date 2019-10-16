@@ -17,9 +17,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public SAM_TRNG(Machine machine) : base(machine)
         {
+            DefineRegisters();
         }
 
-        protected override void DefineRegisters()
+        public long Size => 0x4000;
+
+        private void DefineRegisters()
         {
             Registers.Control.Define(this)
                 .WithFlag(0, out var enableUnverified, FieldMode.Write, name: "CR_ENABLE")
@@ -74,8 +77,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.InterruptMask.Define(this)
                 .WithFlag(0, out interruptEnabled, FieldMode.Read, name: "IMR_DATRDY");
         }
-
-        public long Size => 0x4000;
 
         private readonly PseudorandomNumberGenerator rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
 

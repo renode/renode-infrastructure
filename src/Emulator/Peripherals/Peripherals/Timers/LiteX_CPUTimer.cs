@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 this.Log(LogLevel.Noisy, "Limit reached, setting IRQ");
                 IRQ.Set(true);
             };
+            DefineRegisters();
         }
 
         public long Size => 0x100;
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(false);
         }
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Register.Latch.Define(this)
                 .WithFlag(0, name: "latch_bit", writeCallback: (_, val) =>
@@ -70,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // idx=0 - most significant byte
                 // ...
                 // idx=7 - least significant byte
-                
+
                 // this field should by 8-bits long, but it's defined as 32-bits (and the value is ANDed with 0xFF) to avoid unhandled bits warnings
                 reg.WithValueField(0, 32, writeCallback: (_, val) =>
                 {

@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             innerTimer = new ComparingTimer(machine.ClockSource, frequency, this, "rtcc", enabled: false, eventEnabled: true);
             innerTimer.CompareReached += () => { channel0InterruptPending.Value = true; Update(); };
+            DefineRegisters();
         }
 
         public override void Reset()
@@ -34,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; }
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Register.Control.Define(this)
                 .WithFlag(0,

@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public Murax_Timer(Machine machine, long frequency = 12000000) : base(machine)
         {
+            DefineRegisters();
             for(var i = 0; i < NumberOfTimers; i++)
             {
                 var j = i;
@@ -44,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; } = new GPIO();
 
-        protected override void DefineRegisters()
+        private void DefineRegisters()
         {
             Registers.Prescaler.Define(this)
                 .WithValueField(0, 32, out prescaler, name: "prescaler", writeCallback: (_, val) =>
@@ -76,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         UpdatePrescaler(idx);
                         innerTimers[idx].Enabled = (val != EnableMode.Disabled);
                     });
-                reg.WithFlag(16, name: "periodic", 
+                reg.WithFlag(16, name: "periodic",
                     writeCallback: (_, val) =>
                     {
                         innerTimers[idx].Mode = val ? WorkMode.Periodic : WorkMode.OneShot;
@@ -85,19 +86,19 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.TimerALimit.DefineMany(this, NumberOfTimers, stepInBytes: TimersRegistersOffset, setup: (reg, idx) =>
             {
-                reg.WithValueField(0, 32, 
+                reg.WithValueField(0, 32,
                     valueProviderCallback: _ => (uint)innerTimers[(int)Timer.TimerA].Limit,
                     writeCallback: (_, value) =>
                     {
                         // the effective limit value is 1 higher than the value written to the register
-                        innerTimers[idx].Limit = value + 1; 
+                        innerTimers[idx].Limit = value + 1;
                     }
                 );
             });
 
             Registers.TimerAValue.DefineMany(this, NumberOfTimers, stepInBytes: TimersRegistersOffset, setup: (reg, idx) =>
             {
-                reg.WithValueField(0, 32, 
+                reg.WithValueField(0, 32,
                     valueProviderCallback: _ => (uint)innerTimers[(int)Timer.TimerA].Value,
                     writeCallback: (_, value) =>
                     {
