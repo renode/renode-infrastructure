@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.Network
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class LiteX_Ethernet : NetworkWithPHY, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IMACInterface
+    public class LiteX_Ethernet : NetworkWithPHY, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IMACInterface, IKnownSize
     {
         public LiteX_Ethernet(Machine machine, int numberOfWriteSlots = 2, int numberOfReadSlots = 2) : base(machine)
         {
@@ -259,6 +259,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public GPIO IRQ { get; } = new GPIO();
 
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }
+
+        public long Size => 0x100;
 
         private void DefineRegisters()
         {
