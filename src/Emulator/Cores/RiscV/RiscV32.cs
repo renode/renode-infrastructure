@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class RiscV32 : BaseRiscV
     {
-        public RiscV32(IRiscVTimeProvider timeProvider, string cpuType, Machine machine, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null)
+        public RiscV32(IRiscVTimeProvider timeProvider, string cpuType, Machine machine, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null)
                 : base(timeProvider, hartId, cpuType, machine, privilegeArchitecture, endianness, CpuBitness.Bits32, nmiVectorAddress, nmiVectorLength)
         {
         }

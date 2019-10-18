@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
 
             // we don't log warning when value is false to handle gpio initial reset
-            if(privilegeArchitecture == PrivilegeArchitecture.Priv1_10 && !IsValidInterruptInV10(number) && value)
+            if(privilegeArchitecture >= PrivilegeArchitecture.Priv1_10 && !IsValidInterruptInV10(number) && value)
             {
                 this.Log(LogLevel.Warning, "Interrupt {0} not supported in Privileged ISA v1.10", (IrqType)number);
                 return;
@@ -213,7 +213,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Log(LogLevel.Warning, $"Undefined instruction set: {char.ToUpper((char)(set + 'A'))}.");
                 }
             }
-            TlibSetPrivilegeArchitecture109(privilegeArchitecture == PrivilegeArchitecture.Priv1_09 ? 1 : 0u);
+            TlibSetPrivilegeArchitecture((int)privilegeArchitecture);
         }
 
         private IEnumerable<InstructionSet> DecodeArchitecture(string architecture)
@@ -325,8 +325,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionUInt64 TlibResetExecutedInstructions;
 
-        [Import(Name="tlib_set_privilege_architecture_1_09")]
-        private ActionUInt32 TlibSetPrivilegeArchitecture109;
+        [Import(Name="tlib_set_privilege_architecture")]
+        private ActionInt32 TlibSetPrivilegeArchitecture;
 
         [Import]
         private ActionUInt32UInt32 TlibSetMipBit;
@@ -355,7 +355,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public enum PrivilegeArchitecture
         {
             Priv1_09,
-            Priv1_10
+            Priv1_10,
+            Priv1_11
         }
 
         /* The enabled instruction sets are exposed via a register. Each instruction bit is represented
