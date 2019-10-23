@@ -203,6 +203,13 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithFlag(0, name: "Data Toggle Bit", valueProviderCallback: _ => false)
                 .WithReservedBits(1, 31)
             ;
+
+            Registers.Address.Define(this)
+                .WithValueField(0, 8, name: "USBAddress",
+                    writeCallback: (_, val) => { USBCore.Address = (byte)val; },
+                    valueProviderCallback: _ => USBCore.Address)
+                .WithReservedBits(8, 24)
+            ;
         }
 
         private void HandleStall()
@@ -440,7 +447,9 @@ namespace Antmicro.Renode.Peripherals.USB
             Endpoint2InRespond = 0x94,
             Endpoint2InDataToggleBit = 0x98,
             Endpoint2InBufferHead = 0x9C,
-            Endpoint2InBufferEmpty = 0xA0
+            Endpoint2InBufferEmpty = 0xA0,
+
+            Address = 0xA4
         }
     }
 }
