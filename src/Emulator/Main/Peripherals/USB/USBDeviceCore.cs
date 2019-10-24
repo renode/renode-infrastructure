@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Core.USB
                              string serialNumber = null,
                              ushort vendorId = 0,
                              ushort productId = 0,
-                             Func<SetupPacket, byte[], byte[]> customSetupPacketHandler = null) : base(18, (byte)DescriptorType.Device)
+                             Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler = null) : base(18, (byte)DescriptorType.Device)
         {
             if(maximalPacketSize != PacketSize.Size8
                 && maximalPacketSize != PacketSize.Size16
@@ -93,13 +93,16 @@ namespace Antmicro.Renode.Core.USB
             return null;
         }
 
-        public byte[] HandleSetupPacket(SetupPacket packet, byte[] additionalData = null)
+        public void HandleSetupPacket(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
         {
             var result = BitStream.Empty;
 
             if(customSetupPacketHandler != null)
             {
-                result = new BitStream(customSetupPacketHandler(packet, additionalData));
+                customSetupPacketHandler(packet, additionalData, receivedBytes =>
+                {
+                    resultCallback(receivedBytes);
+                });
             }
             else
             {
@@ -112,7 +115,8 @@ namespace Antmicro.Renode.Core.USB
                         if(SelectedConfiguration == null)
                         {
                             device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
-                            return new byte[0];
+                            resultCallback(new byte[0]);
+                            return;
                         }
                         var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
                         if(iface == null)
@@ -125,9 +129,9 @@ namespace Antmicro.Renode.Core.USB
                         device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
                         break;
                 }
-            }
 
-            return result.AsByteArray(packet.Count * 8u);
+                resultCallback(result.AsByteArray(packet.Count * 8u));
+            }
         }
 
         private BitStream HandleRequest(SetupPacket packet)
@@ -255,6 +259,6 @@ namespace Antmicro.Renode.Core.USB
         private readonly List<USBConfiguration> configurations;
         private readonly IUSBDevice device;
 
-        private Func<SetupPacket, byte[], byte[]> customSetupPacketHandler;
+        private Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler;
     }
 }

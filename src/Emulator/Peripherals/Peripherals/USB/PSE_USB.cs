@@ -378,12 +378,15 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var packet = Packet.Decode<SetupPacket>(data);
-                            fifoFromDeviceToHost[0].EnqueueRange(peripheral.USBCore.HandleSetupPacket(packet));
-                            if(packet.Type == PacketType.Standard && packet.Request == (byte)StandardRequest.SetAddress)
+                            peripheral.USBCore.HandleSetupPacket(packet, receivedBytes =>
                             {
-                                UpdateAddressCache(peripheral);
-                            }
-                            txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                                fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
+                                if(packet.Type == PacketType.Standard && packet.Request == (byte)StandardRequest.SetAddress)
+                                {
+                                    UpdateAddressCache(peripheral);
+                                }
+                                txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                            });
                         }
 
                         if(statusPacket.Value)

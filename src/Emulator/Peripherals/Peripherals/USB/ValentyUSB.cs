@@ -18,7 +18,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
-    public class ValentyUSB : BasicDoubleWordPeripheral, IUSBDevice, IKnownSize, IDisposable
+    public class ValentyUSB : BasicDoubleWordPeripheral, IUSBDevice, IKnownSize
     {
         public ValentyUSB(Machine machine, int maximumPacketSize = 64) : base(machine)
         {
@@ -32,16 +32,9 @@ namespace Antmicro.Renode.Peripherals.USB
             slaveToMasterBufferVirtualBase = 0;
             state = State.Idle;
 
-            outPacketReady.Reset();
             masterToSlaveBuffer.Clear();
             masterToSlaveAdditionalDataBuffer.Clear();
             slaveToMasterBuffer.Clear();
-        }
-
-        public void Dispose()
-        {
-            // this is to unblock `SetupPacketHandler`
-            outPacketReady.Set();
         }
 
         public long Size => 0x100;
@@ -212,10 +205,41 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
         }
 
+        private void SendSetupPacketResponse()
+        {
+            if(masterToSlaveAdditionalDataBuffer.Count != 0)
+            {
+                this.Log(LogLevel.Error, "Setup packet handling finished, but there is still some unhandled additional data left. Dropping it, but expect problems");
+                masterToSlaveAdditionalDataBuffer.Clear();
+            }
+
+            this.Log(LogLevel.Noisy, "Setup packet handled");
+#if DEBUG_PACKETS
+            this.Log(LogLevel.Noisy, "Response bytes: [{0}]", Misc.PrettyPrintCollection(slaveToMasterBuffer, b => b.ToString("X")));
+#endif
+            slaveToMasterBufferVirtualBase = 0;
+
+            if(setupPacketResultCallback == null)
+            {
+                this.Log(LogLevel.Error, "No setup packet is handled at the moment, but the software wants to send data back. It might indicate a faulty driver");
+                return;
+            }
+
+            setupPacketResultCallback(slaveToMasterBuffer.DequeueAll());
+            setupPacketResultCallback = null;
+        }
+
         private void HandleStall()
         {
             this.Log(LogLevel.Debug, "Endpoint 0 stalled");
-            outPacketReady.Set();
+
+            // this could happen since HandleStall is called for both IN and OUT packets
+            if(setupPacketResultCallback == null)
+            {
+                return;
+            }
+
+            SendSetupPacketResponse();
         }
 
         private void ProduceDataToMaster()
@@ -226,7 +250,7 @@ namespace Antmicro.Renode.Peripherals.USB
             if(chunkSize < maxPacketSize)
             {
                 this.Log(LogLevel.Noisy, "Data chunk was shorter than max packet size (0x{0:X} vs 0x{1:X}), so this is the end of data", chunkSize, maxPacketSize);
-                outPacketReady.Set();
+                SendSetupPacketResponse();
             }
             else
             {
@@ -302,11 +326,20 @@ namespace Antmicro.Renode.Peripherals.USB
             IRQ.Set(irqState);
         }
 
-        private byte[] SetupPacketHandler(SetupPacket packet, byte[] additionalData)
+        // NOTE: Here we assume that the communication is well-formed, i.e.,
+        // the controller does not send two setup packets in a row (without waiting for a response),
+        // or a device does not start to respond by itself (without the request from the master).
+        // There are some checks verifying it and printing errors, but there is no mechanism enforcing it.
+        private void SetupPacketHandler(SetupPacket packet, byte[] additionalData, Action<byte[]> resultCallback)
         {
             this.Log(LogLevel.Noisy, "Received setup packet: {0}", packet.ToString());
 
-            outPacketReady.Reset();
+            if(setupPacketResultCallback != null)
+            {
+                this.Log(LogLevel.Error, "Setup packet result handler is set. It means that the previous setup packet handler has not yet finished. Expect problems!");
+            }
+            setupPacketResultCallback = resultCallback;
+
             slaveToMasterBuffer.Clear();
             slaveToMasterBufferVirtualBase = 0;
             state = State.SetupTokenReceived;
@@ -330,22 +363,9 @@ namespace Antmicro.Renode.Peripherals.USB
             {
                 masterToSlaveAdditionalDataBuffer.EnqueueRange(additionalData);
             }
-
-            outPacketReady.WaitOne();
-
-            if(masterToSlaveAdditionalDataBuffer.Count != 0)
-            {
-                this.Log(LogLevel.Warning, "Setup packet handling finished, but there is still some unhandled additional data left. Dropping it, but expect problems");
-                masterToSlaveAdditionalDataBuffer.Clear();
-            }
-
-            this.Log(LogLevel.Noisy, "Setup packet handled");
-#if DEBUG_PACKETS
-            this.Log(LogLevel.Noisy, "Response bytes: [{0}]", Misc.PrettyPrintCollection(slaveToMasterBuffer, b => b.ToString("X")));
-#endif
-            slaveToMasterBufferVirtualBase = 0;
-            return slaveToMasterBuffer.DequeueAll();
         }
+
+        private Action<byte[]> setupPacketResultCallback;
 
         private State state;
         // in order to avoid copying data from `slaveToMasterBuffer`
@@ -367,7 +387,6 @@ namespace Antmicro.Renode.Peripherals.USB
         private IEnumRegisterField<USBResponse> endpoint0InRespond;
 
         private readonly int maxPacketSize;
-        private readonly ManualResetEvent outPacketReady = new ManualResetEvent(false);
         private readonly Queue<byte> masterToSlaveBuffer = new Queue<byte>();
         private readonly Queue<byte> masterToSlaveAdditionalDataBuffer = new Queue<byte>();
         private readonly Queue<byte> slaveToMasterBuffer = new Queue<byte>();

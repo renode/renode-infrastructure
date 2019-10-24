@@ -237,8 +237,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                             ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
                             : null;
 
-                        var setupPacketResponse = device.USBCore.HandleSetupPacket(setupPacket, additionalData);
-                        SendResponse(GenerateURBReply(urbHeader, packet, setupPacketResponse));
+                        device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
+                        {
+                            SendResponse(GenerateURBReply(urbHeader, packet, response));
+                        });
                     }
                     else
                     {
@@ -320,6 +322,24 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             return result;
         }
 
+        // using this blocking helper method simplifies the logic of other methods
+        // + it seems to be harmless, as this logic is not executed as a result of
+        // intra-emulation communication (where it could lead to deadlocks)
+        private byte[] HandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket)
+        {
+            byte[] result = null;
+
+            var mre = new ManualResetEvent(false);
+            device.USBCore.HandleSetupPacket(setupPacket, received =>
+            {
+                result = received;
+                mre.Set();
+            });
+
+            mre.WaitOne();
+            return result;
+        }
+
         private USB.DeviceDescriptor ReadDeviceDescriptor(IUSBDevice device)
         {
             var setupPacket = new SetupPacket
@@ -331,8 +351,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Value = ((int)DescriptorType.Device << 8),
                 Count = (ushort)Packet.CalculateLength<USB.DeviceDescriptor>()
             };
-            var deviceDescriptorBytes = device.USBCore.HandleSetupPacket(setupPacket);
-            return Packet.Decode<USB.DeviceDescriptor>(deviceDescriptorBytes);
+
+            return Packet.Decode<USB.DeviceDescriptor>(HandleSetupPacketSync(device, setupPacket));
         }
 
         private USB.ConfigurationDescriptor ReadConfigurationDescriptor(IUSBDevice device, byte configurationId, out USB.InterfaceDescriptor[] interfaceDescriptors)
@@ -347,14 +367,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Count = (ushort)Packet.CalculateLength<USB.ConfigurationDescriptor>()
             };
             // first ask for the configuration descriptor non-recursively ...
-            var configurationDescriptorBytes = device.USBCore.HandleSetupPacket(setupPacket);
+            var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket);
             var result = Packet.Decode<USB.ConfigurationDescriptor>(configurationDescriptorBytes);
 
             interfaceDescriptors = new USB.InterfaceDescriptor[result.NumberOfInterfaces];
             // ... read the total length of a recursive structure ...
             setupPacket.Count = result.TotalLength;
             // ... and only then read the whole structure again.
-            var recursiveBytes = device.USBCore.HandleSetupPacket(setupPacket);
+            var recursiveBytes = HandleSetupPacketSync(device, setupPacket);
 
             var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
             for(var i = 0; i < interfaceDescriptors.Length; i++)
