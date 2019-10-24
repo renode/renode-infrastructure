@@ -252,13 +252,11 @@ namespace Antmicro.Renode.Peripherals.USB
                 this.Log(LogLevel.Noisy, "Data chunk was shorter than max packet size (0x{0:X} vs 0x{1:X}), so this is the end of data", chunkSize, maxPacketSize);
                 SendSetupPacketResponse();
             }
-            else
-            {
-                // IN packet pending means that the master is waiting for more data
-                // and slave should generate it
-                endpoint0InPacketPending.Value = true;
-                UpdateInterrupts();
-            }
+
+            // IN packet pending means that the master is waiting for more data
+            // and slave should generate it
+            endpoint0InPacketPending.Value = true;
+            UpdateInterrupts();
         }
 
         private void PrepareDataFromMaster()
