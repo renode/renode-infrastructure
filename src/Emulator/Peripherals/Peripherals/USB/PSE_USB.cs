@@ -381,10 +381,6 @@ namespace Antmicro.Renode.Peripherals.USB
                             peripheral.USBCore.HandleSetupPacket(packet, receivedBytes =>
                             {
                                 fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
-                                if(packet.Type == PacketType.Standard && packet.Request == (byte)StandardRequest.SetAddress)
-                                {
-                                    UpdateAddressCache(peripheral);
-                                }
                                 txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
                             });
                         }
@@ -567,23 +563,29 @@ namespace Antmicro.Renode.Peripherals.USB
                     throw new ArgumentException($"Unexpected direction: {direction}");
             }
 
-            return addressToDeviceCache.TryGetValue((byte)addressField.Value, out device);
-        }
-
-        private void UpdateAddressCache(IUSBDevice peripheral)
-        {
             lock(addressToDeviceCache)
             {
-                if(!addressToDeviceCache.TryExchange(peripheral, peripheral.USBCore.Address, out var previousAddress))
+                var address = (byte)addressField.Value;
+                if(!addressToDeviceCache.TryGetValue(address, out device))
                 {
-                    throw new ArgumentException("This should not happen");
+                    // it will happen at the first access to the device after it has been granted an address
+                    device = this.ChildCollection.Select(x => x.Value).FirstOrDefault(x => x.USBCore.Address == address);
+                    if(device != null)
+                    {
+                        if(!addressToDeviceCache.TryExchange(device, address, out var oldAddress) || oldAddress != 0)
+                        {
+                            this.Log(LogLevel.Error, "USB device address change detected: previous address 0x{0:X}, current address 0x{1:X}. This might lead to problems", oldAddress, address);
+                        }
+
+                        TryInitializeConnectedDevice();
+                    }
                 }
 
-                if(peripheral.USBCore.Address != 0 && previousAddress == 0)
+                if(device != null && device.USBCore.Address != address)
                 {
-                    // now we can initialize another device
-                    TryInitializeConnectedDevice();
+                    this.Log(LogLevel.Error, "USB device address change detected: previous address 0x{0:X}, current address 0x{1:X}. This might lead to problems", address, device.USBCore.Address);
                 }
+                return device != null;
             }
         }
 
