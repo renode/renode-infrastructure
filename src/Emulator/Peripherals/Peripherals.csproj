@@ -296,6 +296,7 @@
     <Compile Include="Peripherals\SPI\PicoRV_SPI.cs" />
     <Compile Include="Peripherals\Video\LiteX_Framebuffer.cs" />
     <Compile Include="Peripherals\USB\USBKeyboard.cs" />
+    <Compile Include="Peripherals\USB\ValentyUSB_EPTRI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
