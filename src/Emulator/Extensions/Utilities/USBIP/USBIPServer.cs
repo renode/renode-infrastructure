@@ -352,11 +352,19 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Count = (ushort)Packet.CalculateLength<USB.DeviceDescriptor>()
             };
 
-            return Packet.Decode<USB.DeviceDescriptor>(HandleSetupPacketSync(device, setupPacket));
+            var deviceDescriptorBytes = HandleSetupPacketSync(device, setupPacket);
+            if(!Packet.TryDecode<USB.DeviceDescriptor>(deviceDescriptorBytes, out var result))
+            {
+                this.Log(LogLevel.Error, "Could not read Device Descriptor from the slave");
+                result = default(USB.DeviceDescriptor);
+            }
+            return result;
         }
 
         private USB.ConfigurationDescriptor ReadConfigurationDescriptor(IUSBDevice device, byte configurationId, out USB.InterfaceDescriptor[] interfaceDescriptors)
         {
+            interfaceDescriptors = new USB.InterfaceDescriptor[0];
+
             var setupPacket = new SetupPacket
             {
                 Recipient = PacketRecipient.Device,
@@ -368,23 +376,33 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             };
             // first ask for the configuration descriptor non-recursively ...
             var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket);
-            var result = Packet.Decode<USB.ConfigurationDescriptor>(configurationDescriptorBytes);
+            if(!Packet.TryDecode<USB.ConfigurationDescriptor>(configurationDescriptorBytes, out var result))
+            {
+                this.Log(LogLevel.Error, "Could not read Configuration Descriptor from the slave");
+                return default(USB.ConfigurationDescriptor);
+            }
 
-            interfaceDescriptors = new USB.InterfaceDescriptor[result.NumberOfInterfaces];
+            var innerInterfaceDescriptors = new USB.InterfaceDescriptor[result.NumberOfInterfaces];
             // ... read the total length of a recursive structure ...
             setupPacket.Count = result.TotalLength;
             // ... and only then read the whole structure again.
             var recursiveBytes = HandleSetupPacketSync(device, setupPacket);
 
             var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
-            for(var i = 0; i < interfaceDescriptors.Length; i++)
+            for(var i = 0; i < innerInterfaceDescriptors.Length; i++)
             {
-                interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
+                if(!Packet.TryDecode<USB.InterfaceDescriptor>(configurationDescriptorBytes, out innerInterfaceDescriptors[i], currentOffset))
+                {
+                    this.Log(LogLevel.Error, "Could not read Interface Descriptor #{0} from the slave", i);
+                    return default(USB.ConfigurationDescriptor);
+                }
+
                 // skip next interface descriptor with associated endpoint descriptors (each of size 7)
                 currentOffset += Packet.CalculateLength<USBIP.InterfaceDescriptor>()
-                    + interfaceDescriptors[i].NumberOfEndpoints * 7;
+                    + innerInterfaceDescriptors[i].NumberOfEndpoints * 7;
             }
 
+            interfaceDescriptors = innerInterfaceDescriptors;
             return result;
         }
 
