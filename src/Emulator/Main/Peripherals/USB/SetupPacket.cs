@@ -28,7 +28,16 @@ namespace Antmicro.Renode.Core.USB
 
         public override string ToString()
         {
-            return $"[Recipient: {Recipient}, Type: {Type}, Direction: {Direction}, Request: 0x{Request:X}, Value: 0x{Value:X}, Index: 0x{Index:X}, Count: 0x{Count:X}]";
+            return $"[Recipient: {Recipient}, Type: {Type}, Direction: {Direction}, Request: {DecodeRequest()} (0x{Request:X}), Value: 0x{Value:X}, Index: 0x{Index:X}, Count: 0x{Count:X}]";
+        }
+
+        private string DecodeRequest()
+        {
+            if(Type == PacketType.Standard)
+            {
+                return ((StandardRequest)Request).ToString();
+            }
+            return "[unknown]";
         }
     }
 }
