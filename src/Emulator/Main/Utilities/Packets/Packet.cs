@@ -69,8 +69,18 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public static T Decode<T>(IList<byte> data, int dataOffset = 0)
         {
+            if(!TryDecode<T>(data, out var result, dataOffset))
+            {
+                throw new ArgumentException($"Could not decode the packet of type {typeof(T)} due to insufficient data. Required {Packet.CalculateLength<T>()} bytes, but received {(data.Count - dataOffset)}");
+            }
+            return result;
+        }
+
+        public static bool TryDecode<T>(IList<byte> data, out T result, int dataOffset = 0)
+        {
             // we need to do the casting as otherwise setting value would not work on structs
-            var result = (object)default(T);
+            var innerResult = (object)default(T);
+            result = default(T);
 
             var fieldsAndProperties = GetFieldsAndProperties<T>();
 
@@ -90,30 +100,50 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 if(type == typeof(uint))
                 {
+                    if(offset + sizeof(uint) > data.Count)
+                    {
+                        return false;
+                    }
+
                     var v = field.IsLSBFirst
                         ? (uint)((data[offset + 3] << 24) | (data[offset + 2] << 16) | (data[offset + 1] << 8) | (data[offset]))
                         : (uint)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | (data[offset + 3]));
                     offset += 4;
-                    field.SetValue(result, v);
+                    field.SetValue(innerResult, v);
                 }
                 else if(type == typeof(short))
                 {
+                    if(offset + sizeof(short) > data.Count)
+                    {
+                        return false;
+                    }
+
                     var v = field.IsLSBFirst
                         ? (short)((data[offset + 1] << 8) | (data[offset]))
                         : (short)((data[offset] << 8) | (data[offset + 1]));
                     offset += 2;
-                    field.SetValue(result, v);
+                    field.SetValue(innerResult, v);
                 }
                 else if(type == typeof(ushort))
                 {
+                    if(offset + sizeof(ushort) > data.Count)
+                    {
+                        return false;
+                    }
+
                     var v = field.IsLSBFirst
                         ? (ushort)((data[offset + 1] << 8) | (data[offset]))
                         : (ushort)((data[offset] << 8) | (data[offset + 1]));
                     offset += 2;
-                    field.SetValue(result, v);
+                    field.SetValue(innerResult, v);
                 }
                 else if(type == typeof(byte))
                 {
+                    if(offset + sizeof(byte) > data.Count)
+                    {
+                        return false;
+                    }
+
                     // TODO: support Offset.bits/Width in other type as well
                     var offsetInBits = (int)(field.GetAttribute<OffsetAttribute>()?.OffsetInBits ?? 0);
                     var width = (int)(field.GetAttribute<WidthAttribute>()?.Value ?? 8);
@@ -125,7 +155,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                     var v = (byte)BitHelper.GetValue(data[offset], offsetInBits, width);
                     offset += 1;
-                    field.SetValue(result, v);
+                    field.SetValue(innerResult, v);
                 }
                 else if(type == typeof(byte[]))
                 {
@@ -135,6 +165,11 @@ namespace Antmicro.Renode.Utilities.Packets
                         throw new ArgumentException("Positive width must be provided to decode byte array");
                     }
 
+                    if(offset + width > data.Count)
+                    {
+                        return false;
+                    }
+
                     var v = new byte[width];
                     for(var i = 0; i < width; i++)
                     {
@@ -142,10 +177,15 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
 
                     offset += width;
-                    field.SetValue(result, v);
+                    field.SetValue(innerResult, v);
                 }
                 else if(type == typeof(ulong))
                 {
+                    if(offset + sizeof(ulong) > data.Count)
+                    {
+                        return false;
+                    }
+
                     var v = field.IsLSBFirst
                         ? (((ulong)data[offset + 7] << 56)
                                 | ((ulong)data[offset + 6] << 48)
@@ -164,7 +204,7 @@ namespace Antmicro.Renode.Utilities.Packets
                                 | ((ulong)data[offset + 6] << 8)
                                 | ((ulong)data[offset + 7]));
                     offset += 8;
-                    field.SetValue(result, v);
+                    field.SetValue(innerResult, v);
                 }
                 else
                 {
@@ -172,7 +212,8 @@ namespace Antmicro.Renode.Utilities.Packets
                 }
             }
 
-            return (T)result;
+            result = (T)innerResult;
+            return true;
         }
 
         public static dynamic DecodeDynamic<T>(byte[] data, int dataOffset = 0) where T : class
