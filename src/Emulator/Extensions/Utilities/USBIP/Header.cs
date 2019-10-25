@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
         public override string ToString()
         {
-            return $"Version = 0x{Version:X}, Command = 0x{Command:X}, Status = 0x{Status:X}";
+            return $"Version = 0x{Version:X}, Command = {Command} (0x{Command:X}), Status = 0x{Status:X}";
         }
     }
 
