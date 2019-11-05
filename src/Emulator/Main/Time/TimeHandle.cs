@@ -525,6 +525,18 @@ namespace Antmicro.Renode.Time
                     if(!enabled)
                     {
                         Monitor.PulseAll(innerLock);
+
+                        // we have just disabled the handle - it needs to be reset it to a state like after `ReportBackAndContinue`
+                        if(isBlocking)
+                        {
+                            timeResiduum = TimeInterval.Empty;
+                            intervalToReport = intervalGranted;
+                            reportPending = true;
+                            isBlocking = false;
+
+                            Monitor.PulseAll(innerLock);
+                            this.Trace();
+                        }
                     }
                     else
                     {
