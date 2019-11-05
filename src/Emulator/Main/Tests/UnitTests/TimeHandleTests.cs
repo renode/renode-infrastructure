@@ -544,6 +544,32 @@ namespace UnitTests
             ShouldWaitReturn(true, false, interval);
         }
 
+        [Test]
+        public void ShouldHandleDisablingBlockedHandle()
+        {
+            GrantOnSource().ShouldFinish();
+            RequestOnSink().ShouldFinish();
+            BreakOnSink(TimeInterval.FromTicks(500)).ShouldFinish();
+            WaitOnSource().ShouldFinish(Tuple.Create(false, false, TimeInterval.FromTicks(500)));
+
+            // here we disable a blocked handle - it should report back the rest of a quant
+            SetEnabledOnExternal(false).ShouldFinish();
+            WaitOnSource().ShouldFinish(Tuple.Create(true, false, TimeInterval.FromTicks(500)));
+
+            // now it should automatically report all the quant
+            GrantOnSource().ShouldFinish();
+            WaitOnSource().ShouldFinish(Tuple.Create(true, false, TimeInterval.FromTicks(1000)));
+
+            // here we re-enable the handle - it should *not remember* that it was blocked before disabling
+            SetEnabledOnExternal(true).ShouldFinish();
+            GrantOnSource().ShouldFinish();
+            RequestOnSink().ShouldFinish();
+            ContinueOnSink().ShouldFinish();
+            WaitOnSource().ShouldFinish(Tuple.Create(true, false, TimeInterval.FromTicks(1000)));
+
+            Finish();
+        }
+
         private ThreadSyncTester.ExecutionResult GrantOnSource()
         {
             // granting should never block
