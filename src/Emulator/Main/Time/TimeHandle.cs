@@ -387,7 +387,7 @@ namespace Antmicro.Renode.Time
                 intervalUsed = enabled ? intervalToReport : intervalGranted;
                 intervalToReport = TimeInterval.Empty;
 
-                var isDone = !(enabled && isBlocking);
+                var isDone = !isBlocking;
                 if(enabled && !SinkSideActive && !reportPending)
                 {
                     Debugging.DebugHelper.Assert(!deferredUnlatch, "Unexpected state of deferredUnlatch");
