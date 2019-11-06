@@ -815,7 +815,7 @@ namespace UnitTests
 
             public void ExecuteOnDispatcherThread(Action<ITimeSink, TimeInterval> action, bool wait = true)
             {
-                this.Trace("About to execute on dispatche thread");
+                this.Trace("About to execute on dispatcher thread");
                 this.action = action;
                 barrier.Set();
                 if(wait)
