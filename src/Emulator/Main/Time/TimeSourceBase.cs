@@ -33,7 +33,6 @@ namespace Antmicro.Renode.Time
             handles = new HandlesCollection();
             sleeper = new Sleeper();
             stopwatch = Stopwatch.StartNew();
-            recentlyUnblockedSlaves = new HashSet<TimeHandle>();
 
             hostTicksElapsed = new TimeVariantValue(10);
             virtualTicksElapsed = new TimeVariantValue(10);
@@ -163,9 +162,8 @@ namespace Antmicro.Renode.Time
                     return;
                 }
 
-                // we must wait for unblocked slaves to finish their work
-                sync.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
                 isStarted = false;
+                sync.Pulse();
                 blockingEvent.Set();
             }
         }
@@ -220,38 +218,6 @@ namespace Antmicro.Renode.Time
         }
 
         public IEnumerable<ITimeSink> Sinks { get { using(sync.HighPriority) { return handles.Select(x => x.TimeSink); } } }
-
-        /// <see cref="ITimeSource.UnblockHandle"/>
-        public bool UnblockHandle(TimeHandle handle)
-        {
-            handle.Trace("About to unblock this handle");
-
-            if(isPaused)
-            {
-                this.Trace("Time source is paused - returning false");
-                return false;
-            }
-
-            bool result;
-            using(sync.HighPriority)
-            {
-                DebugHelper.Assert(handles.All.Contains(handle), "Unblocking a handle that is not registered");
-
-                sync.WaitWhile(() => recentlyUnblockedSlaves.Contains(handle), "Wait until the previous unblocking status is read");
-
-                handle.Trace($"Unblocking status: {(!isStarted ? "aborting" : "unblocking")}");
-                result = isStarted;
-
-                if(isStarted)
-                {
-                    recentlyUnblockedSlaves.Add(handle);
-                    this.Trace($"UnblockHandle: Number of unblocked slaves set to: {recentlyUnblockedSlaves.Count}");
-                    blockingEvent.Set();
-                }
-            }
-
-            return result;
-        }
 
         /// <see cref="ITimeSource.ReportHandleActive">
         public void ReportHandleActive()
@@ -420,13 +386,14 @@ namespace Antmicro.Renode.Time
                 {
                     var executor = new PhaseExecutor<LinkedListNode<TimeHandle>>();
 
-                    if(shouldGrantTime && quantum != TimeInterval.Empty)
+                    if(!shouldGrantTime)
+                    {
+                        executor.RegisterPhase(ExecuteUnblockPhase);
+                        executor.RegisterPhase(ExecuteWaitPhase);
+                    }
+                    else if(quantum != TimeInterval.Empty)
                     {
                         executor.RegisterPhase(s => ExecuteGrantPhase(s, quantum));
-                    }
-
-                    if(!(shouldGrantTime && quantum == TimeInterval.Empty))
-                    {
                         executor.RegisterPhase(ExecuteWaitPhase);
                     }
 
@@ -571,6 +538,15 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Unblocks a single handle allowing it to continue
+        /// execution of the previously granted time interval.
+        /// </summary>
+        private void ExecuteUnblockPhase(LinkedListNode<TimeHandle> handle)
+        {
+            handle.Value.UnblockHandle();
+        }
+
+        /// <summary>
         /// Waits until the handle finishes its execution.
         /// </summary>
         /// <remarks>
@@ -586,17 +562,6 @@ namespace Antmicro.Renode.Time
             }
 
             handles.UpdateHandle(handle);
-
-            if(result.IsUnblockedRecently)
-            {
-                Antmicro.Renode.Debugging.DebugHelper.Assert(recentlyUnblockedSlaves.Contains(handle.Value), $"Expected slave to be in {nameof(recentlyUnblockedSlaves)} collection.");
-                recentlyUnblockedSlaves.Remove(handle.Value);
-                this.Trace($"Number of unblocked slaves set to {recentlyUnblockedSlaves.Count}");
-                if(recentlyUnblockedSlaves.Count == 0)
-                {
-                    sync.Pulse();
-                }
-            }
         }
 
         /// <summary>
@@ -605,11 +570,7 @@ namespace Antmicro.Renode.Time
         private void EnterBlockedState()
         {
             isBlocked = true;
-            // we cannot reset the event if there are some unblocked slaves as it would overwrite `Set` executed by them
-            if(recentlyUnblockedSlaves.Count == 0)
-            {
-                blockingEvent.Reset();
-            }
+            blockingEvent.Reset();
         }
 
         /// <summary>
@@ -650,7 +611,6 @@ namespace Antmicro.Renode.Time
 
         protected readonly HandlesCollection handles;
         protected readonly Stopwatch stopwatch;
-        protected readonly HashSet<TimeHandle> recentlyUnblockedSlaves;
         // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
         protected readonly PrioritySynchronizer sync;
         protected readonly Sleeper sleeper;

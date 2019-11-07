@@ -67,10 +67,6 @@ namespace Antmicro.Renode.Time
                 {
                     isPaused = true;
                     DeactivateSlavesSourceSide();
-
-                    // we must wait for unblocked slaves to finish their work
-                    this.Trace("About to wait for unblocked slaves");
-                    sync.WaitWhile(() => recentlyUnblockedSlaves.Count > 0, "Waiting for unblocked slaves");
                 }
                 this.Trace("Paused");
             }
@@ -218,40 +214,16 @@ namespace Antmicro.Renode.Time
 
         private bool DispatchInner()
         {
-            // it might happen that `RequestTimeInterval` finishes with `false`
-            // meaning that the handle was not unblocked - in such case
-            // it is not legal to report progress, hence this flag;
-            // there might be different reasons for the `false` result,
-            // but the value of `recentlyUnblockedSlaves` allows to
-            // recognize the actual reason
-            var doNotReport = false;
-
             if(!TimeHandle.RequestTimeInterval(out var intervalGranted))
             {
                 this.Trace("Time interval request interrupted");
-
-                // we cannot stop the thread if some slaves has just been unblocked
-                // - we must first read their status
-                if(recentlyUnblockedSlaves.Count == 0)
-                {
-                    this.Trace();
-                    return false;
-                }
-                else
-                {
-                    DebugHelper.Assert(waitingForSlave, "Expected waiting for slave state");
-                }
-                this.Trace();
-                doNotReport = true;
+                return false;
             }
 
-            if(isPaused && recentlyUnblockedSlaves.Count == 0)
+            if(isPaused)
             {
                 this.Trace("Handle paused");
-                if(!doNotReport)
-                {
-                    TimeHandle.ReportBackAndBreak(intervalGranted);
-                }
+                TimeHandle.ReportBackAndBreak(intervalGranted);
                 return true;
             }
 
@@ -268,18 +240,12 @@ namespace Antmicro.Renode.Time
                 {
                     // we should not ask for time grant since the current one is not finished yet
                     waitingForSlave = true;
-                    if(!doNotReport)
-                    {
-                        TimeHandle.ReportBackAndBreak(timeLeft);
-                    }
+                    TimeHandle.ReportBackAndBreak(timeLeft);
                     return true;
                 }
             }
 
-            if(!doNotReport)
-            {
-                TimeHandle.ReportBackAndContinue(timeLeft);
-            }
+            TimeHandle.ReportBackAndContinue(timeLeft);
             return true;
         }
 

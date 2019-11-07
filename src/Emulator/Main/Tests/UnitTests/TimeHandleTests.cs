@@ -83,33 +83,6 @@ namespace UnitTests
         }
 
         [Test]
-        public void ShouldCallUnblockHandleAsResultOfRequestingTimeIntervalOnBlockedHandle()
-        {
-            RequestOnSink();
-            GrantOnSource();
-            WaitOnSource();
-            BreakOnSink();
-            Assert.AreEqual(0, tsource.UnblockCounter);
-            RequestOnSink().ShouldFinish();
-            Assert.AreEqual(1, tsource.UnblockCounter);
-            Finish();
-        }
-
-        [Test]
-        public void ShouldNotCallUnblockHandleAsResultOfRequestingTimeIntervalOnUnblockedHandle()
-        {
-            GrantOnSource();
-            RequestOnSink();
-            ContinueOnSink();
-            WaitOnSource();
-            GrantOnSource();
-            Assert.AreEqual(0, tsource.UnblockCounter);
-            RequestOnSink().ShouldFinish();
-            Assert.AreEqual(0, tsource.UnblockCounter);
-            Finish();
-        }
-
-        [Test]
         public void HandleShouldNotBeReadyForNewTimeGrantAfterDispose()
         {
             DisposeOnExternal();
@@ -271,23 +244,6 @@ namespace UnitTests
         }
 
         [Test]
-        public void RequestShouldReturnDifferentValuesDependingOnSideEnabledState()
-        {
-            var r = RequestOnSink().ShouldBlock();
-            GrantOnSource();
-            r.ShouldFinish();
-            BreakOnSink();
-            WaitOnSource().ShouldFinish();
-            SetSourceSideActiveOnExternal(false);
-            RequestOnSink().ShouldFinish(Tuple.Create(false, TimeInterval.Empty));
-            SetSourceSideActiveOnExternal(true);
-            RequestOnSink().ShouldFinish();
-            Finish();
-
-            ShouldRequestReturn(true, TimeInterval.Empty);
-        }
-
-        [Test]
         public void DisablingHanldeSinkSideShouldFinishRequest()
         {
             var r = RequestOnSink().ShouldBlock();
@@ -324,14 +280,13 @@ namespace UnitTests
         {
             GrantOnSource();
             WaitOnSource().ShouldFinish(Tuple.Create(false, false, TimeInterval.Empty));
-            RequestOnSink().ShouldFinish();
+            var r = RequestOnSink().ShouldBlock();
+            UnblockOnSource();
+            r.ShouldFinish(Tuple.Create(true, interval));
             var w = WaitOnSource().ShouldBlock();
             BreakOnSink();
-            w.ShouldFinish();
+            w.ShouldFinish(Tuple.Create(false, true, interval));
             Finish();
-
-            ShouldRequestReturn(true, interval);
-            ShouldWaitReturn(false, false, interval);
         }
 
         [Test]
@@ -368,14 +323,13 @@ namespace UnitTests
         {
             GrantOnSource();
             WaitOnSource().ShouldFinish(Tuple.Create(false, false, TimeInterval.Empty));
-            RequestOnSink().ShouldFinish();
+            var r = RequestOnSink().ShouldBlock();
+            UnblockOnSource();
+            r.ShouldFinish(Tuple.Create(true, interval));
             var w = WaitOnSource().ShouldBlock();
             ContinueOnSink();
-            w.ShouldFinish();
+            w.ShouldFinish(Tuple.Create(true, true, interval));
             Finish();
-
-            ShouldRequestReturn(true, interval);
-            ShouldWaitReturn(true, false, interval);
         }
 
         [Test]
@@ -488,17 +442,29 @@ namespace UnitTests
         }
 
         [Test]
-        public void FirstRequestAfterBreakShouldNotBlock()
+        public void RequestAfterBreakShouldBlockWaitingForUnblock()
         {
             var r = RequestOnSink().ShouldBlock();
             GrantOnSource();
             r.ShouldFinish(Tuple.Create(true, interval));
             BreakOnSink();
             WaitOnSource().ShouldFinish(Tuple.Create(false, false, interval));
-            RequestOnSink().ShouldFinish();
+            RequestOnSink().ShouldBlock();
             Finish();
+        }
 
-            ShouldRequestReturn(true, TimeInterval.Empty);
+        [Test]
+        public void ShouldUnblockHandle()
+        {
+            var r = RequestOnSink().ShouldBlock();
+            GrantOnSource();
+            r.ShouldFinish(Tuple.Create(true, interval));
+            BreakOnSink();
+            WaitOnSource().ShouldFinish(Tuple.Create(false, false, interval));
+            r = RequestOnSink().ShouldBlock();
+            UnblockOnSource().ShouldFinish();
+            r.ShouldFinish(Tuple.Create(true, TimeInterval.Empty));
+            Finish();
         }
 
         [Test]
@@ -574,6 +540,12 @@ namespace UnitTests
         {
             // granting should never block
             return tester.Execute(sourceThread, () => { handle.GrantTimeInterval(interval); return null; }, "Grant").ShouldFinish();
+        }
+
+        private ThreadSyncTester.ExecutionResult UnblockOnSource()
+        {
+            // unblocking should never block
+            return tester.Execute(sourceThread, () => { var r = handle.UnblockHandle(); return r; }, "Unblock").ShouldFinish();
         }
 
         private ThreadSyncTester.ExecutionResult WaitOnSource()
@@ -672,12 +644,6 @@ namespace UnitTests
                 throw new NotImplementedException();
             }
 
-            public bool UnblockHandle(TimeHandle h)
-            {
-                UnblockCounter++;
-                return true;
-            }
-
             public void ReportHandleActive()
             {
             }
@@ -685,8 +651,6 @@ namespace UnitTests
             public void ReportTimeProgress()
             {
             }
-
-            public int UnblockCounter { get; private set; }
         }
 
         private class MockTimeSink : ITimeSink

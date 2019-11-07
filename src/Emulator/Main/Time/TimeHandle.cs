@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Time
         //                                 +--------+
         // Latch                       ->  |        |
         // ...                             |        |
-        // (Grant + (Latch))           ->  |        |  <-  Request* + (Unblock + Latch)
+        // (Grant / Unblock + (Latch)) ->  |        |  <-  Request* + (Latch)
         // ...                             |  Time  |      ...
         // WaitUntilDone* + (Unlatch)  ->  | Handle |  <-  ReportBreak / ReportContinue
         // ...                             |        |
@@ -43,18 +43,19 @@ namespace Antmicro.Renode.Time
         //
         //
         // Methods marked with '*' are blocking:
-        // * `Request` will block until `Grant`
+        // * `Request` will block until `Grant` or `Unblock`
         // * `WaitUntilDone` will block until `ReportBreak` or `ReportContinue`
         //
         // Methods surrounded with '()' are executed conditionally:
         // * `Latch` as a result of `Request` is executed only if this is the first `Request` after `ReportBreak`
         // * `Unlatch` as a result of `WaitUntilDone` is executed only if this is the first `WaitUntilDone` after successful unblocking of the handle
         // * `Grant` is not executed as long as the previous `WaitUntilDone` does not finish successfully, returning `true`
+        // * `Unlock` is executed only when the previous `WaitUntilDone` returned `false`
         //
         //
         // SOURCE SIDE simplified algorithm:
         // (1)  `Latch` the handle
-        // (2?) `Grant` time or skip the step if previous `WaitUntilDone` failed
+        // (2?) `Grant` time or `Unblock` the handle if previous `WaitUntilDone` failed
         // (3)  Call `WaitUntilDone`
         // (4)  `Unlatch` the handle
         // (5)  Go to p. (1)
@@ -76,7 +77,7 @@ namespace Antmicro.Renode.Time
         // Internal state:
         // * `sourceSideInProgress` - `true` from  `Grant`                            to  `WaitUntilDone` or `Dispose`
         // * `sinkSideInProgress`   - `true` from  `Request`                          to  `ReportBreak` or `ReportContinue` or `Dispose`
-        // * `grantPending`         - `true` from  `Grant`                            to  `Request`
+        // * `grantPending`         - `true` from  `Grant` or `Unblock`               to  `Request`
         // * `reportPending`        - `true` from  `ReportBreak` or `ReportContinue`  to  `WaitUntilDone`
         // * `isBlocking`           - `true` from  `ReportBreak`                      to  `Request`
         //
@@ -88,7 +89,7 @@ namespace Antmicro.Renode.Time
         // 2. When the handle is `disabled`, it does not inform the sink about passed time but immediately reports back, thus not blocking execution of other handles.
         //
         // 3. The handle is not allowed to resume the execution after reporting a break, without the explicit permission obtained from the time source.
-        // This is why `Request` calls and waits for the result of `UnblockHandle` when executed in a blocking state.
+        // This is why the call of `Request` waits for the `UnblockHandle` when executed in a blocking state.
         // Once the permission is granted, the handle uses what is left from the previous quantum instead of waiting for a new one.
         //
         // 4. Latching is needed to ensure that the handle will not become disabled/re-enabled in an arbitrary moment.
@@ -160,6 +161,33 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Allows to continue execution of previously granted time interval.
+        /// </summary>
+        /// <remarks>
+        /// This method is called by <see cref="ITimeSource"/> and results in unblocking execution of all registered <see cref="ITimeSink"/> in order to finish execution of previously granted period.
+        /// It is illegal to call this method twice in a row. It must be followed by calling <see cref="WaitUntilDone"/>.
+        /// </remarks>
+        public bool UnblockHandle()
+        {
+            this.Trace();
+            lock(innerLock)
+            {
+                Debug.Assert(isBlocking, "This handle should be blocking");
+
+                if(!waitsToBeUnblocked)
+                {
+                    return false;
+                }
+
+                waitsToBeUnblocked = false;
+                grantPending = true;
+
+                Monitor.PulseAll(innerLock);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Used by the slave to requests a new time interval from the source.
         /// This method blocks current thread until the time interval is granted.
         /// </summary>
@@ -201,32 +229,43 @@ namespace Antmicro.Renode.Time
                     {
                         // we check SourceSideActive here as otherwise unblocking will not succeed anyway
                         DebugHelper.Assert(!grantPending, "New grant not expected when blocked.");
+                        DebugHelper.Assert(!waitsToBeUnblocked, "Should not wait to be unblocked");
 
-                        this.Trace("Asking time source to unblock the time handle");
-                        // latching here is to protect against disabling Enabled that would lead to making IsBlocking false while waiting for unblocking this handle
-                        Latch();
-                        Monitor.Exit(innerLock);
-                        // it is necessary to leave `innerLock` since calling `UnblockHandle` could lead to a deadlock on `handles` collection
-                        var isHandleUnblocked = TimeSource.UnblockHandle(this);
-                        Monitor.Enter(innerLock);
-                        if(!isHandleUnblocked)
+                        // we cannot latch again when deferredUnlatch is still on as we could overwrite it and never unlatch again
+                        innerLock.WaitWhile(() => deferredUnlatch && SourceSideActive, "Waiting for previous unlatch");
+                        if(!SourceSideActive)
                         {
-                            Unlatch();
-                            this.Trace("Unblocking handle is not allowed, quitting");
                             result = false;
                         }
                         else
                         {
-                            this.Trace("Handle unblocked");
-                            // since we are latched here, latchLevel 1 means that the handle is not currently latched by anybody else
-                            // why? this is needed as we change the value of isBlocking - this should not happen when the handle is latched by another thread
-                            this.Trace("About to wait until the latch reduces to 1");
-                            innerLock.WaitWhile(() => latchLevel > 1, "Waiting for reducing the latch to 1");
-                            isBlocking = false;
+                            this.Trace("Asking time source to unblock the time handle");
+                            // latching here is to protect against disabling Enabled that would lead to making IsBlocking false while waiting for unblocking this handle
+                            Latch();
 
-                            DebugHelper.Assert(!deferredUnlatch, "Unexpected value of deferredUnlatch");
-                            deferredUnlatch = true;
-                            recentlyUnblocked = true;
+                            waitsToBeUnblocked = true;
+                            innerLock.WaitWhile(() => waitsToBeUnblocked && SourceSideActive, "Waiting to be unblocked");
+                            if(!SourceSideActive)
+                            {
+                                DebugHelper.Assert(waitsToBeUnblocked, "Expected only one condition to change");
+
+                                Unlatch();
+                                waitsToBeUnblocked = false;
+                                result = false;
+
+                                this.Trace("Unblocking handle is not allowed, quitting");
+                            }
+                            else
+                            {
+                                DebugHelper.Assert(!waitsToBeUnblocked, "Should not wait to be unblocked here");
+                                DebugHelper.Assert(!deferredUnlatch, "Unexpected value of deferredUnlatch");
+
+                                deferredUnlatch = true;
+                                recentlyUnblocked = true;
+                                isBlocking = false;
+
+                                this.Trace("Handle unblocked");
+                            }
                         }
                     }
                 }
@@ -397,8 +436,18 @@ namespace Antmicro.Renode.Time
                     // the only exception is if `reportPending` is set which means that we should first return value as set be the previous Report{Continue,Break}
 
                     this.Trace("Forcing result to be false");
-                    isDone = false;
+
+                    // being here means that the sink has not yet
+                    // seen the granted interval, so we can act
+                    // as if it called ReportBackAndBreak
+                    grantPending = false;
+                    isBlocking = true;
                     intervalUsed = TimeInterval.Empty;
+                    isDone = false;
+                    // intervalGranted does not change
+
+                    Monitor.PulseAll(innerLock);
+                    this.Trace();
                 }
 
                 Debugging.DebugHelper.Assert(reportedSoFar <= intervalUsed);
@@ -698,6 +747,10 @@ namespace Antmicro.Renode.Time
         /// The amount of time left from previous grant that was not used but reported back in <see cref="WaitUntilDone"/>.
         /// </summary>
         private TimeInterval timeResiduum;
+        /// <summary>
+        /// Flag is set when the handle is actively waiting to be unblocked
+        /// </summary>
+        private bool waitsToBeUnblocked;
 
         private bool enabled;
         private bool sinkSideActive;
