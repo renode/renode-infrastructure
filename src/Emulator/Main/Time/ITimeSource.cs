@@ -47,17 +47,6 @@ namespace Antmicro.Renode.Time
         void RegisterSink(ITimeSink sink);
 
         /// <summary>
-        /// Used by a time sink to request clearance for execution after being blocked.
-        /// </summary>
-        /// <remarks>
-        /// It is illegal for a time sink to resume execution after being blocked before calling this method and receiving a clearance from the time source.
-        /// </remarks>
-        /// <returns>
-        /// True if the clearance is granted, false otherwise.
-        /// </returns>
-        bool UnblockHandle(TimeHandle handle);
-
-        /// <summary>
         /// Used by a time sink to inform that it became active again.
         /// </summary>
         void ReportHandleActive();
