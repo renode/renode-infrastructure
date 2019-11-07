@@ -15,6 +15,7 @@ namespace Antmicro.Renode.UnitTests.Utilities
     {
         public ThreadSyncTester()
         {
+            errors = new List<string>();
             threads = new List<TestThread>();
             LocalThread = new TestThread("local");
         }
@@ -26,6 +27,11 @@ namespace Antmicro.Renode.UnitTests.Utilities
                 t.Dispose();
             }
             LocalThread.Dispose();
+        }
+
+        public void ReportError(string errorString)
+        {
+            errors.Add(errorString);
         }
 
         public TestThread ObtainThread(string name)
@@ -52,6 +58,11 @@ namespace Antmicro.Renode.UnitTests.Utilities
                 t.CheckException();
             }
             LocalThread.Finish();
+
+            if(errors.Count > 0)
+            {
+                Assert.Fail("Got errors:\n" + string.Join("\n", errors));
+            }
         }
 
         public bool ExecutionFinished { get; private set; }
@@ -59,6 +70,7 @@ namespace Antmicro.Renode.UnitTests.Utilities
         public TestThread LocalThread { get; private set; }
 
         private readonly List<TestThread> threads;
+        private readonly List<string> errors;
 
         public class TestThread : IDisposable
         {
@@ -192,11 +204,14 @@ namespace Antmicro.Renode.UnitTests.Utilities
                 tester.Execute(tester.LocalThread, () => {
                     if(!actionFinished.WaitOne(BlockingThreshold))
                     {
-                        Assert.Fail($"Expected operation '{name}' to finish, but it looks like being stuck.");
+                        tester.ReportError($"Expected operation '{name}' to finish, but it looks like being stuck.");
                     }
                     if(result != null)
                     {
-                        Assert.AreEqual(result, Result, $"Expected another result of operation '{name}'");
+                        if(!result.Equals(Result))
+                        {
+                            tester.ReportError($"Expected {result} result of operation '{name}', but got {Result}");
+                        }
                     }
                     return null;
                 }, $"{name}: should finish");
@@ -208,7 +223,7 @@ namespace Antmicro.Renode.UnitTests.Utilities
                 tester.Execute(tester.LocalThread, () => {
                     if(actionFinished.WaitOne(BlockingThreshold))
                     {
-                        Assert.Fail($"Expected operation '{name}' to block, but it finished with result: {Result}.");
+                        tester.ReportError($"Expected operation '{name}' to block, but it finished with result: {Result}.");
                     }
                     return null;
                 }, $"{name}: should block");
