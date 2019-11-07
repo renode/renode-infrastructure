@@ -31,11 +31,20 @@ namespace Antmicro.Renode.Peripherals.SPI
             var registersMap = new Dictionary<long, DoubleWordRegister>()
             {
                 {(long)Registers.ChipSelectId, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out selectedSlave, name: "csid", changeCallback: (_, value) =>
+                    .WithValueField(0, 32, out selectedSlave, name: "csid", writeCallback: (previousValue, value) =>
                     {
                         if(!ChildCollection.ContainsKey(checked((int)value)))
                         {
                             this.Log(LogLevel.Warning, "Selected pin {0}, but there is no device connected to it.", value);
+                        }
+
+                        if(previousValue != value)
+                        {
+                            FinishTransmission();
+                        }
+                        else
+                        {
+                            ClearReceiveQueue();
                         }
                     })
                 },
@@ -43,6 +52,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.ChipSelectDefault, new DoubleWordRegister(this, (1u << numberOfSupportedSlaves) - 1)
                     // this field's width and reset value depend on a constructor parameter `numberOfSupportedSlaves`
                     .WithValueField(0, numberOfSupportedSlaves, name: "csdef")
+                },
+
+                {(long)Registers.ChipSelectMode, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, ChipSelectMode>(0, 2, name: "csmode",
+                        writeCallback: (_, val) =>
+                        {
+                            // means off
+                            if(val == ChipSelectMode.Auto)
+                            {
+                                FinishTransmission();
+                            }
+                        })
                 },
 
                 {(long)Registers.TxFifoData, new DoubleWordRegister(this, 0x0)
@@ -140,6 +161,27 @@ namespace Antmicro.Renode.Peripherals.SPI
                 || (receiveWatermarkInterruptEnable.Value && receiveWatermarkPending.Value));
         }
 
+        private void ClearReceiveQueue()
+        {
+            if(receiveQueue.Count > 0)
+            {
+                this.Log(LogLevel.Warning, "Clearing receive queue, but there are still {0} bytes there that will be lost...", receiveQueue.Count);
+            }
+
+            receiveQueue.Clear();
+            UpdateInterrupts();
+        }
+
+        private void FinishTransmission()
+        {
+            if(TryGetByAddress((int)selectedSlave.Value, out var slavePeripheral))
+            {
+                slavePeripheral.FinishTransmission();
+            }
+
+            ClearReceiveQueue();
+        }
+
         private readonly int csWidth;
         private readonly Queue<byte> receiveQueue;
         private readonly IFlagRegisterField transmitWatermarkInterruptEnable;
@@ -177,6 +219,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             // 0x68, 0x6C - reserved
             InterruptEnable = 0x70,
             InterruptPending = 0x74
+        }
+
+        private enum ChipSelectMode
+        {
+            Auto = 0x0, // Assert/deassert CS at the beginning/end of each frame
+            // 0x1 is undefined in the documentation
+            Hold = 0x2, // Keep CS continously asserted after the initial frame
+            Off = 0x3 // Disable hardware control of the CS pin
         }
     }
 }
