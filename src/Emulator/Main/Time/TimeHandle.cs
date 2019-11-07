@@ -589,6 +589,8 @@ namespace Antmicro.Renode.Time
             {
                 lock(innerLock)
                 {
+                    DebugHelper.Assert(!sinkSideInProgress, "Should not change sink side active state when sink is in progress");
+
                     this.Trace($"{value}");
                     sinkSideActive = value;
                     if(!sinkSideActive)
