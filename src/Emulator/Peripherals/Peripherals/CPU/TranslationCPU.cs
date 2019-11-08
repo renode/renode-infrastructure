@@ -1650,6 +1650,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void ActivateNewHooks()
+        {
+            lock(hooks)
+            {
+                foreach(var newHook in hooks.Where(x => x.Value.IsNew))
+                {
+                    newHook.Value.Activate();
+                }
+            }
+        }
+
         public void RemoveAllHooks()
         {
             lock(hooks)
@@ -1720,6 +1731,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // and makes timers update independent of the current quantum
                 var toExecute = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
 
+                ActivateNewHooks();
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
                 this.Trace($"CPU executed {executed} instructions and returned {result}");
@@ -2000,6 +2012,7 @@ restart:
                 this.cpu = cpu;
                 this.address = address;
                 callbacks = new HashSet<Action<ICpuSupportingGdb, ulong>>();
+                IsNew = true;
             }
 
             public void ExecuteCallbacks()
@@ -2013,7 +2026,6 @@ restart:
             public void AddCallback(Action<ICpuSupportingGdb, ulong> action)
             {
                 callbacks.Add(action);
-                Activate();
             }
 
             public bool RemoveCallback(Action<ICpuSupportingGdb, ulong> action)
@@ -2038,6 +2050,7 @@ restart:
 
                 cpu.TlibAddBreakpoint(address);
                 IsActive = true;
+                IsNew = false;
             }
 
             /// <summary>
@@ -2056,6 +2069,7 @@ restart:
 
             public bool IsEmpty { get { return !callbacks.Any(); } }
             public bool IsActive { get; private set; }
+            public bool IsNew { get; private set; }
 
             private readonly ulong address;
             private readonly TranslationCPU cpu;
