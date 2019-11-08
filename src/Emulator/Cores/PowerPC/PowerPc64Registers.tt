@@ -1,0 +1,20 @@
+﻿<#
+//
+// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2011-2015 Realtime Embedded
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
+<#
+    CLASS_NAME = "PowerPc64";
+    HEADER_FILE = "Emulator/Cores/tlib/arch/ppc64/cpu_registers.h";
+
+    PC_REGISTER = "NIP";
+
+    GENERAL_REGISTERS.AddRange(new[] { "PC" });
+#>
+<#@ include file="../Common/RegisterTemplate.tt" #>
