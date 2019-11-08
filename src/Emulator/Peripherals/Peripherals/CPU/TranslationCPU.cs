@@ -294,6 +294,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     if(executionMode == ExecutionMode.SingleStep)
                     {
                         TlibSetReturnRequest();
+                        IsHalted = true;
+                    }
+                    else
+                    {
+                        IsHalted = false;
                     }
                 }
             }
@@ -784,8 +789,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Resume();
 
                 this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
+                if(IsHalted)
+                {
+                    IsHalted = false;
+                }
                 singleStepSynchronizer.CommandStep(count);
                 singleStepSynchronizer.WaitForStepFinished();
+                IsHalted = true;
 
                 return PC;
             }
@@ -1426,18 +1436,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                     isHalted = value;
                     if(TimeHandle != null)
                     {
-                        if(insideBlockHook || !OnPossessedThread)
-                        {
-                            this.Trace();
-                            // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
-                            TimeHandle.DeferredEnabled = !value;
-                        }
-                        else
-                        {
-                            this.Trace();
-                            // this is needed to quit 'RequestTimeInterval'
-                            TimeHandle.Enabled = !value;
-                        }
+                        this.Trace();
+                        // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                        TimeHandle.DeferredEnabled = !value;
+                    }
+                    if(isHalted)
+                    {
+                        TlibSetReturnRequest();
                     }
                 }
             }
