@@ -34,6 +34,8 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
 
         private void ProcessCommandData(string data)
         {
+            // ATM we support only all-stop mode, so if we receive a `step` request in the packet we skip the `continue` request
+            var skipContinue = data.Contains('s') && data.Contains('c');
             var cpuIdsToHandle = new HashSet<uint>(manager.ManagedCpus.Keys);
             foreach(var pair in data.Split(';'))
             {
@@ -43,6 +45,10 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                 if(pair.Length > 1)
                 {
                     coreId = int.Parse(operation[1]);
+                }
+                if(skipContinue && operation[0] == "c")
+                {
+                    continue;
                 }
                 ManageOperation(operation[0], coreId, cpuIdsToHandle);
             }
@@ -57,6 +63,10 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     {
                         foreach(var id in managedCpuIds)
                         {
+                            if(manager.ManagedCpus[id].IsHalted)
+                            {
+                                manager.ManagedCpus[id].IsHalted = false;
+                            }
                             manager.ManagedCpus[id].ExecutionMode = ExecutionMode.Continuous;
                             manager.ManagedCpus[id].Resume();
                         }

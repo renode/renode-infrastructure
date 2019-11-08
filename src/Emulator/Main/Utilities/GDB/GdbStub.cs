@@ -93,6 +93,10 @@ namespace Antmicro.Renode.Utilities.GDB
                     case BreakpointType.ReadWatchpoint:
                     case BreakpointType.HardwareBreakpoint:
                     case BreakpointType.MemoryBreakpoint:
+                        foreach(var cpu in commandsManager.ManagedCpus.Values)
+                        {
+                            cpu.IsHalted = true;
+                        }
                         if(commandsManager.Machine.SystemBus.IsMultiCore)
                         {
                             commandsManager.SelectCpuForDebugging(cpuId);
@@ -144,10 +148,11 @@ namespace Antmicro.Renode.Utilities.GDB
                 {
                     commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
                 }
-                // we need to pause CPU in order to escape infinite loops
-                commandsManager.Cpu.Pause();
+                foreach(var cpu in commandsManager.ManagedCpus.Values)
+                {
+                    cpu.IsHalted = true;
+                }
                 commandsManager.Cpu.ExecutionMode = ExecutionMode.SingleStep;
-                commandsManager.Cpu.Resume();
                 return;
             }
 
