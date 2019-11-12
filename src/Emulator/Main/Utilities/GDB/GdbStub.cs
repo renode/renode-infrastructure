@@ -150,9 +150,8 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
                 foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
-                    cpu.IsHalted = true;
+                    cpu.ExecutionMode = ExecutionMode.SingleStep;
                 }
-                commandsManager.Cpu.ExecutionMode = ExecutionMode.SingleStep;
                 return;
             }
 
