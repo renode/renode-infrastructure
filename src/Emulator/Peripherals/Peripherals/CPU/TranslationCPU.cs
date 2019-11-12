@@ -291,15 +291,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     executionMode = value;
                     singleStepSynchronizer.Enabled = (executionMode == ExecutionMode.SingleStep);
                     UpdateBlockBeginHookPresent();
-                    if(executionMode == ExecutionMode.SingleStep)
-                    {
-                        TlibSetReturnRequest();
-                        IsHalted = true;
-                    }
-                    else
-                    {
-                        IsHalted = false;
-                    }
+                    IsHalted = (executionMode == ExecutionMode.SingleStep);
                 }
             }
         }
@@ -385,7 +377,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             lock(pauseLock)
             {
-                if(isHalted || isAborted || !isPaused)
+                if(isAborted || !isPaused)
                 {
                     return;
                 }
