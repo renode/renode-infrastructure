@@ -54,7 +54,12 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public void SelectCpuForDebugging(uint cpuNumber)
         {
-            if(!ManagedCpus.ContainsKey(cpuNumber))
+            if(cpuNumber == 0)
+            {
+                // the documentation states that `0` indicates an arbitrary process or thread, so we will take the first one
+                cpuNumber = 1;
+            }
+            else if(!ManagedCpus.ContainsKey(cpuNumber))
             {
                 Logger.Log(LogLevel.Error, "Tried to set invalid CPU number: {0}", cpuNumber);
                 return;
