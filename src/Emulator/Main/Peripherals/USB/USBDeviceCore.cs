@@ -97,11 +97,13 @@ namespace Antmicro.Renode.Core.USB
         {
             var result = BitStream.Empty;
 
+            device.Log(LogLevel.Noisy, "Handling setup packet: {0}", packet);
+
             if(customSetupPacketHandler != null)
             {
                 customSetupPacketHandler(packet, additionalData, receivedBytes =>
                 {
-                    resultCallback(receivedBytes);
+                    SendSetupResult(resultCallback, receivedBytes);
                 });
             }
             else
@@ -130,8 +132,17 @@ namespace Antmicro.Renode.Core.USB
                         break;
                 }
 
-                resultCallback(result.AsByteArray(packet.Count * 8u));
+                SendSetupResult(resultCallback, result.AsByteArray(packet.Count * 8u));
             }
+        }
+
+        private void SendSetupResult(Action<byte[]> resultCallback, byte[] result)
+        {
+            device.Log(LogLevel.Noisy, "Sending setup packet response of length {0}", result.Length);
+#if DEBUG_PACKET
+            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(result));
+#endif
+            resultCallback(result);
         }
 
         private BitStream HandleRequest(SetupPacket packet)
