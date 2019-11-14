@@ -93,7 +93,13 @@ namespace Antmicro.Renode.Core.USB.HID
 
         private enum HidClassRequest
         {
-            SetIdle = 0xa
+            GetReport = 0x1,
+            GetIdle = 0x2,
+            GetProtocol = 0x3,
+            // 0x4 - 0x8: reserved
+            SetReport = 0x9,
+            SetIdle = 0xa,
+            SetProtocol = 0xb
         }
     }
 }
