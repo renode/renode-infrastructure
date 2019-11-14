@@ -40,6 +40,11 @@ namespace Antmicro.Renode.Peripherals.USB
                 throw new RecoverableException("No USB keyboard attached to the host. Did you forget to call 'host AttachUSBKeyboard'?");
             }
 
+            keyboard.TypeText(text);
+        }
+
+        public static void TypeText(this USBKeyboard keyboard, string text)
+        {
             foreach(var character in text)
             {
                 foreach(var scanCode in character.ToKeyScanCodes())
