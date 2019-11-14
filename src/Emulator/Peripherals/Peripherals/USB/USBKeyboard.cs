@@ -10,6 +10,7 @@ using Antmicro.Renode.Extensions.Utilities.USBIP;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
@@ -82,6 +83,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Press(KeyScanCode scanCode)
         {
+            this.Log(LogLevel.Noisy, "Pressing {0}", scanCode);
             if(!UpdateModifiers(scanCode, true))
             {
                 pressedKey = (byte)((int)scanCode & 0x7f);
@@ -91,6 +93,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Release(KeyScanCode scanCode)
         {
+            this.Log(LogLevel.Noisy, "Releasing {0}", scanCode);
             if(!UpdateModifiers(scanCode, false))
             {
                 pressedKey = 0;
