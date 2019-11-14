@@ -67,12 +67,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.TxFifoWatermark, new DoubleWordRegister(this, isFlashEnabled ? 0x1 : 0x0u)
-                    .WithValueField(0, 2, out transmitWatermark, writeCallback: (_, __) => UpdateInterrupts(), name: "txmark")
+                    .WithValueField(0, 3, out transmitWatermark, writeCallback: (_, __) => UpdateInterrupts(), name: "txmark")
                     .WithReservedBits(3, 29)
                 },
 
                 {(long)Registers.RxFifoWatermark, new DoubleWordRegister(this, 0x0)
-                    .WithValueField(0, 2, out receiveWatermark, writeCallback: (_, __) => UpdateInterrupts(), name: "rxmark")
+                    .WithValueField(0, 3, out receiveWatermark, writeCallback: (_, __) => UpdateInterrupts(), name: "rxmark")
                     .WithReservedBits(3, 29)
                 },
 
