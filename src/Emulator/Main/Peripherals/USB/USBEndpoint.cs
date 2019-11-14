@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Core.USB
 
             if(result.Count() > limit)
             {
-                Logger.Log(LogLevel.Warning, "Read more data from the USB endpoint ({0}) than limit ({1}). Some bytes will be dropped, expect problems!");
+                Logger.Log(LogLevel.Warning, "Read more data from the USB endpoint ({0}) than limit ({1}). Some bytes will be dropped, expect problems!", result.Count(), limit);
                 result = result.Take((int)limit);
             }
 
