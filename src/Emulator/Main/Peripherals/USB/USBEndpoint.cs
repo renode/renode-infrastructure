@@ -65,7 +65,19 @@ namespace Antmicro.Renode.Core.USB
                 return;
             }
 
-            dataWritten?.Invoke(packet);
+            device.Log(LogLevel.Noisy, "Writing {0} bytes of data", packet.Length);
+#if DEBUG_PACKETS
+            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(packet));
+#endif
+
+            var dw = dataWritten;
+            if(dw == null)
+            {
+                device.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
+                return;
+            }
+
+            dw(packet);
         }
 
         public PacketCreator PreparePacket()
@@ -82,8 +94,13 @@ namespace Antmicro.Renode.Core.USB
         {
             lock(buffer)
             {
+                device.Log(LogLevel.Noisy, "Data read callback set");
                 if(buffer.Count > 0)
                 {
+                    device.Log(LogLevel.Noisy, "Data read callback fired");
+#if DEBUG_PACKETS
+                    device.Log(LogLevel.Noisy, "Sending back {0} bytes: {1}", buffer.Peek().Count(), Misc.PrettyPrintCollectionHex(buffer.Peek()));
+#endif
                     callback(this, buffer.Dequeue());
                 }
                 else
@@ -146,6 +163,11 @@ namespace Antmicro.Renode.Core.USB
         {
             lock(buffer)
             {
+                device.Log(LogLevel.Noisy, "Handling data packet of size: {0}", data.Count);
+#if DEBUG_PACKETS
+                device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
+#endif
+
                 // split packet into chunks of size not exceeding `MaximumPacketSize`
                 var offset = 0;
                 while(offset < data.Count)
@@ -154,6 +176,9 @@ namespace Antmicro.Renode.Core.USB
                     var chunk = data.Skip(offset).Take(toTake);
                     offset += toTake;
                     buffer.Enqueue(chunk);
+#if DEBUG_PACKETS
+                    device.Log(LogLevel.Noisy, "Enqueuing chunk of {0} bytes: {1}", chunk.Count(), Misc.PrettyPrintCollectionHex(chunk));
+#endif
 
                     if(offset == data.Count && toTake == MaximumPacketSize)
                     {
@@ -162,6 +187,7 @@ namespace Antmicro.Renode.Core.USB
                         // in case there is no data to send, empty chunk
                         // is generated
                         buffer.Enqueue(new byte[0]);
+                        device.Log(LogLevel.Noisy, "Enqueuing end of packet marker");
                     }
                 }
 
