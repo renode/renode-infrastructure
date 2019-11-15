@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Utilities
 
         public override string ToString()
         {
-            return Misc.PrettyPrintCollection(segments, x => $"0x{(x.ToString("x"))}");
+            return Misc.PrettyPrintCollectionHex(segments);
         }
 
         public uint Length { get; private set; }

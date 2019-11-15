@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             server.Send(bytes);
 
 #if DEBUG_PACKETS
-            this.Log(LogLevel.Noisy, "Count {0}: {1}", bytes.Count(), Misc.PrettyPrintCollection(bytes, x => "0x{0:X}".FormatWith(x)));
+            this.Log(LogLevel.Noisy, "Count {0}: {1}", bytes.Count(), Misc.PrettyPrintCollectionHex(bytes));
 #endif
         }
 
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                             this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
                             var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
 #if DEBUG_PACKETS
-                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollection(response, x => "0x{0:X}".FormatWith(x)));
+                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
 #endif
                             SendResponse(GenerateURBReply(urbHeader, packet, response));
                         }

@@ -985,6 +985,11 @@ namespace Antmicro.Renode.Utilities
                 : $"[{(string.Join(", ", collection.Select(x => formatter == null ? x.ToString() : formatter(x))))}]";
         }
 
+        public static string PrettyPrintCollectionHex<T>(IEnumerable<T> collection)
+        {
+            return PrettyPrintCollection(collection, x => "0x{0:X}".FormatWith(x));
+        }
+
         public static UInt32 ToUInt32Smart(this byte[] @this)
         {
             if(@this.Length > 4)
