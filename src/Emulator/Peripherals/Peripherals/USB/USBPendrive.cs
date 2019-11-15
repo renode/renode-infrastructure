@@ -61,13 +61,13 @@ namespace Antmicro.Renode.Peripherals.USB
                         x.WithEndpoint(
                             Direction.HostToDevice,
                             EndpointTransferType.Bulk,
-                            USBBlockSize,
+                            MaximumPacketSize,
                             0x10,
                             out hostToDeviceEndpoint)
                         .WithEndpoint(
                             Direction.DeviceToHost,
                             EndpointTransferType.Bulk,
-                            USBBlockSize,
+                            MaximumPacketSize,
                             0x10,
                             out deviceToHostEndpoint))
                 );
@@ -220,7 +220,10 @@ namespace Antmicro.Renode.Peripherals.USB
         private object writeCommandDescriptor;
         private readonly Stream dataBackend;
 
-        private const int USBBlockSize = 512;
+        // 64 is a maximum value for USB 2.0 low/full-speed devices;
+        // 512 is allowed only for high-speed devices that
+        // might not be supported by all USB host controllers (i.e., MAX3421E)
+        private const int MaximumPacketSize = 64;
 
         private enum Mode
         {
