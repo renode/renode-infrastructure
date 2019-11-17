@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 }
             }
 
-            remove 
+            remove
             {
                 configurationChanged -= value;
             }
