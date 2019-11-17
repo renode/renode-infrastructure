@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         public abstract void Reset();
 
-        protected void Reconfigure(int? width = null, int? height = null, PixelFormat? format = null)
+        protected void Reconfigure(int? width = null, int? height = null, PixelFormat? format = null, bool autoRepaint = true)
         {
             lock(innerLock)
             {
@@ -87,7 +87,14 @@ namespace Antmicro.Renode.Peripherals.Video
                     {
                         cc(Width, Height, Format, Endianess);
                     }
-                    repainter.Start();
+                    if(autoRepaint)
+                    {
+                        repainter.Start();
+                    }
+                    else
+                    {
+                        repainter.Stop();
+                    }
                 }
                 else
                 {
@@ -98,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected abstract void Repaint();
 
-        private void DoRepaint()
+        protected void DoRepaint()
         {
             if(buffer != null)
             {
