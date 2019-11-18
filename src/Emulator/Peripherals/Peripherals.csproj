@@ -293,7 +293,7 @@
     <Compile Include="Peripherals\SPI\LiteX_SPI.cs" />
     <Compile Include="Peripherals\SD\SDCapacity.cs" />
     <Compile Include="Peripherals\MTD\EFR32xg13FlashController.cs" />
-    <Compile Include="Peripherals\USB\ValentyUSB.cs" />
+    <Compile Include="Peripherals\USB\ValentyUSB_EPFIFO.cs" />
     <Compile Include="Peripherals\I2C\LiteX_I2C.cs" />
     <Compile Include="Peripherals\SPI\PicoRV_SPI.cs" />
     <Compile Include="Peripherals\Video\LiteX_Framebuffer.cs" />
