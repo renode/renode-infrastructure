@@ -1010,12 +1010,15 @@ namespace Antmicro.Renode.Utilities
                 second ?? @this.Second);
         }
 
-        public static void EnqueueRange<T>(this Queue<T> @this, IEnumerable<T> data, int? limit = null)
+        public static int EnqueueRange<T>(this Queue<T> @this, IEnumerable<T> data, int? limit = null)
         {
+            var counter = 0;
             foreach(var e in data.Take(limit ?? int.MaxValue))
             {
                 @this.Enqueue(e);
+                counter++;
             }
+            return counter;
         }
 
         public static T[] DequeueRange<T>(this Queue<T> @this, int limit)
