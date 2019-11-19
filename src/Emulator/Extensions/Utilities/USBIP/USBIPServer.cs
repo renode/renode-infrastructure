@@ -237,14 +237,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                             ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
                             : null;
 
-                        device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
+                        device.USBCore.ControlEndpoint.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                         {
                             SendResponse(GenerateURBReply(urbHeader, packet, response));
                         });
                     }
                     else
                     {
-                        var ep = device.USBCore.GetEndpoint((int)urbHeader.EndpointNumber);
+                        var ep = device.USBCore.GetEndpoint((Direction)urbHeader.Direction, (int)urbHeader.EndpointNumber);
                         if(ep == null)
                         {
                             this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);
@@ -344,7 +344,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             byte[] result = null;
 
             var mre = new ManualResetEvent(false);
-            device.USBCore.HandleSetupPacket(setupPacket, received =>
+            device.USBCore.ControlEndpoint.HandleSetupPacket(setupPacket, received =>
             {
                 result = received;
                 mre.Set();

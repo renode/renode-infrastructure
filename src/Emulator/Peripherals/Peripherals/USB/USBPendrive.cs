@@ -58,13 +58,13 @@ namespace Antmicro.Renode.Peripherals.USB
                     (byte)Core.USB.MSC.Subclass.ScsiTransparentCommandSet,
                     (byte)Core.USB.MSC.Protocol.BulkOnlyTransport,
                     configure: x =>
-                        x.WithEndpoint(
+                        x.WithEndpoint(1,
                             Direction.HostToDevice,
                             EndpointTransferType.Bulk,
                             MaximumPacketSize,
                             0x10,
                             out hostToDeviceEndpoint)
-                        .WithEndpoint(
+                        .WithEndpoint(1,
                             Direction.DeviceToHost,
                             EndpointTransferType.Bulk,
                             MaximumPacketSize,

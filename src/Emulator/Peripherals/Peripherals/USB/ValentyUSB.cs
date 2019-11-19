@@ -23,7 +23,8 @@ namespace Antmicro.Renode.Peripherals.USB
         public ValentyUSB(Machine machine, int maximumPacketSize = 64) : base(machine)
         {
             maxPacketSize = maximumPacketSize;
-            USBCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);
+            USBCore = new USBDeviceCore(this);
+            USBCore.ControlEndpoint.CustomSetupPacketHandler = SetupPacketHandler;
             DefineRegisters();
         }
 
@@ -329,7 +330,7 @@ namespace Antmicro.Renode.Peripherals.USB
         // the controller does not send two setup packets in a row (without waiting for a response),
         // or a device does not start to respond by itself (without the request from the master).
         // There are some checks verifying it and printing errors, but there is no mechanism enforcing it.
-        private void SetupPacketHandler(SetupPacket packet, byte[] additionalData, Action<byte[]> resultCallback)
+        private void SetupPacketHandler(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData)
         {
             this.Log(LogLevel.Noisy, "Received setup packet: {0}", packet.ToString());
 

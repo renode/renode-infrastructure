@@ -378,7 +378,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var packet = Packet.Decode<SetupPacket>(data);
-                            peripheral.USBCore.HandleSetupPacket(packet, receivedBytes =>
+                            peripheral.USBCore.ControlEndpoint.HandleSetupPacket(packet, receivedBytes =>
                             {
                                 fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
                                 txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
@@ -431,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            var endpoint = peripheral.USBCore.GetEndpoint((int)receiveTargetEndpointNumber[endpointId].Value);
+                            var endpoint = peripheral.USBCore.GetEndpoint(Direction.DeviceToHost, (int)receiveTargetEndpointNumber[endpointId].Value);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from a non-existing endpoint #{0}", receiveTargetEndpointNumber[endpointId].Value);
@@ -496,7 +496,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var mappedEndpointId = (int)transmitTargetEndpointNumber[endpointId].Value;
-                            var endpoint = peripheral.USBCore.GetEndpoint(mappedEndpointId);
+                            var endpoint = peripheral.USBCore.GetEndpoint(Direction.HostToDevice, mappedEndpointId);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to write to a non-existing endpoint #{0}", mappedEndpointId);
