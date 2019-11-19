@@ -60,9 +60,9 @@ namespace Antmicro.Renode.Peripherals.USB
                         protocol: (byte)Core.USB.HID.Protocol.Mouse,
                         reportDescriptor: new Core.USB.HID.ReportDescriptor(ReportHidDescriptor)),
                         configure: i =>
-                            i.WithEndpoint(
-                                Direction.DeviceToHost,
-                                EndpointTransferType.Interrupt,
+                            i.WithEndpoint(id: 1,
+                                direction: Direction.DeviceToHost,
+                                transferType: EndpointTransferType.Interrupt,
                                 maximumPacketSize: 0x4,
                                 interval: 0xa,
                                 createdEndpoint: out endpoint)));

@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -21,6 +22,11 @@ namespace Antmicro.Renode.Core.USB
                            short maximumPacketSize,
                            byte interval) : base(7, (byte)DescriptorType.Endpoint)
         {
+            if(identifier > 16)
+            {
+                throw new ConstructionException($"Endpoint id: {identifier} is out of range - only values from 0 to 15 are valid");
+            }
+
             this.core = core;
 
             Identifier = identifier;
@@ -126,11 +132,26 @@ namespace Antmicro.Renode.Core.USB
             return result.ToArray();
         }
 
+        public void HandleSetupPacket(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
+        {
+            var chsph = CustomSetupPacketHandler;
+            if(chsph == null)
+            {
+                core.Device.Log(LogLevel.Warning, "Received setup packet on endpoint {0}, but there is no handler. The data will be lost", Identifier);
+                resultCallback(new byte[0]);
+                return;
+            }
+
+            chsph(packet, resultCallback, additionalData);
+        }
+
         public byte Identifier { get; }
         public Direction Direction { get; }
         public EndpointTransferType TransferType { get; }
         public short MaximumPacketSize { get; }
         public byte Interval { get; }
+
+        public Action<SetupPacket, Action<byte[]>, byte[]> CustomSetupPacketHandler { get; set; }
 
         protected override void FillDescriptor(BitStream buffer)
         {

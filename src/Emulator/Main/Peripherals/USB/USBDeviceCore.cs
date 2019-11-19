@@ -28,8 +28,7 @@ namespace Antmicro.Renode.Core.USB
                              string productName = null,
                              string serialNumber = null,
                              ushort vendorId = 0,
-                             ushort productId = 0,
-                             Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler = null) : base(18, (byte)DescriptorType.Device)
+                             ushort productId = 0) : base(18, (byte)DescriptorType.Device)
         {
             if(maximalPacketSize != PacketSize.Size8
                 && maximalPacketSize != PacketSize.Size16
@@ -39,7 +38,6 @@ namespace Antmicro.Renode.Core.USB
                 throw new ConstructionException("Unsupported maximal packet size.");
             }
 
-            this.customSetupPacketHandler = customSetupPacketHandler;
             Device = device;
             configurations = new List<USBConfiguration>();
 
@@ -56,6 +54,18 @@ namespace Antmicro.Renode.Core.USB
             ProductId = productId;
 
             RegisterSubdescriptors(configurations);
+
+            controlEndpoints = new Dictionary<int, USBEndpoint>();
+            hostToDeviceEndpoints = new Dictionary<int, USBEndpoint>();
+            deviceToHostEndpoints = new Dictionary<int, USBEndpoint>();
+
+            controlEndpoints[0] = new USBEndpoint(this,
+                    identifier: 0,
+                    direction: Direction.DeviceToHost, // direction information is ignored for control endpoints
+                    transferType: EndpointTransferType.Control,
+                    maximumPacketSize: 64, //?!
+                    interval: 0); //?!
+            controlEndpoints[0].CustomSetupPacketHandler = HandleSetupPacketAutomatic;
         }
 
         public void Reset()
@@ -78,60 +88,54 @@ namespace Antmicro.Renode.Core.USB
             SelectedConfiguration = null;
         }
 
-        public USBEndpoint GetEndpoint(int endpointNumber)
+        public USBEndpoint GetEndpoint(Direction direction, int endpointNumber)
         {
-            if(SelectedConfiguration == null)
+            if(controlEndpoints.TryGetValue(endpointNumber, out var ctrl))
             {
-                return null;
+                return ctrl;
             }
 
-            foreach(var iface in SelectedConfiguration.Interfaces)
+            if(direction == Direction.DeviceToHost)
             {
-                return iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
+                return deviceToHostEndpoints.TryGetValue(endpointNumber, out var dth)
+                    ? dth
+                    : null;
             }
 
-            return null;
+            return hostToDeviceEndpoints.TryGetValue(endpointNumber, out var htd)
+                ? htd
+                : null;
         }
 
-        public void HandleSetupPacket(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
+        public USBEndpoint ControlEndpoint => controlEndpoints[0];
+
+        private void HandleSetupPacketAutomatic(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
         {
             var result = BitStream.Empty;
-
-            if(customSetupPacketHandler != null)
+            switch(packet.Recipient)
             {
-                customSetupPacketHandler(packet, additionalData, receivedBytes =>
-                {
-                    resultCallback(receivedBytes);
-                });
+                case PacketRecipient.Device:
+                    result = HandleRequest(packet);
+                    break;
+                case PacketRecipient.Interface:
+                    if(SelectedConfiguration == null)
+                    {
+                        Device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
+                        resultCallback(new byte[0]);
+                    }
+                    var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
+                    if(iface == null)
+                    {
+                        Device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
+                    }
+                    result = iface.HandleRequest(packet);
+                    break;
+                default:
+                    Device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
+                    break;
             }
-            else
-            {
-                switch(packet.Recipient)
-                {
-                    case PacketRecipient.Device:
-                        result = HandleRequest(packet);
-                        break;
-                    case PacketRecipient.Interface:
-                        if(SelectedConfiguration == null)
-                        {
-                            device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
-                            resultCallback(new byte[0]);
-                            return;
-                        }
-                        var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
-                        if(iface == null)
-                        {
-                            device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
-                        }
-                        result = iface.HandleRequest(packet);
-                        break;
-                    default:
-                        device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
-                        break;
-                }
 
-                resultCallback(result.AsByteArray(packet.Count * 8u));
-            }
+            resultCallback(result.AsByteArray(packet.Count * 8u));
         }
 
         private BitStream HandleRequest(SetupPacket packet)
@@ -219,6 +223,44 @@ namespace Antmicro.Renode.Core.USB
             return this;
         }
 
+        public USBDeviceCore AddEndpoint(USBEndpoint endpoint)
+        {
+            if(controlEndpoints.ContainsKey(endpoint.Identifier))
+            {
+                throw new ConstructionException($"Control endpoint #{endpoint.Identifier} already defined");
+            }
+
+            if(endpoint.TransferType == EndpointTransferType.Control)
+            {
+                if(deviceToHostEndpoints.ContainsKey(endpoint.Identifier) || hostToDeviceEndpoints.ContainsKey(endpoint.Identifier))
+                {
+                    throw new ConstructionException($"Endpoint #{endpoint.Identifier} already defined");
+                }
+
+                controlEndpoints[endpoint.Identifier] = endpoint;
+            }
+            else if(endpoint.Direction == Direction.DeviceToHost)
+            {
+                if(deviceToHostEndpoints.ContainsKey(endpoint.Identifier))
+                {
+                    throw new ConstructionException($"IN endpoint #{endpoint.Identifier} already defined");
+                }
+
+                deviceToHostEndpoints[endpoint.Identifier] = endpoint;
+            }
+            else // Direction.HostToDevice
+            {
+                if(hostToDeviceEndpoints.ContainsKey(endpoint.Identifier))
+                {
+                    throw new ConstructionException($"OUT endpoint #{endpoint.Identifier} already defined");
+                }
+
+                hostToDeviceEndpoints[endpoint.Identifier] = endpoint;
+            }
+
+            return this;
+        }
+
         public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
 
         public USBConfiguration SelectedConfiguration { get; private set; }
@@ -258,8 +300,11 @@ namespace Antmicro.Renode.Core.USB
                 .Append((byte)Configurations.Count);
         }
 
-        private readonly List<USBConfiguration> configurations;
+        // control endpoints are special because they are both in and out at the same time
+        private readonly Dictionary<int, USBEndpoint> controlEndpoints;
+        private readonly Dictionary<int, USBEndpoint> deviceToHostEndpoints;
+        private readonly Dictionary<int, USBEndpoint> hostToDeviceEndpoints;
 
-        private Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler;
+        private readonly List<USBConfiguration> configurations;
     }
 }

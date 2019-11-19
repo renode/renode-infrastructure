@@ -23,6 +23,8 @@ namespace Antmicro.Renode.Core.USB
         {
             this.core = core;
             endpoints = new List<USBEndpoint>();
+            // endpoint 0 is always assumed to be a control endpoint
+            endpoints.Add(core.ControlEndpoint);
 
             Identifier = identifier;
             Class = classCode;
@@ -38,14 +40,15 @@ namespace Antmicro.Renode.Core.USB
             return BitStream.Empty;
         }
 
-        public USBInterface WithEndpoint(Direction direction, EndpointTransferType transferType, short maximumPacketSize, byte interval, out USBEndpoint createdEndpoint)
+        public USBInterface WithEndpoint(byte id, Direction direction, EndpointTransferType transferType, short maximumPacketSize, byte interval, out USBEndpoint createdEndpoint)
         {
             if(endpoints.Count == byte.MaxValue)
             {
                 throw new ConstructionException("The maximal number of endpoints reached");
             }
 
-            createdEndpoint = new USBEndpoint(core, (byte)(endpoints.Count + 1), direction, transferType, maximumPacketSize, interval);
+            createdEndpoint = new USBEndpoint(core, id, direction, transferType, maximumPacketSize, interval);
+            core.Device.USBCore.AddEndpoint(createdEndpoint);
             endpoints.Add(createdEndpoint);
             return this;
         }
