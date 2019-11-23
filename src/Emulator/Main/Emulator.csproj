@@ -482,6 +482,7 @@
     <Compile Include="Utilities\BitPatternDetector.cs" />
     <Compile Include="Testing\SysbusTester.cs" />
     <Compile Include="Peripherals\USB\USBConnector.cs" />
+    <Compile Include="Peripherals\Wireless\ISlipRadio.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
