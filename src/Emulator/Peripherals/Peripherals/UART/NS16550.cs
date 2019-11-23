@@ -66,7 +66,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             lock(UARTLock)
             {
-                offset &= 7;
                 if((lineControl & LineControl.DivisorLatchAccess) != 0)
                 {
                     switch((Register)offset)
@@ -210,7 +209,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             lock(UARTLock)
             {
-                offset &= 7;
                 byte value = 0x0;
                 if((lineControl & LineControl.DivisorLatchAccess) != 0)
                 {
