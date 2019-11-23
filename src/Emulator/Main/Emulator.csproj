@@ -483,6 +483,7 @@
     <Compile Include="Testing\SysbusTester.cs" />
     <Compile Include="Peripherals\USB\USBConnector.cs" />
     <Compile Include="Peripherals\Wireless\ISlipRadio.cs" />
+    <Compile Include="Peripherals\Wireless\SlipRadio.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
