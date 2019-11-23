@@ -192,6 +192,23 @@ namespace Antmicro.Renode.Peripherals.UART
                     scratchRegister = value;
                     break;
 
+                case Register.MultiModeControl0:
+                    this.Log(LogLevel.Warning, "Unsupported write to LIN mode configuration register at offset 0x{0:X}.", originalOffset);
+                    break;
+                case Register.MultiModeControl1:
+                    this.Log(LogLevel.Warning, "Unsupported write to RZI mode configuration register at offset 0x{0:X}.", originalOffset);
+                    break;
+                case Register.MultiModeControl2:
+                case Register.MultiModeInterruptEnable:
+                case Register.TransmitterTimeGuard:
+                case Register.ReceiverTimeOut:
+                    this.Log(LogLevel.Warning, "Unsupported write to multi-mode configuration register at offset 0x{0:X}.", originalOffset);
+                    break;
+                case Register.FractionalDivisor:
+                case Register.GlitchFilter:
+                    this.Log(LogLevel.Warning, "Unsupported write to configuration register at offset 0x{0:X}.", originalOffset);
+                    break;
+
                 default:
                     this.LogUnhandledWrite(originalOffset, value);
                     break;
@@ -316,9 +333,26 @@ namespace Antmicro.Renode.Peripherals.UART
                         value = scratchRegister;
                         break;
 
-                    default:
-                        this.LogUnhandledRead(originalOffset);
+                    case Register.MultiModeControl0:
+                        this.Log(LogLevel.Warning, "Unsupported read from LIN configuration register at offset 0x{0:X}.", originalOffset);
                         break;
+                    case Register.MultiModeControl1:
+                        this.Log(LogLevel.Warning, "Unsupported read from RZI configuration register at offset 0x{0:X}.", originalOffset);
+                        break;
+                    case Register.MultiModeControl2:
+                    case Register.MultiModeInterruptEnable:
+                    case Register.TransmitterTimeGuard:
+                    case Register.ReceiverTimeOut:
+                        this.Log(LogLevel.Warning, "Unsupported read from multi-mode configuration register at offset 0x{0:X}.", originalOffset);
+                        break;
+                    case Register.FractionalDivisor:
+                    case Register.GlitchFilter:
+                        this.Log(LogLevel.Warning, "Unsupported read from configuration register at offset 0x{0:X}.", originalOffset);
+                        break;
+
+                    default:
+                    this.LogUnhandledRead(originalOffset);
+                    break;
                     }
                 }
                 ret:
@@ -435,7 +469,16 @@ namespace Antmicro.Renode.Peripherals.UART
             // the same as Line Status but accessible only when DLAB bit is set
             LineStatusHack = 0x14,
             ModemStatusRegister = 0x06,
-            TriggerLevelScratchpad = 0x07
+            TriggerLevelScratchpad = 0x07,
+
+            MultiModeInterruptEnable = 0x09,
+            MultiModeControl0 = 0x0C,
+            MultiModeControl1 = 0x0D,
+            MultiModeControl2 = 0x0E,
+            FractionalDivisor = 0x0F,
+            GlitchFilter = 0x11,
+            TransmitterTimeGuard = 0x12,
+            ReceiverTimeOut = 0x13
         }
 
         [Flags]
