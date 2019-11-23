@@ -128,13 +128,26 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     continue;
                 }
 
+                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
+                {
+                    // e.g. when the sender is a SLIP radio
+                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
+                }
+
                 var packetCopy = packet.ToArray();
                 if(radioHooks.TryGetValue(receiver, out var hook))
                 {
                     hook(packetCopy);
                 }
 
-                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packetCopy, TimeDomainsManager.Instance.VirtualTimeStamp, () =>
+                if(receiver is ISlipRadio)
+                {
+                    // send immediately
+                    receiver.ReceiveFrame(packetCopy);
+                    continue;
+                }
+
+                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packetCopy, vts, () =>
                 {
                     this.NoisyLog("Packet {0} -> {1} delivered, size {2}.", senderName, receiverName, packetCopy.Length);
                     FrameTransmitted?.Invoke(this, sender, receiver, packetCopy);
