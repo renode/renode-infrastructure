@@ -38,10 +38,48 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
             return result;
         }
 
+        public static byte[] CalculateCRC(IEnumerable<byte> bytes, uint crcInitialValue = 0x0, CRCType crcPolynomial = CRCType.CRC16CCITTPolynomial)
+        {
+            uint crc = crcInitialValue;
+            CRCEngine crcEngine = new CRCEngine(crcPolynomial);
+            var crcLength = crcPolynomial.GetLength();
+            // Byte little endian order
+            switch(crcLength)
+            {
+                case 2:
+                    crc = crcEngine.CalculateCrc16(bytes, (ushort)crc);
+                    return new[] { (byte)crc, (byte)(crc >> 8) };
+                case 4:
+                    crc = crcEngine.CalculateCrc32(bytes, crc);
+                    return new[] { (byte)crc, (byte)(crc >> 8), (byte)(crc >> 16), (byte)(crc >> 24) };
+                default:
+                    Logger.Log(LogLevel.Error, "Cannot calculate CRC of invalid length {0}", crcLength);
+                    return new byte[crcLength];
+            }
+
+        }
+
         public Frame(byte[] data)
         {
             Bytes = data;
             Decode(data);
+        }
+
+        public bool CheckCRC(uint crcInitialValue = 0x0)
+        {
+            var crcLength = CRCPolynomial.GetLength();
+            var crc = CalculateCRC(Bytes.Take(Bytes.Length - crcLength), crcInitialValue, CRCPolynomial);
+            // Byte little endian order
+            switch(crcLength)
+            {
+                case 2:
+                    return Bytes[Bytes.Length - 2] == crc[0] && Bytes[Bytes.Length - 1] == crc[1];
+                case 4:
+                    return Bytes[Bytes.Length - 4] == crc[0] && Bytes[Bytes.Length - 3] == crc[1] && Bytes[Bytes.Length - 2] == crc[2] && Bytes[Bytes.Length - 1] == crc[3];
+                default:
+                    Logger.Log(LogLevel.Error, "Cannot check CRC of invalid length {0}", crcLength);
+                    return false;
+            }
         }
 
         public byte Length { get { return (byte)Bytes.Length; } }
@@ -171,44 +209,6 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
             }
 
             Bytes = bytes.ToArray();
-        }
-
-        public bool CheckCRC(uint crcInitialValue = 0x0)
-        {
-            var crcLength = CRCPolynomial.GetLength();
-            var crc = CalculateCRC(Bytes.Take(Bytes.Length - crcLength), crcInitialValue, CRCPolynomial);
-            // Byte little endian order
-            switch(crcLength)
-            {
-                case 2:
-                    return Bytes[Bytes.Length - 2] == crc[0] && Bytes[Bytes.Length - 1] == crc[1];
-                case 4:
-                    return Bytes[Bytes.Length - 4] == crc[0] && Bytes[Bytes.Length - 3] == crc[1] && Bytes[Bytes.Length - 2] == crc[2] && Bytes[Bytes.Length - 1] == crc[3];
-                default:
-                    Logger.Log(LogLevel.Error, "Cannot check CRC of invalid length {0}", crcLength);
-                    return false;
-            }
-        }
-
-        public static byte[] CalculateCRC(IEnumerable<byte> bytes, uint crcInitialValue = 0x0, CRCType crcPolynomial = CRCType.CRC16CCITTPolynomial)
-        {
-            uint crc = crcInitialValue;
-            CRCEngine crcEngine = new CRCEngine(crcPolynomial);
-            var crcLength = crcPolynomial.GetLength();
-            // Byte little endian order
-            switch(crcLength)
-            {
-                case 2:
-                    crc = crcEngine.CalculateCrc16(bytes, (ushort)crc);
-                    return new[] { (byte)crc, (byte)(crc >> 8) };
-                case 4:
-                    crc = crcEngine.CalculateCrc32(bytes, crc);
-                    return new[] { (byte)crc, (byte)(crc >> 8), (byte)(crc >> 16), (byte)(crc >> 24) };
-                default:
-                    Logger.Log(LogLevel.Error, "Cannot calculate CRC of invalid length {0}", crcLength);
-                    return new byte[crcLength];
-            }
-
         }
     }
 }
