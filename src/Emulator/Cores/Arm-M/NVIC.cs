@@ -24,11 +24,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IKnownSize, IIRQController
     {        
-        public NVIC(Machine machine, int systickFrequency = 50 * 0x800000)
+        public NVIC(Machine machine, int systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
             systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, autoUpdate: true);
+            this.priorityMask = priorityMask;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
             systick.LimitReached += () => 
@@ -359,8 +360,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var startingInterrupt = GetStartingInterrupt(offset, externalInterrupt);
                 for(var i = startingInterrupt; i < startingInterrupt + 4; i++)
                 {
-                    this.DebugLog("Priority {0} set for interrupt {1}.", (byte)value, i);
-                    priorities[i] = (byte)value;
+
+                    if((((byte)value) & ~priorityMask) != 0)
+                    {
+                        this.Log(LogLevel.Warning, "Trying to set the priority for interrupt {0} to 0x{1:X}, but it should be maskable with 0x{2:X}", i, value, priorityMask);
+                    }
+
+                    priorities[i] = (byte)(value & priorityMask);
+
+                    this.DebugLog("Priority 0x{0:X} set for interrupt {1}.", priorities[i], i);
                     value >>= 8;
                 }
             }
@@ -588,6 +596,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint CPACR = 0x0;
 
         private int countflag;
+        private byte priorityMask;
         private Stack<int> activeIRQs;
         private int binaryPointPosition; // from the right
 
