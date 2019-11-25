@@ -20,17 +20,18 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
             return (frame[0] & 0x20) != 0;
         }
 
-        public static Frame CreateAckForFrame(byte[] frame, uint crcInitialValue = 0x0)
+        public static Frame CreateAckForFrame(byte[] frame, uint crcInitialValue = 0x0, CRCType crcPolynomial = CRCType.CRC16CCITTPolynomial)
         {
             var sequenceNumber = frame[2];
             // TODO: here we set pending bit as false
-            return CreateACK(sequenceNumber, false, crcInitialValue);
+            return CreateACK(sequenceNumber, false, crcInitialValue, crcPolynomial);
         }
 
-        public static Frame CreateACK(byte sequenceNumber, bool pending, uint crcInitialValue = 0x0)
+        public static Frame CreateACK(byte sequenceNumber, bool pending, uint crcInitialValue = 0x0, CRCType crcPolynomial = CRCType.CRC16CCITTPolynomial)
         {
             var result = new Frame();
             result.Type = FrameType.ACK;
+            result.CRCPolynomial = crcPolynomial;
             result.FramePending = pending;
             result.DataSequenceNumber = sequenceNumber;
             result.Encode(crcInitialValue);
@@ -59,9 +60,10 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
 
         }
 
-        public Frame(byte[] data)
+        public Frame(byte[] data, CRCType crcPolynomial = CRCType.CRC16CCITTPolynomial)
         {
             Bytes = data;
+            CRCPolynomial = crcPolynomial;
             Decode(data);
         }
 
@@ -85,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         public byte Length { get { return (byte)Bytes.Length; } }
         public FrameType Type { get; private set; }
         public bool SecurityEnabled { get; private set; }
-        public bool FramePending { get; set; }
+        public bool FramePending { get; private set; }
         public bool AcknowledgeRequest { get; private set; }
         public bool IntraPAN { get; private set; }
         public AddressingMode DestinationAddressingMode { get; private set; }
@@ -96,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         public IList<byte> Payload { get; private set; }
         public byte[] Bytes { get; private set; }
         public uint FrameControlField { get; private set; }
-        public CRCType CRCPolynomial { get; private set; } = CRCType.CRC16CCITTPolynomial; // Default is CRC16
+        public CRCType CRCPolynomial { get; private set; }
 
         public string StringView
         {
