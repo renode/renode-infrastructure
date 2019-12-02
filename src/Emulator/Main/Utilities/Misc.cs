@@ -338,6 +338,17 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
+        public static bool EndsWith(this StringBuilder sb, string test, StringComparison comparison)
+        {
+            if(sb.Length < test.Length)
+            {
+                return false;
+            }
+
+            var end = sb.ToString(sb.Length - test.Length, test.Length);
+            return end.Equals(test, comparison);
+        }
+
         public static String Trim(this String value, String toCut)
         {
             if (!value.StartsWith(toCut))
