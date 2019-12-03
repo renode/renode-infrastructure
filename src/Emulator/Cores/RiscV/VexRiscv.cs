@@ -18,27 +18,49 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             TlibSetCsrValidation(0);
 
-            RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value => 
-            { 
+            RegisterCSR((ulong)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
+            {
                 lock(locker)
                 {
-                    irqMask = (uint)value; 
-                    this.Log(LogLevel.Noisy, "IRQ mask set to 0x{0:X}", irqMask);
-                    Update(); 
+                    machineInterrupts.Mask = (uint)value;
+                    this.Log(LogLevel.Noisy, "Machine IRQ mask set to 0x{0:X}", machineInterrupts.Mask);
+                    Update();
                 }
             });
-            RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value => 
-            { 
+            RegisterCSR((ulong)CSRs.MachineIrqPending, () => (ulong)machineInterrupts.Pending, value =>
+            {
                 lock(locker)
                 {
-                    irqPending = (uint)value;
-                    this.Log(LogLevel.Noisy, "IRQ pending set to 0x{0:X}", irqPending);
-                    Update(); 
+                    machineInterrupts.Pending = (uint)value;
+                    this.Log(LogLevel.Noisy, "Machine IRQ pending set to 0x{0:X}", machineInterrupts.Pending);
+                    Update();
+                }
+            });
+            RegisterCSR((ulong)CSRs.SupervisorIrqMask, () => (ulong)supervisorInterrupts.Mask, value =>
+            {
+                lock(locker)
+                {
+                    supervisorInterrupts.Mask = (uint)value;
+                    this.Log(LogLevel.Noisy, "Supervisor IRQ mask set to 0x{0:X}", supervisorInterrupts.Mask);
+                    Update();
+                }
+            });
+            RegisterCSR((ulong)CSRs.SupervisorIrqPending, () => (ulong)supervisorInterrupts.Pending, value =>
+            {
+                lock(locker)
+                {
+                    supervisorInterrupts.Pending = (uint)value;
+                    this.Log(LogLevel.Noisy, "Supervisor IRQ pending set to 0x{0:X}", supervisorInterrupts.Pending);
+                    Update();
                 }
             });
             RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
         }
 
+        // GPIOs in VexRiscv are divided into the following sections
+        //      0 - 31 : machine level external interrupts
+        //         100 : machine level timer interrupt
+        // 1000 - 1031 : supervisor level external interrupts
         public override void OnGPIO(int number, bool value)
         {
             lock(locker)
@@ -48,22 +70,34 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
                 }
-                else
+                else if(number >= SupervisorExternalInterruptsOffset)
                 {
-                    BitHelper.SetBit(ref irqPending, (byte)number, value);
+                    BitHelper.SetBit(ref supervisorInterrupts.Pending, (byte)(number - SupervisorExternalInterruptsOffset), value);
+                    Update();
+                }
+                else // machine external
+                {
+                    BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
                     Update();
                 }
             }
         }
 
-        private void Update()
+        // this is a helper method to allow
+        // setting irq mask from the monitor
+        public void SetMachineIrqMask(uint mask)
         {
-            //We support only Machine mode, with external interrupts. An additional interrupt controller would be required to have more advanced handling.
-            base.OnGPIO((int)IrqType.MachineExternalInterrupt, (irqPending & irqMask) != 0);
+            machineInterrupts.Mask = mask;
         }
 
-        private uint irqMask;
-        private uint irqPending;
+        private void Update()
+        {
+            base.OnGPIO((int)IrqType.MachineExternalInterrupt, machineInterrupts.Any);
+            base.OnGPIO((int)IrqType.SupervisorExternalInterrupt, supervisorInterrupts.Any);
+        }
+
+        private Interrupts machineInterrupts;
+        private Interrupts supervisorInterrupts;
         private uint dCacheInfo;
 
         private readonly object locker = new object();
@@ -72,11 +106,22 @@ namespace Antmicro.Renode.Peripherals.CPU
         // but it's moved to 100 to avoid conflicts with VexRiscv
         // built-in interrupt manager that is mapped to IRQs 0-31
         private const int MachineTimerInterruptCustomNumber = 100;
+        private const int SupervisorExternalInterruptsOffset = 1000;
+
+        private struct Interrupts
+        {
+            public uint Mask;
+            public uint Pending;
+
+            public bool Any => (Mask & Pending) != 0;
+        }
 
         private enum CSRs
         {
-            IrqMask = 0xBC0,
-            IrqPending = 0xFC0,
+            MachineIrqMask = 0xBC0,
+            MachineIrqPending = 0xFC0,
+            SupervisorIrqMask = 0x9C0,
+            SupervisorIrqPending = 0xDC0,
             DCacheInfo = 0xCC0
         }
     }
