@@ -45,14 +45,63 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public static void TypeText(this USBKeyboard keyboard, string text)
         {
+            var inEscapeMode = false;
             foreach(var character in text)
             {
-                foreach(var scanCode in character.ToKeyScanCodes())
+                if(inEscapeMode)
+                {
+                    inEscapeMode = false;
+                    if(character == 'n')
+                    {
+                        keyboard.Press(KeyScanCode.Enter);
+                        keyboard.Release(KeyScanCode.Enter);
+                        continue;
+                    }
+                    else if(character == '\\')
+                    {
+                        keyboard.Press(KeyScanCode.OemPipe);
+                        keyboard.Release(KeyScanCode.OemPipe);
+                        continue;
+                    }
+                    else
+                    {
+                        keyboard.Log(LogLevel.Warning, "Unexpected escaped character: {0}", character);
+                        keyboard.Press(KeyScanCode.OemPipe);
+                        keyboard.Release(KeyScanCode.OemPipe);
+                        // intentionally no continue - press the unexpected escaped character
+                    }
+                }
+                else
+                {
+                    if(character == '\\')
+                    {
+                        inEscapeMode = true;
+                        continue;
+                    }
+                }
+
+                var scanCodes = character.ToKeyScanCodes();
+                foreach(var scanCode in scanCodes)
                 {
                     keyboard.Press(scanCode);
                 }
 
-                foreach(var scanCode in character.ToKeyScanCodes())
+                foreach(var scanCode in scanCodes)
+                {
+                    keyboard.Release(scanCode);
+                }
+            }
+
+            if(inEscapeMode)
+            {
+                // handle dangling `\` at the end of string
+                var scanCodes = '\\'.ToKeyScanCodes();
+                foreach(var scanCode in scanCodes)
+                {
+                    keyboard.Press(scanCode);
+                }
+
+                foreach(var scanCode in scanCodes)
                 {
                     keyboard.Release(scanCode);
                 }
