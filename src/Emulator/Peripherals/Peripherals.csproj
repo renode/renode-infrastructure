@@ -309,6 +309,7 @@
     <Compile Include="Peripherals\Miscellaneous\LiteX_MMCM.cs" />
     <Compile Include="Peripherals\Analog\EOSS3_ADC.cs" />
     <Compile Include="Peripherals\DMA\EOSS3_SPI_DMA.cs" />
+    <Compile Include="Peripherals\Miscellaneous\EOSS3_PacketFIFO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
