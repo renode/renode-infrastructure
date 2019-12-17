@@ -52,6 +52,11 @@ namespace Antmicro.Renode.Utilities
 
         public static void LoadFdt(this SystemBus sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "")
         {
+            if(!File.Exists(file))
+            {
+                throw new RecoverableException("FDT file {0} not found".FormatWith(file));
+            }
+
             var fdtBlob = File.ReadAllBytes(file);
             if(bootargs == null)
             {
