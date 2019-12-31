@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         [PacketField]
         public uint EndpointNumber;
         [PacketField]
-        public uint FlagsOrStatus;
+        public int FlagsOrStatus;
 
         public override string ToString()
         {
