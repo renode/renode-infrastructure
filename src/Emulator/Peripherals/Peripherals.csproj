@@ -300,6 +300,7 @@
     <Compile Include="Peripherals\USB\USBKeyboard.cs" />
     <Compile Include="Peripherals\Wireless\IEEE802_15_4\PHYHeader802154.cs" />
     <Compile Include="Peripherals\USB\ValentyUSB_EPTRI.cs" />
+    <Compile Include="Peripherals\Miscellaneous\Messible.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
