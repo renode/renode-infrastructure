@@ -96,6 +96,19 @@ namespace Antmicro.Renode.Utilities.Packets
                     offset += 4;
                     field.SetValue(result, v);
                 }
+                else if(type == typeof(int))
+                {
+                    if(offset + sizeof(int) > data.Count)
+                    {
+                        return false;
+                    }
+
+                    var v = field.IsLSBFirst
+                        ? (int)((data[offset + 3] << 24) | (data[offset + 2] << 16) | (data[offset + 1] << 8) | (data[offset]))
+                        : (int)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | (data[offset + 3]));
+                    offset += 4;
+                    field.SetValue(innerResult, v);
+                }
                 else if(type == typeof(short))
                 {
                     var v = field.IsLSBFirst
@@ -201,6 +214,13 @@ namespace Antmicro.Renode.Utilities.Packets
 
                     offset += 4;
                 }
+                else if(field.ElementType == typeof(int))
+                {
+                    var lOffset = offset;
+                    result.ProvideProperty(field.ElementName, getter: () => (int)((data[lOffset] << 24) | (data[lOffset + 1] << 16) | (data[lOffset + 2] << 8) | (data[lOffset + 3])));
+
+                    offset += 4;
+                }
                 else if(field.ElementType == typeof(ushort))
                 {
                     var lOffset = offset;
@@ -254,6 +274,16 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     var isLsb = element.IsLSBFirst;
                     var value = (uint)element.GetValue(packet);
+                    result[offset] = (byte)(value >> (isLsb ? 0: 24));
+                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 16));
+                    result[offset + 2] = (byte)(value >> (isLsb ? 16 : 8));
+                    result[offset + 3] = (byte)(value >> (isLsb ? 24 : 0));
+                    offset += 4;
+                }
+                else if(type == typeof(int))
+                {
+                    var isLsb = element.IsLSBFirst;
+                    var value = (int)element.GetValue(packet);
                     result[offset] = (byte)(value >> (isLsb ? 0: 24));
                     result[offset + 1] = (byte)(value >> (isLsb ? 8 : 16));
                     result[offset + 2] = (byte)(value >> (isLsb ? 16 : 8));
@@ -442,6 +472,10 @@ namespace Antmicro.Renode.Utilities.Packets
                         return 2;
                     }
                     if(type == typeof(uint))
+                    {
+                        return 4;
+                    }
+                    if(type == typeof(int))
                     {
                         return 4;
                     }
