@@ -380,7 +380,15 @@ namespace Antmicro.Renode.Peripherals.USB
                             var packet = Packet.Decode<SetupPacket>(data);
                             peripheral.USBCore.HandleSetupPacket(packet, receivedBytes =>
                             {
-                                fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
+                                if(receivedBytes == null)
+                                {
+                                    // this means stall!
+                                    rxStall[0].Value = true;
+                                }
+                                else
+                                {
+                                    fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
+                                }
                                 txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
                             });
                         }
@@ -469,7 +477,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 ((Registers)(Registers.Endpoint0TransmitControlStatus + endpointId * 0x10)).Define16(this, name: $"EP{endpointId}_TX_CSR_REG")
                     .WithTag("NAK Timeout/IncompTx", 7, 1)
                     .WithTag("ClrDataTog", 6, 1)
-                    .WithTag("RxStall", 5, 1)
+                    .WithFlag(5, out rxStall[endpointId], name: "RxStall")
                     .WithFlag(4, out var setupPkt, FieldMode.Read | FieldMode.Set, name: "SetupPkt")
                     .WithTag("FlushFIFO", 3, 1)
                     .WithTag("Error", 2, 1)
@@ -621,6 +629,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private readonly TwoWayDictionary<byte, IUSBDevice> addressToDeviceCache;
 
+        private IFlagRegisterField[] rxStall = new IFlagRegisterField[NumberOfEndpoints];
         private IFlagRegisterField[] requestInTransaction = new IFlagRegisterField[NumberOfEndpoints];
         private IValueRegisterField[] transmitDeviceAddress;
         private IValueRegisterField[] receiveDeviceAddress;
