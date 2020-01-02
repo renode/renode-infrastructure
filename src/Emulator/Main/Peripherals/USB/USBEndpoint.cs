@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Core.USB
             Interval = interval;
 
             buffer = new Queue<IEnumerable<byte>>();
-            packetCreator = new PacketCreator(HandlePacket);
+            packetCreator = new PacketCreator(HandleEndpointData);
         }
 
         public event Action<byte[]> DataWritten
@@ -60,6 +60,8 @@ namespace Antmicro.Renode.Core.USB
             lock(buffer)
             {
                 buffer.Clear();
+                transactionCallback = false;
+                dataCallback = null;
             }
         }
 
@@ -84,8 +86,10 @@ namespace Antmicro.Renode.Core.USB
             return packetCreator;
         }
 
-        public void SetDataReadCallbackOneShot(Action<USBEndpoint, IEnumerable<byte>> callback)
+        public void ReadPacketOneShot(Action<USBEndpoint, IEnumerable<byte>> callback)
         {
+            ReadRequest?.Invoke(this);
+
             lock(buffer)
             {
                 if(buffer.Count > 0)
@@ -95,43 +99,41 @@ namespace Antmicro.Renode.Core.USB
                 else
                 {
                     dataCallback = callback;
+                    transactionCallback = false;
                 }
             }
         }
 
-        public byte[] Read(uint limit, System.Threading.CancellationToken cancellationToken)
+        public void ReadTransactionOneShot(Action<USBEndpoint, IEnumerable<byte>> callback)
         {
             ReadRequest?.Invoke(this);
 
-            var result = Enumerable.Empty<byte>();
-
-            var endOfPacketDetected = false;
-            while(!endOfPacketDetected
-                    && (!cancellationToken.IsCancellationRequested)
-                    && (limit == 0 || result.Count() < limit))
+            lock(buffer)
             {
-                var mre = new System.Threading.ManualResetEvent(false);
-                SetDataReadCallbackOneShot((e, bytes) =>
+                if(buffer.Count > 0)
                 {
-                    var arr = bytes.ToArray();
-                    result = result.Concat(arr);
-                    if(arr.Length < MaximumPacketSize)
+                    var result = Enumerable.Empty<byte>();
+
+                    while(buffer.Count > 0)
                     {
-                        endOfPacketDetected = true;
+                        var current = buffer.Dequeue();
+                        result.Concat(current);
+
+                        if(current.Count() < MaximumPacketSize)
+                        {
+                            // end of tranaction detected
+                            break;
+                        }
                     }
-                    mre.Set();
-                });
-
-                System.Threading.WaitHandle.WaitAny(new System.Threading.WaitHandle[] { cancellationToken.WaitHandle, mre });
+                    
+                    callback(this, result);
+                }
+                else
+                {
+                    dataCallback = callback;
+                    transactionCallback = true;
+                }
             }
-
-            if(result.Count() > limit)
-            {
-                Logger.Log(LogLevel.Warning, "Read more data from the USB endpoint ({0}) than limit ({1}). Some bytes will be dropped, expect problems!");
-                result = result.Take((int)limit);
-            }
-
-            return result.ToArray();
         }
 
         public void HandleSetupPacket(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
@@ -166,11 +168,11 @@ namespace Antmicro.Renode.Core.USB
                 .Append(Interval);
         }
 
-        public void HandlePacket(ICollection<byte> data)
+        public void HandleEndpointData(ICollection<byte> data)
         {
             lock(buffer)
             {
-                // split packet into chunks of size not exceeding `MaximumPacketSize`
+                // split data into chunks of size not exceeding `MaximumPacketSize`
                 var offset = 0;
                 while(offset < data.Count)
                 {
@@ -181,7 +183,7 @@ namespace Antmicro.Renode.Core.USB
 
                     if(offset == data.Count && toTake == MaximumPacketSize)
                     {
-                        // in order to indicate the end of a packet
+                        // in order to indicate the end of a transaction
                         // the chunk should be shorter than `MaximumPacketSize`;
                         // in case there is no data to send, empty chunk
                         // is generated
@@ -191,14 +193,38 @@ namespace Antmicro.Renode.Core.USB
 
                 if(dataCallback != null)
                 {
-                    dataCallback(this, buffer.Count == 0 ? new byte[0] : buffer.Dequeue());
+                    var result = Enumerable.Empty<byte>();
+
+                    if(buffer.Count != 0)
+                    {
+                        result = buffer.Dequeue();
+
+                        if(transactionCallback)
+                        {
+                            while(buffer.Count > 0)
+                            {
+                                var current = buffer.Dequeue();
+                                result.Concat(current);
+
+                                if(current.Count() < MaximumPacketSize)
+                                {
+                                    // end of tranaction detected
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    dataCallback(this, result);
                     dataCallback = null;
+                    transactionCallback = false;
                 }
             }
         }
 
         private event Action<byte[]> dataWritten;
         private Action<USBEndpoint, IEnumerable<byte>> dataCallback;
+        private bool transactionCallback;
 
         private readonly Queue<IEnumerable<byte>> buffer;
         private readonly PacketCreator packetCreator;

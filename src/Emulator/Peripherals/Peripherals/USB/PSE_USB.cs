@@ -446,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            endpoint.SetDataReadCallbackOneShot((e, bytes) =>
+                            endpoint.ReadPacketOneShot((e, bytes) =>
                             {
                                 fifoFromDeviceToHost[endpointId].EnqueueRange(bytes);
                                 requestInTransaction[endpointId].Value = false;
