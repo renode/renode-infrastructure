@@ -101,6 +101,8 @@ namespace Antmicro.Renode.Core.USB
 
         public byte[] Read(uint limit, System.Threading.CancellationToken cancellationToken)
         {
+            ReadRequest?.Invoke(this);
+
             var result = Enumerable.Empty<byte>();
 
             var endOfPacketDetected = false;
@@ -152,6 +154,7 @@ namespace Antmicro.Renode.Core.USB
         public byte Interval { get; }
 
         public Action<SetupPacket, Action<byte[]>, byte[]> CustomSetupPacketHandler { get; set; }
+        public Action<USBEndpoint> ReadRequest { get; set; }
 
         protected override void FillDescriptor(BitStream buffer)
         {
