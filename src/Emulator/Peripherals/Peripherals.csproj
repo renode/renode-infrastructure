@@ -305,6 +305,7 @@
     <Compile Include="Peripherals\SPI\MAX3421E.cs" />
     <Compile Include="Peripherals\GPIOPort\CC2538_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_SoC_Controller.cs" />
+    <Compile Include="Peripherals\SPI\EOSS3_SPIMaster.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
