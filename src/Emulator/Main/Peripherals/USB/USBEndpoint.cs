@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -10,6 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB
 {
@@ -36,22 +37,23 @@ namespace Antmicro.Renode.Core.USB
             Interval = interval;
 
             buffer = new Queue<IEnumerable<byte>>();
-            packetCreator = new PacketCreator(HandlePacket);
+            packetCreator = new PacketCreator(WriteDataToHost);
         }
 
-        public event Action<byte[]> DataWritten
+        public void Stall()
         {
-            add
+            lock(buffer)
             {
-                if(Direction != Direction.HostToDevice)
+                if(dataCallback != null)
                 {
-                    throw new ArgumentException("Reading from this descriptor is not supported");
+                    RunAfterRead();
+                    dataCallback(USBTransactionStage.Stall());
+                    dataCallback = null;
                 }
-                dataWritten += value;
-            }
-            remove
-            {
-                dataWritten -= value;
+                else
+                {
+                    isStalled = true;
+                }
             }
         }
 
@@ -59,107 +61,215 @@ namespace Antmicro.Renode.Core.USB
         {
             lock(buffer)
             {
+                AfterReadOneShot = null;
                 buffer.Clear();
+                dataCallback = null;
+                isStalled = false;
             }
-        }
-
-        public void WriteData(byte[] packet)
-        {
-            if(Direction != Direction.HostToDevice)
-            {
-                core.Device.Log(LogLevel.Warning, "Trying to write to a Read-Only endpoint");
-                return;
-            }
-
-            core.Device.Log(LogLevel.Noisy, "Writing {0} bytes of data", packet.Length);
-#if DEBUG_PACKETS
-            core.Device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(packet));
-#endif
-
-            var dw = dataWritten;
-            if(dw == null)
-            {
-                core.Device.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
-                return;
-            }
-
-            dw(packet);
         }
 
         public PacketCreator PreparePacket()
         {
-            if(Direction != Direction.DeviceToHost)
+            return packetCreator;
+        }
+
+        public void WriteDataToHost(ICollection<byte> data)
+        {
+            // control endpoints allow for both read/write regardless of the direction
+            if(TransferType != EndpointTransferType.Control && Direction != Direction.DeviceToHost)
             {
                 throw new ArgumentException("Writing to this descriptor is not supported");
             }
 
-            return packetCreator;
-        }
-
-        public void SetDataReadCallbackOneShot(Action<USBEndpoint, IEnumerable<byte>> callback)
-        {
             lock(buffer)
             {
-                device.Log(LogLevel.Noisy, "Data read callback set");
-                if(buffer.Count > 0)
+                if(data.Count == 0)
                 {
-                    core.Device.Log(LogLevel.Noisy, "Data read callback fired");
-#if DEBUG_PACKETS
-                    core.Device.Log(LogLevel.Noisy, "Sending back {0} bytes: {1}", buffer.Peek().Count(), Misc.PrettyPrintCollectionHex(buffer.Peek()));
-#endif
-                    callback(this, buffer.Dequeue());
+                    buffer.Enqueue(new byte[0]);
                 }
                 else
                 {
-                    dataCallback = callback;
+                    // split data into chunks of size not exceeding `MaximumPacketSize`
+                    var offset = 0;
+                    while(offset < data.Count)
+                    {
+                        var toTake = Math.Min(MaximumPacketSize, data.Count - offset);
+                        var chunk = data.Skip(offset).Take(toTake);
+                        offset += toTake;
+                        buffer.Enqueue(chunk);
+                    }
+                }
+
+                if(dataCallback != null)
+                {
+                    var result = buffer.Dequeue(); 
+
+                    RunAfterRead();
+                    dataCallback(USBTransactionStage.Data(result.ToArray()));
+                    dataCallback = null;
                 }
             }
         }
 
-        public byte[] Read(uint limit, System.Threading.CancellationToken cancellationToken)
+        public void HandleTransaction(USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
         {
-            var result = Enumerable.Empty<byte>();
+            this.Log(LogLevel.Noisy, "Handling {0}", hostStage);
 
-            var endOfPacketDetected = false;
-            while(!endOfPacketDetected
-                    && (!cancellationToken.IsCancellationRequested)
-                    && (limit == 0 || result.Count() < limit))
+            switch(hostStage.PacketID)
             {
-                var mre = new System.Threading.ManualResetEvent(false);
-                SetDataReadCallbackOneShot((e, bytes) =>
-                {
-                    var arr = bytes.ToArray();
-                    result = result.Concat(arr);
-                    if(arr.Length < MaximumPacketSize)
-                    {
-                        endOfPacketDetected = true;
-                    }
-                    mre.Set();
-                });
+                case USBPacketId.SetupToken:
+                    HandleSetupTransaction(hostStage, deviceStage);
+                    break;
 
-                System.Threading.WaitHandle.WaitAny(new System.Threading.WaitHandle[] { cancellationToken.WaitHandle, mre });
+                case USBPacketId.InToken:
+                    HandleInTransaction(hostStage, deviceStage);
+                    break;
+
+                case USBPacketId.OutToken:
+                    HandleOutTransaction(hostStage, deviceStage);
+                    break;
+
+                default:
+                    this.Log(LogLevel.Warning, "Unsupported USB transaction: {0}", hostStage.PacketID);                    
+                    break;
             }
-
-            if(result.Count() > limit)
-            {
-                Logger.Log(LogLevel.Warning, "Read more data from the USB endpoint ({0}) than limit ({1}). Some bytes will be dropped, expect problems!", result.Count(), limit);
-                result = result.Take((int)limit);
-            }
-
-            return result.ToArray();
         }
 
-        public void HandleSetupPacket(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
+        public Action AfterReadOneShot { get; set; }
+
+        public USBDeviceCore Core => core;
+
+        public event Action<byte[]> DataFromHostWritten
         {
-            var chsph = CustomSetupPacketHandler;
-            if(chsph == null)
+            add
             {
-                core.Device.Log(LogLevel.Warning, "Received setup packet on endpoint {0}, but there is no handler. The data will be lost", Identifier);
-                resultCallback(new byte[0]);
+                if(Direction != Direction.HostToDevice)
+                {
+                    throw new ArgumentException("Reading from this descriptor is not supported");
+                }
+                dataFromHostWritten += value;
+            }
+            remove
+            {
+                dataFromHostWritten -= value;
+            }
+        }
+
+        private void RunAfterRead()
+        {
+            var aros = AfterReadOneShot;
+            AfterReadOneShot = null;
+            if(aros != null)
+            {
+                aros.Invoke();
+            }
+        }
+
+        private void HandleSetupTransaction(USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
+        {
+            var handler = SetupPacketHandler;
+            if(handler == null)
+            {
+                this.Log(LogLevel.Warning, "Received SETUP packet, but there is no handler. The data will be lost");
+                deviceStage(USBTransactionStage.Stall());
                 return;
             }
 
-            chsph(packet, resultCallback, additionalData);
+            handler(this, hostStage, deviceStage);
+        }
+
+        private void HandleInTransaction(USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
+        {
+            var handler = InPacketHandler;
+            if(handler != null)
+            {
+                handler(this, hostStage, deviceStage);
+                RunAfterRead();
+                return;
+            }
+
+            // control endpoints allow for both IN/OUT packets regardless of the direction
+            if(TransferType != EndpointTransferType.Control && Direction != Direction.DeviceToHost)
+            {
+                this.Log(LogLevel.Warning, "Received IN packet on OUT endpoint");
+                deviceStage(USBTransactionStage.Stall());
+                return;
+            }
+
+            lock(buffer)
+            {
+                if(isStalled)
+                {
+                    this.Log(LogLevel.Noisy, "Received IN packet on a stalled endpoint");
+                    isStalled = false;
+                    RunAfterRead();
+
+                    deviceStage(USBTransactionStage.Stall());
+                    return;
+                }
+
+                if(buffer.Count > 0)
+                {
+                    var response = USBTransactionStage.Data(buffer.Dequeue().ToArray());
+                    this.Log(LogLevel.Noisy, "Sending response to IN transaction of size {0} bytes", response.Payload.Length);
+#if DEBUG_PACKETS
+                    core.Device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(response.Data));
+#endif
+                    RunAfterRead();
+                    deviceStage(response);
+                }
+                else
+                {
+                    dataCallback = deviceStage;
+                }
+            }
+        }
+
+        private void HandleOutTransaction(USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
+        {
+            var handler = OutPacketHandler;
+            if(handler != null)
+            {
+                handler(this, hostStage, deviceStage);
+                return;
+            }
+
+            // control endpoints allow for both IN/OUT packets regardless of the direction
+            if(TransferType != EndpointTransferType.Control && Direction != Direction.HostToDevice)
+            {
+                this.Log(LogLevel.Warning, "Received OUT packet on IN endpoint");
+                deviceStage(USBTransactionStage.Stall());
+                return;
+            }
+
+            if(hostStage.Payload.Length == 0)
+            {
+                // do not fail on empty packets event if there is no callback registered
+                deviceStage(USBTransactionStage.Ack());
+                return;
+            }
+
+            var dw = dataFromHostWritten;
+            if(dw == null)
+            {
+                this.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
+                deviceStage(USBTransactionStage.Stall());
+                return;
+            }
+
+            this.Log(LogLevel.Noisy, "Received {0} bytes of data", hostStage.Payload.Length);
+#if DEBUG_PACKETS
+            core.Device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(hostStage.Payload));
+#endif
+
+            dw(hostStage.Payload);
+            deviceStage(USBTransactionStage.Ack());
+        }
+
+        private void Log(LogLevel level, string message, params object[] parameters)
+        {
+            // TODO there should be a better way of doing this!
+            core.Device.Log(level, $"EP#{Identifier}: " + message, parameters);
         }
 
         public byte Identifier { get; }
@@ -168,7 +278,9 @@ namespace Antmicro.Renode.Core.USB
         public short MaximumPacketSize { get; }
         public byte Interval { get; }
 
-        public Action<SetupPacket, Action<byte[]>, byte[]> CustomSetupPacketHandler { get; set; }
+        public Action<USBEndpoint, USBTransactionStage, Action<USBTransactionStage>> SetupPacketHandler { get; set; }
+        public Action<USBEndpoint, USBTransactionStage, Action<USBTransactionStage>> InPacketHandler { get; set; }
+        public Action<USBEndpoint, USBTransactionStage, Action<USBTransactionStage>> OutPacketHandler { get; set; }
 
         protected override void FillDescriptor(BitStream buffer)
         {
@@ -180,48 +292,9 @@ namespace Antmicro.Renode.Core.USB
                 .Append(Interval);
         }
 
-        public void HandlePacket(ICollection<byte> data)
-        {
-            lock(buffer)
-            {
-                device.Log(LogLevel.Noisy, "Handling data packet of size: {0}", data.Count);
-#if DEBUG_PACKETS
-                device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
-#endif
-
-                // split packet into chunks of size not exceeding `MaximumPacketSize`
-                var offset = 0;
-                while(offset < data.Count)
-                {
-                    var toTake = Math.Min(MaximumPacketSize, data.Count - offset);
-                    var chunk = data.Skip(offset).Take(toTake);
-                    offset += toTake;
-                    buffer.Enqueue(chunk);
-#if DEBUG_PACKETS
-                    device.Log(LogLevel.Noisy, "Enqueuing chunk of {0} bytes: {1}", chunk.Count(), Misc.PrettyPrintCollectionHex(chunk));
-#endif
-
-                    if(offset == data.Count && toTake == MaximumPacketSize)
-                    {
-                        // in order to indicate the end of a packet
-                        // the chunk should be shorter than `MaximumPacketSize`;
-                        // in case there is no data to send, empty chunk
-                        // is generated
-                        buffer.Enqueue(new byte[0]);
-                        device.Log(LogLevel.Noisy, "Enqueuing end of packet marker");
-                    }
-                }
-
-                if(dataCallback != null)
-                {
-                    dataCallback(this, buffer.Count == 0 ? new byte[0] : buffer.Dequeue());
-                    dataCallback = null;
-                }
-            }
-        }
-
-        private event Action<byte[]> dataWritten;
-        private Action<USBEndpoint, IEnumerable<byte>> dataCallback;
+        private bool isStalled;
+        private event Action<byte[]> dataFromHostWritten;
+        private Action<USBTransactionStage> dataCallback;
 
         private readonly Queue<IEnumerable<byte>> buffer;
         private readonly PacketCreator packetCreator;

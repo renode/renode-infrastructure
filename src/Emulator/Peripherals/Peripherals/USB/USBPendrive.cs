@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             out deviceToHostEndpoint))
                 );
 
-                hostToDeviceEndpoint.DataWritten += HandleInput;
+                hostToDeviceEndpoint.DataFromHostWritten += HandleInput;
         }
 
         public void Dispose()
@@ -114,13 +114,13 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             var response = new CommandStatusWrapper(commandBlockWrapper.Tag, dataResidue, status);
             this.Log(LogLevel.Debug, "Sending result: {0}", response);
-            deviceToHostEndpoint.HandlePacket(Packet.Encode(response));
+            deviceToHostEndpoint.WriteDataToHost(Packet.Encode(response));
         }
 
         private void SendData(byte[] data)
         {
             this.Log(LogLevel.Debug, "Sending data of length {0}.", data.Length);
-            deviceToHostEndpoint.HandlePacket(data);
+            deviceToHostEndpoint.WriteDataToHost(data);
         }
 
         private void HandleData(byte[] packet)
