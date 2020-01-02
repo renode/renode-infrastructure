@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Core.USB
 
                 if(dataCallback != null)
                 {
-                    dataCallback(this, buffer.Dequeue());
+                    dataCallback(this, buffer.Count == 0 ? new byte[0] : buffer.Dequeue());
                     dataCallback = null;
                 }
             }
