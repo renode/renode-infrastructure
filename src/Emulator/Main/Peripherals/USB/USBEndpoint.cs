@@ -65,15 +65,15 @@ namespace Antmicro.Renode.Core.USB
                 return;
             }
 
-            device.Log(LogLevel.Noisy, "Writing {0} bytes of data", packet.Length);
+            core.Device.Log(LogLevel.Noisy, "Writing {0} bytes of data", packet.Length);
 #if DEBUG_PACKETS
-            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(packet));
+            core.Device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(packet));
 #endif
 
             var dw = dataWritten;
             if(dw == null)
             {
-                device.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
+                core.Device.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
                 return;
             }
 
@@ -97,9 +97,9 @@ namespace Antmicro.Renode.Core.USB
                 device.Log(LogLevel.Noisy, "Data read callback set");
                 if(buffer.Count > 0)
                 {
-                    device.Log(LogLevel.Noisy, "Data read callback fired");
+                    core.Device.Log(LogLevel.Noisy, "Data read callback fired");
 #if DEBUG_PACKETS
-                    device.Log(LogLevel.Noisy, "Sending back {0} bytes: {1}", buffer.Peek().Count(), Misc.PrettyPrintCollectionHex(buffer.Peek()));
+                    core.Device.Log(LogLevel.Noisy, "Sending back {0} bytes: {1}", buffer.Peek().Count(), Misc.PrettyPrintCollectionHex(buffer.Peek()));
 #endif
                     callback(this, buffer.Dequeue());
                 }

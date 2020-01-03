@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Core.USB
             }
 
             this.customSetupPacketHandler = customSetupPacketHandler;
-            this.device = device;
+            Device = device;
             configurations = new List<USBConfiguration>();
 
             CompatibleProtocolVersion = usbProtocolVersion;
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Core.USB
         {
             if(packet.Type != PacketType.Standard)
             {
-                device.Log(LogLevel.Warning, "Non standard requests are not supported");
+                Device.Log(LogLevel.Warning, "Non standard requests are not supported");
             }
             else
             {
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Core.USB
                     case StandardRequest.GetDescriptor:
                         if(packet.Direction != Direction.DeviceToHost)
                         {
-                            device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
+                            Device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
                             break;
                         }
                         return HandleGetDescriptor(packet.Value);
@@ -169,11 +169,11 @@ namespace Antmicro.Renode.Core.USB
                         SelectedConfiguration = Configurations.SingleOrDefault(x => x.Identifier == packet.Value);
                         if(SelectedConfiguration == null)
                         {
-                            device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
+                            Device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
                         }
                         break;
                     default:
-                        device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
+                        Device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
                         break;
                 }
             }
@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Core.USB
                 case DescriptorType.Configuration:
                     if(Configurations.Count < descriptorIndex)
                     {
-                        device.Log(LogLevel.Warning, "Tried to access a non-existing configuration #{0}", descriptorIndex);
+                        Device.Log(LogLevel.Warning, "Tried to access a non-existing configuration #{0}", descriptorIndex);
                         return BitStream.Empty;
                     }
                     return Configurations.ElementAt(descriptorIndex).GetDescriptor(true);
@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Core.USB
                         var usbString = USBString.FromId(descriptorIndex);
                         if(usbString == null)
                         {
-                            device.Log(LogLevel.Warning, "Tried to get non-existing string #{0}", descriptorIndex);
+                            Device.Log(LogLevel.Warning, "Tried to get non-existing string #{0}", descriptorIndex);
                             return BitStream.Empty;
                         }
 
@@ -217,14 +217,14 @@ namespace Antmicro.Renode.Core.USB
                     }
                 }
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
+                    Device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
                     return BitStream.Empty;
             }
         }
 
         public USBDeviceCore WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
         {
-            var newConfiguration = new USBConfiguration(device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
+            var newConfiguration = new USBConfiguration(Device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
             configurations.Add(newConfiguration);
             configure?.Invoke(newConfiguration);
             return this;
@@ -250,6 +250,8 @@ namespace Antmicro.Renode.Core.USB
         public string ProductName { get; }
         public string SerialNumber { get; }
 
+        public IUSBDevice Device { get; }
+
         protected override void FillDescriptor(BitStream buffer)
         {
             buffer
@@ -268,7 +270,6 @@ namespace Antmicro.Renode.Core.USB
         }
 
         private readonly List<USBConfiguration> configurations;
-        private readonly IUSBDevice device;
 
         private Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler;
     }
