@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Core.USB
                             break;
                         }
                     }
-                    
+
                     callback(this, result);
                 }
                 else
