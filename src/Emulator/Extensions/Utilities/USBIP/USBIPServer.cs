@@ -261,11 +261,15 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                         else if(ep.Direction == Direction.DeviceToHost)
                         {
                             this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
-                            var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
+
+                            var localHeader = urbHeader;
+                            ep.SetDataReadCallbackOneShot(packet.TransferBufferLength, (_, response) =>
+                            {
 #if DEBUG_PACKETS
-                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollection(response, x => "0x{0:X}".FormatWith(x)));
+                                this.Log(LogLevel.Noisy, "Data from endpoint #{2}:: {0}: {1}", response.Length, Misc.PrettyPrintCollection(response, x => "0x{0:X}".FormatWith(x)), ep.Identifier);
 #endif
-                            SendResponse(GenerateURBReplyOK(urbHeader, packet, response));
+                                SendResponse(GenerateURBReplyOK(localHeader, packet, response));
+                            });
                         }
                         else
                         {
