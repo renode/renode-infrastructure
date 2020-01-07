@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
 
             USBCore = new USBDeviceCore(this)
-                .WithConfiguration(configure: c => c.WithInterface<Core.USB.MSC.Interface>(
+                .WithConfiguration(configure: (core, configuration) => configuration.WithInterface<Core.USB.MSC.Interface>(
                     (byte)Core.USB.MSC.Subclass.ScsiTransparentCommandSet,
                     (byte)Core.USB.MSC.Protocol.BulkOnlyTransport,
                     configure: x =>

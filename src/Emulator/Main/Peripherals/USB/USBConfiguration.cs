@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Core.USB
 {
     public class USBConfiguration : DescriptorProvider
     {
-        public USBConfiguration(IUSBDevice device,
+        public USBConfiguration(USBDeviceCore core,
                                 byte identifier,
                                 string description = null,
                                 bool selfPowered = false,
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Core.USB
                 throw new ConstructionException("Maximal power should be between 0 and 500 mA");
             }
 
-            this.device = device;
+            this.core = core;
 
             interfaces = new List<USBInterface>();
 
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Core.USB
                                                  string description = null,
                                                  Action<T> configure = null) where T : USBInterface
         {
-            var newInterface = (T)Activator.CreateInstance(typeof(T), device, (byte)interfaces.Count, subClassCode, protocol, description);
+            var newInterface = (T)Activator.CreateInstance(typeof(T), core, (byte)interfaces.Count, subClassCode, protocol, description);
             configure?.Invoke(newInterface);
             return WithInterface(newInterface);
         }
@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Core.USB
                                               string description = null,
                                               Action<USBInterface> configure = null)
         {
-            var newInterface = new USBInterface(device, (byte)interfaces.Count, classCode, subClassCode, protocol, description);
+            var newInterface = new USBInterface(core, (byte)interfaces.Count, classCode, subClassCode, protocol, description);
             configure?.Invoke(newInterface);
             return WithInterface(newInterface);
         }
@@ -88,6 +88,7 @@ namespace Antmicro.Renode.Core.USB
         public short MaximalPower { get; }
         public bool SelfPowered { get; }
         public bool RemoteWakeup { get; }
+
 
         public IReadOnlyCollection<USBInterface> Interfaces => interfaces;
 
@@ -103,6 +104,6 @@ namespace Antmicro.Renode.Core.USB
         }
 
         private readonly List<USBInterface> interfaces;
-        private readonly IUSBDevice device;
+        private readonly USBDeviceCore core;
     }
 }

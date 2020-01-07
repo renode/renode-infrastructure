@@ -14,12 +14,12 @@ namespace Antmicro.Renode.Core.USB.HID
 {
     public class Interface : USBInterface
     {
-        public Interface(IUSBDevice device,
+        public Interface(USBDeviceCore core,
                                byte identifier,
                                byte subClassCode = (byte)SubclassCode.BootInterfaceSubclass,
                                byte protocol = (byte)HID.Protocol.None,
                                string description = null,
-                               ReportDescriptor reportDescriptor = null) : base(device, identifier, USBClassCode.HumanInterfaceDevice, subClassCode, protocol, description)
+                               ReportDescriptor reportDescriptor = null) : base(core, identifier, USBClassCode.HumanInterfaceDevice, subClassCode, protocol, description)
         {
             HID_ReportDescriptor = reportDescriptor ?? new ReportDescriptor();
             HID_Descriptor = new HID.Descriptor(HID_ReportDescriptor);
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Core.USB.HID
                 case PacketType.Class:
                     return HandleClassRequest(packet.Direction, (HidClassRequest)packet.Request, packet.Value);
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported type: 0x{0:X}", packet.Type);
+                    core.Device.Log(LogLevel.Warning, "Unsupported type: 0x{0:X}", packet.Type);
                     return BitStream.Empty;
             }
         }
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Core.USB.HID
                     // we simply ignore this as we don't implement any repeated interrupts at all
                     return BitStream.Empty;
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", request);
+                    core.Device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", request);
                     return BitStream.Empty;
             }
         }
@@ -64,12 +64,12 @@ namespace Antmicro.Renode.Core.USB.HID
                 case StandardRequest.GetDescriptor:
                     if(direction != Direction.DeviceToHost)
                     {
-                        device.Log(LogLevel.Warning, "Unexpected standard request direction");
+                        core.Device.Log(LogLevel.Warning, "Unexpected standard request direction");
                         return BitStream.Empty;
                     }
                     return HandleGetDescriptor(value);
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", request);
+                    core.Device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", request);
                     return BitStream.Empty;
             }
         }
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Core.USB.HID
                 case DescriptorType.Report:
                     return HID_ReportDescriptor.GetDescriptor(false);
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
+                    core.Device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
                     return BitStream.Empty;
             }
         }

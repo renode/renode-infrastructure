@@ -222,11 +222,11 @@ namespace Antmicro.Renode.Core.USB
             }
         }
 
-        public USBDeviceCore WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
+        public USBDeviceCore WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBDeviceCore, USBConfiguration> configure = null)
         {
-            var newConfiguration = new USBConfiguration(Device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
+            var newConfiguration = new USBConfiguration(this, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
             configurations.Add(newConfiguration);
-            configure?.Invoke(newConfiguration);
+            configure?.Invoke(this, newConfiguration);
             return this;
         }
 

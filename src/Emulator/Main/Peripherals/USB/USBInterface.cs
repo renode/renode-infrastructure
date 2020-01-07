@@ -14,14 +14,14 @@ namespace Antmicro.Renode.Core.USB
 {
     public class USBInterface : DescriptorProvider
     {
-        public USBInterface(IUSBDevice device,
+        public USBInterface(USBDeviceCore core,
                             byte identifier,
                             USBClassCode classCode = USBClassCode.NotSpecified,
                             byte subClassCode = 0,
                             byte protocol = 0,
                             string description = null) : base(9, (byte)DescriptorType.Interface)
         {
-            this.device = device;
+            this.core = core;
             endpoints = new List<USBEndpoint>();
 
             Identifier = identifier;
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Core.USB
                 throw new ConstructionException("The maximal number of endpoints reached");
             }
 
-            createdEndpoint = new USBEndpoint(device, (byte)(endpoints.Count + 1), direction, transferType, maximumPacketSize, interval);
+            createdEndpoint = new USBEndpoint(core, (byte)(endpoints.Count + 1), direction, transferType, maximumPacketSize, interval);
             endpoints.Add(createdEndpoint);
             return this;
         }
@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Core.USB
                 .Append(USBString.FromString(Description).Index);
         }
 
-        protected readonly IUSBDevice device;
+        protected readonly USBDeviceCore core;
 
         private readonly List<USBEndpoint> endpoints;
     }

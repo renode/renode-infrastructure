@@ -114,8 +114,8 @@ namespace Antmicro.Renode.Peripherals.USB
         public USBKeyboard()
         {
             USBCore = new USBDeviceCore(this)
-                .WithConfiguration(configure: c =>
-                    c.WithInterface(new Core.USB.HID.Interface(this, 0,
+                .WithConfiguration(configure: (core, configuration) =>
+                    configuration.WithInterface(new Core.USB.HID.Interface(core, 0,
                         subClassCode: (byte)Core.USB.HID.SubclassCode.BootInterfaceSubclass,
                         protocol: (byte)Core.USB.HID.Protocol.Keyboard,
                         reportDescriptor: new Core.USB.HID.ReportDescriptor(ReportHidDescriptor)),
