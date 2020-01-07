@@ -14,14 +14,14 @@ namespace Antmicro.Renode.Core.USB
 {
     public class USBEndpoint : DescriptorProvider
     {
-        public USBEndpoint(IUSBDevice device,
+        public USBEndpoint(USBDeviceCore core,
                            byte identifier,
                            Direction direction,
                            EndpointTransferType transferType,
                            short maximumPacketSize,
                            byte interval) : base(7, (byte)DescriptorType.Endpoint)
         {
-            this.device = device;
+            this.core = core;
 
             Identifier = identifier;
             Direction = direction;
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Core.USB
         {
             if(Direction != Direction.HostToDevice)
             {
-                device.Log(LogLevel.Warning, "Trying to write to a Read-Only endpoint");
+                core.Device.Log(LogLevel.Warning, "Trying to write to a Read-Only endpoint");
                 return;
             }
 
@@ -178,7 +178,7 @@ namespace Antmicro.Renode.Core.USB
 
         private readonly Queue<IEnumerable<byte>> buffer;
         private readonly PacketCreator packetCreator;
-        private readonly IUSBDevice device;
+        private readonly USBDeviceCore core;
 
         public class PacketCreator : IDisposable
         {

@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             USBCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c =>
-                    c.WithInterface(new Core.USB.HID.Interface(this, 0,
+                    c.WithInterface(new Core.USB.HID.Interface(c.Core, 0,
                         subClassCode: (byte)Core.USB.HID.SubclassCode.BootInterfaceSubclass,
                         protocol: (byte)Core.USB.HID.Protocol.Mouse,
                         reportDescriptor: new Core.USB.HID.ReportDescriptor(ReportHidDescriptor)),

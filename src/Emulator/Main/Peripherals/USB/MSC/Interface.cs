@@ -12,11 +12,11 @@ namespace Antmicro.Renode.Core.USB.MSC
 {
     public class Interface : USBInterface
     {
-        public Interface(IUSBDevice device,
+        public Interface(USBDeviceCore core,
                                byte identifier,
                                byte subClassCode,
                                byte protocol,
-                               string description = null) : base(device, identifier, USBClassCode.MassStorage, subClassCode, protocol, description)
+                               string description = null) : base(core, identifier, USBClassCode.MassStorage, subClassCode, protocol, description)
         {
         }
 
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Core.USB.MSC
                 case PacketType.Class:
                     return HandleClassRequest(packet);
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported packet type: 0x{0:X}", packet.Type);
+                    core.Device.Log(LogLevel.Warning, "Unsupported packet type: 0x{0:X}", packet.Type);
                     return BitStream.Empty;
             }
         }
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Core.USB.MSC
                     // If no LUN is associated with the device, the value returned shall be 0.
                     return new BitStream().Append((byte)0);
                 default:
-                    device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", packet.Request);
+                    core.Device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", packet.Request);
                     return BitStream.Empty;
             }
         }
