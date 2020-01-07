@@ -239,7 +239,15 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
                         device.USBCore.ControlEndpoint.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                         {
-                            SendResponse(GenerateURBReply(urbHeader, packet, response));
+                            if(response == null)
+                            {
+                                // stall
+                                SendResponse(GenerateURBReplyStall(urbHeader, packet));
+                            }
+                            else
+                            {
+                                SendResponse(GenerateURBReplyOK(urbHeader, packet, response));
+                            }
                         });
                     }
                     else
@@ -256,14 +264,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 #if DEBUG_PACKETS
                             this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollection(response, x => "0x{0:X}".FormatWith(x)));
 #endif
-                            SendResponse(GenerateURBReply(urbHeader, packet, response));
+                            SendResponse(GenerateURBReplyOK(urbHeader, packet, response));
                         }
                         else
                         {
                             var additionalData = buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray();
 
                             ep.WriteData(additionalData);
-                            SendResponse(GenerateURBReply(urbHeader, packet));
+                            SendResponse(GenerateURBReplyOK(urbHeader, packet));
                         }
                     }
 
@@ -291,7 +299,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
         }
 
-        private IEnumerable<byte> GenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null)
+        private IEnumerable<byte> GenerateURBReplyOK(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null)
         {
             var header = new URBHeader
             {
@@ -320,6 +328,22 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
 
             return result;
+        }
+
+        private IEnumerable<byte> GenerateURBReplyStall(URBHeader hdr, URBRequest req)
+        {
+            var header = new URBHeader
+            {
+                Command = URBCommand.URBReply,
+                SequenceNumber = hdr.SequenceNumber,
+                BusId = hdr.BusId,
+                DeviceId = hdr.DeviceId,
+                Direction = hdr.Direction,
+                EndpointNumber = hdr.EndpointNumber,
+                FlagsOrStatus = -32// -EPIPE
+            };
+
+            return Packet.Encode(header).Concat(Packet.Encode(new URBReply())).AsEnumerable();
         }
 
         // using this blocking helper method simplifies the logic of other methods
