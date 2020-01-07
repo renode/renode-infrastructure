@@ -84,6 +84,12 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             cancellationToken = new CancellationTokenSource();
         }
 
+        private void ResetBuffer()
+        {
+            additionalDataCount = 0;
+            buffer.Clear();
+        }
+
         private void SendResponse(IEnumerable<byte> bytes)
         {
             server.Send(bytes);
@@ -221,56 +227,110 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                         }
                     }
 
+                    IUSBDevice device = null;
+
                     if(urbHeader.BusId != ExportedBusId)
                     {
                         this.Log(LogLevel.Warning, "URB command directed to a non-existing bus 0x{0:X}", urbHeader.BusId);
+                        ResetBuffer();
+                        SendResponse(GenerateURBReplyStall(urbHeader, packet));
+                        break;
                     }
-                    else if(!TryGetByAddress((int)urbHeader.DeviceId, out var device))
+                    else if(!TryGetByAddress((int)urbHeader.DeviceId, out device))
                     {
                         this.Log(LogLevel.Warning, "URB command directed to a non-existing device 0x{0:X}", urbHeader.DeviceId);
+                        ResetBuffer();
+                        SendResponse(GenerateURBReplyStall(urbHeader, packet));
+                        break;
                     }
-                    else if(urbHeader.EndpointNumber == 0)
-                    {
-                        // setup packet is passed in URB Request in a single `ulong` field
-                        var setupPacket = Packet.Decode<SetupPacket>(buffer, Packet.CalculateOffset<URBRequest>(nameof(URBRequest.Setup)));
-                        var additionalData = (additionalDataCount > 0)
-                            ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
-                            : null;
 
-                        device.USBCore.ControlEndpoint.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
+                    var ep = device.USBCore.GetEndpoint((Direction)urbHeader.Direction, (int)urbHeader.EndpointNumber);
+                    if(ep == null)
+                    {
+                        this.Log(LogLevel.Warning, "URB command directed to a non-existing '{0}' endpoint 0x{1:X}", (Direction)urbHeader.Direction, urbHeader.EndpointNumber);
+                        ResetBuffer();
+                        SendResponse(GenerateURBReplyStall(urbHeader, packet));
+                        break;
+                    }
+
+                    // setup packet is passed in URB Request in a single `ulong` field
+                    var setupPacket = buffer.Skip(Packet.CalculateOffset<URBRequest>(nameof(URBRequest.Setup))).Take(8);
+
+                    var additionalData = (additionalDataCount > 0)
+                        ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount)
+                        : null;
+
+                    var localHeader = urbHeader;
+
+                    if(ep.TransferType == EndpointTransferType.Control)
+                    {
+                        // setup transaction
+                        HandleSetupTransaction(ep, setupPacket, (int)packet.TransferBufferLength, additionalData: additionalData, callback: result =>
                         {
-                            SendResponse(GenerateURBReply(urbHeader, packet, response));
+                            if(result == null)
+                            {
+                                this.Log(LogLevel.Warning, "Could not send SETUP to endpoint #{0}", ep.Identifier);
+                                SendResponse(GenerateURBReplyStall(localHeader, packet));
+                            }
+                            else
+                            {
+                                SendResponse(GenerateURBReplyOK(localHeader, packet, result));
+                            }
                         });
                     }
-                    else
+                    else // non-setup transaction
                     {
-                        var ep = device.USBCore.GetEndpoint((Direction)urbHeader.Direction, (int)urbHeader.EndpointNumber);
-                        if(ep == null)
-                        {
-                            this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);
-                        }
-                        else if(ep.Direction == Direction.DeviceToHost)
+                        if(ep.Direction == Direction.DeviceToHost)
                         {
                             this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
-                            var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
-#if DEBUG_PACKETS
-                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
-#endif
-                            SendResponse(GenerateURBReply(urbHeader, packet, response));
-                        }
-                        else
-                        {
-                            var additionalData = buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray();
+                            ReceiveDataFromEndpoint(ep, (int)packet.TransferBufferLength, result =>
+                            {
+                                if(result == null)
+                                {
+                                    this.Log(LogLevel.Warning, "Could not read data from endpoint #{0}", ep.Identifier);
+                                    SendResponse(GenerateURBReplyStall(localHeader, packet));
+                                }
+                                else
+                                {
+                                    if(result.Length > packet.TransferBufferLength)
+                                    {
+                                        this.Log(LogLevel.Warning, "Received more data from the device than the Transfer Buffer Length. Truncating the result - some data will be lost!");
+                                        result = result.Take((int)packet.TransferBufferLength).ToArray();
+                                    }
 
-                            ep.WriteData(additionalData);
-                            SendResponse(GenerateURBReply(urbHeader, packet));
+                                    SendResponse(GenerateURBReplyOK(localHeader, packet, result));
+                                }
+                            });
+                        }
+                        else // Direction.HostToDevice
+                        {
+                            if(additionalData == null)
+                            {
+                                this.Log(LogLevel.Noisy, "There is no data to write to the endpoint #{0}", ep.Identifier);
+                                ResetBuffer();
+                                SendResponse(GenerateURBReplyStall(urbHeader, packet));
+                                break;
+                            }
+                            else
+                            {
+                                SendDataToEndpoint(ep, additionalData, result =>
+                                {
+                                    if(!result)
+                                    {
+                                        this.Log(LogLevel.Warning, "Could not write data to endpoint #{0}", ep.Identifier);
+                                        SendResponse(GenerateURBReplyStall(localHeader, packet));
+                                    }
+                                    else
+                                    {
+                                        SendResponse(GenerateURBReplyOK(localHeader, packet));
+                                    }
+                                });
+                            }
                         }
                     }
-
-                    additionalDataCount = 0;
                     state = State.WaitForURBHeader;
-                    buffer.Clear();
 
+                    ResetBuffer();
                     break;
                 }
 
@@ -305,7 +365,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
         }
 
-        private IEnumerable<byte> GenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null)
+        private IEnumerable<byte> GenerateURBReplyOK(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null)
         {
             var header = new URBHeader
             {
@@ -336,6 +396,22 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             return result;
         }
 
+        private IEnumerable<byte> GenerateURBReplyStall(URBHeader hdr, URBRequest req)
+        {
+            var header = new URBHeader
+            {
+                Command = URBCommand.URBReply,
+                SequenceNumber = hdr.SequenceNumber,
+                BusId = hdr.BusId,
+                DeviceId = hdr.DeviceId,
+                Direction = hdr.Direction,
+                EndpointNumber = hdr.EndpointNumber,
+                FlagsOrStatus = -32// -EPIPE
+            };
+
+            return Packet.Encode(header).Concat(Packet.Encode(new URBReply())).AsEnumerable();
+        }
+
         // using this blocking helper method simplifies the logic of other methods
         // + it seems to be harmless, as this logic is not executed as a result of
         // intra-emulation communication (where it could lead to deadlocks)
@@ -344,7 +420,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             byte[] result = null;
 
             var mre = new ManualResetEvent(false);
-            device.USBCore.ControlEndpoint.HandleSetupPacket(setupPacket, received =>
+
+            HandleSetupTransaction(device.USBCore.ControlEndpoint, Packet.Encode(setupPacket), int.MaxValue, callback: received =>
             {
                 result = received;
                 mre.Set();
@@ -405,7 +482,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
             for(var i = 0; i < innerInterfaceDescriptors.Length; i++)
             {
-                if(!Packet.TryDecode<USB.InterfaceDescriptor>(configurationDescriptorBytes, out innerInterfaceDescriptors[i], currentOffset))
+                if(!Packet.TryDecode<USB.InterfaceDescriptor>(recursiveBytes, out innerInterfaceDescriptors[i], currentOffset))
                 {
                     this.Log(LogLevel.Error, "Could not read Interface Descriptor #{0} from the slave", i);
                     return default(USB.ConfigurationDescriptor);
@@ -546,6 +623,233 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
 
             return success;
+        }
+
+        private void ReceiveDataFromEndpoint(USBEndpoint endpoint, int limit, Action<byte[]> callback)
+        {
+            var buffer = new Queue<byte>();
+
+            ReceiveChunk();
+
+            void ReceiveChunk()
+            {
+                endpoint.HandleTransaction(USBTransactionStage.In(), deviceStage: inHandshake =>
+                {
+                    this.Log(LogLevel.Noisy, "IN transaction finished with {0} on endpoint #{1}", inHandshake.PacketID, endpoint.Identifier);
+                    switch(inHandshake.PacketID)
+                    {
+                        case USBPacketId.NakHandshake:
+                        {
+                            // let's try again
+                            ReceiveChunk();
+                            return;
+                        }
+
+                        case USBPacketId.StallHandshake:
+                        {
+                            callback(null);
+                            return;
+                        }
+
+                        // TODO: add Data1/Data0 verification
+                        case USBPacketId.Data0:
+                        case USBPacketId.Data1:
+                        {
+                            buffer.EnqueueRange(inHandshake.Payload);
+
+                            if(inHandshake.Payload.Length < endpoint.MaximumPacketSize || buffer.Count >= limit)
+                            {
+                                // it was the last one OR we reached the limit
+                                callback(buffer.ToArray());
+                            }
+                            else
+                            {
+                                ReceiveChunk();
+                            }
+                            return;
+                        }
+
+                        default:
+                            this.Log(LogLevel.Warning, "Unexpected IN transaction result {0} on endpoint #{1}", inHandshake.PacketID, endpoint.Identifier);
+                            callback(null);
+                            return;
+                    }            
+                });
+            }
+        }
+
+        private void SendDataToEndpoint(USBEndpoint endpoint, IEnumerable<byte> data, Action<bool> callback)
+        {
+            var outTransactions = new List<USBTransactionStage>();
+
+            var currentToggle = false;
+            var baseIndex = 0; 
+
+            while(true)
+            {
+                var chunk = data.Skip(baseIndex).Take(endpoint.MaximumPacketSize).ToArray();
+                baseIndex += chunk.Length;
+
+                outTransactions.Add(USBTransactionStage.Out(chunk, currentToggle));
+                currentToggle = !currentToggle;
+
+                if(chunk.Length < endpoint.MaximumPacketSize)
+                {
+                    break;
+                }
+            }
+
+            SendChunk(0);
+           
+            void SendChunk(int id)
+            {
+                if(EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(endpoint.Core.Device, out var machine))
+                {
+                    machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => SendChunkInner(id));
+                }
+                else
+                {
+                    // this can happen when a device is attached directly to the USBIPServer
+                    SendChunkInner(id);
+                }
+            }
+
+            void SendChunkInner(int id)
+            {
+                endpoint.HandleTransaction(outTransactions[id], deviceStage: outHandshake =>
+                {
+                    this.Log(LogLevel.Noisy, "OUT transaction finished with {0} on endpoint #{1}", outHandshake.PacketID, endpoint.Identifier);
+                    switch(outHandshake.PacketID)
+                    {
+                        case USBPacketId.NakHandshake:
+                        {
+                            // let's try again the same chunk
+                            // TODO: add some delay!?
+                            SendChunk(id);
+                            return;
+                        }
+
+                        case USBPacketId.StallHandshake:
+                        {
+                            callback(false);
+                            return;
+                        }
+
+                        case USBPacketId.AckHandshake:
+                        {
+                            if(id == outTransactions.Count - 1)
+                            {
+                                // it was the last one
+                                callback(true);
+                            }
+                            else
+                            {
+                                SendChunk(id + 1);
+                            }
+                            return;
+                        }
+
+                        default:
+                            this.Log(LogLevel.Warning, "Unexpected OUT transaction result {0} on endpoint #{1}", outHandshake.PacketID, endpoint.Identifier);
+                            callback(false);
+                            return;
+                    }
+                });
+            }
+        }
+
+        private void HandleSetupTransaction(USBEndpoint endpoint, IEnumerable<byte> setupPacket, int limit, Action<byte[]> callback, IEnumerable<byte> additionalData = null)
+        {
+            var setupStage = USBTransactionStage.Setup(setupPacket.ToArray());
+
+            endpoint.HandleTransaction(setupStage, deviceStage: setupHandshake =>
+            {
+                this.Log(LogLevel.Noisy, "SETUP transaction finished with {0} on endpoint #{1}", setupHandshake.PacketID, endpoint.Identifier);
+                switch(setupHandshake.PacketID)
+                {
+                    case USBPacketId.StallHandshake:
+                    {
+                        callback(null);
+                        break;
+                    }
+
+                    case USBPacketId.AckHandshake:
+                    {
+                        if(additionalData != null)
+                        {
+                            SendDataToEndpoint(endpoint, additionalData, callback: result =>
+                            {
+                                if(!result)
+                                {
+                                    callback(null);
+                                }
+                                else
+                                {
+                                    // status phase
+                                    // limit 64 here is just something non-zero
+                                    ReceiveDataFromEndpoint(endpoint, 64, callback: statusResult =>
+                                    {
+                                        if(statusResult == null)
+                                        {
+                                            callback(null);
+                                        }
+                                        else if(statusResult.Length != 0)
+                                        {
+                                            this.Log(LogLevel.Warning, "Unexpected DATA package with payload. There should be just an empty IN status response");
+                                            callback(null);
+                                        }
+                                        else
+                                        {
+                                            callback(statusResult);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        else
+                        {
+                            // no data to send - it's time for the IN token - it's either a status or just reading the data
+                            this.Log(LogLevel.Noisy, "No additional data to send, sending IN token");
+                            ReceiveDataFromEndpoint(endpoint, limit, callback: receiveResult =>
+                            {
+                                if(receiveResult == null)
+                                {
+                                    callback(null);
+                                }
+                                else if(receiveResult.Length == 0)
+                                {
+                                    this.Log(LogLevel.Noisy, "Received an empty response - it must have been a status stage");
+                                    callback(receiveResult);
+                                }
+                                else
+                                {
+                                    // it was a read phase -> generate OUT status
+                                    this.Log(LogLevel.Noisy, "OUT status stage");
+                                    SendDataToEndpoint(endpoint, Enumerable.Empty<byte>(), callback: statusResult =>
+                                    {
+                                        if(!statusResult)
+                                        {
+                                            callback(null);
+                                        }
+                                        else
+                                        {
+                                            callback(receiveResult);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        break;
+                    }
+
+                    default:
+                    {
+                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to a setup token packet", setupHandshake.PacketID);
+                        callback(null);
+                        break;
+                    }
+                }
+            });
         }
 
         private State state;
