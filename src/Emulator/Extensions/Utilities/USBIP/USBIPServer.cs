@@ -292,9 +292,23 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<URBRequest>());
                     if(buffer.Count == Packet.CalculateLength<URBRequest>())
                     {
-                        // this command is practically ignored
                         buffer.Clear();
                         state = State.WaitForURBHeader;
+
+                        var header = new USBIP.URBHeader
+                        {
+                            Command = URBCommand.UnlinkReply,
+                            SequenceNumber = urbHeader.SequenceNumber,
+                            BusId = urbHeader.BusId,
+                            DeviceId = urbHeader.DeviceId,
+                            Direction = urbHeader.Direction,
+                            EndpointNumber = urbHeader.EndpointNumber
+                        };
+
+                        // we probably should interrupt some waiting reads here
+                        SendResponse(Packet.Encode(header));
+                        // Padding to 48 bytes!
+                        SendResponse(Packet.Encode(new USBIP.URBHeader()));
                     }
                     break;
                 }
