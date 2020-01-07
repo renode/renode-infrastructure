@@ -237,16 +237,17 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                             ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
                             : null;
 
+                        var localHeader = urbHeader;
                         device.USBCore.ControlEndpoint.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                         {
                             if(response == null)
                             {
                                 // stall
-                                SendResponse(GenerateURBReplyStall(urbHeader, packet));
+                                SendResponse(GenerateURBReplyStall(localHeader, packet));
                             }
                             else
                             {
-                                SendResponse(GenerateURBReplyOK(urbHeader, packet, response));
+                                SendResponse(GenerateURBReplyOK(localHeader, packet, response));
                             }
                         });
                     }
