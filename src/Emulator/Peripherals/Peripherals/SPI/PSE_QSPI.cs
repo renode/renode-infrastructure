@@ -251,6 +251,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         }
                     }
+                    TryHandleInterrupt(rxDone);
                 }
                 // transmission
                 else
@@ -259,6 +260,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         HandleByteTransmission(val);
                     }
+                    TryHandleInterrupt(txDone);
                 }
             }
         }
@@ -284,6 +286,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private void TryHandleInterrupt(IFlagRegisterField field)
+        {
+            if(bytesSent == totalBytes)
+            {
+                field.Value = true;
+                RefreshInterrupt();
+            }
+        }
+
         private void RefreshInterrupt()
         {
             var value = false;
@@ -304,7 +315,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private int bytesSent;
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
         private readonly DoubleWordRegisterCollection registers;
@@ -321,7 +331,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField rxAvailableInterruptEnabled;
         private readonly IFlagRegisterField txAvailableInterruptEnabled;
         private readonly IFlagRegisterField rxFifoEmptyInterruptEnabled;
+
         private uint totalBytes;
+        private int bytesSent;
 
         //Registers are aliased every 256 bytes
         private const int RegisterAliasSize = 256;
