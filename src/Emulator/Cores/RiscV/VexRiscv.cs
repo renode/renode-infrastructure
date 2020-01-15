@@ -83,6 +83,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public override void Reset()
+        {
+            base.Reset();
+
+            machineInterrupts = new Interrupts();
+            supervisorInterrupts = new Interrupts();
+            dCacheInfo = 0;
+        }
+
         // this is a helper method to allow
         // setting irq mask from the monitor
         public void SetMachineIrqMask(uint mask)
