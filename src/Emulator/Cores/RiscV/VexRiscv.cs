@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
 using ELFSharp.ELF;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
