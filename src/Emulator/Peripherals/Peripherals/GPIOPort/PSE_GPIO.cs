@@ -47,8 +47,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(0, 32, out inputReg, FieldMode.Read,
                         valueProviderCallback: val =>
                         {
-                            var readOperations = irqManager.PinDirection.Select(x => x == GPIOInterruptManager.Direction.Input);
-                            var result = readOperations.Zip(BitHelper.GetBits(inputReg.Value), (operation, bit) => operation && bit);
+                            var pins = irqManager.PinDirection.Select(x => (x & GPIOInterruptManager.Direction.Input) != 0);
+                            var result = pins.Zip(State, (pin, state) => pin && state);
                             return BitHelper.GetValueFromBitsArray(result);
                         }, name: "GPIN")
                 },
@@ -57,8 +57,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(0, 32,
                         valueProviderCallback: val =>
                         {
-                            var writeOperations = irqManager.PinDirection.Select(x => x == GPIOInterruptManager.Direction.Output);
-                            var result = writeOperations.Zip(BitHelper.GetBits(val), (operation, bit) => operation && bit);
+                            var pins = irqManager.PinDirection.Select(x => (x & GPIOInterruptManager.Direction.Output) != 0);
+                            var result = pins.Zip(Connections.Values, (pin, state) => pin && state.IsSet);
                             return BitHelper.GetValueFromBitsArray(result);
                         },
                         writeCallback: (_, val) =>
