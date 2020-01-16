@@ -64,9 +64,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
 
             // we don't log warning when value is false to handle gpio initial reset
-            if(privilegeArchitecture >= PrivilegeArchitecture.Priv1_10 && !IsValidInterruptInV10(number) && value)
+            if(privilegeArchitecture >= PrivilegeArchitecture.Priv1_10 && IsValidInterruptOnlyInV1_09(number) && value)
             {
-                this.Log(LogLevel.Warning, "Interrupt {0} not supported in Privileged ISA v1.10", (IrqType)number);
+                this.Log(LogLevel.Warning, "Interrupt {0} not supported since Privileged ISA v1.10", (IrqType)number);
+                return;
+            }
+            else if(IsUniplementedInterrupt(number) && value)
+            {
+                this.Log(LogLevel.Warning, "Interrupt {0} not supported", (IrqType)number);
                 return;
             }
 
@@ -374,11 +379,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
         }
 
-        private static bool IsValidInterruptInV10(int irq)
+        /* Since Priv 1.10 all hypervisor interrupts descriptions were changed to 'Reserved'
+         * Current state can be found in Table 3.6 of the specification (pg. 37 in version 1.11)
+         */
+        private static bool IsValidInterruptOnlyInV1_09(int irq)
         {
-            return irq != (int)IrqType.HypervisorExternalInterrupt
-                && irq != (int)IrqType.HypervisorSoftwareInterrupt
-                && irq != (int)IrqType.HypervisorTimerInterrupt;
+            return irq == (int)IrqType.HypervisorExternalInterrupt
+                || irq == (int)IrqType.HypervisorSoftwareInterrupt
+                || irq == (int)IrqType.HypervisorTimerInterrupt;
+        }
+
+        /* User-level interrupts support extension (N) is not implemented */
+        private static bool IsUniplementedInterrupt(int irq)
+        {
+            return irq == (int)IrqType.UserExternalInterrupt
+                || irq == (int)IrqType.UserSoftwareInterrupt
+                || irq == (int)IrqType.UserTimerInterrupt;
         }
 
         protected enum IrqType
