@@ -72,6 +72,7 @@
     <Compile Include="Peripherals\Miscellaneous\EmulatorController.cs" />
     <Compile Include="Peripherals\IRQControllers\PL190.cs" />
     <Compile Include="Peripherals\IRQControllers\SIC.cs" />
+    <Compile Include="Peripherals\IRQControllers\EOSS3_IntrCtrl.cs" />
     <Compile Include="Peripherals\Cache\PL310.cs" />
     <Compile Include="Peripherals\IRQControllers\EXTI.cs" />
     <Compile Include="Peripherals\DMA\STM32DMA.cs" />
