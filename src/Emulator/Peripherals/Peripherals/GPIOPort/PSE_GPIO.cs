@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             foreach(var i in BitHelper.GetSetBits(val))
                             {
-                                irqManager.ClearInterrupt((uint)i);
+                                irqManager.ClearInterrupt(i);
                                 if((irqManager.PinDirection[i] & GPIOInterruptManager.Direction.Input) != 0)
                                 {
                                     Connections[i].Set(false);

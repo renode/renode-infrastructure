@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             foreach(var i in BitHelper.GetSetBits(value))
                             {
-                                irqManager.ClearInterrupt((uint)i);
+                                irqManager.ClearInterrupt(i);
                             }
                         }
                     })},

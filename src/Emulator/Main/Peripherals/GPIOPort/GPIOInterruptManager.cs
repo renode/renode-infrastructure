@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         /// It is possible that the interrupt will be reissued right after clearing
         /// if the interrupt condition for the pin is true.
         /// </remarks>
-        public void ClearInterrupt(uint index)
+        public void ClearInterrupt(int index)
         {
             activeInterrupts[index] = false;
             RefreshInterrupts();
