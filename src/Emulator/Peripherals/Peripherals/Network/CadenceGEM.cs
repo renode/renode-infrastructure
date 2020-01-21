@@ -19,6 +19,12 @@ using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
+    // The register and field names are taken from the UltraScale+ GEM docs,
+    // because it is the most extensive description of this peripheral:
+    // https://www.xilinx.com/html_docs/registers/ug1087/mod___gem.html
+    // For further reference however, here are links to other sources:
+    // https://www.xilinx.com/support/documentation/user_guides/ug585-Zynq-7000-TRM.pdf
+    // https://www.mouser.com/datasheet/2/268/SAM-E70S70V70V71-Family_DataSheet-DS60001527B-1374834.pdf
     public class CadenceGEM : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
         // the default moduleRevision/moduleId are correct for Zynq with GEM p23
@@ -45,12 +51,29 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 {(long)Registers.NetworkControl, new DoubleWordRegister(this)
                     .WithFlag(2, out receiveEnabled, name: "RXEN")
-                    .WithFlag(9, FieldMode.Write, name: "STARTTX",
+                    .WithFlag(3, name: "TXEN",
+                        writeCallback: (_, value) =>
+                        {
+                            if(txDescriptorsQueue != null && !value)
+                            {
+                                txDescriptorsQueue.GoToBaseAddress();
+                            }
+                        })
+                    .WithFlag(9, FieldMode.Read | FieldMode.WriteOneToClear, name: "STARTTX",
                         writeCallback: (_, value) =>
                         {
                             if(value)
                             {
+                                isTransmissionStarted = true;
                                 SendFrames();
+                            }
+                        })
+                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "HALTTX",
+                        writeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                isTransmissionStarted = false;
                             }
                         })
                 },
@@ -66,7 +89,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.DmaConfiguration, new DoubleWordRegister(this, 0x00020784)
-                    .WithFlag(11, out checksumGeneratorEnabled, name: "TCPCKSUM")
+                    .WithFlag(11, out checksumGeneratorEnabled, name: "tx_pbuf_tcp_en")
+                    .WithFlag(28, out extendedRxBufferDescriptorEnabled, name: "rx_bd_extended_mode_en")
+                    .WithFlag(29, out extendedTxBufferDescriptorEnabled, name: "tx_bd_extended_mode_en")
+                    .WithEnumField(30, 1, out dmaAddressBusWith, name: "dma_addr_bus_width_1")
                 },
 
                 {(long)Registers.TransmitStatus, new DoubleWordRegister(this)
@@ -78,30 +104,70 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(2, 30, name: "RXQBASEADDR",
                         valueProviderCallback: _ =>
                         {
-                            return rxDescriptorsQueue.CurrentDescriptor.BaseAddress;
+                            return rxDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
                         },
                         writeCallback: (oldValue, value) =>
                         {
                             if(receiveEnabled.Value)
                             {
-                                // TODO: this write should be ignored
-                                this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address when receiving is enabled is illegal");
+                                this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
+                                return;
                             }
-
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr));
+                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
                         })
+                },
+
+                {(long)Registers.ReceiveBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "RXQBASEADDRUPPER",
+                        valueProviderCallback: _ =>
+                        {
+                            return rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
+                        },
+                        writeCallback: (oldValue, value) =>
+                        {
+                            rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = value;
+                        })
+                },
+
+                {(long)Registers.ReceiveBufferDescriptorControl, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 4)
+                    .WithEnumField(4, 2, out rxBufferDescriptorTimeStampMode, name: "RXBDTSMODE")
+                    .WithReservedBits(6, 26)
                 },
 
                 {(long)Registers.TransmitBufferQueueBaseAddress, new DoubleWordRegister(this)
                     .WithValueField(2, 30, name: "TXQBASEADDR",
                         valueProviderCallback: _ =>
                         {
-                            return txDescriptorsQueue.CurrentDescriptor.BaseAddress;
+                            return txDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr));
+                            if(isTransmissionStarted)
+                            {
+                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is started is illegal");
+                                return;
+                            }
+                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
                         })
+                },
+
+                {(long)Registers.TransmitBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "TXQBASEADDRUPPER",
+                        valueProviderCallback: _ =>
+                        {
+                            return txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
+                        },
+                        writeCallback: (oldValue, value) =>
+                        {
+                            txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = value;
+                        })
+                },
+
+                {(long)Registers.TransmitBufferDescriptorControl, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 4)
+                    .WithEnumField(4, 2, out txBufferDescriptorTimeStampMode, name: "TXBDTSMODE")
+                    .WithReservedBits(6, 26)
                 },
 
                 {(long)Registers.ReceiveStatus, new DoubleWordRegister(this)
@@ -283,6 +349,7 @@ namespace Antmicro.Renode.Peripherals.Network
             txDescriptorsQueue = null;
             rxDescriptorsQueue = null;
             phyDataRead = 0;
+            isTransmissionStarted = false;
             nanoTimer.Reset();
             nanoTimer.Enabled = true;
         }
@@ -320,6 +387,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     return;
                 }
 
+                // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
+                // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
+                rxPacketTimestamp.seconds = secTimer.Value;
+                rxPacketTimestamp.nanos = (uint)nanoTimer.Value;
+
                 rxDescriptorsQueue.CurrentDescriptor.Invalidate();
                 if(!rxDescriptorsQueue.CurrentDescriptor.Ownership)
                 {
@@ -335,6 +407,15 @@ namespace Antmicro.Renode.Peripherals.Network
                     rxDescriptorsQueue.CurrentDescriptor.StartOfFrame = true;
                     rxDescriptorsQueue.CurrentDescriptor.EndOfFrame = true;
 
+                    if(rxBufferDescriptorTimeStampMode.Value != TimestampingMode.Disabled)
+                    {
+                        rxDescriptorsQueue.CurrentDescriptor.Timestamp = rxPacketTimestamp;
+                    }
+                    else
+                    {
+                        rxDescriptorsQueue.CurrentDescriptor.HasValidTimestamp = false;
+                    }
+
                     rxDescriptorsQueue.GoToNextDescriptor();
 
                     frameReceived.Value = true;
@@ -347,11 +428,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     interruptManager.SetInterrupt(Interrupts.ReceiveUsedBitRead);
                 }
             }
-
-            // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
-            // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-            rxPacketTimestamp.seconds = secTimer.Value;
-            rxPacketTimestamp.nanos = (uint)nanoTimer.Value;
         }
 
         public event Action<EthernetFrame> FrameReady;
@@ -421,6 +497,15 @@ namespace Antmicro.Renode.Peripherals.Network
             txPacketTimestamp.seconds = secTimer.Value;
             txPacketTimestamp.nanos = (uint)nanoTimer.Value;
 
+            if(txBufferDescriptorTimeStampMode.Value != TimestampingMode.Disabled)
+            {
+                txDescriptorsQueue.CurrentDescriptor.Timestamp = txPacketTimestamp;
+            }
+            else
+            {
+                rxDescriptorsQueue.CurrentDescriptor.HasValidTimestamp = false;
+            }
+
             void EnsureArrayLength(int length)
             {
                 if(bytesArray.Length < length)
@@ -467,10 +552,14 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         private uint phyDataRead;
+        private bool isTransmissionStarted;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
         private readonly IFlagRegisterField checksumGeneratorEnabled;
+        private readonly IFlagRegisterField extendedRxBufferDescriptorEnabled;
+        private readonly IFlagRegisterField extendedTxBufferDescriptorEnabled;
+        private readonly IEnumRegisterField<DMAAddressWidth> dmaAddressBusWith;
         private readonly IFlagRegisterField transmitComplete;
         private readonly IFlagRegisterField usedBitRead;
         private readonly IFlagRegisterField receiveEnabled;
@@ -479,6 +568,8 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IFlagRegisterField frameReceived;
         private readonly IFlagRegisterField removeFrameChecksum;
         private readonly IValueRegisterField receiveBufferOffset;
+        private readonly IEnumRegisterField<TimestampingMode> rxBufferDescriptorTimeStampMode;
+        private readonly IEnumRegisterField<TimestampingMode> txBufferDescriptorTimeStampMode;
         private readonly IValueRegisterField secTimer;
 
         private readonly InterruptManager<Interrupts> interruptManager;
@@ -523,12 +614,18 @@ namespace Antmicro.Renode.Peripherals.Network
                         if(currentDescriptorIndex == descriptors.Count - 1)
                         {
                             // we need to generate new descriptor
-                            descriptors.Add(creator(bus, CurrentDescriptor.BaseAddress + DmaBufferDescriptor.LengthInBytes));
+                            descriptors.Add(creator(bus, CurrentDescriptor.LowerDescriptorAddress + CurrentDescriptor.SizeInBytes));
                         }
                         currentDescriptorIndex++;
                     }
                 }
 
+                CurrentDescriptor.Invalidate();
+            }
+
+            public void GoToBaseAddress()
+            {
+                currentDescriptorIndex = 0;
                 CurrentDescriptor.Invalidate();
             }
 
@@ -544,61 +641,149 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private abstract class DmaBufferDescriptor
         {
-            public const uint LengthInBytes = 8;
-
-            protected DmaBufferDescriptor(SystemBus bus, uint address)
+            protected DmaBufferDescriptor(SystemBus bus, uint address, DMAAddressWidth dmaAddressWidth, bool isExtendedModeEnabled)
             {
-                this.bus = bus;
-                BaseAddress = address;
-
-                words = new uint[2];
+                this.dmaAddressWidth = dmaAddressWidth;
+                Bus = bus;
+                LowerDescriptorAddress = address;
+                IsExtendedModeEnabled = isExtendedModeEnabled;
+                SizeInBytes = InitWords();
             }
 
             public void Invalidate()
             {
-                words[0] = bus.ReadDoubleWord(BaseAddress);
-                words[1] = bus.ReadDoubleWord(BaseAddress + 4);
+                var tempOffset = 0UL;
+                for(var i = 0; i < words.Length; ++i)
+                {
+                    words[i] = Bus.ReadDoubleWord(GetDescriptorAddress() + tempOffset);
+                    tempOffset += 4;
+                }
             }
 
             public void Update()
             {
-                bus.WriteDoubleWord(BaseAddress, words[0]);
-                bus.WriteDoubleWord(BaseAddress + 4, words[1]);
+                var tempOffset = 0UL;
+                foreach(var word in words)
+                {
+                    Bus.WriteDoubleWord(GetDescriptorAddress() + tempOffset, word);
+                    tempOffset += 4;
+                }
             }
 
-            public uint BaseAddress { get; private set; }
+            public ulong GetBufferAddress()
+            {
+                return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperBufferAddress << 32) | LowerBufferAddress) : LowerBufferAddress;
+            }
+
+            public SystemBus Bus { get; }
+            public uint SizeInBytes { get; }
+            public bool IsExtendedModeEnabled { get; }
+            public uint LowerDescriptorAddress { get; set; }
+            public uint UpperDescriptorAddress { get; set; }
+
+            public uint UpperBufferAddress
+            {
+                get { return BitHelper.GetMaskedValue(words[2], 0, 32); }
+                set { BitHelper.SetMaskedValue(ref words[2], value, 0, 32); }
+            }
+
+            public PTPTimestamp Timestamp
+            {
+                get
+                {
+                    var ptpTimestamp = new PTPTimestamp();
+                    if(!IsExtendedModeEnabled)
+                    {
+                        return ptpTimestamp;
+                    }
+                    ptpTimestamp.nanos = BitHelper.GetMaskedValue(words[4], 0, 30);
+                    ptpTimestamp.seconds = (BitHelper.GetMaskedValue(words[4], 30, 2) << 4) | BitHelper.GetMaskedValue(words[5], 0, 4);
+                    return ptpTimestamp;
+                }
+                set
+                {
+                    if(IsExtendedModeEnabled)
+                    {
+                        BitHelper.SetMaskedValue(ref words[4], value.nanos, 0, 30);
+                        BitHelper.SetMaskedValue(ref words[4], value.seconds >> 4, 30, 2);
+                        BitHelper.SetMaskedValue(ref words[5], value.seconds & 0xF, 0, 4);
+                        HasValidTimestamp = true;
+                    }
+                }
+            }
 
             public abstract bool Wrap { get; }
+            public abstract bool HasValidTimestamp { set; }
+            public abstract uint LowerBufferAddress { get; set; }
 
             protected uint[] words;
-            protected readonly SystemBus bus;
+
+            private uint InitWords()
+            {
+                if(dmaAddressWidth == DMAAddressWidth.Bit64 && IsExtendedModeEnabled)
+                {
+                    words = new uint[6];
+                }
+                else if((dmaAddressWidth == DMAAddressWidth.Bit32 && IsExtendedModeEnabled) || (dmaAddressWidth == DMAAddressWidth.Bit64 && !IsExtendedModeEnabled))
+                {
+                    words = new uint[4];
+                }
+                else if(dmaAddressWidth == DMAAddressWidth.Bit32 && !IsExtendedModeEnabled)
+                {
+                    words = new uint[2];
+                }
+                return (uint)words.Length * 4;
+            }
+
+            private ulong GetDescriptorAddress()
+            {
+                return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperDescriptorAddress << 32) | LowerDescriptorAddress) : LowerDescriptorAddress;
+            }
+
+            private readonly DMAAddressWidth dmaAddressWidth;
         }
 
         /// RX buffer descriptor format:
-        /// * bits 0-31:
+        /// * word 0:
         ///     * 0: Ownership flag
         ///     * 1: Wrap flag
-        ///     * 2-31: Address of beginning of buffer
-        /// * bits 32-63:
-        ///     * 32-44: Length of received frame
-        ///     * 45: Bad FCS flag
-        ///     * 46: Start of frame flag
-        ///     * 47: End of frame flag
-        ///     * 48: Cannonical form indicator flag
-        ///     * 49-51: VLAN priority
-        ///     * 52: Priority tag detected flag
-        ///     * 53: VLAN tag detected flag
-        ///     * 54-55: Type ID match
-        ///     * 56: Type ID match meaning flag
-        ///     * 57-58: Specific address register match
-        ///     * 59: Reserved
-        ///     * 60: External address match flag
-        ///     * 61: Unicash hash match flag
-        ///     * 62: Multicast hash match flag
-        ///     * 63: Broadcast address detected flag
+        ///     * 2: Address of beginning of buffer, or in extended buffer descriptor
+        ///          mode indicates a valid timestamp in the descriptor entry
+        ///     * In basic buffer descriptor mode:
+        ///     * 2-31: Address of the buffer [31:2]
+        ///     * In extended buffer descriptor mode:
+        ///     * 2: Valid timestamp flag
+        ///     * 3-31: Address of the buffer [31:3]
+        /// * word 1:
+        ///     * 0-12: Length of the received frame
+        ///     * 13: Bad FCS flag
+        ///     * 14: Start of frame flag
+        ///     * 15: End of frame flag
+        ///     * 16: Cannonical form indicator flag
+        ///     * 17-19: VLAN priority
+        ///     * 20: Priority tag detected flag
+        ///     * 21: VLAN tag detected flag
+        ///     * 22-23: Type ID match
+        ///     * 24: Type ID match meaning flag
+        ///     * 25-26: Specific address register match
+        ///     * 27: Specific address found flag
+        ///     * 28: External address match flag
+        ///     * 29: Unicast hash match flag
+        ///     * 30: Multicast hash match flag
+        ///     * 31: Broadcast address detected flag
+        /// * word 2 (64-bit addressing):
+        ///     * 0-31: Upper 32-bit address of the data buffer
+        /// * word 3 (64-bit addressing):
+        ///     * 0-31: Reserved
+        /// * word 2 (32-bit addressing) or word 4 (64-bit addressing):
+        ///     * 0-29: Timestamp nanosecods [29:0]
+        ///     * 30-31: Timestamp seconds [1:0]
+        /// * word 3 (32-bit addressing) or word 5 (64-bit addressing):
+        ///     * 0-3: Timestamp seconds [5:2]
+        ///     * 4-31: Reserved
         private class DmaRxBufferDescriptor : DmaBufferDescriptor
         {
-            public DmaRxBufferDescriptor(SystemBus bus, uint address) : base(bus, address)
+            public DmaRxBufferDescriptor(SystemBus bus, uint address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, address, addressWidth, extendedModeEnabled)
             {
             }
 
@@ -610,15 +795,47 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 Length = length;
-                bus.WriteBytes(bytes, BufferAddress + offset, true);
+                Bus.WriteBytes(bytes, GetBufferAddress() + offset, true);
                 Ownership = true;
 
                 return true;
             }
 
-            public ulong BufferAddress => BitHelper.GetMaskedValue(words[0], 2, 30);
+            public override uint LowerBufferAddress
+            {
+                get
+                {
+                    if(IsExtendedModeEnabled)
+                    {
+                        return BitHelper.GetMaskedValue(words[0], 3, 29);
+                    }
+                    return BitHelper.GetMaskedValue(words[0], 2, 30);
+                }
+                set
+                {
+                    if(IsExtendedModeEnabled)
+                    {
+                        BitHelper.SetMaskedValue(ref words[0], value, 3, 29);
+                    }
+                    else
+                    {
+                        BitHelper.SetMaskedValue(ref words[0], value, 2, 30);
+                    }
+                }
+            }
 
             public override bool Wrap => BitHelper.IsBitSet(words[0], 1);
+
+            public override bool HasValidTimestamp
+            {
+                set
+                {
+                    if(IsExtendedModeEnabled)
+                    {
+                        BitHelper.SetBit(ref words[0], 2, value);
+                    }
+                }
+            }
 
             public bool StartOfFrame { set { BitHelper.SetBit(ref words[1], 14, value); } }
 
@@ -636,48 +853,85 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         /// TX buffer descriptor format:
-        /// * bits 0-31:
-        ///     * 0-31: Byte address of buffer
-        /// * bits 32-63:
-        ///     * 32-45: Lenght of buffer
-        ///     * 46: Reserved
-        ///     * 47: Last buffer flag
-        ///     * 48: CRC appended flag
-        ///     * 49-51: Reserved
-        ///     * 52-54: Transmit checksum errors
-        ///     * 55-57: Reserved
-        ///     * 58: Late collision detected flag
-        ///     * 59: Transmit frame corruption flag
-        ///     * 60: Reserved (always set to 0)
-        ///     * 61: Retry limit exceeded
-        ///     * 62: Wrap flag
-        ///     * 63: Used flag
+        /// * word 0:
+        ///     * 0-31: Address of the buffer [31:0]
+        /// * word 1:
+        ///     * 0-13: Lenght of the buffer
+        ///     * 14: Reserved
+        ///     * 15: Last buffer flag
+        ///     * 16: CRC appended flag
+        ///     * 17-19: Reserved
+        ///     * 20-22: Transmit checksum errors
+        ///   * In basic buffer descriptor mode:
+        ///     * 23: Reserved
+        ///   * In extended buffer descriptor mode:
+        ///     * 23: Timestamp captured flag
+        ///     * 24-25: Reserved
+        ///     * 26: Late collision detected flag
+        ///     * 27: Transmit frame corruption flag
+        ///     * 28: Reserved
+        ///     * 29: Retry limit exceeded
+        ///     * 30: Wrap flag
+        ///     * 31: Used flag
+        /// * word 2 (64-bit addressing):
+        ///     * 0-31: Address of the buffer [63:32]
+        /// * word 3 (64-bit addressing):
+        ///     * 0-31: Reserved
+        /// * word 2 (32-bit addressing) or word 4 (64-bit addressing):
+        ///     * 0-29: Timestamp nanosecods [29:0]
+        ///     * 30-31: Timestamp seconds [1:0]
+        /// * word 3 (32-bit addressing) or word 5 (64-bit addressing):
+        ///     * 0-3: Timestamp seconds [5:2]
+        ///     * 4-31: Reserved
         private class DmaTxBufferDescriptor : DmaBufferDescriptor
         {
-            public DmaTxBufferDescriptor(SystemBus bus, uint address) : base(bus, address)
+            public DmaTxBufferDescriptor(SystemBus bus, uint address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, address, addressWidth, extendedModeEnabled)
             {
             }
 
             public byte[] ReadBuffer()
             {
-                var result = bus.ReadBytes(words[0], Length, true);
+                var result = Bus.ReadBytes(GetBufferAddress(), Length, true);
                 IsUsed = true;
                 return result;
             }
 
-            public ushort Length => (ushort)BitHelper.GetValue(words[1], 0, 14);
+            public ushort Length => (ushort)BitHelper.GetMaskedValue(words[1], 0, 14);
 
             public bool IsLast => BitHelper.IsBitSet(words[1], 15);
 
             public bool IsCRCIncluded => BitHelper.IsBitSet(words[1], 16);
-
-            public override bool Wrap => BitHelper.IsBitSet(words[1], 30);
 
             public bool IsUsed
             {
                 get { return BitHelper.IsBitSet(words[1], 31); }
                 set { BitHelper.SetBit(ref words[1], 31, value); }
             }
+
+            public override bool HasValidTimestamp
+            {
+                set
+                {
+                    if(IsExtendedModeEnabled)
+                    {
+                        BitHelper.SetBit(ref words[1], 23, value);
+                    }
+                }
+            }
+
+            public override uint LowerBufferAddress
+            {
+                get
+                {
+                    return words[0];
+                }
+                set
+                {
+                    words[0] = value;
+                }
+            }
+
+            public override bool Wrap => BitHelper.IsBitSet(words[1], 30);
         }
 
         private const uint NanosPerSecond = 1000000000;
@@ -686,6 +940,20 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             public uint seconds;
             public uint nanos;
+        }
+
+        private enum TimestampingMode
+        {
+            Disabled = 0,
+            PTPEventFrames = 1,
+            PTPAllFrames = 2,
+            AllFrames = 3
+        }
+
+        private enum DMAAddressWidth
+        {
+            Bit32 = 0,
+            Bit64 = 1,
         }
 
         private enum Interrupts
@@ -832,6 +1100,10 @@ namespace Antmicro.Renode.Peripherals.Network
             CreditBasedShapingControl = 0x4BC,
             CreditBasedShapingIdleSlopeQueueA = 0x4C0,
             CreditBasedShapingIdleSlopeQueueB = 0x4C4,
+            TransmitBufferQueueBaseAddressUpper = 0x4C8,
+            TransmitBufferDescriptorControl = 0x4CC,
+            ReceiveBufferDescriptorControl = 0x4D0,
+            ReceiveBufferQueueBaseAddressUpper = 0x4D4,
             // gap intended
             ScreeningType1PriorityQueues0 = 0x500,
             ScreeningType1PriorityQueues1 = 0x504,
