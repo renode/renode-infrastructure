@@ -54,14 +54,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
 
                 {(long)Registers.OutputRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, 
-                        valueProviderCallback: val => 
+                    .WithValueField(0, 32,
+                        valueProviderCallback: val =>
                         {
                             var writeOperations = irqManager.PinDirection.Select(x => x == GPIOInterruptManager.Direction.Output);
                             var result = writeOperations.Zip(BitHelper.GetBits(val), (operation, bit) => operation && bit);
                             return BitHelper.GetValueFromBitsArray(result);
                         },
-                        writeCallback: (_, val) => 
+                        writeCallback: (_, val) =>
                         {
                             // Potentially we should raise an exception, as GPIO is bidirectional,
                             // but we do not have such infrastructure.
