@@ -94,7 +94,9 @@
           <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)" />
           <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(CurrentPlatform) == 'Linux' " />
           <LinkFlags Include="-fomit-frame-pointer" />
-          <LinkFlags Include="-lpthread" />
+          <!-- On Windows: link MinGW's pthread library statically -->
+          <LinkFlags Include="-static -lwinpthread -dynamic" Condition="$(CurrentPlatform) == 'Windows'" />
+          <LinkFlags Include="-lpthread" Condition="$(CurrentPlatform) != 'Windows'" />
           <LinkFlags Include="-lm" />
           <LinkFlags Include="-shared" />
           <LinkFlags Include="-z defs" Condition="$(CurrentPlatform) == 'Linux'" />
