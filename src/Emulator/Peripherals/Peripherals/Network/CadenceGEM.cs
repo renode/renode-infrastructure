@@ -50,8 +50,8 @@ namespace Antmicro.Renode.Peripherals.Network
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.NetworkControl, new DoubleWordRegister(this)
-                    .WithFlag(2, out receiveEnabled, name: "RXEN")
-                    .WithFlag(3, name: "TXEN",
+                    .WithFlag(2, out receiveEnabled, name: "enable_receive")
+                    .WithFlag(3, name: "enable_transmit",
                         writeCallback: (_, value) =>
                         {
                             if(txDescriptorsQueue != null && !value)
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 txDescriptorsQueue.GoToBaseAddress();
                             }
                         })
-                    .WithFlag(9, FieldMode.Read | FieldMode.WriteOneToClear, name: "STARTTX",
+                    .WithFlag(9, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_start_pclk",
                         writeCallback: (_, value) =>
                         {
                             if(value)
@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 SendFrames();
                             }
                         })
-                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "HALTTX",
+                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_halt_pclk",
                         writeCallback: (_, value) =>
                         {
                             if(value)
@@ -79,13 +79,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.NetworkConfiguration, new DoubleWordRegister(this, 0x80000)
-                    .WithValueField(14, 2, out receiveBufferOffset, name: "RXOFFS")
-                    .WithFlag(17, out removeFrameChecksum, name: "RFCS")
-                    .WithFlag(26, out ignoreRxFCS, name: "FCSIGNORE")
+                    .WithValueField(14, 2, out receiveBufferOffset, name: "receive_buffer_offset")
+                    .WithFlag(17, out removeFrameChecksum, name: "fcs_remove")
+                    .WithFlag(26, out ignoreRxFCS, name: "ignore_rx_fcs")
                 },
 
                 {(long)Registers.NetworkStatus, new DoubleWordRegister(this)
-                    .WithFlag(2, FieldMode.Read, name: "PHY_MGMT_IDLE", valueProviderCallback: _ => true)
+                    .WithFlag(2, FieldMode.Read, name: "man_done", valueProviderCallback: _ => true)
                 },
 
                 {(long)Registers.DmaConfiguration, new DoubleWordRegister(this, 0x00020784)
@@ -96,12 +96,12 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.TransmitStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, out usedBitRead, FieldMode.Read | FieldMode.WriteOneToClear, name: "USEDREAD")
-                    .WithFlag(5, out transmitComplete, FieldMode.Read | FieldMode.WriteOneToClear, name: "TXCOMPL")
+                    .WithFlag(0, out usedBitRead, FieldMode.Read | FieldMode.WriteOneToClear, name: "used_bit_read")
+                    .WithFlag(5, out transmitComplete, FieldMode.Read | FieldMode.WriteOneToClear, name: "transmit_complete")
                 },
 
                 {(long)Registers.ReceiveBufferQueueBaseAddress, new DoubleWordRegister(this)
-                    .WithValueField(2, 30, name: "RXQBASEADDR",
+                    .WithValueField(2, 30, name: "dma_rx_q_ptr",
                         valueProviderCallback: _ =>
                         {
                             return rxDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
@@ -118,7 +118,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.ReceiveBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "RXQBASEADDRUPPER",
+                    .WithValueField(0, 32, name: "upper_rx_q_base_addr",
                         valueProviderCallback: _ =>
                         {
                             return rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
@@ -131,12 +131,12 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 {(long)Registers.ReceiveBufferDescriptorControl, new DoubleWordRegister(this)
                     .WithReservedBits(0, 4)
-                    .WithEnumField(4, 2, out rxBufferDescriptorTimeStampMode, name: "RXBDTSMODE")
+                    .WithEnumField(4, 2, out rxBufferDescriptorTimeStampMode, name: "rx_bd_ts_mode")
                     .WithReservedBits(6, 26)
                 },
 
                 {(long)Registers.TransmitBufferQueueBaseAddress, new DoubleWordRegister(this)
-                    .WithValueField(2, 30, name: "TXQBASEADDR",
+                    .WithValueField(2, 30, name: "dma_tx_q_ptr",
                         valueProviderCallback: _ =>
                         {
                             return txDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.TransmitBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "TXQBASEADDRUPPER",
+                    .WithValueField(0, 32, name: "upper_tx_q_base_addr",
                         valueProviderCallback: _ =>
                         {
                             return txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
@@ -166,13 +166,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 {(long)Registers.TransmitBufferDescriptorControl, new DoubleWordRegister(this)
                     .WithReservedBits(0, 4)
-                    .WithEnumField(4, 2, out txBufferDescriptorTimeStampMode, name: "TXBDTSMODE")
+                    .WithEnumField(4, 2, out txBufferDescriptorTimeStampMode, name: "tx_bd_ts_mode")
                     .WithReservedBits(6, 26)
                 },
 
                 {(long)Registers.ReceiveStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, out bufferNotAvailable, FieldMode.Read | FieldMode.WriteOneToClear, name: "BUFFNA")
-                    .WithFlag(1, out frameReceived, FieldMode.Read | FieldMode.WriteOneToClear, name: "FRAMERX")
+                    .WithFlag(0, out bufferNotAvailable, FieldMode.Read | FieldMode.WriteOneToClear, name: "buffer_not_available")
+                    .WithFlag(1, out frameReceived, FieldMode.Read | FieldMode.WriteOneToClear, name: "frame_received")
                 },
 
                 {(long)Registers.InterruptStatus, interruptManager.GetRegister<DoubleWordRegister>(
@@ -217,7 +217,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.PhyMaintenance, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, name: "PHYMNTNC", writeCallback: (_, value) => HandlePhyWrite(value), valueProviderCallback: _ => HandlePhyRead())
+                    .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite(value), valueProviderCallback: _ => HandlePhyRead())
                 },
 
                 {(long)Registers.SpecificAddress1Bottom, new DoubleWordRegister(this)
@@ -229,22 +229,22 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.ModuleId, new DoubleWordRegister(this)
-                    .WithValueField(16, 16, FieldMode.Read, name: "MODULE_ID", valueProviderCallback: _ => ModuleId)
-                    .WithValueField(0, 16, FieldMode.Read, name: "MODULE_REV", valueProviderCallback: _ => ModuleRevision)
+                    .WithValueField(16, 16, FieldMode.Read, name: "module_identification_number", valueProviderCallback: _ => ModuleId)
+                    .WithValueField(0, 16, FieldMode.Read, name: "module_revision", valueProviderCallback: _ => ModuleRevision)
                 },
 
                 {(long)Registers.DesignConfiguration1, new DoubleWordRegister(this)
-                    .WithFlag(23, FieldMode.Read, name: "IRQCOR", valueProviderCallback: _ => false) // IRQ clear on read
-                    .WithValueField(25, 3, FieldMode.Read, name: "DBWDEF", valueProviderCallback: _ => 1) // DMA data bus width - 32 bits
+                    .WithFlag(23, FieldMode.Read, name: "irq_read_clear", valueProviderCallback: _ => false) // IRQ clear on read
+                    .WithValueField(25, 3, FieldMode.Read, name: "dma_bus_width", valueProviderCallback: _ => 1) // DMA data bus width - 32 bits
                 },
 
                 {(long)Registers.DesignConfiguration2, new DoubleWordRegister(this)
-                    .WithFlag(21, FieldMode.Read, name: "GEM_TX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the transmitter packet buffer
-                    .WithFlag(20, FieldMode.Read, name: "GEM_RX_PKT_BUFFER", valueProviderCallback: _ => true) // includes the receiver packet buffer
+                    .WithFlag(21, FieldMode.Read, name: "tx_pkt_buffer", valueProviderCallback: _ => true) // includes the transmitter packet buffer
+                    .WithFlag(20, FieldMode.Read, name: "rx_pkt_buffer", valueProviderCallback: _ => true) // includes the receiver packet buffer
                 },
 
                 {(long)Registers.Timer1588SecondsLow, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, out secTimer, name: "TCS")
+                    .WithValueField(0, 31, out secTimer, name: "tsu_timer_sec")
                 },
 
                 {(long)Registers.Timer1588SecondsHigh, new DoubleWordRegister(this)
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         {
                             this.Log(LogLevel.Warning, "Writing a non-zero value to the SecondsHigh register, timer values over 32 bits are not supported.");
                         }
-                    }, name: "TSH")
+                    }, name: "tsu_timer_msb_sec")
                 },
 
                 {(long)Registers.Timer1588Nanoseconds, new DoubleWordRegister(this)
@@ -264,14 +264,14 @@ namespace Antmicro.Renode.Peripherals.Network
                     }, writeCallback: (_, value) =>
                     {
                         nanoTimer.Value = value;
-                    }, name: "TNS")
+                    }, name: "tsu_timer_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.Timer1588Adjust, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, out var timerIncrementDecrement, FieldMode.Write, name: "ITDT")
+                    .WithValueField(0, 29, out var timerIncrementDecrement, FieldMode.Write, name: "increment_value")
                     .WithReservedBits(30, 1)
-                    .WithFlag(31, out var timerAdjust, FieldMode.Write, name: "ADJ")
+                    .WithFlag(31, out var timerAdjust, FieldMode.Write, name: "add_subtract")
                     .WithWriteCallback((_, __) =>
                     {
                         if(timerAdjust.Value)
@@ -286,54 +286,54 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.PtpEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_tx_msb_sec")
                 },
 
                 {(long)Registers.PtpEventFrameTransmittedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_ptp_tx_sec")
                 },
 
                 {(long)Registers.PtpEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "RUD")
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_ptp_tx_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.PtpEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_rx_msb_sec")
                 },
 
                 {(long)Registers.PtpEventFrameReceivedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_ptp_rx_sec")
                 },
 
                 {(long)Registers.PtpEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "RUD")
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_ptp_rx_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.PtpPeerEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_tx_msb_sec")
                 },
 
                 {(long)Registers.PtpPeerEventFrameTransmittedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_peer_tx_sec")
                 },
 
                 {(long)Registers.PtpPeerEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "RUD")
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_peer_tx_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.PtpPeerEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_rx_msb_sec")
                 },
 
                 {(long)Registers.PtpPeerEventFrameReceivedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "RUD")
+                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_peer_rx_sec")
                 },
 
                 {(long)Registers.PtpPeerEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "RUD")
+                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_peer_rx_nsec")
                     .WithReservedBits(30, 2)
                 }
             };
