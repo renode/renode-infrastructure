@@ -381,6 +381,7 @@ namespace Antmicro.Renode.Peripherals.Network
             if(!phys.TryGetValue(addr, out var phy))
             {
                 this.Log(LogLevel.Warning, "Write to PHY with unknown address {0}", addr);
+                phyDataRead = 0xFFFFU;
                 return;
             }
 
@@ -465,7 +466,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        private ushort phyDataRead;
+        private uint phyDataRead;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
