@@ -50,6 +50,8 @@ namespace Antmicro.Renode.Peripherals.Network
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.NetworkControl, new DoubleWordRegister(this)
+                    .WithTag("loopback", 0, 1)
+                    .WithTag("loopback_local", 1, 1)
                     .WithFlag(2, out receiveEnabled, name: "enable_receive")
                     .WithFlag(3, name: "enable_transmit",
                         writeCallback: (_, value) =>
@@ -59,6 +61,11 @@ namespace Antmicro.Renode.Peripherals.Network
                                 txDescriptorsQueue.GoToBaseAddress();
                             }
                         })
+                    .WithTag("man_port_en", 4, 1)
+                    .WithTag("clear_all_stats_regs", 5, 1)
+                    .WithTag("inc_all_stats_regs", 6, 1)
+                    .WithTag("stats_write_en", 7, 1)
+                    .WithTag("back_pressure", 8, 1)
                     .WithFlag(9, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_start_pclk",
                         writeCallback: (_, value) =>
                         {
@@ -76,31 +83,100 @@ namespace Antmicro.Renode.Peripherals.Network
                                 isTransmissionStarted = false;
                             }
                         })
+                    .WithTag("tx_pause_frame_req", 11, 1)
+                    .WithTag("tx_pause_frame_zero", 12, 1)
+                    .WithReservedBits(13, 2)
+                    .WithTag("store_rx_ts", 15, 1)
+                    .WithTag("pfc_enable", 16, 1)
+                    .WithTag("transmit_pfc_priority_based_pause_frame", 17, 1)
+                    .WithTag("flush_rx_pkt_pclk", 18, 1)
+                    .WithTag("tx_lpi_en", 19, 1)
+                    .WithTag("ptp_unicast_ena", 20, 1)
+                    .WithTag("alt_sgmii_mode", 21, 1)
+                    .WithTag("store_udp_offset", 22, 1)
+                    .WithTag("ext_tsu_port_enable", 23, 1)
+                    .WithTag("one_step_sync_mode", 24, 1)
+                    .WithReservedBits(25, 7)
                 },
 
                 {(long)Registers.NetworkConfiguration, new DoubleWordRegister(this, 0x80000)
+                    .WithTag("speed", 0, 1)
+                    .WithTag("full_duplex", 1, 1)
+                    .WithTag("discard_non_vlan_frames", 2, 1)
+                    .WithTag("jumbo_frames", 3, 1)
+                    .WithTag("copy_all_frames", 4, 1)
+                    .WithTag("no_broadcast", 5, 1)
+                    .WithTag("multicast_hash_enable", 6, 1)
+                    .WithTag("unicast_hash_enable", 7, 1)
+                    .WithTag("receive_1536_byte_frames", 8, 1)
+                    .WithTag("external_address_match_enable", 9, 1)
+                    .WithTag("gigabit_mode_enable", 10, 1)
+                    .WithTag("pcs_select", 11, 1)
+                    .WithTag("retry_test", 12, 1)
+                    .WithTag("pause_enable", 13, 1)
                     .WithValueField(14, 2, out receiveBufferOffset, name: "receive_buffer_offset")
+                    .WithTag("length_field_error_frame_discard", 16, 1)
                     .WithFlag(17, out removeFrameChecksum, name: "fcs_remove")
+                    .WithTag("mdc_clock_division", 18, 3)
+                    .WithTag("data_bus_width", 21, 2)
+                    .WithTag("disable_copy_of_pause_frames", 23, 1)
+                    .WithTag("receive_checksum_offload_enable", 24, 1)
+                    .WithTag("en_half_duplex_rx", 25, 1)
                     .WithFlag(26, out ignoreRxFCS, name: "ignore_rx_fcs")
+                    .WithTag("sgmii_mode_enable", 27, 1)
+                    .WithTag("ipg_stretch_enable", 28, 1)
+                    .WithTag("nsp_change", 29, 1)
+                    .WithTag("ignore_ipg_rx_er", 30, 1)
+                    .WithTag("uni_direction_enable", 31, 1)
                 },
 
                 {(long)Registers.NetworkStatus, new DoubleWordRegister(this)
+                    .WithTag("pcs_link_state", 0, 1)
+                    .WithTag("mdio_in", 1, 1)
                     .WithFlag(2, FieldMode.Read, name: "man_done", valueProviderCallback: _ => true)
+                    .WithTag("mac_full_duplex", 3, 1)
+                    .WithTag("mac_pause_rx_en", 4, 1)
+                    .WithTag("mac_pause_tx_en", 5, 1)
+                    .WithTag("pfc_negotiate_pclk", 6, 1)
+                    .WithTag("lpi_indicate_pclk", 7, 1)
+                    .WithReservedBits(8, 24)
                 },
 
                 {(long)Registers.DmaConfiguration, new DoubleWordRegister(this, 0x00020784)
+                    .WithTag("amba_burst_length", 0, 4)
+                    .WithReservedBits(5, 1)
+                    .WithTag("endian_swap_management", 6, 1)
+                    .WithTag("endian_swap_packet", 7, 1)
+                    .WithTag("rx_pbuf_size", 8, 2)
+                    .WithTag("tx_pbuf_size", 10, 1)
                     .WithFlag(11, out checksumGeneratorEnabled, name: "tx_pbuf_tcp_en")
+                    .WithReservedBits(12, 4)
+                    .WithTag("rx_buf_size", 16, 8)
+                    .WithTag("force_discard_on_err", 24, 1)
+                    .WithTag("force_max_amba_burst_rx", 25, 1)
+                    .WithTag("force_max_amba_burst_tx", 26, 1)
+                    .WithReservedBits(27, 1)
                     .WithFlag(28, out extendedRxBufferDescriptorEnabled, name: "rx_bd_extended_mode_en")
                     .WithFlag(29, out extendedTxBufferDescriptorEnabled, name: "tx_bd_extended_mode_en")
                     .WithEnumField(30, 1, out dmaAddressBusWith, name: "dma_addr_bus_width_1")
+                    .WithReservedBits(31, 1)
                 },
 
                 {(long)Registers.TransmitStatus, new DoubleWordRegister(this)
                     .WithFlag(0, out usedBitRead, FieldMode.Read | FieldMode.WriteOneToClear, name: "used_bit_read")
+                    .WithTag("collision_occurred", 1, 1)
+                    .WithTag("retry_limit_exceeded", 2, 1)
+                    .WithTag("transmit_go", 3, 1)
+                    .WithTag("amba_error", 4, 1)
                     .WithFlag(5, out transmitComplete, FieldMode.Read | FieldMode.WriteOneToClear, name: "transmit_complete")
+                    .WithTag("transmit_under_run", 6, 1)
+                    .WithTag("late_collision_occurred", 7, 1)
+                    .WithTag("resp_not_ok", 8, 1)
+                    .WithReservedBits(9, 23)
                 },
 
                 {(long)Registers.ReceiveBufferQueueBaseAddress, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 2)
                     .WithValueField(2, 30, name: "dma_rx_q_ptr",
                         valueProviderCallback: _ =>
                         {
@@ -136,6 +212,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.TransmitBufferQueueBaseAddress, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 2)
                     .WithValueField(2, 30, name: "dma_tx_q_ptr",
                         valueProviderCallback: _ =>
                         {
@@ -173,6 +250,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)Registers.ReceiveStatus, new DoubleWordRegister(this)
                     .WithFlag(0, out bufferNotAvailable, FieldMode.Read | FieldMode.WriteOneToClear, name: "buffer_not_available")
                     .WithFlag(1, out frameReceived, FieldMode.Read | FieldMode.WriteOneToClear, name: "frame_received")
+                    .WithTag("receive_overrun", 2, 1)
+                    .WithTag("resp_not_ok", 3, 1)
+                    .WithReservedBits(4, 28)
                 },
 
                 {(long)Registers.InterruptStatus, interruptManager.GetRegister<DoubleWordRegister>(
@@ -225,40 +305,67 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.SpecificAddress1Top, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, valueProviderCallback: _ => BitConverter.ToUInt16(MAC.Bytes, 4))
+                    .WithValueField(0, 16, valueProviderCallback: _ => BitConverter.ToUInt16(MAC.Bytes, 4))
+                    .WithTag("filter_type", 16, 1)
+                    .WithReservedBits(17, 15)
                 },
 
                 {(long)Registers.ModuleId, new DoubleWordRegister(this)
-                    .WithValueField(16, 16, FieldMode.Read, name: "module_identification_number", valueProviderCallback: _ => ModuleId)
                     .WithValueField(0, 16, FieldMode.Read, name: "module_revision", valueProviderCallback: _ => ModuleRevision)
+                    .WithValueField(16, 12, FieldMode.Read, name: "module_identification_number", valueProviderCallback: _ => ModuleId)
+                    .WithTag("fix_number", 28, 4)
                 },
 
                 {(long)Registers.DesignConfiguration1, new DoubleWordRegister(this)
-                    .WithFlag(23, FieldMode.Read, name: "irq_read_clear", valueProviderCallback: _ => false) // IRQ clear on read
+                    .WithTag("no_pcs", 0, 1)
+                    .WithTag("serdes", 1, 1)
+                    .WithTag("RDC_50", 2, 1)
+                    .WithTag("TDC_50", 3, 1)
+                    .WithTag("int_loopback", 4, 1)
+                    .WithTag("no_int_loopback", 5, 1)
+                    .WithTag("ext_fifo_interface", 6, 1)
+                    .WithTag("apb_rev1", 7, 1)
+                    .WithTag("apb_rev2", 8, 1)
+                    .WithTag("user_io", 9, 1)
+                    .WithTag("user_out_width", 10, 5)
+                    .WithTag("user_in_width", 15, 5)
+                    .WithTag("no_scan_pins", 20, 1)
+                    .WithTag("no_stats", 21, 1)
+                    .WithTag("no_snapshot", 22, 1)
+                    .WithFlag(23, FieldMode.Read, name: "irq_read_clear", valueProviderCallback: _ => false)
+                    .WithReservedBits(24, 1)
                     .WithValueField(25, 3, FieldMode.Read, name: "dma_bus_width", valueProviderCallback: _ => 1) // DMA data bus width - 32 bits
+                    .WithTag("axi_cache_value", 28, 4)
                 },
 
                 {(long)Registers.DesignConfiguration2, new DoubleWordRegister(this)
-                    .WithFlag(21, FieldMode.Read, name: "tx_pkt_buffer", valueProviderCallback: _ => true) // includes the transmitter packet buffer
+                    .WithTag("jumbo_max_length", 0, 16)
+                    .WithTag("hprot_value", 16, 4)
                     .WithFlag(20, FieldMode.Read, name: "rx_pkt_buffer", valueProviderCallback: _ => true) // includes the receiver packet buffer
+                    .WithFlag(21, FieldMode.Read, name: "tx_pkt_buffer", valueProviderCallback: _ => true) // includes the transmitter packet buffer
+                    .WithTag("rx_pbuf_addr", 22, 4)
+                    .WithTag("tx_pbuf_addr", 26, 4)
+                    .WithTag("axi", 30, 1)
+                    .WithTag("spram", 31, 1)
                 },
 
                 {(long)Registers.Timer1588SecondsLow, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, out secTimer, name: "tsu_timer_sec")
+                    .WithValueField(0, 32, out secTimer, name: "tsu_timer_sec")
                 },
 
                 {(long)Registers.Timer1588SecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
+                    .WithValueField(0, 16, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
                     {
                         if(value != 0)
                         {
                             this.Log(LogLevel.Warning, "Writing a non-zero value to the SecondsHigh register, timer values over 32 bits are not supported.");
                         }
                     }, name: "tsu_timer_msb_sec")
+                    .WithReservedBits(16, 16)
                 },
 
                 {(long)Registers.Timer1588Nanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, valueProviderCallback: _ =>
+                    .WithValueField(0, 30, valueProviderCallback: _ =>
                     {
                         return (uint)nanoTimer.Value;
                     }, writeCallback: (_, value) =>
@@ -269,7 +376,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.Timer1588Adjust, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, out var timerIncrementDecrement, FieldMode.Write, name: "increment_value")
+                    .WithValueField(0, 30, out var timerIncrementDecrement, FieldMode.Write, name: "increment_value")
                     .WithReservedBits(30, 1)
                     .WithFlag(31, out var timerAdjust, FieldMode.Write, name: "add_subtract")
                     .WithWriteCallback((_, __) =>
@@ -286,54 +393,58 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.PtpEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_tx_msb_sec")
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_tx_msb_sec")
+                    .WithReservedBits(16, 16)
                 },
 
                 {(long)Registers.PtpEventFrameTransmittedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_ptp_tx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_ptp_tx_sec")
                 },
 
                 {(long)Registers.PtpEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_ptp_tx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_ptp_tx_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.PtpEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_rx_msb_sec")
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_rx_msb_sec")
+                    .WithReservedBits(16, 16)
                 },
 
                 {(long)Registers.PtpEventFrameReceivedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_ptp_rx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_ptp_rx_sec")
                 },
 
                 {(long)Registers.PtpEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_ptp_rx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_ptp_rx_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.PtpPeerEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_tx_msb_sec")
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_tx_msb_sec")
+                    .WithReservedBits(16, 16)
                 },
 
                 {(long)Registers.PtpPeerEventFrameTransmittedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_peer_tx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_peer_tx_sec")
                 },
 
                 {(long)Registers.PtpPeerEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_peer_tx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_peer_tx_nsec")
                     .WithReservedBits(30, 2)
                 },
 
                 {(long)Registers.PtpPeerEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_rx_msb_sec")
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_rx_msb_sec")
+                    .WithReservedBits(16, 16)
                 },
 
                 {(long)Registers.PtpPeerEventFrameReceivedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_peer_rx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_peer_rx_sec")
                 },
 
                 {(long)Registers.PtpPeerEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 29, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_peer_rx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_peer_rx_nsec")
                     .WithReservedBits(30, 2)
                 }
             };
