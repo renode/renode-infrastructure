@@ -1188,7 +1188,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private void PrintAllocated()
             {
-                Logger.LogAs(this, LogLevel.Noisy, "Allocated is now {0}B.", Misc.NormalizeBinary(Interlocked.Read(ref allocated)));
+                parent.NoisyLog("Allocated is now {0}B.", Misc.NormalizeBinary(Interlocked.Read(ref allocated)));
             }
 
             private ConcurrentDictionary<IntPtr, int> ourPointers;
