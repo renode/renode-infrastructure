@@ -27,13 +27,25 @@ namespace Antmicro.Renode.Utilities
             return this;
         }
 
+        public void Disable()
+        {
+            disabled = true;
+        }
+
         public void Dispose()
         {
+            if(disabled)
+            {
+                return;
+            }
+
             foreach(var a in disposeActions)
             {
                 a();
             }
         }
+
+        private bool disabled;
 
         private readonly List<Action> disposeActions;
     }

@@ -1821,64 +1821,79 @@ namespace Antmicro.Renode.Peripherals.CPU
 #if DEBUG
                 using(this.TraceRegion("CPU loop"))
 #endif
-                using(this.ObtainSinkActiveState())
+                using(var activityTracker = (DisposableWrapper)this.ObtainSinkActiveState())
                 using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(TimeHandle.TotalElapsedTime, TimeHandle.TimeSource.Domain)))
                 {
-restart:
-                    while(!isPaused && !isAborted)
+                    try
                     {
-                        var singleStep = false;
-                        // locking here is to ensure that execution mode does not change
-                        // before calling `WaitForStepCommand` method
-                        lock(singleStepSynchronizer.Guard)
+restart:
+                        while(!isPaused && !isAborted)
                         {
-                            singleStep = (executionMode == ExecutionMode.SingleStep);
-                            if(singleStep)
+                            var singleStep = false;
+                            // locking here is to ensure that execution mode does not change
+                            // before calling `WaitForStepCommand` method
+                            lock(singleStepSynchronizer.Guard)
                             {
-                                // we become incactive as we wait for step command
-                                using(this.ObtainSinkInactiveState())
+                                singleStep = (executionMode == ExecutionMode.SingleStep);
+                                if(singleStep)
                                 {
-                                    this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
-                                    InvokeHalted(new HaltArguments(HaltReason.Step, Id));
-                                    if(!singleStepSynchronizer.WaitForStepCommand())
+                                    // we become incactive as we wait for step command
+                                    using(this.ObtainSinkInactiveState())
                                     {
+                                        this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
+                                        InvokeHalted(new HaltArguments(HaltReason.Step, Id));
+                                        if(!singleStepSynchronizer.WaitForStepCommand())
+                                        {
+                                            this.Trace();
+                                            continue;
+                                        }
                                         this.Trace();
-                                        continue;
                                     }
-                                    this.Trace();
                                 }
+                            }
+
+                            var anythingExecuted = CpuThreadBodyInner(singleStep);
+
+                            if(singleStep && anythingExecuted)
+                            {
+                                this.Trace();
+                                singleStepSynchronizer.StepFinished();
                             }
                         }
 
-                        var anythingExecuted = CpuThreadBodyInner(singleStep);
-
-                        if(singleStep && anythingExecuted)
+                        this.Trace();
+                        lock(cpuThreadBodyLock)
                         {
+                            if(dispatcherRestartRequested)
+                            {
+                                dispatcherRestartRequested = false;
+                                this.Trace();
+                                goto restart;
+                            }
+
                             this.Trace();
-                            singleStepSynchronizer.StepFinished();
+                            // the `locker` is re-acquired here to
+                            // make sure that dispose-related code of all usings
+                            // is executed before setting `dispatcherThread` to
+                            // null (what allows to start new dispatcher thread);
+                            // otherwise there could be a race condition when
+                            // new thread enters usings (e.g., activates sink side)
+                            // and then the old one exits them (deactivating sink
+                            // side as a result)
+                            Monitor.Enter(cpuThreadBodyLock, ref isLocked);
                         }
                     }
-
-                    this.Trace();
-                    lock(cpuThreadBodyLock)
+                    catch(Exception)
                     {
-                        if(dispatcherRestartRequested)
-                        {
-                            dispatcherRestartRequested = false;
-                            this.Trace();
-                            goto restart;
-                        }
-
-                        this.Trace();
-                        // the `locker` is re-acquired here to
-                        // make sure that dispose-related code of all usings
-                        // is executed before setting `dispatcherThread` to
-                        // null (what allows to start new dispatcher thread);
-                        // otherwise there could be a race condition when
-                        // new thread enters usings (e.g., activates sink side)
-                        // and then the old one exits them (deactivating sink
-                        // side as a result)
-                        Monitor.Enter(cpuThreadBodyLock, ref isLocked);
+                        // being here means we are in trouble anyway,
+                        // so we don't have to care about the time framework
+                        // protocol that much;
+                        // without disabling activity tracker
+                        // it will try to disable the time handle
+                        // which might in turn crash with it's own
+                        // exception (hiding the original one)
+                        activityTracker.Disable();
+                        throw;
                     }
                 }
             }
