@@ -22,30 +22,25 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 {
                     try
                     {
-                        LLVMInitializeARMDisassembler();
-                        LLVMInitializeARMTargetMC();
-                        LLVMInitializeARMTargetInfo();
-                        LLVMInitializeMipsDisassembler();
-                        LLVMInitializeMipsTargetMC();
-                        LLVMInitializeMipsTargetInfo();
-                        LLVMInitializeX86Disassembler();
-                        LLVMInitializeX86TargetMC();
-                        LLVMInitializeX86TargetInfo();
+			llvm_disasm_ARM_init();
+			llvm_disasm_PowerPC_init();
+			llvm_disasm_Sparc_init();
+			llvm_disasm_RISCV_init();
+			llvm_disasm_X86_init();
                         _llvm_initialized = true;
                     }
                     catch(DllNotFoundException)
                     {
-                        throw new RecoverableException("Could not find libLLVM.so. Please check in current output directory.");
+                        throw new RecoverableException("Could not find libllvm-disas. Please check in current output directory.");
                     }
                 }
             }
-            context = LLVMCreateDisasmCPU(triple, cpu, IntPtr.Zero, 0, new LLVMOpInfoCallback(OpInfoCallback), new LLVMSymbolLookupCallback(SymbolLoopbackCallback));
+            context = llvm_create_disasm_cpu(triple, cpu);
             if(context == IntPtr.Zero)
             {
                 throw new ArgumentOutOfRangeException("cpu", "CPU or triple name not detected by LLVM. Disassembling will not be possible.");
             }
             isThumb = triple.Contains("thumb");
-
 
             switch(triple)
             {
@@ -73,7 +68,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
 
             while(sofar < (int)sz)
             {
-                var bytes = LLVMDisasmInstruction(context, data, sz, pc & 0xFFFFFFFF, strBuf, 1024);
+                var bytes = llvm_disasm_instruction(context, data, sz, strBuf, 1024);
                 if(bytes == 0)
                 {
                     strBldr.AppendFormat("0x{0:x8}:  ", pc).AppendLine("No valid instruction, disassembling stopped.");
@@ -159,26 +154,11 @@ namespace Antmicro.Renode.Disassembler.LLVM
         {
             if(context != IntPtr.Zero)
             {
-                LLVMDisasmDispose(context);
+                llvm_disasm_dispose(context);
             }
         }
 
         #endregion
-
-        private static int OpInfoCallback(IntPtr disInfo, UInt64 pc, UInt64 offset, UInt64 size, int tagType, IntPtr tagBuf)
-        {
-            var OpInfo = new LLVMOpInfo1(tagBuf);
-            OpInfo.AddSymbol.Present = 0;
-            OpInfo.SubtractSymbol.Present = 0;
-            OpInfo.VariantKind = LLVMDisassembler_VariantKind_None;
-            return 0;
-        }
-
-        private static IntPtr SymbolLoopbackCallback(IntPtr sisInfo, UInt64 refVal, ref IntPtr refType, UInt64 refPC, IntPtr refName)
-        {
-            refType = LLVMDisassembler_ReferenceType_InOut_None;
-            return IntPtr.Zero;
-        }
 
         private readonly Func<StringBuilder, int, int, byte[], bool> HexFormatter;
 
@@ -187,126 +167,36 @@ namespace Antmicro.Renode.Disassembler.LLVM
         private static bool _llvm_initialized = false;
         private static readonly object _init_locker = new object();
 
-        [DllImport("libLLVM")]
-        private static extern int LLVMDisasmInstruction(IntPtr dc, IntPtr bytes, UInt64 bytesSize, UInt64 PC, IntPtr outString, UInt32 outStringSize);
+        [DllImport("libllvm-disas")]
+        private static extern int llvm_disasm_instruction(IntPtr dc, IntPtr bytes, UInt64 bytesSize, IntPtr outString, UInt32 outStringSize);
 
-        [DllImport("libLLVM")]
-        private static extern IntPtr LLVMCreateDisasmCPU(string tripleName, string cpu, IntPtr disInfo, int tagType, LLVMOpInfoCallback getOpInfo, LLVMSymbolLookupCallback symbolLookUp);
+        [DllImport("libllvm-disas")]
+        private static extern IntPtr llvm_create_disasm_cpu(string tripleName, string cpu);
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMDisasmDispose(IntPtr disasm);
+        [DllImport("libllvm-disas")]
+        private static extern void llvm_disasm_dispose(IntPtr disasm);
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeARMDisassembler();
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_AArch64_init();
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeARMTargetMC();
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_ARM_init();
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeARMTargetInfo();
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_Mips_init();
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeMipsDisassembler();
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_PowerPC_init();
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeMipsTargetMC();
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_RISCV_init();
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeMipsTargetInfo();
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_Sparc_init();
 
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeX86Disassembler();
-
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeX86TargetMC();
-
-        [DllImport("libLLVM")]
-        private static extern void LLVMInitializeX86TargetInfo();
-
-        private static readonly ulong LLVMDisassembler_VariantKind_None = 0;
-
-        private static readonly IntPtr LLVMDisassembler_ReferenceType_InOut_None = IntPtr.Zero;
+        [DllImport("libllvm-disas")]
+	private static extern void llvm_disasm_X86_init();
 
         private readonly IntPtr context;
-
-        private class LLVMOpInfo1
-        {
-            private readonly IntPtr Ptr;
-
-            private readonly LLVMOpInfoSymbol1 addSymbol;
-            public LLVMOpInfoSymbol1 AddSymbol { get { return addSymbol; } }
-
-            private readonly LLVMOpInfoSymbol1 subtractSymbol;
-            public LLVMOpInfoSymbol1 SubtractSymbol { get { return subtractSymbol; } }
-
-            public UInt64 Value
-            {
-                get { return MarshalExtensions.ReadUInt64(Ptr, 2 * LLVMOpInfoSymbol1.Size); }
-                set { MarshalExtensions.WriteUInt64(Ptr, 2 * LLVMOpInfoSymbol1.Size, value); }
-            }
-
-            public UInt64 VariantKind
-            {
-                get { return MarshalExtensions.ReadUInt64(Ptr, 2 * LLVMOpInfoSymbol1.Size + 8); }
-                set { MarshalExtensions.WriteUInt64(Ptr, 2 * LLVMOpInfoSymbol1.Size + 8, value); }
-            }
-
-            public LLVMOpInfo1(IntPtr ptr)
-            {
-                Ptr = ptr;
-                addSymbol = new LLVMOpInfoSymbol1(ptr);
-                subtractSymbol = new LLVMOpInfoSymbol1(ptr + LLVMOpInfoSymbol1.Size);
-            }
-        }
-
-        private class LLVMOpInfoSymbol1
-        {
-            private readonly IntPtr Ptr;
-
-            public UInt64 Present
-            {
-                get { return MarshalExtensions.ReadUInt64(Ptr, 0); }
-                set { MarshalExtensions.WriteUInt64(Ptr, 0, value); }
-            }
-
-            public IntPtr Name
-            {
-                get { return Marshal.ReadIntPtr(Ptr, 8); }
-            }
-
-            public UInt64 Value
-            {
-                get { return MarshalExtensions.ReadUInt64(Ptr, 8 + IntPtr.Size); }
-                set { MarshalExtensions.WriteUInt64(Ptr, 8 + IntPtr.Size, value); }
-            }
-
-            public static int Size { get { return 16 + IntPtr.Size; } }
-
-            public LLVMOpInfoSymbol1(IntPtr ptr)
-            {
-                Ptr = ptr;
-            }
-        }
-
-        private delegate int LLVMOpInfoCallback(IntPtr disInfo, UInt64 pc, UInt64 offset, UInt64 size, int tagType, IntPtr tagBuf);
-
-        private delegate IntPtr LLVMSymbolLookupCallback(IntPtr disInfo, UInt64 referenceValue, ref IntPtr referenceType, UInt64 referencePC, IntPtr referenceName);
-    }
-
-    public static class MarshalExtensions
-    {
-        public static UInt64 ReadUInt64(IntPtr ptr, int offset)
-        {
-            var bytes = new byte[8];
-            Marshal.Copy(ptr + offset, bytes, 0, 8);
-
-            return BitConverter.ToUInt64(bytes, 0);
-        }
-
-        public static void WriteUInt64(IntPtr ptr, int offset, ulong value)
-        {
-            var bytes = BitConverter.GetBytes(value);
-            Marshal.Copy(bytes, 0, ptr + offset, 8);
-        }
     }
 }
