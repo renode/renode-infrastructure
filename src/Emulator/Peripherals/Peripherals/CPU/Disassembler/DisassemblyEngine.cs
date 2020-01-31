@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             var outputLength = (size + 1) * 160;
             var outputPtr = Marshal.AllocHGlobal((int)outputLength);
             int result = disassembler.Disassemble(pc, memory, size, flags, outputPtr, outputLength);
-            var lines = Marshal.PtrToStringAuto(outputPtr) ?? string.Empty;
+            var lines = Marshal.PtrToStringAnsi(outputPtr) ?? string.Empty;
             Marshal.FreeHGlobal(outputPtr);
 
             return result == 0 ? null : lines;

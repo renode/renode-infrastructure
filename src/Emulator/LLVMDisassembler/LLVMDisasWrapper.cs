@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
                         strBldr.AppendLine("Disassembly error detected. The rest of the output will be truncated.");
                         break;
                     }
-                    strBldr.Append(" ").AppendLine(Marshal.PtrToStringAuto(strBuf));
+                    strBldr.Append(" ").AppendLine(Marshal.PtrToStringAnsi(strBuf));
                 }
 
                 sofar += bytes;
