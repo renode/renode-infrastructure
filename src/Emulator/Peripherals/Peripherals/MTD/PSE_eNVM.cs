@@ -265,7 +265,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 var low = ReadFlashDoubleWord(offset);
                 var high = ReadFlashDoubleWord(offset + 4);
 
-                compareResult.Value = pageLatch[columnAddress.Value] == low && pageLatch[columnAddress.Value + 4] == high;
+                compareResult.Value = pageLatch[columnAddress.Value * 2] == low && pageLatch[(columnAddress.Value * 2) + 1] == high;
+
                 return;
             }
             else if(hvSequenceState.Value == HVSequence.Seq0 && flashMacroMode.Value == Mode.PreProgram)
