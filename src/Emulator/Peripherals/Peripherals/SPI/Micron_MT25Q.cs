@@ -172,8 +172,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.MultipleIoReadID:
                     currentOperation.Operation = Operation.ReadID;
                     break;
-                case (byte)Commands.Read:
                 case (byte)Commands.FastRead:
+                    // fast read - 3 bytes of address + a dummy byte
+                    currentOperation.Operation = Operation.ReadFast;
+                    currentOperation.AddressLength = 3;
+                    state = State.AccumulateCommandAddressBytes;
+                    break;
+                case (byte)Commands.Read:
                 case (byte)Commands.DualOutputFastRead:
                 case (byte)Commands.DualInputOutputFastRead:
                 case (byte)Commands.QuadOutputFastRead:
@@ -265,6 +270,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             byte result = 0;
             switch(currentOperation.Operation)
             {
+                case Operation.ReadFast:
+                    // handle dummy byte and switch to read
+                    currentOperation.Operation = Operation.Read;
+                    currentOperation.CommandBytesHandled--;
+                    this.Log(LogLevel.Noisy, "Handling dummy byte in ReadFast operation");
+                    break;
                 case Operation.Read:
                     result = ReadFromMemory();
                     break;
@@ -686,6 +697,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             None,
             Read,
+            ReadFast,
             ReadID,
             Program,
             Erase,
