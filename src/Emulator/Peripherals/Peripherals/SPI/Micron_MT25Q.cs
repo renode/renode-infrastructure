@@ -119,6 +119,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 if(currentOperation.TryAccumulateAddress(addressByte))
                 {
+                    this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
                     state = nextState;
                 }
             }
