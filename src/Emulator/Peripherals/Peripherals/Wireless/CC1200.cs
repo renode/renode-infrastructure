@@ -27,6 +27,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             this.machine = machine;
             CreateRegisters();
             var dict = new Dictionary<int, IGPIO>();
+            //GPIO 0/1/2/3 are general purpose, GPIO4 is MISO
             for(var i = 0; i < NumberOfGPIOs; ++i)
             {
                 dict[i] = new GPIO();
@@ -99,12 +100,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             for(var i = 0; i < gpioConfigurations.Length; ++i)
             {
-                if(i == 1)
-                {
-                    //MOSI line, we fake the behavior here - the controller is configured to pull up
-                    Connections[i].Set(!isChipSelect);
-                    continue;
-                }
                 var gpio = gpioConfigurations[i];
                 switch(gpio.Value)
                 {
@@ -151,6 +146,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 }
                 this.Log(LogLevel.Noisy, "Setting up GPIO{0} ({1}) to {2}", i, gpio.Value, Connections[i].IsSet);
             }
+            //We fake the MISO line here, by emulating (from CC1200 RM):
+            // "When CSn is pulled low, the MCU must wait until CC120X SO pin goes low before starting to transfer
+            // the header byte"
+            //Conversely, the MISO line should go high when CS is deasserted.
+            //Keep in mind this does not take special GPIO1 behavior (acting as MISO in certain conditions).
+            Connections[4].Set(!isChipSelect);
+            this.Log(LogLevel.Noisy, "Setting up MISO line (GPIO[4]) to {0}", Connections[4].IsSet);
         }
 
         private enum State
@@ -961,7 +963,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private const int SourceAddressMatchingControlSize = 0x6;
         private const uint LocalAddressInfoStart = 0x3EA;
         private const int LocalAddressInfoSize = 0xC;
-        private const int NumberOfGPIOs = 4;
+        private const int NumberOfGPIOs = 5;
 
         private const int BroadcastPanIdentifier = 0xFFFF;
         private const byte NoSourceIndex = 0x3F;
