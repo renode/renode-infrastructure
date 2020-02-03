@@ -228,6 +228,30 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         [Register]
+        public RegisterValue SATP
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SATP);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SATP, value);
+            }
+        }
+        [Register]
+        public RegisterValue SPTBR
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.SPTBR);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.SPTBR, value);
+            }
+        }
+        [Register]
         public RegisterValue MSTATUS
         {
             get
@@ -597,6 +621,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.SCAUSE,  new CPURegister(387, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.STVAL,  new CPURegister(388, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.SIP,  new CPURegister(389, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.SATP,  new CPURegister(449, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.MSTATUS,  new CPURegister(833, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.MISA,  new CPURegister(834, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.MEDELEG,  new CPURegister(835, 32, isGeneral: false, isReadonly: false) },
@@ -629,6 +654,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         SCAUSE = 387,
         STVAL = 388,
         SIP = 389,
+        SATP = 449,
+        SPTBR = 449,
         MSTATUS = 833,
         MISA = 834,
         MEDELEG = 835,
