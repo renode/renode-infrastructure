@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public Minerva(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(timeProvider, "rv32i", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
-            TlibSetCsrValidation(0);
+            TlibSetCsrValidationLevel((uint)CSRValidationLevel.None);
 
             RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value =>
             {

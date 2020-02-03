@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // enable all interrupt sources
             MIE = 0xffffffff;
 
-            TlibSetCsrValidation(0);
+            TlibSetCsrValidationLevel((uint)CSRValidationLevel.None);
 
             // register custom CSRs
             // TODO: add support for HW loops

@@ -15,7 +15,9 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_09, string cpuType = "rv32im") : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
         {
-            TlibSetCsrValidation(0);
+            // validate only privilege level when accessing CSRs
+            // do not validate rw bit as VexRiscv custom CSRs do not follow the standard
+            TlibSetCsrValidationLevel((uint)CSRValidationLevel.PrivilegeLevel);
 
             RegisterCSR((ulong)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
             {

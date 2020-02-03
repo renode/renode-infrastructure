@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
 
         [Import]
-        protected FuncUInt32UInt32 TlibSetCsrValidation;
+        protected FuncUInt32UInt32 TlibSetCsrValidationLevel;
 
 #pragma warning restore 649
 
@@ -394,6 +394,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             SupervisorExternalInterrupt = 0x9,
             HypervisorExternalInterrupt = 0xa,
             MachineExternalInterrupt = 0xb
+        }
+
+        protected enum CSRValidationLevel : uint
+        {
+            Full = 2,
+            PrivilegeLevel = 1,
+            None = 0
         }
     }
 }
