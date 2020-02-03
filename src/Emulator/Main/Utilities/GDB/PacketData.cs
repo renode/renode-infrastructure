@@ -90,6 +90,20 @@ namespace Antmicro.Renode.Utilities.GDB
             return false;
         }
 
+        public string GetDataAsStringLimited()
+        {
+            var cs = cachedString;
+            if(cs == null)
+            {
+                var counter = 0;
+                // take only ASCII characters and truncate the size to fit nicely in the log
+                return Encoding.ASCII.GetString(bytes.TakeWhile(b => b >= 0x20 && b <= 0x7e && counter++ < DataAsStringLimit).ToArray());
+            }
+            else
+            {
+                return cs.Substring(0, Math.Min(cs.Length, DataAsStringLimit));
+            } }
+
         public static PacketData Success { get; private set; }
         public static PacketData Empty { get; private set; }
 
@@ -102,11 +116,10 @@ namespace Antmicro.Renode.Utilities.GDB
                 var cs = cachedString;
                 if(cs == null)
                 {
-                    var counter = 0;
-                    // This code effectively prevents us from printing out non-printable characters in logs, and limits the output.
-                    // It is definitely a hack, but works well enough for our needs and prevents the console from crashing when
-                    // loading binaries via GDB.
-                    cs = Encoding.ASCII.GetString(bytes.TakeWhile(b => b >= 32 && b <= 127 && counter++ < 100).ToArray());
+                    // take only intial ASCII characters and truncate at the first binary byte;
+                    // it's ok, since `DataAsString` is used to parse the beginning of a command
+                    // (which is always a string) and all potential binary arguments are handled separately
+                    cs = Encoding.ASCII.GetString(bytes.TakeWhile(b => b >= 0x20 && b <= 0x7e).ToArray());
                     cachedString = cs;
                 }
                 return cs;
@@ -115,6 +128,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private const byte EscapeOffset = 0x20;
         private const byte EscapeSymbol = (byte)'}';
+        private const int DataAsStringLimit = 100;
 
         private string cachedString;
         private bool escapeNextByte;

@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 {
                     if(LogsEnabled)
                     {
-                        commandsManager.Cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.DataAsString);
+                        commandsManager.Cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.GetDataAsStringLimited());
                     }
                     // send NACK
                     ctx.Send((byte)'-');
@@ -170,7 +170,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
                 if(LogsEnabled)
                 {
-                    commandsManager.Cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.DataAsString);
+                    commandsManager.Cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.GetDataAsStringLimited());
                 }
                 // send ACK
                 ctx.Send((byte)'+');
@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 {
                     if(LogsEnabled)
                     {
-                        commandsManager.Cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.DataAsString);
+                        commandsManager.Cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.GetDataAsStringLimited());
                     }
                     ctx.Send(new Packet(PacketData.Empty));
                 }
@@ -295,7 +295,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 {
                     if(commHandler.stub.LogsEnabled)
                     {
-                        commHandler.manager.Cpu.Log(LogLevel.Debug, "Sending response to GDB: {0}", packet.Data.DataAsString);
+                        commHandler.manager.Cpu.Log(LogLevel.Debug, "Sending response to GDB: {0}", packet.Data.GetDataAsStringLimited());
                     }
                     foreach(var b in packet.GetCompletePacket())
                     {
