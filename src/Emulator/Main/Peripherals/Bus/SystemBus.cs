@@ -1394,7 +1394,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!ELFReader.TryLoad(fileName, out var result))
                 {
-                    throw new RecoverableException($"Could not load ELF form path: {fileName}");
+                    throw new RecoverableException($"Could not load ELF from path: {fileName}");
                 }
                 return result;
             }
