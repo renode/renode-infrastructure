@@ -3,6 +3,7 @@
 <PropertyGroup>
   <CompilerPath>/usr/bin/clang</CompilerPath>
   <LinkerPath>/usr/bin/clang</LinkerPath>
+  <ArPath>/usr/bin/ar</ArPath>
   <CurrentPlatform>OSX</CurrentPlatform>
   <DefineConstants>$(DefineConstants);PLATFORM_OSX</DefineConstants>
 </PropertyGroup>
