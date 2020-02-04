@@ -303,6 +303,7 @@
     <Compile Include="Peripherals\Wireless\IEEE802_15_4\PHYHeader802154.cs" />
     <Compile Include="Peripherals\SPI\MAX3421E.cs" />
     <Compile Include="Peripherals\GPIOPort\CC2538_GPIO.cs" />
+    <Compile Include="Peripherals\Miscellaneous\LiteX_SoC_Controller.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
