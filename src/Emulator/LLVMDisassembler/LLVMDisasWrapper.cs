@@ -44,9 +44,13 @@ namespace Antmicro.Renode.Disassembler.LLVM
 
             switch(triple)
             {
+	    case "ppc":
+	    case "sparc":
             case "i386":
                 HexFormatter = FormatHexForx86;
                 break;
+	    case "riscv64":
+	    case "riscv32":
             case "thumb":
             case "arm":
             case "armv7a":

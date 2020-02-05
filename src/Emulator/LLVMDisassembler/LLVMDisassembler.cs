@@ -13,7 +13,7 @@ using Antmicro.Renode.Peripherals.CPU.Disassembler;
 
 namespace Antmicro.Renode.Disassembler.LLVM
 {
-    [DisassemblerAttribute("LLVM", new[] { "arm", "arm-m", "mips", "i386" })]
+    [DisassemblerAttribute("LLVM", new[] { "arm", "arm-m", "mips", "i386", "riscv", "riscv64", "ppc", "sparc" })]
     public class LLVMDisassembler : IAutoLoadType, IDisassembler
     {
         public LLVMDisassembler(IDisassemblable cpu)
@@ -53,6 +53,10 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 case "arm926":
                     model = "arm926ej-s";
                     break;
+		case "e200z6":
+		//    model = "generic";
+		    model = "ppc32";
+		    break;
                 default:
                     model = cpu.Model;
                     break;
@@ -69,6 +73,10 @@ namespace Antmicro.Renode.Disassembler.LLVM
             { "arm",    "armv7a"    },
             { "arm-m",  "thumb"     },
             { "mips",   "mipsel"    },
+            { "riscv",  "riscv32"   },
+	    { "riscv64","riscv64"   },
+	    { "ppc",    "ppc"       },
+	    { "sparc",  "sparc"     },
             { "i386",   "i386"      }
         };
 
