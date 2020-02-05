@@ -55,6 +55,10 @@ namespace Antmicro.Renode.Analyzers
 
         public override void Hide()
         {
+            if(!String.IsNullOrWhiteSpace(line.ToString()))
+            {
+                WriteChar(10); // this allows us to flush the last, unfinished line (e.g. the prompt) to the log
+            }
             uart.CharReceived -= WriteChar;
         }
 
