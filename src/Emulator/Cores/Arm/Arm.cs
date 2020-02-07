@@ -173,6 +173,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             return itState;
         }
 
+        public bool WillNextItInstructionExecute(uint itState)
+        {
+            /* Oldest bit of 'abcd' field should be set to 0. There also should be trailing one in the younger part,
+             * otherwise we are not in IT block  */
+            return (itState & 0x10) == 0 && (itState & 0xF) > 0;
+        }
+
         [Export]
         private uint DoSemihosting()
         {
