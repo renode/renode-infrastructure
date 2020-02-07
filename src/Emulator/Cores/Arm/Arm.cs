@@ -163,6 +163,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             return value & ~(uint)0x1;
         }
 
+        public uint GetItState()
+        {
+            uint itState = TlibGetItState();
+            if (itState == 0)
+            {
+                this.Log(LogLevel.Warning, "Checking IT_STATE, while not in IT block");
+            }
+            return itState;
+        }
+
         [Export]
         private uint DoSemihosting()
         {
@@ -212,6 +222,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 TlibSetCpuId;
+
+        [Import]
+        private FuncUInt32 TlibGetItState;
 
         [Import]
         private FuncUInt32 TlibGetCpuId;
