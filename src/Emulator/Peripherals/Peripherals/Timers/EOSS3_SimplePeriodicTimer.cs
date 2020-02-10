@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.UpdateTimerValue.Define32(this)
                 .WithValueField(0, 30, writeCallback: UpdateSoftwareTimer, name: "UPDATE_TIMER_VALUE")
-                .WithReservedBits(29, 2);
+                .WithReservedBits(30, 1);
 
             Registers.SpareBits.Define32(this)
                 .WithValueField(0, 8, name: "SPARE_BITS")
@@ -121,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.TimerValue.Define32(this)
                 .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => (uint)timerSoftware30Bit.Value, name: "TIMER_VALUE")
-                .WithReservedBits(29, 2);
+                .WithReservedBits(30, 1);
 
             Registers.EventCounterValue.Define32(this)
                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (uint)ffeKickOffPeriod, name: "EVENT_CNT_VALUE")
