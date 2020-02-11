@@ -27,7 +27,7 @@
         <MSBuild
             Projects="./translate.cproj"
             Targets="VerifyProperties;GenerateFlags;Compile;Link;Build"
-            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);CurrentPlatform=$(CurrentPlatform)" />
+            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
     </Target>
 
     <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">

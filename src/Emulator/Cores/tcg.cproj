@@ -6,9 +6,7 @@
     <Architecture Condition=" $(Architecture) == '' ">i386</Architecture>
     <TcgDirectory>tlib/tcg</TcgDirectory>
     <OutputDirectory>$(TcgDirectory)/bin/$(Configuration)</OutputDirectory>
-    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
   </PropertyGroup>
-  <Import Project="$(PropertiesLocation)" />
 
   <Target Name="_VerifyProperties">
     <Error Text="Target word size not provided" Condition=" $(TargetWordSize) == '' " />
