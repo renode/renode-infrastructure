@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ = new GPIO();
             systick.LimitReached += () => 
             {
+                countflag = 1;
                 SetPendingIRQ(15);
             };
             InitInterrupts();
