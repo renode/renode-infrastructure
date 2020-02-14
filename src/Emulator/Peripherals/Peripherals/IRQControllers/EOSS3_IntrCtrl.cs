@@ -181,6 +181,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             miscRegisters.Write(offset, value);
         }
 
+        [ConnectionRegionAttribute("iomux")]
+        public uint ReadDoubleWordFromIOMux(long offset)
+        {
+            this.Log(LogLevel.Warning, "Read from unsupported iomux, offset 0x{0:X}", offset);
+            return 0;
+        }
+
+        [ConnectionRegionAttribute("iomux")]
+        public void WriteDoubleWordToIOMux(long offset, uint value)
+        {
+            this.Log(LogLevel.Warning, "Write to unsupported iomux, offset 0x{0:X} value 0x{1:X}", offset, value);
+        }
+
         public long Size => 0x400;
 
         public GPIO SoftwareIrq2 { get; } = new GPIO();
