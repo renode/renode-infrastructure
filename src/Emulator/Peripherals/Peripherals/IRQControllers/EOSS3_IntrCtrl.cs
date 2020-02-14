@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 using System;
 using System.Linq;
 using Antmicro.Renode.Debugging;
@@ -104,6 +105,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             softwareInterrupt1Config.EnabledField = software1Enabled;
             softwareInterrupt2Config.EnabledField = software2Enabled;
             registers = new DoubleWordRegisterCollection(this, regs);
+
+            var miscRegs = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)MiscRegisters.IOInput, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State), name: "IO_IN")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)MiscRegisters.IOOutput, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Select(x => x.Value.IsSet)), writeCallback: (_, value) => UpdateOutputBits((byte)value), name: "IO_OUT")
+                    .WithReservedBits(8, 24)
+                },
+            };
+            miscRegisters = new DoubleWordRegisterCollection(this, miscRegs);
         }
 
         public override void OnGPIO(int number, bool value)
@@ -133,6 +147,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             base.Reset();
             registers.Reset();
+            miscRegisters.Reset();
             foreach(var interruptConfig in externalIrqConfig)
             {
                 interruptConfig.Reset();
@@ -150,6 +165,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void WriteDoubleWord(long offset, uint value)
         {
             registers.Write(offset, value);
+        }
+
+        [ConnectionRegionAttribute("misc")]
+        public uint ReadDoubleWordFromMisc(long offset)
+        {
+            return miscRegisters.Read(offset);
+        }
+
+        [ConnectionRegionAttribute("misc")]
+        public void WriteDoubleWordToMisc(long offset, uint value)
+        {
+            miscRegisters.Write(offset, value);
         }
 
         public long Size => 0x400;
@@ -183,6 +210,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public GPIO ReservedSRAMIrq { get; } = new GPIO();
         public GPIO LPSDIrq { get; } = new GPIO();
         public GPIO DMicIrq { get; } = new GPIO();
+
+        private void UpdateOutputBits(byte value)
+        {
+            for(byte i = 0; i < NumberOfGPIOs; ++i)
+            {
+                Connections[i].Set(BitHelper.IsBitSet(value, i));
+            }
+        }
 
         private GPIOInterruptManager.InterruptTrigger UpdateGPIOSettings(GPIOInterruptManager.InterruptTrigger oldTrigger, bool? type, bool? polarity)
         {
@@ -221,6 +256,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly InterruptConfig softwareInterrupt1Config;
         private readonly InterruptConfig softwareInterrupt2Config;
         private readonly DoubleWordRegisterCollection registers;
+        private readonly DoubleWordRegisterCollection miscRegisters;
         private readonly GPIOInterruptManager gpioManager;
 
         private const int NumberOfGPIOs = 8;
@@ -329,6 +365,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             /* 0x94-0x9C not defined */
             M4MemoryAlwaysOnInterrupt = 0xA0,
             M4MemoryAlwaysOnInterruptEnable = 0xA4,
+        }
+
+        private enum MiscRegisters
+        {
+            IOInput = 0,
+            IOOutput = 4,
         }
     }
 }
