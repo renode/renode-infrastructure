@@ -48,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             for(var j = 0; j < NumberOfGPIOs; j++)
             {
                 var i = j;
+                gpioManager.PinDirection[i] = GPIOInterruptManager.Direction.Input | GPIOInterruptManager.Direction.Output;
                 gpioReg.DefineFlagField(i, writeCallback: (_, value) => { if(value) { gpioManager.ClearInterrupt(i); }},
                     valueProviderCallback: _ => gpioManager.ActiveInterrupts.ElementAt(i),
                     name: $"GPIO_{i}_INTR");
@@ -137,6 +138,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(number >= NumberOfOtherInterrupts + FirstExternalInterrupt)
             {
                 base.OnGPIO(number - NumberOfOtherInterrupts - FirstExternalInterrupt, value);
+                gpioManager.RefreshInterrupts();
                 return;
             }
             var config = externalIrqConfig[number - FirstExternalInterrupt];
