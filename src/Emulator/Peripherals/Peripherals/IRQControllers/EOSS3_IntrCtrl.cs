@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private GPIOInterruptManager.InterruptTrigger UpdateGPIOSettings(GPIOInterruptManager.InterruptTrigger oldTrigger, bool? type, bool? polarity)
         {
-            if(type.HasValue ^ polarity.HasValue)
+            if(!(type.HasValue ^ polarity.HasValue))
             {
                 throw new ArgumentException($"Either {nameof(type)} or {nameof(polarity)} must be null. The other must not be null.");
             }
