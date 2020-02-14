@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IKnownSize, IIRQController
-    {        
+    {
         public NVIC(Machine machine, int systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF)
         {
             priorities = new byte[IRQCount];
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.priorityMask = priorityMask;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
-            systick.LimitReached += () => 
+            systick.LimitReached += () =>
             {
                 countflag = 1;
                 SetPendingIRQ(15);
@@ -50,12 +50,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IEnumerable<int> GetEnabledExternalInterrupts()
         {
-            return irqs.Skip(16).Select((x,i)=>new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y=>y.i).OrderBy(x=>x);
+            return irqs.Skip(16).Select((x,i) => new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
         }
 
         public IEnumerable<int> GetEnabledInternalInterrupts()
         {
-            return irqs.Take(16).Select((x,i)=>new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y=>y.i).OrderBy(x=>x);
+            return irqs.Take(16).Select((x,i) => new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
         }
 
         public int Divider
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 systick.Divider = value;
             }
         }
-        
+
         public uint ReadDoubleWord(long offset)
         {
             if(offset >= PriorityStart && offset < PriorityEnd)
@@ -92,9 +92,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             case Registers.SysTickControl:
                 var currentCountflag = (uint)Interlocked.Exchange(ref countflag, 0);
-                return ((currentCountflag << 16) 
+                return ((currentCountflag << 16)
                         | 4u // core clock CLKSOURCE
-                    | ((systick.EventEnabled ? 1u : 0u )<< 1) 
+                        | ((systick.EventEnabled ? 1u : 0u) << 1)
                         | (systick.Enabled ? 1u : 0u));
             case Registers.SysTickReloadValue:
                 return (uint)systick.Limit;
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return HandlePriorityRead(offset - 0xD14, false);
             case Registers.SystemHandlerControlAndState:
                 this.DebugLog("Read from SHCS register. This is not yet implemented. Returning 0");
-		return 0;
+                return 0;
             case Registers.ApplicationInterruptAndReset:
                 return HandleApplicationInterruptAndResetRead();
             case Registers.ConfigurableFaultStatus:
@@ -120,9 +120,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return 0;
             }
         }
-        
+
         public GPIO IRQ { get; private set; }
-        
+
         public void WriteDoubleWord(long offset, uint value)
         {
             if(offset >= SetEnableStart && offset < SetEnableEnd)
@@ -220,10 +220,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.CoprocessorAccessControl:
                 // if CP10 and CP11 both are set to full access (0b11) - turn on FPU
                 if ((value & 0xF00000) == 0xF00000) {
-                      this.DebugLog("Enabling FPU.");
+                    this.DebugLog("Enabling FPU.");
                     cpu.FpuEnabled = true;
                 } else {
-                      this.DebugLog("Disabling FPU.");
+                    this.DebugLog("Disabling FPU.");
                     cpu.FpuEnabled = false;
                 }
                 break;
@@ -287,7 +287,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(activeIRQ != number)
                 {
                     throw new InvalidOperationException(string.Format("Trying to complete IRQ {0} that was not the last active. Last active was {1}.",
-                                                                      number, activeIRQ));
+                                number, activeIRQ));
                 }
                 if((currentIRQ & IRQState.Running) > 0)
                 {
@@ -441,7 +441,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     result <<= 1;
                 }
                 result |= ((irqs[firstIRQNo] & IRQState.Enabled) != 0) ? 1u : 0u;
-                return result;            
+                return result;
             }
         }
 
@@ -543,25 +543,25 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         private bool primask;
-        public bool PRIMASK 
-        { 
+        public bool PRIMASK
+        {
             get { return primask; }
-            set 
+            set
             {
-                primask = value; 
-                FindPendingInterrupt(); 
-            } 
+                primask = value;
+                FindPendingInterrupt();
+            }
         }
 
         private byte basepri;
-        public byte BASEPRI 
-        { 
+        public byte BASEPRI
+        {
             get { return basepri; }
-            set 
-            { 
-                basepri = value; 
-                FindPendingInterrupt(); 
-            } 
+            set
+            {
+                basepri = value;
+                FindPendingInterrupt();
+            }
         }
 
         [Flags]
@@ -586,7 +586,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SystemHandlerPriority1 = 0xD18,
             SystemHandlerPriority2 = 0xD1C,
             SystemHandlerPriority3 = 0xD20,
-	    SystemHandlerControlAndState = 0xD24,
+            SystemHandlerControlAndState = 0xD24,
             ConfigurableFaultStatus = 0xD28,
             HardFaultStatus = 0xD2C,
             DebugFaultStatus = 0xD30,
