@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ = new GPIO();
             systick.LimitReached += () =>
             {
-                countflag = 1;
+                countFlag = true;
                 SetPendingIRQ(15);
             };
             InitInterrupts();
@@ -91,8 +91,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return (uint)activeIRQ;
                 }
             case Registers.SysTickControl:
-                var currentCountflag = (uint)Interlocked.Exchange(ref countflag, 0);
-                return ((currentCountflag << 16)
+                var currentCountFlag = countFlag ? 1u << 16 : 0;
+                countFlag = false;
+                return (currentCountFlag
                         | 4u // core clock CLKSOURCE
                         | ((systick.EventEnabled ? 1u : 0u) << 1)
                         | (systick.Enabled ? 1u : 0u));
@@ -245,6 +246,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.EventEnabled = false;
             systick.AutoUpdate = true;
             IRQ.Unset();
+            countFlag = false;
         }
 
         public long Size
@@ -596,7 +598,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private uint CPACR = 0x0;
 
-        private int countflag;
+        private bool countFlag;
         private byte priorityMask;
         private Stack<int> activeIRQs;
         private int binaryPointPosition; // from the right
