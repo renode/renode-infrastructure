@@ -12,8 +12,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
         public LiteX_UART(Machine machine) : base(machine)
         {
@@ -58,6 +57,17 @@ namespace Antmicro.Renode.Peripherals.UART
             return registers.Read(offset);
         }
 
+        public byte ReadByte(long offset)
+        {
+            if(offset % 4 != 0)
+            {
+                // in the current configuration, only the lowest byte
+                // contains a meaningful data
+                return 0;
+            }
+            return (byte)ReadDoubleWord(offset);
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -70,7 +80,19 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             registers.Write(offset, value);
         }
+         
+        public void WriteByte(long offset, byte value)
+        {
+            if(offset % 4 != 0)
+            {
+                // in the current configuration, only the lowest byte
+                // contains a meaningful data
+                return;
+            }
 
+            WriteDoubleWord(offset, value);
+        }
+        
         public long Size => 0x100;
 
         public GPIO IRQ { get; private set; }
