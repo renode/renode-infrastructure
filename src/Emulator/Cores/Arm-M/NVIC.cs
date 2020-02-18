@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IKnownSize, IIRQController
     {
-        public NVIC(Machine machine, int systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF)
+        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
