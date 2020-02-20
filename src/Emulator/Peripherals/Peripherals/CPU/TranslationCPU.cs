@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(elf.GetBitness() > (int)bitness)
             {
-                throw new RecoverableException("Unsupported ELF format");
+                throw new RecoverableException($"Unsupported ELF format - trying to load a {elf.GetBitness()}-bit ELF on a {(int)bitness}-bit machine");
             }
 
             this.Log(LogLevel.Info, "Setting PC value to 0x{0:X}.", elf.GetEntryPoint());

@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Core
             }
             else
             {
-                throw new ArgumentException("Unsupported ELF format");
+                throw new ArgumentException("Unsupported ELF format - only 32 and 64-bit ELFs are supported");
             }
         }
 

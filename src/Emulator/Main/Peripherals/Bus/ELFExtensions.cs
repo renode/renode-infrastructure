@@ -97,6 +97,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             throw new ArgumentException(ExceptionMessage);
         }
 
-        private const string ExceptionMessage = "Unsupported ELF format";
+        private const string ExceptionMessage = "Unsupported ELF format - only 32 and 64-bit ELFs are supported";
     }
 }
