@@ -49,15 +49,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                         internalTimer.Enabled = true;
                         SetState(State.ForbiddenRegion);
                     }
-                    else if(state == State.RefreshRegion && value == WatchdogReset)
-                    {
-                        this.Log(LogLevel.Noisy, "Refreshing watchdog.");
-                        SetState(State.ForbiddenRegion);
-                    }
                     else if(state == State.ForbiddenRegion && forbiddenRangeEnabled.Value)
                     {
                         this.Log(LogLevel.Warning, "Watchdog refreshed in forbidden region, triggering NMI.");
                         SetState(State.AfterTrigger);
+                    }
+                    else if((state == State.RefreshRegion || (state == State.ForbiddenRegion && !forbiddenRangeEnabled.Value)) && value == WatchdogReset)
+                    {
+                        this.Log(LogLevel.Noisy, "Refreshing watchdog.");
+                        SetState(State.ForbiddenRegion);
                     }
                 }, valueProviderCallback: _ => GetCurrentTimerValue(), name: "REFRESH")
                 .WithWriteCallback((_, __) => locked.Value = true);
