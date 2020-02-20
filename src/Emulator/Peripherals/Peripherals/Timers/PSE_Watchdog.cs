@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "INTEN_TRIG")
                 .WithTaggedFlag("INTEN_SLEEP", 2)
                 .WithTaggedFlag("ACTIVE_SLEEP", 3)
-                .WithFlag(6, out forbiddenRangeEnabled, name: "ENABLE_FORBIDDEN")
+                .WithFlag(4, out forbiddenRangeEnabled, name: "ENABLE_FORBIDDEN")
                 .WithWriteCallback((_, __) => locked.Value = true);
             ;
 
