@@ -29,6 +29,10 @@ namespace Antmicro.Renode.Peripherals.UART
                             this.TransmitCharacter((byte)b);
                             UpdateInterrupts();
                         }
+                        else
+                        {
+                            this.Log(LogLevel.Warning, "Trying to transmit '{1}' (0x{0}), but the transmitter is disabled", b, (char) b);
+                        }
                     }, name: "DATA")
                     .WithTag("RESERVED", 8, 23)
                     .WithFlag(31, valueProviderCallback: _ => false, name: "FULL")
