@@ -43,7 +43,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             flagStatusRegister = new ByteRegister(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
                 //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
-                .WithReservedBits(3, 1);
+                .WithReservedBits(3, 1)
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "ProgramOrErase");
 
             this.underlyingMemory = underlyingMemory;
             underlyingMemory.ResetByte = EmptySegment;
