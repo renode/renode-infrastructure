@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
         protected bool[] State;
-        private readonly Machine machine;
+        protected readonly Machine machine;
     }
 }
 
