@@ -27,15 +27,20 @@ namespace Antmicro.Renode.Utilities.Collections
             IsEmpty = true;
         }
 
-        public void Enqueue(T element)
+        public bool Enqueue(T element)
         {
+            bool overflow = false;
+
             if(!IsEmpty && ((LastPosition + 1) % buffer.Length) == FirstPosition)
             {
                 MoveFirst();
+                overflow = true; //buffer overflow
             }
             MoveLast();
             buffer[LastPosition] = element;
             IsEmpty = false;
+
+            return !overflow;
         }
 
         public bool TryDequeue(out T result)
@@ -152,4 +157,3 @@ namespace Antmicro.Renode.Utilities.Collections
         private readonly T[] buffer;
     }
 }
-

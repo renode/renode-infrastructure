@@ -119,6 +119,29 @@ namespace Antmicro.Renode.UnitTests.Collections
             buffer.CopyTo(copy, 0);
             Assert.AreEqual(result, copy);
         }
+
+        [Test]
+        public void ShouldDetectOverflow()
+        {
+            var buffer = new CircularBuffer<int>(3);
+            for(var i = 0; i < 3; i++)
+            {
+                Assert.IsTrue(buffer.Enqueue(i));
+            }
+            Assert.IsFalse(buffer.Enqueue(3));
+        }
+
+        [Test]
+        public void ShouldNotDetectOverflow()
+        {
+            var buffer = new CircularBuffer<int>(3);
+            for(var i = 0; i < 3; i++)
+            {
+                buffer.Enqueue(i);
+            }
+            buffer.TryDequeue(out var _);
+            Assert.IsTrue(buffer.Enqueue(2));
+        }
     }
 }
 

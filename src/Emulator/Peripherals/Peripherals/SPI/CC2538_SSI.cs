@@ -162,12 +162,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             var response = RegisteredPeripheral.Transmit(value);
             this.Log(LogLevel.Noisy, "Transmitted deferred data 0x{0:X}, received 0x{1:X}", value, response);
-            if(rxFifo.Count == rxFifo.Capacity)
+            if(!rxFifo.Enqueue(response))
             {
                 this.Log(LogLevel.Warning, "Receive FIFO overrun");
                 rxFifoOverrunInterrupt.Value = true;
             }
-            rxFifo.Enqueue(response);
         }
 
         private void Update()
