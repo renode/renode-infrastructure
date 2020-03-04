@@ -7,7 +7,7 @@
 //
 using System;
 using Xwt;
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !GUI_DISABLED
 using Xwt.GtkBackend;
 #endif
 using System.Threading;
@@ -25,11 +25,15 @@ namespace Antmicro.Renode.UI
 
         public static XwtProvider Create(IUserInterfaceProvider uiProvider)
         {
+#if GUI_DISABLED
+            return null;
+#else
             Emulator.UserInterfaceProvider = uiProvider;
             var xwtProvider = new XwtProvider();
             return (xwtProvider.StartXwtThreadOnMainThread())
                 ? xwtProvider
                 : null;
+#endif
         }
 
         public void Dispose()
@@ -41,10 +45,12 @@ namespace Antmicro.Renode.UI
         {
             try
             {
+#if !GUI_DISABLED
 #if PLATFORM_WINDOWS
                 Application.Initialize(ToolkitType.Wpf);
 #else
                 Application.Initialize(ToolkitType.Gtk);
+#endif
 #endif
                 return true;
             }
@@ -66,12 +72,12 @@ namespace Antmicro.Renode.UI
             }
 
             Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException);
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !GUI_DISABLED
             GLib.ExceptionManager.UnhandledException += arg => CrashHandler.HandleCrash((Exception)arg.ExceptionObject);
 #endif
             Application.Run();
 
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !GUI_DISABLED
             GtkTextLayoutBackendHandler.DisposeResources();
 #endif
             lock(internalLock)

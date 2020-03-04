@@ -8,6 +8,7 @@
 using Xwt.Backends;
 using Color = Xwt.Drawing.Color;
 using BitmapImage = Xwt.Drawing.BitmapImage;
+#if !GUI_DISABLED
 #if PLATFORM_WINDOWS
 using Xwt.WPFBackend;
 using System.Windows.Media;
@@ -15,6 +16,7 @@ using System.Windows.Media.Imaging;
 #else
 using Xwt.GtkBackend;
 using System.Runtime.InteropServices;
+#endif
 #endif
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video
@@ -24,6 +26,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         public static void Copy(this BitmapImage bmp, byte[] frame)
         {
             var backend = bmp.GetBackend();
+#if !GUI_DISABLED
 #if PLATFORM_WINDOWS
             var pixelFormat = PixelFormats.Bgra32;
             var stride = (int)bmp.PixelWidth * (pixelFormat.BitsPerPixel / 8);   // width * pixel size in bytes
@@ -34,6 +37,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 #else
             var outBuffer = ((GtkImage)backend).Frames[0].Pixbuf.Pixels;
             Marshal.Copy(frame, 0, outBuffer, frame.Length);
+#endif
 #endif
         }
 
