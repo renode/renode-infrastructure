@@ -686,6 +686,10 @@ namespace Antmicro.Renode.Core
                         throw new RecoverableException(string.Format("GDB server already started for this machine on port :{0}", port));
                     }
                     var cpus = SystemBus.GetCPUs().Cast<ICpuSupportingGdb>();
+                    if(!cpus.Any())
+                    {
+                        throw new RecoverableException("Cannot start GDB server with no CPUs. Did you forget to load the platform description first?");
+                    }
                     foreach(var c in cpus)
                     {
                         if(gdbStubs.Values.Any(x => x.IsCPUAttached(c)))
