@@ -150,7 +150,7 @@ namespace Antmicro.Renode.Utilities
                                 decompressionProgressHandler.Finish();
                             }
                         }
-                        while (!(success = UpdateInCache(uri, fileName)) && attempts++ < 2);
+                        while (!(success = UpdateInCache(uri, fileName)) && attempts++ < 5);
                         if (!success)
                         {
                             Logger.LogAs(this, LogLevel.Error, "Download failed {0} times, wrong checksum or size, aborting.", attempts);
