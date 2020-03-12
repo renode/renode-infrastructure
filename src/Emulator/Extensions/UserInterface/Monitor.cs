@@ -27,7 +27,7 @@ namespace Antmicro.Renode.UserInterface
     {
         public ICommandInteraction HandleCommand(string cmd, ICommandInteraction ci)
         {
-            ProcessCommand(cmd, ci);
+            Parse(cmd, ci);
             return ci;
         }
 
@@ -749,11 +749,6 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
             return true;
-        }
-
-        private void ProcessCommand(String command, ICommandInteraction writer)
-        {
-            Parse(command, writer);
         }
 
         private static string FindLastCommandInString(string origin)
