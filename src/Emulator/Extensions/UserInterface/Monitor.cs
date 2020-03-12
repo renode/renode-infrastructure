@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -85,6 +85,12 @@ namespace Antmicro.Renode.UserInterface
 
             pythonRunner = new MonitorPythonEngine(this);
             var startingCurrentDirectory = Environment.CurrentDirectory;
+            variableCollections = new Dictionary<VariableType, Dictionary<string, Token>>
+            {
+                { VariableType.Variable, variables },
+                { VariableType.Macro, macros },
+                { VariableType.Alias, aliases },
+            };
             SetBasePath();
             InitCommands();
             emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
@@ -101,6 +107,7 @@ namespace Antmicro.Renode.UserInterface
                     SetVariable(OriginVariable, oldOrigin, variables);
                 }
                 macros.Clear();
+                aliases.Clear();
                 Machine = null;
                 emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
                 monitorPath.Path = monitorPath.DefaultPath;
@@ -219,10 +226,12 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new MonitorPathCommand(this, monitorPath));
             Commands.Add(new UsingCommand(this, () => usings));
             Commands.Add(new StartCommand(this, includeCommand));
-            Commands.Add(new SetCommand(this, "set", "variable", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, false),
+            Commands.Add(new SetCommand(this, "set", "a variable", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, VariableType.Variable),
                 DisableStringEater, () => stringEaterMode, GetVariableName));
-            Commands.Add(new SetCommand(this, "macro", "macro", (x, y) => SetVariable(x, y, macros), (x, y) => EnableStringEater(x, y, true),
+            Commands.Add(new SetCommand(this, "macro", "a macro", (x, y) => SetVariable(x, y, macros), (x, y) => EnableStringEater(x, y, VariableType.Macro),
                 DisableStringEater, () => stringEaterMode, GetVariableName));
+            Commands.Add(new SetCommand(this, "alias", "an alias", (x, y) => SetVariable(x, y, aliases), (x, y) => EnableStringEater(x, y, VariableType.Alias),
+	        DisableStringEater, () => stringEaterMode, GetVariableName));
             Commands.Add(new PythonExecuteCommand(this, x => ExpandVariable(x, variables), pythonRunner.ExecutePythonCommand));
             Commands.Add(new ExecuteCommand(this, "execute", "variable", x => ExpandVariable(x, variables), () => variables.Keys));
             Commands.Add(new ExecuteCommand(this, "runMacro", "macro", x => ExpandVariable(x, macros), () => macros.Keys));
@@ -235,12 +244,12 @@ namespace Antmicro.Renode.UserInterface
             stringEaterMode = 0;
             stringEaterValue = null;
             stringEaterVariableName = null;
-            recordingMacro = null;
+            recordingType = null;
         }
 
-        private void EnableStringEater(string variable, int mode, bool macro)
+        private void EnableStringEater(string variable, int mode, VariableType type)
         {
-            recordingMacro = macro;
+            recordingType = type;
             stringEaterMode = mode;
             stringEaterVariableName = variable;
         }
@@ -459,7 +468,7 @@ namespace Antmicro.Renode.UserInterface
                     stringEaterMode += 1;
                     if(stringEaterMode > 2)
                     {
-                        SetVariable(stringEaterVariableName, new StringToken(stringEaterValue), recordingMacro.Value ? macros : variables);
+                        SetVariable(stringEaterVariableName, new StringToken(stringEaterValue), variableCollections[recordingType.Value]);
                         stringEaterValue = "";
                         stringEaterMode = 0;
                     }
@@ -474,7 +483,7 @@ namespace Antmicro.Renode.UserInterface
                     stringEaterValue = stringEaterValue + cmd;
                     return true;
                 }
-                SetVariable(stringEaterVariableName, null, recordingMacro.Value ? macros : variables);
+                SetVariable(stringEaterVariableName, null, variableCollections[recordingType.Value]);
                 stringEaterValue = "";
                 stringEaterMode = 0;
             }
@@ -742,6 +751,12 @@ namespace Antmicro.Renode.UserInterface
                         return RunCommand(writer, item, com.Skip(1).ToList());
                     }
                 }
+
+                if (TryExpandVariable(new VariableToken(string.Format("${0}", com[0].OriginalValue)), aliases, out var cmd)) {
+                        var aliasedCommand = Tokenize(cmd.GetObjectValue().ToString(), writer).Tokens;
+                        return ParseTokens(aliasedCommand.Concat(com.Skip(1)), writer);
+                }
+
                 if(!pythonRunner.ExecuteBuiltinCommand(ExpandVariables(com).ToArray(), writer))
                 {
                     writer.WriteError(string.Format("No such command or device: {0}", com[0].GetObjectValue()));
@@ -920,6 +935,8 @@ namespace Antmicro.Renode.UserInterface
 
                 sugg.AddRange(GetAllAvailableNames());
                 sugg.AddRange(pythonRunner.GetPythonCommands());
+                sugg.AddRange(aliases.Keys);
+                sugg.AddRange(aliases.Keys.Select(x => x.Substring(x.IndexOf('.') + 1))); // remove the "global." or "{machine-name}." prefix
                 suggestions.AddRange(sugg.Where(x => x.StartsWith(currentCommandSplit[0])).Select(x => prefixToAdd + x));
 
                 if(suggestions.Count == 0) //EmulationManager
@@ -1047,10 +1064,12 @@ namespace Antmicro.Renode.UserInterface
         private readonly Dictionary<string, Func<object>> objectDelegateMappings = new Dictionary<string, Func<object>>();
         private readonly Dictionary<string, Token> variables = new Dictionary<string, Token>();
         private readonly Dictionary<string, Token> macros = new Dictionary<string, Token>();
+        private readonly Dictionary<string, Token> aliases = new Dictionary<string, Token>();
+        private readonly Dictionary<VariableType, Dictionary<string, Token>> variableCollections;
         private int stringEaterMode;
         private string stringEaterValue = "";
         private string stringEaterVariableName = "";
-        private bool? recordingMacro;
+        private VariableType? recordingType;
         private bool verboseMode;
 
         public ICommandInteraction Interaction { get; set; }
@@ -1102,5 +1121,12 @@ namespace Antmicro.Renode.UserInterface
         private HashSet<Command> Commands { get; set; }
 
         private readonly MonitorPythonEngine pythonRunner;
+
+        private enum VariableType
+        {
+            Variable,
+            Macro,
+            Alias
+        }
     }
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         private readonly String noun;
 
         public SetCommand(Monitor monitor, String name, string noun, Action<string, Token> setVariable, Action<string, int> enableStringEater, Action disableStringEater, Func<int> getStringEaterMode, 
-            Func<string, string> getVariableName) : base(monitor, name, "sets a {0}.".FormatWith(noun))
+            Func<string, string> getVariableName) : base(monitor, name, "sets {0}.".FormatWith(noun))
         {
             EnableStringEater = enableStringEater;
             DisableStringEater = disableStringEater;
