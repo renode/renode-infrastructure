@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         private void HandleKeyReleased(object sender, KeyEventArgs e)
         {
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !GUI_DISABLED
             e.Handled = true;
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         private void HandleKeyPressed(object sender, KeyEventArgs e)
         {
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !GUI_DISABLED
             e.Handled = true;
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
