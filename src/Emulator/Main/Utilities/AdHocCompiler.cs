@@ -7,6 +7,7 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 using System.CodeDom.Compiler;
 using System.Linq;
 using System.Collections.Generic;
@@ -19,6 +20,10 @@ namespace Antmicro.Renode.Utilities
     {
         public string Compile(string sourcePath, IEnumerable<string> referencedLibraries = null)
         {
+            if(BundleHelper.BundledAssembliesCount > 0)
+            {
+                throw new RecoverableException($"Trying to compile \"{sourcePath}\", but the bundled Renode package does not support ad-hoc compilation");
+            }
             using(var provider = CodeDomProvider.CreateProvider("CSharp"))
             {
                 var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
