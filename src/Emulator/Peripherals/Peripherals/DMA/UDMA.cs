@@ -187,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private uint busErrorStatus;
         private readonly Channel[] channels;
         private readonly DmaEngine engine;
-        protected readonly SystemBus SystemBus;
+        private readonly SystemBus SystemBus;
 
         private readonly uint[] peripheralIdentification = new uint[]{ 0x30, 0xB2, 0xB, 0x0, 0x4 };
         private readonly uint[] primeCellIdentification = new uint[]{ 0xD, 0xF0, 0x5, 0xB1 };
@@ -272,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         return 4;
                     case 1:
                         return 2;
-                    case 0: 
+                    case 0:
                         return 1;
                     default:
                         throw new ArgumentException("Unhandled increment value {0}.".FormatWith(value));
