@@ -16,11 +16,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class UDMA : IDoubleWordPeripheral, IKnownSize
     {
-        public UDMA(Machine machine)
+        public UDMA(Machine machine, int numberOfChannels = 32)
         {
             engine = new DmaEngine(machine);
             SystemBus = machine.SystemBus;
-            channels = new Channel[32];
+            channels = new Channel[numberOfChannels];
             IRQ = new GPIO();
             Reset();
         }
