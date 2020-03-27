@@ -311,7 +311,7 @@
     <Compile Include="Peripherals\DMA\EOSS3_SPI_DMA.cs" />
     <Compile Include="Peripherals\Miscellaneous\EOSS3_PacketFIFO.cs" />
     <Compile Include="Peripherals\Miscellaneous\EOSS3_FlexibleFusionEngine.cs" />
-    <Compile Include="Peripherals\DMA\EOSS3_SystemDMA.cs" />
+    <Compile Include="Peripherals\DMA\EOSS3_SystemDMABridge.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
