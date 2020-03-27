@@ -69,10 +69,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return ReadFromChannels(x => x.HighPriority);
             case Registers.InterruptStatus:
                 return ReadFromChannels(x => x.InterruptStatus);
-            case Registers.ChannelMapSelect0:
-            case Registers.ChannelMapSelect1:
-            case Registers.ChannelMapSelect2:
-            case Registers.ChannelMapSelect3:
             default:
                 this.LogUnhandledRead(offset);
                 break;
@@ -291,10 +287,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             ErrorClear = 0x4C, //write 1 to clear error, read 1 on error
             Assignment = 0x500, //bit per channel, not used
             InterruptStatus = 0x504, //bit per channel, w1c
-            ChannelMapSelect0 = 0x510, //4 bits per channel
-            ChannelMapSelect1 = 0x514, //4 bits per channel
-            ChannelMapSelect2 = 0x518, //4 bits per channel
-            ChannelMapSelect3 = 0x51C //4 bits per channel
         }
     }
 }
