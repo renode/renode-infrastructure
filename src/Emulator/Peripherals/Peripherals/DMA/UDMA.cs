@@ -150,6 +150,17 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        public void InitTransfer(int channel, bool isBurst)
+        {
+            if(channel > channels.Length)
+            {
+                this.Log(LogLevel.Warning, "Trying to issue a {0} transfer on non-existent channel {1}", isBurst ? "burst" : "single", channel);
+                return;
+            }
+            channels[channel].UseBurst = isBurst;
+            channels[channel].InitTransfer();
+        }
+
         public GPIO IRQ { get; private set; }
 
         private void ActionOnChannels(Action<Channel, bool> action, uint selector)
