@@ -69,6 +69,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return ReadFromChannels(x => x.HighPriority);
             case Registers.InterruptStatus:
                 return ReadFromChannels(x => x.InterruptStatus);
+            case Registers.PeripheralIdentification4:
+                return peripheralIdentification[4];
+            case Registers.PeripheralIdentification0:
+            case Registers.PeripheralIdentification1:
+            case Registers.PeripheralIdentification2:
+            case Registers.PeripheralIdentification3:
+                return peripheralIdentification[offset - (int)Registers.PeripheralIdentification0];
+            case Registers.PrimeCellIdentification0:
+            case Registers.PrimeCellIdentification1:
+            case Registers.PrimeCellIdentification2:
+            case Registers.PrimeCellIdentification3:
+                return primeCellIdentification[offset - (int)Registers.PrimeCellIdentification0];
             default:
                 this.LogUnhandledRead(offset);
                 break;
@@ -176,6 +188,9 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly Channel[] channels;
         private readonly DmaEngine engine;
         protected readonly SystemBus SystemBus;
+
+        private readonly uint[] peripheralIdentification = new uint[]{ 0x30, 0xB2, 0xB, 0x0, 0x4 };
+        private readonly uint[] primeCellIdentification = new uint[]{ 0xD, 0xF0, 0x5, 0xB1 };
 
         private class Channel
         {
@@ -287,6 +302,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             ErrorClear = 0x4C, //write 1 to clear error, read 1 on error
             Assignment = 0x500, //bit per channel, not used
             InterruptStatus = 0x504, //bit per channel, w1c
+            PeripheralIdentification4 = 0xFD0, //sic! it's before PeripheralIdentification0
+            PeripheralIdentification0 = 0xFE0,
+            PeripheralIdentification1 = 0xFE4,
+            PeripheralIdentification2 = 0xFE8,
+            PeripheralIdentification3 = 0xFEC,
+            PrimeCellIdentification0 = 0xFF0,
+            PrimeCellIdentification1 = 0xFF4,
+            PrimeCellIdentification2 = 0xFF8,
+            PrimeCellIdentification3 = 0xFFC
         }
     }
 }
