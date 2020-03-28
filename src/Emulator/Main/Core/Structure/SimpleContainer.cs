@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Core.Structure
 
         public virtual void Unregister(T peripheral)
         {
-            var toRemove = ChildCollection.Where(x => x.Value.Equals(peripheral)).Select(x => x.Key).ToList();
+            var toRemove = ChildCollection.Where(x => x.Value.Equals(peripheral)).Select(x => x.Key).ToList(); //ToList required, as we remove from the source
             if(toRemove.Count == 0)
             {
                 throw new RegistrationException("The specified peripheral was never registered.");
@@ -109,4 +109,3 @@ namespace Antmicro.Renode.Core.Structure
         protected readonly Machine machine;
     }
 }
-
