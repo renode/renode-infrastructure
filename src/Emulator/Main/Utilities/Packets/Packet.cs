@@ -82,6 +82,11 @@ namespace Antmicro.Renode.Utilities.Packets
             var innerResult = (object)default(T);
             result = default(T);
 
+            if(data == null)
+            {
+                return false;
+            }
+
             var fieldsAndProperties = GetFieldsAndProperties<T>();
 
             var offset = dataOffset;
