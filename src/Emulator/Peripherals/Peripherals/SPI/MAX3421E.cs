@@ -352,7 +352,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
 
             RegisterType.HostResult.Define(this)
-                .WithTag("HRSLT - Host result", 0, 4)
+                .WithEnumField(0, 4, out hostResult, FieldMode.Read, name: "HRSLT - Host result")
                 .WithTag("RCVTOGRD - Resulting data toggle value for IN transfers", 4, 1)
                 .WithTag("SNDTOGRD - Resulting data toggle value for OUT transfers", 5, 1)
                 .WithFlag(6, out kStatus, name: "KSTATUS - Sample the state of the USB bus")
@@ -382,69 +382,54 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private void SetStatus(HostResult result)
+        {
+            hostResult.Value = result;
+            hostTransferDoneInterruptRequest.Value = true;
+            UpdateInterrupts();
+        }
+
         private void HandleHostTransfer(uint ep, bool setup, bool outnin, bool hs)
         {
             if(setup && hs)
             {
                 this.Log(LogLevel.Error, "Both SETUP and HS bits set for a host transfer - ignoring it!");
+                SetStatus(HostResult.BadRequest);
                 return;
             }
 
             var device = this.ChildCollection.Values.FirstOrDefault(x => x.USBCore.Address == deviceAddress.Value);
             if(device == null)
             {
-                this.Log(LogLevel.Warning, "Tried to send setup packet to a device with address 0x{0:X}, but it's not connected", deviceAddress.Value);
+                this.Log(LogLevel.Warning, "Transfer directed to a device with address 0x{0:X}, but it's not connected", deviceAddress.Value);
+                SetStatus(HostResult.Timeout);
+                return;
+            }
 
-                // setting the IRQ is necessary to allow communication right after the usb device address has changed
-                hostTransferDoneInterruptRequest.Value = true;
-                UpdateInterrupts();
-
+            var endpoint = device.USBCore.GetEndpoint(outnin ? Direction.HostToDevice : Direction.DeviceToHost, (int)ep);
+            if(endpoint == null)
+            {
+                this.Log(LogLevel.Error, "Trying to access a non-existing {0} endpoint #{1}", outnin ? "OUT" : "IN", ep);
+                SetStatus(HostResult.Timeout);
                 return;
             }
 
             if(setup)
             {
                 this.Log(LogLevel.Noisy, "Setup TX");
-                if(ep != 0)
-                {
-                    this.Log(LogLevel.Error, "This model does not support SETUP packets on EP different than 0");
-                    return;
-                }
-
-                HandleSetup(device);
-            }
-            else if(hs)
-            {
-                this.Log(LogLevel.Noisy, "Handshake {0}", outnin ? "out" : "in");
-
-                hostTransferDoneInterruptRequest.Value = true;
-                UpdateInterrupts();
+                HandleSetup(endpoint);
             }
             else
             {
-                USBEndpoint endpoint = null;
-                if(ep != 0)
-                {
-                    endpoint = device.USBCore.GetEndpoint((int)ep);
-                    if(endpoint == null)
-                    {
-                        this.Log(LogLevel.Error, "Tried to access a non-existing EP #{0}", ep);
-
-                        hostTransferDoneInterruptRequest.Value = true;
-                        UpdateInterrupts();
-                        return;
-                    }
-                }
+                this.Log(LogLevel.Noisy, "Generating {0}{1} packet", outnin ? "OUT" : "IN", hs ? " handshake" : string.Empty);
 
                 if(outnin)
                 {
-                    this.Log(LogLevel.Noisy, "Bulk out");
-                    HandleBulkOut(endpoint);
+                    HandleBulkOut(endpoint, hs);
                 }
                 else
                 {
-                    this.Log(LogLevel.Noisy, "Bulk in");
-                    HandleBulkIn(endpoint);
+                    HandleBulkIn(endpoint, hs);
                 }
             }
         }
@@ -457,65 +442,96 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
-        private void HandleBulkOut(USBEndpoint endpoint)
+        private void HandleBulkOut(USBEndpoint endpoint, bool handshake)
         {
-            if(endpoint != null)
+            byte[] bytesToSend;
+
+            if(handshake)
+            {
+                bytesToSend = new byte[0];
+            }
+            else
             {
                 if(sendByteCount.Value != sendQueue.Count)
                 {
                     this.Log(LogLevel.Warning, "Requested to send BULK out {0} bytes of data, but there are {1} bytes in the queue.", sendByteCount.Value, sendQueue.Count);
                 }
+                bytesToSend = sendQueue.DequeueRange((int)sendByteCount.Value);
+            }
 
-                var bytesToSend = sendQueue.DequeueRange((int)sendByteCount.Value);
-                this.Log(LogLevel.Noisy, "Writing {0} bytes to the device", bytesToSend.Length);
-                endpoint.WriteData(bytesToSend);
+            this.Log(LogLevel.Noisy, "Writing {0} bytes to the device", bytesToSend.Length);
+
+            // TODO: handle data0/data1
+            var outTransaction = USBTransactionStage.Out(bytesToSend, false);
+
+            endpoint.HandleTransaction(outTransaction, deviceStage: result =>
+            {
+                switch(result.PacketID)
+                {
+                    case USBPacketId.AckHandshake:
+                        break;
+
+                    default:
+                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to an OUT token packet", result.PacketID);
+                        SetStatus(HostResult.PktErr);
+                        return;
+                }
 
                 sendDataBufferAvailableInterruptRequest.Value = true;
-            }
-
-            hostTransferDoneInterruptRequest.Value = true;
-            UpdateInterrupts();
+                SetStatus(HostResult.Success);
+            });
         }
 
-        private void HandleBulkIn(USBEndpoint endpoint)
+        private void HandleBulkIn(USBEndpoint endpoint, bool handshake)
         {
-            if(endpoint != null)
-            {
-                this.Log(LogLevel.Noisy, "Initiated read from the device");
-                endpoint.SetDataReadCallbackOneShot((_, data) =>
-                {
-                    this.Log(LogLevel.Noisy, "Received data from the device");
-#if DEBUG_PACKETS
-                    this.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
-#endif
-                    EnqueueReceiveData(data);
+            this.Log(LogLevel.Noisy, "Initiated read from the device");
 
-                    hostTransferDoneInterruptRequest.Value = true;
-                    UpdateInterrupts();
-                });
-            }
-            else
+            endpoint.HandleTransaction(USBTransactionStage.In(), response =>
             {
-                hostTransferDoneInterruptRequest.Value = true;
-                UpdateInterrupts();
-            }
+                this.Log(LogLevel.Noisy, "Received data for IN transaction on EP{0}", endpoint.Identifier);
+                if(response.PacketID != USBPacketId.Data0 && response.PacketID != USBPacketId.Data1)
+                {
+                    this.Log(LogLevel.Error, "Received unexpected response to IN transaction: {0}", response);
+                    SetStatus(HostResult.PktErr);
+                    return;
+                }
+
+#if DEBUG_PACKETS
+                this.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(response.Payload));
+#endif
+                if(handshake && response.Payload.Length != 0)
+                {
+                    this.Log(LogLevel.Warning, "Expected an empty packet as a result to IN handshake, but received {0} bytes in return", response.Payload.Length);
+                }
+
+                EnqueueReceiveData(response.Payload);
+                SetStatus(HostResult.Success);
+            });
         }
 
-        private void HandleSetup(IUSBDevice device)
+        private void HandleSetup(USBEndpoint endpoint)
         {
             var data = setupQueue.DequeueAll();
-            if(!Packet.TryDecode<SetupPacket>(data, out var setupPacket))
-            {
-                this.Log(LogLevel.Error, "Could not decode SETUP packet - some data might be lost! Bytes were: {0}", Misc.PrettyPrintCollectionHex(data));
-                return;
-            }
+            var setupTransaction = USBTransactionStage.Setup(data);
 
-            device.USBCore.HandleSetupPacket(setupPacket, response =>
+            endpoint.HandleTransaction(setupTransaction, deviceStage: handshake =>
             {
-                EnqueueReceiveData(response);
+                switch(handshake.PacketID)
+                {
+                    case USBPacketId.StallHandshake:
+                        this.Log(LogLevel.Noisy, "Control endpoint stalled!");
+                        SetStatus(HostResult.Stall);
+                        break;
 
-                hostTransferDoneInterruptRequest.Value = true;
-                UpdateInterrupts();
+                    case USBPacketId.AckHandshake:
+                        SetStatus(HostResult.Success);
+                        break;
+
+                    default:
+                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to a setup token packet", handshake.PacketID);
+                        SetStatus(HostResult.PktErr);
+                        return;
+                }
             });
         }
 
@@ -551,6 +567,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField hostMode;
         private IFlagRegisterField oscillatorOKInterruptEnable;
         private IFlagRegisterField oscillatorOKInterruptRequest;
+        private IEnumRegisterField<HostResult> hostResult;
         private readonly Queue<byte> setupQueue;
         private readonly Queue<byte> receiveQueue;
         private readonly Queue<byte> sendQueue;
@@ -571,6 +588,26 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             Read = 0,
             Write = 1
+        }
+
+        private enum HostResult
+        {
+            Success = 0x00,      // Successful Transfer
+            Busy = 0x01,         // SIE is busy, transfer pending
+            BadRequest = 0x02,   // Bad value in HXFR reg
+            Undef = 0x03,        // (reserved)
+            Nak = 0x04,          // Peripheral returned NAK
+            Stall = 0x05,        // Perpheral returned STALL
+            TogErr = 0x06,       // Toggle error/ISO over-underrun
+            WrongPID = 0x07,     // Received the wrong PID
+            BadBC = 0x08,        // Bad byte count
+            PidErr = 0x09,       // Receive PID is corrupted
+            PktErr = 0x0A,       // Packet error (stuff, EOP)
+            CrcErr = 0x0B,       // CRC error
+            KErr = 0x0C,         // K-state instead of response
+            JErr = 0x0D,         // J-state instead of response
+            Timeout = 0x0E,      // Device did not respond in time
+            Babble = 0x0F,       // Device talked too long
         }
 
         [RegisterMapper.RegistersDescription]
