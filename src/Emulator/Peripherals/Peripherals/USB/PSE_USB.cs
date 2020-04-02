@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -65,6 +65,8 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public override void Reset()
         {
+            ep0DataToggle = false;
+
             byteRegisters.Reset();
             wordRegisters.Reset();
             doubleWordRegisters.Reset();
@@ -353,51 +355,126 @@ namespace Antmicro.Renode.Peripherals.USB
             Registers.Endpoint0TransmitControlStatus.Define16(this, name: $"EP0_TX_CSR_REG")
                 .WithFlag(0, out var receivedPacketReady, name: "RxPktRdy")
                 .WithFlag(1, out var transmitPacketReady,  name: "TxPktRdy")
+                .WithFlag(2, out rxStall[0], FieldMode.Read | FieldMode.WriteOneToClear, name: "RxStall")
                 .WithFlag(3, out var setupPacket, name: "SetupPkt")
+                .WithTag("ERROR", 4, 1)
                 .WithFlag(5, out var requestPacket, name: "ReqPkt")
                 .WithFlag(6, out var statusPacket, name: "StatusPkt")
+                .WithTag("NAK Timeout", 7, 1)
+                .WithTag("Flush FIFO", 8, 1)
+                .WithFlag(9, out var dataToggle, name: "Data Toggle", valueProviderCallback: _ => ep0DataToggle)
+                .WithFlag(10, out var dataToggleWriteEnable, name: "Data Toggle Write Enable")
+                .WithTag("Dis Ping", 11, 1)
+                .WithReservedBits(12, 4)
                 .WithWriteCallback((_, __) =>
                 {
+                    if(dataToggleWriteEnable.Value)
+                    {
+                        ep0DataToggle = dataToggle.Value;
+                    }
+
+                    if(!TryGetDeviceForEndpoint(0, Direction.HostToDevice, out var peripheral)
+                            && !TryGetDeviceForEndpoint(0, Direction.DeviceToHost, out peripheral))
+                    {
+                        this.Log(LogLevel.Warning, "There is no peripheral configured for endpoint 0 in host to device direction");
+                        return;
+                    }
+                    
                     if(transmitPacketReady.Value)
                     {
                         transmitPacketReady.Value = false;
-                        if(!TryGetDeviceForEndpoint(0, Direction.HostToDevice, out var peripheral))
-                        {
-                            this.Log(LogLevel.Warning, "There is no peripheral configured for endpoint 0 in host to device direction");
-                            return;
-                        }
 
                         if(setupPacket.Value)
                         {
                             setupPacket.Value = false;
-                            var data = fifoFromHostToDevice[0].DequeueAll();
+
+                            var data = fifoFromHostToDevice[0].DequeueRange(8);
                             if(data.Length != 8)
                             {
                                 this.Log(LogLevel.Warning, "Setup packet must be composed of 8 bytes, but there are currently {0} in the buffer. Refusing to send packet and dropping buffered data.", data.Length);
                                 return;
                             }
 
-                            var packet = Packet.Decode<SetupPacket>(data);
-                            peripheral.USBCore.ControlEndpoint.HandleSetupPacket(packet, receivedBytes =>
+                            var setupTransaction = USBTransactionStage.Setup(data);
+
+                            this.Log(LogLevel.Noisy, "Sending the SETUP packet to the control endpoint");
+
+                            peripheral.USBCore.ControlEndpoint.HandleTransaction(setupTransaction, deviceStage: handshake =>
                             {
-                                if(receivedBytes == null)
+                                switch(handshake.PacketID)
                                 {
-                                    // this means stall!
-                                    rxStall[0].Value = true;
+                                    case USBPacketId.StallHandshake:
+                                        this.Log(LogLevel.Noisy, "Control endpoint stalled!");
+                                        rxStall[0].Value = true;
+                                        break;
+
+                                    case USBPacketId.AckHandshake:
+                                        // everything is fine, do nothing
+                                        break;
+
+                                    default:
+                                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to a setup token packet", handshake.PacketID);
+                                        return;
                                 }
-                                else
+
+                                txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                            });
+                        } 
+                        else if(statusPacket.Value)
+                        {
+                            this.Log(LogLevel.Noisy, "Sending STATUS OUT packet to EP0");
+
+                            statusPacket.Value = false;
+
+                            var statusTransaction = USBTransactionStage.Out(new byte[0], data0: false);
+                            peripheral.USBCore.ControlEndpoint.HandleTransaction(statusTransaction, deviceStage: handshake =>
+                            {
+                                switch(handshake.PacketID)
                                 {
-                                    fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
+                                    case USBPacketId.AckHandshake:
+                                        // everything is fine, do nothing
+                                        break;
+
+                                    default:
+                                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to a status (OUT) token packet", handshake.PacketID);
+                                        return;
                                 }
+
+                                this.Log(LogLevel.Noisy, "It's ok");
+
                                 txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
                             });
                         }
-
-                        if(statusPacket.Value)
+                        else
                         {
-                            statusPacket.Value = false;
-                            // nothing happens here - just setting the interrupt
-                            txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                            this.Log(LogLevel.Noisy, "Sending DATA OUT packet to EP0");
+
+                            var data = fifoFromHostToDevice[0].DequeueAll();
+                            if(data.Length > peripheral.USBCore.ControlEndpoint.MaximumPacketSize)
+                            {
+                                this.Log(LogLevel.Warning, "Detected more data in the queue than the EP Maximum Packet Size. Expect problems!");
+                            }
+
+                            var outTransaction = USBTransactionStage.Out(data, !ep0DataToggle);
+                            ep0DataToggle = !ep0DataToggle;
+
+                            peripheral.USBCore.ControlEndpoint.HandleTransaction(outTransaction, deviceStage: handshake =>
+                            {
+                                switch(handshake.PacketID)
+                                {
+                                    case USBPacketId.AckHandshake:
+                                        // everything is fine, do nothing
+                                        break;
+
+                                    default:
+                                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to an OUT token packet", handshake.PacketID);
+                                        return;
+                                }
+
+                                this.Log(LogLevel.Noisy, "It's ok");
+
+                                txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                            });
                         }
                     }
 
@@ -405,9 +482,42 @@ namespace Antmicro.Renode.Peripherals.USB
                     {
                         requestPacket.Value = false;
 
-                        // since the communication with the device is instantenous the data should already wait in the buffer
-                        receivedPacketReady.Value = true;
-                        txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                        if(statusPacket.Value)
+                        {
+                            this.Log(LogLevel.Noisy, "Starting status IN transaction on EP0");
+
+                            peripheral.USBCore.ControlEndpoint.HandleTransaction(USBTransactionStage.In(), deviceStage: handshake =>
+                            {
+                                txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                            });
+                        }
+                        else
+                        {
+                            this.Log(LogLevel.Noisy, "Starting IN transaction on EP0");
+
+                            peripheral.USBCore.ControlEndpoint.HandleTransaction(USBTransactionStage.In(), response =>
+                            {
+                                this.Log(LogLevel.Noisy, "Received response for IN transaction on EP0: {0} (0x{0:X})", response.PacketID);
+
+                                if(response.PacketID == USBPacketId.StallHandshake)
+                                {
+                                    this.Log(LogLevel.Noisy, "Stalling EP#0 on IN transaction");
+                                    rxStall[0].Value = true;
+                                }
+                                else if(response.PacketID == USBPacketId.Data0 || response.PacketID == USBPacketId.Data1)
+                                {
+                                    fifoFromDeviceToHost[0].EnqueueRange(response.Payload);
+                                    receivedPacketReady.Value = true;
+                                }
+                                else
+                                {
+                                    this.Log(LogLevel.Error, "Received unexpected response to IN transaction: {0}", response);
+                                    return;
+                                }
+                                
+                                txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
+                            });
+                        }
                     }
                 })
             ;
@@ -446,9 +556,15 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            endpoint.SetDataReadCallbackOneShot((e, bytes) =>
+                            endpoint.HandleTransaction(USBTransactionStage.In(), response =>
                             {
-                                fifoFromDeviceToHost[endpointId].EnqueueRange(bytes);
+                                if(response.PacketID != USBPacketId.Data0 && response.PacketID != USBPacketId.Data1)
+                                {
+                                    this.Log(LogLevel.Error, "Received unexpected response to IN transaction: {0}", response);
+                                    return;
+                                }
+
+                                fifoFromDeviceToHost[endpointId].EnqueueRange(response.Payload);
                                 requestInTransaction[endpointId].Value = false;
                                 localReceivedPacketReady.Value = true;
                                 rxInterruptsManager.SetInterrupt((RxInterrupt)endpointId);
@@ -477,7 +593,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 ((Registers)(Registers.Endpoint0TransmitControlStatus + endpointId * 0x10)).Define16(this, name: $"EP{endpointId}_TX_CSR_REG")
                     .WithTag("NAK Timeout/IncompTx", 7, 1)
                     .WithTag("ClrDataTog", 6, 1)
-                    .WithFlag(5, out rxStall[endpointId], name: "RxStall")
+                    .WithFlag(5, out rxStall[endpointId], FieldMode.Read | FieldMode.WriteOneToClear, name: "RxStall")
                     .WithFlag(4, out var setupPkt, FieldMode.Read | FieldMode.Set, name: "SetupPkt")
                     .WithTag("FlushFIFO", 3, 1)
                     .WithTag("Error", 2, 1)
@@ -496,6 +612,7 @@ namespace Antmicro.Renode.Peripherals.USB
                         }
                         else
                         {
+                            this.Log(LogLevel.Noisy, "Sending a stanard OUT packet to EP #{0}", endpointId);
                             // standard OUT packet
                             if(!TryGetDeviceForEndpoint(endpointId, Direction.HostToDevice, out var peripheral))
                             {
@@ -510,11 +627,30 @@ namespace Antmicro.Renode.Peripherals.USB
                                 this.Log(LogLevel.Warning, "Trying to write to a non-existing endpoint #{0}", mappedEndpointId);
                             }
 
-                            var data = fifoFromHostToDevice[endpointId].DequeueAll();
-                            endpoint.WriteData(data);
+                            this.Log(LogLevel.Noisy, "THIS is mapped to EP {0} (?!)", mappedEndpointId);
 
-                            txPktRdy.Value = false;
-                            txInterruptsManager.SetInterrupt((TxInterrupt)endpointId);
+                            var data = fifoFromHostToDevice[endpointId].DequeueAll();
+
+                            // TODO: handle toogle bits
+                            var outTransaction = USBTransactionStage.Out(data);
+                            endpoint.HandleTransaction(outTransaction, handshake =>
+                            {
+                                switch(handshake.PacketID)
+                                {
+                                    case USBPacketId.AckHandshake:
+                                        // everything is fine, do nothing
+                                        break;
+
+                                    default:
+                                        this.Log(LogLevel.Error, "Received unexpected response {0} (0x{0:X}) to an OUT transaction", handshake.PacketID);
+                                        return;
+                                }
+
+                                this.Log(LogLevel.Noisy, "OUT packet ACKed");
+
+                                txPktRdy.Value = false;
+                                txInterruptsManager.SetInterrupt((TxInterrupt)endpointId);
+                            });
                         }
                     })
                 ;
@@ -626,6 +762,8 @@ namespace Antmicro.Renode.Peripherals.USB
                 return true;
             }
         }
+
+        private bool ep0DataToggle;
 
         private readonly TwoWayDictionary<byte, IUSBDevice> addressToDeviceCache;
 
