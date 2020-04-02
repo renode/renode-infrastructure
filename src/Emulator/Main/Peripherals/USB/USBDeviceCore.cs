@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -65,7 +65,8 @@ namespace Antmicro.Renode.Core.USB
                     transferType: EndpointTransferType.Control,
                     maximumPacketSize: 64, //?!
                     interval: 0); //?!
-            controlEndpoints[0].CustomSetupPacketHandler = HandleSetupPacketAutomatic;
+
+            controlEndpoints[0].SetupPacketHandler = HandleSetupPacketAutomatic;
         }
 
         public void Reset()
@@ -109,82 +110,94 @@ namespace Antmicro.Renode.Core.USB
 
         public USBEndpoint ControlEndpoint => controlEndpoints[0];
 
-        private void HandleSetupPacketAutomatic(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
+        private void HandleSetupPacketAutomatic(USBEndpoint endpoint, USBTransactionStage setupStage, Action<USBTransactionStage> deviceStage)
         {
-            var result = BitStream.Empty;
-            
-            device.Log(LogLevel.Noisy, "Handling setup packet: {0}", packet);
+            BitStream result = null;
+            SetupPacket setupPacket;
 
-            switch(packet.Recipient)
+            if(Packet.TryDecode<SetupPacket>(setupStage.Payload, out setupPacket))
             {
-                case PacketRecipient.Device:
-                    result = HandleRequest(packet);
-                    break;
-                case PacketRecipient.Interface:
-                    if(SelectedConfiguration == null)
-                    {
-                        Device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
-                        SendSetupResult(resultCallback, new byte[0]);
-                        return;
-                    }
-                    var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
-                    if(iface == null)
-                    {
-                        Device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
-                    }
-                    result = iface.HandleRequest(packet);
-                    break;
-                default:
-                    Device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
-                    break;
+                Device.Log(LogLevel.Noisy, "Handling setup packet: {0}", setupPacket);
+
+                switch(setupPacket.Recipient)
+                {
+                    case PacketRecipient.Device:
+                        result = HandleRequest(endpoint, setupPacket);
+                        break;
+                    case PacketRecipient.Interface:
+                        if(SelectedConfiguration == null)
+                        {
+                            Device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
+                            break;
+                        }
+                        var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == setupPacket.Index);
+                        if(iface == null)
+                        {
+                            Device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", setupPacket.Index);
+                        }
+                        result = iface.HandleRequest(setupPacket);
+                        break;
+                    default:
+                        Device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", setupPacket.Recipient);
+                        // TODO: this is a hack - shouldn't we stall here?
+                        result = BitStream.Empty;
+                        break;
+                }
             }
-
-            SendSetupResult(resultCallback, result.AsByteArray(packet.Count * 8u));
-        }
-
-        private void SendSetupResult(Action<byte[]> resultCallback, byte[] result)
-        {
-            device.Log(LogLevel.Noisy, "Sending setup packet response of length {0}", result.Length);
-#if DEBUG_PACKET
-            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(result));
+            else
+            {
+                Device.Log(LogLevel.Warning, "Received a broken SETUP packet with {0} bytes of data", setupStage.Payload.Length);
+#if DEBUG_PACKETS
+                Device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(setupStage.Payload));
 #endif
-            resultCallback(result);
+            }          
+
+            if(result == null)
+            {
+                deviceStage(USBTransactionStage.Stall());
+            }
+            else
+            {
+                // put the data to the endpoint's fifo
+                endpoint.WriteDataToHost(result.AsByteArray(setupPacket.Count * 8u));
+                deviceStage(USBTransactionStage.Ack());
+            }
         }
 
-        private BitStream HandleRequest(SetupPacket packet)
+        private BitStream HandleRequest(USBEndpoint endpoint, SetupPacket packet)
         {
             if(packet.Type != PacketType.Standard)
             {
                 Device.Log(LogLevel.Warning, "Non standard requests are not supported");
+                return null;
             }
-            else
+            
+            switch((StandardRequest)packet.Request)
             {
-                switch((StandardRequest)packet.Request)
-                {
-                    case StandardRequest.SetAddress:
-                        Address = checked((byte)packet.Value);
-                        break;
-                    case StandardRequest.GetDescriptor:
-                        if(packet.Direction != Direction.DeviceToHost)
-                        {
-                            Device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
-                            break;
-                        }
-                        return HandleGetDescriptor(packet.Value);
-                    case StandardRequest.SetConfiguration:
-                        SelectedConfiguration = Configurations.SingleOrDefault(x => x.Identifier == packet.Value);
-                        if(SelectedConfiguration == null)
-                        {
-                            Device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
-                        }
-                        break;
-                    default:
-                        Device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
-                        break;
-                }
-            }
+                case StandardRequest.SetAddress:
+                    endpoint.AfterReadOneShot += delegate { Address = checked((byte)packet.Value); };
+                    return BitStream.Empty;
 
-            return BitStream.Empty;
+                case StandardRequest.GetDescriptor:
+                    if(packet.Direction != Direction.DeviceToHost)
+                    {
+                        Device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
+                    }
+                    return HandleGetDescriptor(packet.Value);
+
+                case StandardRequest.SetConfiguration:
+                    SelectedConfiguration = Configurations.SingleOrDefault(x => x.Identifier == packet.Value);
+                    if(SelectedConfiguration == null)
+                    {
+                        Device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
+                        return null;
+                    }
+                    return BitStream.Empty;
+
+                default:
+                    Device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
+                    return null;
+            }
         }
 
         private BitStream HandleGetDescriptor(ushort value)
@@ -200,7 +213,7 @@ namespace Antmicro.Renode.Core.USB
                     if(Configurations.Count < descriptorIndex)
                     {
                         Device.Log(LogLevel.Warning, "Tried to access a non-existing configuration #{0}", descriptorIndex);
-                        return BitStream.Empty;
+                        return null;
                     }
                     return Configurations.ElementAt(descriptorIndex).GetDescriptor(true);
                 case DescriptorType.String:
@@ -216,7 +229,7 @@ namespace Antmicro.Renode.Core.USB
                         if(usbString == null)
                         {
                             Device.Log(LogLevel.Warning, "Tried to get non-existing string #{0}", descriptorIndex);
-                            return BitStream.Empty;
+                            return null;
                         }
 
                         return usbString.GetDescriptor(false);
@@ -224,7 +237,7 @@ namespace Antmicro.Renode.Core.USB
                 }
                 default:
                     Device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
-                    return BitStream.Empty;
+                    return null;
             }
         }
 
