@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,18 +24,19 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             maxPacketSize = maximumPacketSize;
             USBCore = new USBDeviceCore(this);
-            USBCore.ControlEndpoint.CustomSetupPacketHandler = SetupPacketHandler;
+
+            USBCore.ControlEndpoint.SetupPacketHandler = SetupPacketHandler;
+            USBCore.ControlEndpoint.InPacketHandler = InPacketHandler;
+            USBCore.ControlEndpoint.OutPacketHandler = OutPacketHandler;
+
             DefineRegisters();
         }
 
         public override void Reset()
         {
             base.Reset();
-            slaveToMasterBufferVirtualBase = 0;
-            state = State.Idle;
 
             masterToSlaveBuffer.Clear();
-            masterToSlaveAdditionalDataBuffer.Clear();
             slaveToMasterBuffer.Clear();
         }
 
@@ -76,25 +77,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
 
             Registers.Endpoint0LastTokenRead.Define(this)
-                .WithEnumField<DoubleWordRegister, USBTokenType>(0, 2, FieldMode.Read, valueProviderCallback: _ =>
-                {
-                    switch(state)
-                    {
-                    case State.SetupTokenReceived:
-                    case State.SetupTokenAcked:
-                        return USBTokenType.Setup;
-
-                    case State.ReadyForDataFromMaster:
-                    case State.DataFromMasterAcked:
-                        return USBTokenType.Out;
-
-                    case State.DataToMasterReady:
-                        return USBTokenType.In;
-
-                    default:
-                        return USBTokenType.Out;
-                    }
-                })
+                .WithEnumField<DoubleWordRegister, USBTokenType>(0, 2, out lastTokenField, FieldMode.Read)
                 .WithReservedBits(2, 30);
             ;
 
@@ -120,33 +103,34 @@ namespace Antmicro.Renode.Peripherals.USB
                         this.Log(LogLevel.Noisy, "Reading byte from out buffer: 0x{0:X}. Bytes left: {1}", result, masterToSlaveBuffer.Count);
                         return result;
                     },
-                    writeCallback: (_, __) => masterToSlaveBuffer.Dequeue())
+                    writeCallback: (_, __) => masterToSlaveBuffer.TryDequeue(out var _))
                 .WithReservedBits(8, 24)
             ;
 
             Registers.Endpoint0OutRespond.Define(this)
                 .WithEnumField<DoubleWordRegister, USBResponse>(0, 2, out endpoint0OutRespond, writeCallback: (_, v) =>
                 {
-                    this.Log(LogLevel.Noisy, "Endpoint 0 OUT response set to: {0} in state {1}", v, state);
-                    switch(v)
+                    lock(outLock)
                     {
-                    case USBResponse.Stall:
-                        state = State.Stall;
-                        HandleStall();
-                        break;
+                        this.Log(LogLevel.Noisy, "Endpoint 0 OUT response set to: {0}", v);
+                        switch(v)
+                        {
+                        case USBResponse.Stall:
+                            TrySendOutStall();
+                            break;
 
-                    case USBResponse.Ack:
-                        HandleOutAckRespond();
-                        break;
+                        case USBResponse.Ack:
+                            TryAcceptSetupOrOut();
+                            break;
 
-                    case USBResponse.NotAck:
-                        // intentionally do nothing
-                        break;
+                        case USBResponse.NotAck:
+                            // intentionally do nothing
+                            break;
 
-                    default:
-                        this.Log(LogLevel.Warning, "Unexpected endpoint 0 OUT response: {0}. Expect problems", v);
-                        state = State.Error;
-                        break;
+                        default:
+                            this.Log(LogLevel.Warning, "Unexpected endpoint 0 OUT response: {0}. Expect problems", v);
+                            break;
+                        }
                     }
                 })
                 .WithReservedBits(2, 30)
@@ -155,17 +139,15 @@ namespace Antmicro.Renode.Peripherals.USB
             Registers.Endpoint0InRespond.Define(this)
                 .WithEnumField<DoubleWordRegister, USBResponse>(0, 2, out endpoint0InRespond, writeCallback: (_, v) =>
                 {
-                    this.Log(LogLevel.Noisy, "Endpoint 0 IN response set to: {0} in state {1}", v, state);
+                    this.Log(LogLevel.Noisy, "Endpoint 0 IN response set to: {0}", v);
                     switch(v)
                     {
-                    case USBResponse.Ack:
-                        state = State.DataToMasterReady;
-                        ProduceDataToMaster();
+                    case USBResponse.Stall:
+                        TrySendInStall();
                         break;
 
-                    case USBResponse.Stall:
-                        state = State.Stall;
-                        HandleStall();
+                    case USBResponse.Ack:
+                        TrySendData();
                         break;
 
                     case USBResponse.NotAck:
@@ -174,7 +156,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
                     default:
                         this.Log(LogLevel.Warning, "Unexpected endpoint 0 IN response: {0}. Expect problems", v);
-                        state = State.Error;
                         break;
                     }
                 })
@@ -182,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
 
             Registers.Endpoint0InBufferEmpty.Define(this)
-                .WithFlag(0, FieldMode.Read, name: "bufferEmpty", valueProviderCallback: _ => slaveToMasterBuffer.Count == slaveToMasterBufferVirtualBase)
+                .WithFlag(0, FieldMode.Read, name: "bufferEmpty", valueProviderCallback: _ => slaveToMasterBuffer.Count == 0)
                 .WithReservedBits(1, 31)
             ;
 
@@ -193,8 +174,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
 
             Registers.Endpoint0InDataToggleBit.Define(this)
-                // since we don't generate separate Data0/Data1 packets in a transaction anyway, writes can be ignored
-                // we must return 0, because otherwise foboot does not work...
+                // TODO: implement it properely!
                 .WithFlag(0, name: "Data Toggle Bit", valueProviderCallback: _ => false)
                 .WithReservedBits(1, 31)
             ;
@@ -206,74 +186,6 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithReservedBits(8, 24)
             ;
         }
-
-        private void SendSetupPacketResponse()
-        {
-            if(masterToSlaveAdditionalDataBuffer.Count != 0)
-            {
-                this.Log(LogLevel.Error, "Setup packet handling finished, but there is still some unhandled additional data left. Dropping it, but expect problems");
-                masterToSlaveAdditionalDataBuffer.Clear();
-            }
-
-            this.Log(LogLevel.Noisy, "Setup packet handled");
-#if DEBUG_PACKETS
-            this.Log(LogLevel.Noisy, "Response bytes: [{0}]", Misc.PrettyPrintCollectionHex(slaveToMasterBuffer));
-#endif
-            slaveToMasterBufferVirtualBase = 0;
-
-            if(setupPacketResultCallback == null)
-            {
-                this.Log(LogLevel.Error, "No setup packet is handled at the moment, but the software wants to send data back. It might indicate a faulty driver");
-                return;
-            }
-
-            setupPacketResultCallback(slaveToMasterBuffer.DequeueAll());
-            setupPacketResultCallback = null;
-        }
-
-        private void HandleStall()
-        {
-            this.Log(LogLevel.Debug, "Endpoint 0 stalled");
-
-            // this could happen since HandleStall is called for both IN and OUT packets
-            if(setupPacketResultCallback == null)
-            {
-                return;
-            }
-
-            SendSetupPacketResponse();
-        }
-
-        private void ProduceDataToMaster()
-        {
-            var chunkSize = slaveToMasterBuffer.Count - slaveToMasterBufferVirtualBase;
-            slaveToMasterBufferVirtualBase = slaveToMasterBuffer.Count;
-
-            if(chunkSize < maxPacketSize)
-            {
-                this.Log(LogLevel.Noisy, "Data chunk was shorter than max packet size (0x{0:X} vs 0x{1:X}), so this is the end of data", chunkSize, maxPacketSize);
-                SendSetupPacketResponse();
-            }
-
-            // IN packet pending means that the master is waiting for more data
-            // and slave should generate it
-            endpoint0InPacketPending.Value = true;
-            UpdateInterrupts();
-        }
-
-        private void PrepareDataFromMaster()
-        {
-            if(masterToSlaveAdditionalDataBuffer.Count == 0)
-            {
-                this.Log(LogLevel.Warning, "Asked for additional data from master, but there is no more of it");
-                return;
-            }
-
-            var chunk = masterToSlaveAdditionalDataBuffer.DequeueRange(maxPacketSize);
-            this.Log(LogLevel.Noisy, "Enqueuing chunk of additional data from master of size {0}", chunk.Length);
-            EnqueueDataFromMaster(chunk);
-        }
-
 
         private void EnqueueDataFromMaster(IEnumerable<byte> data)
         {
@@ -287,35 +199,6 @@ namespace Antmicro.Renode.Peripherals.USB
             UpdateInterrupts();
         }
 
-        private void HandleOutAckRespond()
-        {
-            switch(state)
-            {
-            case State.Idle:
-                // do nothing
-                break;
-
-            case State.SetupTokenReceived:
-                state = State.SetupTokenAcked;
-                break;
-
-            case State.SetupTokenAcked:
-            case State.DataFromMasterAcked:
-                state = State.ReadyForDataFromMaster;
-                PrepareDataFromMaster();
-                break;
-
-            case State.ReadyForDataFromMaster:
-                state = State.DataFromMasterAcked;
-                break;
-
-            default:
-                this.Log(LogLevel.Warning, "Unexpected state when handling OUT ACK response: {0}. Expect problems", state);
-                state = State.Error;
-                break;
-            }
-        }
-
         private void UpdateInterrupts()
         {
             var irqState = (endpoint0OutPacketPending.Value && endpoint0OutPacketEventEnabled.Value)
@@ -326,54 +209,205 @@ namespace Antmicro.Renode.Peripherals.USB
             IRQ.Set(irqState);
         }
 
-        // NOTE: Here we assume that the communication is well-formed, i.e.,
-        // the controller does not send two setup packets in a row (without waiting for a response),
-        // or a device does not start to respond by itself (without the request from the master).
-        // There are some checks verifying it and printing errors, but there is no mechanism enforcing it.
-        private void SetupPacketHandler(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData)
+        private void SetupPacketHandler(USBEndpoint endpoint, USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
         {
-            this.Log(LogLevel.Noisy, "Received setup packet: {0}", packet.ToString());
-
-            if(setupPacketResultCallback != null)
-            {
-                this.Log(LogLevel.Error, "Setup packet result handler is set. It means that the previous setup packet handler has not yet finished. Expect problems!");
-            }
-            setupPacketResultCallback = resultCallback;
-
-            slaveToMasterBuffer.Clear();
-            slaveToMasterBufferVirtualBase = 0;
-            state = State.SetupTokenReceived;
-
-            var packetBytes = Packet.Encode(packet);
+            this.Log(LogLevel.Noisy, "Received setup packet");
 #if DEBUG_PACKETS
-            this.Log(LogLevel.Noisy, "Setup packet bytes: [{0}]", Misc.PrettyPrintCollectionHex(packetBytes));
+            this.Log(LogLevel.Noisy, "Setup packet bytes: [{0}]", Misc.PrettyPrintCollectionHex(hostStage.Data));
 #endif
-            EnqueueDataFromMaster(packetBytes);
 
-            // this is a trick:
-            // in fact we don't know if the master expects any data from the slave,
-            // but we can safely assume so - if there is no data, we should simply
-            // receive NAK;
-            // without generating this interrupt the slave would never know that
-            // it should generate any response and we would be stuck
-            endpoint0InPacketPending.Value = true;
-            UpdateInterrupts();
-
-            if(additionalData != null)
+            if(masterToSlaveBuffer.Count != 0)
             {
-                masterToSlaveAdditionalDataBuffer.EnqueueRange(additionalData);
+                this.Log(LogLevel.Warning, "Received SETUP packet, but some stale bytes from the master are still in the buffer - removing them, but this might indicate a problem");
+#if DEBUG_PACKETS
+                this.Log(LogLevel.Noisy, "Master to slave buffer content: [{0}]", Misc.PrettyPrintCollectionHex(masterToSlaveBuffer));
+#endif
+                masterToSlaveBuffer.Clear();
+            }
+
+            lock(outLock)
+            {
+                // SETUP packets share the same fifo as OUT packets
+                if(outPacketResponse != null)
+                {
+                    this.Log(LogLevel.Warning, "Received SETUP packet, but the response callback is not empty - this might indicate problems!");
+                }
+
+                if(endpoint0OutRespond.Value == USBResponse.Stall)
+                {
+                    endpoint0OutRespond.Value = USBResponse.Ack;
+                }
+
+                lastOutPacket = hostStage;
+                outPacketResponse = deviceStage;
+
+                if(endpoint0OutRespond.Value == USBResponse.Ack)
+                {
+                    TryAcceptSetupOrOut();
+                }
             }
         }
 
-        private Action<byte[]> setupPacketResultCallback;
+        private void OutPacketHandler(USBEndpoint endpoint, USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
+        {
+            lock(outLock)
+            {
+                if(outPacketResponse != null)
+                {
+                    this.Log(LogLevel.Warning, "Received OUT packet, but the response callback is not empty - this might indicate problems!");
+                }
 
-        private State state;
-        // in order to avoid copying data from `slaveToMasterBuffer`
-        // into another buffer it's not cleared after generating ACK
-        // packet; in order to detect how much data has been added to
-        // the buffer this variable contains the length of the buffer
-        // before the previous ACK packet
-        private int slaveToMasterBufferVirtualBase;
+                lastOutPacket = hostStage;
+                outPacketResponse = deviceStage;
+
+                switch(endpoint0OutRespond.Value)
+                {
+                case USBResponse.Stall:
+                    TrySendOutStall();
+                    break;
+
+                case USBResponse.Ack:
+                    TryAcceptSetupOrOut();
+                    break;
+                }
+            }
+        }
+
+        private bool TrySendOutStall()
+        {
+            lock(outLock)
+            {
+                if(outPacketResponse == null)
+                {
+                    return false;
+                }
+
+                this.Log(LogLevel.Noisy, "Sending OUT-STALL handshake on endpoint #0");
+
+                var callback = outPacketResponse;
+                outPacketResponse = null;
+
+                callback(USBTransactionStage.Stall());
+
+                return true;
+            }
+        }
+
+        private bool TrySendInStall()
+        {
+            lock(inLock)
+            {
+                if(inPacketResponse == null)
+                {
+                    return false;
+                }
+
+                this.Log(LogLevel.Noisy, "Sending IN-STALL handshake on endpoint #0");
+
+                endpoint0InRespond.Value = USBResponse.NotAck;
+
+                var callback = inPacketResponse;
+                inPacketResponse = null;
+
+                callback(USBTransactionStage.Stall());
+
+                return true;
+            }
+        }
+
+        private bool TryAcceptSetupOrOut()
+        {
+            lock(outLock)
+            {
+                if(outPacketResponse == null)
+                {
+                    return false;
+                }
+
+                this.Log(LogLevel.Noisy, "Accepting SETUP/OUT data from the host");
+                switch(lastOutPacket.PacketID)
+                {
+                    case USBPacketId.SetupToken:
+#if DEBUG_PACKETS
+                        this.Log(LogLevel.Noisy, "Setup data: {0}", Misc.PrettyPrintCollectionHex(((USBSetupTransaction)lastOutPacket).Payload));
+#endif
+                        lastTokenField.Value = USBTokenType.Setup;
+                        EnqueueDataFromMaster(lastOutPacket.Payload);
+                        break;
+
+                    case USBPacketId.OutToken:
+#if DEBUG_PACKETS
+                        this.Log(LogLevel.Noisy, "Data from host: {0}", Misc.PrettyPrintCollectionHex(((USBOutTransaction)lastOutPacket).Payload));
+#endif
+                        lastTokenField.Value = USBTokenType.Out;
+                        EnqueueDataFromMaster(lastOutPacket.Payload);
+                        break;
+
+                    default:
+                        this.Log(LogLevel.Error, "Unexpected packet type {0}", lastOutPacket.PacketID);
+                        return false;
+                }
+
+                endpoint0OutRespond.Value = USBResponse.NotAck;
+
+                var callback = outPacketResponse;
+                outPacketResponse = null;
+
+                callback(USBTransactionStage.Ack());
+
+                return true;
+            }
+        }
+
+        private bool TrySendData()
+        {
+            lock(inLock)
+            {
+                if(inPacketResponse == null)
+                {
+                    return false;
+                }
+
+                var response = USBTransactionStage.Data(slaveToMasterBuffer.DequeueAll());
+                this.Log(LogLevel.Noisy, "Sending response to IN transaction of size {0} bytes", response.Payload.Length);
+    #if DEBUG_PACKETS
+                this.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(response.Payload));
+    #endif
+
+                endpoint0InRespond.Value = USBResponse.NotAck;
+
+                var callback = inPacketResponse;
+                inPacketResponse = null;
+                // this is to avoid warnings TODO: expoand on it
+                callback(response);
+
+                return true;
+            }
+        }
+
+        private void InPacketHandler(USBEndpoint endpoint, USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
+        {
+            lock(inLock)
+            {
+                if(inPacketResponse != null)
+                {
+                    this.Log(LogLevel.Warning, "It looks like handling the previous IN packet is still in progress - it means problems");
+                }
+
+                inPacketResponse = deviceStage;
+
+                switch(endpoint0InRespond.Value)
+                {
+                    case USBResponse.Stall:
+                        TrySendInStall();
+                        break;
+
+                    case USBResponse.Ack:
+                        TrySendData();
+                        break;
+                }
+            }
+        }
 
         private IFlagRegisterField endpoint0OutPacketPending;
         private IFlagRegisterField endpoint0InPacketPending;
@@ -385,11 +419,17 @@ namespace Antmicro.Renode.Peripherals.USB
         private IFlagRegisterField endpoint0OutErrorPending;
         private IEnumRegisterField<USBResponse> endpoint0OutRespond;
         private IEnumRegisterField<USBResponse> endpoint0InRespond;
+        private IEnumRegisterField<USBTokenType> lastTokenField;
+
+        private USBTransactionStage lastOutPacket;
+        private Action<USBTransactionStage> outPacketResponse;
+        private Action<USBTransactionStage> inPacketResponse;
 
         private readonly int maxPacketSize;
         private readonly Queue<byte> masterToSlaveBuffer = new Queue<byte>();
-        private readonly Queue<byte> masterToSlaveAdditionalDataBuffer = new Queue<byte>();
         private readonly Queue<byte> slaveToMasterBuffer = new Queue<byte>();
+        private readonly object outLock = new object();
+        private readonly object inLock = new object();
 
         private enum USBResponse
         {
@@ -405,18 +445,6 @@ namespace Antmicro.Renode.Peripherals.USB
             StartOfFrame = 1,
             In = 2,
             Setup = 3
-        }
-
-        private enum State
-        {
-            Idle,
-            Stall,
-            DataToMasterReady,
-            ReadyForDataFromMaster,
-            SetupTokenReceived,
-            SetupTokenAcked,
-            DataFromMasterAcked,
-            Error,
         }
 
         private enum Registers
