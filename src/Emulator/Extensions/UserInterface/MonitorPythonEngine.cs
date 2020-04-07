@@ -28,10 +28,7 @@ namespace Antmicro.Renode.UserInterface
 
         public MonitorPythonEngine(Monitor monitor)
         {
-            if(!Misc.TryGetRootDirectory(out var rootPath) && !Misc.TryGetRootDirectory(Directory.GetCurrentDirectory(), out rootPath))
-            {
-                throw new RecoverableException("Could not find root directory.");
-            }
+            var rootPath = Misc.GetRootDirectory();
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
             imports.Execute(Scope);
