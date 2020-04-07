@@ -523,6 +523,28 @@ namespace Antmicro.Renode.Utilities
             b = color.B;
         }
 
+        private static string cachedRootDirectory;
+
+        public static string GetRootDirectory()
+        {
+            if(cachedRootDirectory != null)
+            {
+                return cachedRootDirectory;
+            }
+
+            if(TryGetRootDirectory(out var result))
+            {
+                return result;
+            }
+
+            // fall-back to the current working directory
+            var cwd = Directory.GetCurrentDirectory();
+            Logger.Log(LogLevel.Warning, "Could not find '.renode-root' - falling back to current working directory ({0}) - might cause problems.", cwd);
+            cachedRootDirectory = cwd;
+
+            return cwd;
+        }
+
         public static bool TryGetRootDirectory(out string directory)
         {
 #if PLATFORM_LINUX
@@ -540,6 +562,12 @@ namespace Antmicro.Renode.Utilities
 
         public static bool TryGetRootDirectory(string baseDirectory, out string directory)
         {
+            if(cachedRootDirectory != null)
+            {
+                directory = cachedRootDirectory;
+                return true;
+            }
+
             directory = null;
             var currentDirectory = new DirectoryInfo(baseDirectory);
             while(currentDirectory != null)
@@ -551,6 +579,7 @@ namespace Antmicro.Renode.Utilities
                     if(content.Length == 1 && content[0] == "5344ec2a-1539-4017-9ae5-a27c279bd454")
                     {
                         directory = currentDirectory.FullName;
+                        cachedRootDirectory = directory;
                         return true;
                     }
                 }
