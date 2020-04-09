@@ -485,6 +485,8 @@
     <Compile Include="Peripherals\USB\USBConnector.cs" />
     <Compile Include="Peripherals\Wireless\ISlipRadio.cs" />
     <Compile Include="Peripherals\Wireless\SlipRadio.cs" />
+    <Compile Include="Peripherals\USB\USBPacketId.cs" />
+    <Compile Include="Peripherals\USB\USBTransactionStage.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
