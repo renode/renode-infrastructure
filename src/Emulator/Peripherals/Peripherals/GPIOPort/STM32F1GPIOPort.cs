@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -48,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 {(long)Registers.OutputData, new DoubleWordRegister(this)
                     // upper 16 bits are reserved
-                    .WithValueField(0, 16, name: "ODR", writeCallback: (_, value) => SetConnectionsStateUsingBits(value))
+                    .WithValueField(0, 16, name: "ODR", writeCallback: (_, value) => SetConnectionsStateUsingBits(value), valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Values.Select(x=>x.IsSet)))
                 },
 
                 {(long)Registers.BitSetReset, new DoubleWordRegister(this)
