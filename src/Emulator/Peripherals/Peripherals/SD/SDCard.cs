@@ -12,6 +12,9 @@ using Antmicro.Renode.Logging;
 using System.IO;
 using Antmicro.Renode.Exceptions;
 using static Antmicro.Renode.Utilities.BitHelper;
+using Antmicro.Renode.Peripherals.SPI;
+
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -19,10 +22,14 @@ namespace Antmicro.Renode.Peripherals.SD
     // * Toggling selected state
     // * RCA (relative card address) filtering
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
-    public class SDCard : IPeripheral
+    public class SDCard : ISPIPeripheral
     {
-        public SDCard(string imageFile, long? size = null, bool persistent = false)
+        public SDCard(string imageFile, long? size = null, bool persistent = false, bool spiMode = false)
         {
+            this.spiMode = spiMode;
+            spiContext = new SpiContext();
+            isIdle = true;
+
             dataBackend = DataStorage.Create(imageFile, size, persistent);
 
             var sdCapacityParameters = SDCapacity.SeekForCapacityParametes(dataBackend.Length);
@@ -62,6 +69,10 @@ namespace Antmicro.Renode.Peripherals.SD
             readContext.Reset();
             writeContext.Reset();
             treatNextCommandAsAppCommand = false;
+
+            isIdle = true;
+
+            spiContext.Reset();
         }
 
         public void Dispose()
@@ -119,6 +130,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 return new byte[0];
             }
 
+            this.Log(LogLevel.Noisy, "Reading {0} bytes from offset 0x{1:X}", size, readContext.Offset);
+
             byte[] result;
             if(readContext.Data != null)
             {
@@ -131,6 +144,112 @@ namespace Antmicro.Renode.Peripherals.SD
                 readContext.Move(size);
             }
             return result;
+        }
+
+        public byte Transmit(byte data)
+        {
+            if(!spiMode)
+            {
+                this.Log(LogLevel.Error, "Received data over SPI, but the SPI mode is disabled.");
+                return 0;
+            }
+
+            this.Log(LogLevel.Noisy, "SPI: Received byte 0x{0:X} in state {1}", data, spiContext.State);
+
+            switch(spiContext.State)
+            {
+                case SpiState.WaitingForCommand:
+                {
+                    if(data == DummyByte)
+                    {
+                        this.Log(LogLevel.Noisy, "Received a DUMMY byte, ignoring it");
+                        return GenerateR1Response().AsByte();
+                    }
+
+                    // two MSB of the SPI command byte should be '01'
+                    if(BitHelper.IsBitSet(data, 7) || !BitHelper.IsBitSet(data, 6))
+                    {
+                        this.Log(LogLevel.Warning, "Unexpected command number value 0x{0:X}, ignoring this - expect problems", data);
+                        return GenerateR1Response(illegalCommand: true).AsByte();
+                    }
+
+                    // clear COMMAND bit, we don't need it anymore
+                    BitHelper.ClearBits(ref data, 6);
+
+                    spiContext.CommandNumber = (uint)data;
+
+                    spiContext.ArgumentBytes = 0;
+                    spiContext.State = SpiState.WaitingForArgBytes;
+                    break;
+                }
+
+                case SpiState.WaitingForArgBytes:
+                {
+                    this.Log(LogLevel.Noisy, "Storing as arg byte #{0}", spiContext.ArgumentBytes);
+
+                    spiContext.Argument <<= 8;
+                    spiContext.Argument |= data;
+                    spiContext.ArgumentBytes++;
+
+                    if(spiContext.ArgumentBytes == 4)
+                    {
+                        spiContext.State = SpiState.WaitingForCRC;
+                    }
+                    break;
+                }
+
+                case SpiState.WaitingForCRC:
+                {
+                    // we don't check CRC
+
+                    this.Log(LogLevel.Noisy, "Sending a command to the SD card");
+                    var result = HandleCommand(spiContext.CommandNumber, spiContext.Argument).AsByteArray();
+                    spiContext.ResponseBuffer.EnqueueRange(result);
+
+                    if(spiContext.ResponseBuffer.Count == 0)
+                    {
+                        this.Log(LogLevel.Warning, "Received an empty response, this is strange and might cause problems!");
+                        spiContext.State = SpiState.WaitingForCommand;
+                        break;
+                    }
+                    else
+                    {
+                        spiContext.State = SpiState.SendingResponse;
+                        return spiContext.ResponseBuffer.Dequeue();
+                    }
+                }
+
+                case SpiState.SendingResponse:
+                {
+                    if(spiContext.ResponseBuffer.TryDequeue(out var value))
+                    {
+                        return value;
+                    }
+
+                    this.Log(LogLevel.Noisy, "This is the end of response buffer");
+                    spiContext.State = SpiState.WaitingForCommand;
+                    break;
+                }
+
+                default:
+                {
+                    throw new ArgumentException($"Received data 0x{data:X} in an unexpected state {spiContext.State}");
+                }
+            }
+
+            return 0;
+        }
+
+        public void FinishTransmission()
+        {
+            if(!spiMode)
+            {
+                this.Log(LogLevel.Error, "Received SPI transmission finish signal, but the SPI mode is disabled.");
+                return;
+            }
+
+            this.Log(LogLevel.Noisy, "Finishing transmission");
+            spiContext.Reset();
         }
 
         public bool IsReadyForWritingData => writeContext.IsActive;
@@ -186,6 +305,49 @@ namespace Antmicro.Renode.Peripherals.SD
             return result;
         }
 
+        private bool spiMode;
+        private bool isIdle;
+
+        private BitStream GenerateR1Response(bool illegalCommand = false)
+        {
+            return new BitStream()
+                .AppendBit(isIdle)
+                .AppendBit(false) // Erase Reset
+                .AppendBit(illegalCommand)
+                .AppendBit(false) // Com CRC Error
+                .AppendBit(false) // Erase Seq Error
+                .AppendBit(false) // Address Error
+                .AppendBit(false) // Parameter Error
+                .AppendBit(false); // always 0
+        }
+
+        private BitStream GenerateR2Response()
+        {
+            return new BitStream()
+                .Append(GenerateR1Response().AsByte())
+                .Append((byte)0);
+        }
+
+        private BitStream GenerateR3Response()
+        {
+            return new BitStream()
+                .Append(GenerateR1Response().AsByte())
+                .Append((byte)0) // 4 bytes of the OCR register
+                .Append((byte)0)
+                .Append((byte)0)
+                .Append((byte)0);
+        }
+
+        private BitStream GenerateR7Response()
+        {
+            return new BitStream()
+                .Append(GenerateR1Response().AsByte())
+                .Append((byte)0) // see: http://www.rjhcoding.com/avrc-sd-interface-2.php for reference
+                .Append((byte)0)
+                .Append((byte)0)
+                .Append((byte)0);
+        }
+
         private BitStream HandleStandardCommand(SdCardCommand command, uint arg)
         {
             this.Log(LogLevel.Debug, "Handling as a standard command: {0}", command);
@@ -193,13 +355,29 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SdCardCommand.GoIdleState_CMD0:
                     Reset();
-                    return BitStream.Empty;
+                    return spiMode 
+                        ? GenerateR1Response()
+                        : BitStream.Empty; // no response in SD mode
 
                 case SdCardCommand.SendCardIdentification_CMD2:
+                {
+                    if(spiMode)
+                    {
+                        // this command is not supported in SPI mode
+                        break;
+                    }
+
                     return CardIdentification;
+                }
 
                 case SdCardCommand.SendRelativeAddress_CMD3:
                 {
+                    if(spiMode)
+                    {
+                        // this command is not supported in SPI mode
+                        break;
+                    }
+
                     var status = CardStatus.AsUInt32();
                     return BitHelper.BitConcatenator.New()
                         .StackAbove(status, 13, 0)
@@ -210,45 +388,87 @@ namespace Antmicro.Renode.Peripherals.SD
                 }
 
                 case SdCardCommand.SelectDeselectCard_CMD7:
+                {
+                    if(spiMode)
+                    {
+                        // this command is not supported in SPI mode
+                        break;
+                    }
+
                     return CardStatus;
+                }
+
+                case SdCardCommand.SendInterfaceConditionCommand_CMD8:
+                    return spiMode
+                        ? GenerateR7Response()
+                        : CardStatus;
 
                 case SdCardCommand.SendCardSpecificData_CMD9:
-                    return CardSpecificData;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardSpecificData;
 
                 case SdCardCommand.StopTransmission_CMD12:
                     readContext.Reset();
                     writeContext.Reset();
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
 
                 case SdCardCommand.SendStatus_CMD13:
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR2Response()
+                        : CardStatus;
 
                 case SdCardCommand.SetBlockLength_CMD16:
                     blockLengthInBytes = arg;
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
                     readContext.Offset = arg * blockLengthInBytes;
                     readContext.BytesLeft = blockLengthInBytes;
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR1Response()
+                            .Append(BlockBeginIndicator)
+                            .Append(ReadData(blockLengthInBytes)) // the actual data
+                        : CardStatus;
 
                 case SdCardCommand.ReadMultipleBlocks_CMD18:
+                    if(spiMode)
+                    {
+                        this.Log(LogLevel.Warning, "Reading Multiple Blocks is currently not supported in the SPI mode by this model");
+                        // TODO: implement it
+                        break;
+                    }
+
                     readContext.Offset = arg * blockLengthInBytes;
                     return CardStatus;
 
                 case SdCardCommand.WriteSingleBlock_CMD24:
+                    if(spiMode)
+                    {
+                        this.Log(LogLevel.Warning, "Writing is currently not supported in the SPI mode by this model");
+                        // TODO: implement it
+                        break;
+                    }
+
                     writeContext.Offset = arg * blockLengthInBytes;
                     writeContext.BytesLeft = blockLengthInBytes;
                     return CardStatus;
 
                 case SdCardCommand.AppCommand_CMD55:
                     treatNextCommandAsAppCommand = true;
-                    return CardStatus;
-
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported command: {0}. Ignoring it", command);
-                    return BitStream.Empty;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
             }
+
+            this.Log(LogLevel.Warning, "Unsupported command: {0}. Ignoring it", command);
+            return spiMode
+                ? GenerateR1Response(illegalCommand: true)
+                : BitStream.Empty;
         }
 
         private bool TryHandleApplicationSpecificCommand(SdCardApplicationSpecificCommand command, uint arg, out BitStream result)
@@ -258,16 +478,25 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SdCardApplicationSpecificCommand.SendSDCardStatus_ACMD13:
                     readContext.Data = SDStatus;
-                    result = CardStatus;
+                    result = spiMode
+                        ? GenerateR2Response()
+                        : CardStatus;
                     return true;
 
                 case SdCardApplicationSpecificCommand.SendOperatingConditionRegister_ACMD41:
-                    result = OperatingConditions;
+                    // activate the card
+                    isIdle = false;
+
+                    result = spiMode
+                        ? GenerateR1Response()
+                        : OperatingConditions;
                     return true;
 
                 case SdCardApplicationSpecificCommand.SendSDConfigurationRegister_ACMD51:
                     readContext.Data = SDConfiguration;
-                    result = CardStatus;
+                    result = spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
                     return true;
 
                 default:
@@ -286,6 +515,10 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue operatingConditionsGenerator;
         private readonly VariableLengthValue cardSpecificDataGenerator;
         private readonly VariableLengthValue cardIdentificationGenerator;
+
+        private readonly SpiContext spiContext;
+        private const byte DummyByte = 0xFF;
+        private const byte BlockBeginIndicator = 0xFE;
 
         private struct IoContext
         {
@@ -429,6 +662,32 @@ namespace Antmicro.Renode.Peripherals.SD
             Multiplier6 = 13,
             Multiplier7 = 14,
             Multiplier8 = 15
+        }
+
+        private enum SpiState
+        {
+            WaitingForCommand,
+            WaitingForArgBytes,
+            WaitingForCRC,
+            SendingResponse
+        }
+
+        private class SpiContext
+        {
+            public void Reset()
+            {
+                ResponseBuffer.Clear();
+                ArgumentBytes = 0;
+                Argument = 0;
+                CommandNumber = 0;
+                State = SpiState.WaitingForCommand;
+            }
+
+            public Queue<byte> ResponseBuffer = new Queue<byte>();
+            public int ArgumentBytes;
+            public uint Argument;
+            public uint CommandNumber;
+            public SpiState State;
         }
     }
 }
