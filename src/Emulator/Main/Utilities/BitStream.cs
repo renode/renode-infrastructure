@@ -24,6 +24,16 @@ namespace Antmicro.Renode.Utilities
             segments.Clear();
         }
 
+        public BitStream Append(byte[] bytes)
+        {
+            foreach(var b in bytes)
+            {
+                Append(b);
+            }
+
+            return this;
+        }
+
         public BitStream Append(byte b)
         {
             EnsureIsAligned();
