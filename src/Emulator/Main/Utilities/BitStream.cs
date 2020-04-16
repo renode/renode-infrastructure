@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public void AppendBit(bool state)
+        public BitStream AppendBit(bool state)
         {
             var offset = (int)(Length % BitsPerSegment);
             if(offset == 0)
@@ -70,6 +70,8 @@ namespace Antmicro.Renode.Utilities
             }
 
             Length++;
+
+            return this;
         }
 
         // TODO: this is not the most efficient way of doing things
