@@ -117,11 +117,13 @@ namespace Antmicro.Renode.Peripherals.CAN
                 registersMap.Add(
                     (long)ControllerRegisters.TransmitMessageControlCommand + shiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
-                        .WithFlag(0, FieldMode.Set | FieldMode.Read,
-                            changeCallback: (_, val) =>
+                        .WithFlag(0,
+                            writeCallback: (_, val) =>
                             {
-                                txMessageBuffers[index].IsRequestPending = true;
-                                RequestSendingMessage(txMessageBuffers[index]);
+                                if(val)
+                                {
+                                    txMessageBuffers[index].IsRequestPending = true;
+                                }
                             },
                             valueProviderCallback: _ => txMessageBuffers[index].IsRequestPending,
                             name: "TxReq")
@@ -139,6 +141,13 @@ namespace Antmicro.Renode.Peripherals.CAN
                         .WithTag("RTR", 21, 1)
                         .WithReservedBits(22, 1)
                         .WithTag("WPN", 23, 1)
+                        .WithWriteCallback((_, val) =>
+                        {
+                            if(txMessageBuffers[index].IsRequestPending)
+                            {
+                                RequestSendingMessage(txMessageBuffers[index]);
+                            }
+                        })
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.TransmitMessageID + shiftBetweenTxRegisters * index,
