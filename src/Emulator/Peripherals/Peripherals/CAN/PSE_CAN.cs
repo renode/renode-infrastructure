@@ -235,8 +235,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                         .WithTag("RTR", 1, 1)
                         .WithTag("IDE", 2, 1)
                         .WithValueField(3, 29,
-                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMaskId = val,
-                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMaskId,
+                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMask = val,
+                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMask,
                             name: "Identifier")
                 );
                 registersMap.Add(
@@ -245,22 +245,25 @@ namespace Antmicro.Renode.Peripherals.CAN
                         .WithReservedBits(0, 1)
                         .WithTag("RTR", 1, 1)
                         .WithTag("IDE", 2, 1)
-                        .WithTag("Identifier", 3, 29)
+                        .WithValueField(3, 29,
+                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCode = val,
+                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceCode,
+                            name: "Identifier")
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegisterData + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                     .WithValueField(0, 16,
-                        writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMask = val,
-                        valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMask,
+                        writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMaskData = val,
+                        valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMaskData,
                         name: $"RX_MSG{index}_AMR_DATA")
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegisterData + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 16,
-                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCode = val,
-                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceCode,
+                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCodeData = val,
+                            valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceCodeData,
                             name: $"RX_MSG{index}_ACR_DATA")
                 );
             }
@@ -280,8 +283,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     for(var index = buffer.BufferId + 1; index < BufferCount; index++)
                     {
-                        if(rxMessageBuffers[index].AcceptanceMask == buffer.AcceptanceMask
-                            && rxMessageBuffers[index].AcceptanceCode == buffer.AcceptanceCode)
+                        if(rxMessageBuffers[index].AcceptanceMaskData == buffer.AcceptanceMaskData
+                            && rxMessageBuffers[index].AcceptanceCodeData == buffer.AcceptanceCodeData)
                         {
                             wasMessageSet = rxMessageBuffers[index].TrySetMessage(message);
                             if(wasMessageSet || !rxMessageBuffers[index].IsLinked)
@@ -500,9 +503,10 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public bool Enabled { get; set; }
             public bool IsLinked { get; set; }
+            public uint AcceptanceMaskData { get; set; }
+            public uint AcceptanceCodeData { get; set; }
             public uint AcceptanceMask { get; set; }
             public uint AcceptanceCode { get; set; }
-            public uint AcceptanceMaskId { get; set; }
             public bool IsAutoreplyEnabled { get; set; }
             public bool IsMessageAvailable { get; set; }
             public CANMessageFrame Message { get; private set; }
