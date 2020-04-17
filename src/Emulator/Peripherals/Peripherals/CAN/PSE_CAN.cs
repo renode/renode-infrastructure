@@ -475,8 +475,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 // AMR/ACR data registers use filters based on 2 first message bytes
                 var data = BitHelper.ToUInt16(message.Data, 0, reverse: isSwapped);
 
-                var hasIdFilteringPassed = (message.Id == AcceptanceMaskId);
-                var hasDataFilteringPassed = (~AcceptanceMask & (data ^ AcceptanceCode)) == 0;
+                var hasIdFilteringPassed = (~AcceptanceMask & (message.Id ^ AcceptanceCode)) == 0;
+                var hasDataFilteringPassed = (~AcceptanceMaskData & (data ^ AcceptanceCodeData)) == 0;
                 return hasIdFilteringPassed && hasDataFilteringPassed;
             }
 
