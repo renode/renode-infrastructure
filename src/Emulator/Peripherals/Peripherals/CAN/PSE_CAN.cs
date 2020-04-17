@@ -489,14 +489,22 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public bool TrySetMessage(CANMessageFrame message)
             {
-                if(Message == null)
+                if(IsMessageAvailable)
                 {
-                    Message = message;
-                    parent.Log(LogLevel.Info, "Received message {0} in mailbox #{1}", message, BufferId);
-                    IsMessageAvailable = true;
-                    return true;
+                    parent.Log(LogLevel.Warning, "Mailbox #{1} already contains a message: {0}", Message.ToString(), BufferId);
+                    return false;
                 }
-                return false;
+                
+                // http://www.seanano.org/projects/canport/27241003.pdf, p.28:
+                // "When the 82527 receives a message, the entire message identifier, the data length code (DLC)
+                // and the Direction bit are stored into the corresponding message object."
+                DataLengthCode = (uint)message.Data.Length;
+                MessageId = message.Id;
+                Message = message;
+                parent.Log(LogLevel.Info, "Received message {0} in mailbox #{1}", message, BufferId);
+
+                IsMessageAvailable = true;
+                return true;
             }
 
             public uint GetData(bool isSwapped, Offset offset)
