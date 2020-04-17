@@ -473,6 +473,12 @@ namespace Antmicro.Renode.Peripherals.CAN
                     return false;
                 }
                 // AMR/ACR data registers use filters based on 2 first message bytes
+
+                if(message.Data.Length == 0)
+                {
+                    parent.Log(LogLevel.Warning, "Mailbox #{0} cannot receive message with no data.", BufferId);
+                    return false;
+                }
                 var data = BitHelper.ToUInt16(message.Data, 0, reverse: isSwapped);
 
                 var hasIdFilteringPassed = (~AcceptanceMask & (message.Id ^ AcceptanceCode)) == 0;
