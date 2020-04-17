@@ -428,6 +428,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public event Action<HaltArguments> Halted;
 
+        public bool RealignMappedMemorySegments { get; set; }
+
         public void MapMemory(IMappedSegment segment)
         {
             if(segment.StartingOffset > bitness.GetMaxAddress() || segment.Size > bitness.GetMaxAddress())
@@ -437,6 +439,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             using(machine.ObtainPausedState())
             {
+                if(RealignMappedMemorySegments)
+                {
+                    var realignedSegment = AutoalignedMappedSegment.TryRealign(segment, TlibGetPageSize());
+                    if(realignedSegment != segment)
+                    {
+                        this.Log(LogLevel.Warning, "Memory fragment at offset 0x{0:X} of the original size if {1} bytes is realigned to {2} bytes", segment.StartingOffset, segment.Size, realignedSegment.Size);
+                        segment = realignedSegment;
+                    }
+                }
+
                 currentMappings.Add(new SegmentMapping(segment));
                 RegisterMemoryChecked(segment);
                 checked
@@ -1314,6 +1326,40 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 Segment = segment;
             }
+        }
+
+        private class AutoalignedMappedSegment : IMappedSegment
+        {
+            public static IMappedSegment TryRealign(IMappedSegment segment, uint pageSize)
+            {
+                var sizeOffset = segment.Size % pageSize;
+                if(sizeOffset != 0)
+                {
+                    var realignment = (pageSize - sizeOffset);
+                    return new AutoalignedMappedSegment(segment, segment.Size + realignment);
+                }
+
+                return segment;
+            }
+
+            public void Touch()
+            {
+                underlyingSegment.Touch();
+            }
+
+            public IntPtr Pointer => underlyingSegment.Pointer;
+
+            public ulong StartingOffset => underlyingSegment.StartingOffset;
+
+            public ulong Size { get; }
+            
+            private AutoalignedMappedSegment(IMappedSegment segment, ulong size)
+            {
+                this.underlyingSegment = segment;
+                Size = size;
+            }
+
+            private readonly IMappedSegment underlyingSegment;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
