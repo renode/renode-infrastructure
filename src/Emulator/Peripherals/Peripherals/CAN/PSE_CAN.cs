@@ -200,6 +200,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                             name: "LF")
                         .WithFlag(7, name: "WPNL")
                         .WithValueField(16, 4, FieldMode.Read,
+                            writeCallback: (_, val) => rxMessageBuffers[index].DataLengthCode = val,
                             valueProviderCallback: _ => rxMessageBuffers[index].DataLengthCode,
                             name: "DLC")
                         .WithTag("IDE", 20, 1)
