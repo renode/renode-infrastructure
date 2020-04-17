@@ -438,7 +438,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             using(machine.ObtainPausedState())
             {
                 currentMappings.Add(new SegmentMapping(segment));
-                RegisterMemoryChecked(segment.StartingOffset, segment.Size);
+                RegisterMemoryChecked(segment);
                 checked
                 {
                     TranslationCacheSize = 0;
@@ -651,13 +651,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void RegisterMemoryChecked(ulong offset, ulong size)
+        private void RegisterMemoryChecked(IMappedSegment segment)
         {
             checked
             {
-                ValidateMemoryRangeAndThrow(offset, size);
-                TlibMapRange(offset, size);
-                this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", offset, size);
+                ValidateMemoryRangeAndThrow(segment.StartingOffset, segment.Size);
+                TlibMapRange(segment.StartingOffset, segment.Size);
+                this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", segment.StartingOffset, segment.Size);
             }
         }
 
@@ -768,7 +768,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 checked
                 {
-                    RegisterMemoryChecked(mapping.Segment.StartingOffset, mapping.Segment.Size);
+                    RegisterMemoryChecked(mapping.Segment);
                 }
             }
         }
