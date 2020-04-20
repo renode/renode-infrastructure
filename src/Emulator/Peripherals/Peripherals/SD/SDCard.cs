@@ -463,6 +463,11 @@ namespace Antmicro.Renode.Peripherals.SD
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
+
+                case SdCardCommand.ReadOperationConditionRegister_CMD58:
+                    return spiMode
+                        ? GenerateR3Response()
+                        : BitStream.Empty;
             }
 
             this.Log(LogLevel.Warning, "Unsupported command: {0}. Ignoring it", command);
@@ -609,6 +614,7 @@ namespace Antmicro.Renode.Peripherals.SD
             ReadMultipleBlocks_CMD18 = 18,
             WriteSingleBlock_CMD24 = 24,
             AppCommand_CMD55 = 55,
+            ReadOperationConditionRegister_CMD58 = 58
         }
 
         private enum SdCardApplicationSpecificCommand
