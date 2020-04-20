@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "ppc64"; } }
 
-        public override string GDBArchitecture { get { return "powerpc64:common"; } }
+        public override string GDBArchitecture { get { return "powerpc:common64"; } }
 
         protected override Interrupt DecodeInterrupt(int number)
         {
