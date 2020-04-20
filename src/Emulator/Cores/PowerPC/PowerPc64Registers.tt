@@ -10,10 +10,10 @@
 <#@ template language="C#" #>
 <#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
 <#
-    CLASS_NAME = "PowerPc";
+    CLASS_NAME = "PowerPc64";
     HEADER_FILE = "Emulator/Cores/tlib/arch/ppc/cpu_registers.h";
     
-    DEFINES.Add("TARGET_PPC32");
+    DEFINES.Add("TARGET_PPC64");
     
     PC_REGISTER = "NIP";
 

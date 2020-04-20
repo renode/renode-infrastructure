@@ -15,26 +15,26 @@ using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class PowerPc
+    public partial class PowerPc64
     {
         public override void SetRegisterUnsafe(int register, ulong value)
         {
-            if(!mapping.TryGetValue((PowerPcRegisters)register, out var r))
+            if(!mapping.TryGetValue((PowerPc64Registers)register, out var r))
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
-            SetRegisterValue32(r.Index, checked((UInt32)value));
+            SetRegisterValue64(r.Index, checked((UInt64)value));
         }
 
         public override RegisterValue GetRegisterUnsafe(int register)
         {
-            if(!mapping.TryGetValue((PowerPcRegisters)register, out var r))
+            if(!mapping.TryGetValue((PowerPc64Registers)register, out var r))
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
-            return GetRegisterValue32(r.Index);
+            return GetRegisterValue64(r.Index);
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
@@ -47,11 +47,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue32((int)PowerPcRegisters.NIP);
+                return GetRegisterValue64((int)PowerPc64Registers.NIP);
             }
             set
             {
-                SetRegisterValue32((int)PowerPcRegisters.NIP, value);
+                SetRegisterValue64((int)PowerPc64Registers.NIP, value);
             }
         }
         [Register]
@@ -59,11 +59,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue32((int)PowerPcRegisters.MSR);
+                return GetRegisterValue64((int)PowerPc64Registers.MSR);
             }
             set
             {
-                SetRegisterValue32((int)PowerPcRegisters.MSR, value);
+                SetRegisterValue64((int)PowerPc64Registers.MSR, value);
             }
         }
         [Register]
@@ -71,11 +71,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue32((int)PowerPcRegisters.LR);
+                return GetRegisterValue64((int)PowerPc64Registers.LR);
             }
             set
             {
-                SetRegisterValue32((int)PowerPcRegisters.LR, value);
+                SetRegisterValue64((int)PowerPc64Registers.LR, value);
             }
         }
         [Register]
@@ -83,11 +83,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue32((int)PowerPcRegisters.CTR);
+                return GetRegisterValue64((int)PowerPc64Registers.CTR);
             }
             set
             {
-                SetRegisterValue32((int)PowerPcRegisters.CTR, value);
+                SetRegisterValue64((int)PowerPc64Registers.CTR, value);
             }
         }
         [Register]
@@ -95,11 +95,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue32((int)PowerPcRegisters.XER);
+                return GetRegisterValue64((int)PowerPc64Registers.XER);
             }
             set
             {
-                SetRegisterValue32((int)PowerPcRegisters.XER, value);
+                SetRegisterValue64((int)PowerPc64Registers.XER, value);
             }
         }
         [Register]
@@ -107,11 +107,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue32((int)PowerPcRegisters.PC);
+                return GetRegisterValue64((int)PowerPc64Registers.PC);
             }
             set
             {
-                SetRegisterValue32((int)PowerPcRegisters.PC, value);
+                SetRegisterValue64((int)PowerPc64Registers.PC, value);
             }
         }
 
@@ -122,24 +122,24 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
         #pragma warning disable 649
 
-        [Import(Name = "tlib_set_register_value_32")]
-        protected ActionInt32UInt32 SetRegisterValue32;
-        [Import(Name = "tlib_get_register_value_32")]
-        protected FuncUInt32Int32 GetRegisterValue32;
+        [Import(Name = "tlib_set_register_value_64")]
+        protected ActionInt32UInt64 SetRegisterValue64;
+        [Import(Name = "tlib_get_register_value_64")]
+        protected FuncUInt64Int32 GetRegisterValue64;
 
         #pragma warning restore 649
 
-        private static readonly Dictionary<PowerPcRegisters, CPURegister> mapping = new Dictionary<PowerPcRegisters, CPURegister>
+        private static readonly Dictionary<PowerPc64Registers, CPURegister> mapping = new Dictionary<PowerPc64Registers, CPURegister>
         {
-            { PowerPcRegisters.NIP,  new CPURegister(64, 32, isGeneral: true, isReadonly: false) },
-            { PowerPcRegisters.MSR,  new CPURegister(65, 32, isGeneral: false, isReadonly: false) },
-            { PowerPcRegisters.LR,  new CPURegister(67, 32, isGeneral: false, isReadonly: false) },
-            { PowerPcRegisters.CTR,  new CPURegister(68, 32, isGeneral: false, isReadonly: false) },
-            { PowerPcRegisters.XER,  new CPURegister(69, 32, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.NIP,  new CPURegister(64, 64, isGeneral: true, isReadonly: false) },
+            { PowerPc64Registers.MSR,  new CPURegister(65, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.LR,  new CPURegister(67, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.CTR,  new CPURegister(68, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.XER,  new CPURegister(69, 64, isGeneral: false, isReadonly: false) },
         };
     }
 
-    public enum PowerPcRegisters
+    public enum PowerPc64Registers
     {
         NIP = 64,
         MSR = 65,
