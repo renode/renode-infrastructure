@@ -27,7 +27,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             irqSync = new object();
             machine.ClockSource.AddClockEntry(
                 new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, this, String.Empty, false, Direction.Descending));
-            TlibSetLowEndianMode(endianness == Endianess.LittleEndian ? 1u : 0u);
+            TlibSetLowEndianMode(Endianness == Endianess.LittleEndian ? 1u : 0u);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            TlibSetLowEndianMode(Endianness == Endianess.LittleEndian ? 1u : 0u);
         }
 
         public override void InitFromUImage(UImage uImage)
