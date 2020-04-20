@@ -228,16 +228,16 @@ namespace Antmicro.Renode.Peripherals.SD
                     return CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
-                    readContext.Offset = arg;
+                    readContext.Offset = arg * blockLengthInBytes;
                     readContext.BytesLeft = blockLengthInBytes;
                     return CardStatus;
 
                 case SdCardCommand.ReadMultipleBlocks_CMD18:
-                    readContext.Offset = arg;
+                    readContext.Offset = arg * blockLengthInBytes;
                     return CardStatus;
 
                 case SdCardCommand.WriteSingleBlock_CMD24:
-                    writeContext.Offset = arg;
+                    writeContext.Offset = arg * blockLengthInBytes;
                     writeContext.BytesLeft = blockLengthInBytes;
                     return CardStatus;
 
