@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
             cardStatusGenerator = new VariableLengthValue(32)
                 .DefineFragment(5, 1, () => (treatNextCommandAsAppCommand ? 1 : 0u), name: "APP_CMD bit")
-                .DefineFragment(8, 1, 1, name: "READ_FOR_DATA bit");
+                .DefineFragment(8, 1, 1, name: "READY_FOR_DATA bit");
 
             operatingConditionsGenerator = new VariableLengthValue(32)
                 .DefineFragment(31, 1, 1, name: "Card power up status bit (busy)")
