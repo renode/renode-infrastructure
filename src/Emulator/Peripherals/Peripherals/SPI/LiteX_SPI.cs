@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class LiteX_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_SPI(Machine machine) : base(machine)
+        public LiteX_SPI(Machine machine, bool ignoreChipSelect = false) : base(machine)
         {
             var registers = new Dictionary<long, DoubleWordRegister>
             {
@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                         else
                         {
-                            if(!chipSelect.Value)
+                            if(!ignoreChipSelect && !chipSelect.Value)
                             {
                                 this.Log(LogLevel.Warning, "Tried to send some data over SPI, but CS is not set");
                                 return;
