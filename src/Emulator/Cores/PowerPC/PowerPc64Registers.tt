@@ -11,8 +11,10 @@
 <#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
 <#
     CLASS_NAME = "PowerPc64";
-    HEADER_FILE = "Emulator/Cores/tlib/arch/ppc64/cpu_registers.h";
-
+    HEADER_FILE = "Emulator/Cores/tlib/arch/ppc/cpu_registers.h";
+    
+    DEFINES.Add("TARGET_PPC64");
+    
     PC_REGISTER = "NIP";
 
     GENERAL_REGISTERS.AddRange(new[] { "PC" });

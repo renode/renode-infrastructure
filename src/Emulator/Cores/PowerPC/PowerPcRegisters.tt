@@ -12,7 +12,9 @@
 <#
     CLASS_NAME = "PowerPc";
     HEADER_FILE = "Emulator/Cores/tlib/arch/ppc/cpu_registers.h";
-
+    
+    DEFINES.Add("TARGET_PPC32");
+    
     PC_REGISTER = "NIP";
 
     GENERAL_REGISTERS.AddRange(new[] { "PC" });

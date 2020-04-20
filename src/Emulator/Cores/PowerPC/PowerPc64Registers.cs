@@ -19,17 +19,17 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public override void SetRegisterUnsafe(int register, ulong value)
         {
-            if(!mapping.TryGetValue((PowerPcRegisters)register, out var r))
+            if(!mapping.TryGetValue((PowerPc64Registers)register, out var r))
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
-            SetRegisterValue64(r.Index, checked((UInt32)value));
+            SetRegisterValue64(r.Index, checked((UInt64)value));
         }
 
         public override RegisterValue GetRegisterUnsafe(int register)
         {
-            if(!mapping.TryGetValue((PowerPcRegisters)register, out var r))
+            if(!mapping.TryGetValue((PowerPc64Registers)register, out var r))
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
@@ -47,11 +47,59 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue64((int)PowerPcRegisters.NIP);
+                return GetRegisterValue64((int)PowerPc64Registers.NIP);
             }
             set
             {
-                SetRegisterValue64((int)PowerPcRegisters.NIP, value);
+                SetRegisterValue64((int)PowerPc64Registers.NIP, value);
+            }
+        }
+        [Register]
+        public RegisterValue MSR
+        {
+            get
+            {
+                return GetRegisterValue64((int)PowerPc64Registers.MSR);
+            }
+            set
+            {
+                SetRegisterValue64((int)PowerPc64Registers.MSR, value);
+            }
+        }
+        [Register]
+        public RegisterValue LR
+        {
+            get
+            {
+                return GetRegisterValue64((int)PowerPc64Registers.LR);
+            }
+            set
+            {
+                SetRegisterValue64((int)PowerPc64Registers.LR, value);
+            }
+        }
+        [Register]
+        public RegisterValue CTR
+        {
+            get
+            {
+                return GetRegisterValue64((int)PowerPc64Registers.CTR);
+            }
+            set
+            {
+                SetRegisterValue64((int)PowerPc64Registers.CTR, value);
+            }
+        }
+        [Register]
+        public RegisterValue XER
+        {
+            get
+            {
+                return GetRegisterValue64((int)PowerPc64Registers.XER);
+            }
+            set
+            {
+                SetRegisterValue64((int)PowerPc64Registers.XER, value);
             }
         }
         [Register]
@@ -59,63 +107,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue64((int)PowerPcRegisters.PC);
+                return GetRegisterValue64((int)PowerPc64Registers.PC);
             }
             set
             {
-                SetRegisterValue64((int)PowerPcRegisters.PC, value);
-            }
-        }
-        [Register]
-        public RegisterValue SRR0
-        {
-            get
-            {
-                return GetRegisterValue64((int)PowerPcRegisters.SRR0);
-            }
-        }
-                [Register]
-        public RegisterValue SRR1
-        {
-            get
-            {
-                return GetRegisterValue64((int)PowerPcRegisters.SRR1);
-            }
-        }
-        [Register]
-        public RegisterValue LPCR
-        {
-            get
-            {
-                return GetRegisterValue64((int)PowerPcRegisters.LPCR);
-            }
-            set
-            {
-                SetRegisterValue64((int)PowerPcRegisters.LPCR, value);
-            }
-        }
-
-        public RegisterValue MSR
-        {
-            get
-            {
-                return GetRegisterValue64((int)PowerPcRegisters.MSR);
-            }
-            set
-            {
-                SetRegisterValue64((int)PowerPcRegisters.MSR, value);
-            }
-        }
-
-        public RegisterValue LR
-        {
-            get
-            {
-                return GetRegisterValue64((int)PowerPcRegisters.LR);
-            }
-            set
-            {
-                SetRegisterValue64((int)PowerPcRegisters.LR, value);
+                SetRegisterValue64((int)PowerPc64Registers.PC, value);
             }
         }
 
@@ -133,25 +129,23 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #pragma warning restore 649
 
-        private static readonly Dictionary<PowerPcRegisters, CPURegister> mapping = new Dictionary<PowerPcRegisters, CPURegister>
+        private static readonly Dictionary<PowerPc64Registers, CPURegister> mapping = new Dictionary<PowerPc64Registers, CPURegister>
         {
-            { PowerPcRegisters.NIP,  new CPURegister(0, 64, isGeneral: true, isReadonly: false) },
-            { PowerPcRegisters.MSR,  new CPURegister(2, 64, isGeneral: false, isReadonly: true) },
-            { PowerPcRegisters.LR,   new CPURegister(3, 64, isGeneral: false, isReadonly: false) },
-            { PowerPcRegisters.SRR0, new CPURegister(100, 64, isGeneral: false, isReadonly: true) },
-            { PowerPcRegisters.SRR1, new CPURegister(101, 64, isGeneral: false, isReadonly: true) },
-            { PowerPcRegisters.LPCR, new CPURegister(200, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.NIP,  new CPURegister(64, 64, isGeneral: true, isReadonly: false) },
+            { PowerPc64Registers.MSR,  new CPURegister(65, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.LR,  new CPURegister(67, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.CTR,  new CPURegister(68, 64, isGeneral: false, isReadonly: false) },
+            { PowerPc64Registers.XER,  new CPURegister(69, 64, isGeneral: false, isReadonly: false) },
         };
     }
 
-    public enum PowerPcRegisters
+    public enum PowerPc64Registers
     {
-        NIP = 0,
-        PC = 0,
-        MSR = 2,
-        LR = 3,
-        SRR0 = 100,
-        SRR1 = 101,
-        LPCR = 200,
+        NIP = 64,
+        MSR = 65,
+        LR = 67,
+        CTR = 68,
+        XER = 69,
+        PC = 64,
     }
 }

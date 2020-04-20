@@ -55,6 +55,54 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         [Register]
+        public RegisterValue MSR
+        {
+            get
+            {
+                return GetRegisterValue32((int)PowerPcRegisters.MSR);
+            }
+            set
+            {
+                SetRegisterValue32((int)PowerPcRegisters.MSR, value);
+            }
+        }
+        [Register]
+        public RegisterValue LR
+        {
+            get
+            {
+                return GetRegisterValue32((int)PowerPcRegisters.LR);
+            }
+            set
+            {
+                SetRegisterValue32((int)PowerPcRegisters.LR, value);
+            }
+        }
+        [Register]
+        public RegisterValue CTR
+        {
+            get
+            {
+                return GetRegisterValue32((int)PowerPcRegisters.CTR);
+            }
+            set
+            {
+                SetRegisterValue32((int)PowerPcRegisters.CTR, value);
+            }
+        }
+        [Register]
+        public RegisterValue XER
+        {
+            get
+            {
+                return GetRegisterValue32((int)PowerPcRegisters.XER);
+            }
+            set
+            {
+                SetRegisterValue32((int)PowerPcRegisters.XER, value);
+            }
+        }
+        [Register]
         public override RegisterValue PC
         {
             get
@@ -83,13 +131,21 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private static readonly Dictionary<PowerPcRegisters, CPURegister> mapping = new Dictionary<PowerPcRegisters, CPURegister>
         {
-            { PowerPcRegisters.NIP,  new CPURegister(0, 32, isGeneral: true, isReadonly: false) },
+            { PowerPcRegisters.NIP,  new CPURegister(64, 32, isGeneral: true, isReadonly: false) },
+            { PowerPcRegisters.MSR,  new CPURegister(65, 32, isGeneral: false, isReadonly: false) },
+            { PowerPcRegisters.LR,  new CPURegister(67, 32, isGeneral: false, isReadonly: false) },
+            { PowerPcRegisters.CTR,  new CPURegister(68, 32, isGeneral: false, isReadonly: false) },
+            { PowerPcRegisters.XER,  new CPURegister(69, 32, isGeneral: false, isReadonly: false) },
         };
     }
 
     public enum PowerPcRegisters
     {
-        NIP = 0,
-        PC = 0,
+        NIP = 64,
+        MSR = 65,
+        LR = 67,
+        CTR = 68,
+        XER = 69,
+        PC = 64,
     }
 }
