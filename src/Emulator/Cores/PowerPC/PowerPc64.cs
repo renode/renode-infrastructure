@@ -23,19 +23,19 @@ namespace Antmicro.Renode.Peripherals.CPU
     public partial class PowerPc64 : TranslationCPU, ICPUWithHooks
     {
         public PowerPc64(Machine machine, Endianess endianness = Endianess.BigEndian) : base("620", machine,
-            /* hardcoded to big endian, controlable via TlibSetLowEndianMode */ Endianess.BigEndian, CpuBitness.Bits64)
+            /* hardcoded to big endian, controlable via TlibSetLittleEndianMode */ Endianess.BigEndian, CpuBitness.Bits64)
         {
             initialEndianess = endianness;
             irqSync = new object();
             machine.ClockSource.AddClockEntry(
                 new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, this, String.Empty, false, Direction.Descending));
-            TlibSetLowEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
+            TlibSetLittleEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
         }
 
         public override void Reset()
         {
             base.Reset();
-            TlibSetLowEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
+            TlibSetLittleEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
         }
 
         public override void InitFromUImage(UImage uImage)
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncInt32Int32Int32 TlibSetPendingInterrupt;
 
         [Import]
-        private ActionUInt32 TlibSetLowEndianMode;
+        private ActionUInt32 TlibSetLittleEndianMode;
 
         #pragma warning restore 649
 
