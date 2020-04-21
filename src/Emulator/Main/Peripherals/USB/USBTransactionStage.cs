@@ -31,6 +31,11 @@ namespace Antmicro.Renode.Core.USB
             return new USBTransactionStage(USBPacketId.AckHandshake);
         }
 
+        public static USBTransactionStage NotAck()
+        {
+            return new USBTransactionStage(USBPacketId.NakHandshake);
+        }
+
         public static USBTransactionStage In()
         {
             return new USBTransactionStage(USBPacketId.InToken);
