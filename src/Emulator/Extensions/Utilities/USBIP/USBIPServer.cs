@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     if(ep.TransferType == EndpointTransferType.Control)
                     {
                         // setup transaction
-                        HandleSetupTransaction(ep, setupPacket, (int)packet.TransferBufferLength, additionalData: additionalData, callback: result =>
+                        HandleSetupTransaction(ep, setupPacket, (int)packet.TransferBufferLength, additionalData: additionalData != null ? additionalData.ToArray() : null, callback: result =>
                         {
                             if(result == null)
                             {
