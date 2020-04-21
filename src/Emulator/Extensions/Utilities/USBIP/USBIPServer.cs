@@ -708,13 +708,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 var chunk = data.Skip(baseIndex).Take(endpoint.MaximumPacketSize).ToArray();
                 baseIndex += chunk.Length;
 
-                outTransactions.Add(USBTransactionStage.Out(chunk, currentToggle));
-                currentToggle = !currentToggle;
-
-                if(chunk.Length < endpoint.MaximumPacketSize)
+                if(chunk.Length == 0 && outTransactions.Count > 0)
                 {
                     break;
                 }
+
+                this.Log(LogLevel.Noisy, "Splitted into chunk of size {0} (baseIndex is now {1})", chunk.Length, baseIndex);
+                outTransactions.Add(USBTransactionStage.Out(chunk, currentToggle));
+                currentToggle = !currentToggle;
             }
 
             SendChunk(0);
