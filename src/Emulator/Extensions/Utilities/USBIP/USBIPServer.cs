@@ -227,6 +227,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                         }
                     }
 
+                    this.Log(LogLevel.Noisy, "Handling URB request");
+
                     IUSBDevice device = null;
 
                     if(urbHeader.BusId != ExportedBusId)
@@ -264,7 +266,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
                     if(ep.TransferType == EndpointTransferType.Control)
                     {
-                        // setup transaction
+                        this.Log(LogLevel.Noisy, "Handling SETUP transaction on endpoint #{0}", ep.Identifier);
                         HandleSetupTransaction(ep, setupPacket, (int)packet.TransferBufferLength, additionalData: additionalData != null ? additionalData.ToArray() : null, callback: result =>
                         {
                             if(result == null)
@@ -313,6 +315,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                             }
                             else
                             {
+                                this.Log(LogLevel.Noisy, "Writing to endpoint #{0}", ep.Identifier);
+
                                 SendDataToEndpoint(ep, additionalData, result =>
                                 {
                                     if(!result)
@@ -716,6 +720,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
             void SendChunkInner(int id)
             {
+                this.Log(LogLevel.Noisy, "Sending chunk #{0} out of {1}", id, outTransactions.Count);
+
                 endpoint.HandleTransaction(outTransactions[id], deviceStage: outHandshake =>
                 {
                     this.Log(LogLevel.Noisy, "OUT transaction finished with {0} on endpoint #{1}", outHandshake.PacketID, endpoint.Identifier);
@@ -777,6 +783,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     {
                         if(additionalData != null)
                         {
+                            this.Log(LogLevel.Noisy, "SETUP - sending additional data");
                             SendDataToEndpoint(endpoint, additionalData, callback: result =>
                             {
                                 if(!result)
@@ -785,6 +792,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                                 }
                                 else
                                 {
+                                    this.Log(LogLevel.Noisy, "SETUP STATUS PHASE - sending an empty IN packet");
                                     // status phase
                                     // limit 64 here is just something non-zero
                                     ReceiveDataFromEndpoint(endpoint, 64, callback: statusResult =>
