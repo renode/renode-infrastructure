@@ -213,7 +213,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             this.Log(LogLevel.Noisy, "Received setup packet");
 #if DEBUG_PACKETS
-            this.Log(LogLevel.Noisy, "Setup packet bytes: [{0}]", Misc.PrettyPrintCollectionHex(hostStage.Data));
+            this.Log(LogLevel.Noisy, "Setup packet bytes: [{0}]", Misc.PrettyPrintCollectionHex(hostStage.Payload));
 #endif
 
             if(masterToSlaveBuffer.Count != 0)
