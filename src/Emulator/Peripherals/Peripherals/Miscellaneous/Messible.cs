@@ -16,10 +16,11 @@ using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
+using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
-    public class Messible : BasicDoubleWordPeripheral, IKnownSize
+    public class Messible : BasicDoubleWordPeripheral, IKnownSize, IUART
     {
         public Messible(Machine machine) : base(machine)
         {
@@ -47,6 +48,12 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, v) =>
                 {
                     buffer.Append((char)v);
+
+                    CharReceived?.Invoke((byte)v);
+                    if((byte)v == '\n')
+                    {
+                        CharReceived?.Invoke((byte)'\r');
+                    }
 
                     if(!buffer.EndsWith(EndOfMessagePattern, StringComparison.InvariantCulture))
                     {
@@ -82,6 +89,18 @@ namespace Antmicro.Renode.Peripherals.USB
             In = 0x0,
             Out = 0x4,
             Status = 0x8
+        }
+
+        // IUART emulation
+        public uint BaudRate => 0;
+        public Bits StopBits => Bits.None;
+        public Parity ParityBit => Parity.None;
+
+        public event Action<byte> CharReceived;
+
+        public void WriteChar(byte value)
+        {
+            // intentionally do nothing
         }
     }
 }
