@@ -22,11 +22,20 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 1)]
     public partial class PowerPc : TranslationCPU, ICPUWithHooks
     {
-        public PowerPc(string cpuType, Machine machine, Endianess endianness = Endianess.BigEndian) : base(cpuType, machine, endianness)
+        public PowerPc(string cpuType, Machine machine, Endianess endianness = Endianess.BigEndian) : base(cpuType, machine,
+            /* hardcoded to big endian, controlable via TlibSetLowEndianMode */ Endianess.BigEndian)
         {
+            initialEndianess = endianness;
             irqSync = new object();
             machine.ClockSource.AddClockEntry(
                 new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, this, String.Empty, false, Direction.Descending));
+            TlibSetLowEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            TlibSetLowEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
         }
 
         public override void InitFromUImage(UImage uImage)
@@ -141,10 +150,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private FuncInt32Int32Int32 TlibSetPendingInterrupt;
 
+        [Import]
+        private ActionUInt32 TlibSetLowEndianMode;
+
         #pragma warning restore 649
 
         private uint tb;
         private readonly object irqSync;
+        private readonly Endianess initialEndianess;
 
         // have to be in sync with translation libs
         private enum InterruptType
