@@ -143,7 +143,8 @@ namespace Antmicro.Renode.Core.USB
         {
             add
             {
-                if(Direction != Direction.HostToDevice)
+                // control endpoints allow for both IN/OUT 
+                if(TransferType != EndpointTransferType.Control && Direction != Direction.HostToDevice)
                 {
                     throw new ArgumentException("Reading from this descriptor is not supported");
                 }
