@@ -637,6 +637,20 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
             void ReceiveChunk()
             {
+
+                if(EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(endpoint.Core.Device, out var machine))
+                {
+                    machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => ReceiveChunkInner());
+                }
+                else
+                {
+                    // this can happen when a device is attached directly to the USBIPServer
+                    ReceiveChunkInner();
+                }
+            }
+
+            void ReceiveChunkInner()
+            {
                 endpoint.HandleTransaction(USBTransactionStage.In(), deviceStage: inHandshake =>
                 {
                     this.Log(LogLevel.Noisy, "IN transaction finished with {0} on endpoint #{1}", inHandshake.PacketID, endpoint.Identifier);
