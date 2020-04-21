@@ -36,6 +36,9 @@ namespace Antmicro.Renode.Core.USB
             MaximumPacketSize = maximumPacketSize;
             Interval = interval;
 
+            OutEnabled = true;
+            InEnabled = true;
+
             buffer = new Queue<IEnumerable<byte>>();
             packetCreator = new PacketCreator(WriteDataToHost);
         }
@@ -135,7 +138,32 @@ namespace Antmicro.Renode.Core.USB
             }
         }
 
+        public bool InEnabled 
+        { 
+            get => inEnabled;
+
+            set
+            {
+                this.Log(LogLevel.Noisy, "IN {0}", value ? "Enabled" : "Disabled");
+                inEnabled = value;
+            }
+        }
+
+        public bool OutEnabled 
+        { 
+            get => outEnabled;
+
+            set
+            {
+                this.Log(LogLevel.Noisy, "OUT {0}", value ? "Enabled" : "Disabled");
+                outEnabled = value;
+            }
+        }
+
+        // TODO: change those into events?
         public Action AfterReadOneShot { get; set; }
+
+        public Action<USBEndpoint> AfterRead { get; set; }
 
         public USBDeviceCore Core => core;
 
@@ -156,6 +184,15 @@ namespace Antmicro.Renode.Core.USB
             }
         }
 
+        public void Log(LogLevel level, string message, params object[] parameters)
+        {
+            var type = TransferType == EndpointTransferType.Control 
+                ? "Control"
+                : (Direction == Direction.HostToDevice ? "OUT" : "IN");
+
+            core.Device.Log(level, $"EP#{Identifier}/{type}: {message}", parameters);
+        }
+
         private void RunAfterRead()
         {
             var aros = AfterReadOneShot;
@@ -164,6 +201,8 @@ namespace Antmicro.Renode.Core.USB
             {
                 aros.Invoke();
             }
+
+            AfterRead?.Invoke(this);
         }
 
         private void HandleSetupTransaction(USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
@@ -174,6 +213,12 @@ namespace Antmicro.Renode.Core.USB
                 this.Log(LogLevel.Warning, "Received SETUP packet, but there is no handler. The data will be lost");
                 deviceStage(USBTransactionStage.Stall());
                 return;
+            }
+
+            lock(buffer)
+            {
+                // SETUP transactions automatically clear stall
+                isStalled = false;
             }
 
             handler(this, hostStage, deviceStage);
@@ -202,10 +247,15 @@ namespace Antmicro.Renode.Core.USB
                 if(isStalled)
                 {
                     this.Log(LogLevel.Noisy, "Received IN packet on a stalled endpoint");
-                    isStalled = false;
-                    RunAfterRead();
-
                     deviceStage(USBTransactionStage.Stall());
+                    return;
+                }
+
+                if(!InEnabled)
+                {
+                    this.Log(LogLevel.Noisy, "Received IN packet on a disabled endpoint");
+                    // TODO: implement async response
+                    deviceStage(USBTransactionStage.NotAck());
                     return;
                 }
 
@@ -228,13 +278,6 @@ namespace Antmicro.Renode.Core.USB
 
         private void HandleOutTransaction(USBTransactionStage hostStage, Action<USBTransactionStage> deviceStage)
         {
-            var handler = OutPacketHandler;
-            if(handler != null)
-            {
-                handler(this, hostStage, deviceStage);
-                return;
-            }
-
             // control endpoints allow for both IN/OUT packets regardless of the direction
             if(TransferType != EndpointTransferType.Control && Direction != Direction.HostToDevice)
             {
@@ -243,18 +286,44 @@ namespace Antmicro.Renode.Core.USB
                 return;
             }
 
-            if(hostStage.Payload.Length == 0)
+            lock(buffer)
             {
-                // do not fail on empty packets event if there is no callback registered
-                deviceStage(USBTransactionStage.Ack());
+                if(isStalled)
+                {
+                    this.Log(LogLevel.Noisy, "Received OUT packet on a stalled endpoint");
+                    deviceStage(USBTransactionStage.Stall());
+                    return;
+                }
+
+                if(!OutEnabled)
+                {
+                    this.Log(LogLevel.Noisy, "Received OUT packet on a disabled endpoint");
+                    // TODO: implement async response
+                    deviceStage(USBTransactionStage.NotAck());
+                    return;
+                }
+            }
+
+            if(hostStage.Payload.Length > MaximumPacketSize)
+            {
+                this.Log(LogLevel.Warning, "Received OUT packet with more bytes ({0}) than the maximum packet size ({1}). Dropping it", hostStage.Payload.Length, MaximumPacketSize);
+                deviceStage(USBTransactionStage.Stall());
                 return;
             }
 
-            var dw = dataFromHostWritten;
-            if(dw == null)
+            var handler = OutPacketHandler;
+            if(handler == null)
             {
-                this.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
-                deviceStage(USBTransactionStage.Stall());
+                if(hostStage.Payload.Length == 0)
+                {
+                    // do not fail on empty packets event if there is no callback registered
+                    deviceStage(USBTransactionStage.Ack());
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
+                    deviceStage(USBTransactionStage.Stall());
+                }
                 return;
             }
 
@@ -263,14 +332,7 @@ namespace Antmicro.Renode.Core.USB
             core.Device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(hostStage.Payload));
 #endif
 
-            dw(hostStage.Payload);
-            deviceStage(USBTransactionStage.Ack());
-        }
-
-        private void Log(LogLevel level, string message, params object[] parameters)
-        {
-            // TODO there should be a better way of doing this!
-            core.Device.Log(level, $"EP#{Identifier}: " + message, parameters);
+            handler(this, hostStage, deviceStage);
         }
 
         public byte Identifier { get; }
@@ -293,7 +355,10 @@ namespace Antmicro.Renode.Core.USB
                 .Append(Interval);
         }
 
+        private bool outEnabled;
+        private bool inEnabled;
         private bool isStalled;
+
         private event Action<byte[]> dataFromHostWritten;
         private Action<USBTransactionStage> dataCallback;
 
