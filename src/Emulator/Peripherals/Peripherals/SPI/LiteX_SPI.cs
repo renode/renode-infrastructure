@@ -46,24 +46,28 @@ namespace Antmicro.Renode.Peripherals.SPI
                             if(!chipSelect.Value)
                             {
                                 this.Log(LogLevel.Warning, "Tried to send some data over SPI, but CS is not set");
+                                masterInBuffer.Value = NoResponse;
                                 return;
                             }
 
                             if(RegisteredPeripheral == null)
                             {
                                 this.Log(LogLevel.Warning, "Tried to send some data over SPI, but no device is currently connected");
+                                masterInBuffer.Value = NoResponse;
                                 return;
                             }
 
                             if(bitsPerWord.Value == 0)
                             {
                                 this.Log(LogLevel.Warning, "Transfer length set to 0. Ignoring the transfer");
+                                masterInBuffer.Value = NoResponse;
                                 return;
                             }
 
                             // see method's comment for details
                             if(!VerifyBitsPerWord())
                             {
+                                masterInBuffer.Value = NoResponse;
                                 return;
                             }
 
@@ -153,6 +157,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField loopbackMode;
         private readonly IFlagRegisterField chipSelect;
         private readonly IValueRegisterField bitsPerWord;
+
+        private const byte NoResponse = 0xFF;
 
         private enum Registers
         {
