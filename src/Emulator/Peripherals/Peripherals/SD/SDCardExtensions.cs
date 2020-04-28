@@ -5,6 +5,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using Antmicro.Renode.Peripherals.SPI;
 ﻿using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core;
 using System;
@@ -26,6 +27,13 @@ namespace Antmicro.Renode.Peripherals.SD
             attachTo.Register(card, NullRegistrationPoint.Instance);
             machine.SetLocalName(card, String.Format("SD card: {0}", file));
         }
+
+        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<ISPIPeripheral, NullRegistrationPoint> attachTo, bool persistent = true, long? size = null)
+        {
+            var card = new SDCard(file, size, persistent, spiMode: true);
+            attachTo.Register(card, NullRegistrationPoint.Instance);
+            machine.SetLocalName(card, String.Format("SD card: {0}", file));
+        }    
     }
 }
 
