@@ -143,6 +143,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public int CyclesPerInstruction
+        {
+            get
+            {
+                return checked((int)TlibGetCyclesPerInstruction());
+            }
+            set
+            {
+                TlibSetCyclesPerInstruction(checked((uint)value));
+            }
+        }
+
         public bool LogTranslationBlockFetch
         {
             set
@@ -956,6 +968,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibAddBreakpoint(hook.Key);
             }
+            CyclesPerInstruction = 1;
         }
 
         private void InvokeHalted(HaltArguments arguments)
@@ -1542,6 +1555,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetMaximumBlockSize;
+
+        [Import]
+        private ActionUInt32 TlibSetCyclesPerInstruction;
+
+        [Import]
+        private FuncUInt32 TlibGetCyclesPerInstruction;
 
         [Import]
         private FuncInt32 TlibRestoreContext;
