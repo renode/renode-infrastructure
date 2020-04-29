@@ -33,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             architectureSets = DecodeArchitecture(cpuType);
             EnableArchitectureVariants();
+
             if(this.NMIVectorAddress.HasValue && this.NMIVectorLength.HasValue && this.NMIVectorLength > 0)
             {
                 this.Log(LogLevel.Noisy, "Non maskable interrupts enabled with paramters: {0} = {1}, {2} = {3}",
@@ -94,6 +95,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Reset();
             ShouldEnterDebugMode = true;
             EnableArchitectureVariants();
+            foreach(var csr in simpleCSRs)
+            {
+                simpleCSRs[csr.Key] = 0;
+            }
+        }
+
+        public void RegisterCustomCSR(string name, uint number, PrivilegeLevel mode)
+        {
+            var customCSR = new SimpleCSR(name, number, mode);
+            if(simpleCSRs.Keys.Any(x => x.Number == customCSR.Number))
+            {
+                throw new ConstructionException($"Cannot register CSR {customCSR.Name}, because its number 0x{customCSR.Number:X} is already registered");
+            }
+            simpleCSRs.Add(customCSR, 0);
+            RegisterCSR(customCSR.Number, () => simpleCSRs[customCSR], value => simpleCSRs[customCSR] = value);
         }
 
         public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation)
@@ -315,6 +331,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly IEnumerable<InstructionSet> architectureSets;
 
         private readonly Dictionary<ulong, Action<UInt64>> customInstructionsMapping;
+
+        private readonly Dictionary<SimpleCSR, ulong> simpleCSRs = new Dictionary<SimpleCSR, ulong>();
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
