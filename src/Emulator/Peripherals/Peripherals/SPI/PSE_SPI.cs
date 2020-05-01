@@ -202,7 +202,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.SlaveSelect, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, name: "SSEL")
+                    .WithValueField(0, 8, out slaveSelect,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val > 0)
+                            {
+                                slaveSelect.Value = val;
+                                framesReceived = 0;
+                                framesTransmitted = 0;
+                            }
+                            else if(val == 0 && slaveSelect.Value > 0)
+                            {
+                                slaveSelect.Value = 0;
+                                RegisteredPeripheral.FinishTransmission();
+                            }
+                        },  name: "SSEL")
                 },
 
                 {(long)Registers.InterruptMasked, new DoubleWordRegister(this)
@@ -429,6 +443,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly DoubleWordRegister controlRegister;
         private readonly Queue<byte> receiveBuffer;
         private readonly Queue<byte> transmitBuffer;
+        private IValueRegisterField slaveSelect;
         private IFlagRegisterField coreEnabled;
         private IFlagRegisterField master;
         private IFlagRegisterField enableIrqOnReceive;
