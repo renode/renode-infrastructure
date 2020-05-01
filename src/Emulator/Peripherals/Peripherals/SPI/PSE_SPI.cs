@@ -103,12 +103,54 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.InterruptClear, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.WriteOneToClear, writeCallback: (_, __) => transmitDone.Value = false, name: "TXDONE")
-                    .WithFlag(1, FieldMode.WriteOneToClear, writeCallback: (_, __) => receiveDone.Value = false, name: "RXDONE")
-                    .WithFlag(2, FieldMode.WriteOneToClear, writeCallback: (_, __) => receiveOverflow.Value = false, name: "RXOVERFLOW")
-                    .WithFlag(3, FieldMode.WriteOneToClear, writeCallback: (_, __) => transmitUnderrun.Value = false, name: "TXUNDERRUN")
-                    .WithFlag(4, FieldMode.WriteOneToClear, writeCallback: (_, __) => fullCommandReceived.Value = false, name: "CMDINT")
-                    .WithTag("SSEND", 5, 1)
+                    .WithFlag(0, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                transmitDone.Value = false;
+                            }
+                        }, name: "TXDONE")
+                    .WithFlag(1, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                receiveDone.Value = false;
+                            }
+                        }, name: "RXDONE")
+                    .WithFlag(2, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                receiveOverflow.Value = false;
+                            }
+                        }, name: "RXOVERFLOW")
+                    .WithFlag(3, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                transmitUnderrun.Value = false;
+                            }
+                        }, name: "TXUNDERRUN")
+                    .WithFlag(4, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                fullCommandReceived.Value = false;
+                            }
+                        }, name: "CMDINT")
+                    .WithFlag(5, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                slaveSelectGoneInactve.Value = false;
+                            }
+                        }, name: "SSEND")
                 },
 
                 {(long)Registers.ReceiveData, new DoubleWordRegister(this)
