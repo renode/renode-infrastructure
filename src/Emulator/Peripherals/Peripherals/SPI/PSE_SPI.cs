@@ -405,6 +405,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void FinishTransmission()
         {
+            framesReceived = 0;
+            framesTransmitted = 0;
+            slaveSelectGoneInactve.Value = true;
+            RefreshInterrupt();
         }
 
         public long Size => 0x1000;
