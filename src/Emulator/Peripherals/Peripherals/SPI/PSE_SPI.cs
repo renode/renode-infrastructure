@@ -251,21 +251,38 @@ namespace Antmicro.Renode.Peripherals.SPI
                         {
                             if(val)
                             {
-                                while(transmitBuffer.Count < (frameSize.Value * frameCounter.Value))
+                                while(transmitBuffer.Count < fifoSize)
                                 {
                                     transmitBuffer.Enqueue(0);
                                 }
                             }
                         }, name: "AUTOFILL")
                     .WithTag("AUTOEMPTY", 1, 1)
-                    .WithFlag(2, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => receiveBuffer.Clear(), name: "RXFIFORST")
-                    .WithFlag(3, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => transmitBuffer.Clear(), name: "TXFIFORST")
-                    .WithFlag(4, FieldMode.WriteOneToClear | FieldMode.Read,
-                        changeCallback: (_, __) =>
+                    .WithFlag(2, FieldMode.Read,
+                        writeCallback: (_, val) =>
                         {
-                            frameCounter.Value = 0;
-                            framesReceived = 0;
-                            framesTransmitted = 0;
+                            if(val)
+                            {
+                                receiveBuffer.Clear();
+                            }
+                        }, name: "RXFIFORST")
+                    .WithFlag(3, FieldMode.Read,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                transmitBuffer.Clear();
+                            }
+                        }, name: "TXFIFORST")
+                    .WithFlag(4, FieldMode.Read,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                frameCounterLimit.Value = 0;
+                                framesTransmitted = 0;
+                                framesReceived = 0;
+                            }
                         }, name: "CLRFRAMECNT")
                     .WithTag("AUTOSTALL", 5, 1)
                     .WithTag("TXNOW", 6, 1)
