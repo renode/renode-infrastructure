@@ -76,14 +76,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("OENOFF", 30, 1)
                     .WithFlag(31, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => Reset(), name: "RESET");
 
-            maskedInterruptRegister = new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read, valueProviderCallback: (_) => enableIrqOnReceive.Value && transmitDone.Value, name: "TXDONE")
-                    .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) => enableIrqOnTransmit.Value && receiveDone.Value, name: "RXDONE")
-                    .WithFlag(2, FieldMode.Read, valueProviderCallback: (_) => enableIrqOnOverflow.Value && receiveOverflow.Value, name: "RXOVERFLOW")
-                    .WithFlag(3, FieldMode.Read, valueProviderCallback: (_) => enableIrqOnUnderrun.Value && transmitUnderrun.Value, name: "TXUNDERRUN")
-                    .WithFlag(4, FieldMode.Read, valueProviderCallback: (_) => fullCommandReceived.Value, name: "CMDINT")
-                    .WithFlag(5, FieldMode.Read, valueProviderCallback: (_) => false, name: "SSEND");
-
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, controlRegister},
@@ -164,7 +156,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithValueField(0, 8, name: "SSEL")
                 },
 
-                {(long)Registers.InterruptMasked, maskedInterruptRegister},
+                {(long)Registers.InterruptMasked, new DoubleWordRegister(this)
+                    .WithValueField(0, 6, valueProviderCallback: _ => CalculateMaskedInterruptValue())
+                },
 
                 {(long)Registers.InterruptRaw, new DoubleWordRegister(this)
                     .WithFlag(0, out transmitDone, name: "TXDONE")
@@ -349,14 +343,27 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private uint CalculateMaskedInterruptValue()
+        {
+            var result = new bool[6]
+            {
+                enableIrqOnReceive.Value && receiveDone.Value,
+                enableIrqOnTransmit.Value && transmitDone.Value,
+                enableIrqOnOverflow.Value && receiveOverflow.Value,
+                enableIrqOnUnderrun.Value && transmitUnderrun.Value,
+                fullCommandReceived.Value && enableIrqOnCmd.Value,
+                slaveSelectGoneInactve.Value && enableIrqOnSsend.Value
+            };
+            return BitHelper.GetValueFromBitsArray(result);
+        }
+
         private void RefreshInterrupt()
         {
-            IRQ.Set(maskedInterruptRegister.Value != 0);
+            IRQ.Set(CalculateMaskedInterruptValue() != 0);
         }
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly DoubleWordRegister controlRegister;
-        private readonly DoubleWordRegister maskedInterruptRegister;
         private readonly Queue<byte> receiveBuffer;
         private readonly Queue<byte> transmitBuffer;
         private IFlagRegisterField coreEnabled;
