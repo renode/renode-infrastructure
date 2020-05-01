@@ -300,10 +300,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("FIRSTFRAME", 0, 1)
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) => dataSent.Value && dataReceived.Value, name: "DONE")
                     .WithFlag(2, FieldMode.Read, valueProviderCallback: (_) => receiveBuffer.Count == 0, name: "RXEMPTY")
-                    .WithFlag(3, FieldMode.Read, valueProviderCallback: (_) => transmitBuffer.Count == frameSize.Value, name: "TXFULL")
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: (_) => transmitBuffer.Count == fifoSize, name: "TXFULL")
                     .WithFlag(4, FieldMode.Read, valueProviderCallback: (_) => receiveOverflow.Value, name: "RXOVFLOW")
                     .WithFlag(5, FieldMode.Read, valueProviderCallback: (_) => transmitUnderrun.Value, name: "TXUNDERRUN")
-                    .WithTag("SSEL", 6, 1)
+                    .WithFlag(6, FieldMode.Read, valueProviderCallback: (_) => slaveSelect.Value > 0, name: "SSEL")
                     .WithTag("ACTIVE", 7, 1)
                 },
 
