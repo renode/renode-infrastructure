@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(2, out disableFrameCount, name: "DISFRMCNT")
                     // bit 3 reserved
                     .WithFlag(4, out enableIrqOnCmd, name: "INTEN_CMD")
-                    .WithTag("INTEN_SSEND", 5, 1)
+                    .WithFlag(5, out enableIrqOnSsend, name: "INTEN_SSEND")
                 },
 
                 {(long)Registers.CommandRegister, new DoubleWordRegister(this)
@@ -378,6 +378,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField disableFrameCount;
         private IFlagRegisterField enableIrqOnCmd;
         private IValueRegisterField commandSize;
+        private IFlagRegisterField enableIrqOnSsend;
         private int fifoSize;
         private int framesReceived;
         private int framesTransmitted;
