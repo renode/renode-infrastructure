@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(2, out receiveOverflow, name: "RXOVERFLOW")
                     .WithFlag(3, out transmitUnderrun, name: "TXUNDERRUN")
                     .WithFlag(4, out fullCommandReceived, name: "CMDINT")
-                    .WithTag("SSEND", 5, 1)
+                    .WithFlag(5, out slaveSelectGoneInactve, name: "SSEND")
                 },
 
                 {(long)Registers.ControlBitsForEnhancedModes, new DoubleWordRegister(this)
@@ -372,6 +372,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField receiveOverflow;
         private IFlagRegisterField transmitUnderrun;
         private IFlagRegisterField fullCommandReceived;
+        private IFlagRegisterField slaveSelectGoneInactve;
         private IFlagRegisterField transmitDone;
         private IFlagRegisterField receiveDone;
         private IFlagRegisterField disableFrameCount;
