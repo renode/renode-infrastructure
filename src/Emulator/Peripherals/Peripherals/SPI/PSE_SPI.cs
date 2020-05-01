@@ -373,23 +373,23 @@ namespace Antmicro.Renode.Peripherals.SPI
             var returnValue = (byte)0x00;
             lock(locker)
             {
-                if (master.Value)
+                if(master.Value)
                 {
                     this.Log(LogLevel.Warning, "Cannot receive data when in master mode.");
                     return returnValue;
                 }
-                if (!coreEnabled.Value)
+                if(!coreEnabled.Value)
                 {
                     this.Log(LogLevel.Warning, "Cannot receive due to inactive core.");
                     return returnValue;
                 }
                 TryReceive(data);
-                if (framesReceived == commandSize.Value)
+                if(framesReceived == commandSize.Value)
                 {
                     fullCommandReceived.Value = true;
                     returnValue = CalculateSlaveHardwareStatus();
                 }
-                if (transmitBuffer.Count > 0)
+                if(transmitBuffer.Count > 0)
                 {
                     framesTransmitted++;
                     returnValue = transmitBuffer.Dequeue();
@@ -417,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void TryReceive(byte data)
         {
-            if (receiveBuffer.Count < (fifoSize * frameSize.Value))
+            if(receiveBuffer.Count < (fifoSize * frameSize.Value))
             {
                 framesReceived++;
                 receiveBuffer.Enqueue(data);
