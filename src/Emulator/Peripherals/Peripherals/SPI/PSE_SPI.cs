@@ -257,6 +257,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithValueField(0, 6, out commandSize, name: "CMDSIZE")
                 },
 
+                {(long)Registers.SlaveHardwareStatus, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: (_) => CalculateSlaveHardwareStatus(), name: "HWSTATUS")
+                },
+
                 {(long)Registers.Status8, new DoubleWordRegister(this)
                     .WithTag("FIRSTFRAME", 0, 1)
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) => dataSent.Value && dataReceived.Value, name: "DONE")
@@ -404,6 +408,16 @@ namespace Antmicro.Renode.Peripherals.SPI
                 slaveSelectGoneInactve.Value && enableIrqOnSsend.Value
             };
             return BitHelper.GetValueFromBitsArray(result);
+        }
+
+        private byte CalculateSlaveHardwareStatus()
+        {
+            var result = new bool[2]
+            {
+                receiveBuffer.Count > 0,
+                transmitBuffer.Count == 0
+            };
+            return (byte)BitHelper.GetValueFromBitsArray(result);
         }
 
         private void RefreshInterrupt()
