@@ -398,12 +398,12 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             if (receiveBuffer.Count < (fifoSize * frameSize.Value))
             {
+                framesReceived++;
                 receiveBuffer.Enqueue(data);
                 // Docs are not clear if this should be done in slave or master mode.
                 if(!disableFrameCount.Value && receiveBuffer.Count % frameSize.Value == 0)
                 {
-                    framesReceived++;
-                    if (framesReceived == frameCounter.Value)
+                    if(framesTransmitted + framesReceived == frameCounterLimit.Value)
                     {
                         dataReceived.Value = true;
                         receiveDone.Value = true;
