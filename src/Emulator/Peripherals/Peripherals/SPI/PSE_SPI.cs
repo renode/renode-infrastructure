@@ -182,10 +182,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                                     //TODO: should probably enqueue data if frame counter is enabled and the frameTransmitted reached the threshold.
                                     // We do not handle TXFIFO as its handling is not clear from the documentation.
                                     TryReceive(RegisteredPeripheral.Transmit((byte)val));
-                                    if(framesTransmitted == frameCounter.Value)
+                                    if(framesReceived + framesTransmitted == frameCounterLimit.Value)
                                     {
                                         dataSent.Value = true;
                                         transmitDone.Value = true;
+                                        if(slaveSelect.Value > 0)
+                                        {
+                                            RegisteredPeripheral.FinishTransmission();
+                                        }
                                     }
                                 }
                                 else
@@ -366,9 +370,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                 if (framesReceived == commandSize.Value)
                 {
                     fullCommandReceived.Value = true;
+                    returnValue = CalculateSlaveHardwareStatus();
                 }
                 if (transmitBuffer.Count > 0)
                 {
+                    framesTransmitted++;
                     returnValue = transmitBuffer.Dequeue();
                 }
                 else
