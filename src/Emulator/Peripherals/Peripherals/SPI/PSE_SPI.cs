@@ -74,7 +74,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         }, name: "BIGFIFO")
                     .WithTag("OENOFF", 30, 1)
-                    .WithFlag(31, FieldMode.WriteOneToClear | FieldMode.Read, changeCallback: (_, __) => Reset(), name: "RESET");
+                    .WithFlag(31,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                Reset();
+                            }
+                        }, name: "RESET");
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
