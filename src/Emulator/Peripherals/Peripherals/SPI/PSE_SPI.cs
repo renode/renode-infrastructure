@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         {
                             if(!val)
                             {
-                                frameCounter.Value = 0;
+                                frameCounterLimit.Value = 0;
                             }
                         }, name: "ENABLE")
                     .WithFlag(1, out master, name: "MASTER")
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(5, out enableIrqOnTransmit, name: "INTTXDATA")
                     .WithFlag(6, out enableIrqOnOverflow, name: "INTRCVOVFLOW")
                     .WithFlag(7, out enableIrqOnUnderrun, name: "INTTXTURUN")
-                    .WithValueField(8, 16, out frameCounter,
+                    .WithValueField(8, 16, out frameCounterLimit,
                         writeCallback: (_, val) =>
                         {
                             framesReceived = 0;
@@ -443,6 +443,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly DoubleWordRegister controlRegister;
         private readonly Queue<byte> receiveBuffer;
         private readonly Queue<byte> transmitBuffer;
+        private IValueRegisterField frameCounterLimit;
         private IValueRegisterField slaveSelect;
         private IFlagRegisterField coreEnabled;
         private IFlagRegisterField master;
@@ -450,7 +451,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField enableIrqOnTransmit;
         private IFlagRegisterField enableIrqOnOverflow;
         private IFlagRegisterField enableIrqOnUnderrun;
-        private IValueRegisterField frameCounter;
         private IValueRegisterField frameSize;
         private IFlagRegisterField dataSent;
         private IFlagRegisterField dataReceived;
