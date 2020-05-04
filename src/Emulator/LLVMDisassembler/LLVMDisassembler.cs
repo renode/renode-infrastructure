@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,7 +13,7 @@ using Antmicro.Renode.Peripherals.CPU.Disassembler;
 
 namespace Antmicro.Renode.Disassembler.LLVM
 {
-    [DisassemblerAttribute("LLVM", new[] { "arm", "arm-m", "mips", "i386", "riscv", "riscv64", "ppc", "sparc" })]
+    [DisassemblerAttribute("LLVM", new[] { "arm", "arm-m", "mips", "i386", "riscv", "riscv64", "ppc", "ppc64", "sparc" })]
     public class LLVMDisassembler : IAutoLoadType, IDisassembler
     {
         public LLVMDisassembler(IDisassemblable cpu)
@@ -75,6 +75,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
             { "riscv",  "riscv32"   },
             { "riscv64","riscv64"   },
             { "ppc",    "ppc"       },
+            { "ppc64",  "ppc64le"   },
             { "sparc",  "sparc"     },
             { "i386",   "i386"      }
         };

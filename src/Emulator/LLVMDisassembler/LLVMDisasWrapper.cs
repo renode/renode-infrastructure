@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -45,6 +45,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
             switch(triple)
             {
             case "ppc":
+            case "ppc64le":
             case "sparc":
             case "i386":
                 HexFormatter = FormatHexForx86;
