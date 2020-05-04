@@ -53,10 +53,9 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 case "arm926":
                     model = "arm926ej-s";
                     break;
-		case "e200z6":
-		//    model = "generic";
-		    model = "ppc32";
-		    break;
+                case "e200z6":
+                    model = "ppc32";
+                    break;
                 default:
                     model = cpu.Model;
                     break;
@@ -74,9 +73,9 @@ namespace Antmicro.Renode.Disassembler.LLVM
             { "arm-m",  "thumb"     },
             { "mips",   "mipsel"    },
             { "riscv",  "riscv32"   },
-	    { "riscv64","riscv64"   },
-	    { "ppc",    "ppc"       },
-	    { "sparc",  "sparc"     },
+            { "riscv64","riscv64"   },
+            { "ppc",    "ppc"       },
+            { "sparc",  "sparc"     },
             { "i386",   "i386"      }
         };
 
