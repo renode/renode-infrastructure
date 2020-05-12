@@ -166,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public uint GetItState()
         {
             uint itState = TlibGetItState();
-            if (itState == 0)
+            if((itState & 0x1F) == 0)
             {
                 this.Log(LogLevel.Warning, "Checking IT_STATE, while not in IT block");
             }
@@ -175,9 +175,23 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool WillNextItInstructionExecute(uint itState)
         {
-            /* Oldest bit of 'abcd' field should be set to 0. There also should be trailing one in the younger part,
-             * otherwise we are not in IT block  */
-            return (itState & 0x10) == 0 && (itState & 0xF) > 0;
+            /* Returns true if the oldest bit of 'abcd' field is set to 0 and the condition is met.
+             * If there is no trailing one in the lower part, we are not in an IT block*/
+            var MaskBit = (itState & 0x10) == 0 && ((itState & 0xF) > 0);
+            var condition = ( itState >> 4 ) & 0x0E;
+            if(EvaluateConditionCode(condition))
+            {
+                return MaskBit;
+            }
+            else
+            {
+                return !MaskBit;
+            }
+        }
+
+        public bool EvaluateConditionCode(uint condition)
+        {
+            return TlibEvaluateConditionCode(condition) > 0;
         }
 
         [Export]
@@ -232,6 +246,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetItState;
+
+        [Import]
+        private FuncUInt32UInt32 TlibEvaluateConditionCode;
 
         [Import]
         private FuncUInt32 TlibGetCpuId;
