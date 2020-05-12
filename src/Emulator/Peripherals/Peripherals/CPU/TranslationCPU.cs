@@ -1398,7 +1398,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ulong TranslateAddress(ulong logicalAddress)
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress);
+            return TlibTranslateCodeAddressToPhysicalAddress(logicalAddress);
+        }
+
+        public ulong TranslateDataAddress(ulong logicalAddress)
+        {
+            return TlibTranslateDataAddressToPhysicalAddress(logicalAddress);
         }
 
         [PostDeserialization]
@@ -1518,7 +1523,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionIntPtrIntPtr TlibInvalidateTranslationBlocks;
 
         [Import]
-        protected FuncUInt64UInt64 TlibTranslateToPhysicalAddress;
+        protected FuncUInt64UInt64 TlibTranslateCodeAddressToPhysicalAddress;
+
+        [Import]
+        protected FuncUInt64UInt64 TlibTranslateDataAddressToPhysicalAddress;
 
         [Import]
         private ActionIntPtrInt32 RenodeSetHostBlocks;
