@@ -67,33 +67,41 @@ namespace Antmicro.Renode.Utilities
 
             try
             {
-#if PLATFORM_WINDOWS
-                using(var locker = new WindowsFileLocker(GetCacheIndexLockLocation()))
-#else
-                using(var locker = new PosixFileLocker(GetCacheIndexLockLocation()))
-#endif
-                {
-                    if(TryGetFromCache(uri, out fileName))
-                    {
-                        fetchedFiles.Add(fileName, uri);
-                        return true;
-                    }
+                var disableCaching = Emulator.InCIMode;
 
-                    if(TryFetchFromUriInner(uri, out fileName))
-                    {
-                        UpdateInCache(uri, fileName);
-                        return true;
-                    }
-                }
-
-                fileName = null;
-                return false;
-
+                return disableCaching
+                    ? TryFetchFromUriInner(uri, out fileName)
+                    : TryFetchFromCacheOrUriInner(uri, out fileName);
             }
             finally
             {
                 Monitor.Exit(concurrentLock);
             }
+        }
+        
+        private bool TryFetchFromCacheOrUriInner(Uri uri, out string fileName)
+        {
+#if PLATFORM_WINDOWS
+            using(var locker = new WindowsFileLocker(GetCacheIndexLockLocation()))
+#else
+            using(var locker = new PosixFileLocker(GetCacheIndexLockLocation()))
+#endif
+            {
+                if(TryGetFromCache(uri, out fileName))
+                {
+                    fetchedFiles.Add(fileName, uri);
+                    return true;
+                }
+
+                if(TryFetchFromUriInner(uri, out fileName))
+                {
+                    UpdateInCache(uri, fileName);
+                    return true;
+                }
+            }
+
+            fileName = null;
+            return false;
         }
 
         private bool TryFetchFromUriInner(Uri uri, out string fileName)
