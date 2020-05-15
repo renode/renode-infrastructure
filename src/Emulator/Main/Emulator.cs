@@ -90,6 +90,13 @@ namespace Antmicro.Renode
             }
         }
 
+        // CI mode is kind-of-a-hack to allow
+        // running multiple instances of Renode
+        // at the same time by disabling writing
+        // to shared files like binaries cache,
+        // config file, etc.
+        public static bool InCIMode => (Environment.GetEnvironmentVariable("RENODE_CI_MODE") == "YES");
+
         private static string userDirectoryPath;
 
         public static void ExecuteOnMainThread(Action what)
