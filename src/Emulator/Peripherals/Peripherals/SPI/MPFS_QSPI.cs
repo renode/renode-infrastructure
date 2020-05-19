@@ -16,9 +16,9 @@ using Antmicro.Renode.Logging;
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class PSE_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
+    public class MPFS_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_QSPI(Machine machine) : base(machine)
+        public MPFS_QSPI(Machine machine) : base(machine)
         {
             locker = new object();
             IRQ = new GPIO();

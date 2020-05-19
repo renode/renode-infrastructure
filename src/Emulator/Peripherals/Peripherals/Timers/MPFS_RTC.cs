@@ -15,9 +15,9 @@ using System.Globalization;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class PSE_RTC : BasicDoubleWordPeripheral, IKnownSize
+    public class MPFS_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public PSE_RTC(Machine machine) : base(machine)
+        public MPFS_RTC(Machine machine) : base(machine)
         {
             DefineRegisters();
             WakeupIRQ = new GPIO();

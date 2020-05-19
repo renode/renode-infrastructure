@@ -19,9 +19,9 @@ using Antmicro.Renode.Core.USB;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
-    public class PSE_USB : SimpleContainer<IUSBDevice>, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>, IKnownSize
+    public class MPFS_USB : SimpleContainer<IUSBDevice>, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>, IKnownSize
     {
-        public PSE_USB(Machine machine, ControllerMode mode = ControllerMode.Host) : base(machine)
+        public MPFS_USB(Machine machine, ControllerMode mode = ControllerMode.Host) : base(machine)
         {
             this.mode = mode;
 

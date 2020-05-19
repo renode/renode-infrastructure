@@ -15,9 +15,9 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class PSE_Sysreg : IDoubleWordPeripheral, IKnownSize
+    public class MPFS_Sysreg : IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_Sysreg(Machine machine)
+        public MPFS_Sysreg(Machine machine)
         {
             sysbus = machine.SystemBus;
 

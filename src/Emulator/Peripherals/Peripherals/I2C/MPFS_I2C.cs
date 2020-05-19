@@ -15,9 +15,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class PSE_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<ByteRegisterCollection>, II2CPeripheral, IBytePeripheral, IKnownSize
+    public class MPFS_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<ByteRegisterCollection>, II2CPeripheral, IBytePeripheral, IKnownSize
     {
-        public PSE_I2C(Machine machine) : base(machine)
+        public MPFS_I2C(Machine machine) : base(machine)
         {
             transferBuffer = new Queue<byte>();
             receiveBuffer = new Queue<byte>();

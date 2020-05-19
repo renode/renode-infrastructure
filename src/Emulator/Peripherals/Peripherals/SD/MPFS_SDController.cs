@@ -22,9 +22,9 @@ namespace Antmicro.Renode.Peripherals.SD
     // * interrupts (including: masking)
     // * CMD8 (from spec 2.0)
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class PSE_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
+    public class MPFS_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
     {
-        public PSE_SDController(Machine machine) : base(machine)
+        public MPFS_SDController(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();

@@ -13,9 +13,9 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class PSE_Watchdog : BasicDoubleWordPeripheral, IKnownSize
+    public class MPFS_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public PSE_Watchdog(Machine machine, long frequency) : base(machine)
+        public MPFS_Watchdog(Machine machine, long frequency) : base(machine)
         {
             DefineRegisters();
             internalTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, TimeDefault - MSVPDefault, workMode: WorkMode.OneShot, eventEnabled: true);
