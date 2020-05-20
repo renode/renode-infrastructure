@@ -471,9 +471,13 @@ namespace Antmicro.Renode.Utilities
             return (byte)(value & 0xFF);
         }
 
-        public static string FromResourceToTemporaryFile(this Assembly assembly, string resourceName)
+        public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFile)
         {
-            Stream libraryStream = assembly.GetManifestResourceStream(resourceName);
+            // `GetManifestResourceStream` is not supported by dynamic assemblies
+            Stream libraryStream = assembly.IsDynamic
+                ? null
+                : assembly.GetManifestResourceStream(resourceName);
+
             if(libraryStream == null)
             {
                 if(File.Exists(resourceName))
@@ -482,10 +486,21 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(libraryStream == null)
                 {
-                    throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
+                    outputFile = null;
+                    return false;
                 }
             }
-            return CopyToFile(libraryStream, resourceName);
+            outputFile = CopyToFile(libraryStream, resourceName);
+            return true;
+        }
+
+        public static string FromResourceToTemporaryFile(this Assembly assembly, string resourceName)
+        {
+            if(!TryFromResourceToTemporaryFile(assembly, resourceName, out var result))
+            {
+                throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
+            }
+            return result;
         }
 
         public static void Copy(this Stream from, Stream to)

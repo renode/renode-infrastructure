@@ -946,7 +946,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
             var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
-            libraryFile = GetType().Assembly.FromResourceToTemporaryFile(libraryResource);
+            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile))
+                {
+                    break;
+                }
+            }
+
+            if(libraryFile == null)
+            {
+                throw new ArgumentException($"Cannot find library {libraryResource}");
+            }
 
             binder = new NativeBinder(this, libraryFile);
             TlibSetTranslationCacheSize(checked((IntPtr)translationCacheSize));
