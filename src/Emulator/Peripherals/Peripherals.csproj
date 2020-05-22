@@ -47,6 +47,7 @@
     <Compile Include="Peripherals\Timers\EFR32_Timer.cs" />
     <Compile Include="Peripherals\Timers\LiteX_CPUTimer.cs" />
     <Compile Include="Peripherals\Timers\LiteX_Timer.cs" />
+    <Compile Include="Peripherals\Timers\LiteX_Timer_64bit.cs" />
     <Compile Include="Peripherals\USB\MPFS_USB.cs" />
     <Compile Include="Peripherals\USB\USBPendrive.cs" />
     <Compile Include="Peripherals\Timers\MPFS_RTC.cs" />
@@ -261,6 +262,7 @@
     <Compile Include="Peripherals\Timers\MiV_CoreTimer.cs" />
     <Compile Include="Peripherals\UART\MiV_CoreUART.cs" />
     <Compile Include="Peripherals\UART\LiteX_UART.cs" />
+    <Compile Include="Peripherals\UART\LiteX_UART_64bit.cs" />
     <Compile Include="Peripherals\Network\LiteX_Ethernet.cs" />
     <Compile Include="Peripherals\UART\PicoSoC_SimpleUART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
