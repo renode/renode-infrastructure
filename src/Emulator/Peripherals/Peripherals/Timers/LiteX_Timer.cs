@@ -97,6 +97,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(val)
                     {
+                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                        {
+                            // being here means we are on the CPU thread
+                            cpu.SyncTime();
+                        }
+
                         latchedValue = (uint)innerTimer.Value;
                     }
                 });
