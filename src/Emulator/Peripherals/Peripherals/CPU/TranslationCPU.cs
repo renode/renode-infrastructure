@@ -320,6 +320,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void SyncTime()
+        {
+            if(!OnPossessedThread)
+            {
+                this.Log(LogLevel.Error, "Syncing time should be done from CPU thread only. Ignoring the operation");
+                return;
+            }
+
+            var numberOfExecutedInstructions = TlibGetExecutedInstructions();
+            if(numberOfExecutedInstructions > 0)
+            {
+                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions, PerformanceInMips, out var residuum);
+                TlibResetExecutedInstructions(residuum);
+                machine.HandleTimeProgress(elapsed);
+            }
+        }
+
         public virtual void Start()
         {
             Resume();
@@ -1603,6 +1620,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt64 TlibFlushPage;
+
+        [Import]
+        protected ActionUInt64 TlibResetExecutedInstructions;
 
         #pragma warning restore 649
 
