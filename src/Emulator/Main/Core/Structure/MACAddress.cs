@@ -151,19 +151,29 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-
-        public static MACAddress Parse(string str)
+        public static bool TryParse(string str, out MACAddress result)
         {
+            result = default(MACAddress);
+
             var splits = str.Split(':');
             if(splits.Length != 6)
             {
-                throw new FormatException();
+                return false;
             }
 
-            var result = new MACAddress();
             for(var i = 0; i < 6; i++)
             {
                 result.SetByte(i, byte.Parse(splits[i], NumberStyles.HexNumber));
+            }
+
+            return true;
+        }
+
+        public static MACAddress Parse(string str)
+        {
+            if(!TryParse(str, out var result))
+            {
+                throw new FormatException();
             }
 
             return result;
