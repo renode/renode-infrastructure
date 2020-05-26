@@ -837,6 +837,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     isAnyInactiveHook = false;
                 }
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -861,6 +862,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     isAnyInactiveHook = false;
                 }
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -1665,6 +1667,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 hookDescriptor.Deactivate();
                 isAnyInactiveHook = true;
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -1677,6 +1680,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     inactive.Value.Activate();
                 }
                 isAnyInactiveHook = false;
+                UpdateBlockBeginHookPresent();
             }
         }
 
