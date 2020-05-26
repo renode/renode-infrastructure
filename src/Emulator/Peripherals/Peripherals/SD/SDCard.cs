@@ -291,9 +291,9 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public BitStream SDStatus => new VariableLengthValue(512).Bits;
 
-        public BitStream CardSpecificData => cardSpecificDataGenerator.GetBits(skip: 8);
+        public BitStream CardSpecificData => cardSpecificDataGenerator.Bits;
 
-        public BitStream CardIdentification => cardIdentificationGenerator.GetBits(skip: 8);
+        public BitStream CardIdentification => cardIdentificationGenerator.Bits;
 
         private void WriteDataToUnderlyingFile(long offset, int size, byte[] data)
         {
