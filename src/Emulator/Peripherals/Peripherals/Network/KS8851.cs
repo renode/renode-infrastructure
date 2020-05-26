@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
+            if(!frame.DestinationMAC.IsBroadcast && frame.DestinationMAC != MAC)
             {
                 return;
             }

@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     this.Log(LogLevel.Debug, "DROPPING - cpu is halted.");
                     return;
                 }
-                var destinationMac = frame.DestinationMAC.Value;
+                var destinationMac = frame.DestinationMAC;
                 if(!destinationMac.IsBroadcast && !destinationMac.Equals(MAC))
                 {
                     this.Log(LogLevel.Debug, "DROPPING - not for us.");

@@ -447,7 +447,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             lock(sync)
             {
-                if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
+                if(!frame.DestinationMAC.IsBroadcast && frame.DestinationMAC != MAC)
                 {
                     return;
                 }

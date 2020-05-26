@@ -68,9 +68,9 @@ namespace Antmicro.Renode.Network
             }
         }
 
-        public MACAddress? SourceMAC => (MACAddress?)UnderlyingPacket.SourceHwAddress;
+        public MACAddress SourceMAC => (MACAddress)UnderlyingPacket.SourceHwAddress;
 
-        public MACAddress? DestinationMAC => (MACAddress?)UnderlyingPacket.DestinationHwAddress;
+        public MACAddress DestinationMAC => (MACAddress)UnderlyingPacket.DestinationHwAddress;
 
         public IPAddress SourceIP
         {
