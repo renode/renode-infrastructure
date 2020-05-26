@@ -833,6 +833,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     hooks.Remove(addr);
                 }
+                if(!hooks.Any(x => !x.Value.IsActive))
+                {
+                    isAnyInactiveHook = false;
+                }
             }
         }
 
@@ -852,6 +856,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(hooks.Remove(addr))
                 {
                     TlibRemoveBreakpoint(addr);
+                }
+                if(!hooks.Any(x => !x.Value.IsActive))
+                {
+                    isAnyInactiveHook = false;
                 }
             }
         }
