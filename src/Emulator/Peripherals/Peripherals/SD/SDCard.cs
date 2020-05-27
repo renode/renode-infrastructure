@@ -27,7 +27,6 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             this.spiMode = spiMode;
             spiContext = new SpiContext();
-            isIdle = true;
 
             dataBackend = DataStorage.Create(imageFile, size, persistent);
 
@@ -38,7 +37,8 @@ namespace Antmicro.Renode.Peripherals.SD
 
             cardStatusGenerator = new VariableLengthValue(32)
                 .DefineFragment(5, 1, () => (treatNextCommandAsAppCommand ? 1 : 0u), name: "APP_CMD bit")
-                .DefineFragment(8, 1, 1, name: "READY_FOR_DATA bit");
+                .DefineFragment(8, 1, 1, name: "READY_FOR_DATA bit")
+                .DefineFragment(9, 4, () => (uint)state, name: "CURRENT_STATE");
 
             operatingConditionsGenerator = new VariableLengthValue(32)
                 .DefineFragment(8, 1, 1, name: "VDD voltage window 2.0 - 2.1")
@@ -89,13 +89,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public void Reset()
         {
-            readContext.Reset();
-            writeContext.Reset();
-            treatNextCommandAsAppCommand = false;
-
-            isIdle = true;
-
-            spiContext.Reset();
+            GoToIdle();
 
             var sdCapacityParameters = SDCapacity.SeekForCapacityParametes(dataBackend.Length);
             blockLengthInBytes = (uint)(1 << sdCapacityParameters.BlockSize);
@@ -134,6 +128,12 @@ namespace Antmicro.Renode.Peripherals.SD
             }
             WriteDataToUnderlyingFile(writeContext.Offset, data.Length, data);
             writeContext.Move((uint)data.Length);
+
+            if(!writeContext.IsActive)
+            {
+                // writing finished ?! skipping prg state as it's instant
+                state = SDCardState.Transfer;
+            }
         }
 
         // TODO: this method should be removed and it should be controller's responsibility to control the number of bytes to read
@@ -331,10 +331,21 @@ namespace Antmicro.Renode.Peripherals.SD
             return result;
         }
 
+        private void GoToIdle()
+        {
+            readContext.Reset();
+            writeContext.Reset();
+            treatNextCommandAsAppCommand = false;
+
+            state = SDCardState.Idle;
+
+            spiContext.Reset();
+        }
+
         private BitStream GenerateR1Response(bool illegalCommand = false)
         {
             return new BitStream()
-                .AppendBit(isIdle)
+                .AppendBit(state == SDCardState.Idle)
                 .AppendBit(false) // Erase Reset
                 .AppendBit(illegalCommand)
                 .AppendBit(false) // Com CRC Error
@@ -377,7 +388,7 @@ namespace Antmicro.Renode.Peripherals.SD
             switch(command)
             {
                 case SdCardCommand.GoIdleState_CMD0:
-                    Reset();
+                    GoToIdle();
                     return spiMode 
                         ? GenerateR1Response()
                         : BitStream.Empty; // no response in SD mode
@@ -390,6 +401,8 @@ namespace Antmicro.Renode.Peripherals.SD
                         break;
                     }
 
+                    state = SDCardState.Identification;
+
                     return CardIdentification;
                 }
 
@@ -400,6 +413,8 @@ namespace Antmicro.Renode.Peripherals.SD
                         // this command is not supported in the SPI mode
                         break;
                     }
+
+                    state = SDCardState.Standby;
 
                     var status = CardStatus.AsUInt32();
                     return BitHelper.BitConcatenator.New()
@@ -418,6 +433,21 @@ namespace Antmicro.Renode.Peripherals.SD
                         break;
                     }
 
+                    // this is a toggle command:
+                    // Select is used to start a transfer;
+                    // Deselct is used to abort the active transfer
+                    switch(state)
+                    {
+                        case SDCardState.Standby:
+                            state = SDCardState.Transfer;
+                            break;
+
+                        case SDCardState.Transfer:
+                        case SDCardState.Programming:
+                            state = SDCardState.Standby;
+                            break;
+                    }
+
                     return CardStatus;
                 }
 
@@ -434,6 +464,18 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SdCardCommand.StopTransmission_CMD12:
                     readContext.Reset();
                     writeContext.Reset();
+
+                    switch(state)
+                    {
+                        case SDCardState.SendingData:
+                            state = SDCardState.Transfer;
+                            break;
+
+                        case SDCardState.ReceivingData:
+                            state = SDCardState.Programming;
+                            break;
+                    }
+                    
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
@@ -455,6 +497,8 @@ namespace Antmicro.Renode.Peripherals.SD
                         ? arg * blockLengthInBytes
                         : arg;
 
+                    state = SDCardState.SendingData;
+
                     return spiMode
                         ? GenerateR1Response()
                             .Append(BlockBeginIndicator)
@@ -469,6 +513,8 @@ namespace Antmicro.Renode.Peripherals.SD
                         break;
                     }
 
+                    state = SDCardState.SendingData;
+
                     readContext.Offset = highCapacityMode
                         ? arg * blockLengthInBytes
                         : arg;
@@ -482,6 +528,8 @@ namespace Antmicro.Renode.Peripherals.SD
                         // TODO: implement it
                         break;
                     }
+
+                    state = SDCardState.ReceivingData;
 
                     writeContext.BytesLeft = blockLengthInBytes;
                     writeContext.Offset = highCapacityMode
@@ -522,7 +570,8 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardApplicationSpecificCommand.SendOperatingConditionRegister_ACMD41:
                     // activate the card
-                    isIdle = false;
+                    state = SDCardState.Ready;
+
                     highCapacityMode = BitHelper.IsBitSet(arg, 30);
 
                     result = spiMode
@@ -545,8 +594,9 @@ namespace Antmicro.Renode.Peripherals.SD
         }
 
         private bool spiMode;
-        private bool isIdle;
         private bool highCapacityMode;
+
+        private SDCardState state;
 
         private bool treatNextCommandAsAppCommand;
         private uint blockLengthInBytes;
@@ -731,6 +781,20 @@ namespace Antmicro.Renode.Peripherals.SD
             public uint Argument;
             public uint CommandNumber;
             public SpiState State;
+        }
+
+        private enum SDCardState
+        {
+            Idle = 0,
+            Ready = 1,
+            Identification = 2,
+            Standby = 3,
+            Transfer = 4,
+            SendingData = 5,
+            ReceivingData = 6,
+            Programming = 7,
+            Disconnect = 8
+            // the rest is reserved
         }
     }
 }
