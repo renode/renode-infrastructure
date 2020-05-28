@@ -39,6 +39,22 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(8, 1, 1, name: "READY_FOR_DATA bit");
 
             operatingConditionsGenerator = new VariableLengthValue(32)
+                .DefineFragment(8, 1, 1, name: "VDD voltage window 2.0 - 2.1")
+                .DefineFragment(9, 1, 1, name: "VDD voltage window 2.1 - 2.2")
+                .DefineFragment(10, 1, 1, name: "VDD voltage window 2.2 - 2.3")
+                .DefineFragment(11, 1, 1, name: "VDD voltage window 2.3 - 2.4")
+                .DefineFragment(12, 1, 1, name: "VDD voltage window 2.4 - 2.5")
+                .DefineFragment(13, 1, 1, name: "VDD voltage window 2.5 - 2.6")
+                .DefineFragment(14, 1, 1, name: "VDD voltage window 2.6 - 2.7")
+                .DefineFragment(15, 1, 1, name: "VDD voltage window 2.7 - 2.8")
+                .DefineFragment(16, 1, 1, name: "VDD voltage window 2.8 - 2.9")
+                .DefineFragment(17, 1, 1, name: "VDD voltage window 2.9 - 3.0")
+                .DefineFragment(18, 1, 1, name: "VDD voltage window 3.0 - 3.1")
+                .DefineFragment(19, 1, 1, name: "VDD voltage window 3.1 - 3.2")
+                .DefineFragment(20, 1, 1, name: "VDD voltage window 3.2 - 3.3")
+                .DefineFragment(21, 1, 1, name: "VDD voltage window 3.3 - 3.4")
+                .DefineFragment(22, 1, 1, name: "VDD voltage window 3.4 - 3.5")
+                .DefineFragment(23, 1, 1, name: "VDD voltage window 3.5 - 3.6")
                 .DefineFragment(31, 1, 1, name: "Card power up status bit (busy)")
             ;
 
