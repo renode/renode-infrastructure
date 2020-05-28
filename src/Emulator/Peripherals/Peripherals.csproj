@@ -316,6 +316,7 @@
     <Compile Include="Peripherals\Miscellaneous\EOSS3_FlexibleFusionEngine.cs" />
     <Compile Include="Peripherals\DMA\EOSS3_SystemDMABridge.cs" />
     <Compile Include="Peripherals\Sensors\ADXL345.cs" />
+    <Compile Include="Peripherals\SD\LiteSDCard.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
