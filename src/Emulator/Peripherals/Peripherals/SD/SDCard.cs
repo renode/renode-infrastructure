@@ -62,7 +62,12 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(47, 3, (uint)sdCapacityParameters.Multiplier, name: "device size multiplier")
                 .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                 .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
-                .DefineFragment(84, 12, (uint)CardCommandClass.Class0, name: "card command classes")
+                .DefineFragment(84, 12, (uint)(
+                      CardCommandClass.Class0 
+                    | CardCommandClass.Class2
+                    | CardCommandClass.Class4
+
+                    ), name: "card command classes")
                 .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
                 .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
             ;
