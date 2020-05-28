@@ -366,10 +366,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             return new BitStream()
                 .Append(GenerateR1Response().AsByte())
-                .Append((byte)0) // 4 bytes of the OCR register
-                .Append((byte)0) // TODO: fill with the actual data
-                .Append((byte)0)
-                .Append((byte)0);
+                .Append(OperatingConditions.AsByteArray());
         }
 
         private BitStream GenerateR7Response()
