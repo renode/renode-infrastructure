@@ -1407,7 +1407,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             get { return DisassemblerManager.Instance.GetAvailableDisassemblers(Architecture); }
         }
 
-        protected enum MpuAccess
+        public enum MpuAccess
         {
             Read = 0,
             Write = 1,
@@ -1416,12 +1416,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ulong TranslateAddressNoFault(ulong logicalAddress)
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress, 2, 1);
+            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)MpuAccess.InstructionFetch, 1);
         }
 
-        public ulong TranslateAddress(ulong logicalAddress, uint accesType, uint nofault)
+        public ulong TranslateAddress(ulong logicalAddress, MpuAccess accesType, uint nofault)
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress, accesType, nofault);
+            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accesType, nofault);
         }
 
         [PostDeserialization]
