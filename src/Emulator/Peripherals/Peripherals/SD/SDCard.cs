@@ -163,6 +163,10 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 result = readContext.Data.AsByteArray(readContext.Offset, size);
                 readContext.Move(size * 8);
+                if(readContext.BytesLeft == 0)
+                {
+                    readContext.Reset();
+                }
             }
             else
             {
