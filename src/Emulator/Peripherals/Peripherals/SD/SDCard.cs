@@ -57,6 +57,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(21, 1, 1, name: "VDD voltage window 3.3 - 3.4")
                 .DefineFragment(22, 1, 1, name: "VDD voltage window 3.4 - 3.5")
                 .DefineFragment(23, 1, 1, name: "VDD voltage window 3.5 - 3.6")
+                .DefineFragment(30, 1, () => highCapacityMode ? 1 : 0u, name: "Card Capacity Status")
                 .DefineFragment(31, 1, 1, name: "Card power up status bit (busy)")
             ;
 
@@ -449,8 +450,11 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
-                    readContext.Offset = arg * blockLengthInBytes;
                     readContext.BytesLeft = blockLengthInBytes;
+                    readContext.Offset = highCapacityMode
+                        ? arg * blockLengthInBytes
+                        : arg;
+
                     return spiMode
                         ? GenerateR1Response()
                             .Append(BlockBeginIndicator)
@@ -465,7 +469,10 @@ namespace Antmicro.Renode.Peripherals.SD
                         break;
                     }
 
-                    readContext.Offset = arg * blockLengthInBytes;
+                    readContext.Offset = highCapacityMode
+                        ? arg * blockLengthInBytes
+                        : arg;
+
                     return CardStatus;
 
                 case SdCardCommand.WriteSingleBlock_CMD24:
@@ -476,8 +483,11 @@ namespace Antmicro.Renode.Peripherals.SD
                         break;
                     }
 
-                    writeContext.Offset = arg * blockLengthInBytes;
                     writeContext.BytesLeft = blockLengthInBytes;
+                    writeContext.Offset = highCapacityMode
+                        ? arg * blockLengthInBytes
+                        : arg;
+
                     return CardStatus;
 
                 case SdCardCommand.AppCommand_CMD55:
@@ -513,6 +523,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SdCardApplicationSpecificCommand.SendOperatingConditionRegister_ACMD41:
                     // activate the card
                     isIdle = false;
+                    highCapacityMode = BitHelper.IsBitSet(arg, 30);
 
                     result = spiMode
                         ? GenerateR1Response()
@@ -535,6 +546,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private bool spiMode;
         private bool isIdle;
+        private bool highCapacityMode;
 
         private bool treatNextCommandAsAppCommand;
         private uint blockLengthInBytes;
