@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public LiteX_Timer(Machine machine, long frequency) : base(machine)
         {
+            uptimeTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(uptimeTimer), direction: Antmicro.Renode.Time.Direction.Ascending, enabled: true);
             innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);
             innerTimer.LimitReached += delegate
             {
@@ -41,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             base.Reset();
             innerTimer.Reset();
+            uptimeTimer.Reset();
             latchedValue = 0;
             loadValue = 0;
             reloadValue = 0;
@@ -50,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; } = new GPIO();
 
-        public long Size => 0x44;
+        public long Size => 0x68;
 
         private void DefineRegisters()
         {
@@ -129,6 +131,31 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.EventEnable.Define32(this)
                 .WithFlag(0, out irqEnabled, name: "EV_ENABLE", changeCallback: (_, __) => UpdateInterrupts())
             ;
+
+            Registers.UptimeLatch.Define32(this)
+                .WithFlag(0, FieldMode.WriteOneToClear, name: "UPTIME_LATCH", writeCallback: (_, val) =>
+                {
+                    if(val)
+                    {
+                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                        {
+                            // being here means we are on the CPU thread
+                            cpu.SyncTime();
+                        }
+
+                        uptimeLatchedValue = uptimeTimer.Value;
+                    }
+                });
+
+            // UPTIME_CYCLES0 contains most significant 8 bits
+            // UPTIME_CYCLES7 contains least significant 8 bits
+            Registers.UptimeCycles0.DefineMany(this, 8, (reg, idx) =>
+            {
+                reg.WithValueField(0, 8, FieldMode.Read, name: $"UPTIME_CYCLES{idx}", valueProviderCallback: _ =>
+                {
+                    return (byte)BitHelper.GetValue(uptimeLatchedValue, 56 - idx * 8, 8);
+                });
+            });
         }
 
         private void UpdateInterrupts()
@@ -144,7 +171,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint loadValue;
         private uint reloadValue;
 
+        private ulong uptimeLatchedValue;
+
         private readonly LimitTimer innerTimer;
+        private readonly LimitTimer uptimeTimer;
 
         private const int SubregistersCount = 4;
 
@@ -170,7 +200,18 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             EventStatus = 0x38,
             EventPending = 0x3c,
-            EventEnable = 0x40
+            EventEnable = 0x40,
+
+            UptimeLatch = 0x44,
+
+            UptimeCycles0 = 0x48,
+            UptimeCycles1 = 0x4C,
+            UptimeCycles2 = 0x50,
+            UptimeCycles3 = 0x54,
+            UptimeCycles4 = 0x58,
+            UptimeCycles5 = 0x5C,
+            UptimeCycles6 = 0x60,
+            UptimeCycles7 = 0x64
         }
     }
 }
