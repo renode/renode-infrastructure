@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
             argumentValue = 0;
             blockSize = 0;
+            blockCount = 0;
 
             readerDataBuffer = null;
 
@@ -302,6 +303,16 @@ namespace Antmicro.Renode.Peripherals.SD
                     .WithIgnoredBits(8, 24);
             });
 
+            CoreRegisters.BlockCount.DefineMany(coreRegistersCollection, 4, (register, idx) =>
+            {
+                register
+                    .WithValueField(0, 8, name: $"BlockCount{idx}", writeCallback: (_, val) =>
+                    {
+                        BitHelper.ReplaceBits(ref blockCount, width: 8, source: val, destinationPosition: 24 - idx * 8);
+                    })
+                    .WithIgnoredBits(8, 24);
+            });
+
             ReaderRegisters.ReaderReset.Define(readerRegistersCollection)
                 .WithIgnoredBits(0, 1) // reset bit, no need for handling this
                 .WithReservedBits(1, 7)
@@ -335,6 +346,12 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private void ReadData()
         {
+            if(blockCount != 1)
+            {
+                this.Log(LogLevel.Warning, "This model curently supports only reading a sinlge block at a time, but the block count is set to {0}", blockCount);
+                return;
+            }
+
             readerDataBuffer = RegisteredPeripheral.ReadData(blockSize);
             this.Log(LogLevel.Noisy, "Received data is: {0}", Misc.PrettyPrintCollectionHex(readerDataBuffer));
         }
@@ -348,6 +365,7 @@ namespace Antmicro.Renode.Peripherals.SD
         }
 
         private uint blockSize;
+        private uint blockCount;
         private IFlagRegisterField readerStartFlag;
         private IFlagRegisterField writerStartFlag;
         private IValueRegisterField commandIndexField;
