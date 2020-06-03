@@ -302,6 +302,11 @@ namespace Antmicro.Renode.Peripherals.SD
                     .WithIgnoredBits(8, 24);
             });
 
+            ReaderRegisters.ReaderReset.Define(readerRegistersCollection)
+                .WithIgnoredBits(0, 1) // reset bit, no need for handling this
+                .WithReservedBits(1, 7)
+                .WithIgnoredBits(8, 24);
+
             ReaderRegisters.ReaderStart.Define(readerRegistersCollection)
                 .WithFlag(0, out readerStartFlag, name: "start")
                 .WithReservedBits(1, 7)
@@ -309,6 +314,11 @@ namespace Antmicro.Renode.Peripherals.SD
 
             ReaderRegisters.ReaderDone.Define(readerRegistersCollection)
                 .WithFlag(0, FieldMode.Read, name: "done", valueProviderCallback: _ => true)
+                .WithReservedBits(1, 7)
+                .WithIgnoredBits(8, 24);
+
+            WriterRegisters.WriterReset.Define(writerRegistersCollection)
+                .WithIgnoredBits(0, 1) // reset bit, no need for handling this
                 .WithReservedBits(1, 7)
                 .WithIgnoredBits(8, 24);
 
