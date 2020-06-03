@@ -378,10 +378,10 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private uint argumentValue;
 
-        public readonly DoubleWordRegisterCollection phyRegistersCollection;
-        public readonly DoubleWordRegisterCollection coreRegistersCollection;
-        public readonly DoubleWordRegisterCollection readerRegistersCollection;
-        public readonly DoubleWordRegisterCollection writerRegistersCollection;
+        private readonly DoubleWordRegisterCollection phyRegistersCollection;
+        private readonly DoubleWordRegisterCollection coreRegistersCollection;
+        private readonly DoubleWordRegisterCollection readerRegistersCollection;
+        private readonly DoubleWordRegisterCollection writerRegistersCollection;
 
         private enum TransferType
         {
