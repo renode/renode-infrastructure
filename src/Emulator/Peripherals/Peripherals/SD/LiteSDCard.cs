@@ -223,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     
                     for(var i = 0; i < resp.Length; i++)
                     {
-                        responseBuffer[16 - i] = resp[i];
+                        responseBuffer[ResponseBufferLength - 1 - i] = resp[i];
                     }
 
                     switch(transferTypeField.Value)
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithReservedBits(1, 7)
                 .WithReservedBits(8, 24);
 
-            CoreRegisters.Response.DefineMany(coreRegistersCollection, 17, (register, idx) =>
+            CoreRegisters.Response.DefineMany(coreRegistersCollection, ResponseBufferLength, (register, idx) =>
             {
                 register
                     .WithValueField(0, 8, FieldMode.Read, name: $"Response{idx}", valueProviderCallback: _ =>
@@ -383,6 +383,8 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly DoubleWordRegisterCollection readerRegistersCollection;
         private readonly DoubleWordRegisterCollection writerRegistersCollection;
 
+        private const int ResponseBufferLength = 16;
+
         private enum TransferType
         {
             None,
@@ -411,21 +413,21 @@ namespace Antmicro.Renode.Peripherals.SD
             Command3 = 0x10 + 0xC,
             IssueCommand = 0x20,
             Response = 0x24,
-            CommandEvent0 = 0x68,
-            CommandEvent1 = 0x68 + 0x4,
-            CommandEvent2 = 0x68 + 0x8,
-            CommandEvent3 = 0x68 + 0xC,
-            DataEvent0 = 0x78 + 0x0,
-            DataEvent1 = 0x78 + 0x4,
-            DataEvent2 = 0x78 + 0x8,
-            DataEvent3 = 0x78 + 0xC,
-            BlockSize = 0x88,
-            BlockCount = 0x90,
-            DataTimeout = 0xA0,
-            CommandTimeout = 0xB0,
-            DataWCRCClear = 0xC0,
-            DataWCRCValids = 0xC4,
-            DataWCRCErrors = 0xD4
+            CommandEvent0 = 0x64,
+            CommandEvent1 = 0x64 + 0x4,
+            CommandEvent2 = 0x64 + 0x8,
+            CommandEvent3 = 0x64 + 0xC,
+            DataEvent0 = 0x74 + 0x0,
+            DataEvent1 = 0x74 + 0x4,
+            DataEvent2 = 0x74 + 0x8,
+            DataEvent3 = 0x74 + 0xC,
+            BlockSize = 0x84,
+            BlockCount = 0x8C,
+            DataTimeout = 0x9C,
+            CommandTimeout = 0xAC,
+            DataWCRCClear = 0xBC,
+            DataWCRCValids = 0xC0,
+            DataWCRCErrors = 0xD0
         }
 
         private enum ReaderRegisters
