@@ -1407,15 +1407,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             get { return DisassemblerManager.Instance.GetAvailableDisassemblers(Architecture); }
         }
 
-        public ulong TranslateAddress(ulong logicalAddress)
+        protected enum MpuAccess
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress);
+            Read = 0,
+            Write = 1,
+            InstructionFetch = 2
+        }
+
+        public ulong TranslateAddressNoFault(ulong logicalAddress)
+        {
+            return TlibTranslateToPhysicalAddress(logicalAddress, 2, 1);
+        }
+
+        public ulong TranslateAddress(ulong logicalAddress, uint accesType, uint nofault)
+        {
+            return TlibTranslateToPhysicalAddress(logicalAddress, accesType, nofault);
         }
 
         [PostDeserialization]
         protected void InitDisas()
         {
-            DisasEngine = new DisassemblyEngine(this, TranslateAddress);
+            DisasEngine = new DisassemblyEngine(this, TranslateAddressNoFault);
             var diss = AvailableDisassemblers;
             if (diss.Length > 0)
             {
@@ -1529,7 +1541,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionIntPtrIntPtr TlibInvalidateTranslationBlocks;
 
         [Import]
-        protected FuncUInt64UInt64 TlibTranslateToPhysicalAddress;
+        protected FuncUInt64UInt64UInt32UInt32 TlibTranslateToPhysicalAddress;
 
         [Import]
         private ActionIntPtrInt32 RenodeSetHostBlocks;
