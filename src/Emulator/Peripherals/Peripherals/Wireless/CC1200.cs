@@ -544,7 +544,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 // We ignore lowest 4 bits, as RSSI is 12-bit wide
                 fifoData.Add((byte)((Rssi & 0xFF0) >> 4));
-                fifoData.Add((byte)((crcOK.Value ? (1 << 7) : 0) | Lqi));
+                fifoData.Add((byte)((uint)(crcOK.Value ? (1 << 7) : 0) | Lqi));
             }
 
             // Filtering using MPDU is not present for CC1200.
