@@ -255,14 +255,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                                 break;
                         }
                     });
-
-            Registers.Slave0Address.Define(this)
-                .WithValueField(1, 7, out slave0Address, name: "adr")
-                .WithFlag(0, name: "gc");
-
-            Registers.Slave1Address.Define(this)
-                .WithValueField(1, 7, out slave1Address, name: "adr")
-                .WithFlag(0, name: "gc");
         }
 
         private State CurrentState
@@ -286,8 +278,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         private II2CPeripheral selectedSlave;
         private IFlagRegisterField serialInterruptFlag;
         private IFlagRegisterField isCoreEnabled;
-        private IValueRegisterField slave0Address;
-        private IValueRegisterField slave1Address;
         private bool pendingMasterTransaction;
         private bool isReadOperation;
         private int irqResubmitCounter;
