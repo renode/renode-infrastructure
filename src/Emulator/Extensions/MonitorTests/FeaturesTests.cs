@@ -30,7 +30,6 @@ namespace Antmicro.Renode.MonitorTests
         public void ShouldHandleNewExtensionsFromLoadedAssembly()
         {
             var commandInteraction = new CommandInteractionEater();
-            var commandInstance = new TestCommand(monitor);
             var file = GetType().Assembly.FromResourceToTemporaryFile("MockExtension.cs");
             monitor.Parse("emulation GetSeed", commandInteraction);
             monitor.Parse($"i @{file}", commandInteraction);
