@@ -819,6 +819,13 @@ namespace Antmicro.Renode.Utilities
             b = temporary;
         }
 
+        public static void SwapElements<T>(T[] arr, int id1, int id2)
+        {
+            var tmp = arr[id1];
+            arr[id1] = arr[id2];
+            arr[id2] = tmp;
+        }
+
         public static bool CalculateUnitSuffix(double value, out double newValue, out string unit)
         {
             var units = new [] { "B", "KB", "MB", "GB", "TB" };

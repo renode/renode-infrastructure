@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals
 {
@@ -159,24 +160,15 @@ namespace Antmicro.Renode.Peripherals
         private void FixFieldEndianess(byte[] arr)
         {
             // swap Magic
-            SwapElements(0, 1);
+            Misc.SwapElements(arr, 0, 1);
 
             // swap ReadValueWriteAddress
-            SwapElements(12, 15);
-            SwapElements(13, 14);
+            Misc.SwapElements(arr, 12, 15);
+            Misc.SwapElements(arr, 13, 14);
 
             // swap WriteValueReadAddress
-            SwapElements(16, 19);
-            SwapElements(17, 18);
-
-            void SwapElements(int id1, int id2)
-            {
-                byte tmp;
-
-                tmp = arr[id1];
-                arr[id1] = arr[id2];
-                arr[id2] = tmp;
-            }
+            Misc.SwapElements(arr, 16, 19);
+            Misc.SwapElements(arr, 17, 18);
         }
 
         private ulong absoluteAddress;
