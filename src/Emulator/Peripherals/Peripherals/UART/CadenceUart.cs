@@ -19,8 +19,8 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public CadenceUart()
         {
-		    buffer = new Queue<byte>();
-		    Reset();
+            buffer = new Queue<byte>();
+            Reset();
             IRQ = new GPIO();
         }
 
