@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
 
                 {(long)Registers.Mode, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, out usartMode, writeCallback: (_, value) =>
+                    .WithValueField(0, 4, writeCallback: (_, value) =>
                     {
                         if(value != 0)
                         {
@@ -269,8 +269,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly IFlagRegisterField receiverReadyIrqEnabled;
         private readonly IFlagRegisterField transmitterReadyIrqEnabled;
-
-        private readonly IValueRegisterField usartMode;
 
         private readonly DoubleWordRegisterCollection registers;
 
