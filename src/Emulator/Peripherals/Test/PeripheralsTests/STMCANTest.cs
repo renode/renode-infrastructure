@@ -21,7 +21,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void InitTest()
         {
-            var stmcan = new STMCAN(new Machine());
+            var stmcan = new STMCAN();
             stmcan.Reset();
             // Registers can only be accessed by words (32 bits)
             // --> check this  
@@ -168,7 +168,7 @@ namespace Antmicro.Renode.PeripheralsTests
             byte[] txData = new byte[8] { 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8 };
             // #####################################
             // ### Setup CAN device
-            var stmcan = new STMCAN(new Machine());
+            var stmcan = new STMCAN();
             stmcan.Reset();
             // Init mode 
             stmcan.WriteDoubleWord(0x00, 0x00010000);
@@ -251,7 +251,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test, Ignore]
         public void AnotherTest()
         {
-            var stmcan = new STMCAN(new Machine());
+            var stmcan = new STMCAN();
             stmcan.Reset();
         }
     }

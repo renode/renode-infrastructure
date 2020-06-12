@@ -28,9 +28,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         byte[] controlPacket;
         Queue <sbyte> queue;
 
-        public USBMouse(Machine machine)
+        public USBMouse()
         {
-            this.machine = machine;
             endpointDescriptor = new EndpointUSBDescriptor[3];
             for(int i=0; i<NumberOfEndpoints; i++)
             {
@@ -496,8 +495,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             throw new NotImplementedException();
         }
         #endregion
-
-        private readonly Machine machine;
     }
 }
 

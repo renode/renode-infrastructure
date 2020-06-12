@@ -15,9 +15,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBTablet :IUSBPeripheral, IAbsolutePositionPointerInput
     {
-        public USBTablet(Machine machine)
+        public USBTablet()
         {
-            this.machine = machine;
             Reset();
         }
 
@@ -357,7 +356,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         private int y;
         private byte mstate = 0;
         private bool changeState = false;
-        private readonly Machine machine;
         private Dictionary<ushort, string[]> stringValues = new Dictionary<ushort, string[]>() { {EnglishLangId, new string[] {
                     "",
                     "1",

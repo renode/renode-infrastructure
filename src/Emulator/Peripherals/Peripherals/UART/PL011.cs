@@ -18,9 +18,8 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class PL011 : IDoubleWordPeripheral, IUART, IKnownSize
     {
-        public PL011(Machine machine, int size = 0x1000)
+        public PL011(int size = 0x1000)
         {
-            this.machine = machine;
             this.size = size;
             IRQ = new GPIO();
             Reset();
@@ -340,7 +339,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly int size;
         private readonly PrimeCellIDHelper idHelper;
-        private readonly Machine machine;
 
         private const uint UartEnable = 0x0001;
         private const uint LoopbackEnable = 0x0080;

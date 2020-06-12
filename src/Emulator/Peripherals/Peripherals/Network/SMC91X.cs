@@ -19,9 +19,8 @@ namespace Antmicro.Renode.Peripherals.Network
     [AllowedTranslations(AllowedTranslation.ByteToWord)]
     public class SMC91X :  IKnownSize, IMACInterface,  IWordPeripheral, IDoubleWordPeripheral
     {
-        public SMC91X(Machine machine)
+        public SMC91X()
         {
-            this.machine = machine;
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             IRQ = new GPIO();
             Reset();
@@ -734,8 +733,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private Queue<byte> sentFifo = new Queue<byte>();
         private MemoryRegion[] memoryBuffer;
         private object lockObj = new object();
-
-        private readonly Machine machine;
 
         private const byte NumberOfPackets = 4;
         private const ushort MaxPacketSize = 2048;

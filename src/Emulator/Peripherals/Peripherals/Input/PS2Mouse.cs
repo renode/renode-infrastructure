@@ -15,9 +15,8 @@ namespace Antmicro.Renode.Peripherals.Input
 {
     public class PS2Mouse : IPS2Peripheral, IRelativePositionPointerInput
     {
-        public PS2Mouse(Machine machine)
+        public PS2Mouse()
         {
-            this.machine = machine;
             data = new Queue<byte>();
             Reset();
         }
@@ -164,7 +163,6 @@ namespace Antmicro.Renode.Peripherals.Input
         private Command lastCommand;
         private byte buttonState;
         private readonly Queue<byte> data;
-        private readonly Machine machine;
 
         enum Command : byte
         {

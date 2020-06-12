@@ -16,9 +16,8 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class LEUART : IDoubleWordPeripheral, IUART
     {
-        public LEUART(Machine machine)
+        public LEUART()
         {
-            this.machine = machine;
             queueLock = new object();
             IRQ = new GPIO();
             Reset();
@@ -134,7 +133,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private InterruptFlag interruptFlag;
         private Queue<byte> waitingChars;
         private readonly object queueLock;
-        private readonly Machine machine;
 
         [Flags]
         private enum InterruptFlag

@@ -20,7 +20,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public CoreLevelInterruptor(Machine machine, long frequency, int numberOfTargets = 1)
         {
-            this.machine = machine;
             this.timerFrequency = frequency;
             if(numberOfTargets < 1)
             {
@@ -130,7 +129,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
-        private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly Dictionary<int, BaseRiscV> cpus = new Dictionary<int, BaseRiscV>();

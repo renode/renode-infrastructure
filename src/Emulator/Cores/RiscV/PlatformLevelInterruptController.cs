@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class PlatformLevelInterruptController : IDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        public PlatformLevelInterruptController(Machine machine, int numberOfSources, int numberOfTargets = 1, bool prioritiesEnabled = true)
+        public PlatformLevelInterruptController(int numberOfSources, int numberOfTargets = 1, bool prioritiesEnabled = true)
         {
             // numberOfSources has to fit between these two registers, one bit per source
             if(Math.Ceiling((numberOfSources + 1) / 32.0) * 4 > Targets01EnablesWidth)
@@ -30,7 +30,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             this.prioritiesEnabled = prioritiesEnabled;
 
-            this.machine = machine;
             var connections = new Dictionary<int, IGPIO>();
             for(var i = 0; i < 4 * numberOfTargets; i++)
             {
@@ -213,7 +212,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly IrqSource[] irqSources;
         private readonly IrqTarget[] irqTargets;
-        private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registers;
         private readonly bool prioritiesEnabled;
 

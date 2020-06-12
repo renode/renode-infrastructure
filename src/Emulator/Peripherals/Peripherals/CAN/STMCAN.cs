@@ -17,9 +17,8 @@ namespace Antmicro.Renode.Peripherals.CAN
 {
     public class STMCAN : IDoubleWordPeripheral, ICAN, INumberedGPIOOutput
     {
-        public STMCAN(Machine machine)
+        public STMCAN()
         {
-            this.machine = machine;
             for(int i = 0; i < NumberOfRxFifos; i++)
             {
                 RxFifo[i] = new Queue<CANMessage>();
@@ -1851,6 +1850,5 @@ namespace Antmicro.Renode.Peripherals.CAN
         private Queue<CANMessage>[] RxFifo = new Queue<CANMessage>[NumberOfRxFifos];
         public FilterBank[] FilterBanks;
         public List<FilterBank>[] FifoFiltersPrioritized = new List<FilterBank>[NumberOfRxFifos];
-        private readonly Machine machine;
     }
 }

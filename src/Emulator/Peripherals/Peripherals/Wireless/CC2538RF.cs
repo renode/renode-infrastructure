@@ -21,9 +21,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public class CC2538RF : IDoubleWordPeripheral, IBytePeripheral, IKnownSize, IRadio
     {
-        public CC2538RF(Machine machine)
+        public CC2538RF()
         {
-            this.machine = machine;
             rxLock = new object();
             rxQueue = new Queue<Frame>();
             txQueue = new Queue<byte>();
@@ -792,7 +791,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly Address extendedAddress;
         private readonly Queue<Frame> rxQueue;
         private readonly Queue<byte> txQueue;
-        private readonly Machine machine;
         [Constructor]
         private readonly PseudorandomNumberGenerator random;
 

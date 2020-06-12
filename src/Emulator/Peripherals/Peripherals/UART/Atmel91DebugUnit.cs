@@ -17,9 +17,8 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class Atmel91DebugUnit : IDoubleWordPeripheral, IUART
     {
-        public Atmel91DebugUnit(Machine machine)
+        public Atmel91DebugUnit()
         {
-            this.machine = machine;
 		    buffer = new Queue<byte>();
 		    Reset();
             IRQ = new GPIO();
@@ -214,7 +213,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private readonly Machine machine;
         public const int MasterClockFrequency = 0;
     }
 }

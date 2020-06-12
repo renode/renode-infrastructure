@@ -22,9 +22,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public sealed class CC1200: IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
     {
-        public CC1200(Machine machine)
+        public CC1200()
         {
-            this.machine = machine;
             CreateRegisters();
             var dict = new Dictionary<int, IGPIO>();
             //GPIO 0/1/2/3 are general purpose, GPIO4 is MISO
@@ -942,9 +941,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private ByteRegisterCollection registers;
         private ByteRegisterCollection extendedRegisters;
-
-
-        private readonly Machine machine;
 
         private const uint Rssi = 0xB60; // 0xB60 is a value of -74dBm - which is a good quality signal
         private const uint Lqi = 105; // Approx values <50, 110> are good, where 110 is the best signal quality

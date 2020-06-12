@@ -19,9 +19,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public sealed class CC2520: IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
     {
-        public CC2520(Machine machine)
+        public CC2520()
         {
-            this.machine = machine;
             CreateRegisters();
             RegisterInstructions();
             var dict = new Dictionary<int, IGPIO>();
@@ -870,8 +869,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private ByteRegisterCollection registers;
 
         private DecoderEntry decoderRoot = new DecoderEntry();
-
-        private readonly Machine machine;
 
         private const int RegisterMemorySize = 0x80;
         private const uint TxFifoMemoryStart = 0x100;
