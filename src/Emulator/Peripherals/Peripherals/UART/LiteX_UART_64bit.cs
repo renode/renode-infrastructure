@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out txEventEnabled)
+                    .WithFlag(0, name: "txEventEnabled")
                     .WithFlag(1, out rxEventEnabled)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -139,7 +139,6 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ.Set(eventPending);
         }
 
-        private IFlagRegisterField txEventEnabled;
         private IFlagRegisterField rxEventEnabled;
         private IFlagRegisterField rxEventPending;
         private readonly DoubleWordRegisterCollection registers;
