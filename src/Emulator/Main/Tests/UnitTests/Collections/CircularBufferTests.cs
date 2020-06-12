@@ -55,7 +55,7 @@ namespace Antmicro.Renode.UnitTests.Collections
             {
                 buffer.TryDequeue(out var _);
             }
-            Assert.IsFalse(buffer.TryDequeue(out var _));
+            Assert.IsFalse(buffer.TryDequeue(out var __));
         }
 
         [Test]
