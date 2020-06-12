@@ -115,18 +115,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 HandleNoDataCommand();
             }
             return 0;
-
-            void AccumulateAddressBytes(byte addressByte, State nextState)
-            {
-                if(currentOperation.TryAccumulateAddress(addressByte))
-                {
-                    this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
-                    state = nextState;
-                }
-            }
         }
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
+
+        private void AccumulateAddressBytes(byte addressByte, State nextState)
+        {
+            if(currentOperation.TryAccumulateAddress(addressByte))
+            {
+                this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
+                state = nextState;
+            }
+        }
 
         private byte[] GetDeviceData()
         {
