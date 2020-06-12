@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
 
             Registers.Endpoint0OutRespond.Define(this)
-                .WithEnumField<DoubleWordRegister, USBResponse>(0, 2, out endpoint0OutRespond, writeCallback: (_, v) =>
+                .WithEnumField<DoubleWordRegister, USBResponse>(0, 2, writeCallback: (_, v) =>
                 {
                     this.Log(LogLevel.Noisy, "Endpoint 0 OUT response set to: {0} in state {1}", v, state);
                     switch(v)
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
 
             Registers.Endpoint0InRespond.Define(this)
-                .WithEnumField<DoubleWordRegister, USBResponse>(0, 2, out endpoint0InRespond, writeCallback: (_, v) =>
+                .WithEnumField<DoubleWordRegister, USBResponse>(0, 2, writeCallback: (_, v) =>
                 {
                     this.Log(LogLevel.Noisy, "Endpoint 0 IN response set to: {0} in state {1}", v, state);
                     switch(v)
@@ -382,8 +382,6 @@ namespace Antmicro.Renode.Peripherals.USB
         private IFlagRegisterField endpoint0OutPacketEventEnabled;
         private IFlagRegisterField endpoint0OutErrorEventEnabled;
         private IFlagRegisterField endpoint0OutErrorPending;
-        private IEnumRegisterField<USBResponse> endpoint0OutRespond;
-        private IEnumRegisterField<USBResponse> endpoint0InRespond;
 
         private readonly int maxPacketSize;
         private readonly Queue<byte> masterToSlaveBuffer = new Queue<byte>();
