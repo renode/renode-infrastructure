@@ -143,18 +143,18 @@ namespace Antmicro.Renode.Peripherals.USB
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => doubleWordRegisters;
 
+        private bool ReadAndClearInterrupt<T>(InterruptManager<T> irqManager, T irq) where T : struct, IConvertible
+        {
+            var result = irqManager.IsSet(irq);
+            if(result)
+            {
+                irqManager.SetInterrupt(irq, false);
+            }
+            return result;
+        }
+
         private void DefineCommonRegisters()
         {
-            bool ReadAndClearInterrupt<T>(InterruptManager<T> irqManager, T irq) where T : struct, IConvertible
-            {
-                var result = irqManager.IsSet(irq);
-                if(result)
-                {
-                    irqManager.SetInterrupt(irq, false);
-                }
-                return result;
-            }
-
             Registers.FunctionAddress.Tag8(this, name: "FADDR_REG")
             ;
 
@@ -281,25 +281,26 @@ namespace Antmicro.Renode.Peripherals.USB
             ;
         }
 
+        private ulong ReadFromFifo(int fifoId, int numberOfBytes)
+        {
+            var result = 0ul;
+            for(var i = 0; i < numberOfBytes; i++)
+            {
+                result |= (ulong)((long)fifoFromDeviceToHost[fifoId].Dequeue() << (8 * i));
+            }
+            return result;
+        }
+
+        private void WriteToFifo(int fifoId, int numberOfBytes, ulong value)
+        {
+            for(var i = 0; i < numberOfBytes; i++)
+            {
+                fifoFromHostToDevice[fifoId].Enqueue((byte)(value >> (8 * i)));
+            }
+        }
+
         private void DefineFifoRegisters()
         {
-            ulong ReadFromFifo(int fifoId, int numberOfBytes)
-            {
-                var result = 0ul;
-                for(var i = 0; i < numberOfBytes; i++)
-                {
-                    result |= (ulong)((long)fifoFromDeviceToHost[fifoId].Dequeue() << (8 * i));
-                }
-                return result;
-            }
-
-            void WriteToFifo(int fifoId, int numberOfBytes, ulong value)
-            {
-                for(var i = 0; i < numberOfBytes; i++)
-                {
-                    fifoFromHostToDevice[fifoId].Enqueue((byte)(value >> (8 * i)));
-                }
-            }
 
             for(var i = 0; i < NumberOfEndpoints; i++)
             {
@@ -325,19 +326,20 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        private void DefineControlAndStatusRegisters()
+        private void HandleSessionStart()
         {
-            void HandleSessionStart()
+            lock(addressToDeviceCache)
             {
-                lock(addressToDeviceCache)
+                addressToDeviceCache.Clear();
+                if(sessionInProgress.Value)
                 {
-                    addressToDeviceCache.Clear();
-                    if(sessionInProgress.Value)
-                    {
-                        TryInitializeConnectedDevice();
-                    }
+                    TryInitializeConnectedDevice();
                 }
             }
+        }
+
+        private void DefineControlAndStatusRegisters()
+        {
 
             Registers.DeviceControl.Define8(this, 0x80, name: "DEV_CTRL_REG")
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "B-Device")
