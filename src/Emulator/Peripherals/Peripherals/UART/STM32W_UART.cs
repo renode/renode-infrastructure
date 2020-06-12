@@ -16,9 +16,8 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class STM32W_UART :  IDoubleWordPeripheral, IUART
     {
-        public STM32W_UART(Machine machine)
+        public STM32W_UART()
         {
-            this.machine = machine;
             IRQ = new GPIO();
             charFifo = new Queue<byte>();
         }
@@ -162,8 +161,6 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private const uint UARTClockFrequency = 24000000; // 24Mhz
-
-        private readonly Machine machine;
     }
 }
 

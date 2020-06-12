@@ -29,9 +29,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         byte[] controlPacket;
         Queue <byte> queue;
 
-        public USBKeyboard(Machine machine)
+        public USBKeyboard()
         {
-            this.machine = machine;
             queue = new Queue<byte>();
             endpointDescriptor = new EndpointUSBDescriptor[3];
             for(int i=0; i<NumberOfEndpoints; i++)
@@ -310,7 +309,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         }
 
         uint DeviceAddress = 0;
-        private readonly Machine machine;
 
         public void SetAddress(uint address)
         {

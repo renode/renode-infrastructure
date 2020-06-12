@@ -19,10 +19,9 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class ENC28J60 : ISPIPeripheral, IMACInterface
     {
-        public ENC28J60(Machine machine)
+        public ENC28J60()
         {
             sync = new object();
-            this.machine = machine;
             ResetPointers();
 
             var econ1 = new ByteRegister(this).WithValueField(0, 2, out currentBank, name: "BSEL")
@@ -561,7 +560,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private readonly WordRegisterCollection phyRegisters;
         private readonly ByteRegisterCollection[] registers;
-        private readonly Machine machine;
         private readonly byte[] ethernetBuffer;
         private readonly object sync;
 

@@ -17,9 +17,8 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class AxiUartLite : IDoubleWordPeripheral, IUART, IKnownSize
     {
-        public AxiUartLite(Machine machine)
+        public AxiUartLite()
         {
-            this.machine = machine;
             readFifo = new Queue<uint>();
         }
 
@@ -75,7 +74,6 @@ namespace Antmicro.Renode.Peripherals.UART
         public uint BaudRate { get { return 0; } }
 
         private readonly Queue<uint> readFifo;
-        private readonly Machine machine;
 
         private enum Register
         {
