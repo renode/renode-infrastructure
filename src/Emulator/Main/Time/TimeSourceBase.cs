@@ -703,7 +703,7 @@ namespace Antmicro.Renode.Time
             }
 
             private readonly object innerLock;
-            private volatile int highPriorityRequestPendingCounter;
+            private int highPriorityRequestPendingCounter;
         }
 
         /// <summary>
