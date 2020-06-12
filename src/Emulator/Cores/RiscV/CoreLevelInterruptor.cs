@@ -131,7 +131,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
-        private readonly Dictionary<int, BaseRiscV> cpus = new Dictionary<int, BaseRiscV>();
         private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
         private readonly long timerFrequency;
 
