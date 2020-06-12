@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
 
                 {(long)Registers.InputRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out inputReg, FieldMode.Read,
+                    .WithValueField(0, 32, FieldMode.Read,
                         valueProviderCallback: val =>
                         {
                             var pins = irqManager.PinDirection.Select(x => (x & GPIOInterruptManager.Direction.Input) != 0);
@@ -207,7 +207,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly GPIOInterruptManager irqManager;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object locker;
-        private readonly IValueRegisterField inputReg;
 
         private const int RegisterLength = 32;
         private const int RegisterOffset = 0x4;
