@@ -77,7 +77,6 @@ namespace Antmicro.Renode.Core.USB.HID
         private BitStream HandleGetDescriptor(ushort value)
         {
             var descriptorType = (DescriptorType)(value >> 8);
-            var descriptorIndex = (byte)value;
 
             switch(descriptorType)
             {
