@@ -61,10 +61,13 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public IEnumerable<T> DequeueAll()
         {
+            var res = new List<T>();
             while(TryDequeue(out var value))
             {
-                yield return value;
+                res.Append(value);
             }
+
+	    return res;
         }
 
         public void CopyTo(T[] array, int arrayIndex)
