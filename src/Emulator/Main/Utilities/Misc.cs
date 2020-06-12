@@ -1146,19 +1146,19 @@ namespace Antmicro.Renode.Utilities
                 renamed = true;
             }
             return renamed;
+	}
 
-            bool TryCreateEmptyFile(string p)
+        private static bool TryCreateEmptyFile(string p)
+        {
+            try
             {
-                try
-                {
-                    File.Open(p, FileMode.CreateNew).Dispose();
-                    return true;
-                }
-                catch(IOException)
-                {
-                    // this is expected - the file already exists
-                    return false;
-                }
+                File.Open(p, FileMode.CreateNew).Dispose();
+                return true;
+            }
+            catch(IOException)
+            {
+                // this is expected - the file already exists
+                return false;
             }
         }
     }
