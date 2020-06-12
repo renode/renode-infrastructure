@@ -440,12 +440,12 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
 
             return result;
+        }
 
-            void SetText(byte[] destination, string format, params object[] param)
-            {
-                var textBuffer = System.Text.Encoding.ASCII.GetBytes(string.Format(format, param));
-                Array.Copy(textBuffer, destination, textBuffer.Length);
-            }
+        private void SetText(byte[] destination, string format, params object[] param)
+        {
+            var textBuffer = System.Text.Encoding.ASCII.GetBytes(string.Format(format, param));
+            Array.Copy(textBuffer, destination, textBuffer.Length);
         }
 
         private IEnumerable<byte> HandleListDevicesCommand()
