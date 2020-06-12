@@ -55,40 +55,13 @@ namespace Antmicro.Renode.Core.Structure
 
         public MACAddress Next(int count = 1)
         {
-            var result = this;
-
             for(var i = 0; i < count; i++)
             {
                 InnerNext();
             }
 
-            return result;
-
-            void InnerNext()
-            {
-                var cp = 5;
-                while(true)
-                {
-                    if(result.GetByte(cp) == byte.MaxValue)
-                    {
-                        if(cp == 0)
-                        {
-                            throw new OverflowException();
-                        }
-                        cp--;
-                    }
-                    else
-                    {
-                        result.SetByte(cp, (byte)(result.GetByte(cp) + 1));
-                        for(int i = cp + 1; i < 6; i++)
-                        {
-                            result.SetByte(i, 0);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
+            return this;
+	}
 
         public MACAddress Previous()
         {
@@ -235,6 +208,31 @@ namespace Antmicro.Renode.Core.Structure
         public static bool operator !=(MACAddress a, MACAddress b)
         {
             return !(a == b);
+        }
+
+        private void InnerNext()
+        {
+            var cp = 5;
+            while(true)
+            {
+                if(this.GetByte(cp) == byte.MaxValue)
+                {
+                    if(cp == 0)
+                    {
+                        throw new OverflowException();
+                    }
+                    cp--;
+                }
+                else
+                {
+                    this.SetByte(cp, (byte)(this.GetByte(cp) + 1));
+                    for(int i = cp + 1; i < 6; i++)
+                    {
+                        this.SetByte(i, 0);
+                    }
+                    break;
+                }
+            }
         }
 
         private byte GetByte(int index)
