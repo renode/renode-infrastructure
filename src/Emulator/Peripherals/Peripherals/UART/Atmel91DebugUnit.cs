@@ -19,8 +19,8 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public Atmel91DebugUnit()
         {
-		    buffer = new Queue<byte>();
-		    Reset();
+            buffer = new Queue<byte>();
+            Reset();
             IRQ = new GPIO();
         }
 
