@@ -14,8 +14,6 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         // Definitions taken from: http://www.ti.com/lit/ug/swru346b/swru346b.pdf (page 46 and page 55)
         public PHYHeader802154(byte byteA, byte byteB, PHYType type)
         {
-            this.byteA = byteA;
-            this.byteB = byteB;
             if(type == PHYType.Header802154)
             {
                 Length = byteA;
@@ -38,9 +36,6 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         public bool DataWhitening { get; }
         public bool FCS2Byte { get; }
         public bool ModeSwitch { get; }
-
-        private byte byteA;
-        private byte byteB;
 
         // PHY Header Type
         public enum PHYType
