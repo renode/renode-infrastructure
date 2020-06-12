@@ -28,8 +28,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {Targets01EnablesWidth} sources");
             }
 
-            this.prioritiesEnabled = prioritiesEnabled;
-
             var connections = new Dictionary<int, IGPIO>();
             for(var i = 0; i < 4 * numberOfTargets; i++)
             {
@@ -213,7 +211,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly IrqSource[] irqSources;
         private readonly IrqTarget[] irqTargets;
         private readonly DoubleWordRegisterCollection registers;
-        private readonly bool prioritiesEnabled;
 
         private class IrqSource
         {
