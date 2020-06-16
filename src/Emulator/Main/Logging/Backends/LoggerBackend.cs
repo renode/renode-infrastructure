@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Logging
         protected LogLevel logLevel;
 
         private readonly Dictionary<int, LogLevel> peripheralsWithDifferentLogging;
-        private readonly LogLevel DefaultLogLevel = LogLevel.Debug;
+        private readonly LogLevel DefaultLogLevel = LogLevel.Info;
     }
 }
 
