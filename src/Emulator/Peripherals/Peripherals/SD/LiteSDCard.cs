@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
             DefineRegisters();
 
-            responseBuffer = new byte[17];
+            responseBuffer = new byte[ResponseBufferLength];
 
             writerDataBuffer = new byte[512];
         }
