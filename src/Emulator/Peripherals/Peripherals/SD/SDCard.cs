@@ -103,14 +103,14 @@ namespace Antmicro.Renode.Peripherals.SD
         public BitStream HandleCommand(uint commandIndex, uint arg)
         {
             BitStream result;
-            this.Log(LogLevel.Debug, "Command received: 0x{0:x} with arg 0x{1:x}", commandIndex, arg);
+            this.Log(LogLevel.Noisy, "Command received: 0x{0:x} with arg 0x{1:x}", commandIndex, arg);
             var treatNextCommandAsAppCommandLocal = treatNextCommandAsAppCommand;
             treatNextCommandAsAppCommand = false;
             if(!treatNextCommandAsAppCommandLocal || !TryHandleApplicationSpecificCommand((SdCardApplicationSpecificCommand)commandIndex, arg, out result))
             {
                 result = HandleStandardCommand((SdCardCommand)commandIndex, arg);
             }
-            this.Log(LogLevel.Debug, "Sending command response: {0}", result.ToString());
+            this.Log(LogLevel.Noisy, "Sending command response: {0}", result.ToString());
             return result;
         }
 
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.SD
         // TODO: this method should be removed and it should be controller's responsibility to control the number of bytes to read
         public void SetReadLimit(uint size)
         {
-            this.Log(LogLevel.Debug, "Setting read limit to: {0}", size);
+            this.Log(LogLevel.Noisy, "Setting read limit to: {0}", size);
             readContext.BytesLeft = size;
         }
 
@@ -385,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private BitStream HandleStandardCommand(SdCardCommand command, uint arg)
         {
-            this.Log(LogLevel.Debug, "Handling as a standard command: {0}", command);
+            this.Log(LogLevel.Noisy, "Handling as a standard command: {0}", command);
             switch(command)
             {
                 case SdCardCommand.GoIdleState_CMD0:
@@ -559,7 +559,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private bool TryHandleApplicationSpecificCommand(SdCardApplicationSpecificCommand command, uint arg, out BitStream result)
         {
-            this.Log(LogLevel.Debug, "Handling as an application specific command: {0}", command);
+            this.Log(LogLevel.Noisy, "Handling as an application specific command: {0}", command);
             switch(command)
             {
                 case SdCardApplicationSpecificCommand.SendSDCardStatus_ACMD13:
@@ -588,7 +588,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     return true;
 
                 default:
-                    this.Log(LogLevel.Debug, "Command #{0} seems not to be any application specific command", command);
+                    this.Log(LogLevel.Noisy, "Command #{0} seems not to be any application specific command", command);
                     result = null;
                     return false;
             }
