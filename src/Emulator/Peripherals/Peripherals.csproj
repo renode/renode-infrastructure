@@ -318,6 +318,9 @@
     <Compile Include="Peripherals\Sensors\ADXL345.cs" />
     <Compile Include="Peripherals\SD\LiteSDCard.cs" />
     <Compile Include="Peripherals\Sensors\PAC1934.cs" />
+    <Compile Include="Peripherals\Sound\LiteX_I2S.cs" />
+    <Compile Include="Peripherals\Sound\LiteX_I2S_Master.cs" />
+    <Compile Include="Peripherals\Sound\LiteX_I2S_Slave.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
