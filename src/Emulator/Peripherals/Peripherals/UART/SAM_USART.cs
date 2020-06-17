@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
 
                 {(long)Registers.Mode, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, writeCallback: (_, value) =>
+                    .WithValueField(0, 4, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
                     {
                         if(value != 0)
                         {
