@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.priorityMask = priorityMask;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
+            resetMachine = machine.RequestReset;
             systick.LimitReached += () =>
             {
                 countFlag = true;
@@ -186,6 +187,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 binaryPointPosition = (int)(value >> 8) & 7;
+                if (((value >> 2) & 1) == 1)
+                {
+                    resetMachine();
+                }
                 break;
             case Registers.SystemControlRegister:
                 if((value & DeepSleep) != 0)
@@ -608,6 +613,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
+        private readonly Action resetMachine;
         private CortexM cpu;
         private readonly LimitTimer systick;
 
