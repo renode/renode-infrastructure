@@ -14,8 +14,9 @@ namespace Antmicro.Renode.Utilities
 {
     public class AdHocCompiler
     {
-        public string Compile(string sourcePath, IEnumerable<string> referencedLibraries = null)
+        public string Compile(string sourcePath)
         {
+            var names = AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.FullName);
             using(var provider = CodeDomProvider.CreateProvider("CSharp"))
             {
                 var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
@@ -23,12 +24,9 @@ namespace Antmicro.Renode.Utilities
 #if PLATFORM_LINUX
                 parameters.CompilerOptions = "/langversion:experimental";
 #endif
-                if(referencedLibraries != null)
+                foreach(var name in names)
                 {
-                    foreach(var lib in referencedLibraries)
-                    {
-                        parameters.ReferencedAssemblies.Add(lib);
-                    }
+                    parameters.ReferencedAssemblies.Add(name);
                 }
 
                 var result = provider.CompileAssemblyFromFile(parameters, new[] { sourcePath });
