@@ -5,14 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+using System;
 using System.CodeDom.Compiler;
 using System.Linq;
-using System.Collections.Generic;
-using System.Reflection;
-using Antmicro.Migrant;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
