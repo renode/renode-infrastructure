@@ -20,8 +20,6 @@ namespace Antmicro.Renode.Utilities
             {
                 var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
                 var parameters = new CompilerParameters { GenerateInMemory = false, GenerateExecutable = false, OutputAssembly = outputFileName };
-                parameters.ReferencedAssemblies.Add(Assembly.GetAssembly(typeof(Machine)).Location); // Core
-                parameters.ReferencedAssemblies.Add(Assembly.GetAssembly(typeof(Serializer)).Location); // Migrant
 #if PLATFORM_LINUX
                 parameters.CompilerOptions = "/langversion:experimental";
 #endif
