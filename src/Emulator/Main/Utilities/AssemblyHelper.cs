@@ -77,6 +77,19 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        private static string ExtractAssemblyToFile(Stream stream, string fileName)
+        {
+            var outputFile = TemporaryFilesManager.Instance.GetTemporaryFile(fileName);
+            using(var fileStream = File.Create(outputFile, (int)stream.Length))
+            {
+                var bytesInStream = new byte[stream.Length];
+                stream.Seek(0, SeekOrigin.Begin);
+                stream.Read(bytesInStream, 0, bytesInStream.Length);
+                fileStream.Write(bytesInStream, 0, bytesInStream.Length);
+            }
+            return outputFile;
+        }
+
         [DllImport("__Internal", EntryPoint = "GetBundlesCount")]
         private static extern int GetBundlesCountInternal();
 
