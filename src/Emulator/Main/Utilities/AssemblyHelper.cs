@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Utilities
 {
     class AssemblyHelper
     {
-        public static bool InitializeBundledAssemblies()
+        public static bool TryInitializeBundledAssemblies()
         {
             var result = false;
             for(var i = 0; i < BundledAssembliesCount; i++)

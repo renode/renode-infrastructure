@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Utilities
         static TypeManager()
         {
             string assemblyLocation;
-            var isBundled = AssemblyHelper.InitializeBundledAssemblies();
+            var isBundled = AssemblyHelper.TryInitializeBundledAssemblies();
 
             Instance = new TypeManager(isBundled);
             if(isBundled)
