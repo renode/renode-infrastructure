@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Utilities
     {
         public string Compile(string sourcePath)
         {
-            var names = AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.FullName);
+            var locations = AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location);
             using(var provider = CodeDomProvider.CreateProvider("CSharp"))
             {
                 var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
@@ -24,9 +24,9 @@ namespace Antmicro.Renode.Utilities
 #if PLATFORM_LINUX
                 parameters.CompilerOptions = "/langversion:experimental";
 #endif
-                foreach(var name in names)
+                foreach(var location in locations)
                 {
-                    parameters.ReferencedAssemblies.Add(name);
+                    parameters.ReferencedAssemblies.Add(location);
                 }
 
                 var result = provider.CompileAssemblyFromFile(parameters, new[] { sourcePath });
