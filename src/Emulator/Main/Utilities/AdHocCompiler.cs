@@ -44,6 +44,16 @@ namespace Antmicro.Renode.Utilities
                                                                         (current, error) => current + ("\n" + error));
                     throw new RecoverableException(string.Format("There were compilation errors:\n{0}", errors));
                 }
+                try
+                {
+                    // Try to read any information from the compiled assembly to check if we have silently failed
+                    var name = result.CompiledAssembly.FullName;
+                }
+                catch(Exception e)
+                {
+                    throw new RecoverableException(string.Format("Could not compile assembly: {0}", e.Message));
+                }
+
                 return outputFileName;
             }
         }
