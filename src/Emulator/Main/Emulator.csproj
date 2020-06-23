@@ -138,7 +138,7 @@
     <Compile Include="Peripherals\Network\INetworkInterface.cs" />
     <Compile Include="Peripherals\IAbsoluteAddressAware.cs" />
     <Compile Include="Utilities\TypeManager.cs" />
-    <Compile Include="Utilities\BundleHelper.cs" />
+    <Compile Include="Utilities\AssemblyHelper.cs" />
     <Compile Include="Peripherals\IMapped.cs" />
     <Compile Include="Core\Emulation.cs" />
     <Compile Include="Peripherals\Network\IMACInterface.cs" />

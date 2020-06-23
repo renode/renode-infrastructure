@@ -23,12 +23,12 @@ namespace Antmicro.Renode.Utilities
         static TypeManager()
         {
             string assemblyLocation;
-            var isBundled = BundleHelper.InitializeBundledAssemblies();
+            var isBundled = AssemblyHelper.InitializeBundledAssemblies();
 
             Instance = new TypeManager(isBundled);
             if(isBundled)
             {
-                foreach(var name in BundleHelper.GetBundledAssembliesNames())
+                foreach(var name in AssemblyHelper.GetBundledAssembliesNames())
                 {
                     Instance.ScanFile(name, bundled: true);
                 }
@@ -357,7 +357,7 @@ namespace Antmicro.Renode.Utilities
                 try
                 {
                     var scope = tp.GetElementType().Scope.ToString();
-                    var bundled = BundleHelper.GetBundledAssemblyByFullName(scope);
+                    var bundled = AssemblyHelper.GetBundledAssemblyByFullName(scope);
                     if(bundled != null)
                     {
                         if(tp.IsArray)
@@ -480,7 +480,7 @@ namespace Antmicro.Renode.Utilities
             try
             {
                 assembly = (bundled)
-                    ? BundleHelper.GetBundledAssemblyByName(path)
+                    ? AssemblyHelper.GetBundledAssemblyByName(path)
                     : AssemblyDefinition.ReadAssembly(path);
             }
             catch(DirectoryNotFoundException)

@@ -13,7 +13,7 @@ using Mono.Cecil;
 
 namespace Antmicro.Renode.Utilities
 {
-    class BundleHelper
+    class AssemblyHelper
     {
         public static bool InitializeBundledAssemblies()
         {

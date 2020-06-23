@@ -563,7 +563,7 @@ namespace Antmicro.Renode.Utilities
         public static bool TryGetRootDirectory(out string directory)
         {
 #if PLATFORM_LINUX
-            if(BundleHelper.BundledAssembliesCount > 0)
+            if(AssemblyHelper.BundledAssembliesCount > 0)
             {
                 // we are bundled, so we need a custom way of detecting the root directory
                 var thisFile = new StringBuilder(2048);
