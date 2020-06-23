@@ -7,6 +7,7 @@
 //
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
 
@@ -16,14 +17,21 @@ namespace Antmicro.Renode.Utilities
     {
         public string Compile(string sourcePath)
         {
-            var locations = AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location);
             using(var provider = CodeDomProvider.CreateProvider("CSharp"))
             {
+                var blacklist = new List<string> { "mscorlib", "System." };
                 var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
                 var parameters = new CompilerParameters { GenerateInMemory = false, GenerateExecutable = false, OutputAssembly = outputFileName };
 #if PLATFORM_LINUX
                 parameters.CompilerOptions = "/langversion:experimental";
 #endif
+                var locations = AssemblyHelper.GetAssembliesLocations();
+                if(AssemblyHelper.BundledAssembliesCount > 0)
+                {
+                    // Assigning any non-empty string to this property prevents the compiler from referencing mscorlib.dll
+                    parameters.CoreAssemblyFileName = "some bogus string";
+                    locations = locations.Where(x => !blacklist.Any(x.Contains));
+                }
                 foreach(var location in locations)
                 {
                     parameters.ReferencedAssemblies.Add(location);
