@@ -72,6 +72,7 @@ namespace Antmicro.Renode.Utilities
                 {
                     result.Name = Marshal.PtrToStringAnsi(GetBundleNameInternal(id));
                     result.Definition = AssemblyDefinition.ReadAssembly(stream);
+                    result.Location = ExtractAssemblyToFile(stream, result.Name);
                 }
                 return result;
             }
@@ -108,6 +109,7 @@ namespace Antmicro.Renode.Utilities
         {
             public string Name;
             public AssemblyDefinition Definition;
+            public string Location;
         }
     }
 }
