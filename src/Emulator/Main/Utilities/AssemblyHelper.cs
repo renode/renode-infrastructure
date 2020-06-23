@@ -43,6 +43,15 @@ namespace Antmicro.Renode.Utilities
             return bundledAssemblies.FirstOrDefault(x => x.Name == name).Definition;
         }
 
+        public static IEnumerable<string> GetAssembliesLocations()
+        {
+            if(BundledAssembliesCount > 0)
+            {
+                return bundledAssemblies.Select(x => x.Location);
+            }
+            return AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location);
+        }
+
         public static int BundledAssembliesCount
         {
             get
