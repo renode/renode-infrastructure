@@ -44,15 +44,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             txFifo.Clear();
             rxFifo.Clear();
-            memory = new byte[GeneralMemorySize];
-            sourceAddressTable = new byte[SourceAddressTableSize];
-            sourceAddressMatchingResult = new byte[SourceAddressMatchingResultSize];
-            sourceAddressMatchingControl = new byte[SourceAddressMatchingControlSize];
-            localAddressInfo = new byte[LocalAddressInfoSize];
-
-            localExtendedAddress = new Address(new ArraySegment<byte>(localAddressInfo, 0, 8));
-            localShortAddress = new Address(new ArraySegment<byte>(localAddressInfo, 10, 2));
-
 
             registers.Reset();
             extendedRegisters.Reset();
@@ -638,11 +629,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // bits 0:3 are reserved, 7 is CHIP_RDYn, should always be zero
         }
 
-        private uint GetPanId()
-        {
-            return (uint)((localAddressInfo[9] << 8) | localAddressInfo[8]);
-        }
-
         private int ChannelValueFromFrequency(uint frequency)
         {
             var actualFreq = frequency * 625 / 4096; // should be calculated from f_xosc, freqoff (equal to 0) and LO_Divider.
@@ -916,14 +902,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IEnumRegisterField<GPIOSignal> gpio0Selection;
         private IFlagRegisterField crcAutoflush;
 
-
-        private readonly IValueRegisterField[] shortAddressMatchingEnabled = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] extendedAddressMatchingEnabled = new IValueRegisterField[3];
-
-        private readonly IValueRegisterField[] pendingExceptionFlag = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] pendingExceptionMaskA = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] pendingExceptionMaskB = new IValueRegisterField[3];
-
         private bool crcEnabled;
         private bool wasSyncTransfered;
 
@@ -931,13 +909,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private readonly CircularBuffer<byte> txFifo = new CircularBuffer<byte>(0x80);
         private readonly CircularBuffer<byte> rxFifo = new CircularBuffer<byte>(0x80);
-        private byte[] memory;
-        private byte[] sourceAddressTable;
-        private byte[] sourceAddressMatchingResult;
-        private byte[] sourceAddressMatchingControl;
-        private byte[] localAddressInfo;
-        private Address localShortAddress;
-        private Address localExtendedAddress;
 
         private ByteRegisterCollection registers;
         private ByteRegisterCollection extendedRegisters;
