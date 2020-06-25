@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     (long)ControllerRegisters.Command,
                     new DoubleWordRegister(this)
-                        .WithFlag(0, out runStopMode, name: "RunStopMode")
+                        .WithFlag(0, name: "RunStopMode")
                         .WithTag("ListenOnlyMode", 1, 1)
                         .WithTag("LoopbackTestMode", 2, 1)
                         .WithTag("SRAMTestMode", 3, 1)
@@ -376,7 +376,6 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IFlagRegisterField txMessageInterruptsStatus;
         private IFlagRegisterField rxMessageInterruptsStatus;
         private IFlagRegisterField swapEndian;
-        private IFlagRegisterField runStopMode;
         
         private readonly DoubleWordRegisterCollection registers;
         
