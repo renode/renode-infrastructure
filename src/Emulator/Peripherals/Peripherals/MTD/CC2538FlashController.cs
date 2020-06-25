@@ -32,13 +32,13 @@ namespace Antmicro.Renode.Peripherals.MTD
                                 }
                             }, name: "ERASE")
                     .WithFlag(1, out write, name: "WRITE")
-                    .WithValueField(2, 2, out cacheMode, name: "CACHE_MODE")
+                    .WithTag("CACHE_MODE", 2, 2)
                     .WithReservedBits(4, 1)
                     .WithTag("ABORT", 5, 1)
                     .WithFlag(6, FieldMode.Read, name: "FULL")
                     .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => write.Value, name: "BUSY")
-                    .WithFlag(8, out selInfoPage, name: "SEL_INFO_PAGE")
-                    .WithFlag(9, out upperPageAccess, name: "UPPER_PAGE_ACCESS")
+                    .WithTag("SEL_INFO_PAGE", 8, 1)
+                    .WithTag("UPPER_PAGE_ACCESS", 9, 1)
                     .WithReservedBits(10, 22)
                 },
                 {(long)Registers.FlashAddress, new DoubleWordRegister(this)
@@ -116,10 +116,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         }
 
         private uint writeAddress;
-        private readonly IValueRegisterField cacheMode;
         private readonly IFlagRegisterField write;
-        private readonly IFlagRegisterField selInfoPage;
-        private readonly IFlagRegisterField upperPageAccess;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly MappedMemory flash;
