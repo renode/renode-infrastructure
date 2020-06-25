@@ -195,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     case (long)Registers.ProportionalPower1:
                         return BitConverter.GetBytes(proportionalPower);
                     default:
-                        parent.Log(LogLevel.Warning, "Trying to read bytes from unhandled channel offset 0x{0:X}", offset);
+                        parent.Log(LogLevel.Warning, "Trying to read bytes from unhandled channel {0} at offset 0x{1:X}", channelNumber, offset);
                         return new byte[] { 0 };
                 }
             }
