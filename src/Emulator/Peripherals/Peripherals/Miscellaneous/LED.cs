@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public LED(bool invert = false)
         {
             inverted = invert;
-            State = invert;
+            state = invert;
             sync = new object();
         }
 
@@ -27,27 +27,39 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 throw new ArgumentOutOfRangeException();
             }
-            var stateChanged = StateChanged;
-            lock(sync)
-            {
-                if(stateChanged != null)
-                {
-                    stateChanged(this, inverted ? !value : value);
-                }
-                State = inverted ? !value : value;
-                this.Log(LogLevel.Noisy, "LED state changed - {0}", inverted ? !value : value);
-            }
+
+            State = inverted ? !value : value;
         }
 
         public void Reset()
         {
-            State = inverted;
+            state = inverted;
         }
 
         [field: Transient]
         public event Action<ILed, bool> StateChanged;
 
-        public bool State { get; private set; }
+        public bool State 
+        { 
+            get => state;
+
+            private set
+            {
+                lock(sync)
+                {
+                    if(value == state)
+                    {
+                        return;
+                    }
+
+                    state = value;
+                    StateChanged?.Invoke(this, state);
+                    this.Log(LogLevel.Noisy, "LED state changed to {0}", state);
+                }
+            }
+        }
+
+        private bool state;
 
         private readonly bool inverted;
         private readonly object sync;
