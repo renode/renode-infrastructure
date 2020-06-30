@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public LED(bool invert = false)
         {
             inverted = invert;
+            State = invert;
             sync = new object();
         }
 
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
-            // despite apperances, nothing
+            State = inverted;
         }
 
         [field: Transient]
