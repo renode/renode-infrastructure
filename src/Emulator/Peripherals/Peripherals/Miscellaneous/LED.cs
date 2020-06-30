@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -38,8 +38,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        public bool State { get; private set; }
-
         public void Reset()
         {
             // despite apperances, nothing
@@ -48,8 +46,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         [field: Transient]
         public event Action<ILed, bool> StateChanged;
 
-        private bool inverted;
+        public bool State { get; private set; }
 
+        private readonly bool inverted;
         private readonly object sync;
     }
 }
