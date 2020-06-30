@@ -176,6 +176,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     SetPendingIRQ(14);
                 }
+                if((value & (1u << 31)) != 0)
+                {
+                    SetPendingIRQ(2);
+                }
                 break;
             case Registers.VectorTableOffset:
                 cpu.VectorTableOffset = value & 0xFFFFFF80;
