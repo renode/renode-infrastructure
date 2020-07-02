@@ -224,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 originalReadIndication = $" (caused by reading offset 0x{originalOffset}";
             }
             currentSystemBus.Log(
-                LogLevel.Debug,
+                LogLevel.Warning,
                 formatString,
                 value,
                 peripheralName,
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 writeOnceIndication = " a write-once register";
             }
             currentSystemBus.Log(
-                LogLevel.Debug,
+                LogLevel.Warning,
                 formatString,
                 value,
                 peripheralName,
