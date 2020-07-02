@@ -217,7 +217,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadSuccess(uint value, string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Read value 0x{0:X} from {1}:{2} (0x{3:X}){4}.";
+            var formatString = "Read value 0x{0:X} from {1}:{2} (0x{3:X}){4} (not implemented).";
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
@@ -236,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogWriteSuccess(uint value, string peripheralName, string name, ulong offset, bool writeOnce = false, ulong? originalOffset = null, uint? originalValue = null)
         {
-            var formatString = "Write value 0x{0:X} to{5} {1}:{2} (0x{3:X}){4}.";
+            var formatString = "Write value 0x{0:X} to{5} {1}:{2} (0x{3:X}){4} (not implemented).";
             var originalWriteIndication = String.Empty;
             var writeOnceIndication = String.Empty;
             if(originalValue.HasValue)
@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadFail(string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Read value 0x0 from a write-only register {0}:{1} (0x{2:X}){3}.";
+            var formatString = "Read value 0x0 from a write-only register {0}:{1} (0x{2:X}){3} (not implemented).";
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
@@ -279,7 +279,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogWriteFail(uint value, string peripheralName, string name, ulong offset, ulong? originalOffset = null, uint? originalValue = null)
         {
-            var formatString = "Write value 0x{0:X} to a read-only register {1}:{2} (0x{3:X}){4}.";
+            var formatString = "Write value 0x{0:X} to a read-only register {1}:{2} (0x{3:X}){4} (not implemented).";
             var originalWriteIndication = String.Empty;
             if(originalValue.HasValue)
             {
