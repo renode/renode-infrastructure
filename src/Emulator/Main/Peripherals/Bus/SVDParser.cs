@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadFail(string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Invalid read from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0."
+            var formatString = "Invalid read from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0.";
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
