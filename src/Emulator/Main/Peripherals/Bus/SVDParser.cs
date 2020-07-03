@@ -217,11 +217,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadSuccess(uint value, string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Read value 0x{0:X} from {1}:{2} (0x{3:X}){4} (not implemented).";
+            var formatString = "Read from an unimplemented register {1}:{2} (0x{3:X}){4}, returning a value from SVD: 0x{0:X}.";
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
-                originalReadIndication = $" (caused by reading offset 0x{originalOffset}";
+                originalReadIndication = $" (caused by reading offset 0x{originalOffset:X})";
             }
             currentSystemBus.Log(
                 LogLevel.Warning,
@@ -236,16 +236,16 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogWriteSuccess(uint value, string peripheralName, string name, ulong offset, bool writeOnce = false, ulong? originalOffset = null, uint? originalValue = null)
         {
-            var formatString = "Write value 0x{0:X} to{5} {1}:{2} (0x{3:X}){4} (not implemented).";
+            var formatString = "Write of value 0x{0:X} to an unimplemented{5} register {1}:{2} (0x{3:X}){4} generated from SVD.";
             var originalWriteIndication = String.Empty;
             var writeOnceIndication = String.Empty;
             if(originalValue.HasValue)
             {
-                originalWriteIndication = $" (caused by writing offset 0x{originalOffset} value {originalValue}";
+                originalWriteIndication = $" (caused by writing offset 0x{originalOffset:X} value 0x{originalValue:X})";
             }
             if(writeOnce)
             {
-                writeOnceIndication = " a write-once register";
+                writeOnceIndication = " write-once";
             }
             currentSystemBus.Log(
                 LogLevel.Warning,
@@ -261,11 +261,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadFail(string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Read value 0x0 from a write-only register {0}:{1} (0x{2:X}){3} (not implemented).";
+            var formatString = "Invalid read from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0."
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
-                originalReadIndication = $" (caused by reading offset 0x{originalOffset}";
+                originalReadIndication = $" (caused by reading offset 0x{originalOffset:X})";
             }
             currentSystemBus.Log(
                 LogLevel.Warning,
@@ -279,11 +279,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogWriteFail(uint value, string peripheralName, string name, ulong offset, ulong? originalOffset = null, uint? originalValue = null)
         {
-            var formatString = "Write value 0x{0:X} to a read-only register {1}:{2} (0x{3:X}){4} (not implemented).";
+            var formatString = "Invalid write of value 0x{0:X} to a read-only register {1}:{2} (0x{3:X}){4} generated from SVD.";
             var originalWriteIndication = String.Empty;
             if(originalValue.HasValue)
             {
-                originalWriteIndication = $" (caused by writing offset 0x{originalOffset} value {originalValue}";
+                originalWriteIndication = $" (caused by writing offset 0x{originalOffset:X} value 0x{originalValue:X})";
             }
             currentSystemBus.Log(
                 LogLevel.Warning,
