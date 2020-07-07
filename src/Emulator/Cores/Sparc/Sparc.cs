@@ -127,6 +127,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected override string GetExceptionDescription(ulong exceptionIndex)
+        {
+            return ExceptionDescriptionsMap.TryGetValue(exceptionIndex, out var result)
+                ? result
+                : base.GetExceptionDescription(exceptionIndex);
+        }
+
         public uint EntryPoint { get; private set; }
 
         [Export]
@@ -251,6 +258,31 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionIntPtr TlibAfterLoad;
 
         #pragma warning restore 649
+
+        private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>
+        {
+            {0x01, "Instruction access exception"},
+            {0x02, "Illegal instruction"},
+            {0x03, "Privileged instruction"},
+            {0x04, "FP disabled"},
+            {0x05, "Window overflow"},
+            {0x06, "Window underflow"},
+            {0x07, "Memory address not aligned"},
+            {0x08, "FP exception"},
+            {0x09, "Data access exception"},
+            {0x0A, "Tag overflow"},
+            {0x0B, "Watchpoint detected"},
+            {0x20, "R register access error"},
+            {0x21, "Instruction access error"},
+            {0x24, "CP disabled"},
+            {0x25, "Unimplemented FLUSH"},
+            {0x28, "CP Exception"},
+            {0x29, "Data access error"},
+            {0x2A, "Division by zero"},
+            {0x2B, "Data store error"},
+            {0x2C, "Data access MMU miss"},
+            {0x3C, "Instruction access MMU miss"}
+        };
     }
 }
 

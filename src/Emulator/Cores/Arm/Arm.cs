@@ -194,6 +194,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TlibEvaluateConditionCode(condition) > 0;
         }
 
+        protected override string GetExceptionDescription(ulong exceptionIndex)
+        {
+            if((int)exceptionIndex >= ExceptionDescriptions.Length)
+            {
+                return base.GetExceptionDescription(exceptionIndex);
+            }
+
+            return ExceptionDescriptions[exceptionIndex];
+        }
+
         [Export]
         private uint DoSemihosting()
         {
@@ -257,5 +267,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionInt32 SetThumb;
 
 #pragma warning restore 649
+
+        private readonly string[] ExceptionDescriptions = 
+        {
+            "Undefined instruction",
+            "Software interrupt",
+            "Instruction Fetch Memory Abort (Prefetch Abort)",
+            "Data Access Memory Abort (Data Abort)",
+            "Normal Interrupt (IRQ)",
+            "Fast Interrupt (FIQ)",
+            "Breakpoint",
+            "Kernel Trap",
+            "STREX instruction"
+        };
     }
 }

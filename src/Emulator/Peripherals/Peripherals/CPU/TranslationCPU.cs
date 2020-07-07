@@ -421,6 +421,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public virtual void Reset()
         {
             isAborted = false;
+            isInterruptLoggingEnabled = false;
             Pause();
             HandleRamSetup();
             TlibReset();
@@ -575,6 +576,48 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void AddHookAtInterruptBegin(Action<ulong> hook)
+        {
+            if(interruptBeginHook == null)
+            {
+                TlibSetInterruptBeginHookPresent(1u);
+            }
+            interruptBeginHook += hook;
+        }
+
+        public void AddHookAtInterruptEnd(Action<ulong> hook)
+        {
+            if(Architecture != "riscv")
+            {
+                throw new RecoverableException("Hooks at the end of interrupt are supported only in the RISC-V architecture");
+            }
+
+            if(interruptEndHook == null)
+            {
+                TlibSetInterruptEndHookPresent(1u);
+            }
+            interruptEndHook += hook;
+        }
+
+        public void LogCpuInterrupts(bool isEnabled)
+        {
+            if(isEnabled)
+            {
+                if(!isInterruptLoggingEnabled)
+                {
+                    AddHookAtInterruptBegin(LogCpuInterruptBegin);
+                    AddHookAtInterruptEnd(LogCpuInterruptEnd);
+                    isInterruptLoggingEnabled = true;
+                }
+            }
+            else
+            {
+                RemoveHookAtInterruptBegin(LogCpuInterruptBegin);
+                RemoveHookAtInterruptEnd(LogCpuInterruptEnd);
+                isInterruptLoggingEnabled = false;
+            }
+        }
+
         [Export]
         protected uint ReadByteFromBus(ulong offset)
         {
@@ -653,11 +696,26 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected virtual string GetExceptionDescription(ulong exceptionIndex)
+        {
+            return $"Undecoded {exceptionIndex}";
+        }
+
         public abstract void SetRegisterUnsafe(int register, ulong value);
 
         public abstract RegisterValue GetRegisterUnsafe(int register);
 
         public abstract IEnumerable<CPURegister> GetRegisters();
+
+        private void LogCpuInterruptBegin(ulong exceptionIndex)
+        {
+            this.Log(LogLevel.Info, "Begin of the interrupt: {0}", GetExceptionDescription(exceptionIndex));
+        }
+
+        private void LogCpuInterruptEnd(ulong exceptionIndex)
+        {
+            this.Log(LogLevel.Info, "End of the interrupt: {0}", GetExceptionDescription(exceptionIndex));
+        }
 
         private void SetInternalHookAtBlockBegin(Action<ulong, uint> hook)
         {
@@ -724,6 +782,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             actionsToExecuteOnCpuThread.Enqueue(a);
         }
 
+        private void RemoveHookAtInterruptBegin(Action<ulong> hook)
+        {
+            interruptBeginHook -= hook;
+            if(interruptBeginHook == null)
+            {
+                TlibSetInterruptBeginHookPresent(0u);
+            }
+        }
+
+        private void RemoveHookAtInterruptEnd(Action<ulong> hook)
+        {
+            interruptEndHook -= hook;
+            if(interruptEndHook == null)
+            {
+                TlibSetInterruptEndHookPresent(0u);
+            }
+        }
+
         private ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
         private ExecutionResult lastTlibResult;
 
@@ -764,6 +840,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 insideBlockHook = true;
                 blockFinishedHook?.Invoke(pc, executedInstructions);
             }
+        }
+
+        [Export]
+        private void OnInterruptBegin(ulong interruptIndex)
+        {
+            interruptBeginHook?.Invoke(interruptIndex);
+        }
+
+        [Export]
+        private void OnInterruptEnd(ulong interruptIndex)
+        {
+            interruptEndHook?.Invoke(interruptIndex);
         }
 
         protected virtual void InitializeRegisters()
@@ -1152,6 +1240,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong, uint> blockBeginInternalHook;
         private Action<ulong, uint> blockBeginUserHook;
         private Action<ulong, uint> blockFinishedHook;
+        private Action<ulong> interruptBeginHook;
+        private Action<ulong> interruptEndHook;
 
         private List<SegmentMapping> currentMappings;
 
@@ -1642,6 +1732,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected ActionUInt64 TlibResetExecutedInstructions;
+        [Import]
+        private ActionUInt32 TlibSetInterruptBeginHookPresent;
+
+        [Import]
+        private ActionUInt32 TlibSetInterruptEndHookPresent;
 
         #pragma warning restore 649
 
@@ -2092,6 +2187,7 @@ restart:
         private readonly CpuBitness bitness;
         private bool dispatcherRestartRequested;
         private readonly object cpuThreadBodyLock = new object();
+        private bool isInterruptLoggingEnabled;
 
         private class HookDescriptor
         {

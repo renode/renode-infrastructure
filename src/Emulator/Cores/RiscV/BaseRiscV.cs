@@ -12,6 +12,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -219,6 +220,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             pcWrittenFlag = true;
         }
 
+        protected override string GetExceptionDescription(ulong exceptionIndex)
+        {
+            var decoded = (exceptionIndex << 1) >> 1;
+            var descriptionMap = IsInterrupt(exceptionIndex)
+                ? InterruptDescriptionsMap
+                : ExceptionDescriptionsMap;
+
+            if(descriptionMap.TryGetValue(decoded, out var result))
+            {
+                return result;
+            }
+            return base.GetExceptionDescription(exceptionIndex);
+        }
+
+        private bool IsInterrupt(ulong exceptionIndex)
+        {
+            return BitHelper.IsBitSet(exceptionIndex, MostSignificantBit);
+        }
+
+        protected abstract byte MostSignificantBit { get; }
+
         private void EnableArchitectureVariants()
         {
             foreach(var @set in architectureSets)
@@ -376,6 +398,34 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetCsrValidationLevel;
 
 #pragma warning restore 649
+
+        private readonly Dictionary<ulong, string> InterruptDescriptionsMap = new Dictionary<ulong, string>
+        {
+            {1, "Supervisor software interrupt"},
+            {3, "Machine software interrupt"},
+            {5, "Supervisor timer interrupt"},
+            {7, "Machine timer interrupt"},
+            {9, "Supervisor external interrupt"},
+            {11, "Machine external interrupt"}
+        };
+
+        private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>
+        {
+            {0, "Instruction address misaligned"},
+            {1, "Instruction access fault"},
+            {2, "Illegal instruction"},
+            {3, "Breakpoint"},
+            {4, "Load address misaligned"},
+            {5, "Load access fault"},
+            {6, "Store address misaligned"},
+            {7, "Store access fault"},
+            {8, "Environment call from U-mode"},
+            {9, "Environment call from S-mode"},
+            {11, "Environment call from M-mode"},
+            {12, "Instruction page fault"},
+            {13, "Load page fault"},
+            {15, "Store page fault"}
+        };
 
         public enum PrivilegeArchitecture
         {

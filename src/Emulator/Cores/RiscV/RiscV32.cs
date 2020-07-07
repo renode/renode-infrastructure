@@ -21,6 +21,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string GDBArchitecture { get { return "riscv:rv32"; } }
 
+        protected override byte MostSignificantBit => 31;
+
         private uint BeforePCWrite(uint value)
         {
             PCWritten();

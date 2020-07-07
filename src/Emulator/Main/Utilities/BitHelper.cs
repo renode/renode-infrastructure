@@ -43,6 +43,11 @@ namespace Antmicro.Renode.Utilities
             return ((0x1 << bit) & reg) != 0;
         }
 
+        public static bool IsBitSet(ulong reg, byte bit)
+        {
+            return ((ulong)(0x1 << bit) & reg) != 0;
+        }
+
         public static uint SetBitsFrom(uint source, uint newValue, int position, int width)
         {
             var mask = ((1u << width) - 1) << position;

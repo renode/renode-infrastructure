@@ -168,6 +168,7 @@
     <Compile Include="Utilities\USB\InterfaceDescriptor.cs" />
     <Compile Include="Utilities\UartFileBackend.cs" />
     <Compile Include="UserInterface\Commands\LastLogCommand.cs" />
+    <Compile Include="Hooks\InterruptPythonEngine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

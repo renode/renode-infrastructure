@@ -31,6 +31,18 @@ namespace Antmicro.Renode.Hooks
             var engine = new BlockPythonEngine(m, cpu, pythonScript);
             cpu.AddHook(addr, engine.Hook);
         }
+
+        public static void AddHookAtInterruptBegin(this ICPUWithHooks cpu, [AutoParameter]Machine m, string pythonScript)
+        {
+            var engine = new InterruptPythonEngine(m, cpu, pythonScript);
+            cpu.AddHookAtInterruptBegin(engine.HookWithExceptionIndex);
+        }
+
+        public static void AddHookAtInterruptEnd(this ICPUWithHooks cpu, [AutoParameter]Machine m, string pythonScript)
+        {
+            var engine = new InterruptPythonEngine(m, cpu, pythonScript);
+            cpu.AddHookAtInterruptEnd(engine.HookWithExceptionIndex);
+        }
     }
 }
 
