@@ -20,6 +20,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.EventRecording;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -492,6 +493,8 @@ namespace Antmicro.Renode.Core
             {
                 disposed(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Disposed));
             }
+            Profiler?.Dispose();
+            Profiler = null;
 
             Marshal.FreeHGlobal(AtomicMemoryStatePointer);
 
@@ -750,6 +753,14 @@ namespace Antmicro.Renode.Core
         {
             return EmulationManager.Instance.CurrentEmulation[this];
         }
+
+        public void EnableProfiler(string outputPath = null)
+        {
+            Profiler?.Dispose();
+            Profiler = new Profiler(this, outputPath ?? TemporaryFilesManager.Instance.GetTemporaryFile("renode_profiler"));
+        }
+
+        public Profiler Profiler { get; private set; }
 
         public IPeripheral this[string name]
         {

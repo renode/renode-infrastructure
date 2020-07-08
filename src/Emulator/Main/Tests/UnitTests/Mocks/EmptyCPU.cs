@@ -114,6 +114,11 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         }
 
+        public void EnableProfiling()
+        {
+
+        }
+
         protected readonly Machine machine;
     }
 }

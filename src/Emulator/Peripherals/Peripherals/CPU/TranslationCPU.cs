@@ -20,6 +20,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Peripherals.CPU.Registers;
@@ -576,6 +577,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void SetHookAtMemoryAccess(Action<uint, ulong> hook)
+        {
+            TlibOnMemoryAccessEventEnabled(hook != null ? 1 : 0);
+            memoryAccessHook = hook;
+        }
+
         public void AddHookAtInterruptBegin(Action<ulong> hook)
         {
             if(interruptBeginHook == null)
@@ -800,6 +807,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private void RemoveHookAtMemoryAccess(Action<uint, ulong> hook)
+        {
+            memoryAccessHook -= hook;
+            if(interruptBeginHook == null)
+            {
+                TlibOnMemoryAccessEventEnabled(0);
+            }
+        }
+
         private ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
         private ExecutionResult lastTlibResult;
 
@@ -852,6 +868,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void OnInterruptEnd(ulong interruptIndex)
         {
             interruptEndHook?.Invoke(interruptIndex);
+        }
+
+        [Export]
+        private void OnMemoryAccess(uint operation, ulong address)
+        {
+            memoryAccessHook?.Invoke(operation, address);
         }
 
         protected virtual void InitializeRegisters()
@@ -1242,6 +1264,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong, uint> blockFinishedHook;
         private Action<ulong> interruptBeginHook;
         private Action<ulong> interruptEndHook;
+        private Action<uint, ulong> memoryAccessHook;
 
         private List<SegmentMapping> currentMappings;
 
@@ -1741,6 +1764,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private FuncUInt64 TlibGetTotalExecutedInstructions;
 
+        [Import]
+        private ActionInt32 TlibOnMemoryAccessEventEnabled;
+
         #pragma warning restore 649
 
         private readonly HashSet<ulong> pagesAccessedByIo;
@@ -1846,6 +1872,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void EnableProfiling()
+        {
+            AddHookAtInterruptBegin(exceptionIndex =>
+            {
+                machine.Profiler.Log(new ExceptionEntry(exceptionIndex));
+            });
+
+            SetHookAtMemoryAccess((operation, address) =>
+            {
+                switch((MemoryOperation)operation)
+                {
+                    case MemoryOperation.MemoryIORead:
+                    case MemoryOperation.MemoryIOWrite:
+                        machine.Profiler?.Log(new PeripheralEntry((byte)operation, address));
+                        break;
+                    case MemoryOperation.MemoryRead:
+                    case MemoryOperation.MemoryWrite:
+                        machine.Profiler?.Log(new MemoryEntry((byte)operation));
+                        break;
+                }
+            });
+        }
+
         private TimeHandle timeHandle;
 
         public TimeHandle TimeHandle
@@ -1908,6 +1957,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Trace($"CPU executed {executed} instructions and returned {result}");
                 instructionsLeftThisRound -= executed;
                 ExecutedInstructions = TlibGetTotalExecutedInstructions();
+                machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
                 if(executed > 0)
                 {
                     // report how much time elapsed so far

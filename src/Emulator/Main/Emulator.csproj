@@ -490,6 +490,9 @@
     <Compile Include="Logging\Backends\MemoryBackend.cs" />
     <Compile Include="Utilities\SafeStringBuilder.cs" />
     <Compile Include="Utilities\TimeoutEvent.cs" />
+    <Compile Include="Logging\Profiler\ProfilerEntry.cs" />
+    <Compile Include="Logging\Profiler\Profiler.cs" />
+    <Compile Include="Logging\Profiler\ProfilerHeader.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

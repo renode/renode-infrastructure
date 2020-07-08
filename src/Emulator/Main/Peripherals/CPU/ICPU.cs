@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// </summary>
         bool OnPossessedThread { get; }
         void SyncTime();
+        void EnableProfiling();
     }
 
     public static class ICPUExtensions
