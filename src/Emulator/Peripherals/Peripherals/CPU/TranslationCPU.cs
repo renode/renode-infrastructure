@@ -1738,6 +1738,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionUInt32 TlibSetInterruptEndHookPresent;
 
+        [Import]
+        private FuncUInt64 TlibGetTotalExecutedInstructions;
+
         #pragma warning restore 649
 
         private readonly HashSet<ulong> pagesAccessedByIo;
@@ -1904,7 +1907,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var result = ExecuteInstructions(toExecute, out var executed);
                 this.Trace($"CPU executed {executed} instructions and returned {result}");
                 instructionsLeftThisRound -= executed;
-                ExecutedInstructions += (ulong)executed;
+                ExecutedInstructions = TlibGetTotalExecutedInstructions();
                 if(executed > 0)
                 {
                     // report how much time elapsed so far
