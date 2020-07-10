@@ -628,21 +628,6 @@ namespace Antmicro.Renode.Peripherals.Network
             public uint DescriptorAddress { get; }
             public bool Wrap => BitHelper.IsBitSet(words[1], 13);
 
-            protected uint[] words;
-
-            private uint InitWords()
-            {
-                if(IsExtendedModeEnabled)
-                {
-                    words = new uint[16];
-                }
-                else
-                {
-                    words = new uint[4];
-                }
-                return (uint)words.Length * 2;
-            }
-
             public void Read()
             {
                 var tempOffset = 0UL;
@@ -664,6 +649,22 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             public bool IsLast => BitHelper.IsBitSet(words[1], 11);
+
+            protected uint[] words;
+
+            private uint InitWords()
+            {
+                if(IsExtendedModeEnabled)
+                {
+                    words = new uint[16];
+                }
+                else
+                {
+                    words = new uint[4];
+                }
+                return (uint)words.Length * 2;
+            }
+
         }
 
 
