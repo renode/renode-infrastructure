@@ -68,17 +68,27 @@ namespace Antmicro.Renode.Core
 
         public void Load(string path)
         {
-            string version;
             using(var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                version = serializer.Deserialize<string>(stream);
-                CurrentEmulation = serializer.Deserialize<Emulation>(stream);
-                CurrentEmulation.BlobManager.Load(stream);
-            }
+                var deserializationResult = serializer.TryDeserialize<string>(stream, out var version);
+                if(deserializationResult != DeserializationResult.OK)
+                {
+                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}");
+                }
 
-            if(version != VersionString)
-            {
-                Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one {1}. Things may go awry!", version, VersionString);
+                deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation);
+                if(deserializationResult != DeserializationResult.OK)
+                {
+                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}");
+                }
+
+                CurrentEmulation = emulation;
+                CurrentEmulation.BlobManager.Load(stream);
+
+                if(version != VersionString)
+                {
+                    Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one {1}. Things may go awry!", version, VersionString);
+                }
             }
         }
 

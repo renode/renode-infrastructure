@@ -37,24 +37,26 @@ namespace Antmicro.Renode.Network
         {
             var packetNetIpProtocols = supportedIpProtocolTypes.Select(x => (PacketDotNet.IPProtocolType)x).ToArray();
             var packetNetEtherTypes = supportedEtherTypes.Select(x => (EthernetPacketType)x).ToArray();
-            packet.RecursivelyUpdateCalculatedValues(packetNetEtherTypes, packetNetIpProtocols);
+            UnderlyingPacket.RecursivelyUpdateCalculatedValues(packetNetEtherTypes, packetNetIpProtocols);
         }
 
         public EthernetFrame Clone()
         {
-            return new EthernetFrame(packet.Bytes.ToArray(), crc?.ToArray());
+            return new EthernetFrame(UnderlyingPacket.Bytes.ToArray(), crc?.ToArray());
         }
 
         public override string ToString()
         {
-            return packet.ToString();
+            return UnderlyingPacket.ToString();
         }
+
+        public EthernetPacket UnderlyingPacket { get; }
 
         public byte[] Bytes
         {
             get
             {
-                    return (crc != null) ? packet.Bytes.Concat(crc).ToArray() : packet.Bytes.ToArray();
+                    return (crc != null) ? UnderlyingPacket.Bytes.Concat(crc).ToArray() : UnderlyingPacket.Bytes.ToArray();
             }
         }
 
@@ -62,33 +64,19 @@ namespace Antmicro.Renode.Network
         {
             get
             {
-                return packet.BytesHighPerformance.Length;
+                return UnderlyingPacket.BytesHighPerformance.Length;
             }
         }
 
-        public MACAddress? SourceMAC
-        {
-            get
-            {
-                var ether = (EthernetPacket)packet.Extract(typeof(EthernetPacket));
-                return ether != null ? (MACAddress?)ether.SourceHwAddress : null;
-            }
-        }
+        public MACAddress SourceMAC => (MACAddress)UnderlyingPacket.SourceHwAddress;
 
-        public MACAddress? DestinationMAC
-        {
-            get
-            {
-                var ether = (EthernetPacket)packet.Extract(typeof(EthernetPacket));
-                return ether != null ? (MACAddress?)ether.DestinationHwAddress : null;
-            }
-        }
+        public MACAddress DestinationMAC => (MACAddress)UnderlyingPacket.DestinationHwAddress;
 
         public IPAddress SourceIP
         {
             get
             {
-                var ip = (IpPacket)packet.Extract(typeof(IpPacket));
+                var ip = (IpPacket)UnderlyingPacket.Extract(typeof(IpPacket));
                 return ip != null ? ip.SourceAddress : null;
             }
         }
@@ -97,7 +85,7 @@ namespace Antmicro.Renode.Network
         {
             get
             {
-                var ip = (IpPacket)packet.Extract(typeof(IpPacket));
+                var ip = (IpPacket)UnderlyingPacket.Extract(typeof(IpPacket));
                 return ip != null ? ip.DestinationAddress : null;
             }
         }
@@ -119,7 +107,7 @@ namespace Antmicro.Renode.Network
         private EthernetFrame(byte[] data, byte[] crc = null)
         {
             this.crc = crc;
-            packet = Packet.ParsePacket(LinkLayers.Ethernet, data);
+            this.UnderlyingPacket = (EthernetPacket)Packet.ParsePacket(LinkLayers.Ethernet, data);
         }
 
         private static IEnumerable<byte> ComputeCRC(byte[] data, int? lenght = null)
@@ -144,7 +132,6 @@ namespace Antmicro.Renode.Network
             return receivedCrc.SequenceEqual(computedCrc);
         }
 
-        private readonly Packet packet;
         private byte[] crc;
     }
 }

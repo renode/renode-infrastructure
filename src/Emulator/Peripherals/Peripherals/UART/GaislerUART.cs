@@ -16,9 +16,8 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class GaislerUART: IDoubleWordPeripheral, IUART, IGaislerAPB
     {
-        public GaislerUART(Machine machine)
+        public GaislerUART()
         {
-            this.machine = machine;
             buffer = new Queue<byte>();
             IRQ = new GPIO();
             registers = new register();
@@ -228,6 +227,5 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private const int SystemClockFrequency = 0;
-        private readonly Machine machine;
     }
 }

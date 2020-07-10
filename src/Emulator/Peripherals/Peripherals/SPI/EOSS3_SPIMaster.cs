@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             receiveBuffer = new Queue<ushort>();
 
             this.transmitDepth = transmitDepth;
-            this.receiveDepth = receiveDepth;
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -508,7 +507,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField transmitEmpty;
 
         private readonly uint transmitDepth;
-        private readonly uint receiveDepth;
 
         // a single frame can have up to 16-bits
         private readonly Queue<ushort> receiveBuffer;

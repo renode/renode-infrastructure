@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
         public override void Write(long offset, T value)
         {
-            Peripheral.DebugLog(machine.SystemBus.DecorateWithCPUNameAndPC($"Write{Name} to 0x{offset:X}{(mapper.ToString(offset, " ({0})"))}, value 0x{value:X}."));
+            Peripheral.Log(LogLevel.Info, machine.SystemBus.DecorateWithCPUNameAndPC($"Write{Name} to 0x{offset:X}{(mapper.ToString(offset, " ({0})"))}, value 0x{value:X}."));
             OriginalMethod(offset, value);
         }
 

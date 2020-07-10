@@ -21,9 +21,8 @@ namespace Antmicro.Renode.Peripherals.Input
     /// </summary>
     public sealed class FT5336 : II2CPeripheral, IAbsolutePositionPointerInput
     {
-        public FT5336(Machine machine, bool isRotated = false)
+        public FT5336(bool isRotated = false)
         {
-            this.machine = machine;
             this.isRotated = isRotated;
             IRQ = new GPIO();
             Reset();
@@ -173,7 +172,6 @@ namespace Antmicro.Renode.Peripherals.Input
         private byte[] currentReturnValue;
         private Registers lastWriteRegister;
         private readonly bool isRotated;
-        private readonly Machine machine;
 
         private readonly TouchedPoint[] touchedPoints = new TouchedPoint[5];
 

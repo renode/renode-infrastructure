@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         public override T Read(long offset)
         {
             var originalValue = OriginalMethod(offset);
-            Peripheral.DebugLog(machine.SystemBus.DecorateWithCPUNameAndPC($"Read{Name} from 0x{offset:X}{(mapper.ToString(offset, " ({0})"))}, returned 0x{originalValue:X}."));
+            Peripheral.Log(LogLevel.Info, machine.SystemBus.DecorateWithCPUNameAndPC($"Read{Name} from 0x{offset:X}{(mapper.ToString(offset, " ({0})"))}, returned 0x{originalValue:X}."));
             return originalValue;
         }
 

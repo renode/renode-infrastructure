@@ -14,9 +14,8 @@ namespace Antmicro.Renode.Peripherals.Input
 {
     public class PS2Keyboard : IPS2Peripheral, IKeyboard
     {
-        public PS2Keyboard(Machine machine)
+        public PS2Keyboard()
         {
-            this.machine = machine;
             data = new Queue<byte>();
             Reset();
             data.Enqueue((byte)Command.SelfTestPassed);
@@ -104,7 +103,6 @@ namespace Antmicro.Renode.Peripherals.Input
         }
 
         private readonly Queue<byte> data;
-        private readonly Machine machine;
         private const ushort deviceId = 0xABBA;
 
         private enum Command

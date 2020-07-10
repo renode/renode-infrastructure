@@ -60,6 +60,10 @@ namespace Antmicro.Renode.UnitTests.Mocks
         {
         }
 
+        public virtual void SyncTime()
+        {
+        }
+
         public virtual RegisterValue PC
         {
             get

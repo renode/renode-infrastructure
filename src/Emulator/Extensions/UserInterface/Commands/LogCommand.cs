@@ -24,7 +24,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer, StringToken message)
         {
-            InnerLog(LogLevel.Debug, message.Value);
+            InnerLog(LogLevel.Info, message.Value);
         }
 
         [Runnable]

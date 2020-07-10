@@ -125,10 +125,9 @@ namespace Antmicro.Renode.Utilities
             {
                 Directory.Delete(path, true);
             }
-            catch(Exception e)
+            catch(Exception)
             {
-                if(!(e is IOException || e is DirectoryNotFoundException || e is UnauthorizedAccessException))
-                    throw;
+                // we did everything we could
             }
         }
 

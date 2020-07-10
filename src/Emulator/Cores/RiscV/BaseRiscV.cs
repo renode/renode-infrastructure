@@ -259,13 +259,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return 0;
             }
 
-            var numberOfExecutedInstructions = TlibGetExecutedInstructions();
-            if(numberOfExecutedInstructions > 0)
-            {
-                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions, PerformanceInMips, out var residuum);
-                TlibResetExecutedInstructions(residuum);
-                machine.HandleTimeProgress(elapsed);
-            }
+            SyncTime();
             return timeProvider.TimerValue;
         }
 
@@ -344,9 +338,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt32 TlibIsFeatureAllowed;
-
-        [Import]
-        private ActionUInt64 TlibResetExecutedInstructions;
 
         [Import(Name="tlib_set_privilege_architecture")]
         private ActionInt32 TlibSetPrivilegeArchitecture;

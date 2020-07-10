@@ -10,7 +10,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 {
     public enum PCIeSpace
     {
-        //the enum values are used in PSE_PCIe.
+        //the enum values are used in MPFS_PCIe.
         TxRx,
         Configuration,
     }

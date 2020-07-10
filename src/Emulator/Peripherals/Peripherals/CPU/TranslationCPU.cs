@@ -320,6 +320,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void SyncTime()
+        {
+            if(!OnPossessedThread)
+            {
+                this.Log(LogLevel.Error, "Syncing time should be done from CPU thread only. Ignoring the operation");
+                return;
+            }
+
+            var numberOfExecutedInstructions = TlibGetExecutedInstructions();
+            if(numberOfExecutedInstructions > 0)
+            {
+                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions, PerformanceInMips, out var residuum);
+                TlibResetExecutedInstructions(residuum);
+                machine.HandleTimeProgress(elapsed);
+            }
+        }
+
         public virtual void Start()
         {
             Resume();
@@ -833,6 +850,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     hooks.Remove(addr);
                 }
+                if(!hooks.Any(x => !x.Value.IsActive))
+                {
+                    isAnyInactiveHook = false;
+                }
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -853,6 +875,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     TlibRemoveBreakpoint(addr);
                 }
+                if(!hooks.Any(x => !x.Value.IsActive))
+                {
+                    isAnyInactiveHook = false;
+                }
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -946,7 +973,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
             var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
-            libraryFile = GetType().Assembly.FromResourceToTemporaryFile(libraryResource);
+            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile))
+                {
+                    break;
+                }
+            }
+
+            if(libraryFile == null)
+            {
+                throw new ArgumentException($"Cannot find library {libraryResource}");
+            }
 
             binder = new NativeBinder(this, libraryFile);
             TlibSetTranslationCacheSize(checked((IntPtr)translationCacheSize));
@@ -1396,15 +1434,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             get { return DisassemblerManager.Instance.GetAvailableDisassemblers(Architecture); }
         }
 
-        public ulong TranslateAddress(ulong logicalAddress)
+        public enum MpuAccess
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress);
+            Read = 0,
+            Write = 1,
+            InstructionFetch = 2
+        }
+
+        public ulong TranslateAddressNoFault(ulong logicalAddress)
+        {
+            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)MpuAccess.InstructionFetch, 1);
+        }
+
+        public ulong TranslateAddress(ulong logicalAddress, MpuAccess accesType, uint nofault)
+        {
+            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accesType, nofault);
         }
 
         [PostDeserialization]
         protected void InitDisas()
         {
-            DisasEngine = new DisassemblyEngine(this, TranslateAddress);
+            DisasEngine = new DisassemblyEngine(this, TranslateAddressNoFault);
             var diss = AvailableDisassemblers;
             if (diss.Length > 0)
             {
@@ -1518,7 +1568,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionIntPtrIntPtr TlibInvalidateTranslationBlocks;
 
         [Import]
-        protected FuncUInt64UInt64 TlibTranslateToPhysicalAddress;
+        protected FuncUInt64UInt64UInt32UInt32 TlibTranslateToPhysicalAddress;
 
         [Import]
         private ActionIntPtrInt32 RenodeSetHostBlocks;
@@ -1583,6 +1633,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionUInt64 TlibFlushPage;
 
+        [Import]
+        protected ActionUInt64 TlibResetExecutedInstructions;
+
         #pragma warning restore 649
 
         private readonly HashSet<ulong> pagesAccessedByIo;
@@ -1646,6 +1699,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 hookDescriptor.Deactivate();
                 isAnyInactiveHook = true;
+                UpdateBlockBeginHookPresent();
             }
         }
 
@@ -1658,6 +1712,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     inactive.Value.Activate();
                 }
                 isAnyInactiveHook = false;
+                UpdateBlockBeginHookPresent();
             }
         }
 

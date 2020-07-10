@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(4, out writeToSlave, FieldMode.Write)
                     .WithTag("ACK", 3, 1)
                     .WithReservedBits(1, 2)
-                    .WithFlag(0, out interruptAcknowledge, FieldMode.Write, writeCallback: (_, __) => interruptFlag.Value = false)
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, __) => interruptFlag.Value = false)
                     .WithWriteCallback((_, __) =>
                     {
                         if(!enabled.Value)
@@ -201,7 +201,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         private readonly IFlagRegisterField interruptFlag;
         private readonly IFlagRegisterField enabled;
         private readonly IFlagRegisterField receivedAckFromSlaveNegated;
-        private readonly IFlagRegisterField interruptAcknowledge;
         private readonly IFlagRegisterField generateStartCondition;
         private readonly IFlagRegisterField generateStopCondition;
         private readonly ByteRegisterCollection readRegisters;

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void ShouldReset()
         {
-            var uart = new GaislerUART(new Machine());
+            var uart = new GaislerUART();
 
             uart.CharReceived += SendByte;
 

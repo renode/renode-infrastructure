@@ -17,11 +17,10 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class CadenceUart : IDoubleWordPeripheral, IUART
     {
-        public CadenceUart(Machine machine)
+        public CadenceUart()
         {
-            this.machine = machine;
-		    buffer = new Queue<byte>();
-		    Reset();
+            buffer = new Queue<byte>();
+            Reset();
             IRQ = new GPIO();
         }
 
@@ -159,7 +158,6 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
     	private readonly Queue<byte> buffer;
-        private readonly Machine machine;
       
         private uint InterruptEnable = 0x08;    
         private uint InterruptStatus = 0x14;

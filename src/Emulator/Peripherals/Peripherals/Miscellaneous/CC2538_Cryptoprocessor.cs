@@ -421,7 +421,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void HandleEcb(int length)
         {
-            var encryptedNonceCounterBlock = Block.OfSize(AesBlockSizeInBytes);
             using(var aes = AesProvider.GetEcbProvider(GetSelectedKey()))
             {
                 var processor = direction.Value == Direction.Encryption

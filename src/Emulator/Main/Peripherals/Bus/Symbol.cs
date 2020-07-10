@@ -13,6 +13,7 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using CxxDemangler;
 
 namespace Antmicro.Renode.Core
 {
@@ -28,11 +29,6 @@ namespace Antmicro.Renode.Core
         /// </summary>
         static Symbol()
         {
-            if(!LibStdCppHelper.TryGetCxaDemangle(out CxaDemangle))
-            {
-                Logger.Log(LogLevel.Warning, "Could not load demangling library. Symbols will not be demangled.");
-                return;
-            }
         }
 
         /// <summary>
@@ -242,15 +238,11 @@ namespace Antmicro.Renode.Core
         public bool IsThumbSymbol { get; private set; }
 
         /// <summary>
-        /// Demangles the symbol name using the libstdc++ library.
+        /// Demangles the symbol name using the CxxDemangler library.
         /// </summary>
         /// <returns>Demangled symbol name.</returns>
         private static string DemangleSymbol(string symbolName)
         {
-            if(CxaDemangle == null)
-            {
-                return symbolName;
-            }
             const int globalSymbolPrefixLength = 21;
             if(string.IsNullOrEmpty(symbolName) || symbolName.Length < 2)
             {
@@ -266,10 +258,9 @@ namespace Antmicro.Renode.Core
                 return symbolName;
             }
 
-            int success;
-            var result = CxaDemangle(symbolName, IntPtr.Zero, IntPtr.Zero, out success);
+            var result = CxxDemangler.CxxDemangler.Demangle(symbolName);
 
-            if(success != 0 || result.Length == 0)
+            if(result.Length == 0)
             {
                 return symbolName;
             }
@@ -297,9 +288,6 @@ namespace Antmicro.Renode.Core
         {
             return new Symbol(start, end, Name, Type, Binding, thumbArchitecture);
         }
-
-        [Transient]
-        static private readonly LibStdCppHelper.CxaDemangleDelegate CxaDemangle;
 
         static private IntervalComparer<SymbolAddress> intervalComparer = new IntervalComparer<SymbolAddress>();
 

@@ -532,7 +532,7 @@ namespace Antmicro.Renode.UserInterface
             var compiler = new AdHocCompiler();
             try
             {
-                var result = compiler.Compile(filename, AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location));
+                var result = compiler.Compile(filename);
                 cache.ClearCache();
                 return TypeManager.Instance.ScanFile(result);
             }

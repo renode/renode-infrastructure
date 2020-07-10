@@ -16,9 +16,8 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class ImxUart : IBytePeripheral, IUART, IKnownSize
     {
-        public ImxUart(Machine machine)
+        public ImxUart()
         {
-            this.machine = machine;
             IRQ = new GPIO();
             charFifo = new Queue<byte>();
         }
@@ -174,7 +173,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private byte fifoParametersRegister;
 
         private readonly Queue<byte> charFifo;
-        private readonly Machine machine;
 
         private byte baudRateHBuffer;
         private byte baudRateH;

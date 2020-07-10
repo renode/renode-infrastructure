@@ -55,40 +55,13 @@ namespace Antmicro.Renode.Core.Structure
 
         public MACAddress Next(int count = 1)
         {
-            var result = this;
-
             for(var i = 0; i < count; i++)
             {
                 InnerNext();
             }
 
-            return result;
-
-            void InnerNext()
-            {
-                var cp = 5;
-                while(true)
-                {
-                    if(result.GetByte(cp) == byte.MaxValue)
-                    {
-                        if(cp == 0)
-                        {
-                            throw new OverflowException();
-                        }
-                        cp--;
-                    }
-                    else
-                    {
-                        result.SetByte(cp, (byte)(result.GetByte(cp) + 1));
-                        for(int i = cp + 1; i < 6; i++)
-                        {
-                            result.SetByte(i, 0);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
+            return this;
+	}
 
         public MACAddress Previous()
         {
@@ -151,19 +124,29 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-
-        public static MACAddress Parse(string str)
+        public static bool TryParse(string str, out MACAddress result)
         {
+            result = default(MACAddress);
+
             var splits = str.Split(':');
             if(splits.Length != 6)
             {
-                throw new FormatException();
+                return false;
             }
 
-            var result = new MACAddress();
             for(var i = 0; i < 6; i++)
             {
                 result.SetByte(i, byte.Parse(splits[i], NumberStyles.HexNumber));
+            }
+
+            return true;
+        }
+
+        public static MACAddress Parse(string str)
+        {
+            if(!TryParse(str, out var result))
+            {
+                throw new FormatException();
             }
 
             return result;
@@ -225,6 +208,31 @@ namespace Antmicro.Renode.Core.Structure
         public static bool operator !=(MACAddress a, MACAddress b)
         {
             return !(a == b);
+        }
+
+        private void InnerNext()
+        {
+            var cp = 5;
+            while(true)
+            {
+                if(this.GetByte(cp) == byte.MaxValue)
+                {
+                    if(cp == 0)
+                    {
+                        throw new OverflowException();
+                    }
+                    cp--;
+                }
+                else
+                {
+                    this.SetByte(cp, (byte)(this.GetByte(cp) + 1));
+                    for(int i = cp + 1; i < 6; i++)
+                    {
+                        this.SetByte(i, 0);
+                    }
+                    break;
+                }
+            }
         }
 
         private byte GetByte(int index)

@@ -49,9 +49,8 @@ namespace Antmicro.Renode.Peripherals.Input
                 return 0;
             }
         }
-        public FT5x06 (Machine machine, int maxPoints = 5)
+        public FT5x06 (int maxPoints = 5)
         {
-            this.machine = machine;
             maxSupportedPoints = maxPoints;
             points = new TouchedPoint[maxSupportedPoints];
             for (ushort i = 0; i< points.Length; ++i) {
@@ -207,7 +206,6 @@ namespace Antmicro.Renode.Peripherals.Input
         private byte[] currentRetValue;
         private readonly int maxSupportedPoints;
         private TouchedPoint[] points;
-        private readonly Machine machine;
 
         private const byte NumX = 28;
         private const byte NumY = 16;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,7 +13,7 @@ using Antmicro.Renode.Peripherals.CPU.Disassembler;
 
 namespace Antmicro.Renode.Disassembler.LLVM
 {
-    [DisassemblerAttribute("LLVM", new[] { "arm", "arm-m", "mips", "i386", "riscv", "riscv64", "ppc", "sparc" })]
+    [DisassemblerAttribute("LLVM", new[] { "arm", "arm-m", "mips", "i386", "riscv", "riscv64", "ppc", "ppc64", "sparc" })]
     public class LLVMDisassembler : IAutoLoadType, IDisassembler
     {
         public LLVMDisassembler(IDisassemblable cpu)
@@ -53,10 +53,9 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 case "arm926":
                     model = "arm926ej-s";
                     break;
-		case "e200z6":
-		//    model = "generic";
-		    model = "ppc32";
-		    break;
+                case "e200z6":
+                    model = "ppc32";
+                    break;
                 default:
                     model = cpu.Model;
                     break;
@@ -74,9 +73,10 @@ namespace Antmicro.Renode.Disassembler.LLVM
             { "arm-m",  "thumb"     },
             { "mips",   "mipsel"    },
             { "riscv",  "riscv32"   },
-	    { "riscv64","riscv64"   },
-	    { "ppc",    "ppc"       },
-	    { "sparc",  "sparc"     },
+            { "riscv64","riscv64"   },
+            { "ppc",    "ppc"       },
+            { "ppc64",  "ppc64le"   },
+            { "sparc",  "sparc"     },
             { "i386",   "i386"      }
         };
 

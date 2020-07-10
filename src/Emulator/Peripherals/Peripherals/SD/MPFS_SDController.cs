@@ -22,9 +22,9 @@ namespace Antmicro.Renode.Peripherals.SD
     // * interrupts (including: masking)
     // * CMD8 (from spec 2.0)
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class PSE_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
+    public class MPFS_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
     {
-        public PSE_SDController(Machine machine) : base(machine)
+        public MPFS_SDController(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();
@@ -193,21 +193,24 @@ namespace Antmicro.Renode.Peripherals.SD
                                 }
                                 break;
                             case ResponseType.Response136Bits:
-                                // our response does not contain 16 bits:
+                                // our response does not contain 8 bits:
                                 // * start bit
                                 // * transmission bit
                                 // * command index / reserved bits (6 bits)
-                                // * CRC7 (7 bits)
-                                // * end bit
-                                if(commandResult.Length != 120)
+                                if(commandResult.Length != 128)
                                 {
-                                    this.Log(LogLevel.Warning, "Unexpected a response of length {0} bits (excluding control bits and CRC), but {1} received", 120, commandResult.Length);
+                                    this.Log(LogLevel.Warning, "Unexpected a response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
                                     return;
                                 }
-                                responseFields[0].Value = commandResult.AsUInt32();
-                                responseFields[1].Value = commandResult.AsUInt32(32);
-                                responseFields[2].Value = commandResult.AsUInt32(64);
-                                responseFields[3].Value = commandResult.AsUInt32(96, 24);
+
+                                // the following bits are considered a part of returned register, but are not included in the response buffer:
+                                // * CRC7 (7 bits)
+                                // * end bit
+                                // that's why we are skipping the initial 8-bits
+                                responseFields[0].Value = commandResult.AsUInt32(8);
+                                responseFields[1].Value = commandResult.AsUInt32(40);
+                                responseFields[2].Value = commandResult.AsUInt32(72);
+                                responseFields[3].Value = commandResult.AsUInt32(104, 24);
                                 break;
                             case ResponseType.Response48Bits:
                             case ResponseType.Response48BitsWithBusy:

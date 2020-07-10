@@ -106,9 +106,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.CounterTopValue.Define(this)
                 .WithValueField(0, (int)width, writeCallback: (_, value) => innerTimer.Limit = value, valueProviderCallback: _ => (uint)innerTimer.Limit, name: "TOP")
             ;
-            Registers.CounterTopValueBuffer.Define(this)
-                .WithValueField(0, (int)width, out topBuffer, name: "TOPB")
-            ;
 
             Registers.CounterValue.Define(this)
                 .WithValueField(0, (int)width, writeCallback: (_, value) => innerTimer.Value = value, valueProviderCallback: _ => (uint)innerTimer.Value, name: "CNT")
@@ -143,8 +140,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private Mode mode;
         private TimerWidth width;
         private InterruptManager<Interrupt> interruptManager;
-
-        private IValueRegisterField topBuffer;
 
         public enum TimerWidth
         {

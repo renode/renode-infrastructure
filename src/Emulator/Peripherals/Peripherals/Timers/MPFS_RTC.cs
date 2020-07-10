@@ -15,9 +15,9 @@ using System.Globalization;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class PSE_RTC : BasicDoubleWordPeripheral, IKnownSize
+    public class MPFS_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public PSE_RTC(Machine machine) : base(machine)
+        public MPFS_RTC(Machine machine) : base(machine)
         {
             DefineRegisters();
             WakeupIRQ = new GPIO();
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             case ClockMode.BinaryCounter:
                                 var currentValue = CalculateElapsedSeconds(timeToUpload);
-                                var newValue = currentValue.ReplaceBits(source: value, width: 32);
+                                var newValue = BitHelper.ReplaceBits(currentValue, source: (ulong)value, width: 32);
                                 timeToUpload = ResetTimeValue.AddSeconds(newValue);
                                 break;
                             case ClockMode.DateTimeCounter:
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             case ClockMode.BinaryCounter:
                                 var currentValue = CalculateElapsedSeconds(timeToUpload);
-                                var newValue = currentValue.ReplaceBits(source: value, width: 11, destinationPosition: 32);
+                                var newValue = BitHelper.ReplaceBits(currentValue, source: value, width: 11, destinationPosition: 32);
                                 timeToUpload = ResetTimeValue.AddSeconds(newValue);
                                 break;
                             case ClockMode.DateTimeCounter:

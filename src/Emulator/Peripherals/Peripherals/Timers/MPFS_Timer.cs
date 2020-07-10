@@ -13,9 +13,9 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class PSE_Timer : ITimer, IDoubleWordPeripheral, IKnownSize
+    public class MPFS_Timer : ITimer, IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_Timer(Machine machine, long frequency = 100000000)
+        public MPFS_Timer(Machine machine, long frequency = 100000000)
         {
             Timer1IRQ = new GPIO();
             Timer2IRQ = new GPIO();

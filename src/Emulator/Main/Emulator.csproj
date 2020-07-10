@@ -138,7 +138,7 @@
     <Compile Include="Peripherals\Network\INetworkInterface.cs" />
     <Compile Include="Peripherals\IAbsoluteAddressAware.cs" />
     <Compile Include="Utilities\TypeManager.cs" />
-    <Compile Include="Utilities\BundleHelper.cs" />
+    <Compile Include="Utilities\AssemblyHelper.cs" />
     <Compile Include="Peripherals\IMapped.cs" />
     <Compile Include="Core\Emulation.cs" />
     <Compile Include="Peripherals\Network\IMACInterface.cs" />
@@ -366,7 +366,6 @@
     <Compile Include="Utilities\CustomDateTime.cs" />
     <Compile Include="Utilities\LRUCache.cs" />
     <Compile Include="Utilities\Collections\FastReadConcurrentCollection.cs" />
-    <Compile Include="Utilities\LibStdCppHelper.cs" />
     <Compile Include="Utilities\Collections\TwoWayDictionary.cs" />
     <Compile Include="Utilities\WeakWrapper.cs" />
     <Compile Include="Utilities\Collections\CircularBuffer.cs" />
@@ -485,6 +484,8 @@
     <Compile Include="Peripherals\USB\USBConnector.cs" />
     <Compile Include="Peripherals\Wireless\ISlipRadio.cs" />
     <Compile Include="Peripherals\Wireless\SlipRadio.cs" />
+    <Compile Include="Sound\PCMEncoder.cs" />
+    <Compile Include="Sound\PCMDecoder.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
@@ -524,6 +525,10 @@
     <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet.csproj">
       <Project>{55ABBA4C-AAF9-4726-A592-0C92436CEC92}</Project>
       <Name>PacketDotNet</Name>
+    </ProjectReference>
+      <ProjectReference Include="..\..\..\..\..\lib\CxxDemangler\CxxDemangler\CxxDemangler.csproj">
+      <Project>{3A70B9B8-BBAB-47EA-8473-B7A0B4961D56}</Project>
+      <Name>CxxDemangler</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

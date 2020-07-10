@@ -591,7 +591,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendSingleFrame(IEnumerable<byte> bytes, bool isCRCIncluded)
         {
             var bytesArray = bytes.ToArray();
-            EnsureArrayLength(isCRCIncluded ? 64 : 60);
+            EnsureArrayLength(bytesArray, isCRCIncluded ? 64 : 60);
 
             EthernetFrame frame;
             var addCrc = !isCRCIncluded && checksumGeneratorEnabled.Value;
@@ -616,13 +616,13 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 rxDescriptorsQueue.CurrentDescriptor.HasValidTimestamp = false;
             }
+        }
 
-            void EnsureArrayLength(int length)
+        private void EnsureArrayLength(byte[] bytesArray, int length)
+        {
+            if(bytesArray.Length < length)
             {
-                if(bytesArray.Length < length)
-                {
-                    Array.Resize(ref bytesArray, length);
-                }
+                Array.Resize(ref bytesArray, length);
             }
         }
 
