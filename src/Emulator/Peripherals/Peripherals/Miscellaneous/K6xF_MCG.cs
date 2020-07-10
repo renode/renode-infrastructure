@@ -36,17 +36,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTaggedFlag("FCFTRIM",6)
                     .WithTaggedFlag("LOCRE0",7)
                 },
-
-                /*                Registers.Control3
-                                Registers.Control4*/
-
                 {(long)Registers.Control5, new ByteRegister(this)
                     .WithTag("PRDIV0",0,5)
                     .WithTaggedFlag("PLLSTEN0",5)
                     .WithEnumField(6, 1, out mcgPllStatus, name: "PLLCLKEN0")
                     .WithReservedBits(7,1)
                 },
-
                 {(long)Registers.Control6, new ByteRegister(this)
                     .WithTag("VDIV0",0,5)
                     .WithTaggedFlag("CME0",5)
@@ -59,7 +54,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTaggedFlag("OSCINIT0",1)
                     .WithValueField(2,2, FieldMode.Read, valueProviderCallback: _ =>
                     {
-                        //return (uint)clockSource.Value;
                         switch(clockSource.Value)
                         {
                             case ClockSourceValues.External:
@@ -85,17 +79,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return (MCGPLLClockStatusValues.Active == mcgPllStatus.Value);
                     },name: "LOCK0")
                     .WithTaggedFlag("LOLS0",7)
-                },
-                /*                Registers.StatusControl
-                                Registers.AutoTrimHigh
-                                Registers.AutoTrimLow*/
-                {(long)Registers.Control7, new ByteRegister(this)
-                },
-                /*                Registers.Control8
-                                Registers.Control12
-                                Registers.Status2
-                                Registers.Test3*/
-                {(long)Registers.OSC_Control, new ByteRegister(this)
                 }
             };
 
@@ -114,13 +97,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         byte IBytePeripheral.ReadByte(long offset)
         {
             var value = registers.Read(offset);
-            //this.Log(LogLevel.Debug, "Read from offset 0x{0:X}, value 0x{1:X}.", offset, value);
             return value;
         }
 
         void IBytePeripheral.WriteByte(long offset, byte value)
         {
-            //this.Log(LogLevel.Debug, "Write to offset 0x{0:X}, value 0x{1:X}.", offset, value);
             registers.Write(offset, value);
         }
 

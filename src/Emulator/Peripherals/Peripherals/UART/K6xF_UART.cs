@@ -61,7 +61,6 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.Status1, new ByteRegister(this)
                     .WithFlag(7, FieldMode.Read, valueProviderCallback: _ =>
                     {
-                        //this.Log(LogLevel.Debug, "TX count {0}.", Count);
                         return transmitQueue.Count <= transmitWatermark;
                     },name: "TDRE")
                     .WithTaggedFlag("TC", 6)
@@ -201,14 +200,12 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(innerLock)
             {
                 var value = registers.Read(offset);
-                //this.Log(LogLevel.Debug, "Read from offset 0x{0:X}, value 0x{1:X}.", offset, value);
                 return value;
             }
         }
 
         void IBytePeripheral.WriteByte(long offset, byte value)
         {
-            //this.Log(LogLevel.Debug, "Write to offset 0x{0:X}, value 0x{1:X}, {2}", offset, value, Convert.ToString(value, toBase: 2));
             lock(innerLock)
             {
                 registers.Write(offset, value);
@@ -222,13 +219,13 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void QueueEmptied()
         {
-            //this.Log(LogLevel.Debug, "Queue emptied");
+            this.Log(LogLevel.Debug, "Queue emptied");
         }
 
         public long Size => 0x1000;
         public GPIO IRQ { get; private set; }
 
-        //TODO should be calculated based upon UART clock - but where do we get it from?
+        //TODO should be calculated based upon UART clock
         public override uint BaudRate => 115200;
 
         private void TransmitData()
@@ -272,7 +269,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
 
         private readonly ByteRegisterCollection registers;
-        //private IEnumRegisterField<TransmitCompleteFlagValues> transmitComplete;
+
         private uint baudRateDivValue;
         private IValueRegisterField baudRateFineAdjustValue;
 
