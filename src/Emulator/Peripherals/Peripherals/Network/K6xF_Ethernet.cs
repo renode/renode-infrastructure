@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)Registers.TransmitControl, new DoubleWordRegister(this)
                     .WithReservedBits(11, 21)
                     .WithReservedBits(10, 1)
-                    .WithFlag(9, out checksumGeneratorEnabled, name: "CRCFWD")
+                    .WithFlag(9, out forwardCRCFromApplication, name: "CRCFWD")
                     .WithTaggedFlag("ADDINS", 8)
                     .WithValueField(5, 3, name: "ADDSEL")
                     .WithTaggedFlag("RFC_PAUSE", 4)
@@ -214,8 +214,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            //throw new NotImplementedException();
-            this.Log(LogLevel.Debug, "GOT A FRAME");
             lock(innerLock)
             {
                 this.Log(LogLevel.Debug, "Received packet, length {0}", frame.Bytes.Length);
@@ -231,15 +229,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     return;
                 }
 
-                // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
-                // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-                //rxPacketTimestamp.seconds = secTimer.Value;
-                //rxPacketTimestamp.nanos = (uint)nanoTimer.Value;
-
-                rxDescriptorsQueue.CurrentDescriptor.Invalidate();
+                rxDescriptorsQueue.CurrentDescriptor.Read();
                 if(rxDescriptorsQueue.CurrentDescriptor.IsEmpty)
                 {
-                    //var actualLength = (uint)(removeFrameChecksum.Value ? frame.Bytes.Length - 4 : frame.Bytes.Length);
                     if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, (uint)frame.Bytes.Length))
                     {
                         // The current implementation doesn't handle packets that do not fit into a single buffer.
@@ -248,25 +240,15 @@ namespace Antmicro.Renode.Peripherals.Network
                         return;
                     }
 
-                    //rxDescriptorsQueue.CurrentDescriptor.StartOfFrame = true;
                     rxDescriptorsQueue.CurrentDescriptor.Length = (ushort)frame.Bytes.Length;
+                    // Packets going over several buffers not supported
                     rxDescriptorsQueue.CurrentDescriptor.IsLast = true;
                     rxDescriptorsQueue.CurrentDescriptor.IsEmpty = false;
                     // write this back to memory
                     rxDescriptorsQueue.CurrentDescriptor.Update();
 
-                    /*if(rxBufferDescriptorTimeStampMode.Value != TimestampingMode.Disabled)
-                    {
-                        rxDescriptorsQueue.CurrentDescriptor.Timestamp = rxPacketTimestamp;
-                    }
-                    else
-                    {
-                        rxDescriptorsQueue.CurrentDescriptor.HasValidTimestamp = false;
-                    }*/
-
                     rxDescriptorsQueue.GoToNextDescriptor();
 
-                    //frameReceived.Value = true;
                     interruptManager.SetInterrupt(Interrupts.ReceiveBufferInterrupt);
                     interruptManager.SetInterrupt(Interrupts.ReceiveFrameInterrupt);
 
@@ -274,8 +256,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 else
                 {
                     this.Log(LogLevel.Warning, "Receive DMA buffer overflow");
-                    //bufferNotAvailable.Value = true;
-                    //interruptManager.SetInterrupt(Interrupts.ReceiveUsedBitRead);
                 }
             }
         }
@@ -294,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public void WriteDoubleWord(long offset, uint value)
         {
             this.Log(LogLevel.Debug, "Write to offset 0x{0:X}, value 0x{1:X}", offset, value);
-            printRegister(value);
+            PrintRegister(value);
             lock(innerLock)
             {
                 registers.Write(offset, value);
@@ -302,9 +282,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         }
 
-        private void printRegister(uint value)
+        private void PrintRegister(uint value)
         {
-            this.Log(LogLevel.Debug, "|31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|");
+            this.Log(LogLevel.Noisy, "|31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|");
             var valueStr = "|";
 
             for(var i = 31; i >= 0; --i)
@@ -314,7 +294,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     valueStr += " 1|";
                 else valueStr += " 0|";
             }
-            this.Log(LogLevel.Debug, "{0}", valueStr);
+            this.Log(LogLevel.Noisy, "{0}", valueStr);
         }
 
         private void UpdateMac()
@@ -329,33 +309,26 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendSingleFrame(IEnumerable<byte> bytes, bool isCRCIncluded)
         {
             var bytesArray = bytes.ToArray();
-            EnsureArrayLength(isCRCIncluded ? 64 : 60);
+
+            EnsureMinimumArrayLength(isCRCIncluded ? 64 : 60);
 
             EthernetFrame frame;
-            var addCrc = !isCRCIncluded && checksumGeneratorEnabled.Value;
+            var addCrc = !isCRCIncluded && !forwardCRCFromApplication.Value;
+            if (forwardCRCFromApplication.Value && !isCRCIncluded)
+            {
+                this.Log(LogLevel.Error, "CRC needs to be provided by the application but is missing");
+                return;
+            }
+
             if(!Misc.TryCreateFrameOrLogWarning(this, bytesArray, out frame, addCrc))
             {
                 return;
             }
 
-            this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
+            this.Log(LogLevel.Debug, "Sending packet, length {0}", frame.Bytes.Length);
             FrameReady?.Invoke(frame);
 
-            // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
-            // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-            /*txPacketTimestamp.seconds = secTimer.Value;
-            txPacketTimestamp.nanos = (uint)nanoTimer.Value;
-
-            if(txBufferDescriptorTimeStampMode.Value != TimestampingMode.Disabled)
-            {
-                txDescriptorsQueue.CurrentDescriptor.Timestamp = txPacketTimestamp;
-            }
-            else
-            {
-                rxDescriptorsQueue.CurrentDescriptor.HasValidTimestamp = false;
-            }*/
-
-            void EnsureArrayLength(int length)
+            void EnsureMinimumArrayLength(int length)
             {
                 if(bytesArray.Length < length)
                 {
@@ -370,30 +343,23 @@ namespace Antmicro.Renode.Peripherals.Network
             lock(innerLock)
             {
                 var packetBytes = new List<byte>();
-                bool? isCRCIncluded = null;
-                this.Log(LogLevel.Debug, "Loading descriptor");
-                txDescriptorsQueue.CurrentDescriptor.Invalidate();
+                txDescriptorsQueue.CurrentDescriptor.Read();
                 while(txDescriptorsQueue.CurrentDescriptor.IsReady)
                 {
-                    if(!isCRCIncluded.HasValue)
-                    {
-                        // this information is interperted only for the first buffer in a frame
-                        isCRCIncluded = txDescriptorsQueue.CurrentDescriptor.IsCRCIncluded;
-                    }
-
+                
                     // fill packet with data from memory
+                    this.Log(LogLevel.Debug, "Buffer Length {0}", txDescriptorsQueue.CurrentDescriptor.Length);
                     packetBytes.AddRange(txDescriptorsQueue.CurrentDescriptor.ReadBuffer());
                     if(txDescriptorsQueue.CurrentDescriptor.IsLast)
                     {
-                        SendSingleFrame(packetBytes, isCRCIncluded.Value);
+                        // IncludeCRC is only valid for the buffer with IsLast set
+                        SendSingleFrame(packetBytes, !txDescriptorsQueue.CurrentDescriptor.IncludeCRC);
                         packetBytes.Clear();
-                        isCRCIncluded = null;
                     }
 
                     // Need to update the ready flag after processing
                     txDescriptorsQueue.CurrentDescriptor.IsReady = false; // free it up
-                    txDescriptorsQueue.CurrentDescriptor.Update(); // write bag to memory
-                    this.Log(LogLevel.Debug, "Going to next desciptor");
+                    txDescriptorsQueue.CurrentDescriptor.Update(); // write back to memory
                     txDescriptorsQueue.GoToNextDescriptor();
                 }
 
@@ -419,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         //TransmitControl
         private IFlagRegisterField fullDuplex;
-        private readonly IFlagRegisterField checksumGeneratorEnabled;
+        private readonly IFlagRegisterField forwardCRCFromApplication;
 
         //ReceiveControl
         private readonly IFlagRegisterField receiverEnabled;
@@ -435,12 +401,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         //TransmitFIFOWatermark
         private IFlagRegisterField storeAndForward;
-
-        //ReceiveDescriptorRingStart
-        private IValueRegisterField rxDescRingStart;
-
-        //TransmitBufferDescriptorRingStart
-        private IValueRegisterField txDescRingStart;
 
         private enum Registers
         {
@@ -617,25 +577,30 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
                 else
                 {
-                    // Buffer is not last and next buffer is in the consecutive field
-                    if(!CurrentDescriptor.IsLast && !CurrentDescriptor.Wrap)
+                    // If wrap is set, we have reached end of ring and need to start from the beginning
+                    if (CurrentDescriptor.Wrap)
+                    {
+                        currentDescriptorIndex = 0;
+                    }
+                    else
                     {
                         descriptors.Add(creator(bus, CurrentDescriptor.DescriptorAddress + CurrentDescriptor.SizeInBytes));
                         currentDescriptorIndex++;
                     }
                 }
-                CurrentDescriptor.Invalidate();
+                CurrentDescriptor.Read();
             }
 
             public void GoToBaseAddress()
             {
                 currentDescriptorIndex = 0;
-                CurrentDescriptor.Invalidate();
+                CurrentDescriptor.Read();
             }
 
             public T CurrentDescriptor => descriptors[currentDescriptorIndex];
 
-            private int currentDescriptorIndex;
+            public int currentDescriptorIndex { get; private set; }
+            //private int currentDescriptorIndex;
 
             private readonly List<T> descriptors;
             private readonly uint baseAddress;
@@ -678,7 +643,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return (uint)words.Length * 2;
             }
 
-            public void Invalidate()
+            public void Read()
             {
                 var tempOffset = 0UL;
                 for(var i = 0; i < words.Length; ++i)
@@ -756,7 +721,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public ushort Length => (ushort)words[0];
 
-            public bool IsCRCIncluded => BitHelper.IsBitSet(words[1], 10);
+            public bool IncludeCRC => BitHelper.IsBitSet(words[1], 10);
 
             public bool IsReady
             {
