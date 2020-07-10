@@ -18,9 +18,8 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class KS8851 : ISPIPeripheral, IMACInterface
     {
-        public KS8851(Machine machine)
+        public KS8851()
         {
-            this.machine = machine;
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             currentLength = 4;
             request = new byte[10240];
@@ -40,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void ReceiveFrame(EthernetFrame frame)
         {
-            if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
+            if(!frame.DestinationMAC.IsBroadcast && frame.DestinationMAC != MAC)
             {
                 return;
             }
@@ -263,7 +262,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly Queue<EthernetFrame> packetQueue;
         private readonly byte[] request;
         private readonly byte[] response;
-        private readonly Machine machine;
 
         private static class Consts
         {

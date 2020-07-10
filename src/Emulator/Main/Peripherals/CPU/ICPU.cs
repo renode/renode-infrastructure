@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         void UnmapMemory(Range range);
         void SetPageAccessViaIo(ulong address);
         void ClearPageAccessViaIo(ulong address);
-        string Model{ get; }
+        string Model { get; }
         RegisterValue PC { get; set; }
         bool IsHalted { get; set; }
         SystemBus Bus { get; }
@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// by the object.
         /// </summary>
         bool OnPossessedThread { get; }
+        void SyncTime();
     }
 
     public static class ICPUExtensions

@@ -17,9 +17,8 @@ namespace Antmicro.Renode.Peripherals.Input
 {
     public class FusionF0710A : II2CPeripheral, IAbsolutePositionPointerInput
     {
-        public FusionF0710A(Machine machine)
+        public FusionF0710A()
         {
-            this.machine = machine;
             IRQ = new GPIO();
         }
                
@@ -219,7 +218,6 @@ namespace Antmicro.Renode.Peripherals.Input
         private byte[] currentRetValue;
         private bool pressed;
         private bool readItAlready;
-        private readonly Machine machine;
 
         private const int XCoordinateHi = 1;
         private const int XCoordinateLo = 2;

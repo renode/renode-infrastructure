@@ -61,6 +61,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         // GPIOs in VexRiscv are divided into the following sections
         //      0 - 31 : machine level external interrupts
         //         100 : machine level timer interrupt
+        //         101 : machine level software interrupt
         // 1000 - 1031 : supervisor level external interrupts
         public override void OnGPIO(int number, bool value)
         {
@@ -70,6 +71,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(number == MachineTimerInterruptCustomNumber)
                 {
                     base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
+                }
+                else if (number == MachineSoftwareInterruptCustomNumber)
+                {
+                    base.OnGPIO((int)IrqType.MachineSoftwareInterrupt, value);
                 }
                 else if(number >= SupervisorExternalInterruptsOffset)
                 {
@@ -116,6 +121,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         // but it's moved to 100 to avoid conflicts with VexRiscv
         // built-in interrupt manager that is mapped to IRQs 0-31
         private const int MachineTimerInterruptCustomNumber = 100;
+
+        // this is non-standard number for Machine Software Interrupt,
+        // but it's moved to 101 to avoid conflicts with VexRiscv
+        // built-in interrupt manager that is mapped to IRQs 0-31
+        private const int MachineSoftwareInterruptCustomNumber = 101;
+
         private const int SupervisorExternalInterruptsOffset = 1000;
 
         private struct Interrupts

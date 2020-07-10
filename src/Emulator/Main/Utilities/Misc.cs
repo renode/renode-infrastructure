@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -471,9 +471,13 @@ namespace Antmicro.Renode.Utilities
             return (byte)(value & 0xFF);
         }
 
-        public static string FromResourceToTemporaryFile(this Assembly assembly, string resourceName)
+        public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFile)
         {
-            Stream libraryStream = assembly.GetManifestResourceStream(resourceName);
+            // `GetManifestResourceStream` is not supported by dynamic assemblies
+            Stream libraryStream = assembly.IsDynamic
+                ? null
+                : assembly.GetManifestResourceStream(resourceName);
+
             if(libraryStream == null)
             {
                 if(File.Exists(resourceName))
@@ -482,10 +486,21 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(libraryStream == null)
                 {
-                    throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
+                    outputFile = null;
+                    return false;
                 }
             }
-            return CopyToFile(libraryStream, resourceName);
+            outputFile = CopyToFile(libraryStream, resourceName);
+            return true;
+        }
+
+        public static string FromResourceToTemporaryFile(this Assembly assembly, string resourceName)
+        {
+            if(!TryFromResourceToTemporaryFile(assembly, resourceName, out var result))
+            {
+                throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
+            }
+            return result;
         }
 
         public static void Copy(this Stream from, Stream to)
@@ -548,7 +563,7 @@ namespace Antmicro.Renode.Utilities
         public static bool TryGetRootDirectory(out string directory)
         {
 #if PLATFORM_LINUX
-            if(BundleHelper.BundledAssembliesCount > 0)
+            if(AssemblyHelper.BundledAssembliesCount > 0)
             {
                 // we are bundled, so we need a custom way of detecting the root directory
                 var thisFile = new StringBuilder(2048);
@@ -802,6 +817,13 @@ namespace Antmicro.Renode.Utilities
             var temporary = a;
             a = b;
             b = temporary;
+        }
+
+        public static void SwapElements<T>(T[] arr, int id1, int id2)
+        {
+            var tmp = arr[id1];
+            arr[id1] = arr[id2];
+            arr[id2] = tmp;
         }
 
         public static bool CalculateUnitSuffix(double value, out double newValue, out string unit)
@@ -1131,19 +1153,19 @@ namespace Antmicro.Renode.Utilities
                 renamed = true;
             }
             return renamed;
+	}
 
-            bool TryCreateEmptyFile(string p)
+        private static bool TryCreateEmptyFile(string p)
+        {
+            try
             {
-                try
-                {
-                    File.Open(p, FileMode.CreateNew).Dispose();
-                    return true;
-                }
-                catch(IOException)
-                {
-                    // this is expected - the file already exists
-                    return false;
-                }
+                File.Open(p, FileMode.CreateNew).Dispose();
+                return true;
+            }
+            catch(IOException)
+            {
+                // this is expected - the file already exists
+                return false;
             }
         }
     }

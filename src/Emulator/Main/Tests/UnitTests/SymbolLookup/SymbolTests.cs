@@ -88,6 +88,24 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             Assert.False(symbol[3].Contains(symbol[1]));
             Assert.False(symbol[1].Contains(symbol[4]));
         }
+
+        [Test]
+        public void ShouldDemangle()
+        {
+            var symbol = new List<Symbol> {
+                new Symbol(0,0, "_ZN2cl2pl4consC1ERKSs"),
+                new Symbol(0,0, "_Z1hic"),
+                new Symbol(0,0, "?h@@YAXHD@Z" ),
+                new Symbol(0,0, "_ZN4Test6Ne$ted12staticMemberE3abc" ),
+                new Symbol(0,0, "_ZNSt8ios_base4InitC1Ev@plt")
+                
+            };
+            Assert.AreEqual("cl::pl::cons::complete object constructor", symbol[0].Name);
+            Assert.AreEqual("h", symbol[1].Name);
+            Assert.AreEqual("?h@@YAXHD@Z", symbol[2].Name);
+            Assert.AreEqual("Test::Ne$ted::staticMember", symbol[3].Name);
+            Assert.AreEqual("std::ios_base::Init::complete object constructor", symbol[4].Name);
+        }
     }
 }
 

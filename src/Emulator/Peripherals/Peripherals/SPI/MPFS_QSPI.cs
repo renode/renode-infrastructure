@@ -16,9 +16,9 @@ using Antmicro.Renode.Logging;
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class PSE_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
+    public class MPFS_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_QSPI(Machine machine) : base(machine)
+        public MPFS_QSPI(Machine machine) : base(machine)
         {
             locker = new object();
             IRQ = new GPIO();
@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(0, out enabled, name: "ENABLE")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "MASTER")
                     .WithFlag(2, out xipMode, name: "XIP")
-                    .WithEnumField(3, 1, out xipAddressBytes, name: "XIPADDR")
+                    .WithEnumField<DoubleWordRegister, XIPAddressBytes>(3, 1, name: "XIPADDR")
                     .WithReservedBits(4, 6)
                     .WithTag("CLKIDLE", 10, 1)
                     .WithTag("SAMPLE", 11, 2)
@@ -320,7 +320,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField enabled;
         private readonly IFlagRegisterField xipMode;
-        private readonly IEnumRegisterField<XIPAddressBytes> xipAddressBytes;
         private readonly IValueRegisterField commandBytes;
         private readonly IFlagRegisterField x4Enabled;
         private readonly IValueRegisterField upperAddress;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,15 +12,14 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    // this is a model of LiteX timer in the default configuration:
-    // * width: 32 bits
+    // this is a model of LiteX timer with register layout to simulate 64 bit bus read/write access
+    // * width: 64 bits
     // * csr data width: 8 bit
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class LiteX_Timer : BasicDoubleWordPeripheral, IKnownSize
+    public class LiteX_Timer64 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_Timer(Machine machine, long frequency) : base(machine)
+        public LiteX_Timer64(Machine machine, long frequency) : base(machine)
         {
-            uptimeTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(uptimeTimer), direction: Antmicro.Renode.Time.Direction.Ascending, enabled: true);
             innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);
             innerTimer.LimitReached += delegate
             {
@@ -30,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 if(reloadValue == 0)
                 {
-                    this.Log(LogLevel.Noisy, "No realod value - disabling the timer");
+                    this.Log(LogLevel.Noisy, "No reload value - disabling the timer");
                     innerTimer.Enabled = false;
                 }
                 innerTimer.Limit = reloadValue;
@@ -42,7 +41,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             base.Reset();
             innerTimer.Reset();
-            uptimeTimer.Reset();
             latchedValue = 0;
             loadValue = 0;
             reloadValue = 0;
@@ -52,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; } = new GPIO();
 
-        public long Size => 0x68;
+        public long Size => 0x88;
 
         private void DefineRegisters()
         {
@@ -64,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     BitHelper.ReplaceBits(ref loadValue, width: 8, source: val, destinationPosition: 24 - idx * 8);
                 });
-            });
+            }, stepInBytes: 8);
 
             // RELOAD0 contains most significant 8 bits
             // RELOAD3 contains least significant 8 bits
@@ -74,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     BitHelper.ReplaceBits(ref reloadValue, width: 8, source: val, destinationPosition: 24 - idx * 8);
                 });
-            });
+            }, stepInBytes: 8);
 
             Registers.TimerEnable.Define32(this)
                 .WithFlag(0, name: "ENABLE", writeCallback: (_, val) =>
@@ -99,12 +97,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(val)
                     {
-                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-                        {
-                            // being here means we are on the CPU thread
-                            cpu.SyncTime();
-                        }
-
                         latchedValue = (uint)innerTimer.Value;
                     }
                 });
@@ -118,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return BitHelper.GetValue(latchedValue, 24 - idx * 8, 8);
                 });
-            });
+            }, stepInBytes: 8);
 
             Registers.EventStatus.Define32(this)
                 .WithFlag(0, FieldMode.Read, name: "EV_STATUS", valueProviderCallback: _ => innerTimer.Value == 0)
@@ -131,31 +123,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.EventEnable.Define32(this)
                 .WithFlag(0, out irqEnabled, name: "EV_ENABLE", changeCallback: (_, __) => UpdateInterrupts())
             ;
-
-            Registers.UptimeLatch.Define32(this)
-                .WithFlag(0, FieldMode.WriteOneToClear, name: "UPTIME_LATCH", writeCallback: (_, val) =>
-                {
-                    if(val)
-                    {
-                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-                        {
-                            // being here means we are on the CPU thread
-                            cpu.SyncTime();
-                        }
-
-                        uptimeLatchedValue = uptimeTimer.Value;
-                    }
-                });
-
-            // UPTIME_CYCLES0 contains most significant 8 bits
-            // UPTIME_CYCLES7 contains least significant 8 bits
-            Registers.UptimeCycles0.DefineMany(this, 8, (reg, idx) =>
-            {
-                reg.WithValueField(0, 8, FieldMode.Read, name: $"UPTIME_CYCLES{idx}", valueProviderCallback: _ =>
-                {
-                    return (byte)BitHelper.GetValue(uptimeLatchedValue, 56 - idx * 8, 8);
-                });
-            });
         }
 
         private void UpdateInterrupts()
@@ -171,47 +138,38 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint loadValue;
         private uint reloadValue;
 
-        private ulong uptimeLatchedValue;
-
         private readonly LimitTimer innerTimer;
-        private readonly LimitTimer uptimeTimer;
 
         private const int SubregistersCount = 4;
 
         private enum Registers
         {
+            /*
+            LoadX, ReloadX, and ValueX are all 64 bit, but only 8 bits from these per register are affected by read/write operations.
+            So the only change in their implementation from the 'generic' LiteX Timer is the increase of stepInBytes.
+            The value they all hold with the current LiteX implementation of the timer will still not exceed 32 bits.
+            */
             Load0 = 0x0,
-            Load1 = 0x4,
-            Load2 = 0x8,
-            Load3 = 0xC,
+            Load1 = 0x8,
+            Load2 = 0x10,
+            Load3 = 0x18,
 
-            Reload0 = 0x10,
-            Reload1 = 0x14,
-            Reload2 = 0x18,
-            Reload3 = 0x1C,
+            Reload0 = 0x20,
+            Reload1 = 0x28,
+            Reload2 = 0x30,
+            Reload3 = 0x38,
 
-            TimerEnable = 0x20,
-            TimerUpdateValue = 0x24,
+            TimerEnable = 0x40,
+            TimerUpdateValue = 0x48,
 
-            Value0 = 0x28,
-            Value1 = 0x2C,
-            Value2 = 0x30,
-            Value3 = 0x34,
+            Value0 = 0x50,
+            Value1 = 0x58,
+            Value2 = 0x60,
+            Value3 = 0x68,
 
-            EventStatus = 0x38,
-            EventPending = 0x3c,
-            EventEnable = 0x40,
-
-            UptimeLatch = 0x44,
-
-            UptimeCycles0 = 0x48,
-            UptimeCycles1 = 0x4C,
-            UptimeCycles2 = 0x50,
-            UptimeCycles3 = 0x54,
-            UptimeCycles4 = 0x58,
-            UptimeCycles5 = 0x5C,
-            UptimeCycles6 = 0x60,
-            UptimeCycles7 = 0x64
+            EventStatus = 0x70,
+            EventPending = 0x78,
+            EventEnable = 0x80
         }
     }
 }

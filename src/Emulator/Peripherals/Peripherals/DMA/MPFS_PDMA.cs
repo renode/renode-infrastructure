@@ -13,9 +13,9 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public class PSE_PDMA : IKnownSize, IDoubleWordPeripheral, INumberedGPIOOutput
+    public class MPFS_PDMA : IKnownSize, IDoubleWordPeripheral, INumberedGPIOOutput
     {
-        public PSE_PDMA(Machine machine)
+        public MPFS_PDMA(Machine machine)
         {
             this.machine = machine;
             dmaEngine = new DmaEngine(this.machine);
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class Channel : IDoubleWordPeripheral
         {
-            public Channel(PSE_PDMA parent, int number)
+            public Channel(MPFS_PDMA parent, int number)
             {
                 this.parent = parent;
                 channelNumber = number;
@@ -357,7 +357,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private readonly IFlagRegisterField doneInterruptEnabled;
             private readonly DoubleWordRegisterCollection registers;
-            private readonly PSE_PDMA parent;
+            private readonly MPFS_PDMA parent;
             private readonly int channelNumber;
 
             private enum TransactionDirection

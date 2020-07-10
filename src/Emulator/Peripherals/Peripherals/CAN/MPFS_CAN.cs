@@ -17,9 +17,9 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.CAN
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class PSE_CAN : IKnownSize, IDoubleWordPeripheral, ICAN
+    public class MPFS_CAN : IKnownSize, IDoubleWordPeripheral, ICAN
     {
-        public PSE_CAN()
+        public MPFS_CAN()
         {
             IRQ = new GPIO();
             InitializeBuffers();
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     (long)ControllerRegisters.Command,
                     new DoubleWordRegister(this)
-                        .WithFlag(0, out runStopMode, name: "RunStopMode")
+                        .WithFlag(0, name: "RunStopMode")
                         .WithTag("ListenOnlyMode", 1, 1)
                         .WithTag("LoopbackTestMode", 2, 1)
                         .WithTag("SRAMTestMode", 3, 1)
@@ -376,7 +376,6 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IFlagRegisterField txMessageInterruptsStatus;
         private IFlagRegisterField rxMessageInterruptsStatus;
         private IFlagRegisterField swapEndian;
-        private IFlagRegisterField runStopMode;
         
         private readonly DoubleWordRegisterCollection registers;
         
@@ -386,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private abstract class MessageBuffer
         {
-            protected MessageBuffer(PSE_CAN parent, uint id)
+            protected MessageBuffer(MPFS_CAN parent, uint id)
             {
                 this.parent = parent;
                 BufferId = id;
@@ -415,7 +414,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
-            protected readonly PSE_CAN parent;
+            protected readonly MPFS_CAN parent;
             protected const int MaxDataLength = 8;
 
             private uint dataLengthCode;
@@ -423,7 +422,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private class TxMessageBuffer : MessageBuffer
         {
-            public TxMessageBuffer(PSE_CAN parent, uint bufferId) : base(parent, bufferId)
+            public TxMessageBuffer(MPFS_CAN parent, uint bufferId) : base(parent, bufferId)
             {
                 data = new byte[MaxDataLength];
             }
@@ -463,7 +462,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private class RxMessageBuffer : MessageBuffer
         {
-            public RxMessageBuffer(PSE_CAN parent, uint bufferId) : base(parent, bufferId)
+            public RxMessageBuffer(MPFS_CAN parent, uint bufferId) : base(parent, bufferId)
             {
             }
 

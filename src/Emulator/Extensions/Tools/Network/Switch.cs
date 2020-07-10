@@ -54,8 +54,6 @@ namespace Antmicro.Renode.Tools.Network
                 {
                     ifaceDescriptor.Machine = machine ?? peripheralInterface.GetMachine();
                 }
-                // here we try to cast the iface to `ITapInterface` to avoid doing it multiple times for every packet in the future
-                ifaceDescriptor.AsTap = iface as HostInterfaces.Network.ITapInterface;
                 iface.FrameReady += ifaceDescriptor.Delegate;
                 ifaces.Add(ifaceDescriptor);
                 this.Log(LogLevel.Info, "Interface {0} attached", iface.MAC);
@@ -137,12 +135,6 @@ namespace Antmicro.Renode.Tools.Network
         {
             this.Log(LogLevel.Noisy, "Received frame from interface {0}", sender.MAC);
 
-            if(!frame.DestinationMAC.HasValue)
-            {
-                this.Log(LogLevel.Warning, "Destination MAC not set, the frame has unsupported format.");
-                return;
-            }
-
             FrameProcessed?.Invoke(this, sender, frame.Bytes);
 
             if(!started)
@@ -151,7 +143,7 @@ namespace Antmicro.Renode.Tools.Network
             }
             lock(innerLock)
             {
-                var interestingIfaces = macMapping.TryGetValue(frame.DestinationMAC.Value, out var destIface)
+                var interestingIfaces = macMapping.TryGetValue(frame.DestinationMAC, out var destIface)
                     ? ifaces.Where(x => (x.PromiscuousMode && x.Interface != sender) || x.Interface == destIface)
                     : ifaces.Where(x => x.Interface != sender);
 
@@ -165,9 +157,9 @@ namespace Antmicro.Renode.Tools.Network
                 {
                     this.Log(LogLevel.Noisy, "Forwarding frame to interface {0}", iface.Interface.MAC);
 
-                    if(iface.AsTap != null)
+                    if(iface.Machine == null)
                     {
-                        iface.AsTap.ReceiveFrame(frame.Clone());
+                        iface.Interface.ReceiveFrame(frame.Clone());
                         continue;
                     }
 
@@ -179,15 +171,9 @@ namespace Antmicro.Renode.Tools.Network
             }
 
             // at the same we will potentially add current MAC address assigned to the source
-            if(!frame.SourceMAC.HasValue)
-            {
-                this.Log(LogLevel.Warning, "Source MAC not set, cannot update switch cache.");
-                return;
-            }
-
             lock(innerLock)
             {
-                macMapping[frame.SourceMAC.Value] = sender;
+                macMapping[frame.SourceMAC] = sender;
             }
         }
 
@@ -199,7 +185,6 @@ namespace Antmicro.Renode.Tools.Network
 
         private class InterfaceDescriptor
         {
-            public HostInterfaces.Network.ITapInterface AsTap;
             public Machine Machine;
             public IMACInterface Interface;
             public bool PromiscuousMode;

@@ -15,10 +15,9 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public sealed class STM32F7_USART : IDoubleWordPeripheral, IKnownSize, IUART
     {
-        public STM32F7_USART(Machine machine)
+        public STM32F7_USART()
         {
             sync = new object();
-            this.machine = machine;
             IRQ = new GPIO();
             receiveQueue = new Queue<byte>();
 
@@ -206,7 +205,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField enabled;
         private readonly IValueRegisterField stopBits;
         private readonly Queue<byte> receiveQueue;
-        private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object sync;
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,6 +15,7 @@ using Mono.Cecil;
 using System.Reflection;
 using System.Collections.Generic;
 using Antmicro.Renode.Plugins;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -23,12 +24,12 @@ namespace Antmicro.Renode.Utilities
         static TypeManager()
         {
             string assemblyLocation;
-            var isBundled = BundleHelper.InitializeBundledAssemblies();
+            var isBundled = AssemblyHelper.TryInitializeBundledAssemblies();
 
             Instance = new TypeManager(isBundled);
             if(isBundled)
             {
-                foreach(var name in BundleHelper.GetBundledAssembliesNames())
+                foreach(var name in AssemblyHelper.GetBundledAssembliesNames())
                 {
                     Instance.ScanFile(name, bundled: true);
                 }
@@ -265,7 +266,7 @@ namespace Antmicro.Renode.Utilities
             // TODO: case insensitive
             foreach(var assembly in Directory.GetFiles(path, "*.dll").Union(Directory.GetFiles(path, "*.exe")))
             {
-                AnalyzeAssembly(assembly);
+                AnalyzeAssembly(assembly, throwOnBadImage: false);
             }
             if(recursive)
             {
@@ -357,7 +358,7 @@ namespace Antmicro.Renode.Utilities
                 try
                 {
                     var scope = tp.GetElementType().Scope.ToString();
-                    var bundled = BundleHelper.GetBundledAssemblyByFullName(scope);
+                    var bundled = AssemblyHelper.GetBundledAssemblyByFullName(scope);
                     if(bundled != null)
                     {
                         if(tp.IsArray)
@@ -468,7 +469,7 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
-        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false, bool bundled = false)
+        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false, bool bundled = false, bool throwOnBadImage = true)
         {
             Logger.LogAs(this, LogLevel.Noisy, "Analyzing assembly {0}.", path);
             if(assemblyFromAssemblyName.Values.Any(x => x.Path == path))
@@ -480,7 +481,7 @@ namespace Antmicro.Renode.Utilities
             try
             {
                 assembly = (bundled)
-                    ? BundleHelper.GetBundledAssemblyByName(path)
+                    ? AssemblyHelper.GetBundledAssemblyByName(path)
                     : AssemblyDefinition.ReadAssembly(path);
             }
             catch(DirectoryNotFoundException)
@@ -495,9 +496,14 @@ namespace Antmicro.Renode.Utilities
             }
             catch(BadImageFormatException)
             {
+                var message = string.Format("File {0} could not be analyzed due to invalid format.", path);
+                if(throwOnBadImage)
+                {
+                    throw new RecoverableException(message);
+                }
                 // we hush this log because it is issued in binary Windows packages - we look for DLL files, but we
                 // also bundle libgcc etc.
-                Logger.LogAs(this, LogLevel.Noisy, "File {0} could not be analyzed due to invalid format.", path);
+                Logger.LogAs(this, LogLevel.Noisy, message);
                 return false;
             }
             var assemblyName = assembly.FullName;

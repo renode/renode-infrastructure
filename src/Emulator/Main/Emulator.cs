@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -29,7 +29,17 @@ namespace Antmicro.Renode
             var beforeExit = BeforeExit;
             if(beforeExit != null)
             {
-                beforeExit();
+                try
+                {
+                    beforeExit();
+                }
+                catch (RecoverableException)
+                {
+                    // Due to a complex bug, such exception is thrown on each exit if GUI was started.
+                    // All OSs are affected, but only Windows logs it. As it looks like a crash and
+                    // Linux/macOS seem to just silence those exceptions anyway, explicit silencing
+                    // seems best for all of them until the real fix is introduced.
+                }
             }
             exitEvent.Set();
         }
@@ -79,6 +89,13 @@ namespace Antmicro.Renode
                 Directory.CreateDirectory(userDirectoryPath);
             }
         }
+
+        // CI mode is kind-of-a-hack to allow
+        // running multiple instances of Renode
+        // at the same time by disabling writing
+        // to shared files like binaries cache,
+        // config file, etc.
+        public static bool InCIMode => (Environment.GetEnvironmentVariable("RENODE_CI_MODE") == "YES");
 
         private static string userDirectoryPath;
 

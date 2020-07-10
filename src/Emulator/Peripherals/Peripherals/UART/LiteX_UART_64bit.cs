@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,9 +12,10 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
+    // this is a model of LiteX UART with register layout to simulate 64 bit bus read/write access
+    public class LiteX_UART64 : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public LiteX_UART(Machine machine) : base(machine)
+        public LiteX_UART64(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
             var registersMap = new Dictionary<long, DoubleWordRegister>
@@ -29,11 +30,20 @@ namespace Antmicro.Renode.Peripherals.UART
                             return character;
                         })
                 },
+                {(long)Registers.RxTxHi, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
+                },
                 {(long)Registers.TxFull, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read) //tx is never full
                 },
+                {(long)Registers.TxFullHi, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
+                },
                 {(long)Registers.RxEmpty, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
+                },
+                {(long)Registers.RxEmptyHi, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
                     // `txEventPending` implements `WriteOneToClear` semantics to avoid fake warnings
@@ -42,10 +52,16 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
+                {(long)Registers.EventPendingHi, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
+                },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
                     .WithFlag(0, name: "txEventEnabled")
                     .WithFlag(1, out rxEventEnabled)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)Registers.EventEnableHi, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
             };
 
@@ -59,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public byte ReadByte(long offset)
         {
-            if(offset % 4 != 0)
+            if(offset % 8 != 0)
             {
                 // in the current configuration, only the lowest byte
                 // contains a meaningful data
@@ -83,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.UART
          
         public void WriteByte(long offset, byte value)
         {
-            if(offset % 4 != 0)
+            if(offset % 8 != 0)
             {
                 // in the current configuration, only the lowest byte
                 // contains a meaningful data
@@ -130,11 +146,17 @@ namespace Antmicro.Renode.Peripherals.UART
         private enum Registers : long
         {
             RxTx = 0x0,
-            TxFull = 0x04,
-            RxEmpty = 0x08,
-            EventStatus = 0x0c,
-            EventPending = 0x10,
-            EventEnable = 0x14,
+            RxTxHi = 0x04,
+            TxFull = 0x08,
+            TxFullHi = 0x0C,
+            RxEmpty = 0x10,
+            RxEmptyHi = 0x14,
+            EventStatus = 0x18,
+            EventStatusHi = 0x1C,
+            EventPending = 0x20,
+            EventPendingHi = 0x24,
+            EventEnable = 0x28,
+            EventEnableHi = 0x3C
         }
     }
 }

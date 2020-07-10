@@ -14,8 +14,6 @@ namespace Antmicro.Renode.Core.USB.HID
                                 short classSpecification = 0,
                                 byte countryCode = 0) : base(9, (byte)HID.DescriptorType.HID)
         {
-            this.reportDescriptor = reportDescriptor;
-
             NumberOfClassDescriptors = 1;
             HID_ClassSpecification = classSpecification;
             CountryCode = countryCode;
@@ -38,7 +36,5 @@ namespace Antmicro.Renode.Core.USB.HID
                 .Append(DescriptorType)
                 .Append(HidDescriptorLength);
         }
-
-        private readonly ReportDescriptor reportDescriptor;
     }
 }

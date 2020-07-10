@@ -17,9 +17,9 @@ using Antmicro.Renode.Utilities.Collections;
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class PSE_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
+    public class MPFS_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_GPIO(Machine machine) : base(machine, 32)
+        public MPFS_GPIO(Machine machine) : base(machine, 32)
         {
             locker = new object();
             IRQ = new GPIO();
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
 
                 {(long)Registers.InputRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out inputReg, FieldMode.Read,
+                    .WithValueField(0, 32, FieldMode.Read,
                         valueProviderCallback: val =>
                         {
                             var pins = irqManager.PinDirection.Select(x => (x & GPIOInterruptManager.Direction.Input) != 0);
@@ -207,7 +207,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly GPIOInterruptManager irqManager;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object locker;
-        private readonly IValueRegisterField inputReg;
 
         private const int RegisterLength = 32;
         private const int RegisterOffset = 0x4;

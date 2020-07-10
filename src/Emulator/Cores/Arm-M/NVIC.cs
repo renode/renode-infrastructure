@@ -8,6 +8,7 @@
 using System;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -32,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.priorityMask = priorityMask;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
+            resetMachine = machine.RequestReset;
             systick.LimitReached += () =>
             {
                 countFlag = true;
@@ -186,6 +188,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 binaryPointPosition = (int)(value >> 8) & 7;
+                if(BitHelper.IsBitSet(value, 2))
+                {
+                    resetMachine();
+                }
                 break;
             case Registers.SystemControlRegister:
                 if((value & DeepSleep) != 0)
@@ -608,6 +614,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
+        private readonly Action resetMachine;
         private CortexM cpu;
         private readonly LimitTimer systick;
 

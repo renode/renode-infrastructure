@@ -61,7 +61,8 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public IEnumerable<T> DequeueAll()
         {
-            while(TryDequeue(out var value))
+            T value;
+            while(TryDequeue(out value))
             {
                 yield return value;
             }

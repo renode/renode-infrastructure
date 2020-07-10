@@ -17,9 +17,8 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class NS16550 :  IBytePeripheral, IDoubleWordPeripheral, IUART, IKnownSize
     {
-        public NS16550(Machine machine, bool wideRegisters = false)
+        public NS16550(bool wideRegisters = false)
         {
-            this.machine = machine;
             mode32 = wideRegisters;
             IRQ = new GPIO();
             Reset();
@@ -628,7 +627,6 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private const uint SystemClockFrequency = 0;
-        private readonly Machine machine;
     }
 }
 

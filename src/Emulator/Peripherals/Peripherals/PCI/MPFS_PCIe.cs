@@ -17,9 +17,9 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.PCI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class PSE_PCIe : SimpleContainer<IPCIePeripheral>, IDoubleWordPeripheral, IKnownSize, IPCIeRouter, IAbsoluteAddressAware
+    public class MPFS_PCIe : SimpleContainer<IPCIePeripheral>, IDoubleWordPeripheral, IKnownSize, IPCIeRouter, IAbsoluteAddressAware
     {
-        public PSE_PCIe(Machine machine) : base(machine)
+        public MPFS_PCIe(Machine machine) : base(machine)
         {
             var registersDictionary = new Dictionary<long, DoubleWordRegister>
             {
@@ -343,7 +343,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         private class AddressTranslationTable
         {
-            public AddressTranslationTable(PSE_PCIe parent)
+            public AddressTranslationTable(MPFS_PCIe parent)
             {
                 this.parent = parent;
                 this.size = MinSize;
@@ -385,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.PCI
             public ulong TranslationMask => size == MaxSize ? 0ul : 0ul - (2ul << ((int)SizePower + 1));
 
             private uint size;
-            private PSE_PCIe parent;
+            private MPFS_PCIe parent;
 
             private const int MinSize = 11;
             private const int MaxSize = 63;

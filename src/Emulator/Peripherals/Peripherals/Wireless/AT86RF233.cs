@@ -15,10 +15,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public class AT86RF233 : ISPIPeripheral, IRadio, IGPIOReceiver
     {
-        public AT86RF233(Machine machine)
+        public AT86RF233()
         {
             IRQ = new GPIO();
-            this.machine = machine;
             Reset();
         }
 
@@ -334,7 +333,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private AccessMode accessMode;
         private AccessType accessType;
         private byte[] frameBuffer;
-        private readonly Machine machine;
         // this is used to hold the last frame received when radio was in TrxOff mode;
         // conserving energy can lead to disabling radio (going into TrxOff mode) and
         // turning it on only periodically; during those short period network acticity

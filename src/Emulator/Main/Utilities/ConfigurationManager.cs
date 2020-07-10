@@ -166,7 +166,7 @@ namespace Antmicro.Renode.Utilities
                         source.Save(FileName);
                     }
                 }
-                source.AutoSave = true;
+                source.AutoSave = !Emulator.InCIMode;
                 return source;
             }
 

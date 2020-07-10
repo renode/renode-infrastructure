@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -64,6 +64,23 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Error, "Cannot perform concurrent downloads, aborting...");
                 return false;
             }
+
+            try
+            {
+                var disableCaching = Emulator.InCIMode;
+
+                return disableCaching
+                    ? TryFetchFromUriInner(uri, out fileName)
+                    : TryFetchFromCacheOrUriInner(uri, out fileName);
+            }
+            finally
+            {
+                Monitor.Exit(concurrentLock);
+            }
+        }
+        
+        private bool TryFetchFromCacheOrUriInner(Uri uri, out string fileName)
+        {
 #if PLATFORM_WINDOWS
             using(var locker = new WindowsFileLocker(GetCacheIndexLockLocation()))
 #else
@@ -73,99 +90,155 @@ namespace Antmicro.Renode.Utilities
                 if(TryGetFromCache(uri, out fileName))
                 {
                     fetchedFiles.Add(fileName, uri);
-                    Monitor.Exit(concurrentLock);
                     return true;
                 }
-                using(client = new WebClient())
+
+                if(TryFetchFromUriInner(uri, out fileName))
                 {
-                    fileName = TemporaryFilesManager.Instance.GetTemporaryFile();
-                    try
-                    {
-                        var attempts = 0;
-                        var success = false;
-                        do
-                        {
-                            var downloadProgressHandler = EmulationManager.Instance.ProgressMonitor.Start(GenerateProgressMessage(uri), false, true);
-                            Logger.LogAs(this, LogLevel.Info, "Downloading {0}.", uri);
-                            var now = CustomDateTime.Now;
-                            var bytesDownloaded = 0L;
-                            client.DownloadProgressChanged += (sender, e) =>
-                            {
-                                var newNow = CustomDateTime.Now;
-
-                                var period = newNow - now;
-                                if (period > progressUpdateThreshold)
-                                {
-                                    downloadProgressHandler.UpdateProgress(e.ProgressPercentage,
-                                        GenerateProgressMessage(uri,
-                                            e.BytesReceived, e.TotalBytesToReceive, e.ProgressPercentage, 1.0 * (e.BytesReceived - bytesDownloaded) / period.TotalSeconds));
-
-                                    now = newNow;
-                                    bytesDownloaded = e.BytesReceived;
-                                }
-                            };
-                            var wasCancelled = false;
-                            Exception exception = null;
-                            var resetEvent = new ManualResetEvent(false);
-                            client.DownloadFileCompleted += delegate (object sender, AsyncCompletedEventArgs e)
-                            {
-                                exception = e.Error;
-                                if (e.Cancelled)
-                                {
-                                    wasCancelled = true;
-                                }
-                                resetEvent.Set();
-                                downloadProgressHandler.Finish();
-                            };
-                            client.DownloadFileAsync(uri, fileName);
-                            resetEvent.WaitOne();
-                            downloadProgressHandler.Finish();
-
-                            if (wasCancelled)
-                            {
-                                Logger.LogAs(this, LogLevel.Info, "Download cancelled.");
-                                File.Delete(fileName);
-                                return false;
-                            }
-                            if (exception != null)
-                            {
-                                var webException = exception as WebException;
-                                File.Delete(fileName);
-                                Logger.LogAs(this, LogLevel.Error, "Failed to download from {0}, reason: {1}.", uri, webException != null ? ResolveWebException(webException) : exception.Message);
-                                return false;
-                            }
-                            Logger.LogAs(this, LogLevel.Info, "Download done.");
-                            if (uri.ToString().EndsWith(".gz", StringComparison.InvariantCulture))
-                            {
-                                var decompressionProgressHandler = EmulationManager.Instance.ProgressMonitor.Start(string.Format("Decompressing {0}", uri), false, false);
-                                Logger.LogAs(this, LogLevel.Info, "Decompressing {0}.", uri);
-                                var decompressedFile = TemporaryFilesManager.Instance.GetTemporaryFile();
-                                using (var gzipStream = new GZipStream(File.OpenRead(fileName), CompressionMode.Decompress))
-                                using (var outputStream = File.OpenWrite(decompressedFile))
-                                {
-                                    gzipStream.CopyTo(outputStream);
-                                }
-                                fileName = decompressedFile;
-                                Logger.LogAs(this, LogLevel.Info, "Decompression done");
-                                decompressionProgressHandler.Finish();
-                            }
-                        }
-                        while (!(success = UpdateInCache(uri, fileName)) && attempts++ < 5);
-                        if (!success)
-                        {
-                            Logger.LogAs(this, LogLevel.Error, "Download failed {0} times, wrong checksum or size, aborting.", attempts);
-                            File.Delete(fileName);
-                            return false;
-                        }
-                        fetchedFiles.Add(fileName, uri);
-                        return true;
-                    }
-                    finally
-                    {
-                        Monitor.Exit(concurrentLock);
-                    }
+                    UpdateInCache(uri, fileName);
+                    return true;
                 }
             }
+
+            fileName = null;
+            return false;
+        }
+
+        private bool TryFetchFromUriInner(Uri uri, out string fileName)
+        {
+            fileName = TemporaryFilesManager.Instance.GetTemporaryFile();
+            // try download the file a few times times
+            // in order to handle some intermittent
+            // network problems
+            if(!TryDownload(uri, fileName, DownloadAttempts))
+            {
+                return false;
+            }
+
+            // at this point the file has been successfully downloded;
+            // now verify its size and checksum based on the information
+            // encoded in URI
+            // NOTE: there is no point in redownloading the file as a result
+            // of checksum/size verification failure; we are using TCP/IP
+            // protocol that guarantee a failure-free communication, so
+            // a checksum/size mismatch must be a result of a broken file
+            // at server side or a wrong URI
+            if(TryGetChecksumAndSizeFromUri(uri, out var checksum, out var size))
+            {
+                if(!VerifySize(fileName, size))
+                {
+                    Logger.Log(LogLevel.Error, "Wrong size of the downloaded file, aborting");
+                    return false;
+                }
+
+                if(!VerifyChecksum(fileName, checksum))
+                {
+                    Logger.Log(LogLevel.Error, "Wrong checksum of the downloaded file, aborting");
+                    return false;
+                }
+            }
+            
+            if(uri.ToString().EndsWith(".gz", StringComparison.InvariantCulture))
+            {
+                fileName = Decompress(fileName);
+            }
+
+            fetchedFiles.Add(fileName, uri);
+
+            return true;
+        }
+
+        private bool TryDownload(Uri uri, string fileName, int attemptsLimit)
+        {
+            var attempts = 0;
+            do
+            {
+                if(!TryDownloadInner(uri, fileName, out var error))
+                {
+                    if(error == null)
+                    {
+                        Logger.LogAs(this, LogLevel.Info, "Download cancelled.");
+                        return false;
+                    }
+                    else
+                    {
+                        var webException = error as WebException;
+                        Logger.Log(LogLevel.Error, "Failed to download from {0}, reason: {1} (attempt {2}/{3})", uri, webException != null ? ResolveWebException(webException) : error.Message, attempts + 1, attemptsLimit);
+                    }
+                }
+                else
+                {
+                    Logger.LogAs(this, LogLevel.Info, "Download done.");
+                    return true;
+                }
+            }
+            while (++attempts < attemptsLimit);
+
+            Logger.Log(LogLevel.Error, "Download failed {0} times, aborting.", attempts);
+            return false;
+        }
+
+        private bool TryDownloadInner(Uri uri, string fileName, out Exception error)
+        {
+            Exception localError = null;
+            var wasCancelled = false;
+
+            using(var downloadProgressHandler = EmulationManager.Instance.ProgressMonitor.Start(GenerateProgressMessage(uri), false, true))
+            using(client = new WebClient())
+            {
+                Logger.LogAs(this, LogLevel.Info, "Downloading {0}.", uri);
+                var now = CustomDateTime.Now;
+                var bytesDownloaded = 0L;
+                client.DownloadProgressChanged += (sender, e) =>
+                {
+                    var newNow = CustomDateTime.Now;
+
+                    var period = newNow - now;
+                    if (period > progressUpdateThreshold)
+                    {
+                        downloadProgressHandler.UpdateProgress(e.ProgressPercentage,
+                            GenerateProgressMessage(uri,
+                                e.BytesReceived, e.TotalBytesToReceive, e.ProgressPercentage, 1.0 * (e.BytesReceived - bytesDownloaded) / period.TotalSeconds));
+
+                        now = newNow;
+                        bytesDownloaded = e.BytesReceived;
+                    }
+                };
+                var resetEvent = new ManualResetEvent(false);
+                client.DownloadFileCompleted += delegate (object sender, AsyncCompletedEventArgs e)
+                {
+                    localError = e.Error;
+                    if (e.Cancelled)
+                    {
+                        wasCancelled = true;
+                    }
+                    resetEvent.Set();
+                };
+                client.DownloadFileAsync(uri, fileName);
+                resetEvent.WaitOne();
+                error = localError;
+            }
+            client = null;
+
+            return !wasCancelled && error == null;
+        }
+
+        private string Decompress(string fileName)
+        {
+            var decompressedFile = TemporaryFilesManager.Instance.GetTemporaryFile();
+
+            using(var decompressionProgressHandler = EmulationManager.Instance.ProgressMonitor.Start("Decompressing file"))
+            {
+                Logger.Log(LogLevel.Info, "Decompressing file");
+                using (var gzipStream = new GZipStream(File.OpenRead(fileName), CompressionMode.Decompress))
+                using (var outputStream = File.OpenWrite(decompressedFile))
+                {
+                    gzipStream.CopyTo(outputStream);
+                }
+                Logger.Log(LogLevel.Info, "Decompression done");
+            }
+
+            return decompressedFile;
         }
 
         private static string ResolveWebException(WebException e)
@@ -246,7 +319,7 @@ namespace Antmicro.Renode.Utilities
                     return false;
                 }
                 var fileToCopy = GetBinaryFileName(entry.Index);
-                if(!Verify(fileToCopy, entry))
+                if(!VerifyCachedFile(fileToCopy, entry))
                 {
                     return false;
                 }
@@ -256,7 +329,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private bool Verify(string fileName, BinaryEntry entry)
+        private bool VerifyCachedFile(string fileName, BinaryEntry entry)
         {
             if(!File.Exists(fileName))
             {
@@ -264,34 +337,47 @@ namespace Antmicro.Renode.Utilities
                 return false;
             }
 
-            if(entry.Checksum != null)
+            if(entry.Checksum == null)
             {
-                var actualSize = new FileInfo(fileName).Length;
-                if(actualSize != entry.Size)
-                {
-                    Logger.LogAs(this, LogLevel.Warning, "Size of the file differs: is {0}B, should be {1}B.", actualSize, entry.Size);
-                    return false;
-                }
-
-                if(ConfigurationManager.Instance.Get("file-fetcher", "calculate-checksum", true))
-                {
-                    byte[] checksum;
-                    using(var progressHandler = EmulationManager.Instance.ProgressMonitor.Start("Calculating SHA1 checksum..."))
-                    {
-                        checksum = GetSHA1Checksum(fileName);
-                    }
-                    if(!checksum.SequenceEqual(entry.Checksum))
-                    {
-                        Logger.LogAs(this, LogLevel.Warning, "Checksum of the file differs, is {0}, should be {1}.", ChecksumToText(checksum), ChecksumToText(entry.Checksum));
-                        return false;
-                    }
-                }
+                return true;
             }
 
+            return VerifySize(fileName, entry.Size) && VerifyChecksum(fileName, entry.Checksum);
+        }
+
+        private bool VerifySize(string fileName, long expectedSize)
+        {
+            var actualSize = new FileInfo(fileName).Length;
+            if(actualSize != expectedSize)
+            {
+                Logger.LogAs(this, LogLevel.Warning, "Size of the file differs: is {0}B, should be {1}B.", actualSize, expectedSize);
+                return false;
+            }
             return true;
         }
 
-        private bool UpdateInCache(Uri uri, string withFile)
+        private bool VerifyChecksum(string fileName, byte[] expectedChecksum)
+        {
+            if(!ConfigurationManager.Instance.Get("file-fetcher", "calculate-checksum", true))
+            {
+                // with a disabled checksum verification we pretend everything is peachy
+                return true;
+            }
+
+            byte[] checksum;
+            using(var progressHandler = EmulationManager.Instance.ProgressMonitor.Start("Calculating SHA1 checksum..."))
+            {
+                checksum = GetSHA1Checksum(fileName);
+            }
+            if(!checksum.SequenceEqual(expectedChecksum))
+            {
+                Logger.LogAs(this, LogLevel.Warning, "Checksum of the file differs, is {0}, should be {1}.", ChecksumToText(checksum), ChecksumToText(expectedChecksum));
+                return false;
+            }
+            return true;
+        }
+
+        private void UpdateInCache(Uri uri, string withFile)
         {
             using(var progressHandler = EmulationManager.Instance.ProgressMonitor.Start("Updating cache"))
             {
@@ -312,16 +398,12 @@ namespace Antmicro.Renode.Utilities
                         fileId = entry.Index;
                     }
                     FileCopier.Copy(withFile, GetBinaryFileName(fileId), true);
-                    long size;
-                    var checksum = GetChecksumAndSizeFromUri(uri, out size);
-                    entry = new BinaryEntry(fileId, size, checksum);
-                    if(!Verify(withFile, entry))
-                    {
-                        return false;
-                    }
-                    index[uri] = entry;
+
+                    // checksum will be 'null' if the uri pattern does not contain
+                    // checksum/size information
+                    TryGetChecksumAndSizeFromUri(uri, out var checksum, out var size);
+                    index[uri] = new BinaryEntry(fileId, size, checksum);
                     WriteBinariesIndex(index);
-                    return true;
                 }
             }
         }
@@ -415,22 +497,27 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private static byte[] GetChecksumAndSizeFromUri(Uri uri, out long size)
+        private static bool TryGetChecksumAndSizeFromUri(Uri uri, out byte[] checksum, out long size)
         {
             size = 0;
+            checksum = null;
+
             var groups = ChecksumRegex.Match(uri.ToString()).Groups;
             if(groups.Count != 3)
             {
-                return null;
+                return false;
             }
+
+            // regex check above ensures that all the data below is parsable
             size = long.Parse(groups[1].Value);
             var checksumAsString = groups[2].Value;
-            var result = new byte[20];
-            for(var i = 0; i < result.Length; i++)
+            checksum = new byte[20];
+            for(var i = 0; i < checksum.Length; i++)
             {
-                result[i] = byte.Parse(new string(new[] {checksumAsString[2 * i], checksumAsString[2 * i + 1]}), NumberStyles.HexNumber);
+                checksum[i] = byte.Parse(checksumAsString.Substring(2 * i, 2), NumberStyles.HexNumber);
             }
-            return result;
+
+            return true;
         }
 
         static CachingFileFetcher()
@@ -451,6 +538,8 @@ namespace Antmicro.Renode.Utilities
 
         private static readonly Serializer Serializer = new Serializer(new Settings(versionTolerance: VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true));
         private static readonly Regex ChecksumRegex = new Regex(@"-s_(\d+)-([a-f,0-9]{40})$");
+
+        private const int DownloadAttempts = 5;
 
         private class BinaryEntry
         {

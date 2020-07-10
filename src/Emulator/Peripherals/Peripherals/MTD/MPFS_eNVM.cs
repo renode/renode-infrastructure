@@ -20,9 +20,9 @@ using Antmicro.Renode.Peripherals.CPU;
 namespace Antmicro.Renode.Peripherals.MTD
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class PSE_eNVM : IDoubleWordPeripheral, IKnownSize
+    public class MPFS_eNVM : IDoubleWordPeripheral, IKnownSize
     {
-        public PSE_eNVM(Machine machine, MappedMemory memory)
+        public MPFS_eNVM(Machine machine, MappedMemory memory)
         {
             this.memory = memory;
             IRQ = new GPIO();

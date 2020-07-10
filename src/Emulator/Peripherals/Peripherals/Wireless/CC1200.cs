@@ -22,9 +22,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public sealed class CC1200: IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
     {
-        public CC1200(Machine machine)
+        public CC1200()
         {
-            this.machine = machine;
             CreateRegisters();
             var dict = new Dictionary<int, IGPIO>();
             //GPIO 0/1/2/3 are general purpose, GPIO4 is MISO
@@ -45,15 +44,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             txFifo.Clear();
             rxFifo.Clear();
-            memory = new byte[GeneralMemorySize];
-            sourceAddressTable = new byte[SourceAddressTableSize];
-            sourceAddressMatchingResult = new byte[SourceAddressMatchingResultSize];
-            sourceAddressMatchingControl = new byte[SourceAddressMatchingControlSize];
-            localAddressInfo = new byte[LocalAddressInfoSize];
-
-            localExtendedAddress = new Address(new ArraySegment<byte>(localAddressInfo, 0, 8));
-            localShortAddress = new Address(new ArraySegment<byte>(localAddressInfo, 10, 2));
-
 
             registers.Reset();
             extendedRegisters.Reset();
@@ -545,7 +535,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 // We ignore lowest 4 bits, as RSSI is 12-bit wide
                 fifoData.Add((byte)((Rssi & 0xFF0) >> 4));
-                fifoData.Add((byte)((crcOK.Value ? (1 << 7) : 0) | Lqi));
+                fifoData.Add((byte)((uint)(crcOK.Value ? (1 << 7) : 0) | Lqi));
             }
 
             // Filtering using MPDU is not present for CC1200.
@@ -637,11 +627,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             this.Log(LogLevel.Noisy, "Returning status 0x{0:X}", status);
             return status;
             // bits 0:3 are reserved, 7 is CHIP_RDYn, should always be zero
-        }
-
-        private uint GetPanId()
-        {
-            return (uint)((localAddressInfo[9] << 8) | localAddressInfo[8]);
         }
 
         private int ChannelValueFromFrequency(uint frequency)
@@ -917,14 +902,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IEnumRegisterField<GPIOSignal> gpio0Selection;
         private IFlagRegisterField crcAutoflush;
 
-
-        private readonly IValueRegisterField[] shortAddressMatchingEnabled = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] extendedAddressMatchingEnabled = new IValueRegisterField[3];
-
-        private readonly IValueRegisterField[] pendingExceptionFlag = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] pendingExceptionMaskA = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] pendingExceptionMaskB = new IValueRegisterField[3];
-
         private bool crcEnabled;
         private bool wasSyncTransfered;
 
@@ -932,19 +909,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private readonly CircularBuffer<byte> txFifo = new CircularBuffer<byte>(0x80);
         private readonly CircularBuffer<byte> rxFifo = new CircularBuffer<byte>(0x80);
-        private byte[] memory;
-        private byte[] sourceAddressTable;
-        private byte[] sourceAddressMatchingResult;
-        private byte[] sourceAddressMatchingControl;
-        private byte[] localAddressInfo;
-        private Address localShortAddress;
-        private Address localExtendedAddress;
 
         private ByteRegisterCollection registers;
         private ByteRegisterCollection extendedRegisters;
-
-
-        private readonly Machine machine;
 
         private const uint Rssi = 0xB60; // 0xB60 is a value of -74dBm - which is a good quality signal
         private const uint Lqi = 105; // Approx values <50, 110> are good, where 110 is the best signal quality

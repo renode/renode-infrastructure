@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,11 +22,11 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 {
                     try
                     {
-			llvm_disasm_ARM_init();
-			llvm_disasm_PowerPC_init();
-			llvm_disasm_Sparc_init();
-			llvm_disasm_RISCV_init();
-			llvm_disasm_X86_init();
+                        llvm_disasm_ARM_init();
+                        llvm_disasm_PowerPC_init();
+                        llvm_disasm_Sparc_init();
+                        llvm_disasm_RISCV_init();
+                        llvm_disasm_X86_init();
                         _llvm_initialized = true;
                     }
                     catch(DllNotFoundException)
@@ -44,13 +44,14 @@ namespace Antmicro.Renode.Disassembler.LLVM
 
             switch(triple)
             {
-	    case "ppc":
-	    case "sparc":
+            case "ppc":
+            case "ppc64le":
+            case "sparc":
             case "i386":
                 HexFormatter = FormatHexForx86;
                 break;
-	    case "riscv64":
-	    case "riscv32":
+            case "riscv64":
+            case "riscv32":
             case "thumb":
             case "arm":
             case "armv7a":
@@ -181,25 +182,25 @@ namespace Antmicro.Renode.Disassembler.LLVM
         private static extern void llvm_disasm_dispose(IntPtr disasm);
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_AArch64_init();
+        private static extern void llvm_disasm_AArch64_init();
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_ARM_init();
+        private static extern void llvm_disasm_ARM_init();
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_Mips_init();
+        private static extern void llvm_disasm_Mips_init();
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_PowerPC_init();
+        private static extern void llvm_disasm_PowerPC_init();
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_RISCV_init();
+        private static extern void llvm_disasm_RISCV_init();
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_Sparc_init();
+        private static extern void llvm_disasm_Sparc_init();
 
         [DllImport("libllvm-disas")]
-	private static extern void llvm_disasm_X86_init();
+        private static extern void llvm_disasm_X86_init();
 
         private readonly IntPtr context;
     }

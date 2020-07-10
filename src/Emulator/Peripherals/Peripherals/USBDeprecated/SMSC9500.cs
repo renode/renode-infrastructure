@@ -29,9 +29,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             remove {}
         }
 
-        public SMSC9500(Machine machine)
+        public SMSC9500()
         {
-            this.machine = machine;
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             for(int i=0; i<NumberOfEndpoints; i++)
             {
@@ -447,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             lock(sync)
             {
-                if(!frame.DestinationMAC.Value.IsBroadcast && frame.DestinationMAC.Value != MAC)
+                if(!frame.DestinationMAC.IsBroadcast && frame.DestinationMAC != MAC)
                 {
                     return;
                 }
@@ -825,9 +824,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             private byte[] checksumCalculationBase;
 
         }
-
-        private readonly Machine machine;
-
     }
 }
 

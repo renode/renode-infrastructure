@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,15 +8,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Mono.Cecil;
 
 namespace Antmicro.Renode.Utilities
 {
-    class BundleHelper
+    class AssemblyHelper
     {
-        public static bool InitializeBundledAssemblies()
+        public static bool TryInitializeBundledAssemblies()
         {
             var result = false;
             for(var i = 0; i < BundledAssembliesCount; i++)
@@ -42,6 +41,15 @@ namespace Antmicro.Renode.Utilities
         public static AssemblyDefinition GetBundledAssemblyByName(string name)
         {
             return bundledAssemblies.FirstOrDefault(x => x.Name == name).Definition;
+        }
+
+        public static IEnumerable<string> GetAssembliesLocations()
+        {
+            if(BundledAssembliesCount > 0)
+            {
+                return bundledAssemblies.Select(x => x.Location);
+            }
+            return AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location);
         }
 
         public static int BundledAssembliesCount
@@ -73,9 +81,23 @@ namespace Antmicro.Renode.Utilities
                 {
                     result.Name = Marshal.PtrToStringAnsi(GetBundleNameInternal(id));
                     result.Definition = AssemblyDefinition.ReadAssembly(stream);
+                    result.Location = ExtractAssemblyToFile(stream, result.Name);
                 }
                 return result;
             }
+        }
+
+        private static string ExtractAssemblyToFile(Stream stream, string fileName)
+        {
+            var outputFile = TemporaryFilesManager.Instance.GetTemporaryFile(fileName);
+            using(var fileStream = File.Create(outputFile, (int)stream.Length))
+            {
+                var bytesInStream = new byte[stream.Length];
+                stream.Seek(0, SeekOrigin.Begin);
+                stream.Read(bytesInStream, 0, bytesInStream.Length);
+                fileStream.Write(bytesInStream, 0, bytesInStream.Length);
+            }
+            return outputFile;
         }
 
         [DllImport("__Internal", EntryPoint = "GetBundlesCount")]
@@ -96,6 +118,7 @@ namespace Antmicro.Renode.Utilities
         {
             public string Name;
             public AssemblyDefinition Definition;
+            public string Location;
         }
     }
 }

@@ -1,44 +1,40 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+using System;
 using System.CodeDom.Compiler;
-using System.Linq;
 using System.Collections.Generic;
-using System.Reflection;
-using Antmicro.Migrant;
+using System.Linq;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
     public class AdHocCompiler
     {
-        public string Compile(string sourcePath, IEnumerable<string> referencedLibraries = null)
+        public string Compile(string sourcePath)
         {
-            if(BundleHelper.BundledAssembliesCount > 0)
-            {
-                throw new RecoverableException($"Trying to compile \"{sourcePath}\", but the bundled Renode package does not support ad-hoc compilation");
-            }
             using(var provider = CodeDomProvider.CreateProvider("CSharp"))
             {
+                var blacklist = new List<string> { "mscorlib", "System." };
                 var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
                 var parameters = new CompilerParameters { GenerateInMemory = false, GenerateExecutable = false, OutputAssembly = outputFileName };
-                parameters.ReferencedAssemblies.Add(Assembly.GetAssembly(typeof(Machine)).Location); // Core
-                parameters.ReferencedAssemblies.Add(Assembly.GetAssembly(typeof(Serializer)).Location); // Migrant
 #if PLATFORM_LINUX
                 parameters.CompilerOptions = "/langversion:experimental";
 #endif
-                if(referencedLibraries != null)
+                var locations = AssemblyHelper.GetAssembliesLocations();
+                if(AssemblyHelper.BundledAssembliesCount > 0)
                 {
-                    foreach(var lib in referencedLibraries)
-                    {
-                        parameters.ReferencedAssemblies.Add(lib);
-                    }
+                    // Assigning any non-empty string to this property prevents the compiler from referencing mscorlib.dll
+                    parameters.CoreAssemblyFileName = "some bogus string";
+                    locations = locations.Where(x => !blacklist.Any(x.Contains));
+                }
+                foreach(var location in locations)
+                {
+                    parameters.ReferencedAssemblies.Add(location);
                 }
 
                 var result = provider.CompileAssemblyFromFile(parameters, new[] { sourcePath });
@@ -48,6 +44,16 @@ namespace Antmicro.Renode.Utilities
                                                                         (current, error) => current + ("\n" + error));
                     throw new RecoverableException(string.Format("There were compilation errors:\n{0}", errors));
                 }
+                try
+                {
+                    // Try to read any information from the compiled assembly to check if we have silently failed
+                    var name = result.CompiledAssembly.FullName;
+                }
+                catch(Exception e)
+                {
+                    throw new RecoverableException(string.Format("Could not compile assembly: {0}", e.Message));
+                }
+
                 return outputFileName;
             }
         }
