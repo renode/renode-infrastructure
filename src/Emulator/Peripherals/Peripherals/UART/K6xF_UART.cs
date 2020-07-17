@@ -223,6 +223,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         //TODO should be calculated based upon UART clock
         public override uint BaudRate => 115200;
+        public override Bits StopBits => Bits.One;
+        public override Parity ParityBit => Parity.Even;
 
         private void TransmitData()
         {
@@ -236,21 +238,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public override Bits StopBits 
-        {
-            get
-            {
-                return Bits.One;
-            }
-        }
 
-        public override Parity ParityBit
-        {
-            get
-            {
-                return Parity.Even;
-            }
-        }
 
         private void UpdateInterrupts()
         {
