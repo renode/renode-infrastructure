@@ -101,9 +101,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private readonly ByteRegisterCollection registers;
-        private IEnumRegisterField<ClockSourceValues> clockSource;
-        private IEnumRegisterField<MCGPLLClockStatusValues> mcgPllStatus;
-        private IEnumRegisterField<PLLSelectValues> pllSelected;
+        private readonly IEnumRegisterField<ClockSourceValues> clockSource;
+        private readonly IEnumRegisterField<MCGPLLClockStatusValues> mcgPllStatus;
+        private readonly IEnumRegisterField<PLLSelectValues> pllSelected;
 
         private enum Registers
         {
