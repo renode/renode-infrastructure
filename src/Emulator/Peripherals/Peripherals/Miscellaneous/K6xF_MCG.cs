@@ -10,7 +10,6 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
-
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     // MCG = Multipurpose Clock Generator
@@ -23,36 +22,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {(long)Registers.Control1, new ByteRegister(this)
                     .WithTaggedFlag("IREFSTEN", 0)
                     .WithTaggedFlag("IRCLKEN", 1)
-                    .WithTaggedFlag("IREFS",2)
-                    .WithTag("FRDIV",3,3)
+                    .WithTaggedFlag("IREFS", 2)
+                    .WithTag("FRDIV", 3, 3)
                     .WithEnumField(6, 2, out clockSource, name: "CLKS")
                 },
                 {(long)Registers.Control2, new ByteRegister(this)
-                    .WithTaggedFlag("IRCS",0)
-                    .WithTaggedFlag("LP",1)
-                    .WithTaggedFlag("EREFS",2)
-                    .WithTaggedFlag("HGO",3)
-                    .WithTag("RANGE",4,2)
-                    .WithTaggedFlag("FCFTRIM",6)
-                    .WithTaggedFlag("LOCRE0",7)
+                    .WithTaggedFlag("IRCS", 0)
+                    .WithTaggedFlag("LP", 1)
+                    .WithTaggedFlag("EREFS", 2)
+                    .WithTaggedFlag("HGO", 3)
+                    .WithTag("RANGE", 4, 2)
+                    .WithTaggedFlag("FCFTRIM", 6)
+                    .WithTaggedFlag("LOCRE0", 7)
                 },
                 {(long)Registers.Control5, new ByteRegister(this)
-                    .WithTag("PRDIV0",0,5)
-                    .WithTaggedFlag("PLLSTEN0",5)
+                    .WithTag("PRDIV0", 0, 5)
+                    .WithTaggedFlag("PLLSTEN0", 5)
                     .WithEnumField(6, 1, out mcgPllStatus, name: "PLLCLKEN0")
-                    .WithReservedBits(7,1)
+                    .WithReservedBits(7, 1)
                 },
                 {(long)Registers.Control6, new ByteRegister(this)
-                    .WithTag("VDIV0",0,5)
-                    .WithTaggedFlag("CME0",5)
+                    .WithTag("VDIV0", 0, 5)
+                    .WithTaggedFlag("CME0", 5)
                     .WithEnumField(6, 1, out pllSelected, name: "PLLS")
-                    .WithTaggedFlag("LOLIE0",7)
+                    .WithTaggedFlag("LOLIE0", 7)
                 },
-
                 {(long)Registers.Status, new ByteRegister(this)
-                    .WithTaggedFlag("IRCST",0)
-                    .WithTaggedFlag("OSCINIT0",1)
-                    .WithValueField(2,2, FieldMode.Read, valueProviderCallback: _ =>
+                    .WithTaggedFlag("IRCST", 0)
+                    .WithTaggedFlag("OSCINIT0", 1)
+                    .WithValueField(2, 2, FieldMode.Read, valueProviderCallback: _ =>
                     {
                         switch(clockSource.Value)
                         {
@@ -67,9 +65,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             default:
                                 throw new ArgumentException("Unhandled clock source");
                         }
-
                     },name: "LOLS0")
-                    .WithTaggedFlag("IREFST",4)
+                    .WithTaggedFlag("IREFST", 4)
                     .WithFlag(5, FieldMode.Read, valueProviderCallback: _ =>
                     {
                         return (PLLSelectValues.PLLSelected == pllSelected.Value);
@@ -78,13 +75,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         return (MCGPLLClockStatusValues.Active == mcgPllStatus.Value);
                     },name: "LOCK0")
-                    .WithTaggedFlag("LOLS0",7)
+                    .WithTaggedFlag("LOLS0", 7)
                 }
             };
 
-
             registers = new ByteRegisterCollection(this, registersMap);
-
         }
 
         long IKnownSize.Size => 0x1001;
