@@ -194,18 +194,12 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public byte ReadByte(long offset)
         {
-            lock(innerLock)
-            {
-                return registers.Read(offset);
-            }
+            return registers.Read(offset);
         }
 
         public void WriteByte(long offset, byte value)
         {
-            lock(innerLock)
-            {
-                registers.Write(offset, value);
-            }
+            registers.Write(offset, value);
         }
 
         protected override void CharWritten()
@@ -243,11 +237,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            lock(innerLock)
-            {
-                IRQ.Set((transmitterEnabled.Value && transmitterIRQEnabled.Value) || 
-                        (receiverEnabled.Value && receiverIRQEnabled.Value && Count >= receiverWatermark));
-            }
+            IRQ.Set((transmitterEnabled.Value && transmitterIRQEnabled.Value) || 
+                    (receiverEnabled.Value && receiverIRQEnabled.Value && Count >= receiverWatermark));
         }
 
         private uint baudRateDivValue;
