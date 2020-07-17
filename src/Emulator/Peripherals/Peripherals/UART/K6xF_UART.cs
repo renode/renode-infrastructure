@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     },
                     valueProviderCallback: _ =>
                     {
-                        if (!receiverEnabled.Value)
+                        if(!receiverEnabled.Value)
                         {
                             return 0;
                         }
@@ -259,8 +259,8 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(innerLock)
             {
-                IRQ.Set( (transmitterEnabled.Value && transmitterIRQEnabled.Value ) || 
-                         (receiverEnabled.Value && receiverIRQEnabled.Value && Count >= receiverWatermark));
+                IRQ.Set((transmitterEnabled.Value && transmitterIRQEnabled.Value) || 
+                        (receiverEnabled.Value && receiverIRQEnabled.Value && Count >= receiverWatermark));
             }
         }
 
@@ -319,6 +319,5 @@ namespace Antmicro.Renode.Peripherals.UART
             Active = 0,
             Idle = 1
         }
-
     }
 }
