@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.UART
             registers = new ByteRegisterCollection(this, registersMap);
         }
 
-        byte IBytePeripheral.ReadByte(long offset)
+        public byte ReadByte(long offset)
         {
             lock(innerLock)
             {
@@ -201,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        void IBytePeripheral.WriteByte(long offset, byte value)
+        public void WriteByte(long offset, byte value)
         {
             lock(innerLock)
             {
