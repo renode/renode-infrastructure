@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
-            return;
+            registers.Reset();
         }
 
         public byte ReadByte(long offset)
