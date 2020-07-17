@@ -72,12 +72,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x1060;
 
-        private DoubleWordRegisterCollection registers;
-
-        private uint uniqueIdHigh;
-        private uint uniqueIdMidHigh;
-        private uint uniqueIdMidLow;
-        private uint uniqueIdLow;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly uint uniqueIdHigh;
+        private readonly uint uniqueIdMidHigh;
+        private readonly uint uniqueIdMidLow;
+        private readonly uint uniqueIdLow;
 
         private enum Registers
         {
