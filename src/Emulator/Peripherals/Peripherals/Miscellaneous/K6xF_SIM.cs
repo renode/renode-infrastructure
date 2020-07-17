@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public K6xF_SIM()
         {
             var rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+            
             uniqueIdHigh = (uint)rng.Next();
             uniqueIdMidHigh = (uint)rng.Next();
             uniqueIdMidLow = (uint)rng.Next();
@@ -26,31 +27,31 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.UniqueIdHigh, new DoubleWordRegister(this)
-                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
-                {
-                    return uniqueIdHigh;
-                }, name: "SIM_UIDH")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        return uniqueIdHigh;
+                    }, name: "SIM_UIDH")
                 },
                 {(long)Registers.UniqueIdMidHigh, new DoubleWordRegister(this)
-                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
-                {
-                    return uniqueIdMidHigh;
-                }, name: "SIM_UIDMH")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        return uniqueIdMidHigh;
+                    }, name: "SIM_UIDMH")
                 },
                 {(long)Registers.UniqueIdMidLow, new DoubleWordRegister(this)
-                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
-                {
-                    return uniqueIdMidLow;
-                }, name: "SIM_UIDML")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        return uniqueIdMidLow;
+                    }, name: "SIM_UIDML")
                 },
                 {(long)Registers.UniqueIdLow, new DoubleWordRegister(this)
-                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
-                {
-                    return uniqueIdLow;
-                }, name: "SIM_UIDL")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        return uniqueIdLow;
+                    }, name: "SIM_UIDL")
                 }
-
             };
+
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
@@ -106,6 +107,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             UniqueIdMidLow = 0x105C,
             UniqueIdLow = 0x1060
         }
-
     }
 }
