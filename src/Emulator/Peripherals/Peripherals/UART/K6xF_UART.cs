@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -29,18 +30,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(0, 5, writeCallback: (_, value) =>
                     {
                         // setting the high bits of the baud rate factor
-                        var b_mask = 0x1f00u;
-                        var b_rate_value = (baudRateDivValue & ~b_mask) | ( value << 8);
-                        baudRateDivValue = b_rate_value;
+                        BitHelper.ReplaceBits(ref baudRateDivValue, value, 5, 8);
                     },name: "SBR")
                 },
                 {(long)Registers.BaudRateLow, new ByteRegister(this)
                     .WithValueField(0, 8, writeCallback: (_, value) =>
                     {
                         // setting the low bits of the baud rate factor
-                        var b_mask = 0xffu;
-                        var b_rate_value = (baudRateDivValue & ~b_mask) | value;
-                        baudRateDivValue = b_rate_value;
+                        BitHelper.ReplaceBits(ref baudRateDivValue, value, 8);
                     },name: "SBR")
                 },
                 {(long)Registers.Control1, new ByteRegister(this)},
