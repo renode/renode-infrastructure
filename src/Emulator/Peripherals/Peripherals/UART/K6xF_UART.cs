@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void QueueEmptied()
         {
-            this.Log(LogLevel.Debug, "Queue emptied");
+            // do nothing
         }
 
         public long Size => 0x1000;
@@ -240,7 +240,6 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             get
             {
-                this.Log(LogLevel.Debug, "Requesting StopBits");
                 return Bits.One;
             }
         }
@@ -249,7 +248,6 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             get
             {
-                this.Log(LogLevel.Debug, "Requesting Parity");
                 return Parity.Even;
             }
         }
