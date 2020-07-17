@@ -196,8 +196,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(innerLock)
             {
-                var value = registers.Read(offset);
-                return value;
+                return registers.Read(offset);
             }
         }
 
