@@ -82,18 +82,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             registers = new ByteRegisterCollection(this, registersMap);
         }
 
-        void IPeripheral.Reset()
+        public void Reset()
         {
             return;
         }
 
-        byte IBytePeripheral.ReadByte(long offset)
+        public byte ReadByte(long offset)
         {
             var value = registers.Read(offset);
             return value;
         }
 
-        void IBytePeripheral.WriteByte(long offset, byte value)
+        public void WriteByte(long offset, byte value)
         {
             registers.Write(offset, value);
         }
