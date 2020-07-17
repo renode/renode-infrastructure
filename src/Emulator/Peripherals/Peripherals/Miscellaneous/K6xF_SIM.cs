@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
-            return;
+            registers.Reset();
         }
 
         public void WriteDoubleWord(long offset, uint value)
