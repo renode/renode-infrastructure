@@ -55,8 +55,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
-        long IKnownSize.Size => 0x1060;
-
         public uint ReadDoubleWord(long offset)
         {
             return registers.Read(offset);
@@ -71,6 +69,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             registers.Write(offset, value);
         }
+
+        public long Size => 0x1060;
 
         private DoubleWordRegisterCollection registers;
 
