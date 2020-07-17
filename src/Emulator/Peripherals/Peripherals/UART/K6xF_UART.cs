@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("LBKDIE", 7)
                     .WithTaggedFlag("RXEDGIE", 6)
                     .WithTaggedFlag("SBNS", 5)
-                    .WithValueField(0, 5, FieldMode.Write | FieldMode.Read, writeCallback: (_, value) =>
+                    .WithValueField(0, 5, writeCallback: (_, value) =>
                     {
                         // setting the high bits of the baud rate factor
                         var b_mask = 0x1f00u;
@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     },name: "SBR")
                 },
                 {(long)Registers.BaudRateLow, new ByteRegister(this)
-                    .WithValueField(0, 8, FieldMode.Write | FieldMode.Read, writeCallback: (_, value) =>
+                    .WithValueField(0, 8, writeCallback: (_, value) =>
                     {
                         // setting the low bits of the baud rate factor
                         var b_mask = 0xffu;
@@ -45,12 +45,12 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.Control1, new ByteRegister(this)},
                 {(long)Registers.Control2, new ByteRegister(this)
-                    .WithFlag(7, out transmitterIRQEnabled, FieldMode.Write | FieldMode.Read, name: "TIE")
+                    .WithFlag(7, out transmitterIRQEnabled, name: "TIE")
                     .WithTaggedFlag("TCIE", 6)
-                    .WithFlag(5, out receiverIRQEnabled, FieldMode.Write | FieldMode.Read, name: "RIE")
+                    .WithFlag(5, out receiverIRQEnabled, name: "RIE")
                     .WithTaggedFlag("ILIE", 4)
-                    .WithFlag(3, out transmitterEnabled, FieldMode.Write | FieldMode.Read, name: "TE")
-                    .WithFlag(2, out receiverEnabled, FieldMode.Write | FieldMode.Read, name: "RE")
+                    .WithFlag(3, out transmitterEnabled, name: "TE")
+                    .WithFlag(2, out receiverEnabled, name: "RE")
                     .WithTaggedFlag("RWU", 1)
                     .WithTaggedFlag("SBK", 0)
                     .WithWriteCallback((_, __) =>
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.Control3, new ByteRegister(this)},
                 {(long)Registers.Data, new ByteRegister(this)
-                   .WithValueField(0, 8, FieldMode.Write | FieldMode.Read, 
+                   .WithValueField(0, 8,
                     writeCallback: (_, b) =>
                     {
                         if(!transmitterEnabled.Value)
