@@ -82,8 +82,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             registers = new ByteRegisterCollection(this, registersMap);
         }
 
-        long IKnownSize.Size => 0x1001;
-
         void IPeripheral.Reset()
         {
             return;
@@ -99,6 +97,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             registers.Write(offset, value);
         }
+
+        public long Size => 0x1001;
 
         private readonly ByteRegisterCollection registers;
         private readonly IEnumRegisterField<ClockSourceValues> clockSource;
