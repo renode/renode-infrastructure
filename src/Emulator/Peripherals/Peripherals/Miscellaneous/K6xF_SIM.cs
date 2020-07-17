@@ -69,7 +69,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            //this.Log(LogLevel.Debug, "Write to offset 0x{0:X}, value 0x{1:X}, {2}", offset, value, Convert.ToString(value, toBase: 2));
             registers.Write(offset, value);
         }
 
