@@ -59,9 +59,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public uint ReadDoubleWord(long offset)
         {
-            var value = registers.Read(offset);
-            this.Log(LogLevel.Debug, "Read from offset 0x{0:X}, value 0x{1:X}.", offset, value);
-            return value;
+            return registers.Read(offset);
         }
 
         public void Reset()
