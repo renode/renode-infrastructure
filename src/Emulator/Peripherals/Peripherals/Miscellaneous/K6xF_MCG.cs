@@ -89,8 +89,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public byte ReadByte(long offset)
         {
-            var value = registers.Read(offset);
-            return value;
+            return registers.Read(offset);
         }
 
         public void WriteByte(long offset, byte value)
