@@ -249,21 +249,17 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-
-        private readonly ByteRegisterCollection registers;
-
         private uint baudRateDivValue;
-        private IValueRegisterField baudRateFineAdjustValue;
-
-        private IFlagRegisterField receiverEnabled;
-        private IFlagRegisterField transmitterEnabled;
         private uint receiverWatermark = 0;
         private uint transmitWatermark = 0;
 
-        private IFlagRegisterField transmitterIRQEnabled;
-        private IFlagRegisterField receiverIRQEnabled;
-
         private readonly Queue<byte> transmitQueue;
+        private readonly ByteRegisterCollection registers;
+        private readonly IValueRegisterField baudRateFineAdjustValue;
+        private readonly IFlagRegisterField receiverEnabled;
+        private readonly IFlagRegisterField transmitterEnabled;
+        private readonly IFlagRegisterField transmitterIRQEnabled;
+        private readonly IFlagRegisterField receiverIRQEnabled;
 
         private enum Registers
         {
