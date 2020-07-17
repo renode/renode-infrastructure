@@ -49,6 +49,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             };
 
             registers = new DoubleWordRegisterCollection(this, registerMap);
+
+            rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -70,10 +72,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public GPIO IRQ { get; private set; }
 
-        private DoubleWordRegisterCollection registers;
-        private PseudorandomNumberGenerator rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-        private IFlagRegisterField enable;
-        private IFlagRegisterField sleep;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly PseudorandomNumberGenerator rng;
+        private readonly IFlagRegisterField enable;
+        private readonly IFlagRegisterField sleep;
 
         private enum Registers
         {
