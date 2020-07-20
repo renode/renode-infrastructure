@@ -256,8 +256,6 @@ namespace Antmicro.Renode.Peripherals.Network
         public override void Reset()
         {
             isTransmissionStarted = false;
-            receiverEnabled.Value = false;
-            etherEnabled.Value = false;
             registers.Reset();
             txDescriptorsQueue = null;
             rxDescriptorsQueue = null;
