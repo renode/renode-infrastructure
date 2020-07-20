@@ -194,12 +194,6 @@ namespace Antmicro.Renode.Peripherals.Network
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
 
-        public MACAddress MAC { get; set; }
-
-        public long Size => 0x1000;
-
-        public event Action<EthernetFrame> FrameReady;
-
         public uint ReadDoubleWord(long offset)
         {
             return registers.Read(offset);
@@ -267,8 +261,24 @@ namespace Antmicro.Renode.Peripherals.Network
             registers.Write(offset, value);
         }
 
+        public MACAddress MAC { get; set; }
 
+        public long Size => 0x1000;
 
+        public event Action<EthernetFrame> FrameReady;
+
+        [IrqProvider("ptp irq", 3)]
+        public GPIO ptpIRQ { get; private set; }
+
+        [IrqProvider("misc irq", 2)]
+        public GPIO miscIRQ { get; private set; }
+
+        [IrqProvider("receive irq", 1)]
+        public GPIO rxIRQ { get; private set; }
+
+        [IrqProvider("transmit irq", 0)]
+        public GPIO txIRQ { get; private set; }
+        
         private void UpdateMac()
         {
             var finalMac = (ulong)((lowerMAC.Value << 32) + upperMAC.Value);
@@ -335,6 +345,8 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
+        private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
         private readonly InterruptManager<Interrupts> interruptManager;
         private readonly DoubleWordRegisterCollection registers;
@@ -468,18 +480,6 @@ namespace Antmicro.Renode.Peripherals.Network
             TimerCompareCaptureR3 = 0x0624
         }
 
-        [IrqProvider("ptp irq", 3)]
-        public GPIO ptpIRQ { get; private set; }
-
-        [IrqProvider("misc irq", 2)]
-        public GPIO miscIRQ { get; private set; }
-
-        [IrqProvider("receive irq", 1)]
-        public GPIO rxIRQ { get; private set; }
-
-        [IrqProvider("transmit irq", 0)]
-        public GPIO txIRQ { get; private set; }
-
         private enum Interrupts
         {
             [Subvector(1)]
@@ -516,8 +516,6 @@ namespace Antmicro.Renode.Peripherals.Network
             TimestampTimer = 15
         }
 
-        private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue = null;
-        private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue = null;
 
 
         private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
@@ -582,15 +580,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 SizeInBytes = InitWords();
             }
 
-            public SystemBus Bus { get; }
-            public uint SizeInBytes { get; }
-            public bool IsExtendedModeEnabled { get; }
             public uint GetDataBufferAddress()
             {
                 return (words[3] << 16) | words[2];
             }
-            public uint DescriptorAddress { get; }
-            public bool Wrap => BitHelper.IsBitSet(words[1], 13);
 
             public void Read()
             {
@@ -611,6 +604,13 @@ namespace Antmicro.Renode.Peripherals.Network
                     tempOffset += 2;
                 }
             }
+
+            public SystemBus Bus { get; }
+            public uint SizeInBytes { get; }
+            public bool IsExtendedModeEnabled { get; }
+            public uint DescriptorAddress { get; }
+            
+            public bool Wrap => BitHelper.IsBitSet(words[1], 13);
 
             public bool IsLast => BitHelper.IsBitSet(words[1], 11);
 
