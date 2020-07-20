@@ -556,8 +556,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public T CurrentDescriptor => descriptors[currentDescriptorIndex];
 
-            public int currentDescriptorIndex { get; private set; }
-            //private int currentDescriptorIndex;
+            private int currentDescriptorIndex;
 
             private readonly List<T> descriptors;
             private readonly uint baseAddress;
