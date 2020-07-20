@@ -574,11 +574,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 SizeInBytes = InitWords();
             }
 
-            public uint GetDataBufferAddress()
-            {
-                return (words[3] << 16) | words[2];
-            }
-
             public void Read()
             {
                 var tempOffset = 0UL;
@@ -605,6 +600,8 @@ namespace Antmicro.Renode.Peripherals.Network
             public uint DescriptorAddress { get; }
 
             public bool Wrap => BitHelper.IsBitSet(words[1], 13);
+
+            public uint DataBufferAddress => (words[3] << 16) | words[2];
 
             public bool IsLast => BitHelper.IsBitSet(words[1], 11);
 
@@ -669,9 +666,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public byte[] ReadBuffer()
             {
-                var result = Bus.ReadBytes(GetDataBufferAddress(), Length, true);
-                //IsUsed = true;
-                return result;
+                return Bus.ReadBytes(DataBufferAddress, Length, true);
             }
 
             public ushort Length => (ushort)words[0];
@@ -736,9 +731,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public byte[] ReadBuffer()
             {
-                var result = Bus.ReadBytes(GetDataBufferAddress(), Length, true);
-                //IsUsed = true;
-                return result;
+                return Bus.ReadBytes(DataBufferAddress, Length, true);
             }
 
             public ushort Length 
@@ -781,7 +774,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 Length = (ushort)Length;
-                Bus.WriteBytes(bytes, GetDataBufferAddress(), true);
+                Bus.WriteBytes(bytes, DataBufferAddress, true);
 
                 return true;
             }
