@@ -219,6 +219,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public long Size => 0x1000;
+        
         public GPIO IRQ { get; private set; }
 
         //TODO should be calculated based upon UART clock
@@ -229,16 +230,16 @@ namespace Antmicro.Renode.Peripherals.UART
         private void TransmitData()
         {
             if(transmitQueue.Count < transmitWatermark)
+            {
                 return;
+            }
 
-            while (transmitQueue.Count != 0)
+            while(transmitQueue.Count != 0)
             {
                 var b = transmitQueue.Dequeue();
                 this.TransmitCharacter((byte)b);
             }
         }
-
-
 
         private void UpdateInterrupts()
         {
