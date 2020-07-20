@@ -202,12 +202,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public uint ReadDoubleWord(long offset)
         {
-            lock(innerLock)
-            {
-                var value = registers.Read(offset);
-                this.Log(LogLevel.Debug, "Read from offset 0x{0:X}, value 0x{1:X}.", offset, value);
-                return value;
-            }
+            return registers.Read(offset);
         }
 
         public void ReceiveFrame(EthernetFrame frame)
@@ -271,29 +266,10 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            this.Log(LogLevel.Debug, "Write to offset 0x{0:X}, value 0x{1:X}", offset, value);
-            PrintRegister(value);
-            lock(innerLock)
-            {
-                registers.Write(offset, value);
-            }
-
+            registers.Write(offset, value);
         }
 
-        private void PrintRegister(uint value)
-        {
-            this.Log(LogLevel.Noisy, "|31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00|");
-            var valueStr = "|";
 
-            for(var i = 31; i >= 0; --i)
-            {
-                var bit = value & (1 << i);
-                if(0 != bit)
-                    valueStr += " 1|";
-                else valueStr += " 0|";
-            }
-            this.Log(LogLevel.Noisy, "{0}", valueStr);
-        }
 
         private void UpdateMac()
         {
