@@ -337,31 +337,31 @@ namespace Antmicro.Renode.Peripherals.Network
 
 
         private readonly InterruptManager<Interrupts> interruptManager;
-        private DoubleWordRegisterCollection registers;
+        private readonly DoubleWordRegisterCollection registers;
         private readonly object innerLock;
 
         // Fields needed for the internal logic
         private bool isTransmissionStarted = false;
 
         //EthernetControl
-        private IFlagRegisterField etherEnabled;
-        private IFlagRegisterField extendedMode;
+        private readonly IFlagRegisterField etherEnabled;
+        private readonly IFlagRegisterField extendedMode;
 
         //TransmitControl
-        private IFlagRegisterField fullDuplex;
+        private readonly IFlagRegisterField fullDuplex;
         private readonly IFlagRegisterField forwardCRCFromApplication;
 
         //ReceiveControl
         private readonly IFlagRegisterField receiverEnabled;
-        private IFlagRegisterField forwardCRC;
 
+        private readonly IFlagRegisterField forwardCRC;
 
         //DescriptorGroup
-        private IValueRegisterField upperLimit;
-        private IValueRegisterField lowerLimit;
+        private readonly IValueRegisterField upperLimit;
+        private readonly IValueRegisterField lowerLimit;
 
         //TransmitFIFOWatermark
-        private IFlagRegisterField storeAndForward;
+        private readonly IFlagRegisterField storeAndForward;
 
         private readonly IValueRegisterField lowerMAC;
         private readonly IValueRegisterField upperMAC;
