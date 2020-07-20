@@ -278,33 +278,27 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void SendSingleFrame(IEnumerable<byte> bytes, bool isCRCIncluded)
         {
-            var bytesArray = bytes.ToArray();
-
-            EnsureMinimumArrayLength(isCRCIncluded ? 64 : 60);
-
-            EthernetFrame frame;
-            var addCrc = !isCRCIncluded && !forwardCRCFromApplication.Value;
-            if (forwardCRCFromApplication.Value && !isCRCIncluded)
+            if(forwardCRCFromApplication.Value && !isCRCIncluded)
             {
                 this.Log(LogLevel.Error, "CRC needs to be provided by the application but is missing");
                 return;
             }
 
-            if(!Misc.TryCreateFrameOrLogWarning(this, bytesArray, out frame, addCrc))
+            var bytesArray = bytes.ToArray();
+            var newLength = isCRCIncluded ? 64 : 60;
+            if(bytesArray.Length < newLength)
+            {
+                Array.Resize(ref bytesArray, newLength);
+            }
+
+            var addCrc = !isCRCIncluded && !forwardCRCFromApplication.Value;
+            if(!Misc.TryCreateFrameOrLogWarning(this, bytesArray, out var frame, addCrc))
             {
                 return;
             }
 
             this.Log(LogLevel.Debug, "Sending packet, length {0}", frame.Bytes.Length);
             FrameReady?.Invoke(frame);
-
-            void EnsureMinimumArrayLength(int length)
-            {
-                if(bytesArray.Length < length)
-                {
-                    Array.Resize(ref bytesArray, length);
-                }
-            }
         }
 
 
