@@ -136,16 +136,14 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("GTS", 0)
                 },
                 {(long)Registers.PhysicalAddressLower, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, value) =>
+                    .WithValueField(0, 32, out lowerMAC, writeCallback: (_, value) =>
                     {
-                        lowerMAC = value;
                         UpdateMac();
                     }, name: "PADDR1")
                 },
                 {(long)Registers.PhysicalAddressUpper, new DoubleWordRegister(this)
-                    .WithValueField(16, 16, writeCallback: (_, value) =>
+                    .WithValueField(16, 16, out upperMAC, writeCallback: (_, value) =>
                     {
-                        upperMac = value;
                         UpdateMac();
                     },name: "PADDR2")
                     .WithValueField(0, 16, name: "TYPE")
@@ -299,9 +297,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void UpdateMac()
         {
-            if((null == lowerMAC) || (null == upperMac)) return;
-
-            ulong finalMac = (ulong)((lowerMAC << 32) + upperMac);
+            var finalMac = (ulong)((lowerMAC.Value << 32) + upperMAC.Value);
             this.Log(LogLevel.Info, "Setting MAC to {0:X}", finalMac);
             MAC = new MACAddress(finalMac);
         }
@@ -391,9 +387,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IFlagRegisterField receiverEnabled;
         private IFlagRegisterField forwardCRC;
 
-        //Lower MAC address registe
-        private ulong? lowerMAC = null;
-        private ulong? upperMac = null;
 
         //DescriptorGroup
         private IValueRegisterField upperLimit;
@@ -401,6 +394,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         //TransmitFIFOWatermark
         private IFlagRegisterField storeAndForward;
+
+        private readonly IValueRegisterField lowerMAC;
+        private readonly IValueRegisterField upperMAC;
 
         private enum Registers
         {
