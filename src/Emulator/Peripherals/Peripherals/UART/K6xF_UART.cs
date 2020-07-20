@@ -40,7 +40,6 @@ namespace Antmicro.Renode.Peripherals.UART
                         BitHelper.ReplaceBits(ref baudRateDivValue, value, 8);
                     },name: "SBR")
                 },
-                {(long)Registers.Control1, new ByteRegister(this)},
                 {(long)Registers.Control2, new ByteRegister(this)
                     .WithFlag(7, out transmitterIRQEnabled, name: "TIE")
                     .WithTaggedFlag("TCIE", 6)
@@ -80,7 +79,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("LBKDE", 1)
                     .WithTaggedFlag("RAF", 0)
                 },
-                {(long)Registers.Control3, new ByteRegister(this)},
                 {(long)Registers.Data, new ByteRegister(this)
                    .WithValueField(0, 8,
                     writeCallback: (_, b) =>
@@ -109,24 +107,17 @@ namespace Antmicro.Renode.Peripherals.UART
                     },
                     name: "RT")
                 },
-                {(long)Registers.MatchAddress1, new ByteRegister(this)},
-                {(long)Registers.MatchAddress2, new ByteRegister(this)},
                 {(long)Registers.Control4, new ByteRegister(this)
                     .WithTaggedFlag("MAEN1", 7)
                     .WithTaggedFlag("MAEN2", 6)
                     .WithTaggedFlag("M10", 5)
                     .WithValueField(0, 5, out baudRateFineAdjustValue, name: "BRFA")
                 },
-                {(long)Registers.Control5, new ByteRegister(this)},
                 {(long)Registers.ExtendedData, new ByteRegister(this)
                     .WithTaggedFlag("NOISY", 7)
                     .WithTaggedFlag("PARITYE", 6)
                     .WithReservedBits(0,6)
                 },
-                {(long)Registers.Modem, new ByteRegister(this)},
-                {(long)Registers.Infrared, new ByteRegister(this)},
-                {(long)Registers.FIFOParameters, new ByteRegister(this)},
-                {(long)Registers.FIFOControl, new ByteRegister(this)},
                 {(long)Registers.FIFOStatus, new ByteRegister(this)
                     .WithTaggedFlag("TXEMPT", 7)
                     .WithTaggedFlag("RXEMPT", 6)
@@ -153,7 +144,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     },
                     name: "TXWATER")
                 },
-                {(long)Registers.FIFOTransmitCount, new ByteRegister(this)},
                 {(long)Registers.FIFOReceiveWatermark, new ByteRegister(this)
                     .WithValueField(0, 8, FieldMode.Write | FieldMode.Read,
                     writeCallback: (_, b) =>
@@ -177,15 +167,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         return (uint)Count;
                     },name: "RXCOUNT")
-                },
-                {(long)Registers.Control7816, new ByteRegister(this)},
-                {(long)Registers.InterruptEnable7816, new ByteRegister(this)},
-                {(long)Registers.InterruptStatus7816, new ByteRegister(this)},
-                {(long)Registers.WaitParameter7816, new ByteRegister(this)},
-                {(long)Registers.WaitN7816, new ByteRegister(this)},
-                {(long)Registers.WaitFD7816, new ByteRegister(this)},
-                {(long)Registers.ErrorThreshold, new ByteRegister(this)},
-                {(long)Registers.TransmitLength, new ByteRegister(this)}
+                }
             };
 
             IRQ = new GPIO();
