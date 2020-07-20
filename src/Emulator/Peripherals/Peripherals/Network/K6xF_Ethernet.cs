@@ -52,7 +52,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     },
                     writeCallback: (interrupt, oldValue, newValue) =>
                     {
-
                         if(newValue)
                         {
                             interruptManager.EnableInterrupt(interrupt);
@@ -100,7 +99,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(0, FieldMode.Write,
                         writeCallback: (_, b) =>
                         {
-                            if (b) Reset();
+                            if(b)
+                            {
+                                Reset();
+                            }
                         },name: "RESET")
                 },
                 {(long)Registers.ReceiveControl, new DoubleWordRegister(this)
@@ -188,7 +190,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(1, 1)
                     .WithReservedBits(0, 1)
                 }
-
             };
 
             registers = new DoubleWordRegisterCollection(this, registerMap);
@@ -238,7 +239,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
                     interruptManager.SetInterrupt(Interrupts.ReceiveBufferInterrupt);
                     interruptManager.SetInterrupt(Interrupts.ReceiveFrameInterrupt);
-
                 }
                 else
                 {
@@ -311,7 +311,6 @@ namespace Antmicro.Renode.Peripherals.Network
             FrameReady?.Invoke(frame);
         }
 
-
         private void SendFrames()
         {
             lock(innerLock)
@@ -320,7 +319,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 txDescriptorsQueue.CurrentDescriptor.Read();
                 while(txDescriptorsQueue.CurrentDescriptor.IsReady)
                 {
-                
                     // fill packet with data from memory
                     this.Log(LogLevel.Debug, "Buffer Length {0}", txDescriptorsQueue.CurrentDescriptor.Length);
                     packetBytes.AddRange(txDescriptorsQueue.CurrentDescriptor.ReadBuffer());
@@ -365,7 +363,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         //ReceiveControl
         private readonly IFlagRegisterField receiverEnabled;
-
         private readonly IFlagRegisterField forwardCRC;
 
         //DescriptorGroup
@@ -516,8 +513,6 @@ namespace Antmicro.Renode.Peripherals.Network
             TimestampTimer = 15
         }
 
-
-
         private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
         {
             public DmaBufferDescriptorsQueue(SystemBus bus, uint baseAddress, Func<SystemBus, uint, T> creator)
@@ -540,7 +535,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 else
                 {
                     // If wrap is set, we have reached end of ring and need to start from the beginning
-                    if (CurrentDescriptor.Wrap)
+                    if(CurrentDescriptor.Wrap)
                     {
                         currentDescriptorIndex = 0;
                     }
@@ -609,7 +604,7 @@ namespace Antmicro.Renode.Peripherals.Network
             public uint SizeInBytes { get; }
             public bool IsExtendedModeEnabled { get; }
             public uint DescriptorAddress { get; }
-            
+
             public bool Wrap => BitHelper.IsBitSet(words[1], 13);
 
             public bool IsLast => BitHelper.IsBitSet(words[1], 11);
@@ -628,9 +623,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
                 return (uint)words.Length * 2;
             }
-
         }
-
 
         /// Legacy Transmit Buffer
         /// 
@@ -668,8 +661,6 @@ namespace Antmicro.Renode.Peripherals.Network
         /// Offset+1C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
         /// Offset+1E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
         ///          =================================================================================
-
-
         private class DmaTxBufferDescriptor : DmaBufferDescriptor
         {
             public DmaTxBufferDescriptor(SystemBus bus, uint address, bool isExtendedModeEnabled) :
@@ -737,8 +728,6 @@ namespace Antmicro.Renode.Peripherals.Network
         /// Offset+1C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
         /// Offset+1E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
         ///          =================================================================================
-
-
         private class DmaRxBufferDescriptor : DmaBufferDescriptor
         {
             public DmaRxBufferDescriptor(SystemBus bus, uint address, bool isExtendedModeEnabled) :
@@ -797,6 +786,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 return true;
             }
+            
             private const int MaximumBufferLength = (1 << 13) - 1;
         }
     }
