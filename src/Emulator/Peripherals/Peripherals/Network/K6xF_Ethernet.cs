@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
                 {(long)Registers.ReceiveDescriptorActive, new DoubleWordRegister(this)
                     .WithReservedBits(25, 7)
-                    .WithFlag(24, out receiverEnabled, FieldMode.Write | FieldMode.Read, name: "RDAR")
+                    .WithFlag(24, out receiverEnabled, name: "RDAR")
                     .WithReservedBits(0, 24)
                 },
                 {(long)Registers.TransmitDescriptorActive, new DoubleWordRegister(this)
@@ -93,10 +93,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("STOPEN", 7)
                     .WithTaggedFlag("DBGEN", 6)
                     .WithReservedBits(5, 1)
-                    .WithFlag(4, out extendedMode, FieldMode.Write | FieldMode.Read, name: "EN1588")
+                    .WithFlag(4, out extendedMode, name: "EN1588")
                     .WithTaggedFlag("SLEEP", 3)
                     .WithTaggedFlag("MAGICEN", 2)
-                    .WithFlag(1, out etherEnabled, FieldMode.Write | FieldMode.Read, name: "ETHEREN")
+                    .WithFlag(1, out etherEnabled, name: "ETHEREN")
                     .WithFlag(0, FieldMode.Write,
                         writeCallback: (_, b) =>
                         {
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("NLC", 30)
                     .WithValueField(16, 14, name: "MAX_FL")
                     .WithTaggedFlag("CFEN", 15)
-                    .WithFlag(14, out forwardCRC, FieldMode.Write | FieldMode.Read, name: "CRCFWD")
+                    .WithFlag(14, out forwardCRC, name: "CRCFWD")
                     .WithTaggedFlag("PAUFWD", 13)
                     .WithTaggedFlag("PADEN", 12)
                     .WithReservedBits(10, 2)
@@ -131,19 +131,19 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(5, 3, name: "ADDSEL")
                     .WithTaggedFlag("RFC_PAUSE", 4)
                     .WithTaggedFlag("TFC_PAUSE", 3)
-                    .WithFlag(2, out fullDuplex, FieldMode.Write | FieldMode.Read, name: "FDEN")
+                    .WithFlag(2, out fullDuplex, name: "FDEN")
                     .WithReservedBits(1, 1)
                     .WithTaggedFlag("GTS", 0)
                 },
                 {(long)Registers.PhysicalAddressLower, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Write | FieldMode.Read, writeCallback: (_, value) =>
+                    .WithValueField(0, 32, writeCallback: (_, value) =>
                     {
                         lowerMAC = value;
                         UpdateMac();
                     }, name: "PADDR1")
                 },
                 {(long)Registers.PhysicalAddressUpper, new DoubleWordRegister(this)
-                    .WithValueField(16, 16, FieldMode.Write | FieldMode.Read, writeCallback: (_, value) =>
+                    .WithValueField(16, 16, writeCallback: (_, value) =>
                     {
                         upperMac = value;
                         UpdateMac();
@@ -158,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
                 {(long)Registers.TransmitFIFOWatermark, new DoubleWordRegister(this)
                     .WithReservedBits(9,22)
-                    .WithFlag(8, out storeAndForward, FieldMode.Write | FieldMode.Read, name: "STRFWD")
+                    .WithFlag(8, out storeAndForward, name: "STRFWD")
                     .WithReservedBits(6, 2)
                     .WithValueField(0,6, name:"TFWR")
                 },
