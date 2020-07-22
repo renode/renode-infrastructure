@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Analyzers
         public LoggingUartAnalyzer()
         {
             line = new StringBuilder(InitialCapacity);
-            LogLevel = LogLevel.Debug;
+            LogLevel = LogLevel.Info;
         }
 
         public override void AttachTo(UARTBackend backend)
