@@ -1235,7 +1235,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 if(!ourPointers.IsEmpty)
                 {
-                    throw new InvalidOperationException("Some memory allocated by the translation library was not freed.");
+                    parent.Log(LogLevel.Warning, "Some memory allocated by the translation library was not freed - {0}B left allocated. This might indicate a memory leak. Cleaning up...", Misc.NormalizeBinary(allocated));
+                    foreach(var ptr in ourPointers.Keys)
+                    {
+                        Marshal.FreeHGlobal(ptr);
+                    }
                 }
             }
 
