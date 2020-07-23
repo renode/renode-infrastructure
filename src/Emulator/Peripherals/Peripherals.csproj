@@ -325,6 +325,7 @@
     <Compile Include="Peripherals\Miscellaneous\K6xF_MCG.cs" />
     <Compile Include="Peripherals\Miscellaneous\K6xF_RNG.cs" />
     <Compile Include="Peripherals\Network\K6xF_Ethernet.cs" />
+    <Compile Include="Peripherals\Miscellaneous\K6xF_SIM.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
