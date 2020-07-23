@@ -1176,13 +1176,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public IntPtr Allocate(int size)
             {
-                parent.NoisyLog("Trying to allocate {0}B.", Misc.NormalizeBinary(size));
                 var ptr = Marshal.AllocHGlobal(size);
+                var sizeNormalized = Misc.NormalizeBinary(size);
                 if(!ourPointers.TryAdd(ptr, size))
                 {
-                    throw new InvalidOperationException("Allocated pointer already exists is memory database.");
+                    throw new InvalidOperationException($"Trying to allocate a {sizeNormalized}B pointer that already exists is the memory database.");
                 }
                 Interlocked.Add(ref allocated, size);
+                parent.NoisyLog("Allocated {0}B pointer at 0x{1:X}.", sizeNormalized, ptr);
                 PrintAllocated();
                 return ptr;
             }
@@ -1201,10 +1202,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 int oldSize;
                 if(!ourPointers.TryRemove(oldPointer, out oldSize))
                 {
-                    throw new InvalidOperationException("Trying to reallocate pointer which wasn't allocated by this memory manager.");
+                    throw new InvalidOperationException($"Trying to reallocate a pointer at 0x{oldPointer:X} which wasn't allocated by this memory manager.");
                 }
-                parent.NoisyLog("Trying to reallocate: old size {0}B, new size {1}B.", Misc.NormalizeBinary(newSize), Misc.NormalizeBinary(oldSize));
                 var ptr = Marshal.ReAllocHGlobal(oldPointer, (IntPtr)newSize); // before asking WTF here look at msdn
+                parent.NoisyLog("Reallocated a pointer: old size {0}B at 0x{1:X}, new size {2}B at 0x{3:X}.", Misc.NormalizeBinary(newSize), oldPointer, Misc.NormalizeBinary(oldSize), ptr);
                 Interlocked.Add(ref allocated, newSize - oldSize);
                 ourPointers.TryAdd(ptr, newSize);
                 return ptr;
@@ -1215,8 +1216,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 int oldSize;
                 if(!ourPointers.TryRemove(ptr, out oldSize))
                 {
-                    throw new InvalidOperationException("Trying to free pointer \"{0}\" which wasn't allocated by this memory manager.".FormatWith(ptr));
+                    throw new InvalidOperationException($"Trying to free a pointer at 0x{ptr:X} which wasn't allocated by this memory manager.");
                 }
+                parent.NoisyLog("Deallocated a {0}B pointer at 0x{1:X}.", Misc.NormalizeBinary(oldSize), ptr);
                 Marshal.FreeHGlobal(ptr);
                 Interlocked.Add(ref allocated, -oldSize);
             }
