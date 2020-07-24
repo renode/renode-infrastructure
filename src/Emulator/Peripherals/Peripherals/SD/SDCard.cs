@@ -352,7 +352,6 @@ namespace Antmicro.Renode.Peripherals.SD
         private BitStream GenerateR3Response()
         {
             return new BitStream()
-                .Append(GenerateR1Response().AsByte())
                 .Append(OperatingConditions.AsByteArray());
         }
 
