@@ -256,14 +256,19 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to read data, but no SD card is currently attached");
                         return 0;
                     }
-                    var bytes = sdCard.ReadData(4);
-
-                    // we must check this *after* reading, as it informs if future reads are possible
-                    var thereIsMoreData = sdCard.IsReadyForReadingData;
-                    irqManager.SetInterrupt(Interrupts.BufferReadReady, thereIsMoreData);
-                    irqManager.SetInterrupt(Interrupts.TransferComplete, !thereIsMoreData);
-
-                    return bytes.ToUInt32Smart();
+                    if(isDmaEnabled.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Tried to read data in DMA mode from register that does not support it");
+                        return 0;
+                    }
+                    var internalBytes = internalBuffer.DequeueRange(4);
+                    if(!internalBytes.Any())
+                    {
+                        internalBytes = new byte[4] { 0, 0, 0, 0 };
+                    }
+                    irqManager.SetInterrupt(Interrupts.BufferReadReady);
+                    irqManager.SetInterrupt(Interrupts.TransferComplete);
+                    return internalBytes.ToUInt32Smart();
                 },
                 writeCallback: (_, value) =>
                 {
@@ -273,8 +278,12 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to write data, but no SD card is currently attached");
                         return;
                     }
-                    sdCard.WriteData(BitConverter.GetBytes(value));
-                    irqManager.SetInterrupt(Interrupts.TransferComplete);
+                    if(isDmaEnabled.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Tried to write data in DMA mode to register that does not support it");
+                        return;
+                    }
+                    WriteToBuffer(BitConverter.GetBytes(value));
                 })
             ;
 
