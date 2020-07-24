@@ -368,6 +368,22 @@ namespace Antmicro.Renode.Peripherals.SD
             irqManager.SetInterrupt(Interrupts.CommandComplete);
         }
 
+        private void WriteToBuffer(byte[] data)
+        {
+            var limit = blockCountField.Value * blockSizeField.Value;
+            internalBuffer.EnqueueRange(data);
+            if(internalBuffer.Count < limit)
+            {
+                return;
+            }
+            var sdCard = RegisteredPeripheral;
+            sdCard.WriteData(internalBuffer.DequeueAll());
+            machine.LocalTimeSource.ExecuteInNearestSyncedState(arg1 =>
+            {
+                irqManager.SetInterrupt(Interrupts.TransferComplete);
+            });
+        }
+
         private IValueRegisterField blockSizeField;
         private IValueRegisterField blockCountField;
         private IFlagRegisterField ackField;
