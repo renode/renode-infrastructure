@@ -255,6 +255,10 @@ namespace Antmicro.Renode.Peripherals.SD
             spiContext.Reset();
         }
 
+        public byte[] ReadSwitchFunctionStatusRegister()
+        {
+            return SwitchFunctionStatus.AsByteArray();
+        }
 
 
         public ushort CardAddress { get; set; }
