@@ -6,14 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
 using static Antmicro.Renode.Utilities.BitHelper;
-using Antmicro.Renode.Peripherals.SPI;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
