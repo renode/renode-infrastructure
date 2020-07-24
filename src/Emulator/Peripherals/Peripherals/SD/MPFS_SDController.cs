@@ -148,18 +148,8 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             Registers.BlockSizeBlockCount_SRS01.Define(this)
-                .WithValueField(0, 12, out var blockSizeField, name: "Transfer Block Size (TBS)")
-                .WithValueField(16, 16, out var blockCountField, name: "Block Count For Current Transfer (BCCT)")
-                .DefineWriteCallback((_, value) =>
-                {
-                    var sdCard = RegisteredPeripheral;
-                    if(sdCard == null)
-                    {
-                        this.Log(LogLevel.Warning, "Tried to set read limit, but no SD card is currently attached");
-                        return;
-                    }
-                    sdCard.SetReadLimit(blockCountField.Value * blockSizeField.Value);
-                })
+                .WithValueField(0, 12, out blockSizeField, name: "Transfer Block Size (TBS)")
+                .WithValueField(16, 16, out blockCountField, name: "Block Count For Current Transfer (BCCT)")
             ;
 
             Registers.Argument1_SRS02.Define(this)
@@ -319,6 +309,8 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
         }
 
+        private IValueRegisterField blockSizeField;
+        private IValueRegisterField blockCountField;
         private IFlagRegisterField ackField;
         private IValueRegisterField addressField;
         private IValueRegisterField writeDataField;
