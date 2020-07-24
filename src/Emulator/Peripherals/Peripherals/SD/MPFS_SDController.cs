@@ -310,6 +310,14 @@ namespace Antmicro.Renode.Peripherals.SD
                 valueProviderCallback: (irq, val) => irqManager.IsSet(irq),
                 writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); }))
             ;
+
+            Registers.DmaSystemAddressLow_SRS22.Define(this)
+                .WithValueField(0, 32, out dmaSystemAddressLow, name: "ADMA/SDMA System Address 1")
+            ;
+
+            Registers.DmaSystemAddressHigh_SRS23.Define(this)
+                .WithValueField(0, 32, out dmaSystemAddressHigh, name: "ADMA/SDMA System Address 2")
+            ;
         }
 
         private IValueRegisterField blockSizeField;
@@ -318,6 +326,8 @@ namespace Antmicro.Renode.Peripherals.SD
         private IValueRegisterField addressField;
         private IValueRegisterField writeDataField;
         private IValueRegisterField readDataField;
+        private IValueRegisterField dmaSystemAddressLow;
+        private IValueRegisterField dmaSystemAddressHigh;
         private IEnumRegisterField<ResponseType> responseTypeSelectField;
 
         private IPhysicalLayer<byte> phy;
