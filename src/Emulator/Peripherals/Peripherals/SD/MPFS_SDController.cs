@@ -295,8 +295,11 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             Registers.Capabilities_SRS16.Define(this)
-                // this field must require non-zero value in order for u-boot to boot
+                // these fields must return non-zero values in order for u-boot to boot
+                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => 4, name: "Timeout clock frequency (TCS)")
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "Timeout clock unit (TCU)")
                 .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => 1, name: "Base Clock Frequency For SD Clock (BCSDCLK)")
+                .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.3V (VS33)")
             ;
 
             Registers.HostControl2_SRS11.Define(this)
