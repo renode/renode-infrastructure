@@ -481,13 +481,12 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
-                    readContext.BytesLeft = blockLengthInBytes;
-                    readContext.Offset = highCapacityMode
-                        ? arg * blockLengthInBytes
-                        : arg;
-
+                    readContext.Offset = arg;
+                    if(highCapacityMode || !interpretAsOffset)
+                    {
+                        readContext.Offset = arg * blockLengthInBytes;
+                    }
                     state = SDCardState.SendingData;
-
                     return spiMode
                         ? GenerateR1Response()
                             .Append(BlockBeginIndicator)
@@ -501,13 +500,12 @@ namespace Antmicro.Renode.Peripherals.SD
                         // TODO: implement it
                         break;
                     }
-
                     state = SDCardState.SendingData;
-
-                    readContext.Offset = highCapacityMode
-                        ? arg * blockLengthInBytes
-                        : arg;
-
+                    readContext.Offset = arg;
+                    if(highCapacityMode || !interpretAsOffset)
+                    {
+                        readContext.Offset = arg * blockLengthInBytes;
+                    }
                     return CardStatus;
 
                 case SdCardCommand.SetBlockCount_CMD23:
@@ -530,6 +528,13 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardCommand.AppCommand_CMD55:
                     treatNextCommandAsAppCommand = true;
+
+                    // HSS (Hart Software Services) is using be default the `readContext.Offset = arg * blockLengthInBytes` calculation
+                    // and for U-Boot this is the High Capacity Mode. Because they are mutually exclusive, we are marking here that the 
+                    // argument of the command can be interpreted as offset again (we know that because HSS does not use this command
+                    // and U-Boot does).
+                    interpretAsOffset = true;
+
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
@@ -589,6 +594,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private SDCardState state;
 
         private bool treatNextCommandAsAppCommand;
+        private bool interpretAsOffset;
         private uint blockLengthInBytes;
         private IoContext writeContext;
         private IoContext readContext;
