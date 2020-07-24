@@ -38,7 +38,8 @@ namespace Antmicro.Renode.Peripherals.SD
             cardStatusGenerator = new VariableLengthValue(32)
                 .DefineFragment(5, 1, () => (treatNextCommandAsAppCommand ? 1 : 0u), name: "APP_CMD bit")
                 .DefineFragment(8, 1, 1, name: "READY_FOR_DATA bit")
-                .DefineFragment(9, 4, () => (uint)state, name: "CURRENT_STATE");
+                .DefineFragment(9, 4, () => (uint)state, name: "CURRENT_STATE")
+            ;
 
             operatingConditionsGenerator = new VariableLengthValue(32)
                 .DefineFragment(8, 1, 1, name: "VDD voltage window 2.0 - 2.1")
