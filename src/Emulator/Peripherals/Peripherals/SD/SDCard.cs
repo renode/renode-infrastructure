@@ -260,6 +260,10 @@ namespace Antmicro.Renode.Peripherals.SD
             return SwitchFunctionStatus.AsByteArray();
         }
 
+        public byte[] ReadExtendedCardSpecificDataRegister()
+        {
+            return ExtendedCardSpecificData.AsByteArray();
+        }
 
         public ushort CardAddress { get; set; }
 
