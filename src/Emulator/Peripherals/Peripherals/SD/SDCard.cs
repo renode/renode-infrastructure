@@ -75,6 +75,14 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
             ;
 
+            extendedCardSpecificDataGenerator = new VariableLengthValue(512 * 8)
+                .DefineFragment((15 * 8), 8, 1, name: "command queue enabled")
+                .DefineFragment((184 * 8), 8, 1, name: "es support")
+                .DefineFragment((185 * 8), 8, 1, name: "hw hs timing")
+                .DefineFragment((196 * 8), 8, (uint)DeviceType.SDR50Mhz, name: "device type")
+                .DefineFragment((308 * 8), 8, 1, name: "command queue support")
+            ;
+
             cardIdentificationGenerator = new VariableLengthValue(128)
                 .DefineFragment(8, 4, 8, name: "manufacturer date code - month")
                 .DefineFragment(12, 8, 18, name: "manufacturer date code - year")
@@ -84,6 +92,10 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(88, 8, (uint)'E', name: "product name 2")
                 .DefineFragment(96, 8, (uint)'R', name: "product name 1")
                 .DefineFragment(120, 8, 0xab, name: "manufacturer ID")
+            ;
+
+            switchFunctionStatusGenerator = new VariableLengthValue(512)
+                .DefineFragment((16 * 8), 1, 0x1, name: "Function Number/Status Code")
             ;
         }
 
@@ -257,7 +269,11 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public BitStream CardSpecificData => cardSpecificDataGenerator.Bits;
 
+        public BitStream ExtendedCardSpecificData => extendedCardSpecificDataGenerator.Bits;
+
         public BitStream CardIdentification => cardIdentificationGenerator.Bits;
+
+        public BitStream SwitchFunctionStatus => switchFunctionStatusGenerator.Bits;
 
         private void WriteDataToUnderlyingFile(long offset, int size, byte[] data)
         {
@@ -562,7 +578,9 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue cardStatusGenerator;
         private readonly VariableLengthValue operatingConditionsGenerator;
         private readonly VariableLengthValue cardSpecificDataGenerator;
+        private readonly VariableLengthValue extendedCardSpecificDataGenerator;
         private readonly VariableLengthValue cardIdentificationGenerator;
+        private readonly VariableLengthValue switchFunctionStatusGenerator;
 
         private readonly SpiContext spiContext;
         private const byte DummyByte = 0xFF;
@@ -681,6 +699,15 @@ namespace Antmicro.Renode.Peripherals.SD
             Multiplier6 = 13,
             Multiplier7 = 14,
             Multiplier8 = 15
+        }
+
+        private enum DeviceType
+        {
+            Legacy = 0,
+            SDR25Mhz = 1,
+            SDR50Mhz = 0x2,
+            SDR = 3,
+            DDR = 4
         }
 
         private enum SpiState
