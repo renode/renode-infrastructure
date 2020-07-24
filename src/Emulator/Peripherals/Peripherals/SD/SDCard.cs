@@ -377,6 +377,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         ? GenerateR1Response()
                         : BitStream.Empty; // no response in SD mode
 
+                case SdCardCommand.SendSupportInformation_CMD1:
+                    return GenerateR3Response();
+
                 case SdCardCommand.SendCardIdentification_CMD2:
                 {
                     if(spiMode)
@@ -408,6 +411,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         .StackAbove(CardAddress, 16, 0)
                         .Bits;
                 }
+
+                case SdCardCommand.CheckSwitchableFunction_CMD6:
+                    return CardStatus;
 
                 case SdCardCommand.SelectDeselectCard_CMD7:
                 {
@@ -504,6 +510,11 @@ namespace Antmicro.Renode.Peripherals.SD
                         : arg;
 
                     return CardStatus;
+
+                case SdCardCommand.SetBlockCount_CMD23:
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
 
                 case SdCardCommand.WriteSingleBlock_CMD24:
                     if(spiMode)
@@ -640,8 +651,10 @@ namespace Antmicro.Renode.Peripherals.SD
         private enum SdCardCommand
         {
             GoIdleState_CMD0 = 0,
+            SendSupportInformation_CMD1 = 1,
             SendCardIdentification_CMD2 = 2,
             SendRelativeAddress_CMD3 = 3,
+            CheckSwitchableFunction_CMD6 = 6,
             SelectDeselectCard_CMD7 = 7,
             // this command has been added in spec version 2.0 - we don't have to answer to it
             SendInterfaceConditionCommand_CMD8 = 8,
@@ -651,6 +664,7 @@ namespace Antmicro.Renode.Peripherals.SD
             SetBlockLength_CMD16 = 16,
             ReadSingleBlock_CMD17 = 17,
             ReadMultipleBlocks_CMD18 = 18,
+            SetBlockCount_CMD23 = 23,
             WriteSingleBlock_CMD24 = 24,
             AppCommand_CMD55 = 55,
             ReadOperationConditionRegister_CMD58 = 58
