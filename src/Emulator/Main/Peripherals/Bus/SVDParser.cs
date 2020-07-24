@@ -672,7 +672,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             private static PermittedAccess? GetPermittedAccess(string accessString)
             {
-                switch(accessString)
+                switch(accessString?.ToLower())
                 {
                 case null:
                     return null;
@@ -682,9 +682,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return PermittedAccess.Write;
                 case "read-write":
                     return PermittedAccess.Read | PermittedAccess.Write;
-                case "writeOnce":
+                case "writeonce":
                     return PermittedAccess.WriteOnce;
-                case "read-writeOnce":
+                case "read-writeonce":
                     return PermittedAccess.Read | PermittedAccess.WriteOnce;
                 default:
                     throw new RecoverableException(string.Format("Found element with unexpected access type: {0}.", accessString));
