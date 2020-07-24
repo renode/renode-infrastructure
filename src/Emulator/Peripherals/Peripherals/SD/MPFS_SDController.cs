@@ -157,83 +157,78 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             Registers.CommandTransferMode_SRS03.Define(this)
+                .WithFlag(0, out isDmaEnabled, name: "DMA Enable")
                 .WithTag("Block Count Enable (BCE)", 1, 1)
                 .WithTag(" Auto CMD Enable (ACE)", 2, 2)
                 .WithTag("Data Transfer Direction Select (DTDS)", 4, 1)
-                .WithEnumField<DoubleWordRegister, ResponseType>(16, 2, out responseTypeSelectField, name: "Response Type Select (RTS)")
+                .WithEnumField(16, 2, out responseTypeSelectField, name: "Response Type Select (RTS)")
                 .WithTag("Command CRC Check Enable (CRCCE)", 19, 1)
                 .WithTag("Command Index Check Enable (CICE)", 20, 1)
                 .WithTag("Data Present Select (DPS)", 21, 1)
-                .WithValueField(24, 6, name: "Command Index (CI)",
-                    writeCallback: (_, value) =>
+                .WithEnumField<DoubleWordRegister, SDCardCommand>(24, 6, out commandIndex, name: "Command Index (CI)")
+                .WithWriteCallback((_, val) =>
+                {
+                    this.Log(LogLevel.Info, "[REG:CommandTransferMode_SRS03] commandIndex: {0}", commandIndex.Value);
+
+                    var sdCard = RegisteredPeripheral;
+                    if(sdCard == null)
                     {
-                        var sdCard = RegisteredPeripheral;
-                        if(sdCard == null)
-                        {
-                            this.Log(LogLevel.Warning, "Tried to send command, but no SD card is currently attached");
-                            return;
-                        }
+                        this.Log(LogLevel.Warning, "Tried to send command, but no SD card is currently attached");
+                        return;
+                    }
 
-                        var commandResult = sdCard.HandleCommand(value, commandArgument1Field.Value);
-                        switch(responseTypeSelectField.Value)
-                        {
-                            case ResponseType.NoResponse:
-                                if(commandResult.Length != 0)
-                                {
-                                    this.Log(LogLevel.Warning, "Expected no response, but {0} bits received", commandResult.Length);
-                                    return;
-                                }
-                                break;
-                            case ResponseType.Response136Bits:
-                                // our response does not contain 8 bits:
-                                // * start bit
-                                // * transmission bit
-                                // * command index / reserved bits (6 bits)
-                                if(commandResult.Length != 128)
-                                {
-                                    this.Log(LogLevel.Warning, "Unexpected a response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
-                                    return;
-                                }
-
-                                // the following bits are considered a part of returned register, but are not included in the response buffer:
-                                // * CRC7 (7 bits)
-                                // * end bit
-                                // that's why we are skipping the initial 8-bits
-                                responseFields[0].Value = commandResult.AsUInt32(8);
-                                responseFields[1].Value = commandResult.AsUInt32(40);
-                                responseFields[2].Value = commandResult.AsUInt32(72);
-                                responseFields[3].Value = commandResult.AsUInt32(104, 24);
-                                break;
-                            case ResponseType.Response48Bits:
-                            case ResponseType.Response48BitsWithBusy:
-                                // our response does not contain 16 bits:
-                                // * start bit
-                                // * transmission bit
-                                // * command index / reserved bits (6 bits)
-                                // * CRC7 (7 bits)
-                                // * end bit
-                                if(commandResult.Length != 32)
-                                {
-                                    this.Log(LogLevel.Warning, "Unexpected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
-                                    return;
-                                }
-                                responseFields[0].Value = commandResult.AsUInt32();
-                                break;
-                            default:
-                                this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseTypeSelectField.Value);
+                    var commandResult = sdCard.HandleCommand((uint)commandIndex.Value, commandArgument1Field.Value);
+                    switch(responseTypeSelectField.Value)
+                    {
+                        case ResponseType.NoResponse:
+                            if(commandResult.Length != 0)
+                            {
+                                this.Log(LogLevel.Warning, "Expected no response, but {0} bits received", commandResult.Length);
                                 return;
-                        }
-
-                        if(sdCard.IsReadyForReadingData)
-                        {
-                            irqManager.SetInterrupt(Interrupts.BufferReadReady);
-                        }
-                        if(sdCard.IsReadyForWritingData)
-                        {
-                            irqManager.SetInterrupt(Interrupts.BufferWriteReady);
-                        }
-                        irqManager.SetInterrupt(Interrupts.CommandComplete);
-                    })
+                            }
+                            break;
+                        case ResponseType.Response136Bits:
+                            // our response does not contain 16 bits:
+                            // * start bit
+                            // * transmission bit
+                            // * command index / reserved bits (6 bits)
+                            // * CRC7 (7 bits)
+                            // * end bit
+                            if(commandResult.Length != 128)
+                            {
+                                this.Log(LogLevel.Warning, "Unexpected a response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
+                                return;
+                            }
+                            // the following bits are considered a part of returned register, but are not included in the response buffer:
+                            // * CRC7 (7 bits)
+                            // * end bit
+                            // that's why we are skipping the initial 8-bits
+                            responseFields[0].Value = commandResult.AsUInt32(8);
+                            responseFields[1].Value = commandResult.AsUInt32(40);
+                            responseFields[2].Value = commandResult.AsUInt32(72);
+                            responseFields[3].Value = commandResult.AsUInt32(104, 24);
+                            break;
+                        case ResponseType.Response48Bits:
+                        case ResponseType.Response48BitsWithBusy:
+                            // our response does not contain 16 bits:
+                            // * start bit
+                            // * transmission bit
+                            // * command index / reserved bits (6 bits)
+                            // * CRC7 (7 bits)
+                            // * end bit
+                            if(commandResult.Length != 32)
+                            {
+                                this.Log(LogLevel.Warning, "(2) Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
+                                return;
+                            }
+                            responseFields[0].Value = commandResult.AsUInt32();
+                            break;
+                        default:
+                            this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseTypeSelectField.Value);
+                            return;
+                    }
+                    ProcessData(sdCard, commandIndex.Value);
+                })
             ;
 
             Registers.Response1_SRS04.Define(this)
@@ -376,8 +371,10 @@ namespace Antmicro.Renode.Peripherals.SD
         private IValueRegisterField blockSizeField;
         private IValueRegisterField blockCountField;
         private IFlagRegisterField ackField;
+        private IFlagRegisterField isDmaEnabled;
         private IValueRegisterField addressField;
         private IValueRegisterField writeDataField;
+        private IEnumRegisterField<SDCardCommand> commandIndex;
         private IValueRegisterField readDataField;
         private IValueRegisterField dmaSystemAddressLow;
         private IValueRegisterField dmaSystemAddressHigh;
