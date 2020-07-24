@@ -315,6 +315,11 @@ namespace Antmicro.Renode.Peripherals.SD
                 writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); }))
             ;
 
+            Registers.ErrorNormalSignalEnable_SRS14.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
+                valueProviderCallback: (irq, _) => irqManager.IsEnabled(irq),
+                writeCallback: (irq, _, curr) => { if(curr) irqManager.EnableInterrupt(irq, curr); }))
+            ;
+
             Registers.DmaSystemAddressLow_SRS22.Define(this)
                 .WithValueField(0, 32, out dmaSystemAddressLow, name: "ADMA/SDMA System Address 1")
             ;
