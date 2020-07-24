@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.SD
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();
             irqManager = new InterruptManager<Interrupts>(this);
+            internalBuffer = new Queue<byte>();
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
             InitializeRegisters();
@@ -324,6 +325,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IEnumRegisterField<ResponseType> responseTypeSelectField;
 
         private IPhysicalLayer<byte> phy;
+        private Queue<byte> internalBuffer;
 
         private readonly InterruptManager<Interrupts> irqManager;
 
