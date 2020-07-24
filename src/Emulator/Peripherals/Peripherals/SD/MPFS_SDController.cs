@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.SD
     {
         public MPFS_SDController(Machine machine) : base(machine)
         {
+            this.machine = machine;
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();
             irqManager = new InterruptManager<Interrupts>(this);
@@ -327,6 +328,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IPhysicalLayer<byte> phy;
         private Queue<byte> internalBuffer;
 
+        private readonly Machine machine;
         private readonly InterruptManager<Interrupts> irqManager;
 
         private enum Registers
