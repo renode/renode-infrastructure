@@ -311,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             Registers.ErrorNormalInterruptStatus_SRS12.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
-                valueProviderCallback: (irq, val) => irqManager.IsSet(irq),
+                valueProviderCallback: (irq, _) => irqManager.IsSet(irq),
                 writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); }))
             ;
 
