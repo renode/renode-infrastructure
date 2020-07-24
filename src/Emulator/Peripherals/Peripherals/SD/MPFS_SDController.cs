@@ -351,6 +351,8 @@ namespace Antmicro.Renode.Peripherals.SD
             ErrorNormalStatusEnable_SRS13 = 0x234,
             ErrorNormalSignalEnable_SRS14 = 0x238,
             Capabilities_SRS16 = 0x240,
+            DmaSystemAddressLow_SRS22 = 0x258,
+            DmaSystemAddressHigh_SRS23 = 0x25C
         }
 
         private enum ResponseType
@@ -365,8 +367,21 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             CommandComplete = 0,
             TransferComplete = 1,
+            BlockGapEvent = 2,
+            DMAInterrupt = 3,
             BufferWriteReady = 4,
             BufferReadReady = 5,
+            QueuingEnabledInterrupt = 14,
+            ErrorInterrupt = 15,
+            ResponseError = 31
+        }
+
+        private enum SDCardCommand
+        {
+            CheckSwitchableFunction = 6,
+            SendInterfaceConditionCommand = 8,
+            ReadSingleBlock = 17,
+            ReadMultipleBlocks = 18
         }
     }
 }
