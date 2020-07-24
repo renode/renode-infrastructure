@@ -68,6 +68,7 @@
     <Compile Include="Peripherals\MTD\DummySPIFlash.cs" />
     <Compile Include="Peripherals\Miscellaneous\LED.cs" />
     <Compile Include="Peripherals\Miscellaneous\MPFS_Sysreg.cs" />
+    <Compile Include="Peripherals\Miscellaneous\MPFS_DDRMock.cs" />
     <Compile Include="Peripherals\Memory\ArrayMemory.cs" />
     <Compile Include="Peripherals\Memory\ArrayMemoryWithReadonlys.cs" />
     <Compile Include="Peripherals\Miscellaneous\EmulatorController.cs" />
