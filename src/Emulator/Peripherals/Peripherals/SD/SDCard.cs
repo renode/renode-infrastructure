@@ -116,57 +116,18 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public void WriteData(byte[] data)
         {
-            if(!writeContext.IsActive || writeContext.Data != null)
-            {
-                this.Log(LogLevel.Warning, "Trying to write data when the SD card is not expecting it");
-                return;
-            }
-            if(!writeContext.CanAccept((uint)data.Length))
-            {
-                this.Log(LogLevel.Warning, "Trying to write more data ({0} bytes) than expected ({1} bytes). Ignoring the whole transfer", data.Length, writeContext.BytesLeft);
-                return;
-            }
             WriteDataToUnderlyingFile(writeContext.Offset, data.Length, data);
             writeContext.Move((uint)data.Length);
-
-            if(!writeContext.IsActive)
-            {
-                // writing finished ?! skipping prg state as it's instant
-                state = SDCardState.Transfer;
-            }
-        }
-
-        // TODO: this method should be removed and it should be controller's responsibility to control the number of bytes to read
-        public void SetReadLimit(uint size)
-        {
-            this.Log(LogLevel.Noisy, "Setting read limit to: {0}", size);
-            readContext.BytesLeft = size;
+            state = SDCardState.Transfer;
         }
 
         public byte[] ReadData(uint size)
         {
-            if(!readContext.IsActive)
-            {
-                this.Log(LogLevel.Warning, "Trying to read data when the SD card is not expecting it");
-                return new byte[0];
-            }
-            if(!readContext.CanAccept(size))
-            {
-                this.Log(LogLevel.Warning, "Trying to read more data ({0} bytes) than expected ({1} bytes). Ignoring the whole transfer", size, readContext.BytesLeft);
-                return new byte[0];
-            }
-
-            this.Log(LogLevel.Noisy, "Reading {0} bytes from offset 0x{1:X}", size, readContext.Offset);
-
             byte[] result;
             if(readContext.Data != null)
             {
                 result = readContext.Data.AsByteArray(readContext.Offset, size);
                 readContext.Move(size * 8);
-                if(readContext.BytesLeft == 0)
-                {
-                    readContext.Reset();
-                }
             }
             else
             {
@@ -282,9 +243,7 @@ namespace Antmicro.Renode.Peripherals.SD
             spiContext.Reset();
         }
 
-        public bool IsReadyForWritingData => writeContext.IsActive;
 
-        public bool IsReadyForReadingData => readContext.IsActive;
 
         public ushort CardAddress { get; set; }
 
@@ -529,14 +488,10 @@ namespace Antmicro.Renode.Peripherals.SD
                         // TODO: implement it
                         break;
                     }
-
                     state = SDCardState.ReceivingData;
-
-                    writeContext.BytesLeft = blockLengthInBytes;
                     writeContext.Offset = highCapacityMode
                         ? arg * blockLengthInBytes
                         : arg;
-
                     return CardStatus;
 
                 case SdCardCommand.AppCommand_CMD55:
@@ -633,36 +588,6 @@ namespace Antmicro.Renode.Peripherals.SD
                     data = value;
                     offset = 0;
                 }
-            }
-
-            public uint BytesLeft
-            {
-                get
-                {
-                    if(data != null)
-                    {
-                        return (data.Length - offset) / 8;
-                    }
-
-                    return bytesLeft;
-                }
-
-                set
-                {
-                    if(data != null && BytesLeft > 0)
-                    {
-                        throw new ArgumentException("Setting bytes left in data mode is not supported");
-                    }
-
-                    bytesLeft = value;
-                }
-            }
-
-            public bool IsActive => BytesLeft > 0;
-
-            public bool CanAccept(uint size)
-            {
-                return BytesLeft >= size;
             }
 
             public void Move(uint offset)
