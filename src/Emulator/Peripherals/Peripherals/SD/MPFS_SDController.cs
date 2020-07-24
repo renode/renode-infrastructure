@@ -320,6 +320,59 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
         }
 
+        private void ProcessData(SDCard sdCard, SDCardCommand command)
+        {
+            if(internalBuffer.Any())
+            {
+                this.Log(LogLevel.Noisy, "Clearing a non-empty buffer while processing command: {0}", command);
+                internalBuffer.Clear();
+            }
+            switch(command)
+            {
+                case SDCardCommand.CheckSwitchableFunction:
+                    internalBuffer.EnqueueRange(sdCard.ReadSwitchFunctionStatusRegister());
+                    break;
+                case SDCardCommand.SendInterfaceConditionCommand:
+                    internalBuffer.EnqueueRange(sdCard.ReadExtendedCardSpecificDataRegister());
+                    break;
+                case SDCardCommand.ReadSingleBlock:
+                    var data = sdCard.ReadData(blockCountField.Value * blockSizeField.Value);
+
+                    internalBuffer.EnqueueRange(data);
+                    machine.LocalTimeSource.ExecuteInNearestSyncedState(arg2 =>
+                    {
+                        irqManager.SetInterrupt(Interrupts.TransferComplete);
+                    });
+                    break;
+                case SDCardCommand.ReadMultipleBlocks:
+                    if(isDmaEnabled.Value)
+                    {
+                        ulong counter = 0;
+                        var limit = blockCountField.Value * blockSizeField.Value;
+                        while(counter < limit)
+                        {
+                            ulong address = ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value;
+                            var bytes = sdCard.ReadData(4);
+                            var b = BitHelper.ToUInt32(bytes, 0, 4, true);
+                            Machine.SystemBus.WriteDoubleWord(address + counter, b);
+                            counter += 4;
+                        }
+                    }
+                    else
+                    {
+                        internalBuffer.EnqueueRange(sdCard.ReadData(blockCountField.Value * blockSizeField.Value));
+                    }
+                    machine.LocalTimeSource.ExecuteInNearestSyncedState(arg2 =>
+                    {
+                        irqManager.SetInterrupt(Interrupts.TransferComplete);
+                    });
+                    break;
+            }
+            irqManager.SetInterrupt(Interrupts.BufferReadReady);
+            irqManager.SetInterrupt(Interrupts.BufferWriteReady);
+            irqManager.SetInterrupt(Interrupts.CommandComplete);
+        }
+
         private IValueRegisterField blockSizeField;
         private IValueRegisterField blockCountField;
         private IFlagRegisterField ackField;
