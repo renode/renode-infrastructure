@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.SD
             RegisteredPeripheral?.Reset();
             RegistersCollection.Reset();
             irqManager.Reset();
+            internalBuffer.Clear();
         }
 
         public void Dispose()
@@ -167,12 +168,10 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithEnumField<DoubleWordRegister, SDCardCommand>(24, 6, out commandIndex, name: "Command Index (CI)")
                 .WithWriteCallback((_, val) =>
                 {
-                    this.Log(LogLevel.Info, "[REG:CommandTransferMode_SRS03] commandIndex: {0}", commandIndex.Value);
-
                     var sdCard = RegisteredPeripheral;
                     if(sdCard == null)
                     {
-                        this.Log(LogLevel.Warning, "Tried to send command, but no SD card is currently attached");
+                        this.Log(LogLevel.Warning, "Tried to send a command, but no SD card is currently attached");
                         return;
                     }
 
@@ -187,12 +186,10 @@ namespace Antmicro.Renode.Peripherals.SD
                             }
                             break;
                         case ResponseType.Response136Bits:
-                            // our response does not contain 16 bits:
+                            // our response does not contain 8 bits:
                             // * start bit
                             // * transmission bit
                             // * command index / reserved bits (6 bits)
-                            // * CRC7 (7 bits)
-                            // * end bit
                             if(commandResult.Length != 128)
                             {
                                 this.Log(LogLevel.Warning, "Unexpected a response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
@@ -217,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.SD
                             // * end bit
                             if(commandResult.Length != 32)
                             {
-                                this.Log(LogLevel.Warning, "(2) Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
+                                this.Log(LogLevel.Warning, "Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
                                 return;
                             }
                             responseFields[0].Value = commandResult.AsUInt32();
@@ -291,18 +288,10 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(1, FieldMode.Read, name: "Command Inhibit DAT (CIDAT)") // as sending a command is instantienous those two bits will probably always be 0
                 // ...
                 .WithFlag(10, FieldMode.Read, name: "Buffer Write Enable (BWE)", valueProviderCallback: _ => true)
-                .WithFlag(11, FieldMode.Read, name: "Buffer Read Enable (BRE)", valueProviderCallback: _ => true)
+                .WithFlag(11, FieldMode.Read, name: "Buffer Read Enable (BRE)", valueProviderCallback: _ => RegisteredPeripheral != null && internalBuffer.Any())
                 .WithFlag(16, FieldMode.Read, name: "Card Inserted (CI)", valueProviderCallback: _ => RegisteredPeripheral != null)
                 .WithFlag(17, FieldMode.Read, name: "Card State Stable (CSS)", valueProviderCallback: _ => true)
                 .WithFlag(18, FieldMode.Read, name: "Card Detect Pin Level (CDSL)", valueProviderCallback: _ => RegisteredPeripheral != null)
-            ;
-
-            Registers.Capabilities_SRS16.Define(this)
-                // these fields must return non-zero values in order for u-boot to boot
-                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => 4, name: "Timeout clock frequency (TCS)")
-                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "Timeout clock unit (TCU)")
-                .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => 1, name: "Base Clock Frequency For SD Clock (BCSDCLK)")
-                .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.3V (VS33)")
             ;
 
             Registers.HostControl2_SRS11.Define(this)
@@ -319,6 +308,14 @@ namespace Antmicro.Renode.Peripherals.SD
                 writeCallback: (irq, _, curr) => { if(curr) irqManager.EnableInterrupt(irq, curr); }))
             ;
 
+            Registers.Capabilities_SRS16.Define(this)
+                // these fields must return non-zero values in order for u-boot to boot
+                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => 4, name: "Timeout clock frequency (TCS)")
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "Timeout clock unit (TCU)")
+                .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => 1, name: "Base Clock Frequency For SD Clock (BCSDCLK)")
+                .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.3V (VS33)")
+            ;
+
             Registers.DmaSystemAddressLow_SRS22.Define(this)
                 .WithValueField(0, 32, out dmaSystemAddressLow, name: "ADMA/SDMA System Address 1")
             ;
@@ -332,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             if(internalBuffer.Any())
             {
-                this.Log(LogLevel.Noisy, "Clearing a non-empty buffer while processing command: {0}", command);
+                this.Log(LogLevel.Debug, "Clearing a non-empty buffer while processing command: {0}", command);
                 internalBuffer.Clear();
             }
             switch(command)
@@ -355,16 +352,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SDCardCommand.ReadMultipleBlocks:
                     if(isDmaEnabled.Value)
                     {
-                        ulong counter = 0;
-                        var limit = blockCountField.Value * blockSizeField.Value;
-                        while(counter < limit)
-                        {
-                            ulong address = ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value;
-                            var bytes = sdCard.ReadData(4);
-                            var b = BitHelper.ToUInt32(bytes, 0, 4, true);
-                            Machine.SystemBus.WriteDoubleWord(address + counter, b);
-                            counter += 4;
-                        }
+                        Machine.SystemBus.WriteBytes(sdCard.ReadData(blockCountField.Value * blockSizeField.Value),
+                            ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
                     }
                     else
                     {

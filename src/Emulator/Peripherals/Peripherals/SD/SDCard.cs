@@ -352,6 +352,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private BitStream GenerateR3Response()
         {
             return new BitStream()
+                .Append(GenerateR1Response().AsByte())
                 .Append(OperatingConditions.AsByteArray());
         }
 
@@ -377,7 +378,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         : BitStream.Empty; // no response in SD mode
 
                 case SdCardCommand.SendSupportInformation_CMD1:
-                    return GenerateR3Response();
+                    return spiMode
+                        ? GenerateR3Response()
+                        : OperatingConditions;
 
                 case SdCardCommand.SendCardIdentification_CMD2:
                 {
@@ -412,7 +415,9 @@ namespace Antmicro.Renode.Peripherals.SD
                 }
 
                 case SdCardCommand.CheckSwitchableFunction_CMD6:
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
 
                 case SdCardCommand.SelectDeselectCard_CMD7:
                 {
