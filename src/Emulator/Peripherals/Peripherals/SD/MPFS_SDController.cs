@@ -25,7 +25,6 @@ namespace Antmicro.Renode.Peripherals.SD
     {
         public MPFS_SDController(Machine machine) : base(machine)
         {
-            this.machine = machine;
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();
             irqManager = new InterruptManager<Interrupts>(this);
@@ -165,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithTag("Command CRC Check Enable (CRCCE)", 19, 1)
                 .WithTag("Command Index Check Enable (CICE)", 20, 1)
                 .WithTag("Data Present Select (DPS)", 21, 1)
-                .WithEnumField<DoubleWordRegister, SDCardCommand>(24, 6, out commandIndex, name: "Command Index (CI)")
+                .WithEnumField(24, 6, out commandIndex, name: "Command Index (CI)")
                 .WithWriteCallback((_, val) =>
                 {
                     var sdCard = RegisteredPeripheral;
@@ -223,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.SD
                             this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseTypeSelectField.Value);
                             return;
                     }
-                    ProcessData(sdCard, commandIndex.Value);
+                    ProcessCommand(sdCard, commandIndex.Value);
                 })
             ;
 
@@ -257,14 +256,14 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to read data in DMA mode from register that does not support it");
                         return 0;
                     }
-                    var internalBytes = internalBuffer.DequeueRange(4);
-                    if(!internalBytes.Any())
+                    var bytes = internalBuffer.DequeueRange(4);
+                    if(!bytes.Any())
                     {
-                        internalBytes = new byte[4] { 0, 0, 0, 0 };
+                        irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+                        return 0;
                     }
-                    irqManager.SetInterrupt(Interrupts.BufferReadReady);
-                    irqManager.SetInterrupt(Interrupts.TransferComplete);
-                    return internalBytes.ToUInt32Smart();
+                    irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
+                    return bytes.ToUInt32Smart();
                 },
                 writeCallback: (_, value) =>
                 {
@@ -279,16 +278,16 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to write data in DMA mode to register that does not support it");
                         return;
                     }
-                    WriteToBuffer(BitConverter.GetBytes(value));
+                    WriteToBuffer(sdCard, BitConverter.GetBytes(value));
                 })
             ;
 
             Registers.PresentState_SRS09.Define(this)
                 .WithFlag(0, FieldMode.Read, name: "Command Inhibit CMD (CICMD)")
                 .WithFlag(1, FieldMode.Read, name: "Command Inhibit DAT (CIDAT)") // as sending a command is instantienous those two bits will probably always be 0
-                // ...
+                                                                                  // ...
                 .WithFlag(10, FieldMode.Read, name: "Buffer Write Enable (BWE)", valueProviderCallback: _ => true)
-                .WithFlag(11, FieldMode.Read, name: "Buffer Read Enable (BRE)", valueProviderCallback: _ => RegisteredPeripheral != null && internalBuffer.Any())
+                .WithFlag(11, FieldMode.Read, name: "Buffer Read Enable (BRE)", valueProviderCallback: _ => RegisteredPeripheral == null ? false : internalBuffer.Any())
                 .WithFlag(16, FieldMode.Read, name: "Card Inserted (CI)", valueProviderCallback: _ => RegisteredPeripheral != null)
                 .WithFlag(17, FieldMode.Read, name: "Card State Stable (CSS)", valueProviderCallback: _ => true)
                 .WithFlag(18, FieldMode.Read, name: "Card Detect Pin Level (CDSL)", valueProviderCallback: _ => RegisteredPeripheral != null)
@@ -296,16 +295,28 @@ namespace Antmicro.Renode.Peripherals.SD
 
             Registers.HostControl2_SRS11.Define(this)
                 .WithFlag(1, FieldMode.Read, name: "Internal Clock Stable (ICS)", valueProviderCallback: _ => true)
+                .WithTag("Software Reset For CMD Line (SRCMD)", 25, 1)
+                .WithTag("Software Reset For DAT Line (SRDAT)", 26, 1)
             ;
 
             Registers.ErrorNormalInterruptStatus_SRS12.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
                 valueProviderCallback: (irq, _) => irqManager.IsSet(irq),
-                writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); }))
+                writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); } ))
             ;
 
-            Registers.ErrorNormalSignalEnable_SRS14.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
+            Registers.ErrorNormalStatusEnable_SRS13.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
                 valueProviderCallback: (irq, _) => irqManager.IsEnabled(irq),
-                writeCallback: (irq, _, curr) => { if(curr) irqManager.EnableInterrupt(irq, curr); }))
+                writeCallback: (irq, _, curr) =>
+                {
+                    if(curr)
+                    {
+                        irqManager.EnableInterrupt(irq, curr);
+                    }
+                    else
+                    {
+                        irqManager.DisableInterrupt(irq);
+                    }
+                }))
             ;
 
             Registers.Capabilities_SRS16.Define(this)
@@ -325,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
         }
 
-        private void ProcessData(SDCard sdCard, SDCardCommand command)
+        private void ProcessCommand(SDCard sdCard, SDCardCommand command)
         {
             if(internalBuffer.Any())
             {
@@ -336,41 +347,38 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SDCardCommand.CheckSwitchableFunction:
                     internalBuffer.EnqueueRange(sdCard.ReadSwitchFunctionStatusRegister());
+                    irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
                     break;
                 case SDCardCommand.SendInterfaceConditionCommand:
                     internalBuffer.EnqueueRange(sdCard.ReadExtendedCardSpecificDataRegister());
+                    irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
                     break;
                 case SDCardCommand.ReadSingleBlock:
-                    var data = sdCard.ReadData(blockCountField.Value * blockSizeField.Value);
-
-                    internalBuffer.EnqueueRange(data);
-                    machine.LocalTimeSource.ExecuteInNearestSyncedState(arg2 =>
-                    {
-                        irqManager.SetInterrupt(Interrupts.TransferComplete);
-                    });
+                    ProcessData(sdCard, blockSizeField.Value);
                     break;
                 case SDCardCommand.ReadMultipleBlocks:
-                    if(isDmaEnabled.Value)
-                    {
-                        Machine.SystemBus.WriteBytes(sdCard.ReadData(blockCountField.Value * blockSizeField.Value),
-                            ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
-                    }
-                    else
-                    {
-                        internalBuffer.EnqueueRange(sdCard.ReadData(blockCountField.Value * blockSizeField.Value));
-                    }
-                    machine.LocalTimeSource.ExecuteInNearestSyncedState(arg2 =>
-                    {
-                        irqManager.SetInterrupt(Interrupts.TransferComplete);
-                    });
+                    ProcessData(sdCard, blockCountField.Value * blockSizeField.Value);
                     break;
             }
-            irqManager.SetInterrupt(Interrupts.BufferReadReady);
-            irqManager.SetInterrupt(Interrupts.BufferWriteReady);
-            irqManager.SetInterrupt(Interrupts.CommandComplete);
+            irqManager.SetInterrupt(Interrupts.CommandComplete, irqManager.IsEnabled(Interrupts.CommandComplete));
         }
 
-        private void WriteToBuffer(byte[] data)
+        private void ProcessData(SDCard sdCard, uint size)
+        {
+            var data = sdCard.ReadData(size);
+            if(isDmaEnabled.Value)
+            {
+                Machine.SystemBus.WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
+                irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+            }
+            else
+            {
+                internalBuffer.EnqueueRange(data);
+            }
+            irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
+        }
+
+        private void WriteToBuffer(SDCard sdCard, byte[] data)
         {
             var limit = blockCountField.Value * blockSizeField.Value;
             internalBuffer.EnqueueRange(data);
@@ -378,12 +386,8 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 return;
             }
-            var sdCard = RegisteredPeripheral;
             sdCard.WriteData(internalBuffer.DequeueAll());
-            machine.LocalTimeSource.ExecuteInNearestSyncedState(arg1 =>
-            {
-                irqManager.SetInterrupt(Interrupts.TransferComplete);
-            });
+            irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
         }
 
         private IValueRegisterField blockSizeField;
@@ -401,7 +405,6 @@ namespace Antmicro.Renode.Peripherals.SD
         private IPhysicalLayer<byte> phy;
         private Queue<byte> internalBuffer;
 
-        private readonly Machine machine;
         private readonly InterruptManager<Interrupts> irqManager;
 
         private enum Registers
@@ -444,9 +447,25 @@ namespace Antmicro.Renode.Peripherals.SD
             DMAInterrupt = 3,
             BufferWriteReady = 4,
             BufferReadReady = 5,
+            CardIsertion = 6,
+            CardRemoval = 7,
+            CardInterrupt = 8,
+            // [13:9] Reserved
             QueuingEnabledInterrupt = 14,
             ErrorInterrupt = 15,
-            ResponseError = 31
+            CommandTimeoutError = 16,
+            CommandCRCError = 17,
+            CommandEndBitError = 18,
+            CommandIndexError = 19,
+            DataTimeoutError = 20,
+            DataCRCError = 21,
+            DataEndBitError = 22,
+            CurrentLimitError = 23,
+            AutoCMDError = 24,
+            ADMAError = 25,
+            // [26] Reserved
+            ResponseError = 27,
+            // [31:28] Reserved
         }
 
         private enum SDCardCommand

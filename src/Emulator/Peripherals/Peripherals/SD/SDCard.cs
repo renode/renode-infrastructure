@@ -76,12 +76,12 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
             ;
 
-            extendedCardSpecificDataGenerator = new VariableLengthValue(512 * 8)
-                .DefineFragment((15 * 8), 8, 1, name: "command queue enabled")
-                .DefineFragment((184 * 8), 8, 1, name: "es support")
-                .DefineFragment((185 * 8), 8, 1, name: "hw hs timing")
-                .DefineFragment((196 * 8), 8, (uint)DeviceType.SDR50Mhz, name: "device type")
-                .DefineFragment((308 * 8), 8, 1, name: "command queue support")
+            extendedCardSpecificDataGenerator = new VariableLengthValue(4096)
+                .DefineFragment((120), 8, 1, name: "command queue enabled")
+                .DefineFragment((1472), 8, 1, name: "es support")
+                .DefineFragment((1480), 8, 1, name: "hw hs timing")
+                .DefineFragment((1568), 8, (uint)DeviceType.SDR50Mhz, name: "device type")
+                .DefineFragment((2464), 8, 1, name: "command queue support")
             ;
 
             cardIdentificationGenerator = new VariableLengthValue(128)
@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             switchFunctionStatusGenerator = new VariableLengthValue(512)
-                .DefineFragment((16 * 8), 1, 0x1, name: "Function Number/Status Code")
+                .DefineFragment(128, 1, 0x1, name: "Function Number/Status Code")
             ;
         }
 
@@ -258,12 +258,12 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public byte[] ReadSwitchFunctionStatusRegister()
         {
-            return SwitchFunctionStatus.AsByteArray();
+            return switchFunctionStatusGenerator.Bits.AsByteArray();
         }
 
         public byte[] ReadExtendedCardSpecificDataRegister()
         {
-            return ExtendedCardSpecificData.AsByteArray();
+            return extendedCardSpecificDataGenerator.Bits.AsByteArray();
         }
 
         public ushort CardAddress { get; set; }
@@ -278,11 +278,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public BitStream CardSpecificData => cardSpecificDataGenerator.Bits;
 
-        public BitStream ExtendedCardSpecificData => extendedCardSpecificDataGenerator.Bits;
-
         public BitStream CardIdentification => cardIdentificationGenerator.Bits;
-
-        public BitStream SwitchFunctionStatus => switchFunctionStatusGenerator.Bits;
 
         private void WriteDataToUnderlyingFile(long offset, int size, byte[] data)
         {
@@ -481,7 +477,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.SetBlockLength_CMD16:
-                    blockLengthInBytes = arg;
+                    blockLengthInBytes = highCapacityMode
+                        ? HighCapacityBlockLength
+                        : arg;
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
@@ -603,6 +601,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly SpiContext spiContext;
         private const byte DummyByte = 0xFF;
         private const byte BlockBeginIndicator = 0xFE;
+        private const int HighCapacityBlockLength = 512;
 
         private struct IoContext
         {
@@ -726,7 +725,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             Legacy = 0,
             SDR25Mhz = 1,
-            SDR50Mhz = 0x2,
+            SDR50Mhz = 2,
             SDR = 3,
             DDR = 4
         }
