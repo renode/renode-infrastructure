@@ -22,9 +22,10 @@ namespace Antmicro.Renode.Peripherals.SD
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
     public class SDCard : ISPIPeripheral, IDisposable
     {
-        public SDCard(string imageFile, long? size = null, bool persistent = false, bool spiMode = false)
+        public SDCard(string imageFile, long? size = null, bool persistent = false, bool spiMode = false, bool highCapacityMode = false)
         {
             this.spiMode = spiMode;
+            this.highCapacityMode = highCapacityMode;
             spiContext = new SpiContext();
 
             dataBackend = DataStorage.Create(imageFile, size, persistent);
@@ -486,11 +487,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
-                    readContext.Offset = arg;
-                    if(highCapacityMode || !interpretAsOffset)
-                    {
-                        readContext.Offset = arg * blockLengthInBytes;
-                    }
+                    readContext.Offset = highCapacityMode
+                        ? arg * blockLengthInBytes 
+                        : arg;
                     state = SDCardState.SendingData;
                     return spiMode
                         ? GenerateR1Response()
@@ -506,11 +505,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         break;
                     }
                     state = SDCardState.SendingData;
-                    readContext.Offset = arg;
-                    if(highCapacityMode || !interpretAsOffset)
-                    {
-                        readContext.Offset = arg * blockLengthInBytes;
-                    }
+                    readContext.Offset = highCapacityMode
+                        ? arg * blockLengthInBytes
+                        : arg;
                     return CardStatus;
 
                 case SdCardCommand.SetBlockCount_CMD23:
@@ -533,13 +530,6 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardCommand.AppCommand_CMD55:
                     treatNextCommandAsAppCommand = true;
-
-                    // HSS (Hart Software Services) is using be default the `readContext.Offset = arg * blockLengthInBytes` calculation
-                    // and for U-Boot this is the High Capacity Mode. Because they are mutually exclusive, we are marking here that the 
-                    // argument of the command can be interpreted as offset again (we know that because HSS does not use this command
-                    // and U-Boot does).
-                    interpretAsOffset = true;
-
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
@@ -599,7 +589,6 @@ namespace Antmicro.Renode.Peripherals.SD
         private SDCardState state;
 
         private bool treatNextCommandAsAppCommand;
-        private bool interpretAsOffset;
         private uint blockLengthInBytes;
         private IoContext writeContext;
         private IoContext readContext;
