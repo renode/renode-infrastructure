@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.SD
     // * Toggling selected state
     // * RCA (relative card address) filtering
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
-    public class SDCard : ISPIPeripheral
+    public class SDCard : ISPIPeripheral, IDisposable
     {
         public SDCard(string imageFile, long? size = null, bool persistent = false, bool spiMode = false)
         {
