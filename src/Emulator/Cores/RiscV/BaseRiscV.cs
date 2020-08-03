@@ -95,9 +95,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Reset();
             ShouldEnterDebugMode = true;
             EnableArchitectureVariants();
-            foreach(var csr in simpleCSRs)
+            foreach(var key in simpleCSRs.Keys.ToArray())
             {
-                simpleCSRs[csr.Key] = 0;
+                simpleCSRs[key] = 0;
             }
         }
 
