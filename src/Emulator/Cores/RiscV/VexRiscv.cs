@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using ELFSharp.ELF;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
@@ -56,6 +57,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             });
             RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
+
+            InstallCustomInstruction(pattern: "00000000000000000101000000001111", handler: HandleFlushDataCacheInstruction);
         }
 
         // GPIOs in VexRiscv are divided into the following sections
@@ -109,6 +112,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.OnGPIO((int)IrqType.MachineExternalInterrupt, machineInterrupts.Any);
             base.OnGPIO((int)IrqType.SupervisorExternalInterrupt, supervisorInterrupts.Any);
+        }
+
+        private void HandleFlushDataCacheInstruction(UInt64 opcode)
+        {
+            // intentionally do nothing
+            // there is no data cache in Renode anyway
         }
 
         private Interrupts machineInterrupts;
