@@ -124,6 +124,7 @@
     <Compile Include="Peripherals\USB\USBClassCode.cs" />
     <Compile Include="Peripherals\USB\USBProtocol.cs" />
     <Compile Include="Peripherals\USB\USBString.cs" />
+    <Compile Include="Peripherals\ATAPI\IAtapiPeripheral.cs" />
     <Compile Include="Peripherals\BasicBytePeripheral.cs" />
     <Compile Include="Peripherals\BasicWordPeripheral.cs" />
     <Compile Include="Peripherals\BasicDoubleWordPeripheral.cs" />
