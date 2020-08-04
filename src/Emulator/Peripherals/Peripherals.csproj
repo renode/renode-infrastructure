@@ -125,6 +125,7 @@
     <Compile Include="Peripherals\PCI\VersatilePCI.cs" />
     <Compile Include="Peripherals\PCI\MPFS_PCIe.cs" />
     <Compile Include="Peripherals\PCI\PCIeMemory.cs" />
+    <Compile Include="Peripherals\PCI\PIIX.cs" />
     <Compile Include="Peripherals\PCI\PCIHost_Bridge.cs" />
     <Compile Include="Peripherals\SPI\FakeEfmSPITransmitter.cs" />
     <Compile Include="Peripherals\UART\LEUART.cs" />
