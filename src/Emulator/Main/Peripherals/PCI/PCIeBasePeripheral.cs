@@ -130,10 +130,10 @@ namespace Antmicro.Renode.Peripherals.PCI
             WriteDoubleWordToBar(bar, offset, value);
         }
 
-        public ushort DeviceId { get; }
-        public ushort VendorId { get; }
-        public byte RevisionId { get; }
-        public uint ClassCode { get; }
+        public ushort DeviceId { get; set; }
+        public ushort VendorId { get; set; }
+        public byte RevisionId { get; set; }
+        public uint ClassCode { get; set; }
         public HeaderType HeaderType { get; }
 
         protected virtual void WriteDoubleWordToBar(uint bar, long offset, uint value)
