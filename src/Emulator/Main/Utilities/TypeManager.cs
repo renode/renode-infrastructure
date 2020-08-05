@@ -616,6 +616,24 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        private void ProcessExtractedExtensionMethods(Dictionary<string, HashSet<MethodDescription>> methodsToStore)
+        {
+            foreach(var item in methodsToStore)
+            {
+                if(extensionMethodsTraceFromTypeFullName.ContainsKey(item.Key))
+                {
+                    foreach(var method in item.Value)
+                    {
+                        extensionMethodsTraceFromTypeFullName[item.Key].Add(method);
+                    }
+                }
+                else
+                {
+                    extensionMethodsTraceFromTypeFullName.Add(item.Key, item.Value);
+                }
+            }
+        }
+
         private bool IsAutoLoadType(TypeDefinition type)
         {
             var isAutoLoad = type.Interfaces.Select(x => x.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
