@@ -586,7 +586,7 @@ namespace Antmicro.Renode.Utilities
                     }
                     continue;
                 }
-                if(!ExtractExtensionMethods(type) && !IsInterestingType(type))
+                if(!TryExtractExtensionMethods(type, out var extractedMethods) && !IsInterestingType(type))
                 {
                     continue;
                 }
@@ -610,9 +610,15 @@ namespace Antmicro.Renode.Utilities
                     var description = assemblyFromTypeName[fullName];
                     assemblyFromTypeName.Remove(fullName);
                     assembliesFromTypeName.Add(fullName, new List<AssemblyDescription> { description, newAssemblyDescription });
-                    continue;
                 }
-                assemblyFromTypeName.Add(fullName, newAssemblyDescription);
+                else
+                {
+                    assemblyFromTypeName.Add(fullName, newAssemblyDescription);
+                }
+                if(extractedMethods != null)
+                {
+                    ProcessExtractedExtensionMethods(extractedMethods);
+                }
             }
 
             return true;
