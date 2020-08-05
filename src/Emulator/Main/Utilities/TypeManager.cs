@@ -604,7 +604,7 @@ namespace Antmicro.Renode.Utilities
                 {
                     if(abortOnDuplicatedAssembly)
                     {
-                        Logger.LogAs(this, LogLevel.Warning, "Trying to load assembly that has been already loaded.");
+                        Logger.LogAs(this, LogLevel.Warning, "Tried to load assembly that has been already loaded. Aborting operation.");
                         return false;
                     }
                     var description = assemblyFromTypeName[fullName];
