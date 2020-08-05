@@ -388,14 +388,16 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private bool ExtractExtensionMethods(TypeDefinition type)
+        private bool TryExtractExtensionMethods(TypeDefinition type, out Dictionary<string, HashSet<MethodDescription>> extractedMethods)
         {
             // type is enclosing type
             if(!type.IsClass)
             {
+                extractedMethods = null;
                 return false;
             }
-            var methodAdded = false;
+            var result = false;
+            extractedMethods = new Dictionary<string, HashSet<MethodDescription>>();
             foreach(var method in type.Methods)
             {
                 if(method.IsStatic && method.IsPublic && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(System.Runtime.CompilerServices.ExtensionAttribute).FullName))
@@ -420,21 +422,21 @@ namespace Antmicro.Renode.Utilities
                         (paramType.GetFullNameOfMember() == typeof(object).FullName
                         && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(ExtensionOnObjectAttribute).FullName)))
                     {
-                        methodAdded = true;
+                        result = true;
                         // that's the interesting extension method
                         var methodDescription = new MethodDescription(type.GetFullNameOfMember(), method.Name, GetMethodSignature(method), true);
-                        if(extensionMethodsTraceFromTypeFullName.ContainsKey(paramType.GetFullNameOfMember()))
+                        if(extractedMethods.ContainsKey(paramType.GetFullNameOfMember()))
                         {
-                            extensionMethodsTraceFromTypeFullName[paramType.GetFullNameOfMember()].Add(methodDescription);
+                            extractedMethods[paramType.GetFullNameOfMember()].Add(methodDescription);
                         }
                         else
                         {
-                            extensionMethodsTraceFromTypeFullName.Add(paramType.GetFullNameOfMember(), new HashSet<MethodDescription> { methodDescription });
+                            extractedMethods.Add(paramType.GetFullNameOfMember(), new HashSet<MethodDescription> { methodDescription });
                         }
                     }
                 }
             }
-            return methodAdded;
+            return result;
         }
 
         private static bool IsReferenced(Assembly referencingAssembly, string checkedAssemblyName)
