@@ -487,6 +487,7 @@
     <Compile Include="Sound\PCMEncoder.cs" />
     <Compile Include="Sound\PCMDecoder.cs" />
     <Compile Include="Utilities\IntegerRankExtensions.cs" />
+    <Compile Include="Logging\Backends\MemoryBackend.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

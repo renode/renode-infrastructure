@@ -41,6 +41,7 @@ namespace Antmicro.Renode.UI
                 Logger.AddBackend(new DummyLoggerBackend(), "dummy");
             }
 
+            Logger.AddBackend(new MemoryBackend(), "memory");
             Emulator.ShowAnalyzers = !options.HideAnalyzers;
             XwtProvider xwt = null;
             if(options.PidFile != null)
