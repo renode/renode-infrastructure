@@ -50,9 +50,18 @@ namespace Antmicro.Renode.Peripherals.I2C
 
                         if(bufferFromDevice.Count == 0)
                         {
-                            this.Log(LogLevel.Warning, "There are no more output bits to read");
-                            // SDA is high when no data
-                            return true;
+                            if(state == State.Read)
+                            {
+                                // try - maybe there is sth more waiting for us
+                                ReadNextByteFromDevice();
+                            }
+
+                            if(bufferFromDevice.Count == 0)
+                            {
+                                this.Log(LogLevel.Warning, "There are no more output bits to read");
+                                // SDA is high when no data
+                                return true;
+                            }
                         }
 
                         return bufferFromDevice.Peek();
@@ -165,16 +174,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     }
                     else if(isRead)
                     {
-                        this.Log(LogLevel.Noisy, "Reading from device");
-                        bufferFromDevice.Clear();
-                        foreach(var @byte in slave.Read())
-                        {
-                            foreach(var bit in BitHelper.GetBits(@byte))
-                            {
-                                bufferFromDevice.Enqueue(bit);
-                            }
-                        }
-
                         tickCounter = 0;
                         state = State.Read;
                     }
@@ -247,6 +246,26 @@ namespace Antmicro.Renode.Peripherals.I2C
             state = State.Idle;
             slave = null;
             isRead = false;
+        }
+
+        private void ReadNextByteFromDevice()
+        {
+            if(slave == null)
+            {
+                this.Log(LogLevel.Warning, "Trying to read data from the device, but no slave is currently selected");
+                return;
+            }
+
+            this.Log(LogLevel.Noisy, "Reading byte from device");
+            foreach(var @byte in slave.Read())
+            {
+                // bits in I2C are transmitted most-significant-bit first
+                var bits = BitHelper.GetBits(@byte).Take(8).Reverse();
+                foreach(var bit in bits)
+                {
+                    bufferFromDevice.Enqueue(bit);
+                }
+            }
         }
 
         private readonly DoubleWordRegisterCollection registersCollection;
