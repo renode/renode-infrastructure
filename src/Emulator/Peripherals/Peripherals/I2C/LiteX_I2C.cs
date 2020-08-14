@@ -108,6 +108,8 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleStartCondition(bool[] signals)
         {
+            this.Log(LogLevel.Noisy, "(repeated) Start condition detected in state: {0}", state);
+
             if(slave != null && bytesToDevice.Count > 0)
             {
                 this.Log(LogLevel.Noisy, "Writing data to the device");
@@ -115,8 +117,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
 
             ResetBuffers();
-
-            this.Log(LogLevel.Noisy, "(repeated) Start condition detected in state: {0}", state);
             state = State.Address;
         }
 
