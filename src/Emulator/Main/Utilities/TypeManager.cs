@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Noisy, "Loading assembly {0}.", path);
                 ClearExtensionMethodsCache();
                 BuildAssemblyCache();
-                if(!AnalyzeAssembly(path, true, bundled))
+                if(!AnalyzeAssembly(path, bundled: bundled))
                 {
                     return false;
                 }
@@ -471,7 +471,7 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
-        private bool AnalyzeAssembly(string path, bool abortOnDuplicatedAssembly = false, bool bundled = false, bool throwOnBadImage = true)
+        private bool AnalyzeAssembly(string path, bool bundled = false, bool throwOnBadImage = true)
         {
             Logger.LogAs(this, LogLevel.Noisy, "Analyzing assembly {0}.", path);
             if(assemblyFromAssemblyName.Values.Any(x => x.Path == path))
@@ -602,19 +602,9 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(assemblyFromTypeName.ContainsKey(fullName))
                 {
-                    if(abortOnDuplicatedAssembly)
-                    {
-                        Logger.LogAs(this, LogLevel.Warning, "Tried to load assembly that has been already loaded. Aborting operation.");
-                        return false;
-                    }
-                    var description = assemblyFromTypeName[fullName];
-                    assemblyFromTypeName.Remove(fullName);
-                    assembliesFromTypeName.Add(fullName, new List<AssemblyDescription> { description, newAssemblyDescription });
+                    throw new InvalidOperationException("Tried to load assembly that has been already loaded. Aborting operation.");
                 }
-                else
-                {
-                    assemblyFromTypeName.Add(fullName, newAssemblyDescription);
-                }
+                assemblyFromTypeName.Add(fullName, newAssemblyDescription);
                 if(extractedMethods != null)
                 {
                     ProcessExtractedExtensionMethods(extractedMethods);
