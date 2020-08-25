@@ -536,7 +536,9 @@ namespace Antmicro.Renode.UserInterface
                 cache.ClearCache();
                 return TypeManager.Instance.ScanFile(result);
             }
-            catch(RecoverableException e)
+            catch(Exception e)
+                when(e is RecoverableException
+                  || e is InvalidOperationException)
             {
                 writer.WriteError("Errors during compilation or loading:\r\n" + e.Message.Replace(Environment.NewLine, "\r\n"));
                 return false;
