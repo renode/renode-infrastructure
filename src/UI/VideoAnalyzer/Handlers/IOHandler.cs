@@ -27,6 +27,20 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
 
         public void MouseMoved(int x, int y, int dx, int dy)
         {
+            // The frame buffer analyzer widget must be focused
+            // in order to receive IO events.
+            // Normally pointer devices are responsible for
+            // handling focus (either by grabbing X11 events
+            //                 or by calling SetFocus() when needed).
+            // When there is no pointer device attached,
+            // we fallback to focusing the widget every
+            // time the mouse cursor is moved over it.                
+            if(pointerHandler == null && !widget.HasFocus)
+            {
+                widget.CanGetFocus = true;
+                widget.SetFocus();
+            }
+
             var ph = pointerHandler;
             if(ph != null && status != Status.NotGrabbed)
             {
