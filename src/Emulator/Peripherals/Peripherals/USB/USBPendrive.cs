@@ -48,9 +48,11 @@ namespace Antmicro.Renode.Peripherals.USB
             BlockSize = blockSize;
             dataBackend = DataStorage.Create(imageFile, size, persistent);
 
-            if(dataBackend.Length % blockSize != 0)
+            var sizeMisalignment = dataBackend.Length % blockSize;
+            if(sizeMisalignment != 0)
             {
-                this.Log(LogLevel.Warning, "Underlying data size ({0} bytes) is not aligned to the block size ({1} bytes)", dataBackend.Length, blockSize);
+                dataBackend.SetLength(dataBackend.Length + (blockSize - sizeMisalignment));
+                this.Log(LogLevel.Warning, "Underlying data size extended by {0} bytes to align it to the block size ({1} bytes)", blockSize - sizeMisalignment, blockSize);
             }
 
             USBCore = new USBDeviceCore(this)
