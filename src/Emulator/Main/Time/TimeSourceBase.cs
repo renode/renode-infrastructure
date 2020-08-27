@@ -309,6 +309,11 @@ namespace Antmicro.Renode.Time
         public TimeInterval ElapsedVirtualTime { get { return TimeInterval.FromTicks(virtualTicksElapsed.CumulativeValue); } }
 
         /// <summary>
+        /// Gets the amount of host time elapsed from the perspective of this time source.
+        /// </summary>
+        public TimeInterval ElapsedHostTime { get { return TimeInterval.FromTicks(hostTicksElapsed.CumulativeValue); } }
+
+        /// <summary>
         /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
         /// </summary>
         public TimeInterval NearestSyncPoint { get; private set; }
