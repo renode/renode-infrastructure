@@ -40,6 +40,8 @@ namespace Antmicro.Renode.UI
 
         [Name("robot-server-port"), DefaultValue(-1), Description("Start robot framework remote server on the specified port.")]
         public int RobotFrameworkRemoteServerPort { get; set; }
+        [Name("robot-debug-on-error"), DefaultValue(false), Description("Initialize GUI for Robot tests debugging")]
+        public bool RobotDebug { get; set; }
 
         public bool Validate(out string error)
         {

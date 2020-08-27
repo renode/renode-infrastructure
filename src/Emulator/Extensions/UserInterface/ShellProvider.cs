@@ -18,7 +18,7 @@ namespace Antmicro.Renode.UserInterface
 {
     public static class ShellProvider
     {
-        public static Shell GenerateShell(IOProvider io, Monitor monitor, bool forceVCursor = false)
+        public static Shell GenerateShell(Monitor monitor, bool forceVCursor = false)
         {
             var settings = new ShellSettings {
                 NormalPrompt = new Prompt("(monitor) ", ConsoleColor.DarkRed),
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.UserInterface
                 HistorySavePath = ConfigurationManager.Instance.Get("general", "history-path", Path.Combine(Emulator.UserDirectoryPath, "history"))
             };
 
-            var shell = new Shell(io, monitor, settings);
+            var shell = new Shell(monitor, settings);
 
             var startupCommand = Environment.GetEnvironmentVariable(Monitor.StartupCommandEnv);
             if(!string.IsNullOrEmpty(startupCommand) && shell != null)

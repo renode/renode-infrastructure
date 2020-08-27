@@ -49,7 +49,7 @@ namespace Antmicro.Renode.UI
                 File.WriteAllText(options.PidFile, pid.ToString());
             }
 
-            if(!options.DisableXwt)
+            if(!options.DisableXwt || options.RobotDebug)
             {
                 xwt = XwtProvider.Create(new WindowedUserInterfaceProvider());
             }
@@ -78,8 +78,8 @@ namespace Antmicro.Renode.UI
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
-                var uartAnalyzerType = (xwt == null) ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
-                var videoAnalyzerType = (xwt == null) ? typeof(DummyVideoAnalyzer) : typeof(VideoAnalyzer);
+                var uartAnalyzerType = (xwt == null || options.RobotDebug) ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
+                var videoAnalyzerType = (xwt == null || options.RobotDebug) ? typeof(DummyVideoAnalyzer) : typeof(VideoAnalyzer);
 
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
@@ -108,6 +108,34 @@ namespace Antmicro.Renode.UI
                     beforeRun(context);
                 }
 
+                if(options.RobotDebug)
+                {
+                    ConsoleWindowBackendAnalyzer terminal = null;
+
+                    Emulator.EnableGUI += () =>
+                    {
+                        Logger.AddBackend(ConsoleBackend.Instance, "console", true);
+                        terminal = new ConsoleWindowBackendAnalyzer(true);
+                        terminal.Show();
+                        shell.Terminal = new NavigableTerminalEmulator(terminal.IO);
+                        new System.Threading.Thread(x => shell.Start(true))
+                        {
+                            IsBackground = true,
+                            Name = "Shell thread"
+                        }.Start();
+                    };
+
+                    Emulator.DisableGUI += () =>
+                    {
+                        if(options.HideLog)
+                        {
+                            Logger.RemoveBackend(ConsoleBackend.Instance);
+                        }
+                        terminal?.Hide();
+                        terminal = null;
+                    };
+                }
+
                 Emulator.WaitForExit();
             }
         }
@@ -121,7 +149,8 @@ namespace Antmicro.Renode.UI
                 {
                     Backend = new SocketIOSource(options.Port)
                 };
-                shell = ShellProvider.GenerateShell(io, monitor, true);
+                shell = ShellProvider.GenerateShell(monitor, true);
+                shell.Terminal = new NavigableTerminalEmulator(io, true);
 
                 Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
@@ -140,7 +169,8 @@ namespace Antmicro.Renode.UI
                 }
 
                 // forcing vcursor is necessary, because calibrating will never end if the window is not shown
-                shell = ShellProvider.GenerateShell(io, monitor, forceVCursor: options.HideMonitor);
+                shell = ShellProvider.GenerateShell(monitor, forceVCursor: options.HideMonitor);
+                shell.Terminal = new NavigableTerminalEmulator(io, options.HideMonitor);
                 monitor.Quitted += shell.Stop;
 
                 if(terminal != null)

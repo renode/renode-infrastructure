@@ -44,6 +44,24 @@ namespace Antmicro.Renode
             exitEvent.Set();
         }
 
+        public static void OpenGUI()
+        {
+            if(EnableGUI == null)
+            {
+                throw new RecoverableException("This feature is available only with interactive Robot tests debug");
+            }
+            EnableGUI();
+        }
+
+        public static void CloseGUI()
+        {
+            if(DisableGUI == null)
+            {
+                throw new RecoverableException("This feature is available only with interactive Robot tests debug");
+            }
+            DisableGUI();
+        }
+
         public static void WaitForExit()
         {
             exitEvent.Wait();
@@ -123,6 +141,8 @@ namespace Antmicro.Renode
         private static readonly BlockingCollection<Action> actionsOnMainThread = new BlockingCollection<Action>();
 
         public static event Action BeforeExit;
+        public static event Action EnableGUI;
+        public static event Action DisableGUI;
         private static IUserInterfaceProvider userInterfaceProvider;
         private static ManualResetEventSlim exitEvent = new ManualResetEventSlim();
         private static bool disposed;
