@@ -811,10 +811,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Resume();
 
                 this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
-                if(IsHalted)
-                {
-                    IsHalted = false;
-                }
+
+                IsHalted = false;
                 singleStepSynchronizer.CommandStep(count);
                 singleStepSynchronizer.WaitForStepFinished();
                 IsHalted = true;
@@ -1487,13 +1485,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             set
             {
+                this.Trace();
+                if(value == isHalted)
+                {
+                    return;
+                }
+
                 lock(haltedLock)
                 {
-                    this.Trace();
-                    if(value == isHalted)
-                    {
-                        return;
-                    }
                     this.Trace();
                     isHalted = value;
                     if(TimeHandle != null)
@@ -1502,10 +1501,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                         // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
                         TimeHandle.DeferredEnabled = !value;
                     }
-                    if(isHalted)
-                    {
-                        TlibSetReturnRequest();
-                    }
+                }
+
+                if(value)
+                {
+                    TlibSetReturnRequest();
                 }
             }
         }
