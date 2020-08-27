@@ -774,11 +774,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void OnTranslationBlockFetch(ulong offset)
         {
-            this.DebugLog(() => {
-                string info = Bus.FindSymbolAt(offset);
-                if (info != string.Empty) info = "- " + info;
-                return string.Format("Fetching block @ 0x{0:X8} {1}", offset, info);
-            });
+            var info = Bus.FindSymbolAt(offset);
+            if(info != string.Empty)
+            {
+                info = " - " + info;
+            }
+            this.Log(LogLevel.Debug, "Fetching block @ 0x{0:X8}{1}", offset, info);
         }
 
         [Export]

@@ -93,12 +93,6 @@ namespace Antmicro.Renode.Logging
             DebugLog(e, string.Format(message, args));
         }
 
-        // TODO: think about delayed resolution of message generator
-        public static void DebugLog(this IEmulationElement e, Func<string> messageGenerator)
-        {
-            DebugLog(e, messageGenerator());
-        }
-
         public static void NoisyLog(this IEmulationElement e, string message)
         {
             Log(e, LogLevel.Noisy, message);
