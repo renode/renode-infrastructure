@@ -19,9 +19,15 @@ namespace Antmicro.Renode.UI
 {
     public class ConsoleWindowBackendAnalyzer : IAnalyzableBackendAnalyzer<UARTBackend>
     {
-        public ConsoleWindowBackendAnalyzer()
+        // Default constructor is required for the showAnalyzer command.
+        public ConsoleWindowBackendAnalyzer() : this(false)
+        {
+        }
+
+        public ConsoleWindowBackendAnalyzer(bool isMonitorWindow)
         {
             IO = new IOProvider();
+            this.isMonitorWindow = isMonitorWindow;
         }
 
         public void AttachTo(UARTBackend backend)
@@ -48,7 +54,7 @@ namespace Antmicro.Renode.UI
                 }
                 provider = (IConsoleBackendAnalyzerProvider)Activator.CreateInstance(availableProviders[providerName]);
                 provider.OnClose += OnClose;
-                if(!provider.TryOpen(Name, out IIOSource ioSource))
+                if(!provider.TryOpen(Name, out IIOSource ioSource, isMonitorWindow))
                 {
                     Logger.Log(LogLevel.Warning, "Could not open {0} console backend analyzer provider. Trying the next one.", providerName);
                     continue;
@@ -105,6 +111,7 @@ namespace Antmicro.Renode.UI
             Quitted?.Invoke();
         }
 
+        private readonly bool isMonitorWindow;
         private IConsoleBackendAnalyzerProvider provider;
     }
 }

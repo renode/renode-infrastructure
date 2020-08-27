@@ -17,7 +17,8 @@ namespace Antmicro.Renode.UI
 {
     public abstract class ProcessBasedProvider : IConsoleBackendAnalyzerProvider
     {
-        public bool TryOpen(string consoleName, out IIOSource io)
+        // isMonitorWindows is not used for ProcessBasedProvider
+        public bool TryOpen(string consoleName, out IIOSource io, bool isMonitorWindow = false)
         {
             var ptyUnixStream = new PtyUnixStream();
             io = new StreamIOSource(ptyUnixStream);

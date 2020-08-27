@@ -135,7 +135,7 @@ namespace Antmicro.Renode.UI
                 }
                 else
                 {
-                    terminal = new ConsoleWindowBackendAnalyzer();
+                    terminal = new ConsoleWindowBackendAnalyzer(true);
                     io = terminal.IO;
                 }
 
