@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(pattern.Length != 64 && pattern.Length != 32 && pattern.Length != 16)
             {
-                throw new ArgumentException($"Unsupported custom instruction length: {pattern.Length}. Supported values are: 16, 32, 64 bits");
+                throw new RecoverableException($"Unsupported custom instruction length: {pattern.Length}. Supported values are: 16, 32, 64 bits");
             }
 
             var currentBit = pattern.Length - 1;
