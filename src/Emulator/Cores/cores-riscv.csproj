@@ -53,6 +53,9 @@
     <Compile Include="RiscV\Ri5cy.cs" />
     <Compile Include="RiscV\SimpleCSR.cs" />
     <Compile Include="RiscV\CSRValidationLevel.cs" />
+    <Compile Include="RiscV\RiscVCpuHooksExtensions.cs" />
+    <Compile Include="RiscV\RiscVInstructionPythonEngine.cs" />
+    <Compile Include="RiscV\RiscVCsrPythonEngine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
@@ -84,6 +87,10 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
