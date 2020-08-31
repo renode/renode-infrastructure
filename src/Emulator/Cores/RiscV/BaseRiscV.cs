@@ -122,38 +122,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibMarkFeatureSilent((uint)set, silent ? 1 : 0u);
         }
 
-        public uint HartId
-        {
-            get
-            {
-                return TlibGetHartId();
-            }
-
-            set
-            {
-                TlibSetHartId(value);
-            }
-        }
-
-        public ulong? NMIVectorAddress { get; }
-
-        public uint? NMIVectorLength { get; }
-
-        public bool ShouldEnterDebugMode { get; set; }
-
-        public event Action<ulong> MipChanged;
-
-        protected override Interrupt DecodeInterrupt(int number)
-        {
-            return Interrupt.Hard;
-        }
-
-        protected void PCWritten()
-        {
-            pcWrittenFlag = true;
-        }
-
-        protected bool InstallCustomInstruction(string pattern, Action<UInt64> handler)
+        public bool InstallCustomInstruction(string pattern, Action<UInt64> handler)
         {
             if(pattern == null)
             {
@@ -203,6 +172,37 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             customInstructionsMapping[id] = handler;
             return true;
+        }
+
+        public uint HartId
+        {
+            get
+            {
+                return TlibGetHartId();
+            }
+
+            set
+            {
+                TlibSetHartId(value);
+            }
+        }
+
+        public ulong? NMIVectorAddress { get; }
+
+        public uint? NMIVectorLength { get; }
+
+        public bool ShouldEnterDebugMode { get; set; }
+
+        public event Action<ulong> MipChanged;
+
+        protected override Interrupt DecodeInterrupt(int number)
+        {
+            return Interrupt.Hard;
+        }
+
+        protected void PCWritten()
+        {
+            pcWrittenFlag = true;
         }
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
