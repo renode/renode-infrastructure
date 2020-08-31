@@ -97,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private uint ReadDecrementer()
+        private ulong ReadDecrementer()
         {
             return checked((uint)machine.ClockSource.GetClockEntry(DecrementerHandler).Value);
         }
@@ -109,8 +109,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void WriteDecrementer(uint value)
+        private void WriteDecrementer(ulong val)
         {
+            // The API relies on 64-bit values because of PPC64, but the 32-bit PowerPC uses a 32-bit decrementer.
+            var value = (uint)val;
             machine.ClockSource.ExchangeClockEntryWith(DecrementerHandler,
                 entry => entry.With(period: value, value: value, enabled: value != 0));
         }

@@ -97,9 +97,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private uint ReadDecrementer()
+        private ulong ReadDecrementer()
         {
-            return checked((uint)machine.ClockSource.GetClockEntry(DecrementerHandler).Value);
+            return checked((ulong)machine.ClockSource.GetClockEntry(DecrementerHandler).Value);
         }
 
         public bool StartInVle
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void WriteDecrementer(uint value)
+        private void WriteDecrementer(ulong value)
         {
             machine.ClockSource.ExchangeClockEntryWith(DecrementerHandler,
                 entry => entry.With(period: value, value: value, enabled: value != 0));
