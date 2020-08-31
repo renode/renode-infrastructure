@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var id = TlibInstallCustomInstruction(bitMask, bitPattern, length);
             if(id == 0)
             {
-                throw new ConstructionException($"Could not install custom instruction handler for length {length},  mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
+                throw new ConstructionException($"Could not install custom instruction handler for length {length}, mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
             }
 
             customInstructionsMapping[id] = handler;
