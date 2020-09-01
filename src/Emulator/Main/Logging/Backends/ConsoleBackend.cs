@@ -9,6 +9,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Logging
 {
@@ -58,7 +59,9 @@ namespace Antmicro.Renode.Logging
                 {
                     line = string.Format("{0:HH:mm:ss.ffff} [{1}] {2}", CustomDateTime.Now, type, message);
                 }
-                if(output == Console.Out && !ReportRepeatingLines && 
+
+                var width = Console.WindowWidth;
+                if(output == Console.Out && !ReportRepeatingLines && width != 0 &&
                    lastMessage == message && lastMessageLinesCount != -1 && lastType == type && !isRedirected)
                 {
                     try
@@ -69,26 +72,25 @@ namespace Antmicro.Renode.Logging
                         // it can happen that console is resized between one and other write
                         // in case console is widened it would not erase previous messages
                         var realLine = string.Format("{0} ({1})", line, counter);
-                        var currentLinesCount = GetMessageLinesCount(realLine);
+                        var currentLinesCount = GetMessageLinesCount(realLine, width);
                         var lineDiff = Math.Max(0, lastMessageLinesCount - currentLinesCount);
-                        var width = Console.WindowWidth;
                         
                         Console.WriteLine(realLine);
                         lineDiff.Times(() => Console.WriteLine(Enumerable.Repeat<char>(' ', width - 1).ToArray()));
                         Console.CursorVisible = true;
                         Console.CursorTop = Math.Max(0, Console.CursorTop - lineDiff);
-                        lastMessageLinesCount = GetMessageLinesCount(realLine);
+                        lastMessageLinesCount = GetMessageLinesCount(realLine, width);
                     }
                     catch(ArgumentOutOfRangeException)
                     {
                         // console was resized during computations
                         Console.Clear();
-                        WriteNewLine(line);
+                        WriteNewLine(line, width);
                     }
                 }
                 else
                 {
-                    WriteNewLine(line);
+                    WriteNewLine(line, width);
                     lastMessage = message;
                     lastType = type;
                 }
@@ -121,13 +123,13 @@ namespace Antmicro.Renode.Logging
 
         }
 
-        private void WriteNewLine(string line)
+        private void WriteNewLine(string line, int width)
         {
             counter = 1;
             output.WriteLine(line);
-            if(output == Console.Out && !isRedirected)
+            if(output == Console.Out && !isRedirected && width != 0)
             {
-                lastMessageLinesCount = GetMessageLinesCount(line);
+                lastMessageLinesCount = GetMessageLinesCount(line, width);
             }
             else
             {
@@ -135,15 +137,17 @@ namespace Antmicro.Renode.Logging
             }
         }
 
-        private static int GetMessageLinesCount(string message)
+        private static int GetMessageLinesCount(string message, int width)
         {
-            var cnt = message.Split(new [] { System.Environment.NewLine }, StringSplitOptions.None).Sum(x => GetMessageLinesCountForRow(x));
+            var cnt = message.Split(new [] { System.Environment.NewLine }, StringSplitOptions.None).Sum(x => GetMessageLinesCountForRow(x, width));
             return cnt;
         }
         
-        private static int GetMessageLinesCountForRow(string row)
+        private static int GetMessageLinesCountForRow(string row, int width)
         {
-            var cnt = Convert.ToInt32(Math.Ceiling(1.0 * row.Length / Console.WindowWidth));
+            DebugHelper.Assert(width != 0);
+
+            var cnt = Convert.ToInt32(Math.Ceiling(1.0 * row.Length / width));
             return cnt;
         }
 
