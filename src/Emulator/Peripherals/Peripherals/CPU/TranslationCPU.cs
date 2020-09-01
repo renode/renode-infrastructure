@@ -779,7 +779,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 info = " - " + info;
             }
-            this.Log(LogLevel.Debug, "Fetching block @ 0x{0:X8}{1}", offset, info);
+            this.Log(LogLevel.Info, "Fetching block @ 0x{0:X8}{1}", offset, info);
         }
 
         [Export]
