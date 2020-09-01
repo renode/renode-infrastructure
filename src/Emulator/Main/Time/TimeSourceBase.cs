@@ -245,6 +245,7 @@ namespace Antmicro.Renode.Time
         {
             return string.Join("\n",
                 $"Elapsed Virtual Time: {ElapsedVirtualTime}",
+                $"Elapsed Host Time: {ElapsedHostTime}",
                 $"Current load: {CurrentLoad}",
                 $"Cumulative load: {CumulativeLoad}",
                 $"State: {State}",
