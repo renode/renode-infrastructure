@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             // validate only privilege level when accessing CSRs
             // do not validate rw bit as VexRiscv custom CSRs do not follow the standard
-            TlibSetCsrValidationLevel((uint)CSRValidationLevel.PrivilegeLevel);
+            CSRValidation = CSRValidationLevel.PrivilegeLevel;
 
             RegisterCSR((ulong)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
             {
