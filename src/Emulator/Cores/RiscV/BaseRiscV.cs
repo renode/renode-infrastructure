@@ -147,12 +147,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 switch(p)
                 {
                     case '0':
-                        bitMask |= (1u << currentBit);
+                        bitMask |= (1uL << currentBit);
                         break;
 
                     case '1':
-                        bitMask |= (1u << currentBit);
-                        bitPattern |= (1u << currentBit);
+                        bitMask |= (1uL << currentBit);
+                        bitPattern |= (1uL << currentBit);
                         break;
 
                     default:
