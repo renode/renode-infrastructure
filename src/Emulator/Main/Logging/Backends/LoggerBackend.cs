@@ -16,7 +16,10 @@ namespace Antmicro.Renode.Logging
 
         public abstract void Log(LogEntry entry);
 
-        public abstract void Dispose();
+        public virtual void Dispose()
+        {
+            
+        }
 
         public virtual void SetLogLevel(LogLevel level, int sourceId = -1)
         {
