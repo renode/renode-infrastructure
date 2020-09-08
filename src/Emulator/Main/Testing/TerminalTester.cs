@@ -430,7 +430,8 @@ namespace Antmicro.Renode.Testing
                 report.AppendFormat("{0} [[no newline]]\n", currentLineBuffer);
             }
 
-            report.AppendFormat("([host: {2}] {0} event: {1})\n", eventName, what, CustomDateTime.Now);
+            var virtMs = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
+            report.AppendFormat("([host: {2}, virt: {3, 7}] {0} event: {1})\n", eventName, what, CustomDateTime.Now, virtMs);
         }
 
         private int GetTimeoutInMilliseconds(TimeInterval? timeInterval = null)
