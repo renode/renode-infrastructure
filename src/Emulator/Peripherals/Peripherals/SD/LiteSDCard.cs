@@ -31,8 +31,6 @@ namespace Antmicro.Renode.Peripherals.SD
             DefineRegisters();
 
             responseBuffer = new byte[ResponseBufferLength];
-
-            writerDataBuffer = new byte[512];
         }
 
         public override void Reset()
@@ -46,10 +44,13 @@ namespace Antmicro.Renode.Peripherals.SD
             blockSize = 0;
             blockCount = 0;
 
-            readerDataBuffer = null;
+            readerAddress = 0;
+            writerAddress = 0;
+
+            readerLength = 0;
+            writerLength = 0;
 
             Array.Clear(responseBuffer, 0, responseBuffer.Length);
-            Array.Clear(writerDataBuffer, 0, writerDataBuffer.Length);
         }
 
         public uint ReadDoubleWord(long offset)
@@ -96,48 +97,6 @@ namespace Antmicro.Renode.Peripherals.SD
         public void WriteDoubleWordToWriter(long offset, uint value)
         {
             writerRegistersCollection.Write(offset, value);
-        }
-
-        [ConnectionRegionAttribute("readerBuffer")]
-        public byte ReadFromReaderBuffer(long offset)
-        {
-            if(readerDataBuffer == null || offset >= readerDataBuffer.Length)
-            {
-                this.Log(LogLevel.Warning, "Tried to read from reader buffer at offset {0}, but there is not enough data there", offset);
-                return 0;
-            }
-
-            return readerDataBuffer[offset];
-        }
-
-        [ConnectionRegionAttribute("readerBuffer")]
-        public void WriteToReaderBuffer(long offset, byte value)
-        {
-            this.Log(LogLevel.Error, "Writing to the read buffer is not supported");
-        }
-
-        [ConnectionRegionAttribute("writerBuffer")]
-        public byte ReadFromWriterBuffer(long offset)
-        {
-            if(offset >= writerDataBuffer.Length)
-            {
-                this.Log(LogLevel.Warning, "Tried to read from writer buffer at offset {0}, but there is not enough data there", offset);
-                return 0;
-            }
-
-            return writerDataBuffer[offset];
-        }
-
-        [ConnectionRegionAttribute("writerBuffer")]
-        public void WriteToWriterBuffer(long offset, byte value)
-        {
-            if(offset >= writerDataBuffer.Length)
-            {
-                this.Log(LogLevel.Warning, "Tried to write to writer buffer at offset {0}, but there is not enough data there", offset);
-                return;
-            }
-
-            writerDataBuffer[offset] = value;
         }
 
         public long Size => 0x200;
@@ -229,17 +188,15 @@ namespace Antmicro.Renode.Peripherals.SD
                     switch(transferTypeField.Value)
                     {
                         case TransferType.Read:
-                            if(readerStartFlag.Value)
+                            if(dmaReaderEnabled.Value)
                             {
-                                readerStartFlag.Value = false;
                                 ReadData();
                             }
                             break;
 
                         case TransferType.Write:
-                            if(writerStartFlag.Value)
+                            if(dmaWriterEnabled.Value)
                             {
-                                writerStartFlag.Value = false;
                                 WriteData();
                             }
                             break;
@@ -258,38 +215,18 @@ namespace Antmicro.Renode.Peripherals.SD
                     .WithIgnoredBits(8, 24);
             });
 
-            CoreRegisters.CommandEvent0.Define(coreRegistersCollection)
-                .WithIgnoredBits(0, 32);
-
-            CoreRegisters.CommandEvent1.Define(coreRegistersCollection)
-                .WithIgnoredBits(0, 32);
-
-            CoreRegisters.CommandEvent2.Define(coreRegistersCollection)
-                .WithIgnoredBits(0, 32);
-
-            CoreRegisters.CommandEvent3.Define(coreRegistersCollection)
-                .WithFlag(0, FieldMode.Read, name: "cmddone", valueProviderCallback: _ => true)
-                .WithReservedBits(1, 1)
-                .WithTag("cerrtimeout", 2, 1)
-                .WithTag("cerrcrc", 3, 1)
-                .WithReservedBits(4, 4)
+            CoreRegisters.CommandEvent.Define(coreRegistersCollection)
+                .WithFlag(0, FieldMode.Read, name: "cmd_done", valueProviderCallback: _ => true)
+                .WithTag("cmd_error", 1, 1)
+                .WithTag("cmd_timeout", 2, 1)
+                .WithReservedBits(3, 5)
                 .WithIgnoredBits(8, 24);
 
-            CoreRegisters.DataEvent0.Define(coreRegistersCollection)
-                .WithIgnoredBits(0, 32);
-
-            CoreRegisters.DataEvent1.Define(coreRegistersCollection)
-                .WithIgnoredBits(0, 32);
-
-            CoreRegisters.DataEvent2.Define(coreRegistersCollection)
-                .WithIgnoredBits(0, 32);
-
-            CoreRegisters.DataEvent3.Define(coreRegistersCollection)
-                .WithFlag(0, FieldMode.Read, name: "datadone", valueProviderCallback: _ => true)
-                .WithTag("derrwrite", 1, 1)
-                .WithTag("derrtimeout", 2, 1)
-                .WithTag("derrcrc", 3, 1)
-                .WithReservedBits(4, 4)
+            CoreRegisters.DataEvent.Define(coreRegistersCollection)
+                .WithFlag(0, FieldMode.Read, name: "data_done", valueProviderCallback: _ => true)
+                .WithTag("data_error", 1, 1)
+                .WithTag("data_timeout", 2, 1)
+                .WithReservedBits(3, 5)
                 .WithIgnoredBits(8, 24);
             ;
 
@@ -313,68 +250,101 @@ namespace Antmicro.Renode.Peripherals.SD
                     .WithIgnoredBits(8, 24);
             });
 
-            ReaderRegisters.ReaderReset.Define(readerRegistersCollection)
-                .WithIgnoredBits(0, 1) // reset bit, no need for handling this
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24);
+            ReaderRegisters.DmaBase.DefineMany(readerRegistersCollection, 4, (register, idx) =>
+            {
+                register
+                    .WithValueField(0, 8, name: $"ReaderAddress{idx}", writeCallback: (_, val) =>
+                    {
+                        BitHelper.ReplaceBits(ref readerAddress, val, width: 8, destinationPosition: 24 - idx * 8);
+                    })
+                    .WithIgnoredBits(8, 24);
+            });
 
-            ReaderRegisters.ReaderStart.Define(readerRegistersCollection)
-                .WithFlag(0, out readerStartFlag, name: "start")
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24);
+            ReaderRegisters.DmaLength.DefineMany(readerRegistersCollection, 4, (register, idx) =>
+            {
+                register
+                    .WithValueField(0, 8, name: $"ReaderLength{idx}", writeCallback: (_, val) =>
+                    {
+                        BitHelper.ReplaceBits(ref readerLength, val, width: 8, destinationPosition: 24 - idx * 8);
+                    })
+                    .WithIgnoredBits(8, 24);
+            });
 
-            ReaderRegisters.ReaderDone.Define(readerRegistersCollection)
-                .WithFlag(0, FieldMode.Read, name: "done", valueProviderCallback: _ => true)
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24);
+            ReaderRegisters.DmaEnable.Define(readerRegistersCollection)
+                .WithFlag(0, out dmaReaderEnabled, name: "enable")
+                .WithIgnoredBits(1, 31);
 
-            WriterRegisters.WriterReset.Define(writerRegistersCollection)
-                .WithIgnoredBits(0, 1) // reset bit, no need for handling this
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24);
+            ReaderRegisters.DmaDone.Define(readerRegistersCollection)
+                .WithFlag(0, name: "done", valueProviderCallback: _ => true)
+                .WithIgnoredBits(1, 31);
 
-            WriterRegisters.WriterStart.Define(writerRegistersCollection)
-                .WithFlag(0, out writerStartFlag, name: "start")
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24);
+            ReaderRegisters.DmaLoop.Define(readerRegistersCollection)
+                .WithTag("loop", 0, 1)
+                .WithIgnoredBits(1, 31);
 
-            WriterRegisters.WriterDone.Define(writerRegistersCollection)
-                .WithFlag(0, FieldMode.Read, name: "done", valueProviderCallback: _ => true)
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24);
+            WriterRegisters.DmaBase.DefineMany(writerRegistersCollection, 4, (register, idx) =>
+            {
+                register
+                    .WithValueField(0, 8, name: $"WriterAddress{idx}", writeCallback: (_, val) =>
+                    {
+                        BitHelper.ReplaceBits(ref writerAddress, val, width: 8, destinationPosition: 24 - idx * 8);
+                    })
+                    .WithIgnoredBits(8, 24);
+            });
+
+            WriterRegisters.DmaLength.DefineMany(writerRegistersCollection, 4, (register, idx) =>
+            {
+                register
+                    .WithValueField(0, 8, name: $"WriterLength{idx}", writeCallback: (_, val) =>
+                    {
+                        BitHelper.ReplaceBits(ref writerLength, val, width: 8, destinationPosition: 24 - idx * 8);
+                    })
+                    .WithIgnoredBits(8, 24);
+            });
+
+            WriterRegisters.DmaEnable.Define(writerRegistersCollection)
+                .WithFlag(0, out dmaWriterEnabled, name: "enable")
+                .WithIgnoredBits(1, 31);
+
+            WriterRegisters.DmaDone.Define(writerRegistersCollection)
+                .WithFlag(0, name: "done", valueProviderCallback: _ => true)
+                .WithIgnoredBits(1, 31);
+
+            WriterRegisters.DmaLoop.Define(writerRegistersCollection)
+                .WithTag("loop", 0, 1)
+                .WithIgnoredBits(1, 31);
         }
 
         private void ReadData()
         {
-            if(blockCount != 1)
-            {
-                this.Log(LogLevel.Warning, "This model curently supports only reading a sinlge block at a time, but the block count is set to {0}", blockCount);
-                return;
-            }
+            var data = RegisteredPeripheral.ReadData(readerLength);
+            this.Log(LogLevel.Noisy, "Reading {0} bytes of data from device: {1}. Writing it to 0x{2:X}", data.Length, Misc.PrettyPrintCollectionHex(data), readerAddress);
 
-            readerDataBuffer = RegisteredPeripheral.ReadData(blockSize);
-            this.Log(LogLevel.Noisy, "Received data is: {0}", Misc.PrettyPrintCollectionHex(readerDataBuffer));
+            Machine.SystemBus.WriteBytes(data, readerAddress);
         }
 
         private void WriteData()
         {
-            var data = writerDataBuffer.Take((int)blockSize).ToArray();
+            var data = Machine.SystemBus.ReadBytes(writerAddress, (int)writerLength);
+            this.Log(LogLevel.Noisy, "Writing {0} bytes of data read from 0x{1:X} to the device: {2}", data.Length, writerAddress, Misc.PrettyPrintCollectionHex(data));
 
-            this.Log(LogLevel.Noisy, "Writing data: {0}", Misc.PrettyPrintCollectionHex(data));
             RegisteredPeripheral.WriteData(data);
         }
 
+        private uint readerAddress;
+        private uint writerAddress;
+        private uint readerLength;
+        private uint writerLength;
+
         private uint blockSize;
         private uint blockCount;
-        private IFlagRegisterField readerStartFlag;
-        private IFlagRegisterField writerStartFlag;
         private IValueRegisterField commandIndexField;
         private IEnumRegisterField<ResponseType> responseTypeField;
         private IEnumRegisterField<TransferType> transferTypeField;
+        private IFlagRegisterField dmaWriterEnabled;
+        private IFlagRegisterField dmaReaderEnabled;
 
         private byte[] responseBuffer;
-        private byte[] readerDataBuffer;
-        private byte[] writerDataBuffer;
 
         private uint argumentValue;
 
@@ -413,36 +383,31 @@ namespace Antmicro.Renode.Peripherals.SD
             Command3 = 0x10 + 0xC,
             IssueCommand = 0x20,
             Response = 0x24,
-            CommandEvent0 = 0x64,
-            CommandEvent1 = 0x64 + 0x4,
-            CommandEvent2 = 0x64 + 0x8,
-            CommandEvent3 = 0x64 + 0xC,
-            DataEvent0 = 0x74 + 0x0,
-            DataEvent1 = 0x74 + 0x4,
-            DataEvent2 = 0x74 + 0x8,
-            DataEvent3 = 0x74 + 0xC,
-            BlockSize = 0x84,
-            BlockCount = 0x8C,
-            DataTimeout = 0x9C,
-            CommandTimeout = 0xAC,
-            DataWCRCClear = 0xBC,
-            DataWCRCValids = 0xC0,
-            DataWCRCErrors = 0xD0
+
+            CommandEvent = 0x64,
+            DataEvent = 0x68,
+
+            BlockSize = 0x6C,
+            BlockCount = 0x74
         }
 
         private enum ReaderRegisters
         {
-            ReaderReset = 0x0,
-            ReaderStart = 0x4,
-            ReaderDone = 0x8,
-            ReaderErrors = 0xC
+            DmaBase = 0x0,
+            DmaLength = 0x10,
+            DmaEnable = 0x20,
+            DmaDone = 0x24,
+            DmaLoop = 0x28
         }
 
         private enum WriterRegisters
         {
-            WriterReset = 0x0,
-            WriterStart = 0x4,
-            WriterDone = 0x8
+            DmaBase = 0x0,
+            DmaLength = 0x10,
+            DmaEnable = 0x20,
+            DmaDone = 0x24,
+            DmaLoop = 0x28,
+            DmaOffset = 0x2C
         }
     }
 }
