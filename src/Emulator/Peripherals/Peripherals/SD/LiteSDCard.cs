@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         return;
                     }
 
-                    this.Log(LogLevel.Noisy, "Issuing command #{0}, transfer type is {1}, response type is {2}", commandIndexField.Value, transferTypeField.Value, responseTypeField.Value);
+                    this.Log(LogLevel.Noisy, "Issuing command #{0} with argument 0x{3:X}, transfer type is {1}, response type is {2}", commandIndexField.Value, transferTypeField.Value, responseTypeField.Value, argumentValue);
 
                     var resp = RegisteredPeripheral.HandleCommand(commandIndexField.Value, argumentValue).AsByteArray();
 
