@@ -19,6 +19,7 @@ namespace Antmicro.Renode.UserInterface
     {
         private List<string> pathEntries = new List<string>();
         private List<string> defaultPath = new List<string>();
+        private readonly string startingWorkingDirectory;
         private readonly char[] pathSeparator = new []{';'};
         private Stack<string> workingDirectory = new Stack<string>();
 
@@ -93,10 +94,13 @@ namespace Antmicro.Renode.UserInterface
         public void Reset()
         {
             Path = DefaultPath;
+            workingDirectory.Push(startingWorkingDirectory);
+            Append(CurrentWorkingDirectory);
         }
 
         public MonitorPath(string currentWorkingDirectory)
         {
+            startingWorkingDirectory = currentWorkingDirectory;
             if(Misc.TryGetRootDirectory(out var rootDirectory))
             {
                 defaultPath = new List<string> { rootDirectory };
@@ -105,9 +109,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 DefaultPath = ".";
             }
-            Path = DefaultPath;
-            workingDirectory.Push(currentWorkingDirectory);
-            Append(CurrentWorkingDirectory);
+            Reset();
         }
     }
 }

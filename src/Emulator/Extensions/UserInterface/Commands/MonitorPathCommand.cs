@@ -49,7 +49,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Reset(ICommandInteraction writer, [Values( "reset")] LiteralToken action)
         {
-            monitorPath.Path = monitorPath.DefaultPath;
+            monitorPath.Reset();
             PrintCurrentPath(writer);
         }
 

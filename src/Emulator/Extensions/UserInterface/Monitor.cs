@@ -110,7 +110,7 @@ namespace Antmicro.Renode.UserInterface
                 aliases.Clear();
                 Machine = null;
                 emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
-                monitorPath.Path = monitorPath.DefaultPath;
+                monitorPath.Reset();
             };
 
             SetVariable(CurrentDirectoryVariable, new PathToken("@" + startingCurrentDirectory), variables);
