@@ -7,6 +7,7 @@
 using System;
 using System.IO;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
 using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant.Hooks;
@@ -45,6 +46,7 @@ namespace Antmicro.Renode.Hooks
         private void InnerInit()
         {
             Scope.SetVariable("cpu", cpu);
+            Scope.SetVariable("machine", cpu.GetMachine());
 
             if(script != null)
             {
