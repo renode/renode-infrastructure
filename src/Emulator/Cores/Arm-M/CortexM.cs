@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.IRQControllers;
@@ -52,6 +53,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public override string Architecture { get { return "arm-m"; } }
+
+        public override List<IGBDFeature> GDBFeatures { get { return new List<IGBDFeature>(); } }
 
         public uint VectorTableOffset
         {

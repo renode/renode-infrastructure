@@ -50,6 +50,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         //gdb does not contain arm-m and armv7 as independent architecteures so we need to pass "arm" in every case.
         public override string GDBArchitecture { get { return "arm"; } }
 
+        public override List<GBDFeatureDescriptor> GDBFeatures { get { return new List<GBDFeatureDescriptor>(); } }
+
         public uint ID
         {
             get

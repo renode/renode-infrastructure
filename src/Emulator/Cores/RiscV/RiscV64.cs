@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Timers;
 using Endianess = ELFSharp.ELF.Endianess;
@@ -20,6 +21,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string Architecture { get { return "riscv64"; } }
 
         public override string GDBArchitecture { get { return "riscv:rv64"; } }
+
+        public override List<GBDFeatureDescriptor> GDBFeatures { get { return new List<GBDFeatureDescriptor>(); } }
 
         protected override byte MostSignificantBit => 63;
 

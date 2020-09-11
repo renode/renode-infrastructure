@@ -1066,6 +1066,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract string GDBArchitecture { get; }
 
+        public abstract List<GBDFeatureDescriptor> GDBFeatures { get; }
+
         public bool DebuggerConnected { get; set; }
 
         public uint Id { get; }

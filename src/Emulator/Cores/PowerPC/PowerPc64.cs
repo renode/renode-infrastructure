@@ -74,6 +74,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string GDBArchitecture { get { return "powerpc:common64"; } }
 
+        public override List<GBDFeatureDescriptor> GDBFeatures { get { return new List<GBDFeatureDescriptor>(); } }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             if(number == 0)
