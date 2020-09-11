@@ -451,7 +451,7 @@ namespace Antmicro.Renode.Testing
         private readonly List<Line> lines;
         private readonly StringBuilder report;
 
-        private const int DefaultSecondsTimeout = 120;
+        private const int DefaultSecondsTimeout = 8;
         private const byte LineFeed = 0xA;
         private const byte CarriageReturn = 0xD;
         private const char EscapeChar = '\x1B';
