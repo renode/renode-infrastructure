@@ -45,7 +45,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Noisy, "Non maskable interrupts disabled");
                 TlibSetNmiVector(0, 0);
             }
-
         }
 
         public virtual void OnNMI(int number, bool value)
