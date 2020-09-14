@@ -47,6 +47,7 @@ namespace Antmicro.Renode.Hooks
         {
             Scope.SetVariable("cpu", cpu);
             Scope.SetVariable("machine", cpu.GetMachine());
+            Scope.SetVariable("state", cpu.UserState);
 
             if(script != null)
             {
