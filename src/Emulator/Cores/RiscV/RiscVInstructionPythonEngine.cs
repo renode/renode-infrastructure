@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Hooks
         }
 
         public Action<ulong> Hook { get; }
-        
+
         [Transient]
         private Lazy<ScriptSource> source;
 
