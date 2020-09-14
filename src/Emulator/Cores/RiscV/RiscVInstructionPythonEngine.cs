@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Hooks
         private readonly string script;
         private readonly string path;
 
-        private readonly ICPU cpu;
+        private readonly BaseRiscV cpu;
         private readonly string pattern;
     }
 }
