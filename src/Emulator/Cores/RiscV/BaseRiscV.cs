@@ -45,6 +45,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Noisy, "Non maskable interrupts disabled");
                 TlibSetNmiVector(0, 0);
             }
+
+            UserState = new Dictionary<string, object>();
         }
 
         public virtual void OnNMI(int number, bool value)
@@ -98,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 simpleCSRs[key] = 0;
             }
+            UserState.Clear();
         }
 
         public void RegisterCustomCSR(string name, uint number, PrivilegeLevel mode)
@@ -203,6 +206,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool ShouldEnterDebugMode { get; set; }
 
         public event Action<ulong> MipChanged;
+
+        public Dictionary<string, object> UserState { get; }
 
         protected override Interrupt DecodeInterrupt(int number)
         {
