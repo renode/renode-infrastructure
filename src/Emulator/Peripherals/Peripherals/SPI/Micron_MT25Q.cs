@@ -211,6 +211,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                     this.Log(LogLevel.Noisy, "Unsetting write enable latch");
                     enable.Value = false;
                     return; //return to prevent further logging
+                case (byte)Commands.SubsectorErase4kb:
+                    currentOperation.Operation = Operation.Erase;
+                    currentOperation.EraseSize = EraseSize.Subsector4K;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateNoDataCommandAddressBytes;
+                    break; 
+                case (byte)Commands.SubsectorErase32kb:
+                    currentOperation.Operation = Operation.Erase;
+                    currentOperation.EraseSize = EraseSize.Subsector32K;
+                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    state = State.AccumulateNoDataCommandAddressBytes;
+                    break; 
                 case (byte)Commands.SectorErase:
                     currentOperation.Operation = Operation.Erase;
                     currentOperation.EraseSize = EraseSize.Sector;
@@ -402,7 +414,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                         switch(currentOperation.EraseSize)
                         {
                             case EraseSize.Sector:
-                                EraseSector();
+                                EraseSector(SegmentSize);
+                                break;
+                            case EraseSize.Subsector4K:
+                                EraseSector(4.KB());
+                                break;
+                            case EraseSize.Subsector32K:
+                                EraseSector(32.KB());
                                 break;
                             case EraseSize.Die:
                                 EraseDie();
@@ -441,17 +459,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void EraseSector()
+        private void EraseSector(int size)
         {
-            var segment = new byte[SegmentSize];
-            for(var i = 0; i < SegmentSize; i++)
+            var segment = new byte[size];
+            for(var i = 0; i < size; i++)
             {
                 segment[i] = EmptySegment;
             }
             // The documentations states that on erase the operation address is
-            // aligned to the segment size
+            // aligned to the sector size
 
-            var position = SegmentSize * (currentOperation.ExecutionAddress / SegmentSize);
+            var position = size * (currentOperation.ExecutionAddress / size);
             underlyingMemory.WriteBytes(position, segment);
         }
 
