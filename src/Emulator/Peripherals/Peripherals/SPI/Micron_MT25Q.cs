@@ -68,8 +68,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 case Operation.Program:
                 case Operation.Erase:
-                case Operation.WriteRegister:
-                    //although the docs are not clear, it seems that all register writes should clear the flag
                     enable.Value = false;
                     break;
             }
