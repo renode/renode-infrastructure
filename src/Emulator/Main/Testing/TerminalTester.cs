@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Testing
             GlobalTimeout = timeout ?? TimeInterval.FromSeconds(DefaultSecondsTimeout);
             this.endLineOption = endLineOption;
             this.removeColors = removeColors;
-            charLock = new object();
+            charEvent = new AutoResetEvent(false);
             lines = new List<Line>();
             currentLineBuffer = new SafeStringBuilder();
             sgrDecodingBuffer = new SafeStringBuilder();
@@ -70,27 +70,28 @@ namespace Antmicro.Renode.Testing
 
         public override void WriteChar(byte value)
         {
-            lock(charLock)
+            if(value == CarriageReturn && endLineOption == EndLineOption.TreatLineFeedAsEndLine)
             {
-                if(value == CarriageReturn && endLineOption == EndLineOption.TreatLineFeedAsEndLine)
-                {
-                    return;
-                }
+                return;
+            }
 
-                if(value != (endLineOption == EndLineOption.TreatLineFeedAsEndLine ? LineFeed : CarriageReturn))
+            if(value != (endLineOption == EndLineOption.TreatLineFeedAsEndLine ? LineFeed : CarriageReturn))
+            {
+                AppendCharToBuffer((char)value);
+            }
+            else
+            {
+                var line = currentLineBuffer.Unload();
+                lock(lines)
                 {
-                    AppendCharToBuffer((char)value);
-                }
-                else
-                {
-                    var line = currentLineBuffer.Unload();
                     lines.Add(new Line(line, machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds));
                 }
-#if DEBUG_EVENTS
-                this.Log(LogLevel.Noisy, "Char received {0} (hex 0x{1:X})", (char)value, value);
-#endif
-                Monitor.Pulse(charLock);
             }
+
+#if DEBUG_EVENTS
+            this.Log(LogLevel.Noisy, "Char received {0} (hex 0x{1:X})", (char)value, value);
+#endif
+            charEvent.Set();
         }
 
         public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeInterval = null, bool treatAsRegex = false, bool includeUnfinishedLine = false)
@@ -101,73 +102,72 @@ namespace Antmicro.Renode.Testing
             this.Log(LogLevel.Nois, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2} ms, regex {3}) ", pattern, includeUnfinishedLine, timeoutMilliseconds, treatAsRegex);
 #endif
 
-            lock(charLock)
+            var result = WaitForMatch(() =>
             {
-                var result = WaitForMatch(() =>
+                var lineMatch = CheckFinishedLines(pattern, treatAsRegex, eventName);
+                if(lineMatch != null)
                 {
-                    var lineMatch = CheckFinishedLines(pattern, treatAsRegex, eventName);
-                    if(lineMatch != null)
-                    {
-                        return lineMatch;
-                    }
-
-                    if(!includeUnfinishedLine)
-                    {
-                        return null;
-                    }
-
-                    return CheckUnfinishedLine(pattern, treatAsRegex, eventName);
-
-                }, timeoutMilliseconds);
-
-                if(result == null)
-                {
-                    HandleFailure(eventName);
+                    return lineMatch;
                 }
-                return result;
+
+                if(!includeUnfinishedLine)
+                {
+                    return null;
+                }
+
+                return CheckUnfinishedLine(pattern, treatAsRegex, eventName);
+
+            }, timeoutMilliseconds);
+
+            if(result == null)
+            {
+                HandleFailure(eventName);
             }
+            return result;
         }
 
         public TerminalTesterResult NextLine(TimeInterval? timeInterval = null)
         {
-            lock(charLock)
+            var result = WaitForMatch(() =>
             {
-                var result = WaitForMatch(() =>
+                if(!lines.Any())
                 {
-                    if(!lines.Any())
-                    {
-                        return null;
-                    }
-
-                    return HandleSuccess("Next line", matchingLineId: 0);
-                }, GetTimeoutInMilliseconds(timeInterval));
-
-                if(result == null)
-                {
-                    HandleFailure("Next line");
+                    return null;
                 }
-                return result;
+
+                return HandleSuccess("Next line", matchingLineId: 0);
+            }, GetTimeoutInMilliseconds(timeInterval));
+
+            if(result == null)
+            {
+                HandleFailure("Next line");
             }
+            return result;
         }
 
         public bool IsIdle(TimeInterval? timeInterval = null)
         {
-            lock(charLock)
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)GetTimeoutInMilliseconds(timeInterval));
+            var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
+
+            charEvent.Reset();
+            WaitHandle.WaitAny(waitHandles);
+            var result = timeoutEvent.IsTriggered;
+            if(!result)
             {
-                var result = !Monitor.Wait(charLock, GetTimeoutInMilliseconds(timeInterval));
-                if(!result)
-                {
-                    HandleFailure("Terminal is idle");
-                }
-                return result;
+                HandleFailure("Terminal is idle");
             }
+            return result;
         }
 
         public void ClearReport()
         {
-            lines.Clear();
-            report.Unload();
-            generatedReport = null;
+            lock(lines)
+            {
+                lines.Clear();
+                report.Unload();
+                generatedReport = null;
+            }
         }
 
         public string GetReport()
@@ -195,9 +195,10 @@ namespace Antmicro.Renode.Testing
 
         private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> matchResult, int millisecondsTimeout)
         {
-            var timeoutLeft = millisecondsTimeout;
-            var swatch = new Stopwatch();
-            while(timeoutLeft > 0)
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)millisecondsTimeout);
+
+            var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
+            while(!timeoutEvent.IsTriggered)
             {
                 var result = matchResult.Invoke();
 #if DEBUG_EVENTS
@@ -207,13 +208,10 @@ namespace Antmicro.Renode.Testing
                 {
                     return result;
                 }
-                swatch.Restart();
 #if DEBUG_EVENTS
                 this.Log(LogLevel.Noisy, "Waiting for the next event");
 #endif
-                Monitor.Wait(charLock, timeoutLeft);
-                swatch.Stop();
-                timeoutLeft -= checked((int)swatch.ElapsedMilliseconds);
+                WaitHandle.WaitAny(waitHandles);
             }
 
 #if DEBUG_EVENTS
@@ -224,25 +222,28 @@ namespace Antmicro.Renode.Testing
 
         private TerminalTesterResult CheckFinishedLines(string pattern, bool regex, string eventName)
         {
-            string[] matchGroups = null;
-            var index = regex
-                ? lines.FindIndex(x =>
-                    {
-                        var match = Regex.Match(x.Content, pattern);
-                        if(match.Success)
-                        {
-                            matchGroups = GetMatchGroups(match);
-                        }
-                        return match.Success;
-                    })
-                : lines.FindIndex(x => x.Content.Contains(pattern));
-
-            if(index != -1)
+            lock(lines)
             {
-                return HandleSuccess(eventName, matchingLineId: index, matchGroups: matchGroups);
-            }
+                string[] matchGroups = null;
+                var index = regex
+                    ? lines.FindIndex(x =>
+                        {
+                            var match = Regex.Match(x.Content, pattern);
+                            if(match.Success)
+                            {
+                                matchGroups = GetMatchGroups(match);
+                            }
+                            return match.Success;
+                        })
+                    : lines.FindIndex(x => x.Content.Contains(pattern));
 
-            return null;
+                if(index != -1)
+                {
+                    return HandleSuccess(eventName, matchingLineId: index, matchGroups: matchGroups);
+                }
+
+                return null;
+            }
         }
 
         private TerminalTesterResult CheckUnfinishedLine(string pattern, bool regex, string eventName)
@@ -366,54 +367,61 @@ namespace Antmicro.Renode.Testing
 
         private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null)
         {
-            var numberOfLinesToCopy = 0;
-            var includeCurrentLineBuffer = false;
-            switch(matchingLineId)
+            lock(lines)
             {
-                case NoLine:
-                    // default values are ok
-                    break;
+                var numberOfLinesToCopy = 0;
+                var includeCurrentLineBuffer = false;
+                switch(matchingLineId)
+                {
+                    case NoLine:
+                        // default values are ok
+                        break;
 
-                case CurrentLine:
-                    includeCurrentLineBuffer = true;
-                    numberOfLinesToCopy = lines.Count;
-                    break;
+                    case CurrentLine:
+                        includeCurrentLineBuffer = true;
+                        numberOfLinesToCopy = lines.Count;
+                        break;
 
-                default:
-                    numberOfLinesToCopy = matchingLineId + 1;
-                    break;
+                    default:
+                        numberOfLinesToCopy = matchingLineId + 1;
+                        break;
+                }
+
+                ReportInner(eventName, "success", numberOfLinesToCopy, includeCurrentLineBuffer);
+
+                string content = null;
+                double timestamp = 0;
+                if(includeCurrentLineBuffer)
+                {
+                    timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
+
+                    content = currentLineBuffer.Unload();
+                }
+                else if(numberOfLinesToCopy > 0)
+                {
+                    var item = lines[matchingLineId];
+                    content = item.Content;
+                    timestamp = item.VirtualTimestamp;
+                }
+
+                lines.RemoveRange(0, numberOfLinesToCopy);
+
+                return new TerminalTesterResult(content, timestamp, matchGroups);
             }
-
-            ReportInner(eventName, "success", numberOfLinesToCopy, includeCurrentLineBuffer);
-
-            string content = null;
-            double timestamp = 0;
-            if(includeCurrentLineBuffer)
-            {
-                timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
-
-                content = currentLineBuffer.Unload();
-            }
-            else if(numberOfLinesToCopy > 0)
-            {
-                var item = lines[matchingLineId];
-                content = item.Content;
-                timestamp = item.VirtualTimestamp;
-            }
-
-            lines.RemoveRange(0, numberOfLinesToCopy);
-
-            return new TerminalTesterResult(content, timestamp, matchGroups);
         }
 
         private void HandleFailure(string eventName)
         {
-            ReportInner(eventName, "failure", lines.Count, true);
+            lock(lines)
+            {
+                ReportInner(eventName, "failure", lines.Count, true);
 
-            currentLineBuffer.Unload();
-            lines.Clear();
+                currentLineBuffer.Unload();
+                lines.Clear();
+            }
         }
 
+        // does not need to be locked, as both `HandleSuccess` and `HandleFailure` use locks
         private void ReportInner(string eventName, string what, int copyLinesToReport, bool includeCurrentLineBuffer)
         {
             if(copyLinesToReport > 0)
@@ -442,7 +450,7 @@ namespace Antmicro.Renode.Testing
         private SGRDecodingState sgrDecodingState;
         private string generatedReport;
 
-        private readonly object charLock;
+        private readonly AutoResetEvent charEvent;
         private readonly SafeStringBuilder currentLineBuffer;
         private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
