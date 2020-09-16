@@ -35,9 +35,9 @@ namespace Antmicro.Renode.Testing
             this.removeColors = removeColors;
             charLock = new object();
             lines = new List<Line>();
-            currentLineBuffer = new StringBuilder();
-            sgrDecodingBuffer = new StringBuilder();
-            report = new StringBuilder();
+            currentLineBuffer = new SafeStringBuilder();
+            sgrDecodingBuffer = new SafeStringBuilder();
+            report = new SafeStringBuilder();
         }
 
         public override void AttachTo(IUART uart)
@@ -83,8 +83,8 @@ namespace Antmicro.Renode.Testing
                 }
                 else
                 {
-                    lines.Add(new Line(currentLineBuffer.ToString(), machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds));
-                    currentLineBuffer.Clear();
+                    var line = currentLineBuffer.Unload();
+                    lines.Add(new Line(line, machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds));
                 }
 #if DEBUG_EVENTS
                 this.Log(LogLevel.Noisy, "Char received {0} (hex 0x{1:X})", (char)value, value);
@@ -166,28 +166,28 @@ namespace Antmicro.Renode.Testing
         public void ClearReport()
         {
             lines.Clear();
-            report.Clear();
-            reportClosed = false;
+            report.Unload();
+            generatedReport = null;
         }
 
         public string GetReport()
         {
-            if(!reportClosed)
+            if(generatedReport == null)
             {
-                reportClosed = true;
-
-                if(sgrDecodingBuffer.Length > 0)
+                if(sgrDecodingBuffer.TryDump(out var sgr))
                 {
-                    report.AppendFormat("--- SGR decoding buffer contains {0} characters: >>{1}<<\n", sgrDecodingBuffer.Length, sgrDecodingBuffer.ToString());
+                    report.AppendFormat("--- SGR decoding buffer contains {0} characters: >>{1}<<\n", sgr.Length, sgr);
                 }
 
-                if(currentLineBuffer.Length > 0)
+                if(currentLineBuffer.TryDump(out var line))
                 {
-                    report.AppendFormat("--- Current line buffer contains {0} characters: >>{1}<<\n", currentLineBuffer.Length, currentLineBuffer.ToString());
+                    report.AppendFormat("--- Current line buffer contains {0} characters: >>{1}<<\n", line.Length, line);
                 }
+
+                generatedReport = report.Unload();
             }
 
-            return report.ToString();
+            return generatedReport;
         }
 
         public TimeInterval GlobalTimeout { get; set; }
@@ -294,12 +294,12 @@ namespace Antmicro.Renode.Testing
 #if DEBUG_EVENTS
             this.Log(LogLevel.Noisy, "Finishing SGR decoding (abort: {0}, filterBuffer: >>{1}<<)", abort, sgrDecodingBuffer.ToString());
 #endif
+            var sgr = sgrDecodingBuffer.Unload();
             if(abort)
             {
-                currentLineBuffer.Append(sgrDecodingBuffer.ToString());
+                currentLineBuffer.Append(sgr);
             }
 
-            sgrDecodingBuffer.Clear();
             sgrDecodingState = SGRDecodingState.NotDecoding;
         }
 
@@ -390,10 +390,9 @@ namespace Antmicro.Renode.Testing
             double timestamp = 0;
             if(includeCurrentLineBuffer)
             {
-                content = currentLineBuffer.ToString();
                 timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
 
-                currentLineBuffer.Clear();
+                content = currentLineBuffer.Unload();
             }
             else if(numberOfLinesToCopy > 0)
             {
@@ -411,7 +410,7 @@ namespace Antmicro.Renode.Testing
         {
             ReportInner(eventName, "failure", lines.Count, true);
 
-            currentLineBuffer.Clear();
+            currentLineBuffer.Unload();
             lines.Clear();
         }
 
@@ -441,15 +440,15 @@ namespace Antmicro.Renode.Testing
 
         private Machine machine;
         private SGRDecodingState sgrDecodingState;
-        private bool reportClosed;
+        private string generatedReport;
 
         private readonly object charLock;
-        private readonly StringBuilder currentLineBuffer;
-        private readonly StringBuilder sgrDecodingBuffer;
+        private readonly SafeStringBuilder currentLineBuffer;
+        private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
         private readonly bool removeColors;
         private readonly List<Line> lines;
-        private readonly StringBuilder report;
+        private readonly SafeStringBuilder report;
 
         private const int DefaultSecondsTimeout = 8;
         private const byte LineFeed = 0xA;
