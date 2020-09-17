@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.PCI.BAR
             }
         }
 
-        protected override uint AddressMask => ~0xFu;
+        protected override uint addressMask => ~0xFu;
 
         private readonly bool prefetchable;
         private readonly BarType barType;

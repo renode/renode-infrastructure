@@ -19,12 +19,12 @@ namespace Antmicro.Renode.Peripherals.PCI.BAR
         public uint BaseAddress
         {
             get { return RequestedSize != 0 ? baseAddress : 0; }
-            set { baseAddress = ((value & AddressMask) & ~(RequestedSize - 1)); }
+            set { baseAddress = ((value & addressMask) & ~(RequestedSize - 1)); }
         }
         //Base Address Register only implements as many bits as are necessary to decode the block size that it represents.
         //When RequestedSize is equal to zero, the BAR is not used and BaseAdress should always return 0.
         public uint RequestedSize { get; }
-        protected abstract uint AddressMask { get; }
+        protected abstract uint addressMask { get; }
         protected uint baseAddress;
     }
 }
