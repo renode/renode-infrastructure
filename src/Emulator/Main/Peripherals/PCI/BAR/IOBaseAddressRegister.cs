@@ -10,15 +10,16 @@ namespace Antmicro.Renode.Peripherals.PCI.BAR
 {
     public class IOBaseAddressRegister : BaseAddressRegister
     {
-        public IOBaseAddressRegister(uint requestedSize) : base(requestedSize)
+        public IOBaseAddressRegister(uint requestedSize, BarType barType = BarType.IO) : base(requestedSize)
         {
+            thisBarType = barType;
         }
 
         public override uint Value
         {
             get
             {
-                return baseAddress | 1u;
+                return (thisBarType == BarType.IO) ? baseAddress | 1u : baseAddress;
             }
             set
             {
@@ -27,5 +28,12 @@ namespace Antmicro.Renode.Peripherals.PCI.BAR
         }
 
         protected override uint AddressMask => ~0x3u;
+        protected BarType thisBarType;
+    }
+
+    public enum BarType
+    {
+        Memory = 0,
+        IO = 1,
     }
 }
