@@ -56,8 +56,8 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             if(cpuNumber == 0)
             {
-                // the documentation states that `0` indicates an arbitrary process or thread, so we will take the first one
-                cpuNumber = 1;
+                // the documentation states that `0` indicates an arbitrary process or thread, so we will take the first one available
+                cpuNumber = ManagedCpus.OrderBy(x => x.Key).First().Key;
             }
             else if(!ManagedCpus.ContainsKey(cpuNumber))
             {
