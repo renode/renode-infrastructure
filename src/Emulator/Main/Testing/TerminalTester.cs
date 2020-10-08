@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Testing
         {
             var result = WaitForMatch(() =>
             {
-                if(!lines.Any())
+                if(lines.Count == 0)
                 {
                     return null;
                 }
