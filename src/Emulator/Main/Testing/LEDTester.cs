@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Testing
             this.led = led;
         }
 
-        public LEDTester AssertState(bool state, int timeout = 0)
+        public LEDTester AssertState(bool state, float timeout = 0)
         {
             var ev = new ManualResetEvent(false);
             var method = (Action<ILed, bool>)((s, o) => ev.Set());
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Testing
                     led.StateChanged += method;
                 }
 
-                if(led.State != state && !TimeoutExecutor.WaitForEvent(ev, timeout))
+                if(led.State != state && !TimeoutExecutor.WaitForEvent(ev, (int)(timeout * 1000)))
                 {
                     throw new InvalidOperationException("LED assertion not met.");
                 }
