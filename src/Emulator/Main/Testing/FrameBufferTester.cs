@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Testing
 {
     public static class FrameBufferTesterExtension
     {
-        public static void CreateFrameBufferTester(this Emulation emulation, string name, int timeoutInSeconds = 300)
+        public static void CreateFrameBufferTester(this Emulation emulation, string name, float timeoutInSeconds = 300)
         {
             var tester = new FrameBufferTester(TimeSpan.FromSeconds(timeoutInSeconds));
             emulation.ExternalsManager.AddExternal(tester, name);
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Testing
             }
         }
 
-        public FrameBufferTester WaitForFrame(string fileName, int? timeoutInSeconds = null)
+        public FrameBufferTester WaitForFrame(string fileName, float? timeoutInSeconds = null)
         {
             var image = Image.FromFile(fileName);
             var bytes = BitmapToByteArray((Bitmap)image);
