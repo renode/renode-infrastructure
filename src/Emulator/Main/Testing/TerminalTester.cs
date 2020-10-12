@@ -196,9 +196,9 @@ namespace Antmicro.Renode.Testing
         private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> matchResult, int millisecondsTimeout)
         {
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)millisecondsTimeout);
-
             var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
-            while(!timeoutEvent.IsTriggered)
+
+            do
             {
                 var result = matchResult.Invoke();
 #if DEBUG_EVENTS
@@ -213,6 +213,7 @@ namespace Antmicro.Renode.Testing
 #endif
                 WaitHandle.WaitAny(waitHandles);
             }
+            while(!timeoutEvent.IsTriggered);
 
 #if DEBUG_EVENTS
             this.Log(LogLevel.Noisy, "Matching timeout");

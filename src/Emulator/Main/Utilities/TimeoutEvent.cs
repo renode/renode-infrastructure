@@ -26,12 +26,19 @@ namespace Antmicro.Renode.Utilities
         public static TimeoutEvent EnqueueTimeoutEvent(this TimeSourceBase timeSource, ulong virtualMilliseconds)
         {
             var timeoutEvent = new TimeoutEvent();
-            var when = timeSource.ElapsedVirtualTime + TimeInterval.FromMilliseconds(virtualMilliseconds);
 
-            timeSource.ExecuteInSyncedState(_ =>
+            if(virtualMilliseconds == 0)
             {
                 timeoutEvent.Trigger();
-            }, new TimeStamp(when, timeSource.Domain));
+            }
+            else
+            {
+                var when = timeSource.ElapsedVirtualTime + TimeInterval.FromMilliseconds(virtualMilliseconds);
+                timeSource.ExecuteInSyncedState(_ =>
+                {
+                    timeoutEvent.Trigger();
+                }, new TimeStamp(when, timeSource.Domain));
+            }
 
             return timeoutEvent;
         }
