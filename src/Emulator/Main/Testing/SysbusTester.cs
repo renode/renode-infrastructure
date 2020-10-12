@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -57,17 +57,17 @@ namespace Antmicro.Renode.Testing
             observedAddresses.Add(address);
         }
 
-        public void WaitForByteWrite(ulong address, byte expectedValue, int timeout)
+        public void WaitForByteWrite(ulong address, byte expectedValue, float timeout)
         {
             InnerWaitForWrite(byteWrites, address, expectedValue, timeout);
         }
 
-        public void WaitForWordWrite(ulong address, uint expectedValue, int timeout)
+        public void WaitForWordWrite(ulong address, uint expectedValue, float timeout)
         {
             InnerWaitForWrite(wordWrites, address, expectedValue, timeout);
         }
 
-        public void WaitForDoubleWordWrite(ulong address, uint expectedValue, int timeout)
+        public void WaitForDoubleWordWrite(ulong address, uint expectedValue, float timeout)
         {
             InnerWaitForWrite(doubleWordWrites, address, expectedValue, timeout);
         }
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Testing
             }
         }
 
-        private void InnerWaitForWrite(List<Tuple<ulong, uint>> list, ulong offset, uint value, int timeout)
+        private void InnerWaitForWrite(List<Tuple<ulong, uint>> list, ulong offset, uint value, float timeout)
         {
             if(!observedAddresses.Contains(offset))
             {
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Testing
                         }
                     }
 
-                    if(!Monitor.Wait(list, timeout))
+                    if(!Monitor.Wait(list, (int)(timeout * 1000)))
                     {
                         throw new InvalidOperationException("Sysbus write assertion not met.");
                     }
