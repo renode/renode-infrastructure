@@ -54,12 +54,12 @@ namespace Antmicro.Renode.Testing
             iface.FrameSent += HandleFrame;
         }
 
-        public bool TryWaitForOutgoingPacket(int timeoutInSeconds, out NetworkInterfaceTesterResult result)
+        public bool TryWaitForOutgoingPacket(float timeoutInSeconds, out NetworkInterfaceTesterResult result)
         {
-            return frames.TryTake(out result, timeoutInSeconds * 1000);
+            return frames.TryTake(out result, (int)(timeoutInSeconds * 1000));
         }
 
-        public bool TryWaitForOutgoingPacketWithBytesAtIndex(string bytes, int index, int maxPackets, int singleTimeout, out NetworkInterfaceTesterResult result)
+        public bool TryWaitForOutgoingPacketWithBytesAtIndex(string bytes, int index, int maxPackets, float singleTimeout, out NetworkInterfaceTesterResult result)
         {
             int packetsChecked = 0;
 
