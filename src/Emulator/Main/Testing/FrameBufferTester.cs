@@ -5,21 +5,27 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.Threading;
+
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Video;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Testing
 {
     public static class FrameBufferTesterExtension
     {
-        public static void CreateFrameBufferTester(this Emulation emulation, string name, float timeoutInSeconds = 300)
+        public static void CreateFrameBufferTester(this Emulation emulation, string name, float timeoutInSeconds = 8)
         {
             var tester = new FrameBufferTester(TimeSpan.FromSeconds(timeoutInSeconds));
             emulation.ExternalsManager.AddExternal(tester, name);
@@ -32,6 +38,7 @@ namespace Antmicro.Renode.Testing
         {
             framesQueue = new BlockingCollection<byte[]>();
             globalTimeout = timeout;
+            newFrameEvent = new AutoResetEvent(false);
         }
 
         public void AttachTo(IVideo obj)
@@ -82,45 +89,24 @@ namespace Antmicro.Renode.Testing
 
         public FrameBufferTester WaitForFrame(byte[] frame, TimeSpan? timeout = null)
         {
-            byte[] queuedFrame;
+            var machine = video.GetMachine();
             var finalTimeout = timeout ?? globalTimeout;
-            Stopwatch stopwatch = null;
-            try
-            {
-                stopwatch = Stopwatch.StartNew();
-                TimeSpan timeLeft;
-                do
-                {
-                    timeLeft = finalTimeout - stopwatch.Elapsed;
-                    if(timeLeft.Ticks > 0 && framesQueue.TryTake(out queuedFrame, timeLeft)
-                        && frame.Length == queuedFrame.Length)
-                    {
-                        var shouldContinue = false;
-                        for(var i = 0; i < frame.Length; i++)
-                        {
-                            if(frame[i] != queuedFrame[i])
-                            {
-                                shouldContinue = true;
-                                break;
-                            }
-                        }
-                        if(shouldContinue)
-                        {
-                            continue;
-                        }
-                        return this;
-                    }
-                } while(timeLeft.Ticks > 0);
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)finalTimeout.TotalMilliseconds);
 
-                throw new ArgumentException();
-            }
-            finally
+            do
             {
-                if(stopwatch != null)
+                if(framesQueue.TryTake(out var queuedFrame)
+                    && queuedFrame.Length == frame.Length
+                    && Enumerable.SequenceEqual(queuedFrame, frame))
                 {
-                    stopwatch.Stop();
+                    return this;
                 }
+
+                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newFrameEvent });
             }
+            while(!timeoutEvent.IsTriggered);
+
+            throw new ArgumentException();
         }
 
         private void HandleConfigurationChange(int width, int height, Backends.Display.PixelFormat format, ELFSharp.ELF.Endianess endianess)
@@ -139,12 +125,14 @@ namespace Antmicro.Renode.Testing
             var buffer = new byte[frameSize];
             converter.Convert(obj, ref buffer);
             framesQueue.Add(buffer);
+            newFrameEvent.Set();
         }
 
         private IVideo video;
         private IPixelConverter converter;
         private int frameSize;
 
+        private readonly AutoResetEvent newFrameEvent;
         private readonly TimeSpan globalTimeout;
         private readonly BlockingCollection<byte[]> framesQueue;
     }
