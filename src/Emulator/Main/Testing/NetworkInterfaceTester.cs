@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Network;
 using Antmicro.Renode.Peripherals.Wireless;
 using Antmicro.Renode.Time;
@@ -33,13 +34,23 @@ namespace Antmicro.Renode.Testing
     {
         public NetworkInterfaceTester(IMACInterface iface)
         {
-            this.iface = iface;
+            this.iface = iface as IPeripheral;
+            if(this.iface == null)
+            {
+                throw new ConstructionException("This tester can only be attached to an IPeripheral");
+            }
+
             iface.FrameReady += HandleFrame;
         }
 
         public NetworkInterfaceTester(IRadio iface)
         {
-            this.iface = iface;
+            this.iface = iface as IPeripheral;
+            if(this.iface == null)
+            {
+                throw new ConstructionException("This tester can only be attached to an IPeripheral");
+            }
+
             iface.FrameSent += HandleFrame;
         }
 
@@ -117,11 +128,7 @@ namespace Antmicro.Renode.Testing
 
         private void HandleFrameInner(byte[] bytes)
         {
-            if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-            {
-                vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-            }
-
+            TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts);
             frames.Add(new NetworkInterfaceTesterResult(bytes, vts.TimeElapsed.TotalMilliseconds));
         }
 
@@ -171,7 +178,7 @@ namespace Antmicro.Renode.Testing
             return IsNibbleEqual(input, index, (byte)((data & 0xF0) >> 4)) && IsNibbleEqual(input, index + 1, (byte)(data & 0x0F));
         }
 
-        private readonly INetworkInterface iface;
+        private readonly IPeripheral iface;
         private readonly BlockingCollection<NetworkInterfaceTesterResult> frames = new BlockingCollection<NetworkInterfaceTesterResult>();
     }
 
