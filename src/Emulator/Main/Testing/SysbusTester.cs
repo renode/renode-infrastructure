@@ -10,6 +10,7 @@ using System.Threading;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Testing
 {
@@ -77,8 +78,8 @@ namespace Antmicro.Renode.Testing
             lock(list)
             {
                 list.Add(Tuple.Create(offset, value));
-                Monitor.PulseAll(list);
             }
+            newWriteEvent.Set();
         }
 
         private void InnerWaitForWrite(List<Tuple<ulong, uint>> list, ulong offset, uint value, float timeout)
@@ -88,9 +89,11 @@ namespace Antmicro.Renode.Testing
                 throw new ArgumentException($"Address 0x{offset:X} is not currenlty observed. Did you forget to call 'ObserveAddress' before starting the emulation?");
             }
 
-            lock(list)
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)(timeout * 1000));
+
+            do
             {
-                while(true)
+                lock(list)
                 {
                     for(var i = 0; i < list.Count; i++)
                     {
@@ -100,17 +103,18 @@ namespace Antmicro.Renode.Testing
                             return;
                         }
                     }
-
-                    if(!Monitor.Wait(list, (int)(timeout * 1000)))
-                    {
-                        throw new InvalidOperationException("Sysbus write assertion not met.");
-                    }
                 }
+
+                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newWriteEvent });
             }
+            while(!timeoutEvent.IsTriggered);
+
+            throw new InvalidOperationException("Sysbus write assertion not met.");
         }
 
         private readonly Machine machine;
 
+        private readonly AutoResetEvent newWriteEvent = new AutoResetEvent(false);
         private readonly HashSet<ulong> observedAddresses = new HashSet<ulong>();
         private readonly List<Tuple<ulong, uint>> byteWrites = new List<Tuple<ulong, uint>>();
         private readonly List<Tuple<ulong, uint>> wordWrites = new List<Tuple<ulong, uint>>();
