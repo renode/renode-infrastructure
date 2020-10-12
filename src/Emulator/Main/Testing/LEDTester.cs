@@ -7,8 +7,10 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals;
 using System.Threading;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Testing
 {
@@ -29,27 +31,32 @@ namespace Antmicro.Renode.Testing
 
         public LEDTester AssertState(bool state, float timeout = 0)
         {
+            var machine = led.GetMachine();
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)(timeout * 1000));
+
             var ev = new ManualResetEvent(false);
             var method = (Action<ILed, bool>)((s, o) => ev.Set());
 
             try
             {
-                if(timeout != 0)
+                led.StateChanged += method;
+                do
                 {
-                    led.StateChanged += method;
-                }
+                    if(led.State == state)
+                    {
+                        return this;
+                    }
 
-                if(led.State != state && !TimeoutExecutor.WaitForEvent(ev, (int)(timeout * 1000)))
-                {
-                    throw new InvalidOperationException("LED assertion not met.");
+                    WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, ev });
                 }
+                while(!timeoutEvent.IsTriggered);
             }
             finally
             {
                 led.StateChanged -= method;
             }
 
-            return this;
+            throw new InvalidOperationException("LED assertion not met.");
         }
 
         private readonly ILed led;
