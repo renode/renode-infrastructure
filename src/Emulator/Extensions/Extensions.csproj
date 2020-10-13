@@ -51,6 +51,7 @@
     <Compile Include="Utilities\TypeExtensions.cs" />
     <Compile Include="HostInterfaces\Network\TapExtensions.cs" />
     <Compile Include="Utilities\MachineExtensions.cs" />
+    <Compile Include="Utilities\UartExtensions.cs" />
     <Compile Include="Config\SimpleJson.cs" />
     <Compile Include="UserInterface\Monitor.cs" />
     <Compile Include="UserInterface\MonitorCommands.cs" />
