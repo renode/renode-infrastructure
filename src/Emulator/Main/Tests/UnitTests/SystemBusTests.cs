@@ -64,7 +64,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0x668, sysbus.ReadDoubleWord(3000));
         }
 
-        [Test, Ignore]
+        [Test, Ignore("Ignored")]
         public void ShouldFindAfterManyRegistrationsAndRemoves()
         {
             const int NumberOfPeripherals = 100;

@@ -46,14 +46,13 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
-        [ExpectedException(typeof(ConstructionException), UserMessage = NonExistingGPIO)]
         public void ShouldThrowOnIllegalInputNo()
         {
             var source = new GPIO();
             var boundIn = new MockReceiverConstrained();
-            source.Connect(boundIn, 10);
-        }
 
-        private const string NonExistingGPIO = "Connector perimtted to connect to non existing GPIO.";
+            var ex = Assert.Throws<ConstructionException>(() => source.Connect(boundIn, 10));
+            Assert.That(ex.Message, Is.EqualTo("Cannot connect 10th input of Antmicro.Renode.UnitTests.Mocks.MockReceiverConstrained; it has only 5 GPIO inputs."));
+        }
     }
 }

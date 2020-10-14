@@ -101,7 +101,7 @@ namespace UnitTests
         }
 
         // TODO: think about those tests
-        [Test, Ignore]
+        [Test, Ignore("Ignored")]
         public void ShouldCalculateCumulativeLoadForIndefinitePerformance()
         {
             const int slavesCount = 5;
@@ -120,7 +120,7 @@ namespace UnitTests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("Ignored")]
         public void ShouldCalculateCumulativeLoadForHighPerformance()
         {
             const int slavesCount = 5;
@@ -139,7 +139,7 @@ namespace UnitTests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("Ignored")]
         public void ShouldCalculateCumulativeLoadForLowPerformance()
         {
             const int slavesCount = 5;

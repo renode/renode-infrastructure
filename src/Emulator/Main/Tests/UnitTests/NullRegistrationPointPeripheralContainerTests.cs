@@ -26,11 +26,11 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
-        [ExpectedException(typeof(RegistrationException))]
         public void ShouldThrowWhenSecondPeripheral()
         {
             container.Register(peripheral2, NullRegistrationPoint.Instance);
-            container.Register(peripheral, NullRegistrationPoint.Instance);
+            Assert.Throws<RegistrationException>(() => 
+                container.Register(peripheral, NullRegistrationPoint.Instance));
         }
 
         [Test]
@@ -42,18 +42,18 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
-        [ExpectedException(typeof(RegistrationException))]
         public void ShouldThrowWhenUnregisteringNotRegisteredPeripheral()
         {
             container.Register(peripheral2, NullRegistrationPoint.Instance);
-            container.Unregister(peripheral);
+            Assert.Throws<RegistrationException>(() => 
+                container.Unregister(peripheral));
         }
 
         [Test]
-        [ExpectedException(typeof(RegistrationException))]
         public void ShouldThrowWhenUnregisteringFromEmptyContainers()
         {
-            container.Unregister(peripheral);
+            Assert.Throws<RegistrationException>(() => 
+                container.Unregister(peripheral));
         }
 
         [Test]

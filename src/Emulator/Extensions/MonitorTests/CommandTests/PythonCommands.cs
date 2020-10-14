@@ -135,7 +135,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
             machine.SystemBus.Register(new MappedMemory(machine, 0x1000), new BusPointRegistration(MemoryOffset));
         }
 
-        [TestFixtureSetUp]
+        [OneTimeSetUp]
         public void SetUp()
         {
             monitor = new Monitor();

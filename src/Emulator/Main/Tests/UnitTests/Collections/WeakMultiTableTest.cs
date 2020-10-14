@@ -32,7 +32,7 @@ namespace Antmicro.Renode.UnitTests.Collections
             Assert.AreEqual(2, table.GetAllForRight(0).Count());
         }
 
-        [Test,Ignore]
+        [Test,Ignore("Ignored")]
         public void ShouldRemovePair()
         {
             var table = new WeakMultiTable<int, int>();
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.UnitTests.Collections
             Assert.AreEqual(0, table.GetAllForLeft(0).Count());
         }
 
-        [Test,Ignore]
+        [Test,Ignore("Ignored")]
         public void ShouldHoldWeakReference()
         {
             if (GC.MaxGeneration == 0)

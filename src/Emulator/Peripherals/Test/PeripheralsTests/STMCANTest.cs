@@ -144,7 +144,7 @@ namespace Antmicro.Renode.PeripheralsTests
 
         }
 
-        [Test, Ignore]
+        [Test, Ignore("Ignored")]
         public void LoopbackMessageTest()
         {
             // #####################################
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Error
         }
 
-        [Test, Ignore]
+        [Test, Ignore("Ignored")]
         public void AnotherTest()
         {
             var stmcan = new STMCAN();

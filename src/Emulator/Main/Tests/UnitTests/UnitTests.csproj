@@ -107,7 +107,7 @@
       <HintPath>..\..\..\..\..\..\..\lib\resources\libraries\IronPython.dll</HintPath>
     </Reference>
     <Reference Include="nunit.framework">
-      <HintPath>..\..\..\..\..\..\..\lib\resources\tools\nunit.framework.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\..\lib\resources\tools\nunit3\nunit.framework.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
