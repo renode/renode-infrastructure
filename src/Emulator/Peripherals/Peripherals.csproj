@@ -216,7 +216,6 @@
     <Compile Include="Peripherals\DMA\TegraDmaHost1X.cs" />
     <Compile Include="Peripherals\Timers\Efm32Timer.cs" />
     <Compile Include="Peripherals\Timers\STM32L_RTC.cs" />
-    <Compile Include="Peripherals\Timers\STM32L_Timer.cs" />
     <Compile Include="Peripherals\UART\AppUart.cs" />
     <Compile Include="Peripherals\UART\STM32F7_USART.cs" />
     <Compile Include="Peripherals\DMA\Dma2DColorMode.cs" />
