@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Utilities
             Assert.AreEqual(methodsCounts, testCases.Count);
         }
 
-        private readonly List<Tuple<int, Action>> testCases = new List<Tuple<int, Action>>
+        private static readonly List<Tuple<int, Action>> testCases = new List<Tuple<int, Action>>
         {
             new Tuple<int, Action>(1, () => methodInfo.IsStatic()),
             new Tuple<int, Action>(2, () => methodInfo.IsCallable()), //first condition in method is false, so it does not check IsBaseCallable -> so the score is 2 not 3
