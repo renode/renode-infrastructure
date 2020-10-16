@@ -6,6 +6,7 @@
 //
 using System;
 using System.Text;
+using System.Threading;
 using System.Collections.Concurrent;
 using System.Globalization;
 using Antmicro.Renode.Core;
@@ -14,6 +15,8 @@ using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Network;
 using Antmicro.Renode.Peripherals.Wireless;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Testing
 {
@@ -41,6 +44,7 @@ namespace Antmicro.Renode.Testing
             }
 
             iface.FrameReady += HandleFrame;
+            newFrameEvent = new AutoResetEvent(false);
         }
 
         public NetworkInterfaceTester(IRadio iface)
@@ -52,53 +56,56 @@ namespace Antmicro.Renode.Testing
             }
 
             iface.FrameSent += HandleFrame;
+            newFrameEvent = new AutoResetEvent(false);
         }
 
         public bool TryWaitForOutgoingPacket(float timeoutInSeconds, out NetworkInterfaceTesterResult result)
         {
-            return frames.TryTake(out result, (int)(timeoutInSeconds * 1000));
+            var machine = iface.GetMachine();
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)(1000 * timeoutInSeconds));
+
+            do
+            {
+                if(frames.TryTake(out result))
+                {
+                    return true;
+                }
+
+                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newFrameEvent });
+            }
+            while(!timeoutEvent.IsTriggered);
+
+            result = default(NetworkInterfaceTesterResult);
+            return false;
         }
 
-        public bool TryWaitForOutgoingPacketWithBytesAtIndex(string bytes, int index, int maxPackets, float singleTimeout, out NetworkInterfaceTesterResult result)
+        public bool TryWaitForOutgoingPacketWithBytesAtIndex(string bytes, int index, int maxPackets, float timeout, out NetworkInterfaceTesterResult result)
         {
-            int packetsChecked = 0;
-
             if(bytes.Length % 2 != 0)
             {
                 throw new ArgumentException("Partial bytes specified in the search pattern.");
             }
 
-            while(packetsChecked++ < maxPackets)
+            int packetsChecked = 0;
+
+            var machine = iface.GetMachine();
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)(1000 * timeout));
+
+            do
             {
-                if(!TryWaitForOutgoingPacket(singleTimeout, out var currentPacket))
+                if(packetsChecked < maxPackets && frames.TryTake(out var frame))
                 {
-                    break;
-                }
-
-                if(index + (bytes.Length / 2) > currentPacket.bytes.Length)
-                {
-                    continue;
-                }
-
-                var matches = true;
-
-                for(var i = 0; i < bytes.Length; i += 2)
-                {
-                    var currentByte = currentPacket.bytes[index + (i / 2)];
-
-                    if(!IsByteEqual(bytes, i, currentByte))
+                    packetsChecked++;
+                    if(IsMatch(bytes, index, frame.bytes))
                     {
-                        matches = false;
-                        break;
+                        result = frame;
+                        return true;
                     }
                 }
 
-                if(matches)
-                {
-                    result = currentPacket;
-                    return true;
-                }
+                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newFrameEvent });
             }
+            while(!timeoutEvent.IsTriggered && packetsChecked < maxPackets);
 
             result = new NetworkInterfaceTesterResult();
             return false;
@@ -116,6 +123,26 @@ namespace Antmicro.Renode.Testing
             }
         }
 
+        private bool IsMatch(string pattern, int index, byte[] packet)
+        {
+            if(index + (pattern.Length / 2) > packet.Length)
+            {
+                return false;
+            }
+
+            for(var i = 0; i < pattern.Length; i += 2)
+            {
+                var currentByte = packet[index + (i / 2)];
+
+                if(!IsByteEqual(pattern, i, currentByte))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private void HandleFrame(IRadio radio, byte[] frame)
         {
             HandleFrameInner(frame);
@@ -130,6 +157,7 @@ namespace Antmicro.Renode.Testing
         {
             TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts);
             frames.Add(new NetworkInterfaceTesterResult(bytes, vts.TimeElapsed.TotalMilliseconds));
+            newFrameEvent.Set();
         }
 
         private byte HexCharToByte(char c)
@@ -178,6 +206,7 @@ namespace Antmicro.Renode.Testing
             return IsNibbleEqual(input, index, (byte)((data & 0xF0) >> 4)) && IsNibbleEqual(input, index + 1, (byte)(data & 0x0F));
         }
 
+        private readonly AutoResetEvent newFrameEvent;
         private readonly IPeripheral iface;
         private readonly BlockingCollection<NetworkInterfaceTesterResult> frames = new BlockingCollection<NetworkInterfaceTesterResult>();
     }
