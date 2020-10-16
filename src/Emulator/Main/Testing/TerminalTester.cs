@@ -97,9 +97,8 @@ namespace Antmicro.Renode.Testing
         public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeInterval = null, bool treatAsRegex = false, bool includeUnfinishedLine = false)
         {
             var eventName = "Line containing{1} >>{0}<<".FormatWith(pattern, treatAsRegex ? " regex" : string.Empty);
-            var timeoutMilliseconds = GetTimeoutInMilliseconds(timeInterval);
 #if DEBUG_EVENTS
-            this.Log(LogLevel.Nois, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2} ms, regex {3}) ", pattern, includeUnfinishedLine, timeoutMilliseconds, treatAsRegex);
+            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}) ", pattern, includeUnfinishedLine, timeInterval ?? GlobalTimeout, treatAsRegex);
 #endif
 
             var result = WaitForMatch(() =>
@@ -117,7 +116,7 @@ namespace Antmicro.Renode.Testing
 
                 return CheckUnfinishedLine(pattern, treatAsRegex, eventName);
 
-            }, timeoutMilliseconds);
+            }, timeInterval ?? GlobalTimeout);
 
             if(result == null)
             {
@@ -136,7 +135,7 @@ namespace Antmicro.Renode.Testing
                 }
 
                 return HandleSuccess("Next line", matchingLineId: 0);
-            }, GetTimeoutInMilliseconds(timeInterval));
+            }, timeInterval ?? GlobalTimeout);
 
             if(result == null)
             {
@@ -147,7 +146,7 @@ namespace Antmicro.Renode.Testing
 
         public bool IsIdle(TimeInterval? timeInterval = null)
         {
-            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)GetTimeoutInMilliseconds(timeInterval));
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)((timeInterval ?? GlobalTimeout).TotalMilliseconds));
             var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
 
             charEvent.Reset();
@@ -193,9 +192,9 @@ namespace Antmicro.Renode.Testing
         public TimeInterval GlobalTimeout { get; set; }
         public TimeSpan WriteCharDelay { get; set; }
 
-        private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> matchResult, int millisecondsTimeout)
+        private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> matchResult, TimeInterval timeout)
         {
-            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)millisecondsTimeout);
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)timeout.TotalMilliseconds);
             var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
 
             do
@@ -440,11 +439,6 @@ namespace Antmicro.Renode.Testing
 
             var virtMs = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
             report.AppendFormat("([host: {2}, virt: {3, 7}] {0} event: {1})\n", eventName, what, CustomDateTime.Now, virtMs);
-        }
-
-        private int GetTimeoutInMilliseconds(TimeInterval? timeInterval = null)
-        {
-            return (int)(timeInterval.HasValue ? timeInterval.Value.TotalMilliseconds : GlobalTimeout.TotalMilliseconds);
         }
 
         private Machine machine;
