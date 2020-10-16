@@ -82,7 +82,7 @@ namespace Antmicro.Renode.Testing
 
                 var matches = true;
 
-                for(uint i = 0; i < bytes.Length; i += 2)
+                for(var i = 0; i < bytes.Length; i += 2)
                 {
                     var currentByte = currentPacket.bytes[index + (i / 2)];
 
@@ -149,14 +149,14 @@ namespace Antmicro.Renode.Testing
             throw new ArgumentException(string.Format("{0} is not a valid hex number.", c));
         }
 
-        private bool IsNibbleEqual(string match, uint index, byte data)
+        private bool IsNibbleEqual(string match, int index, byte data)
         {
             if(index >= match.Length)
             {
                 return false;
             }
 
-            var c = match[(int)index];
+            var c = match[index];
 
             // Treat underscore as a wildcard
             if(c == '_')
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Testing
             return data == HexCharToByte(c);
         }
 
-        private bool IsByteEqual(string input, uint index, byte data)
+        private bool IsByteEqual(string input, int index, byte data)
         {
             // check index + 1 as we need to check both nibbles
             if(index + 1 >= input.Length)
