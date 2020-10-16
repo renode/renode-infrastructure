@@ -59,10 +59,10 @@ namespace Antmicro.Renode.Testing
             newFrameEvent = new AutoResetEvent(false);
         }
 
-        public bool TryWaitForOutgoingPacket(float timeoutInSeconds, out NetworkInterfaceTesterResult result)
+        public bool TryWaitForOutgoingPacket(float timeout, out NetworkInterfaceTesterResult result)
         {
             var machine = iface.GetMachine();
-            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)(1000 * timeoutInSeconds));
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)(1000 * timeout));
 
             do
             {

@@ -80,11 +80,11 @@ namespace Antmicro.Renode.Testing
             }
         }
 
-        public FrameBufferTester WaitForFrame(string fileName, float? timeoutInSeconds = null)
+        public FrameBufferTester WaitForFrame(string fileName, float? timeout = null)
         {
             var image = Image.FromFile(fileName);
             var bytes = BitmapToByteArray((Bitmap)image);
-            return WaitForFrame(bytes, timeoutInSeconds.HasValue ? TimeSpan.FromSeconds(timeoutInSeconds.Value) : (TimeSpan?)null);
+            return WaitForFrame(bytes, timeout.HasValue ? TimeSpan.FromSeconds(timeout.Value) : (TimeSpan?)null);
         }
 
         public FrameBufferTester WaitForFrame(byte[] frame, TimeSpan? timeout = null)

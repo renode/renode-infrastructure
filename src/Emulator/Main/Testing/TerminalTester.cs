@@ -94,11 +94,11 @@ namespace Antmicro.Renode.Testing
             charEvent.Set();
         }
 
-        public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeInterval = null, bool treatAsRegex = false, bool includeUnfinishedLine = false)
+        public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false)
         {
             var eventName = "Line containing{1} >>{0}<<".FormatWith(pattern, treatAsRegex ? " regex" : string.Empty);
 #if DEBUG_EVENTS
-            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}) ", pattern, includeUnfinishedLine, timeInterval ?? GlobalTimeout, treatAsRegex);
+            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}) ", pattern, includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex);
 #endif
 
             var result = WaitForMatch(() =>
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Testing
 
                 return CheckUnfinishedLine(pattern, treatAsRegex, eventName);
 
-            }, timeInterval ?? GlobalTimeout);
+            }, timeout ?? GlobalTimeout);
 
             if(result == null)
             {
@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Testing
             return result;
         }
 
-        public TerminalTesterResult NextLine(TimeInterval? timeInterval = null)
+        public TerminalTesterResult NextLine(TimeInterval? timeout = null)
         {
             var result = WaitForMatch(() =>
             {
@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Testing
                 }
 
                 return HandleSuccess("Next line", matchingLineId: 0);
-            }, timeInterval ?? GlobalTimeout);
+            }, timeout ?? GlobalTimeout);
 
             if(result == null)
             {
@@ -144,9 +144,9 @@ namespace Antmicro.Renode.Testing
             return result;
         }
 
-        public bool IsIdle(TimeInterval? timeInterval = null)
+        public bool IsIdle(TimeInterval? timeout = null)
         {
-            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)((timeInterval ?? GlobalTimeout).TotalMilliseconds));
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)((timeout ?? GlobalTimeout).TotalMilliseconds));
             var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
 
             charEvent.Reset();
