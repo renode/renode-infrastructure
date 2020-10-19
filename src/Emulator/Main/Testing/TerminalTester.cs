@@ -28,9 +28,9 @@ namespace Antmicro.Renode.Testing
 {
     public class TerminalTester : BackendTerminal
     {
-        public TerminalTester(TimeInterval? timeout = null, EndLineOption endLineOption = EndLineOption.TreatLineFeedAsEndLine, bool removeColors = true)
+        public TerminalTester(TimeInterval timeout, EndLineOption endLineOption = EndLineOption.TreatLineFeedAsEndLine, bool removeColors = true)
         {
-            GlobalTimeout = timeout ?? TimeInterval.FromSeconds(DefaultSecondsTimeout);
+            GlobalTimeout = timeout;
             this.endLineOption = endLineOption;
             this.removeColors = removeColors;
             charEvent = new AutoResetEvent(false);
@@ -453,7 +453,6 @@ namespace Antmicro.Renode.Testing
         private readonly List<Line> lines;
         private readonly SafeStringBuilder report;
 
-        private const int DefaultSecondsTimeout = 8;
         private const byte LineFeed = 0xA;
         private const byte CarriageReturn = 0xD;
         private const char EscapeChar = '\x1B';

@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Testing
 {
     public static class FrameBufferTesterExtension
     {
-        public static void CreateFrameBufferTester(this Emulation emulation, string name, float timeoutInSeconds = 8)
+        public static void CreateFrameBufferTester(this Emulation emulation, string name, float timeoutInSeconds)
         {
             var tester = new FrameBufferTester(TimeSpan.FromSeconds(timeoutInSeconds));
             emulation.ExternalsManager.AddExternal(tester, name);
