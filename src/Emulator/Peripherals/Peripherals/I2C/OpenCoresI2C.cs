@@ -68,6 +68,27 @@ namespace Antmicro.Renode.Peripherals.I2C
                             return;
                         }
 
+                        if(generateStartCondition.Value)
+                        {
+                            generateStartCondition.Value = false;
+                            if(transactionInProgress)
+                            {
+                                // repeated start - finish previous transaction first
+                                SendDataToSlave();
+                            }
+                            else
+                            {
+                                transactionInProgress = true;
+                            }
+
+                            dataFromSlave.Clear();
+
+                            if(!TryResolveSelectedSlave(out selectedSlave))
+                            {
+                                return;
+                            }
+                        }
+
                         if(writeToSlave.Value)
                         {
                             writeToSlave.Value = false;
@@ -90,8 +111,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                             }
 
                             SendDataToSlave();
-                            // Clear read buffer when see stop condition
-                            dataFromSlave.Clear();
                             transactionInProgress = false;
                         }
                     })
@@ -122,22 +141,35 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public long Size => 0x1000;
 
-        private void HandleReadFromSlaveCommand()
+        private bool TryResolveSelectedSlave(out II2CPeripheral selectedSlave)
         {
             var slaveAddress = (byte)(transmitBuffer.Value >> 1);
-            var isReadOperation = BitHelper.IsBitSet(transmitBuffer.Value, 0);
-            if(ChildCollection.TryGetValue(slaveAddress, out selectedSlave))
+            if(!ChildCollection.TryGetValue(slaveAddress, out selectedSlave))
+            {
+                 this.Log(LogLevel.Warning, "Addressing unregistered slave: 0x{0:X}", slaveAddress);
+                 receivedAckFromSlaveNegated.Value = true;
+                 return true;
+            }
+
+            receivedAckFromSlaveNegated.Value = false;
+            return false;
+        }
+
+        private void HandleReadFromSlaveCommand()
+        {
+            if(dataFromSlave.Count == 0)
             {
                 foreach(var b in selectedSlave.Read())
                 {
                     dataFromSlave.Enqueue(b);
                 }
-            }
-            if(dataFromSlave.Count == 0)
-            {
-                this.Log(LogLevel.Warning, "Trying to read from slave, but no data is available");
-                receiveBuffer.Value = 0;
-                return;
+                
+                if(dataFromSlave.Count == 0)
+                {
+                    this.Log(LogLevel.Warning, "Trying to read from slave, but no data is available");
+                    receiveBuffer.Value = 0;
+                    return;
+                }
             }
 
             receiveBuffer.Value = dataFromSlave.Dequeue();
@@ -157,29 +189,13 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleWriteToSlaveCommand()
         {
-            if(generateStartCondition.Value)
+            if(!transactionInProgress)
             {
-                generateStartCondition.Value = false;
-                if(transactionInProgress)
-                {
-                    // repeated start - finish previous transaction first
-                    SendDataToSlave();
-                }
-                else
-                {
-                    transactionInProgress = true;
-                }
+                this.Log(LogLevel.Warning, "Writing to slave without generating START signal");
+                return;
+            }
 
-            }
-            else
-            {
-                if(!transactionInProgress)
-                {
-                    this.Log(LogLevel.Warning, "Writing to slave without generating START signal");
-                    return;
-                }
-                dataToSlave.Enqueue((byte)transmitBuffer.Value);
-            }
+            dataToSlave.Enqueue((byte)transmitBuffer.Value);
             interruptFlag.Value = true;
         }
 
