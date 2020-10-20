@@ -44,6 +44,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\src\Renode\Renode.csproj">
+      <Project>{5A7EF2B0-889A-488A-B296-97AF33791772}</Project>
+      <Name>Renode</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Extensions.csproj">
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
