@@ -90,6 +90,8 @@ namespace Antmicro.Renode.Peripherals.I2C
                             }
 
                             SendDataToSlave();
+                            // Clear read buffer when see stop condition
+                            dataFromSlave.Clear();
                             transactionInProgress = false;
                         }
                     })
@@ -122,9 +124,19 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleReadFromSlaveCommand()
         {
+            var slaveAddress = (byte)(transmitBuffer.Value >> 1);
+            var isReadOperation = BitHelper.IsBitSet(transmitBuffer.Value, 0);
+            if(ChildCollection.TryGetValue(slaveAddress, out selectedSlave))
+            {
+                foreach(var b in selectedSlave.Read())
+                {
+                    dataFromSlave.Enqueue(b);
+                }
+            }
             if(dataFromSlave.Count == 0)
             {
                 this.Log(LogLevel.Warning, "Trying to read from slave, but no data is available");
+                receiveBuffer.Value = 0;
                 return;
             }
 
@@ -158,24 +170,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     transactionInProgress = true;
                 }
 
-                var slaveAddress = (byte)(transmitBuffer.Value >> 1);
-                var isReadOperation = BitHelper.IsBitSet(transmitBuffer.Value, 0);
-                if(!ChildCollection.TryGetValue(slaveAddress, out selectedSlave))
-                {
-                    this.Log(LogLevel.Warning, "Addressing unregistered slave: 0x{0:X}", slaveAddress);
-                    receivedAckFromSlaveNegated.Value = true;
-                }
-                else
-                {
-                    if(isReadOperation)
-                    {
-                        foreach(var b in selectedSlave.Read())
-                        {
-                            dataFromSlave.Enqueue(b);
-                        }
-                    }
-                    receivedAckFromSlaveNegated.Value = false;
-                }
             }
             else
             {
