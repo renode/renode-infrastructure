@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Logging.Backends
         {
             lock(locker)
             {
-                return entries.Skip(Math.Max(0, entries.Count() - numberOfElements));
+                return entries.Skip(Math.Max(0, entries.Count() - numberOfElements)).ToList();
             }
         }
 
