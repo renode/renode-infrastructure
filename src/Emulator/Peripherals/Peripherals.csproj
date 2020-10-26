@@ -333,6 +333,7 @@
     <Compile Include="Peripherals\ATAPI\ATAPI.cs" />
     <Compile Include="Peripherals\ATAPI\CDROM.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32F4_RCC.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NRF82540_CLOCK.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_RTC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
