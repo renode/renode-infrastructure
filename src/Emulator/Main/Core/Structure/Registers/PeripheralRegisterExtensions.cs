@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,6 +19,39 @@ namespace Antmicro.Renode.Core.Structure.Registers
             Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
         {
             register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for creation of a set of consecutive flag fields.
+        /// </summary>
+        /// <param name="position">Offset in the register of the first field.</param>
+        /// <param name="count">Number of flag fields to create.</param>
+        /// <param name="mode">Access modifiers of each field.</param>
+        /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the index of the flag field, the second is the value of this field before read,
+        /// the third parameter is the value after read. Note that it will also be called for unreadable fields.</param>
+        /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the index of the flag, the second is the value of this field before write,
+        /// the third parameter is the value written (without any modification). Note that it will also be called for unwrittable fields.</param>
+        /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the index of the flag, the second is the value of this field before change,
+        /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
+        /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
+        /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
+        /// <returns>This register with defined flags.</returns>
+        public static T WithFlags<T>(this T register, int position, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, bool, bool> readCallback = null,
+            Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+        {
+            for(var i = 0; i < count; i++)
+            {
+                var j = i;
+
+                register.DefineFlagField(position + j, mode, 
+                    readCallback == null ? null : (Action<bool, bool>)((x, y) => readCallback(j, x, y)),
+                    writeCallback == null ? null : (Action<bool, bool>)((x, y) => writeCallback(j, x, y)), 
+                    changeCallback == null ? null : (Action<bool, bool>)((x, y) => changeCallback(j, x, y)), 
+                    valueProviderCallback == null ? null : (Func<bool, bool>)((x) => valueProviderCallback(j, x)),
+                    name == null ? null : $"{name}_{j}");
+            }
             return register;
         }
 
