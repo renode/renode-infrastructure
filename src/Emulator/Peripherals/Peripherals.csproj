@@ -338,6 +338,7 @@
     <Compile Include="Peripherals\GPIOPort\LPC43xx_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SevenSegmentsDisplay.cs" />
     <Compile Include="Peripherals\GPIOPort\NRF52840_GPIO.cs" />
+    <Compile Include="Peripherals\GPIOPort\NRF52840_GPIOTasksEvents.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
