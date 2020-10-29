@@ -337,6 +337,7 @@
     <Compile Include="Peripherals\Timers\NRF52840_RTC.cs" />
     <Compile Include="Peripherals\GPIOPort\LPC43xx_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SevenSegmentsDisplay.cs" />
+    <Compile Include="Peripherals\GPIOPort\NRF52840_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
