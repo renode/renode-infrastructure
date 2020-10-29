@@ -341,6 +341,7 @@
     <Compile Include="Peripherals\GPIOPort\NRF52840_GPIOTasksEvents.cs" />
     <Compile Include="Peripherals\SPI\NRF52840_SPI.cs" />
     <Compile Include="Peripherals\Sensors\ADXL372.cs" />
+    <Compile Include="Peripherals\I2C\NRF52840_I2C.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
