@@ -105,6 +105,9 @@ namespace Antmicro.Renode.Peripherals.Network
                             }
                         },name: "RESET")
                 },
+                {(long)Registers.MIIManagementFrame, new DoubleWordRegister(this)
+                    .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite(value), valueProviderCallback: _ => HandlePhyRead())
+                },
                 {(long)Registers.ReceiveControl, new DoubleWordRegister(this)
                     .WithTaggedFlag("GRS", 31)
                     .WithTaggedFlag("NLC", 30)
@@ -337,6 +340,44 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        private uint HandlePhyRead()
+        {
+            return phyDataRead;
+        }
+
+        private void HandlePhyWrite(uint value)
+        {
+            lock(innerLock)
+            {
+                var data = (ushort)(value & 0xFFFF);
+                var reg = (ushort)((value >> 18) & 0x1F);
+                var addr = (uint)((value >> 23) & 0x1F);
+                var op = (PhyOperation)((value >> 28) & 0x3);
+
+                if(!phys.TryGetValue(addr, out var phy))
+                {
+                    this.Log(LogLevel.Warning, "Write to PHY with unknown address {0}", addr);
+                    phyDataRead = 0xFFFFU;
+                    return;
+                }
+
+                switch(op)
+                {
+                    case PhyOperation.Read:
+                        phyDataRead = phy.Read(reg);
+                        break;
+                    case PhyOperation.Write:
+                        phy.Write(reg, data);
+                        break;
+                    default:
+                        this.Log(LogLevel.Warning, "Unknown PHY operation code 0x{0:X}", op);
+                        break;
+                }
+
+                interruptManager.SetInterrupt(Interrupts.MIIInterrupt);
+            }
+        }
+        private uint phyDataRead;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
@@ -495,6 +536,12 @@ namespace Antmicro.Renode.Peripherals.Network
             TransmitTimestampAvailable = 16,
             [Subvector(3)]
             TimestampTimer = 15
+        }
+
+        private enum PhyOperation
+        {
+            Write = 0x1,
+            Read = 0x2
         }
 
         private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
