@@ -5,16 +5,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.I2C;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class ADXL372 : ISPIPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, IGPIOReceiver, ISensor
+    public class ADXL372 : ISPIPeripheral, II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, IGPIOReceiver, ISensor
     {
         public ADXL372()
         {
@@ -36,6 +38,56 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 FinishTransmission();
             }
             chipSelected = !value;
+        }
+
+        public void Write(byte[] bytes)
+        {
+            foreach(var b in bytes)
+            {
+                WriteByte(b);
+            }
+        }
+
+        public void WriteByte(byte b)
+        {
+            switch(state)
+            {
+                case State.Idle:
+                    address = b;
+                    state = State.Processing;
+                    break;
+
+                case State.Processing:
+                    RegistersCollection.Write(address, b);
+                    address++;
+                    break;
+
+                default:
+                    throw new ArgumentException($"Unexpected state: {state}");
+            }
+        }
+
+        public byte[] Read(int count = 1)
+        {
+            byte[] result = null;
+
+            switch(state)
+            {
+                case State.Idle:
+                    this.Log(LogLevel.Noisy, "Unexpected reading in Idle state");
+                    result = new byte[] { };
+                    break;
+
+                case State.Processing:
+                    result = new byte[] { RegistersCollection.Read(address) };
+                    address++;
+                    break;
+
+                default:
+                    throw new ArgumentException($"Unexpected state: {state}");
+            }
+
+            return result;
         }
 
         public byte Transmit(byte b)
@@ -175,8 +227,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private enum State
         {
             Idle,
+            // those two states are used in SPI mode
             Reading,
-            Writing
+            Writing,
+            // this state is used in I2C mode
+            Processing
         }
 
         private enum Registers
