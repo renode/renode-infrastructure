@@ -93,123 +93,162 @@ namespace UnitTests
 #if DEBUG
 // those tests assume DebugHelper.Assert to throw an exception; asserts are supported in debug mode only, so it would fail in non-debug mode
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToGrantTimeAfterDispose()
         {
-            DisposeOnExternal();
-            GrantOnSource();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                DisposeOnExternal();
+                GrantOnSource();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToGrantTwiceInARow()
         {
-            GrantOnSource();
-            GrantOnSource();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                GrantOnSource();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToWaitBeforeGranting()
         {
-            WaitOnSource().ShouldBlock(); // this should block here is a hack not to finish this test too soon
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                WaitOnSource().ShouldBlock(); // this should block here is a hack not to finish this test too soon
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToGrantTimeToBlockedHandle()
         {
-            GrantOnSource();
-            RequestOnSink();
-            BreakOnSink();
-            WaitOnSource();
-            GrantOnSource().ShouldBlock(); // this is illegal; sink must call UnblockHandle (as a result of RequestTimeInterval) first!
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                BreakOnSink();
+                WaitOnSource();
+                GrantOnSource().ShouldBlock(); // this is illegal; sink must call UnblockHandle (as a result of RequestTimeInterval) first!
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToCallWaitTwiceAfterReportingContinue()
         {
-            GrantOnSource();
-            RequestOnSink();
-            ContinueOnSink();
-            WaitOnSource();
-            WaitOnSource().ShouldBlock(); // this should block here is a hack not to finish this test too soon
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                ContinueOnSink();
+                WaitOnSource();
+                WaitOnSource().ShouldBlock(); // this should block here is a hack not to finish this test too soon
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToCallGrantAfterReportingBreak()
         {
-            GrantOnSource();
-            RequestOnSink();
-            BreakOnSink();
-            WaitOnSource();
-            GrantOnSource();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                BreakOnSink();
+                WaitOnSource();
+                GrantOnSource();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToRequestTwiceInARow()
         {
-            GrantOnSource();
-            RequestOnSink();
-            RequestOnSink().ShouldBlock(); // this should block here is a hack not to finish this test too soon
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                RequestOnSink().ShouldBlock(); // this should block here is a hack not to finish this test too soon
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToReportContinueBeforeRequesting()
         {
-            ContinueOnSink();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                ContinueOnSink();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToReportBreakBeforeRequesting()
         {
-            BreakOnSink();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                BreakOnSink();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToReportBreakTwiceInARow()
         {
-            GrantOnSource();
-            RequestOnSink();
-            BreakOnSink();
-            BreakOnSink();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                BreakOnSink();
+                BreakOnSink();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToReportContinueTwiceInARow()
         {
-            GrantOnSource();
-            RequestOnSink();
-            ContinueOnSink();
-            ContinueOnSink();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                ContinueOnSink();
+                ContinueOnSink();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToReportContinueAfterBreak()
         {
-            GrantOnSource();
-            RequestOnSink();
-            BreakOnSink();
-            ContinueOnSink();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                BreakOnSink();
+                ContinueOnSink();
+                Finish();
+            });
         }
 
-        [Test, ExpectedException(typeof(Antmicro.Renode.Debugging.AssertionException))]
+        [Test]
         public void ShouldNotAllowToReportBreakAfterContinue()
         {
-            GrantOnSource();
-            RequestOnSink();
-            ContinueOnSink();
-            BreakOnSink();
-            Finish();
+            Assert.Throws<Antmicro.Renode.Debugging.AssertionException>(() =>
+            {
+                GrantOnSource();
+                RequestOnSink();
+                ContinueOnSink();
+                BreakOnSink();
+                Finish();
+            });
         }
 #endif
 
