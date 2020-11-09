@@ -247,6 +247,11 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private bool TryFillReceivedBuffer(bool generateInterrupt)
         {
+            if(selectedSlave == null)
+            {
+                return false;
+            }
+
             if(!slaveToMasterBuffer.Any())
             {
                 var data = selectedSlave.Read();
