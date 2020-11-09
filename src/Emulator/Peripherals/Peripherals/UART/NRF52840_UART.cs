@@ -260,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 );
 
                 dict.Add((long)Registers.RxDAmount, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out rxAmount, name: "AMOUNT")
+                    .WithValueField(0, 16, out rxAmount, FieldMode.Read, name: "AMOUNT")
                     .WithReservedBits(16, 16)
                 );
 
@@ -274,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 );
 
                 dict.Add((long)Registers.TxDAmount, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out txAmount, name: "AMOUNT")
+                    .WithValueField(0, 16, out txAmount, FieldMode.Read, name: "AMOUNT")
                     .WithReservedBits(16, 16)
                 );
             }
@@ -340,6 +340,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     TransmitCharacter(character);
                 }
                 interruptManager.SetInterrupt(Interrupts.TransmitReady);
+                txAmount.Value = txMaximumCount.Value;
                 interruptManager.SetInterrupt(Interrupts.EndTransmit);
             }
         }
