@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            if(enabled.Value != EnableState.Enabled || !rxStarted)
+            if(enabled.Value == EnableState.Disabled || !rxStarted)
             {
                 this.Log(LogLevel.Warning, "Received a character, but the receiver is disabled.");
                 // The character should not be received. This is safe because QueueEmptied is not used
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 dict.Add((long)Registers.TxD, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Write, name: "TXD", writeCallback: (_, value) =>
                     {
-                        if(enabled.Value != EnableState.Enabled && false)
+                        if(enabled.Value == EnableState.Disabled)
                         {
                             this.Log(LogLevel.Warning, "Trying to transmit a character, but the peripheral is disabled.");
                             return;
@@ -482,7 +482,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private enum EnableState
         {
             Disabled = 0x0,
-            Enabled = 0x8,
+            EnabledUART = 0x4,
+            EnabledUARTE = 0x8,
         }
     }
 }
