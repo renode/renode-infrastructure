@@ -339,10 +339,10 @@ namespace Antmicro.Renode.Peripherals.UART
                 {
                     TransmitCharacter(character);
                 }
-                interruptManager.SetInterrupt(Interrupts.TransmitReady);
                 txAmount.Value = txMaximumCount.Value;
                 interruptManager.SetInterrupt(Interrupts.EndTransmit);
             }
+            interruptManager.SetInterrupt(Interrupts.TransmitReady);
         }
 
         private void StopTx()
