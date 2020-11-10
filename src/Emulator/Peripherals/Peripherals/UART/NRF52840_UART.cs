@@ -26,19 +26,28 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);
+            lock(interruptManager)
+            {
+                return registers.Read(offset);
+            }
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            registers.Write(offset, value);
+            lock(interruptManager)
+            {
+                registers.Write(offset, value);
+            }
         }
 
         public override void Reset()
         {
             base.Reset();
-            interruptManager.Reset();
-            registers.Reset();
+            lock(interruptManager)
+            {
+                interruptManager.Reset();
+                registers.Reset();
+            }
 
             currentRxPointer = 0;
             rxStarted = false;
@@ -79,31 +88,34 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            if(interruptManager.IsSet(Interrupts.EndReceive))
+            lock(interruptManager)
             {
-                // The receiver stopped, but there might still be characters in the buffer.
-                // This occurs when we paste text to terminal - UART is assumed to be slower
-                // than ISR. That's why we silently wait for the StartRx event.
-                return;
-            }
+                if(interruptManager.IsSet(Interrupts.EndReceive))
+                {
+                    // The receiver stopped, but there might still be characters in the buffer.
+                    // This occurs when we paste text to terminal - UART is assumed to be slower
+                    // than ISR. That's why we silently wait for the StartRx event.
+                    return;
+                }
 
-            if(easyDMA)
-            {
-                // do DMA transfer
-                if(!TryGetCharacter(out var character))
+                if(easyDMA)
                 {
-                    this.Log(LogLevel.Warning, "Trying to do a DMA transfer from an empty Rx FIFO.");
+                    // do DMA transfer
+                    if(!TryGetCharacter(out var character))
+                    {
+                        this.Log(LogLevel.Warning, "Trying to do a DMA transfer from an empty Rx FIFO.");
+                    }
+                    this.Log(LogLevel.Noisy, "Transfering 0x{0:X} to 0x{1:X}", character, currentRxPointer);
+                    this.Machine.SystemBus.WriteByte(currentRxPointer, character);
+                    rxAmount.Value++;
+                    currentRxPointer++;
+                    if(rxAmount.Value == rxMaximumCount.Value)
+                    {
+                        interruptManager.SetInterrupt(Interrupts.EndReceive);
+                    }
                 }
-                this.Log(LogLevel.Noisy, "Transfering 0x{0:X} to 0x{1:X}", character, currentRxPointer);
-                this.Machine.SystemBus.WriteByte(currentRxPointer, character);
-                rxAmount.Value++;
-                currentRxPointer++;
-                if(rxAmount.Value == rxMaximumCount.Value)
-                {
-                    interruptManager.SetInterrupt(Interrupts.EndReceive);
-                }
+                interruptManager.SetInterrupt(Interrupts.ReceiveReady);
             }
-            interruptManager.SetInterrupt(Interrupts.ReceiveReady);
         }
 
         protected override void QueueEmptied()
