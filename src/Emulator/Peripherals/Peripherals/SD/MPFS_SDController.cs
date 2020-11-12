@@ -353,6 +353,12 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SDCardCommand.ReadMultipleBlocks:
                     ReadCard(sdCard, blockCountField.Value * blockSizeField.Value);
                     break;
+                case SDCardCommand.WriteSingleBlock:
+                    WriteCard(sdCard, blockSizeField.Value);
+                    break;
+                case SDCardCommand.WriteMultipleBlocks:
+                    WriteCard(sdCard, blockCountField.Value * blockSizeField.Value);
+                    break;
             }
         }
 
@@ -507,7 +513,9 @@ namespace Antmicro.Renode.Peripherals.SD
             CheckSwitchableFunction = 6,
             SendInterfaceConditionCommand = 8,
             ReadSingleBlock = 17,
-            ReadMultipleBlocks = 18
+            ReadMultipleBlocks = 18,
+            WriteSingleBlock = 24,
+            WriteMultipleBlocks = 25,
         }
     }
 }
