@@ -370,13 +370,15 @@ namespace Antmicro.Renode.Peripherals.SD
             if(isDmaEnabled.Value)
             {
                 Machine.SystemBus.WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
-                irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+                Machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
+                {
+                    irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+                });
             }
             else
             {
                 internalBuffer.EnqueueRange(data);
             }
-            irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
         }
 
         private void WriteBuffer(SDCard sdCard, byte[] data)
