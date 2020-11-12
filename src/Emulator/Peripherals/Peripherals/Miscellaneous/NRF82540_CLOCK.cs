@@ -39,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             base.Reset();
             lfclkStarted = false;
+            hfclkStarted = false;
             Update();
         }
 
@@ -48,15 +49,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void Update()
         {
-            IRQ.Set(lfclkEventGenerated.Value && lfclkStartedEventEnabled.Value);
+            IRQ.Set((lfclkEventGenerated.Value && lfclkStartedEventEnabled.Value)
+                    || (hfclkEventGenerated.Value && hfclkStartedEventEnabled.Value));
         }
 
         private void DefineRegisters()
         {
+            Registers.HFXOCrystalOscillatorStarted.Define(this)
+                .WithFlag(0, out hfclkEventGenerated, name: "EVENTS_HFCLKSTARTED")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => Update());
+
             Registers.LFCLKStarted.Define(this)
                 .WithFlag(0, out lfclkEventGenerated, name: "EVENTS_LFCLKSTARTED")
                 .WithReservedBits(1, 31)
                 .WithWriteCallback((_, __) => Update());
+
+            Registers.StartHFXO.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                        hfclkStarted = true;
+                        hfclkEventGenerated.Value = true;
+                        Update();
+                }, name: "TASK_HFCLKSTART")
+                .WithReservedBits(1, 31);
 
             Registers.StartLFCLK.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
@@ -68,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 31);
 
             Registers.EnableInterrupt.Define(this)
-                .WithTaggedFlag("HFCLKSTARTED", 0)
+                .WithFlag(0, out hfclkStartedEventEnabled, name: "HFCLKSTARTED")
                 .WithFlag(1, out lfclkStartedEventEnabled, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
                 .WithTaggedFlag("DONE", 3)
@@ -80,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => Update());
 
             Registers.DisableInterrupt.Define(this)
-                .WithTaggedFlag("HFCLKSTARTED", 0)
+                .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, changeCallback: (_, value) => hfclkStartedEventEnabled.Value = !value, valueProviderCallback: _ => hfclkStartedEventEnabled.Value, name: "HFCLKSTARTED")
                 .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, changeCallback: (_, value) => lfclkStartedEventEnabled.Value = !value, valueProviderCallback: _ => lfclkStartedEventEnabled.Value, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
                 .WithTaggedFlag("DONE", 3)
@@ -98,6 +114,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(17, name: "EXTERNAL")
                 .WithReservedBits(18, 14);
 
+            Registers.HFCLKStatus.Define(this)
+                // true in the first bit indicates that hfclk is started. Not sure if it's possible to return true in STATE and false in SRC
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => hfclkStarted, name: "SRC")
+                .WithReservedBits(1, 15)
+                .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => hfclkStarted, name: "STATE")
+                .WithReservedBits(17, 15);
+
             Registers.LFCLKStatus.Define(this)
                 .WithValueField(0, 2, FieldMode.Read, valueProviderCallback: _ => lfclkSource.Value, name: "SRC")
                 .WithReservedBits(2, 14)
@@ -106,8 +129,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private bool lfclkStarted;
+        private bool hfclkStarted;
         private IFlagRegisterField lfclkStartedEventEnabled;
         private IFlagRegisterField lfclkEventGenerated;
+        private IFlagRegisterField hfclkStartedEventEnabled;
+        private IFlagRegisterField hfclkEventGenerated;
 
         private enum Registers
         {
