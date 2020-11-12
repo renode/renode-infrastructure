@@ -391,6 +391,29 @@ namespace Antmicro.Renode.Peripherals.SD
             irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
         }
 
+        private void WriteCard(SDCard sdCard, uint size)
+        {
+            var bytes = new byte[size];
+            if(isDmaEnabled.Value)
+            {
+                bytes = Machine.SystemBus.ReadBytes(((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value, (int)size);
+            }
+            else
+            {
+                if(internalBuffer.Count < size)
+                {
+                    this.Log(LogLevel.Warning, "Could not write {0} bytes to SD card, writing {1} bytes instead.", size, internalBuffer.Count);
+                    size = (uint)internalBuffer.Count;
+                }
+                bytes = internalBuffer.DequeueRange((int)size);
+            }
+            sdCard.WriteData(bytes);
+            Machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
+            {
+                irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+            });
+        }
+
         private uint ReadBuffer()
         {
             var internalBytes = internalBuffer.DequeueRange(4);
