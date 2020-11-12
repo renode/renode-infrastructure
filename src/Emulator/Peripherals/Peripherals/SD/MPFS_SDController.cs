@@ -355,16 +355,16 @@ namespace Antmicro.Renode.Peripherals.SD
                     irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
                     break;
                 case SDCardCommand.ReadSingleBlock:
-                    ProcessData(sdCard, blockSizeField.Value);
+                    ReadCard(sdCard, blockSizeField.Value);
                     break;
                 case SDCardCommand.ReadMultipleBlocks:
-                    ProcessData(sdCard, blockCountField.Value * blockSizeField.Value);
+                    ReadCard(sdCard, blockCountField.Value * blockSizeField.Value);
                     break;
             }
             irqManager.SetInterrupt(Interrupts.CommandComplete, irqManager.IsEnabled(Interrupts.CommandComplete));
         }
 
-        private void ProcessData(SDCard sdCard, uint size)
+        private void ReadCard(SDCard sdCard, uint size)
         {
             var data = sdCard.ReadData(size);
             if(isDmaEnabled.Value)
