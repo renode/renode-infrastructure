@@ -279,7 +279,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to write data in DMA mode to register that does not support it");
                         return;
                     }
-                    WriteToBuffer(sdCard, BitConverter.GetBytes(value));
+                    WriteBuffer(sdCard, BitConverter.GetBytes(value));
                 })
             ;
 
@@ -379,7 +379,7 @@ namespace Antmicro.Renode.Peripherals.SD
             irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
         }
 
-        private void WriteToBuffer(SDCard sdCard, byte[] data)
+        private void WriteBuffer(SDCard sdCard, byte[] data)
         {
             var limit = blockCountField.Value * blockSizeField.Value;
             internalBuffer.EnqueueRange(data);
