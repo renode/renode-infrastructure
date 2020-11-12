@@ -390,16 +390,16 @@ namespace Antmicro.Renode.Peripherals.SD
             irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
         }
 
-        private IValueRegisterField blockSizeField;
-        private IValueRegisterField blockCountField;
         private IFlagRegisterField ackField;
         private IFlagRegisterField isDmaEnabled;
+        private IValueRegisterField blockSizeField;
+        private IValueRegisterField blockCountField;
         private IValueRegisterField addressField;
-        private IValueRegisterField writeDataField;
-        private IEnumRegisterField<SDCardCommand> commandIndex;
         private IValueRegisterField readDataField;
+        private IValueRegisterField writeDataField;
         private IValueRegisterField dmaSystemAddressLow;
         private IValueRegisterField dmaSystemAddressHigh;
+        private IEnumRegisterField<SDCardCommand> commandIndex;
         private IEnumRegisterField<ResponseType> responseTypeSelectField;
 
         private IPhysicalLayer<byte> phy;
