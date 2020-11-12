@@ -339,11 +339,6 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private void ProcessCommand(SDCard sdCard, SDCardCommand command)
         {
-            if(internalBuffer.Any())
-            {
-                this.Log(LogLevel.Debug, "Clearing a non-empty buffer while processing command: {0}", command);
-                internalBuffer.Clear();
-            }
             switch(command)
             {
                 case SDCardCommand.CheckSwitchableFunction:
