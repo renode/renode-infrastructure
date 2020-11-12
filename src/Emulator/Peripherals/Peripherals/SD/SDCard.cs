@@ -514,6 +514,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.WriteSingleBlock_CMD24:
+                case SdCardCommand.WriteMultipleBlocks_CMD25:
                     if(spiMode)
                     {
                         this.Log(LogLevel.Warning, "Writing is currently not supported in the SPI mode by this model");
@@ -664,6 +665,7 @@ namespace Antmicro.Renode.Peripherals.SD
             ReadMultipleBlocks_CMD18 = 18,
             SetBlockCount_CMD23 = 23,
             WriteSingleBlock_CMD24 = 24,
+            WriteMultipleBlocks_CMD25 = 25,
             AppCommand_CMD55 = 55,
             ReadOperationConditionRegister_CMD58 = 58
         }
