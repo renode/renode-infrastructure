@@ -223,7 +223,12 @@ namespace Antmicro.Renode.Peripherals.SD
                             this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseTypeSelectField.Value);
                             return;
                     }
+
                     ProcessCommand(sdCard, commandIndex.Value);
+
+                    irqManager.SetInterrupt(Interrupts.BufferWriteReady, irqManager.IsEnabled(Interrupts.BufferWriteReady));
+                    irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
+                    irqManager.SetInterrupt(Interrupts.CommandComplete, irqManager.IsEnabled(Interrupts.CommandComplete));
                 })
             ;
 
