@@ -257,14 +257,11 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to read data in DMA mode from register that does not support it");
                         return 0;
                     }
-                    var bytes = internalBuffer.DequeueRange(4);
-                    if(!bytes.Any())
+                    if(!internalBuffer.Any())
                     {
-                        irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
                         return 0;
                     }
-                    irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
-                    return bytes.ToUInt32Smart();
+                    return ReadBuffer();
                 },
                 writeCallback: (_, value) =>
                 {
