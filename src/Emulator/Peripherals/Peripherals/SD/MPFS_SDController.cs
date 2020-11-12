@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.SD
             RegistersCollection.Reset();
             irqManager.Reset();
             internalBuffer.Clear();
+            bytesRead = 0;
         }
 
         public void Dispose()
@@ -390,6 +391,21 @@ namespace Antmicro.Renode.Peripherals.SD
             irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
         }
 
+        private uint ReadBuffer()
+        {
+            var internalBytes = internalBuffer.DequeueRange(4);
+            bytesRead += (uint)internalBytes.Length;
+            irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
+            if(bytesRead == (blockCountField.Value * blockSizeField.Value)|| !internalBuffer.Any())
+            {
+                irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+                bytesRead = 0;
+                // If we have read the exact amount of data we wanted, we can clear the buffer from any leftovers.
+                internalBuffer.Clear();
+            }
+            return internalBytes.ToUInt32Smart();
+        }
+
         private IFlagRegisterField ackField;
         private IFlagRegisterField isDmaEnabled;
         private IValueRegisterField blockSizeField;
@@ -402,6 +418,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IEnumRegisterField<SDCardCommand> commandIndex;
         private IEnumRegisterField<ResponseType> responseTypeSelectField;
 
+        private uint bytesRead;
         private IPhysicalLayer<byte> phy;
         private Queue<byte> internalBuffer;
 
