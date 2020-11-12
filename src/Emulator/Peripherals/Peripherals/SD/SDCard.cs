@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(21, 1, 1, name: "VDD voltage window 3.3 - 3.4")
                 .DefineFragment(22, 1, 1, name: "VDD voltage window 3.4 - 3.5")
                 .DefineFragment(23, 1, 1, name: "VDD voltage window 3.5 - 3.6")
-                .DefineFragment(30, 1, () => highCapacityMode ? 1 : 0u, name: "Card Capacity Status")
+                .DefineFragment(30, 1, () => this.highCapacityMode ? 1 : 0u, name: "Card Capacity Status")
                 .DefineFragment(31, 1, 1, name: "Card power up status bit (busy)")
             ;
 
