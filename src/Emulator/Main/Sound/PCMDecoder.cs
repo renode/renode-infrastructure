@@ -81,6 +81,11 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
         }
 
+        public uint GetSingleSample()
+        {
+            return samples.TryDequeue(out var sample) ? sample : 0u;
+        }
+
         public IEnumerable<uint> GetSamplesByCount(uint samplesCountPerChannel)
         {
             lock(samples)
