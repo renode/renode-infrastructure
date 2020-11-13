@@ -363,7 +363,7 @@ namespace Antmicro.Renode.UserInterface
                     string fileName;
                     if(TryGetFilenameFromAvailablePaths(pathToken.Value, out fileName))
                     {
-                        resultToken = new PathToken(fileName);
+                        resultToken = new PathToken("@" + fileName);
                     }
                     else
                     {
