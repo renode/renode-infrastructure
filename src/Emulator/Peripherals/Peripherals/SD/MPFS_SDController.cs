@@ -17,9 +17,6 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
-    // Features NOT supported:
-    // * interrupts (including: masking)
-    // * CMD8 (from spec 2.0)
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class MPFS_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
     {
