@@ -23,6 +23,8 @@ using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Testing
 {
@@ -445,7 +447,11 @@ namespace Antmicro.Renode.Testing
         private SGRDecodingState sgrDecodingState;
         private string generatedReport;
 
-        private readonly AutoResetEvent charEvent;
+        // Similarly how it is handled for FrameBufferTester is shouldn't matter if we unset the charEvent during deserialization 
+        // as we check for char match on load in `WaitForMatch` either way
+        // Additionally in `IsIdle` the timeout would long since expire so it doesn't matter there either.
+        [Constructor(false)]
+        private AutoResetEvent charEvent;
         private readonly SafeStringBuilder currentLineBuffer;
         private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
