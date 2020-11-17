@@ -56,6 +56,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             registers = new ByteRegisterCollection(this, registersMap);
         }
 
+        public void FinishTransmission()
+        {
+        }
+
         public byte[] Read(int count = 1)
         {
             // we do not use `count` due to block read operations

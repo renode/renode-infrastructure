@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -33,6 +33,10 @@ namespace Antmicro.Renode.Peripherals.Input
             this.DebugLog("Read returning {0}.", returnValue.Select(x => x.ToString()).Stringify());
             readItAlready = true;
             return returnValue;
+        }
+
+        public void FinishTransmission()
+        {
         }
 
         public void Reset()

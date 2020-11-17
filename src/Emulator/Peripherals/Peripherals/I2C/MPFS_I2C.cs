@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -40,6 +40,10 @@ namespace Antmicro.Renode.Peripherals.I2C
             RegistersCollection.Reset();
             // setting current state will update interrupts
             CurrentState = State.Idle;
+        }
+
+        public void FinishTransmission()
+        {
         }
 
         public byte ReadByte(long offset)

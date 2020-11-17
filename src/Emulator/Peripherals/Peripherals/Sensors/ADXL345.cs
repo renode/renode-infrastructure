@@ -47,6 +47,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        public void FinishTransmission()
+        {
+        }
+
         public void Write(byte[] data)
         {
             if(data.Length == 0)
