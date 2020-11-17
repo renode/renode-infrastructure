@@ -32,6 +32,12 @@ namespace Antmicro.Renode.UI
         {
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => CrashHandler.HandleCrash((Exception)e.ExceptionObject);
 
+            if(options.Version)
+            {
+                Console.Out.WriteLine(EmulationManager.Instance.VersionString);
+                return;
+            }
+
             if(!options.HideLog)
             {
                 Logger.AddBackend(ConsoleBackend.Instance, "console");

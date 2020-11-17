@@ -43,6 +43,9 @@ namespace Antmicro.Renode.UI
         [Name("robot-debug-on-error"), DefaultValue(false), Description("Initialize GUI for Robot tests debugging")]
         public bool RobotDebug { get; set; }
 
+        [Name('v', "version"), DefaultValue(false), Description("Print version and exit.")]
+        public bool Version { get; set; }
+
         public bool Validate(out string error)
         {
             if(DisableXwt)
