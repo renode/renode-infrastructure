@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 case Registers.Memory1Address:
                     return memory1Address;
                 default:
-                    parent.Log(LogLevel.Warning, "Unexpected read access to not implemented register (offset 0x{0:X}, value 0x{1:X}).", offset);
+                    parent.Log(LogLevel.Warning, "Unexpected read access from not implemented register (offset 0x{0:X}).", offset);
                     return 0;
                 }
             }
