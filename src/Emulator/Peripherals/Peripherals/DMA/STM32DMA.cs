@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(offset >= StreamOffsetStart && offset <= StreamOffsetEnd)
                 {
                     offset -= StreamOffsetStart;
-                    return streams[offset / 0x14].Read(offset % 0x14);
+                    return streams[offset / StreamSize].Read(offset % StreamSize);
                 }
                 this.LogUnhandledRead(offset);
                 return 0;
@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(offset >= StreamOffsetStart && offset <= StreamOffsetEnd)
                 {
                     offset -= StreamOffsetStart;
-                    streams[offset / 0x18].Write(offset % 0x18, value);
+                    streams[offset / StreamSize].Write(offset % StreamSize, value);
                 }
                 else
                 {
@@ -145,6 +145,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private const int NumberOfStreams = 8;
         private const int StreamOffsetStart = 0x10;
         private const int StreamOffsetEnd = 0xCC;
+        private const int StreamSize = 0x18;
 
         private enum Registers
         {
