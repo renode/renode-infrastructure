@@ -293,6 +293,11 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public static byte GetValue(byte reg, int offset, int size)
+        {
+            return (byte)(((uint)reg >> offset) & ((0x1ul << size) - 1));
+        }
+
         public static uint GetValue(uint reg, int offset, int size)
         {
             return (uint)((reg >> offset) & ((0x1ul << size) - 1));
