@@ -348,6 +348,8 @@
     <Compile Include="Peripherals\Sensors\LSM330_Accelerometer.cs" />
     <Compile Include="Peripherals\Sensors\LSM330_Gyroscope.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_Timer.cs" />
+    <Compile Include="Peripherals\Sensors\ArduCAMMini2MPPlus.cs" />
+    <Compile Include="Peripherals\Sensors\OV2640.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
