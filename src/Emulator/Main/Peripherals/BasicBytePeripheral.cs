@@ -79,12 +79,17 @@ namespace Antmicro.Renode.Peripherals
         // this method should be visible for enums only, but... it's not possible in C#
         public static ByteRegister Define(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
         {
+            return Define(o, p.RegistersCollection, resetValue, name);
+        }
+
+        public static ByteRegister Define(this IConvertible o, ByteRegisterCollection c, byte resetValue = 0, string name = "")
+        {
             if(!o.GetType().IsEnum)
             {
                 throw new ArgumentException("This method should be called on enumerated type");
             }
 
-            return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue);
+            return c.DefineRegister(Convert.ToInt64(o), resetValue);
         }
 
         public static ByteRegister Bind(this IConvertible o, IProvidesRegisterCollection<ByteRegisterCollection> p, ByteRegister reg, string name = "")
