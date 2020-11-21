@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             commands.RegisterCommand(MeasureHumidity, 0xE5);
             commands.RegisterCommand(MeasureHumidity, 0xF5);
+            commands.RegisterCommand(MeasureTemperature, 0xE0);
             commands.RegisterCommand(MeasureTemperature, 0xE3);
             commands.RegisterCommand(MeasureTemperature, 0xF3);
             commands.RegisterCommand(ReadElectronicId1stByte, 0xFA, 0xF);
