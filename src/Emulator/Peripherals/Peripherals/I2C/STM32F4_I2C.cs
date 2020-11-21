@@ -207,7 +207,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                         state = State.AwaitingData;
                         dataToTransfer = new List<byte>();
 
-                        startBit.Value = false;
                         addressSentOrMatched.Value = true;
                     }
                 }
