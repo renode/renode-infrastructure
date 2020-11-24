@@ -494,6 +494,9 @@
     <Compile Include="Logging\Profiler\ProfilerEntry.cs" />
     <Compile Include="Logging\Profiler\Profiler.cs" />
     <Compile Include="Logging\Profiler\ProfilerHeader.cs" />
+    <Compile Include="Peripherals\Sensor\SensorSample.cs" />
+    <Compile Include="Peripherals\Sensor\SensorScalarSample.cs" />
+    <Compile Include="Peripherals\Sensor\SensorVector3DSample.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
