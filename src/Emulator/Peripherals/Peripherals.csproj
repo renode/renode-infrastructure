@@ -344,6 +344,9 @@
     <Compile Include="Peripherals\I2C\NRF52840_I2C.cs" />
     <Compile Include="Peripherals\Sensors\LSM9DS1_IMU.cs" />
     <Compile Include="Peripherals\Sensors\LSM9DS1_Magnetic.cs" />
+    <Compile Include="Peripherals\Sensors\ST_I2CSensorBase.cs" />
+    <Compile Include="Peripherals\Sensors\LSM330_Accelerometer.cs" />
+    <Compile Include="Peripherals\Sensors\LSM330_Gyroscope.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
