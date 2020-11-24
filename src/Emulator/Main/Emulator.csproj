@@ -497,6 +497,7 @@
     <Compile Include="Peripherals\Sensor\SensorSample.cs" />
     <Compile Include="Peripherals\Sensor\SensorScalarSample.cs" />
     <Compile Include="Peripherals\Sensor\SensorVector3DSample.cs" />
+    <Compile Include="Peripherals\Sensor\SensorSamplesFifo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
