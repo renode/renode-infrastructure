@@ -380,9 +380,18 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             for(var i = 0; i < interfaceDescriptors.Length; i++)
             {
                 interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
-                // skip next interface descriptor with associated endpoint descriptors (each of size 7)
-                currentOffset += Packet.CalculateLength<USBIP.InterfaceDescriptor>()
-                    + interfaceDescriptors[i].NumberOfEndpoints * 7;
+                if(i != interfaceDescriptors.Length - 1)
+                {
+                    // skip until the next interface descriptor
+                    currentOffset += Packet.CalculateLength<USB.InterfaceDescriptor>();
+
+                    // the second byte of each descriptor contains the type
+                    while(recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
+                    {
+                        // the first byte of each descriptor contains the length in bytes
+                        currentOffset += recursiveBytes[currentOffset];
+                    }
+                }
             }
 
             return result;
