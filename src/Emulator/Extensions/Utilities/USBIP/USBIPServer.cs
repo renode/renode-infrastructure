@@ -210,14 +210,18 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     {
                         this.Log(LogLevel.Debug, "Received URB request: {0}", packet.ToString());
 
-                        if(urbHeader.Direction == URBDirection.Out)
+                        if(urbHeader.Direction == URBDirection.Out && packet.TransferBufferLength > 0)
                         {
-                            if(packet.TransferBufferLength > 0)
-                            {
-                                additionalDataCount = (int)packet.TransferBufferLength;
-                                this.Log(LogLevel.Debug, "Packet comes with {0} bytes of additional data. Waiting for it", additionalDataCount);
-                                break;
-                            }
+                            additionalDataCount = (int)packet.TransferBufferLength;
+                            this.Log(LogLevel.Debug, "Packet comes with {0} bytes of additional data. Waiting for it", additionalDataCount);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        if(urbHeader.Direction == URBDirection.Out && packet.TransferBufferLength > 0)
+                        {
+                            this.Log(LogLevel.Debug, "Collected {0} bytes of additional data - moving forward", additionalDataCount);
                         }
                     }
 
