@@ -143,6 +143,11 @@ namespace Antmicro.Renode.Core.USB
             return result.ToArray();
         }
 
+        public override string ToString()
+        {
+            return $"[EP: id={Identifier}, dir={Direction}, type={TransferType}, mps={MaximumPacketSize}, int={Interval}]";
+        }
+
         public byte Identifier { get; }
         public Direction Direction { get; }
         public EndpointTransferType TransferType { get; }
