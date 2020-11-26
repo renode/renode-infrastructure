@@ -87,7 +87,11 @@ namespace Antmicro.Renode.Core.USB
 
             foreach(var iface in SelectedConfiguration.Interfaces)
             {
-                return iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
+                var ep = iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
+                if(ep != null)
+                {
+                   return ep;
+                }
             }
 
             return null;
