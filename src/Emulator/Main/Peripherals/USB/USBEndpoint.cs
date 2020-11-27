@@ -105,7 +105,15 @@ namespace Antmicro.Renode.Core.USB
                 }
                 else
                 {
-                    dataCallback = callback;
+                    if(NonBlocking)
+                    {
+                        device.Log(LogLevel.Noisy, "No data to read in non-blocking mode - returning an empty buffer");
+                        callback(this, new byte[0]);
+                    }
+                    else
+                    {
+                        dataCallback = callback;
+                    }
                 }
             }
         }
@@ -153,6 +161,8 @@ namespace Antmicro.Renode.Core.USB
         public EndpointTransferType TransferType { get; }
         public short MaximumPacketSize { get; }
         public byte Interval { get; }
+
+        public bool NonBlocking { get; set; }
 
         protected override void FillDescriptor(BitStream buffer)
         {
