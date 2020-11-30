@@ -56,6 +56,7 @@
     <Compile Include="RiscV\RiscVCpuHooksExtensions.cs" />
     <Compile Include="RiscV\RiscVInstructionPythonEngine.cs" />
     <Compile Include="RiscV\RiscVCsrPythonEngine.cs" />
+    <Compile Include="RiscV\CV32E40P.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
