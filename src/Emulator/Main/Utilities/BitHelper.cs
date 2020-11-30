@@ -361,6 +361,15 @@ namespace Antmicro.Renode.Utilities
             return (ushort)ToUInt32(data, index, 2, reverse);
         }
 
+        public static uint SignExtend(uint value, int size)
+        {
+            if(value >= (1 << size - 1))
+            {
+                return 0xFFFFFFFF << size | value;
+            }
+            return value;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
