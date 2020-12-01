@@ -80,6 +80,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             switch((Registers)offset)
             {
+            case Registers.SysTickCalibrationValue:
+                // bits [0, 23] TENMS
+                // Note that some reference manuals state that this value is for 1ms interval and not for 10ms
+                return 0xFFFFFF & (uint)(systick.Frequency / 100);
             case Registers.VectorTableOffset:
                 return cpu.VectorTableOffset;
             case Registers.CPUID:
@@ -595,6 +599,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SysTickControl = 0x10,
             SysTickReloadValue = 0x14,
             SysTickValue = 0x18,
+            SysTickCalibrationValue = 0x1C,
             CPUID = 0xD00,
             InterruptControlState = 0xD04,
             VectorTableOffset = 0xD08,
