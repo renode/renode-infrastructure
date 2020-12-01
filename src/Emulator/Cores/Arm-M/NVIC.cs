@@ -78,6 +78,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return HandleSetEnableRead(offset - SetEnableStart);
             }
+            if(offset >= ClearEnableStart && offset < ClearEnableEnd)
+            {
+                int ofs = (int)(offset - ClearEnableStart);
+                return GetInterruptEnableOrDisableState(ofs);
+            }
             switch((Registers)offset)
             {
             case Registers.VectorTableOffset:
@@ -410,6 +415,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var returnValue = (uint)VectKeyStat << 16;
             returnValue |= ((uint)binaryPointPosition << 8);
             return returnValue;
+        }
+
+        private uint GetInterruptEnableOrDisableState(int offset) {
+            lock(irqs)
+            {
+                var returnValue = 0u;
+                var firstIRQNo = 8 * offset + 16;  // 16 is added because this is HW interrupt
+                {
+                    var lastIRQNo = firstIRQNo + 31;
+                    var mask = 1u;
+                    for(var i = firstIRQNo; i <= lastIRQNo; i++)
+                    {
+                        if (irqs[i] != 0)
+                        {
+                          returnValue |= mask;
+                        }
+                        mask <<= 1;
+                    }
+                }
+                this.DebugLog("GetInterruptEnableOrDisableState firstIRQNo {0}, current value {1}", firstIRQNo, returnValue);
+                return returnValue;
+            }
         }
 
         private void EnableOrDisableInterrupt(int offset, uint value, bool enable)
