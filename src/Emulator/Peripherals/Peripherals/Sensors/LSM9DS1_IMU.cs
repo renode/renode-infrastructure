@@ -440,7 +440,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             // temperature read is 0 for 25C
             // the sensivity is 16 per 1C
             var scaled = (short)((temperatureFifo.Sample.Value - 25) * 16);
-            return !upperByte
+            return upperByte
                 ? (byte)(scaled >> 8)
                 : (byte)scaled;
         }
@@ -448,7 +448,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private byte GetScaledValue(decimal value, short sensitivity, bool upperByte)
         {
             var scaled = (short)(value * sensitivity);
-            return !upperByte
+            return upperByte
                 ? (byte)(scaled >> 8)
                 : (byte)scaled;
         }

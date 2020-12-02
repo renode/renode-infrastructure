@@ -229,7 +229,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private byte GetScaledValue(decimal value, short sensitivity, bool upperByte)
         {
             var scaled = (short)(value * sensitivity);
-            return !upperByte
+            return upperByte
                 ? (byte)(scaled >> 8)
                 : (byte)scaled;
         }
