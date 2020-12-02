@@ -90,13 +90,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(1, 31)
                 },
                 {(long)Register.Clear, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Write, name: "TASKS_CLR", writeCallback: (_, value) =>
+                    .WithFlag(0, FieldMode.Write, name: "TASKS_CLEAR", writeCallback: (_, value) =>
                     {
                         if(value)
                         {
                             foreach(var timer in innerTimers)
                             {
-                                timer.Reset();
+                                timer.ClearCounterValue();
                             }
                         }
                     })
