@@ -36,7 +36,6 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             selectedSlave = null;
             enabled = false;
-            transmissionInProgress = false;
 
             RegistersCollection.Reset();
             UpdateInterrupts();
@@ -68,12 +67,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         return;
                     }
 
-                    transmissionInProgress = true;
-                    // send what is buffered as this might be a repeated start condition
                     TrySendDataToSlave();
-                    // prepare to receive data from slave
-                    slaveToMasterBuffer.Clear();
-                    // try read the response
                     TryFillReceivedBuffer(true);
                 })
                 .WithReservedBits(1, 31)
@@ -87,12 +81,8 @@ namespace Antmicro.Renode.Peripherals.I2C
                         return;
                     }
 
-                    transmissionInProgress = true;
-                    // send what is buffered as this might be a repeated start condition
-                    TrySendDataToSlave();
-                    // prepare to receive data from slave
+                    masterToSlaveBuffer.Clear();
                     slaveToMasterBuffer.Clear();
-                    // wait for writing bytes to TransferBuffer...
                 })
                 .WithReservedBits(1, 31)
             ;
@@ -114,11 +104,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(0, FieldMode.Write, name: "TASKS_RESUME", writeCallback: (_, val) =>
                 {
                     if(!val)
-                    {
-                        return;
-                    }
-
-                    if(!transmissionInProgress)
                     {
                         return;
                     }
@@ -336,14 +321,8 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void StopTransmission()
         {
-            transmissionInProgress = false;
-
-            // send out buffered data to slave;
-            // in reality there is no fifo - each
-            // byte is sent right away, but our
-            // I2C interface in Renode works a bit
-            // different
             TrySendDataToSlave();
+            slaveToMasterBuffer.Clear();
 
             selectedSlave.FinishTransmission();
 
@@ -368,7 +347,6 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private II2CPeripheral selectedSlave;
         private bool enabled;
-        private bool transmissionInProgress;
 
         private IValueRegisterField address;
         private IFlagRegisterField txInterruptPending;
