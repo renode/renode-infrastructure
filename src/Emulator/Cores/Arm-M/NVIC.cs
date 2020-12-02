@@ -78,6 +78,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return HandleSetEnableRead(offset - SetEnableStart);
             }
+            if(offset >= SetPendingStart && offset < SetPendingEnd)
+            {
+                return GetPending((int)(offset - SetPendingStart));
+            }
+            if(offset >= ClearPendingStart && offset < ClearPendingEnd)
+            {
+                return GetPending((int)(offset - ClearPendingStart));
+            }
             if(offset >= ClearEnableStart && offset < ClearEnableEnd)
             {
                 int ofs = (int)(offset - ClearEnableStart);
@@ -85,6 +93,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             switch((Registers)offset)
             {
+            case Registers.SysTickCalibrationValue:
+                // bits [0, 23] TENMS
+                // Note that some reference manuals state that this value is for 1ms interval and not for 10ms
+                return 0xFFFFFF & (uint)(systick.Frequency / 100);
             case Registers.VectorTableOffset:
                 return cpu.VectorTableOffset;
             case Registers.CPUID:
@@ -125,6 +137,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return (1 << 19) /* NOCP */;
             case Registers.MPUType:
                 return 0x800; // 8 MPU regions
+            case Registers.InterruptControllerType:
+                return 0b0111;
             default:
                 this.LogUnhandledRead(offset);
                 return 0;
@@ -505,8 +519,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             }
                             else
                             {
-                                this.DebugLog("Cleared pending IRQ {0}.", i);
-                                irqs[i] &= ~IRQState.Running;
+                                if((irqs[i] & IRQState.Running) == 0)
+                                {
+                                    this.DebugLog("Cleared pending IRQ {0}.", i);
+                                    irqs[i] &= ~IRQState.Pending;
+                                }
+                                else
+                                {
+                                    this.DebugLog("Not clearing pending IRQ {0} as it is currently running.", i);
+                                }
                             }
                         }
                         mask <<= 1;
@@ -535,7 +556,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 if(preemptNeeded)
                 {
-                    var activePriority = preemptNeeded ? (int)priorities[activeIRQs.Peek()] : 0;
+                    var activePriority = (int)priorities[activeIRQs.Peek()];
                     if(!DoesAPreemptB(bestPriority, activePriority))
                     {
                         result = SpuriousInterrupt;
@@ -577,6 +598,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (priorityA & binaryPointMask) < (priorityB & binaryPointMask);
         }
 
+        private uint GetPending(int offset)
+        {
+            return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Pending) != 0));
+        }
+
         [PostDeserialization]
         private void Init()
         {
@@ -616,9 +642,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private enum Registers
         {
+            InterruptControllerType = 0x4,
             SysTickControl = 0x10,
             SysTickReloadValue = 0x14,
             SysTickValue = 0x18,
+            SysTickCalibrationValue = 0x1C,
             CPUID = 0xD00,
             InterruptControlState = 0xD04,
             VectorTableOffset = 0xD08,
