@@ -89,6 +89,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                     .WithReservedBits(1, 31)
                 },
+                {(long)Register.Clear, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Write, name: "TASKS_CLEAR", writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            foreach(var timer in innerTimers)
+                            {
+                                timer.Value = 0;
+                            }
+                        }
+                    })
+                    .WithReservedBits(1, 31)
+                },
                 {(long)Register.Compare0EventPending, new DoubleWordRegister(this)
                     .WithFlag(0, out eventCompareEnabled[0], name: "EVENTS_COMPARE[0]", writeCallback: (_,__) =>
                     {
@@ -244,6 +257,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             Start = 0x000,
             Stop = 0x004,
+            Clear = 0x008,
             Compare0EventPending = 0x140,
             Compare1EventPending = 0x144,
             Compare2EventPending = 0x148,
