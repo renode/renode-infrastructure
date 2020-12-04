@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             foreach(var timer in innerTimers)
                             {
-                                timer.ClearCounterValue();
+                                timer.Value = 0
                             }
                         }
                     })

@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1)
-            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider)
+            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider) 
         {
         }
 
@@ -141,11 +141,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         public virtual void Reset()
         {
             InternalReset();
-        }
-
-        public virtual void ClearCounterValue()
-        {
-            valueAccumulatedSoFar = 0;
         }
 
         public event Action CompareReached;
