@@ -357,6 +357,7 @@
     <Compile Include="Peripherals\Sensors\LSM303DLHC_Gyroscope.cs" />
     <Compile Include="Peripherals\Timers\PULP_Timer.cs" />
     <Compile Include="Peripherals\UART\PULP_uDMA_UART.cs" />
+    <Compile Include="Peripherals\GPIOPort\PULP_APB_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
