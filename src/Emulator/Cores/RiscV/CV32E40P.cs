@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     break;
                 case Operation.Insert:
                     // rD = rD | (rs1[Is3: 0] << Is2)
-                    result = rDValue | (BitHelper.GetValue(rs1Value, 0, is3) << is2);
+                    result = rDValue | (BitHelper.GetValue(rs1Value, 0, is3 + 1) << is2);
                     break;
                 case Operation.Extract:
                     result = ExtractBits(width, sign, is2, is3, rs1Value);
