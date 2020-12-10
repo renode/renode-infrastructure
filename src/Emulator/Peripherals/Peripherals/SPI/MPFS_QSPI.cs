@@ -47,7 +47,16 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }, valueProviderCallback: _ => totalBytes, name: "TOTALBYTES")
                     .WithValueField(16, 9, out commandBytes, name: "CMDBYTES")
                     .WithTag("QSPI", 25, 1)
-                    .WithTag("IDLE", 26, 4)
+                    .WithValueField(26, 4, writeCallback: (_, value) =>
+                        {
+                            idleCycles = value;
+                            bytesToSkip = value >= 8 ? 1u : 0;
+                            if(value != 0 && value != 8)
+                            {
+                                this.Log(LogLevel.Warning, "Requested {0} idle cycles, but values other than 0 or 8 might not be properly handled.", value);
+                            }
+                            totalBytes += bytesToSkip;
+                        }, valueProviderCallback: _ => idleCycles, name: "IDLE")
                     .WithFlag(30, valueProviderCallback: _ => false,
                         // If set then the FIFO flags are set to byte mode
                         changeCallback: (_, value) => x4Enabled.Value = false, name: "FLAGBYTE")
@@ -169,6 +178,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             registers.Reset();
             bytesSent = 0;
+            idleCycles = 0;
+            bytesToSkip = 0;
             RefreshInterrupt();
             lock(locker)
             {
@@ -332,6 +343,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField rxFifoEmptyInterruptEnabled;
 
         private uint totalBytes;
+        private uint bytesToSkip;
+        private uint idleCycles;
         private int bytesSent;
 
         //Registers are aliased every 256 bytes
