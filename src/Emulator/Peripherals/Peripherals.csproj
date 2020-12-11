@@ -161,7 +161,7 @@
     <Compile Include="Peripherals\USBDeprecated\USBMouse.cs" />
     <Compile Include="Peripherals\USBDeprecated\USBKeyboard.cs" />
     <Compile Include="Peripherals\I2C\EFM32GGI2CController.cs" />
-    <Compile Include="Peripherals\I2C\BMP180.cs" />
+    <Compile Include="Peripherals\Sensors\BMP180.cs" />
     <Compile Include="Peripherals\I2C\BMA180.cs" />
     <Compile Include="Peripherals\I2C\SHT21.cs" />
     <Compile Include="Peripherals\I2C\BMC050.cs" />
