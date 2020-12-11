@@ -112,7 +112,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Check interrupt flags
             uint interruptFlags = efm32ggi2ccontroller.ReadDoubleWord(0x28);
             Assert.AreEqual(interruptFlags, 0x0);
-            // Write slave address byte to transmit buffer 
+            // Write slave address byte to transmit buffer
             uint txData = 0xEE; // Write address for BMP180
             efm32ggi2ccontroller.WriteDoubleWord(0x24, txData);
             // Check that the transmit buffers are not overflowing
@@ -183,7 +183,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Check that the START flag was set
             uint interruptFlags = efm32ggi2ccontroller.ReadDoubleWord(0x28);
             Assert.AreEqual((interruptFlags & 0x1), 0x1);
-            // Write slave address byte to transmit buffer 
+            // Write slave address byte to transmit buffer
             uint txData = 0xEE; // Write address for BMP180
             efm32ggi2ccontroller.WriteDoubleWord(0x24, txData);
             // Check that the transmit buffers are not overflowing
@@ -207,12 +207,12 @@ namespace Antmicro.Renode.PeripheralsTests
             // Wait 5 milliseconds, (> 4.5 is ok - see Datasheet for BMP180)
             Thread.Sleep(5);
 
-            // Start read by specifying OutMSB register 
-            // - this will return MSB and LSB for sequential reads 
+            // Start read by specifying OutMSB register
+            // - this will return MSB and LSB for sequential reads
             // Send restart command
             cmd = 0x1;
             efm32ggi2ccontroller.WriteDoubleWord(0x4, cmd);
-            // Write slave address byte to transmit buffer 
+            // Write slave address byte to transmit buffer
             txData = 0xEE; // Write address for BMP180
             efm32ggi2ccontroller.WriteDoubleWord(0x24, txData);
             // Check that the transmit buffers are not overflowing
@@ -278,7 +278,7 @@ namespace Antmicro.Renode.PeripheralsTests
             efm32ggi2ccontroller.Register(bmc050, new NumberRegistrationPoint<int>(0x18));
             efm32ggi2ccontroller.Register(bmc050, new NumberRegistrationPoint<int>(0x10));
             ////////////////////////////////////////////////////////////
-            // Setup the EFM32GG I2C controller 
+            // Setup the EFM32GG I2C controller
             // Enable I2C controller
             uint ctrl = 0x1;
             efm32ggi2ccontroller.WriteDoubleWord(0x0, ctrl);
@@ -286,7 +286,7 @@ namespace Antmicro.Renode.PeripheralsTests
             uint interruptMask = 0x1FFFF;
             efm32ggi2ccontroller.WriteDoubleWord(0x34, interruptMask);
             ////////////////////////////////////////////////////////////
-            // Write BMC050 accelerometer slave address byte to transmit buffer 
+            // Write BMC050 accelerometer slave address byte to transmit buffer
             // Send start command
             uint cmd = 0x1;
             efm32ggi2ccontroller.WriteDoubleWord(0x4, cmd);
@@ -343,7 +343,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Check that the START flag was set
             interruptFlags = efm32ggi2ccontroller.ReadDoubleWord(0x28);
             Assert.AreEqual((interruptFlags & 0x1), 0x1);
-            // Write BMC050 magnetometer slave address byte to transmit buffer 
+            // Write BMC050 magnetometer slave address byte to transmit buffer
             txData = 0x10; // Write address for BMC050 Magnetometer
             efm32ggi2ccontroller.WriteDoubleWord(0x24, txData);
             // Check that the transmit buffers are not overflowing
