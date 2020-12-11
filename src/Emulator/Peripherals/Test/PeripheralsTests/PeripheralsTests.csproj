@@ -43,7 +43,6 @@
   <ItemGroup>
     <Compile Include="CortexA9GICTests.cs" />
     <Compile Include="EFM32GGI2CControllerTest.cs" />
-    <Compile Include="BMP180Test.cs" />
     <Compile Include="BMA180Test.cs" />
     <Compile Include="SHT21Test.cs" />
     <Compile Include="BMC050Test.cs" />
