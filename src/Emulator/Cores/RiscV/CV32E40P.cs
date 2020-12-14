@@ -59,15 +59,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             InstallCustomInstruction(pattern: "0000010RRRRRSSSSS101DDDDD0110011", handler: opcode => CompareRegisters(opcode, ComparisonType.Min, Sign.Unsigned, "p.minu rD, rs1, rs2"));
             InstallCustomInstruction(pattern: "0000010RRRRRSSSSS110DDDDD0110011", handler: opcode => CompareRegisters(opcode, ComparisonType.Max, Sign.Signed, "p.max rD, rs1, rs2"));
             InstallCustomInstruction(pattern: "0000010RRRRRSSSSS111DDDDD0110011", handler: opcode => CompareRegisters(opcode, ComparisonType.Max, Sign.Unsigned, "p.maxu rD, rs1, rs2"));
-            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS000DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Extract, Width.Word, Sign.Signed, "p.extract rD, rs1, Is3, Is2"));
-            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS001DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Extract, Width.Word, Sign.Unsigned, "p.extractu rD, rs1, Is3, Is2"));
-            InstallCustomInstruction(pattern: "000100000000SSSSS100DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Extract, Width.HalfWord, Sign.Signed, "p.exths rD, rs1"));
-            InstallCustomInstruction(pattern: "000100000000SSSSS101DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Extract, Width.HalfWord, Sign.Unsigned, "p.exthz rD, rs1"));
-            InstallCustomInstruction(pattern: "000100000000SSSSS110DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Extract, Width.Byte, Sign.Signed, "p.extbs rD, rs1"));
-            InstallCustomInstruction(pattern: "000100000000SSSSS111DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Extract, Width.Byte, Sign.Unsigned, "p.extbz rD, rs1"));
-            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS010DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Insert, Width.Word, Sign.Unsigned, "p.insert rD, rs1, Is3, Is2"));
-            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS011DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Clear, Width.Word, Sign.Unsigned, "p.bclr rD, rs1, Is3, Is2"));
-            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS100DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Operation.Set, Width.Word, Sign.Unsigned, "p.bset rD, rs1, Is3, Is2"));
+            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS000DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Extract, Width.Word, Sign.Signed, "p.extract rD, rs1, Is3, Is2"));
+            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS001DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Extract, Width.Word, Sign.Unsigned, "p.extractu rD, rs1, Is3, Is2"));
+            InstallCustomInstruction(pattern: "1000000LLLLLSSSSS000DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Register, Operation.Extract, Width.Word, Sign.Signed, "p.extractr rD, rs1, rs2"));
+            InstallCustomInstruction(pattern: "1000000LLLLLSSSSS001DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Register, Operation.Extract, Width.Word, Sign.Unsigned, "p.extractur rD, rs1, rs2"));
+            InstallCustomInstruction(pattern: "000100000000SSSSS100DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Extract, Width.HalfWord, Sign.Signed, "p.exths rD, rs1"));
+            InstallCustomInstruction(pattern: "000100000000SSSSS101DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Extract, Width.HalfWord, Sign.Unsigned, "p.exthz rD, rs1"));
+            InstallCustomInstruction(pattern: "000100000000SSSSS110DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Extract, Width.Byte, Sign.Signed, "p.extbs rD, rs1"));
+            InstallCustomInstruction(pattern: "000100000000SSSSS111DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Extract, Width.Byte, Sign.Unsigned, "p.extbz rD, rs1"));
+            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS010DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Insert, Width.Word, Sign.Unsigned, "p.insert rD, rs1, Is3, Is2"));
+            InstallCustomInstruction(pattern: "1000000LLLLLSSSSS010DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Register, Operation.Insert, Width.Word, Sign.Unsigned, "p.insertr rD, rs1, rs2"));
+            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS011DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Clear, Width.Word, Sign.Unsigned, "p.bclr rD, rs1, Is3, Is2"));
+            InstallCustomInstruction(pattern: "1000000LLLLLSSSSS011DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Register, Operation.Clear, Width.Word, Sign.Unsigned, "p.bclrr rD, rs1, rs2"));
+            InstallCustomInstruction(pattern: "11LLLLLLLLLLSSSSS100DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Immediate, Operation.Set, Width.Word, Sign.Unsigned, "p.bset rD, rs1, Is3, Is2"));
+            InstallCustomInstruction(pattern: "1000000LLLLLSSSSS100DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Register, Operation.Set, Width.Word, Sign.Unsigned, "p.bsetr rD, rs1, rs2"));
             InstallCustomInstruction(pattern: "JJJJJJJIIIIISSSSS010JJJJJ1100011", handler: opcode => BranchIf(opcode, Equality.Equal, "p.beqimm rs1, Imm5, Imm12"));
             InstallCustomInstruction(pattern: "JJJJJJJIIIIISSSSS011JJJJJ1100011", handler: opcode => BranchIf(opcode, Equality.NotEqual, "p.bneimm rs1, Imm5, Imm12"));
             InstallCustomInstruction(pattern: "0100001----------001-----0110011", handler: _ => LogUnsupported("p.msu rD, rs1, rs2"));
@@ -90,7 +95,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             InstallCustomInstruction(pattern: "10---------------000-----1011011", handler: _ => LogUnsupported("p.mulsN rD, rs1, rs2, Is3"));
             InstallCustomInstruction(pattern: "01---------------000-----1011011", handler: _ => LogUnsupported("p.mulhhuN rD, rs1, rs2, Is3"));
             InstallCustomInstruction(pattern: "11---------------000-----1011011", handler: _ => LogUnsupported("p.mulhhsN rD, rs1, rs2, Is3"));
-            InstallCustomInstruction(pattern: "1000000----------100-----0110011", handler: _ => LogUnsupported("p.bsetr rD, rs1, rs2"));
             InstallCustomInstruction(pattern: "000100000000-----001-----0110011", handler: _ => LogUnsupported("p.fl1 rD, rs1"));
             InstallCustomInstruction(pattern: "-----------------110-----0000011", handler: _ => LogUnsupported("p.elw"));
         }
@@ -196,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegisterUnsafe(rD, result);
         }
 
-        private void ManipulateBitsInRegister(ulong opcode, Operation operation, Width width, Sign sign, string log)
+        private void ManipulateBitsInRegister(ulong opcode, Source source, Operation operation, Width width, Sign sign, string log)
         {
             this.Log(LogLevel.Noisy, "({0}) at PC={1:X}", log, PC.RawValue);
             var rD = (int)BitHelper.GetValue(opcode, 7, 5);
@@ -204,6 +208,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             var is2 = (int)BitHelper.GetValue(opcode, 20, 5);
             var is3 = (int)BitHelper.GetValue(opcode, 25, 5);
             var rs1Value = GetRegisterUnsafe(rs1).RawValue;
+            if(source == Source.Register)
+            {
+                var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
+                var rs2Value = GetRegisterUnsafe(rs2).RawValue;
+                is2 = (int)BitHelper.GetValue(rs2Value, 0, 5);
+                is3 = (int)BitHelper.GetValue(rs2Value, 5, 5);
+            }
             var rDValue = GetRegisterUnsafe(rD).RawValue;
             if(is2 + is3 > 32)
             {
@@ -214,18 +225,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             switch(operation)
             {
                 case Operation.Set:
+                    // p.bset:
                     // rD = rs1 | (((1 << (Is3 + 1)) - 1) << Is2)
+                    // p.bsetr:
+                    // rD = rs1 | (((1 << (rs2[9:5]+1)) - 1) << rs2[4:0])
                     result = rs1Value | ((ulong)((1 << (is3 + 1)) - 1) << is2);
                     break;
                 case Operation.Insert:
-                    // rD = rD | (rs1[Is3: 0] << Is2)
+                    // p.insert:
+                    // rD = rD | (rs1[Is3:0] << Is2)
+                    // p.insertr:
+                    // rD = rD | (rs1[rs2[9:5]:0] << rs2[4:0])
                     result = rDValue | (BitHelper.GetValue(rs1Value, 0, is3 + 1) << is2);
                     break;
                 case Operation.Extract:
                     result = ExtractBits(width, sign, is2, is3, rs1Value);
                     break;
                 case Operation.Clear:
+                    // p.bclr:
                     // rD = rs1 & ~(((1 << (Is3 + 1)) - 1) << Is2)
+                    // p.bclrr:
+                    // rD = rs1 & ~(((1 << (rs2[9:5]+1)) - 1) << rs2[4:0])
                     result = rs1Value & (~(ulong)(((1 << (is3 + 1)) - 1) << is2));
                     break;
                 default:
@@ -251,6 +271,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ulong ExtractBits(Width width, Sign sign, int is2, int is3, ulong rs1Value)
         {
+            // This seems to be contradicting the documentation, but experimentally
+            // makes things work.
             is3++;
             var result = 0UL;
             switch(width)
@@ -275,9 +297,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                     break;
                 case Width.Word:
                     // p.extract rD, rs1, Is3, Is2
-                    // rD = Sext((rs1 & ((1 << Is3) – 1) << Is2) >> Is2)
+                    // rD = Sext((rs1 & ((1 << Is3) - 1) << Is2) >> Is2)
                     // p.extractu rD, rs1, Is3, Is2
-                    // rD = Zext((rs1 & ((1 << Is3) – 1) << Is2) >> Is2)
+                    // rD = Zext((rs1 & ((1 << Is3) - 1) << Is2) >> Is2)
+                    // p.extractr rD, rs1, rs2
+                    // rD = Sext((rs1 & ((1 << rs2[9:5]) - 1) << rs2[4:0]) >> rs2[4:0])
+                    // p.extractur rD, rs1, rs2
+                    // rD = Zext((rs1 & ((1 << rs2[9:5]) - 1) << rs2[4:0]) >> rs2[4:0])
                     var temp = ((int)rs1Value & ((1 << is3) - 1) << is2) >> is2;
                     result = sign == Sign.Signed
                         ? BitHelper.SignExtend((uint)temp, 32 - is2)
@@ -368,6 +394,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             Set
         }
 
+        private enum Source
+        {
+            Register,
+            Immediate
+        }
         private enum BitExtension
         {
             Sign,
