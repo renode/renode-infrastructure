@@ -812,9 +812,9 @@ namespace Antmicro.Renode.Utilities
             return builder.ToString();
         }
 
-        public static void Swap(ref int a, ref int b)
+        public static void Swap<T>(ref T a, ref T b)
         {
-            var temporary = a;
+            T temporary = a;
             a = b;
             b = temporary;
         }
