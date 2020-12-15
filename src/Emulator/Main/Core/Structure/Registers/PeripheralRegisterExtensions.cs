@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         /// <summary>
         /// Fluent API for enum field creation. For parameters see <see cref="PeripheralRegister.DefineEnumField"/>.
-        /// This overload allows you to retrieve the created field via <c>enumFiled</c> parameter.
+        /// This overload allows you to retrieve the created field via <c>enumField</c> parameter.
         /// </summary>
         /// <returns>This register with a defined enum field.</returns>
         public static R WithEnumField<R, T>(this R register, int position, int width, out IEnumRegisterField<T> enumField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         /// <summary>
         /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
-        /// This overload allows you to retrieve the created field via <c>flagFiled</c> parameter.
+        /// This overload allows you to retrieve the created field via <c>flagField</c> parameter.
         /// </summary>
         /// <returns>This register with a defined flag.</returns>
         public static T WithFlag<T>(this T register, int position, out IFlagRegisterField flagField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<bool, bool> readCallback = null,
