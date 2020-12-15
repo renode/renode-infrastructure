@@ -41,18 +41,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public static T WithFlags<T>(this T register, int position, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, bool, bool> readCallback = null,
             Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
         {
-            for(var i = 0; i < count; i++)
-            {
-                var j = i;
-
-                register.DefineFlagField(position + j, mode, 
-                    readCallback == null ? null : (Action<bool, bool>)((x, y) => readCallback(j, x, y)),
-                    writeCallback == null ? null : (Action<bool, bool>)((x, y) => writeCallback(j, x, y)), 
-                    changeCallback == null ? null : (Action<bool, bool>)((x, y) => changeCallback(j, x, y)), 
-                    valueProviderCallback == null ? null : (Func<bool, bool>)((x) => valueProviderCallback(j, x)),
-                    name == null ? null : $"{name}_{j}");
-            }
-            return register;
+            return WithFlags(register, position, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
         }
 
         /// <summary>
@@ -132,6 +121,29 @@ namespace Antmicro.Renode.Core.Structure.Registers
             Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
         {
             flagField = register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for creation of sets of flag fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithFlags"/>.
+        /// This overload allows you to retrieve the created array of fields via <c>flagFields</c> parameter.
+        /// </summary>
+        /// <returns>This register with defined flags.</returns>
+        public static T WithFlags<T>(this T register, int position, int count, out IFlagRegisterField[] flagFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, bool, bool> readCallback = null,
+            Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+        {
+            flagFields = new IFlagRegisterField[count];
+            for(var i = 0; i < count; i++)
+            {
+                var j = i;
+
+                flagFields[j] = register.DefineFlagField(position + j, mode,
+                    readCallback == null ? null : (Action<bool, bool>)((x, y) => readCallback(j, x, y)),
+                    writeCallback == null ? null : (Action<bool, bool>)((x, y) => writeCallback(j, x, y)),
+                    changeCallback == null ? null : (Action<bool, bool>)((x, y) => changeCallback(j, x, y)),
+                    valueProviderCallback == null ? null : (Func<bool, bool>)((x) => valueProviderCallback(j, x)),
+                    name == null ? null : $"{name}_{j}");
+            }
             return register;
         }
 
