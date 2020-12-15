@@ -251,6 +251,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ulong ExtractBits(Width width, Sign sign, int is2, int is3, ulong rs1Value)
         {
+            is3++;
             var result = 0UL;
             switch(width)
             {
@@ -277,9 +278,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     // rD = Sext((rs1 & ((1 << Is3) – 1) << Is2) >> Is2)
                     // p.extractu rD, rs1, Is3, Is2
                     // rD = Zext((rs1 & ((1 << Is3) – 1) << Is2) >> Is2)
+                    var temp = ((int)rs1Value & ((1 << is3) - 1) << is2) >> is2;
                     result = sign == Sign.Signed
-                        ? BitHelper.SignExtend((uint)((rs1Value & (ulong)((1 << is3) - 1) << is2) >> is2), 32 - is2)
-                        : (rs1Value & ((ulong)((1 << is3) - 1) << is2) >> is2);
+                        ? BitHelper.SignExtend((uint)temp, 32 - is2)
+                        : (uint)temp;
                     break;
                 default:
                     this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", sign);
