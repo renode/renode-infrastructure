@@ -82,6 +82,18 @@ namespace Antmicro.Renode.Utilities
             reg &= mask;
         }
 
+        public static void ReplaceBits(ref ulong destination, ulong source, int width, int destinationPosition = 0, int sourcePosition = 0)
+        {
+            ulong mask = (1u << width) - 1;
+            source &= mask << sourcePosition;
+            destination &= ~(mask << destinationPosition);
+
+            var positionDifference = sourcePosition - destinationPosition;
+            destination |= (positionDifference >= 0)
+                ? (source >> positionDifference)
+                : (source << -positionDifference);
+        }
+
         public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
             uint mask = (1u << width) - 1;
