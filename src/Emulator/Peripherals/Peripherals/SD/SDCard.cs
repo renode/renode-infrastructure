@@ -98,6 +98,16 @@ namespace Antmicro.Renode.Peripherals.SD
             switchFunctionStatusGenerator = new VariableLengthValue(512)
                 .DefineFragment(128, 1, 0x1, name: "Function Number/Status Code")
             ;
+
+            cardConfigurationGenerator = new VariableLengthValue(64)
+                .DefineFragment(0, 32, 0, name: "reserved")
+                .DefineFragment(32, 16, 0, name: "reserved")
+                .DefineFragment(48, 4, 5, name: "DAT Bus width supported") // DAT0 (1-bit) and DAT0-3 (4-bit)
+                .DefineFragment(52, 3, 0, name: "SD Security Support") // 0: No security
+                .DefineFragment(55, 1, 0, name: "data_status_after erases")
+                .DefineFragment(56, 4, 0, name: "SD Card - Spec. Version") // 0: Version 1.0-1.01
+                .DefineFragment(60, 4, 0, name: "SCR Structure") // 0: SCR version No 1.0
+            ;
         }
 
         public void Reset()
@@ -272,7 +282,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public BitStream OperatingConditions => operatingConditionsGenerator.Bits;
 
-        public BitStream SDConfiguration => new VariableLengthValue(64).Bits;
+        public BitStream SDConfiguration => cardConfigurationGenerator.Bits;
 
         public BitStream SDStatus => new VariableLengthValue(512).Bits;
 
@@ -593,6 +603,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IoContext readContext;
         private readonly Stream dataBackend;
         private readonly VariableLengthValue cardStatusGenerator;
+        private readonly VariableLengthValue cardConfigurationGenerator;
         private readonly VariableLengthValue operatingConditionsGenerator;
         private readonly VariableLengthValue cardSpecificDataGenerator;
         private readonly VariableLengthValue extendedCardSpecificDataGenerator;
