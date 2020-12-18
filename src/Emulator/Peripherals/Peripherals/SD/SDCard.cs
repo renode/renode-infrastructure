@@ -150,6 +150,7 @@ namespace Antmicro.Renode.Peripherals.SD
             if(readContext.Data != null)
             {
                 result = readContext.Data.AsByteArray(readContext.Offset, size);
+                Array.Reverse(result);
                 readContext.Move(size * 8);
             }
             else
