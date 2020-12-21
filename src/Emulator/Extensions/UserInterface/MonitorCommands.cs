@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -189,12 +189,10 @@ namespace Antmicro.Renode.UserInterface
                 }
                 catch(TargetInvocationException e)
                 {
-                    if(e.InnerException != null)
-                    {
-                        throw e.InnerException;
-                    }
-                    throw;
+                    // rethrow only the inner exception but with a nice stack trace
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerException).Throw();
                 }
+
                 return true;
             }
             if(parameters.Any(x => x is VariableToken))
