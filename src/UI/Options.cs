@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -46,17 +46,26 @@ namespace Antmicro.Renode.UI
         [Name('v', "version"), DefaultValue(false), Description("Print version and exit.")]
         public bool Version { get; set; }
 
+        [Name("console"), Description("Run monitor in the console instead of a separate window")]
+        public bool Console { get; set; }
+
         public bool Validate(out string error)
         {
-            if(DisableXwt)
+            if(HideMonitor && Console)
             {
-                HideMonitor = true;
+                error = "--hide-monitor and --console cannot be set at the same time";
+                return false;
             }
 
             if(!string.IsNullOrEmpty(ScriptPath) && Execute?.Length > 0)
             {
                 error = "Script path and execute command cannot be set at the same time";
                 return false;
+            }
+
+            if(DisableXwt)
+            {
+                HideMonitor = true;
             }
 
             error = null;

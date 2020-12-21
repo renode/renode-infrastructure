@@ -61,7 +61,7 @@ namespace Antmicro.Renode.UI
                 xwt = XwtProvider.Create(new WindowedUserInterfaceProvider());
             }
 
-            if(xwt == null && options.RobotFrameworkRemoteServerPort == -1)
+            if(xwt == null && options.RobotFrameworkRemoteServerPort == -1 && !options.Console)
             {
                 if(options.Port == -1)
                 {
@@ -150,7 +150,16 @@ namespace Antmicro.Renode.UI
         private static Shell PrepareShell(Options options, Monitor monitor)
         {
             Shell shell = null;
-            if(options.Port >= 0)
+            if(options.Console)
+            {
+                var io = new IOProvider()
+                {
+                    Backend = new ConsoleIOSource()
+                };
+                shell = ShellProvider.GenerateShell(monitor, true);
+                shell.Terminal = new NavigableTerminalEmulator(io, true);
+            }
+            else if(options.Port >= 0)
             {
                 var io = new IOProvider()
                 {
