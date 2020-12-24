@@ -29,17 +29,23 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.RxConfig, new DoubleWordRegister(this)
                     .WithFlag(4, out rxStart, name: "EN / RX channel enable and start",
+                              // Continuous mode is currently not supported
+                              valueProviderCallback: _ => false,
                               writeCallback: (_, value) =>
                               {
-                                  if(rxBufferSize.Value != 0)
+                                  if(value)
                                   {
-                                      var data = new byte[rxBufferSize.Value];
-                                      for(var i = 0; i < rxBufferSize.Value; i++)
+                                      rxData = new byte[rxBufferSize.Value];
+                                      rxIdx = 0;
+                                      rxStarted = true;
+                                      if(Count > 0)
                                       {
-                                          TryGetCharacter(out data[i]);
+                                          // With the new round of reception we might still have some characters in the
+                                          // buffer.
+                                          CharWritten();
                                       }
-                                      machine.SystemBus.WriteBytes(data, rxBufferAddress.Value, (int)rxBufferSize.Value, 0);
                                   }
+                                  rxStarted = value;
                               })
                 },
                 {(long)Registers.TxBaseAddress, new DoubleWordRegister(this)
@@ -50,9 +56,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.TxConfig, new DoubleWordRegister(this)
                     .WithFlag(4, out txStart, name: "EN / TX channel enable and start",
+                              // Continuous mode is currently not supported
+                              valueProviderCallback: _ => false,
                               writeCallback: (_, value) =>
                               {
-                                  if(txBufferSize.Value != 0)
+                                  if(value && txBufferSize.Value != 0)
                                   {
                                       var data = new byte[txBufferSize.Value];
                                       machine.SystemBus.ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value, data, 0);
@@ -88,6 +96,11 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             registers.Reset();
+            bufferSent = false;
+            bufferReceived = false;
+            rxData = null;
+            rxIdx = 0;
+            rxStarted = false;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -112,7 +125,21 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            // Reception not yet supported
+            if(rxStarted)
+            {
+                if(TryGetCharacter(out rxData[rxIdx]))
+                {
+                    rxIdx++;
+                }
+
+                if(rxIdx == rxBufferSize.Value)
+                {
+                    this.Machine.SystemBus.WriteBytes(rxData, rxBufferAddress.Value, 0, (int)rxBufferSize.Value);
+                    bufferReceived = true;
+                    rxStarted = false;
+                    UpdateInterrupts();
+                }
+            }
         }
 
         protected override void QueueEmptied()
@@ -127,9 +154,19 @@ namespace Antmicro.Renode.Peripherals.UART
                 TxIRQ.Blink();
                 bufferSent = false;
             }
+            if(bufferReceived)
+            {
+                RxIRQ.Blink();
+                bufferReceived = false;
+            }
         }
 
         private bool bufferSent = false;
+        private bool bufferReceived = false;
+        private byte[] rxData;
+        private int rxIdx;
+        private bool rxStarted = false;
+
         private readonly DoubleWordRegisterCollection registers;
 
         private IFlagRegisterField parityEnable;
