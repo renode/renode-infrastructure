@@ -16,7 +16,9 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public PULP_uDMA_UART(Machine machine) : base(machine)
         {
-            IRQ = new GPIO();
+            TxIRQ = new GPIO();
+            RxIRQ = new GPIO();
+
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.RxBaseAddress, new DoubleWordRegister(this)
@@ -98,7 +100,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public long Size => 0x80;
 
-        public GPIO IRQ { get; }
+        public GPIO TxIRQ { get; }
+        public GPIO RxIRQ { get; }
 
         public override Bits StopBits => stopBits.Value ? Bits.Two : Bits.One;
         public override Parity ParityBit => parityEnable.Value ? Parity.Even : Parity.None;
