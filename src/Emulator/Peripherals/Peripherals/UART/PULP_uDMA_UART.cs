@@ -60,6 +60,8 @@ namespace Antmicro.Renode.Peripherals.UART
                                       {
                                           TransmitCharacter(c);
                                       }
+                                      bufferSent = true;
+                                      UpdateInterrupts();
                                   }
                               })
                 },
@@ -118,6 +120,16 @@ namespace Antmicro.Renode.Peripherals.UART
             // Intentionally left blank
         }
 
+        private void UpdateInterrupts()
+        {
+            if(bufferSent)
+            {
+                TxIRQ.Blink();
+                bufferSent = false;
+            }
+        }
+
+        private bool bufferSent = false;
         private readonly DoubleWordRegisterCollection registers;
 
         private IFlagRegisterField parityEnable;
