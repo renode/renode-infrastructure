@@ -17,64 +17,263 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     {
         public OpenTitan_GPIO(Machine machine) : base(machine, numberOfPins)
         {
+            locker = new object();
+            IRQ = new GPIO();
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
-            outputValue = new bool[numberOfPins];
-            outputEnabled = new bool[numberOfPins];
+            interruptRequest = new bool[numberOfPins];
+            interruptEnabled = new bool[numberOfPins];
+            directOutputValue = new bool[numberOfPins];
+            maskedOutputValue = new bool[numberOfPins];
+            directOutputEnabled = new bool[numberOfPins];
+            maskedOutputEnabled = new bool[numberOfPins];
+            interruptEnableRising = new bool[numberOfPins];
+            interruptEnableFalling = new bool[numberOfPins];
+            interruptEnableHigh = new bool[numberOfPins];
+            interruptEnableLow = new bool[numberOfPins];
         }
 
         public override void Reset()
         {
-            base.Reset();
-            registers.Reset();
-            for(var i = 0; i < numberOfPins; ++i)
+            lock(locker)
             {
-                outputValue[i] = false;
-                outputEnabled[i] = false;
+                base.Reset();
+                IRQ.Unset();
+                registers.Reset();
+                for(var i = 0; i < numberOfPins; ++i)
+                {
+                    interruptRequest[i] = false;
+                    interruptEnabled[i] = false;
+                    directOutputValue[i] = false;
+                    maskedOutputValue[i] = false;
+                    directOutputEnabled[i] = false;
+                    maskedOutputEnabled[i] = false;
+                    interruptEnableRising[i] = false;
+                    interruptEnableFalling[i] = false;
+                    interruptEnableHigh[i] = false;
+                    interruptEnableLow[i] = false;
+                }
             }
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);
+            lock(locker)
+            {
+                return registers.Read(offset);
+            }
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            registers.Write(offset, value);
+            lock(locker)
+            {
+                registers.Write(offset, value);
+            }
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            if(!CheckPinNumber(number))
+            {
+                return;
+            }
+
+            lock(locker)
+            {
+                var previousState = GetStateOnInput(number);
+                base.OnGPIO(number, value);
+
+                if(interruptEnabled[number])
+                {
+                    var currentState = GetStateOnInput(number);
+                    if(interruptEnableRising[number])
+                    {
+                        interruptRequest[number] |= !previousState && currentState; 
+                    }
+                    if(interruptEnableFalling[number])
+                    {
+                        interruptRequest[number] |= previousState && !currentState; 
+                    }
+                }
+
+                UpdateIRQ();
+            }
         }
 
         public long Size => 0x3C;
+
+        public GPIO IRQ { get; }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
             return new Dictionary<long, DoubleWordRegister>
             {
+                {(long)Registers.InterruptState, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE",
+                        valueProviderCallback: (id, _) => interruptRequest[id],
+                        writeCallback: (id, _, val) => { if(val) interruptRequest[id] = false; })
+                    .WithWriteCallback((_, __) => UpdateIRQ())
+                },
+                {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, name: "INTR_ENABLE",
+                        valueProviderCallback: (id, _) => interruptEnabled[id],
+                        writeCallback: (id, _, val) => { interruptEnabled[id] = val; })
+                    .WithWriteCallback((_, __) => UpdateIRQ())
+                },
+                {(long)Registers.InterruptTest, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, FieldMode.Write, name: "INTR_TEST",
+                        writeCallback: (id, _, val) => { interruptRequest[id] |= val; })
+                    .WithWriteCallback((_, __) => UpdateIRQ())
+                },
+                {(long)Registers.Input, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, FieldMode.Read, name: "DATA_IN",
+                        valueProviderCallback: (id, _) => GetStateOnInput(id))
+                },
                 {(long)Registers.Output, new DoubleWordRegister(this)
                     .WithFlags(0, 32, name: "DIRECT_OUT",
-                        valueProviderCallback: (id, _) => outputValue[id],
-                        writeCallback: (id, _, val) => { outputValue[id] = val; })
+                        valueProviderCallback: (id, _) => directOutputValue[id],
+                        writeCallback: (id, _, val) => { directOutputValue[id] = val; })
                     .WithWriteCallback((_, __) => UpdateConnections())
+                },
+                {(long)Registers.OutputMaskedLower, new DoubleWordRegister(this)
+                    .WithFlags(0, 16, name: "MASKED_OUT_LOWER.data",
+                        valueProviderCallback: (id, _) => Connections[id].IsSet)
+                    .WithFlags(16, 16, FieldMode.Write, name: "MASKED_OUT_LOWER.mask")
+                    .WithWriteCallback((_, val) => SetOutputMasked(val, lower: true))
+                },
+                {(long)Registers.OutputMaskedUpper, new DoubleWordRegister(this)
+                    .WithFlags(0, 16, name: "MASKED_OUT_UPPER.data",
+                        valueProviderCallback: (id, _) => Connections[id + 16].IsSet)
+                    .WithFlags(16, 16, FieldMode.Write, name: "MASKED_OUT_UPPER.mask")
+                    .WithWriteCallback((_, val) => SetOutputMasked(val, lower: false))
                 },
                 {(long)Registers.OutputEnable, new DoubleWordRegister(this)
                     .WithFlags(0, 32, name: "DIRECT_OE",
-                        valueProviderCallback: (id, _) => outputEnabled[id],
-                        writeCallback: (id, _, val) => { outputEnabled[id] = val; })
+                        valueProviderCallback: (id, _) => directOutputEnabled[id],
+                        writeCallback: (id, _, val) => { directOutputEnabled[id] = val; })
                     .WithWriteCallback((_, __) => UpdateConnections())
+                },
+                {(long)Registers.OutputEnableMaskedLower, new DoubleWordRegister(this)
+                    .WithFlags(0, 16, name: "MASKED_OE_LOWER.data",
+                        valueProviderCallback: (id, _) => maskedOutputEnabled[id])
+                    .WithFlags(16, 16, FieldMode.Write, name: "MASKED_OE_LOWER.mask")
+                    .WithWriteCallback((_, val) => SetOutputEnableMasked(val, lower: true))
+                },
+                {(long)Registers.OutputEnableMaskedUpper, new DoubleWordRegister(this)
+                    .WithFlags(0, 16, name: "MASKED_OE_UPPER.data",
+                        valueProviderCallback: (id, _) => maskedOutputEnabled[id + 16])
+                    .WithFlags(16, 16, FieldMode.Write, name: "MASKED_OE_UPPER.mask")
+                    .WithWriteCallback((_, val) => SetOutputEnableMasked(val, lower: false))
+                },
+                {(long)Registers.InterruptEnableRising, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, name: "INTR_CTRL_EN_RISING",
+                        writeCallback: (id, _, val) => { interruptEnableRising[id] = val; },
+                        valueProviderCallback: (id, _) => interruptEnableRising[id])
+                },
+                {(long)Registers.InterruptEnableFalling, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, name: "INTR_CTRL_EN_FALLING",
+                        writeCallback: (id, _, val) => { interruptEnableFalling[id] = val; },
+                        valueProviderCallback: (id, _) => interruptEnableFalling[id])
+                },
+                {(long)Registers.InterruptEnableHigh, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, name: "INTR_CTRL_EN_LVLHIGH",
+                        writeCallback: (id, _, val) => { interruptEnableHigh[id] = val; },
+                        valueProviderCallback: (id, _) => interruptEnableHigh[id])
+                    .WithWriteCallback((_, __) => UpdateIRQ())
+                },
+                {(long)Registers.InterruptEnableLow, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, name: "INTR_CTRL_EN_LVLLOW",
+                        writeCallback: (id, _, val) => { interruptEnableLow[id] = val; },
+                        valueProviderCallback: (id, _) => interruptEnableLow[id])
+                    .WithWriteCallback((_, __) => UpdateIRQ())
                 }
             };
+        }
+
+        private void UpdateIRQ()
+        {
+            var flag = false;
+            for(var i = 0; i < numberOfPins; ++i)
+            {   
+                if(!interruptEnabled[i])
+                {
+                    continue;
+                }
+                var state = GetStateOnInput(i);
+                interruptRequest[i] |= state ? interruptEnableHigh[i] : interruptEnableLow[i];
+                flag |= interruptRequest[i];
+            }
+            IRQ.Set(flag);
         }
 
         private void UpdateConnections()
         {
             for(var i = 0; i < numberOfPins; ++i)
             {
-                Connections[i].Set(outputEnabled[i] && outputValue[i]);
+                if(directOutputEnabled[i])
+                {
+                    Connections[i].Set(directOutputValue[i]);
+                }
+                else if(maskedOutputEnabled[i])
+                {
+                    Connections[i].Set(maskedOutputValue[i]);
+                }
+                else
+                {
+                    Connections[i].Set(false);
+                }
             }
+            UpdateIRQ();
+        }
+
+        private void SetOutputMasked(uint value, bool lower)
+        {
+            var offset = lower ? 0 : 16;
+            var data = BitHelper.GetBits(value & 0xFFFF);
+            var mask = BitHelper.GetBits(value >> 16);
+            for(var i = 0; i < 16; ++i)
+            {
+                if(mask[i])
+                {
+                    maskedOutputValue[i + offset] = data[i];
+                }
+            }
+            UpdateConnections();
+        }
+
+        private void SetOutputEnableMasked(uint value, bool lower)
+        {
+            var offset = lower ? 0 : 16;
+            var data = BitHelper.GetBits(value & 0xFFFF);
+            var mask = BitHelper.GetBits(value >> 16);
+            for(var i = 0; i < 16; ++i)
+            {   
+                if(mask[i])
+                {
+                    directOutputEnabled[i + offset] = data[i];
+                }
+            }
+            UpdateConnections();
+        }
+
+        private bool GetStateOnInput(int i)
+        {
+            // Output and Input are physically connected 
+            return State[i] || Connections[i].IsSet;
         }
 
         private readonly DoubleWordRegisterCollection registers;
-        private bool[] outputValue;
-        private bool[] outputEnabled;
+        private readonly object locker;
+        private bool[] interruptRequest;
+        private bool[] interruptEnabled;
+        private bool[] directOutputValue;
+        private bool[] maskedOutputValue;
+        private bool[] directOutputEnabled;
+        private bool[] maskedOutputEnabled;
+        private bool[] interruptEnableRising;
+        private bool[] interruptEnableFalling;
+        private bool[] interruptEnableHigh;
+        private bool[] interruptEnableLow;
 
         private const int numberOfPins = 32;
 
