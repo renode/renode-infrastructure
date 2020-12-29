@@ -43,6 +43,7 @@
     <Reference Include="Dynamitey">
       <HintPath>..\..\..\..\..\lib\resources\libraries\Dynamitey.dll</HintPath>
     </Reference>
+    <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Config\Devices\DevicesConfig.cs" />
@@ -169,6 +170,7 @@
     <Compile Include="Utilities\USB\InterfaceDescriptor.cs" />
     <Compile Include="Utilities\UartFileBackend.cs" />
     <Compile Include="UserInterface\Commands\LastLogCommand.cs" />
+    <Compile Include="UserInterface\Commands\DisplayImageCommand.cs" />
     <Compile Include="Hooks\InterruptPythonEngine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
@@ -205,6 +207,14 @@
     <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp.csproj">
       <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
       <Name>ELFSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp.csproj">
+      <Project>{25FAECC1-55F0-4608-88BD-4207A7F993B0}</Project>
+      <Name>TermSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt.csproj">
+      <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
+      <Name>Xwt</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>
