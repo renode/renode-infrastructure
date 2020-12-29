@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,7 +9,10 @@ using System;
 using Antmicro.Migrant;
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
+using Xwt.Drawing;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -22,6 +25,31 @@ namespace Antmicro.Renode.Peripherals.Video
             // we use synchronized thread since some deriving classes can generate interrupt on repainting
             repainter = machine.ObtainManagedThread(DoRepaint, FramesPerSecond);
             Endianess = ELFSharp.ELF.Endianess.LittleEndian;
+        }
+
+        public BitmapImage TakeScreenshot()
+        {
+#if GUI_DISABLED
+            throw new RecoverableException("Taking screenshots with a disabled GUI is not supported");
+#endif
+            if(buffer == null)
+            {
+                throw new RecoverableException("Frame buffer is empty.");
+            }
+
+            // this is inspired by FrameBufferDisplayWidget.cs:102
+            var pixelFormat = PixelFormat.RGBA8888;
+#if PLATFORM_WINDOWS
+                pixelFormat = PixelFormat.BGRA8888;
+#endif
+
+            var converter = PixelManipulationTools.GetConverter(Format, Endianess, pixelFormat, ELFSharp.ELF.Endianess.BigEndian);
+            var outBuffer = new byte[Width * Height * pixelFormat.GetColorDepth()];
+            converter.Convert(buffer, ref outBuffer);
+
+            var img = new ImageBuilder(Width, Height).ToBitmap();
+            img.Copy(outBuffer);
+            return img;
         }
 
         public void Dispose()
