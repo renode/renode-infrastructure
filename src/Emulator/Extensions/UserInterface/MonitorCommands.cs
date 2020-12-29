@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2020 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -26,6 +26,7 @@ using Antmicro.Renode.UserInterface.Exceptions;
 using Antmicro.Renode.Core.Structure;
 using System.Runtime.InteropServices;
 using System.Globalization;
+using TermSharp.Misc;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -328,6 +329,14 @@ namespace Antmicro.Renode.UserInterface
                     }
                 }
                 writer.Write("\r\n]" + endl);
+            }
+            else if(result is System.Drawing.Bitmap bitmap)
+            {
+                writer.WriteRaw(InlineImage.Encode(bitmap));
+            }
+            else if(result is Xwt.Drawing.BitmapImage bitmapImage)
+            {
+                writer.WriteRaw(InlineImage.Encode(bitmapImage));
             }
             else
             {
