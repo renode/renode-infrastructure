@@ -77,7 +77,6 @@
   <ItemGroup>
     <Compile Include="VideoAnalyzer\FrameBufferDisplayWidget.cs" />
     <Compile Include="VideoAnalyzer\DisplayMode.cs" />
-    <Compile Include="VideoAnalyzer\BitmapImageExtensions.cs" />
     <Compile Include="VideoAnalyzer\Handlers\AbsolutePointerHandler.cs" />
     <Compile Include="VideoAnalyzer\Handlers\IOHandler.cs" />
     <Compile Include="VideoAnalyzer\Handlers\RelativePointerHandler.cs" />
