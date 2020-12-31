@@ -43,14 +43,23 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         ulong Step(int count = 1);
         ExecutionMode ExecutionMode { get; set; }
+        uint PageSize { get; }
         event Action<HaltArguments> Halted;
         void EnterSingleStepModeSafely(HaltArguments args);
+        ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType);
 
         string GDBArchitecture { get; }
         List<GBDFeatureDescriptor> GDBFeatures { get; }
         bool DebuggerConnected { get; set; }
         uint Id { get; }
         string Name { get; }
+    }
+
+    public enum MpuAccess
+    {
+        Read = 0,
+        Write = 1,
+        InstructionFetch = 2
     }
 }
 
