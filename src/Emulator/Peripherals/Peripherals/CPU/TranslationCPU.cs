@@ -1508,7 +1508,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             set
             {
-                if (LogFile == null)
+                if(LogFile == null)
                 {
                     throw new RecoverableException("Log file not set. Nothing will be logged.");
                 }
@@ -1564,7 +1564,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             DisasEngine = new DisassemblyEngine(this, logicalAddress => TranslateAddress(logicalAddress, MpuAccess.InstructionFetch));
             var diss = AvailableDisassemblers;
-            if (diss.Length > 0)
+            if(diss.Length > 0)
             {
                 TrySetDisassembler(diss[0]);
             }
