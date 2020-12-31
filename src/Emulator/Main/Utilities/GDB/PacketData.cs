@@ -21,9 +21,9 @@ namespace Antmicro.Renode.Utilities.GDB
             Empty = new PacketData(string.Empty);
         }
 
-        public static PacketData ErrorReply(int errNo)
+        public static PacketData ErrorReply(Error err = Error.Unknown)
         {
-            return new PacketData(string.Format("E{0:X2}", errNo));
+            return new PacketData(string.Format("E{0:X2}", (int)err));
         }
 
         public static PacketData AbortReply(int signal)
@@ -135,5 +135,28 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly List<byte> rawBytes;
         private readonly List<byte> bytes;
     }
-}
 
+    public enum Error : int
+    {
+        OperationNotPermitted = 1,
+        NoSuchFileOrDirectory = 2,
+        InterruptedSystemCall = 4,
+        BadFileNumber         = 9,
+        PermissionDenied      = 13,
+        BadAddress            = 14,
+        DeviceOrResourceBusy  = 16,
+        FileExists            = 17,
+        NoSuchDevice          = 19,
+        NotADirectory         = 20,
+        IsADirectory          = 21,
+        InvalidArgument       = 22,
+        FileTableOverflow     = 23,
+        TooManyOpenFiles      = 24,
+        FileTooLarge          = 27,
+        NoSpaceLeftOnDevice   = 28,
+        IllegalSeek           = 29,
+        ReadOnlyFileSystem    = 30,
+        NameTooLong           = 91,
+        Unknown               = 9999
+    }
+}

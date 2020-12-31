@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
 
             // else return error
-            return PacketData.ErrorReply(1);
+            return PacketData.ErrorReply(Error.OperationNotPermitted);
 
         }
     }

@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             var reg = manager.Cpu.GetRegisters().SingleOrDefault(x => x.Index == registerNumber);
             if(reg.Width == 0)
             {
-                return PacketData.ErrorReply(0);
+                return PacketData.ErrorReply();
             }
 
             manager.Cpu.SetRegisterUnsafe(registerNumber, reg.ValueFromBytes(value));

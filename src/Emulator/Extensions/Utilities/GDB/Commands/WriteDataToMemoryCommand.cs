@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             if(data.Length != length)
             {
                 Logger.LogAs(this, LogLevel.Warning, "length argument does not match the size of sent data.");
-                return PacketData.ErrorReply(22);
+                return PacketData.ErrorReply(Error.InvalidArgument);
             }
             return WriteData(address, data);
         }
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             if(data.Length != length)
             {
                 Logger.LogAs(this, LogLevel.Warning, "length argument does not match the size of sent data.");
-                return PacketData.ErrorReply(22);
+                return PacketData.ErrorReply(Error.InvalidArgument);
             }
             return WriteData(address, data);
         }
@@ -47,12 +47,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         {
             if(IsAccessAcrossPages(address, (ulong)data.Length))
             {
-                return PacketData.ErrorReply(0);
+                return PacketData.ErrorReply();
             }
 
             if(!TryTranslateAddress(address, out var translatedAddress, write: true))
             {
-                return PacketData.ErrorReply(14);
+                return PacketData.ErrorReply(Error.BadAddress);
             }
 
             manager.Machine.SystemBus.WriteBytes(data, translatedAddress);

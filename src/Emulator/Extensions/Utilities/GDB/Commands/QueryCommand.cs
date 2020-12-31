@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
             if((objectType == "features" && annex != "target.xml") || offset > length)
             {
-                return PacketData.ErrorReply(0);
+                return PacketData.ErrorReply();
             }
             var xmlFile = new StringBuilder();
             if(objectType == "features")

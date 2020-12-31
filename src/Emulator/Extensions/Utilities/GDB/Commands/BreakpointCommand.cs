@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     break;
                 default:
                     Logger.LogAs(this, LogLevel.Warning, "Unsupported breakpoint type: {0}, not inserting.", type);
-                    return PacketData.ErrorReply(0);
+                    return PacketData.ErrorReply();
             }
 
             return PacketData.Success;
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     break;
                 default:
                     Logger.LogAs(this, LogLevel.Warning, "Unsupported breakpoint type: {0}, not removing.", type);
-                    return PacketData.ErrorReply(0);
+                    return PacketData.ErrorReply();
             }
 
             return PacketData.Success;
