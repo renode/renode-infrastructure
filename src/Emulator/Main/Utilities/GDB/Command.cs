@@ -5,10 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -39,6 +42,62 @@ namespace Antmicro.Renode.Utilities.GDB
         protected Command(CommandsManager manager)
         {
             this.manager = manager;
+        }
+
+        protected bool TryTranslateAddress(ulong address, out ulong translatedAddress, bool write)
+        {
+            var errorValue = ulong.MaxValue;
+            translatedAddress = errorValue;
+            
+            if(write)
+            {
+                translatedAddress = manager.Cpu.TranslateAddress(address, MpuAccess.Write);
+
+                if(translatedAddress == errorValue)
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for write access type!");
+                }
+            }
+            else
+            {
+                var fetchAddress = manager.Cpu.TranslateAddress(address, MpuAccess.InstructionFetch);
+                var readAddress = manager.Cpu.TranslateAddress(address, MpuAccess.Read);
+
+                if(fetchAddress == errorValue && readAddress == errorValue)
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for both read and instruction fetch access types!");
+                }
+                else if(fetchAddress == errorValue || readAddress == errorValue)
+                {
+                    var fetchFailed = fetchAddress == errorValue;
+                    var failed = fetchFailed ? "instruction fetch" : "read";
+                    var fallback = fetchFailed ? "read" : "instruction fetch";
+                    Logger.LogAs(this, LogLevel.Debug, "Translation address failed for {0} access type! Returned translation for {1} access type.", failed, fallback);
+
+                    translatedAddress = fetchFailed ? readAddress : fetchAddress;
+                }
+                else if(fetchAddress != readAddress)
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "Translation address missmatch for read and instruction fetch access types!");
+                }
+                else
+                {
+                    translatedAddress = fetchAddress;
+                }
+            }
+
+            return translatedAddress != errorValue;
+        }
+        
+        protected bool IsAccessAcrossPages(ulong address, ulong length)
+        {
+            var pageSize = (ulong)manager.Cpu.PageSize;
+            if(address / pageSize != (address + length - 1) / pageSize)
+            {
+                Logger.LogAs(this, LogLevel.Warning, "Memory access across multiple pages is not supported!");
+                return true;
+            }
+            return false;
         }
 
         protected readonly CommandsManager manager;
