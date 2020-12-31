@@ -1561,20 +1561,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             InstructionFetch = 2
         }
 
-        public ulong TranslateAddressNoFault(ulong logicalAddress)
+        public ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType, uint nofault)
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)MpuAccess.InstructionFetch, 1);
-        }
-
-        public ulong TranslateAddress(ulong logicalAddress, MpuAccess accesType, uint nofault)
-        {
-            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accesType, nofault);
+            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accessType, nofault);
         }
 
         [PostDeserialization]
         protected void InitDisas()
         {
-            DisasEngine = new DisassemblyEngine(this, TranslateAddressNoFault);
+            DisasEngine = new DisassemblyEngine(this, logicalAddress => TranslateAddress(logicalAddress, MpuAccess.InstructionFetch, 1));
             var diss = AvailableDisassemblers;
             if (diss.Length > 0)
             {
