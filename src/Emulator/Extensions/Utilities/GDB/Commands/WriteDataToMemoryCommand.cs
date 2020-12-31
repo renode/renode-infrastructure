@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -20,8 +21,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint length,
            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] data)
         {
-            manager.Machine.SystemBus.WriteBytes(data, address);
-            return PacketData.Success;
+            if(data.Length != length)
+            {
+                Logger.LogAs(this, LogLevel.Warning, "length argument does not match the size of sent data.");
+                return PacketData.ErrorReply(22);
+            }
+            return WriteData(address, data);
         }
 
         [Execute("X")]
@@ -30,7 +35,28 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint length,
            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.BinaryBytes)]byte[] data)
         {
-            manager.Machine.SystemBus.WriteBytes(data, address);
+            if(data.Length != length)
+            {
+                Logger.LogAs(this, LogLevel.Warning, "length argument does not match the size of sent data.");
+                return PacketData.ErrorReply(22);
+            }
+            return WriteData(address, data);
+        }
+
+        private PacketData WriteData(ulong address, byte[] data)
+        {
+            if(IsAccessAcrossPages(address, (ulong)data.Length))
+            {
+                return PacketData.ErrorReply(0);
+            }
+
+            if(!TryTranslateAddress(address, out var translatedAddress, write: true))
+            {
+                return PacketData.ErrorReply(14);
+            }
+
+            manager.Machine.SystemBus.WriteBytes(data, translatedAddress);
+
             return PacketData.Success;
         }
     }
