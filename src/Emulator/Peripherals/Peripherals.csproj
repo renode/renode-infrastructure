@@ -335,7 +335,7 @@
     <Compile Include="Peripherals\ATAPI\ATAPI.cs" />
     <Compile Include="Peripherals\ATAPI\CDROM.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32F4_RCC.cs" />
-    <Compile Include="Peripherals\Miscellaneous\NRF82540_CLOCK.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NRF52840_CLOCK.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_RTC.cs" />
     <Compile Include="Peripherals\GPIOPort\LPC43xx_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SevenSegmentsDisplay.cs" />
