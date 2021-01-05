@@ -19,11 +19,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("m")]
         public PacketData Execute(
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int length)
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong length)
         {
             var content = new StringBuilder();
 
-            if(IsAccessAcrossPages(address, (ulong)length))
+            if(IsAccessAcrossPages(address, length))
             {
                 return PacketData.ErrorReply(0);
             }
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 return PacketData.ErrorReply(14);
             }
 
-            foreach(var b in manager.Machine.SystemBus.ReadBytes(translatedAddress, length))
+            foreach(var b in manager.Machine.SystemBus.ReadBytes(translatedAddress, (int)length))
             {
                 content.AppendFormat("{0:x2}", b);
             }
