@@ -8,7 +8,7 @@
 using Xwt.Backends;
 using Color = Xwt.Drawing.Color;
 using BitmapImage = Xwt.Drawing.BitmapImage;
-#if !GUI_DISABLED
+#if GUI_DISABLED
 using Antmicro.Renode.Exceptions;
 #else
     #if PLATFORM_WINDOWS
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Utilities
     {
         public static void Copy(this BitmapImage bmp, byte[] frame)
         {
-#if !GUI_DISABLED
+#if GUI_DISABLED
             throw new RecoverableException("The BitmapImageExtensions.Copy() method is not supported in the non-gui configuration");
 #else
             var backend = bmp.GetBackend();
