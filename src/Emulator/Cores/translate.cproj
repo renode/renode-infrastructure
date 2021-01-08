@@ -97,7 +97,7 @@
           <!-- On Windows: link MinGW's pthread library statically -->
           <LinkFlags Include="-static -lwinpthread -dynamic" Condition="$(CurrentPlatform) == 'Windows'" />
           <LinkFlags Include="-lpthread" Condition="$(CurrentPlatform) != 'Windows'" />
-          <LinkFlags Include="-lm" />
+          <LinkFlags Include="-lm" Condition="$(TargetArchitecture) == 'i386'" />
           <LinkFlags Include="-shared" />
           <LinkFlags Include="-z defs" Condition="$(CurrentPlatform) == 'Linux'" />
           <LinkFlags Include="-Wl,-undefined,error" Condition="$(CurrentPlatform) != 'Linux'" />
