@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core.Structure.Registers;
 using System;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -188,6 +190,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             foregroundLineBuffer = new byte[pixelsPerLineField.Value * foregroundFormatColorDepth];
         }
 
+        [PostDeserialization]
         private void HandlePixelFormatChange()
         {
             var outputFormat = outputColorModeField.Value.ToPixelFormat();
@@ -353,7 +356,9 @@ namespace Antmicro.Renode.Peripherals.DMA
         private byte[] backgroundBuffer;
         private byte[] backgroundLineBuffer;
 
+        [Transient]
         private IPixelBlender blender;
+        [Transient]
         private IPixelConverter converter;
 
         private const ELFSharp.ELF.Endianess Endianness = ELFSharp.ELF.Endianess.LittleEndian;
