@@ -10,6 +10,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -144,6 +145,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        [field: Transient]
         public event Action<byte> CharReceived;
 
         public GPIO IRQ { get; private set; }
