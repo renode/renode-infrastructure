@@ -60,7 +60,18 @@ namespace Antmicro.Renode.Logging
                     line = string.Format("{0:HH:mm:ss.ffff} [{1}] {2}", CustomDateTime.Now, type, message);
                 }
 
-                var width = Console.WindowWidth;
+                int width;
+                try
+                {
+                    width = Console.WindowWidth;
+                }
+                catch(IOException)
+                {
+                    // It sometimes happens that we cannot read the console window width.
+                    // There is not much we can do about it, so just return 0 (this will disable the repeated messages counter)
+                    width = 0;
+                }
+
                 if(output == Console.Out && !ReportRepeatingLines && width != 0 &&
                    lastMessage == message && lastMessageLinesCount != -1 && lastType == type && !isRedirected)
                 {
