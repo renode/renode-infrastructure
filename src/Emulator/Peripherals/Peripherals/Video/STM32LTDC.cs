@@ -12,6 +12,8 @@ using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.DMA;
 using Antmicro.Renode.Logging;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -157,6 +159,7 @@ namespace Antmicro.Renode.Peripherals.Video
             }
         }
 
+        [PostDeserialization]
         private void HandlePixelFormatChange()
         {
             lock(internalLock)
@@ -180,6 +183,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly object internalLock;
         private readonly Machine machine;
 
+        [Transient]
         private IPixelBlender blender;
         private Pixel backgroundColor;
 
