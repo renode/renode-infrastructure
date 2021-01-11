@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Video
         {
 #if GUI_DISABLED
             throw new RecoverableException("Taking screenshots with a disabled GUI is not supported");
-#endif
+#else
             if(buffer == null)
             {
                 throw new RecoverableException("Frame buffer is empty.");
@@ -39,9 +39,9 @@ namespace Antmicro.Renode.Peripherals.Video
 
             // this is inspired by FrameBufferDisplayWidget.cs:102
             var pixelFormat = PixelFormat.RGBA8888;
-#if PLATFORM_WINDOWS
+    #if PLATFORM_WINDOWS
                 pixelFormat = PixelFormat.BGRA8888;
-#endif
+    #endif
 
             var converter = PixelManipulationTools.GetConverter(Format, Endianess, pixelFormat, ELFSharp.ELF.Endianess.BigEndian);
             var outBuffer = new byte[Width * Height * pixelFormat.GetColorDepth()];
@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.Video
             var img = new ImageBuilder(Width, Height).ToBitmap();
             img.Copy(outBuffer);
             return img;
+#endif
         }
 
         public void Dispose()
