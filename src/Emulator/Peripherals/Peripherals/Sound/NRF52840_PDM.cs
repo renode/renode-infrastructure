@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                     if(index % 2 == 0)
                     {
                         // One sample left
-                        preparedDoubleWords[(index / 2) -1] = prev;
+                        preparedDoubleWords[(index / 2) - 1] = prev;
                     }
                     
                     break;
