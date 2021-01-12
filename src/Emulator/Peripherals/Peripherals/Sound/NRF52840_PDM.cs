@@ -172,9 +172,9 @@ namespace Antmicro.Renode.Peripherals.Sound
                     var samples = decoderLeft.GetSamplesByCount(samplesCount);
 
                     var index = 1u;
-                    var prev = 0u;
+                    ushort prev = 0;
                     
-                    foreach(uint sample in samples)
+                    foreach(ushort sample in samples)
                     {
                         if(index % 2 != 0)
                         {
@@ -183,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                         else
                         {
                             // Assuming input file format of s16le
-                            preparedDoubleWords[(index / 2) - 1] = (sample << 16) | prev;
+                            preparedDoubleWords[(index / 2) - 1] = (uint)((Misc.SwapBytes(sample) << 16) | Misc.SwapBytes(prev));
                         }
                         index++;
                     }
@@ -214,8 +214,8 @@ namespace Antmicro.Renode.Peripherals.Sound
 
                     for(var i = 0; i < samplesLeft.Length; i++)
                     {
-                        var right = samplesRight[i];
-                        var left  = samplesLeft[i];
+                        var right = (uint)Misc.SwapBytes((ushort)samplesRight[i]);
+                        var left  = (uint)Misc.SwapBytes((ushort)samplesLeft[i]);
 
                         preparedDoubleWords[i] = (right << 16) | left;
                     }
