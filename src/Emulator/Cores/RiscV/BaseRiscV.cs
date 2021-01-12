@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null)
+        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false)
                 : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
@@ -46,6 +46,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Noisy, "Non maskable interrupts disabled");
                 TlibSetNmiVector(0, 0);
             }
+
+            TlibAllowUnalignedAccesses(allowUnalignedAccesses ? 1 : 0);
 
             UserState = new Dictionary<string, object>();
         }
@@ -396,6 +398,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetCsrValidationLevel;
+
+        [Import]
+        private ActionInt32 TlibAllowUnalignedAccesses;
 
 #pragma warning restore 649
 
