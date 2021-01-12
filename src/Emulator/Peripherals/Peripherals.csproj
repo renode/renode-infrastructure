@@ -371,6 +371,7 @@
     <Compile Include="Peripherals\Sensors\PULP_uDMA_Camera.cs" />
     <Compile Include="Peripherals\Sensors\HM01B0.cs" />
     <Compile Include="Peripherals\Sound\EOSS3_Voice.cs" />
+    <Compile Include="Peripherals\Network\LiteX_Ethernet_CSR32.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
