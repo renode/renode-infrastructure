@@ -156,25 +156,6 @@ namespace Antmicro.Renode.Peripherals.Sound
            return true;
         }
 
-        private uint AmplifySample(uint sample, double multiplier)
-        {
-            // Multiplication with saturation on s16le samples
-            // Input samples are little endian, hence bytes swap before and after arithmetics
-            var intValue = (short)(Misc.SwapBytes((ushort)sample));
-            var result = (int)(intValue * multiplier);
-
-            if(result > Int16.MaxValue)
-            {
-                result = Int16.MaxValue;
-            }
-            else if(result < Int16.MinValue)
-            {
-                result = Int16.MinValue;
-            }
-
-            return (uint)Misc.SwapBytes((ushort)result);
-        }
-
         private void InputSamples()
         {
             var currentPointer = samplePtr.Value;
@@ -188,8 +169,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             switch(numberOfChannels)
             {
                 case 1:
-                    var samples = decoderLeft.GetSamplesByCount(samplesCount)
-                                             .Select(i => AmplifySample(i, multiplierL));
+                    var samples = decoderLeft.GetSamplesByCount(samplesCount);
 
                     var index = 1u;
                     var prev = 0u;
@@ -216,13 +196,8 @@ namespace Antmicro.Renode.Peripherals.Sound
                     
                     break;
                 case 2:
-                    var samplesLeft  = decoderLeft.GetSamplesByCount(samplesCount / 2)
-                                                  .Select(i => AmplifySample(i, multiplierL))
-                                                  .ToArray();
-                    
-                    var samplesRight = decoderRight.GetSamplesByCount(samplesCount / 2)
-                                                   .Select(i => AmplifySample(i, multiplierR))
-                                                   .ToArray();
+                    var samplesLeft  = decoderLeft.GetSamplesByCount(samplesCount / 2).ToArray();
+                    var samplesRight = decoderRight.GetSamplesByCount(samplesCount / 2).ToArray();
                                                    
                     if(samplesLeft.Length != samplesRight.Length)
                     {
