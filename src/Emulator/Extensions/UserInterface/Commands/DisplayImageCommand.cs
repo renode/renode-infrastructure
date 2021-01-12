@@ -40,13 +40,20 @@ namespace Antmicro.Renode.UserInterface.Commands
                 return;
             }
 
-            var image = new Bitmap(pathToImage.Value);
-            if(!ImageFormat.Jpeg.Equals(image.RawFormat) && !ImageFormat.Png.Equals(image.RawFormat))
+            try
             {
-                writer.WriteError("Bad image format. Supported formats: jpeg, png");
-                return;
+                var image = new Bitmap(pathToImage.Value);
+                if(!ImageFormat.Jpeg.Equals(image.RawFormat) && !ImageFormat.Png.Equals(image.RawFormat))
+                {
+                    writer.WriteError("Bad image format. Supported formats: jpeg, png");
+                    return;
+                }
+                writer.WriteRaw(InlineImage.Encode(image));
             }
-            writer.WriteRaw(InlineImage.Encode(image));
+            catch(Exception e)
+            {
+                writer.WriteError($"There was an error when loading the image: {(e.Message)}");
+            }
         }
 
         [Runnable]
