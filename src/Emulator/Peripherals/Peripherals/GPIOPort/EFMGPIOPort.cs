@@ -55,11 +55,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         ret += Convert.ToUInt32(Connections[portStart + i].IsSet) << i;
                     }
                     return ret;
-                    break;
                 default:
                     this.LogUnhandledRead(offset);
                     return 0;
-                    break;
                 }
             }
             else
