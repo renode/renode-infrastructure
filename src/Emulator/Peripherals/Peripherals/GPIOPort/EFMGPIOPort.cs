@@ -98,6 +98,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        public override void OnGPIO(int number, bool value)
+        {
+            base.OnGPIO(number, value);
+            Connections[number].Set(value);
+        }
+
         private void DoPinOperation(int portNumber, Operation operation, uint value)
         {
             for(var i = 0; i < EFMGPIOPort_Constants.NB_PORT; i++)
