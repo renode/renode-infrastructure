@@ -47,15 +47,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             if(portNumber <= EFMGPIOPort_Constants.NB_PORT)
             {
                 offset %= EFMGPIOPort_Constants.PORT_LENGTH;
-                switch((Offset)offset)
+                switch((Register)offset)
                 {
-                case Offset.Set:
+                case Register.GPIO_Px_DOUTSET:
                     DoPinOperation(portNumber, Operation.Set, value);
                     break;
-                case Offset.Clear:
+                case Register.GPIO_Px_DOUTCLR:
                     DoPinOperation(portNumber, Operation.Clear, value);
                     break;
-                case Offset.Toggle:
+                case Register.GPIO_Px_DOUTTGL:
                     DoPinOperation(portNumber, Operation.Toggle, value);
                     break;
                 default:
