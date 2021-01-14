@@ -14,14 +14,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     static class EFMGPIOPort_Constants
     {
-        public const int NB_PORT = 6; // Port A,B,C,D,E,F
-        public const int PINS_PER_PORT = 16; // Pin 0 to 15
-        public const int PORT_LENGTH = 9 * 4; // A port is 9 registers long
+        public const int NB_PORT       = 6;     // Port A,B,C,D,E,F
+        public const int PINS_PER_PORT = 16;    // Pin 0 to 15
+        public const int PORT_LENGTH   = 9 * 4; // Port is 9 registers long
     }
  
     public class EFMGPIOPort : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public EFMGPIOPort(Machine machine) : base(machine, 6*16)
+        public EFMGPIOPort(Machine machine) : 
+            base(machine, EFMGPIOPort_Constants.NB_PORT * EFMGPIOPort_Constants.PINS_PER_PORT)
         {
 
         }
@@ -42,10 +43,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            var portNumber = (int)(offset / 0x24);
-            if(portNumber <= 6)
+            var portNumber = (int)(offset / EFMGPIOPort_Constants.PORT_LENGTH);
+            if(portNumber <= EFMGPIOPort_Constants.NB_PORT)
             {
-                offset %= 0x24;
+                offset %= EFMGPIOPort_Constants.PORT_LENGTH;
                 switch((Offset)offset)
                 {
                 case Offset.Set:
@@ -70,9 +71,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void DoPinOperation(int portNumber, Operation operation, uint value)
         {
-            for(var i = 0; i < 15; i++)
+            for(var i = 0; i < EFMGPIOPort_Constants.NB_PORT; i++)
             {
-                var pinNumber = portNumber * 16 + i;
+                var pinNumber = portNumber * EFMGPIOPort_Constants.NB_PORT + i;
                 if((value & 1) != 0)
                 {
                     switch(operation)
