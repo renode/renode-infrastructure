@@ -361,6 +361,7 @@
     <Compile Include="Peripherals\GPIOPort\PULP_APB_GPIO.cs" />
     <Compile Include="Peripherals\UART\IbexUART.cs" />
     <Compile Include="Peripherals\GPIOPort\OpenTitan_GPIO.cs" />
+    <Compile Include="Peripherals\Sound\PULP_I2S.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
