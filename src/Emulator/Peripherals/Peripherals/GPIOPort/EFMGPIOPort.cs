@@ -12,6 +12,13 @@ using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
+    static class EFMGPIOPort_Constants
+    {
+        public const int NB_PORT = 6; // Port A,B,C,D,E,F
+        public const int PINS_PER_PORT = 16; // Pin 0 to 15
+        public const int PORT_LENGTH = 9 * 4; // A port is 9 registers long
+    }
+ 
     public class EFMGPIOPort : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
         public EFMGPIOPort(Machine machine) : base(machine, 6*16)
