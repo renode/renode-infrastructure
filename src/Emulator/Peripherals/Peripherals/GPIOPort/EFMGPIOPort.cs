@@ -7,6 +7,7 @@
 //
 using System;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 
