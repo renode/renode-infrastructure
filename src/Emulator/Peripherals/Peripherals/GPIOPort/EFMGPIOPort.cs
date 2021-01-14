@@ -49,8 +49,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     // fall through, no break
                 case Register.GPIO_Px_DIN:
                     var ret = (uint) 0;
-                    var portStart = portNumber * Constants.PINS_PER_PORT;
-                    for (var i = 0; i < Constants.PINS_PER_PORT; i++)
+                    var portStart = portNumber * EFMGPIOPort_Constants.PINS_PER_PORT;
+                    for (var i = 0; i < EFMGPIOPort_Constants.PINS_PER_PORT; i++)
                     {
                         ret += Convert.ToUInt32(Connections[portStart + i].IsSet) << i;
                     }
