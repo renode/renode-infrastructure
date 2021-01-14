@@ -37,8 +37,33 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public uint ReadDoubleWord(long offset)
         {
-            this.LogUnhandledRead(offset);
-            return 0;
+            var portNumber = (int)(offset / EFMGPIOPort_Constants.PORT_LENGTH);
+            if(portNumber <= EFMGPIOPort_Constants.NB_PORT)
+            {
+                offset %= EFMGPIOPort_Constants.PORT_LENGTH;
+                switch((Register)offset)
+                {
+                case Register.GPIO_Px_DOUT:
+                    // fall through, no break
+                case Register.GPIO_Px_DIN:
+                    var ret = (uint) 0;
+                    var portStart = portNumber * Constants.PINS_PER_PORT;
+                    for (var i = 0; i < Constants.PINS_PER_PORT; i++)
+                    {
+                        ret += Convert.ToUInt32(Connections[portStart + i].IsSet) << i;
+                    }
+                    return ret;
+                    break;
+                default:
+                    this.LogUnhandledWrite(offset, value);
+                    break;
+                }
+            }
+            else
+            {
+                this.LogUnhandledRead(offset);
+                return 0;
+            }
         }
 
         public void WriteDoubleWord(long offset, uint value)
