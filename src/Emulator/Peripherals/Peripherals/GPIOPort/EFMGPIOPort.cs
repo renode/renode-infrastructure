@@ -37,6 +37,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public uint ReadDoubleWord(long offset)
         {
+            this.Log(LogLevel.Noisy, "Read: offset=" + offset);
+
             var portNumber = (int)(offset / EFMGPIOPort_Constants.PORT_LENGTH);
             if(portNumber <= EFMGPIOPort_Constants.NB_PORT)
             {
@@ -68,6 +70,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public void WriteDoubleWord(long offset, uint value)
         {
+            this.Log(LogLevel.Noisy, "Write: offset=" + offset + ", value=" + value);
+
             var portNumber = (int)(offset / EFMGPIOPort_Constants.PORT_LENGTH);
             if(portNumber <= EFMGPIOPort_Constants.NB_PORT)
             {
