@@ -57,7 +57,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     return ret;
                     break;
                 default:
-                    this.LogUnhandledWrite(offset, value);
+                    this.LogUnhandledRead(offset);
+                    return 0;
                     break;
                 }
             }
