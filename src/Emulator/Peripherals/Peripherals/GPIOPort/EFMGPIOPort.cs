@@ -105,6 +105,33 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Clear = 0x14,
             Toggle = 0x18
         }
+
+        [RegisterMapper.RegistersDescription]
+        private enum Register
+        {
+            /* Port registers */
+            GPIO_Px_CTRL = 0x00,        // Cf. drive mode (strength)
+            GPIO_Px_MODEL = 0x04,       // Mode (input/output), LSB part
+            GPIO_Px_MODEH = 0x08,       // Mode (input/output), MSB part
+            GPIO_Px_DOUT = 0x0C,        // Out data (i.e. GPIO state)
+            GPIO_Px_DOUTSET = 0x10,     // Set GPIO
+            GPIO_Px_DOUTCLR = 0x14,     // Clear GPIO
+            GPIO_Px_DOUTTGL = 0x18,     // Toggle GPIO
+            GPIO_Px_DIN = 0x1C,         // Input state
+            GPIO_Px_PINLOCKN = 0x20,    // Unlocked pins
+            /* Global registers */
+            GPIP_EXTIPSELL = 0x100,     // Interrupt port select, LSB part
+            GPIP_EXTIPSELH = 0x104,     // Interrupt port select, MSB part
+            GPIP_EXTIRISE = 0x108,      // Interrupt rising edge trigger
+            GPIP_EXTIFALL = 0x10c,      // Interrupt falling edge trigger
+            GPIO_IEN = 0x110,           // Interrupt enable
+            GPIO_IF = 0x114,            // Interrupt flag
+            GPIO_IFS = 0x118,           // Interrupt set
+            GPIO_IFC = 0x11c,           // Interrupt clear
+            GPIO_ROUTE = 0x120,         // GPIO routing
+            GPIO_INSENSE = 0x124,       // Input sense
+            GPIO_LOCK = 0x128           // Configuration lock
+        }
     }
 }
 
