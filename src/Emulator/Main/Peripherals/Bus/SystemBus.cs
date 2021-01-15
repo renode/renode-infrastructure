@@ -592,6 +592,56 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.DebugLog("Binary loaded.");
         }
 
+        public void LoadHEX(string fileName)
+        {
+            string line;
+            int lineNum = 1;
+            ulong targetAddr = 0;
+            var buffer = new byte[256];
+
+            try 
+            {
+                this.DebugLog("Loading HEX {0}.", fileName);
+                System.IO.StreamReader file = new System.IO.StreamReader(fileName);
+                while((line = file.ReadLine()) != null)  
+                {  
+                    if (line.Length < 11)
+                    {
+                        throw new RecoverableException(string.Format("Line is too short error at line #{0}.", lineNum));
+                    }
+                    if (line[0] != ':') 
+                    {
+                        throw new RecoverableException(string.Format("Parsing error at line #{0}.", lineNum));
+                    }
+                    int length = int.Parse(line.Substring(1,2),System.Globalization.NumberStyles.HexNumber);
+                    ulong address = ulong.Parse(line.Substring(3,4),System.Globalization.NumberStyles.HexNumber);
+                    byte type = byte.Parse(line.Substring(7,2),System.Globalization.NumberStyles.HexNumber);
+                    switch (type)
+                    {
+                        case 0x00 :
+                            targetAddr = (targetAddr & 0xFFFF0000) | address;
+                            int pos = 9;
+                            for (int i=0;i<length;i++,pos+=2)
+                            {
+                                buffer[i] = byte.Parse(line.Substring(pos,2),System.Globalization.NumberStyles.HexNumber);
+                            }
+                            WriteBytes(buffer, targetAddr, length);
+                            break;
+                        case 0x04 :
+                            targetAddr = ulong.Parse(line.Substring(9,4),System.Globalization.NumberStyles.HexNumber);
+                            targetAddr = targetAddr << 16;
+                            break;
+                    }
+                    lineNum++;
+                }
+            }
+            catch (IOException e)
+            {
+                throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
+            }
+            this.DebugLog("HEX loaded.");
+        }
+
         public IEnumerable<BinaryFingerprint> GetLoadedFingerprints()
         {
             return binaryFingerprints.ToArray();
