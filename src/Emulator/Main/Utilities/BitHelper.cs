@@ -84,6 +84,10 @@ namespace Antmicro.Renode.Utilities
 
         public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
+            if(width < 0 || width > 32)
+            {
+                throw new ArgumentException("width not in [0,32]");
+            }
             uint mask = (uint)((1ul << width) - 1);
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
@@ -96,6 +100,10 @@ namespace Antmicro.Renode.Utilities
 
         public static byte ReplaceBits(this byte destination, byte source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
+            if(width < 0 || width > 8)
+            {
+                throw new ArgumentException("width not in [0,8]");
+            }
             var mask = (byte)((1u << width) - 1);
             source &= (byte)(mask << sourcePosition);
             destination &= (byte)(~(mask << destinationPosition));
@@ -108,6 +116,10 @@ namespace Antmicro.Renode.Utilities
 
         public static uint ReplaceBits(this uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
+            if(width < 0 || width > 32)
+            {
+                throw new ArgumentException("width not in [0,32]");
+            }
             uint mask = (uint)((1ul << width) - 1);
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
@@ -120,6 +132,10 @@ namespace Antmicro.Renode.Utilities
 
         public static ulong ReplaceBits(this ulong destination, ulong source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
+            if(width < 0 || width > 64)
+            {
+                throw new ArgumentException("width not in [0,64]");
+            }
             ulong mask = (width == 64 ? 0 : (1ul << width)) - 1;
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
