@@ -364,6 +364,7 @@
     <Compile Include="Peripherals\Sound\PULP_I2S.cs" />
     <Compile Include="Peripherals\Mocks\EchoI2CDevice.cs" />
     <Compile Include="Peripherals\I2C\PULP_uDMA_I2C.cs" />
+    <Compile Include="Peripherals\SPI\PULP_uDMA_SPI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
