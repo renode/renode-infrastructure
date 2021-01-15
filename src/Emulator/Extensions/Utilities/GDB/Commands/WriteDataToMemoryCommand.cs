@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
@@ -45,17 +46,19 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private PacketData WriteData(ulong address, byte[] data)
         {
-            if(IsAccessAcrossPages(address, (ulong)data.Length))
-            {
-                return PacketData.ErrorReply();
-            }
+            var accesses = GetTranslatedAccesses(address, (ulong)data.Length, write: true);
 
-            if(!TryTranslateAddress(address, out var translatedAddress, write: true))
+            if(accesses == null)
             {
                 return PacketData.ErrorReply(Error.BadAddress);
             }
 
-            manager.Machine.SystemBus.WriteBytes(data, translatedAddress);
+            int startingIndex = 0;
+            foreach(var access in accesses)
+            {
+                manager.Machine.SystemBus.WriteBytes(data, access.Address, startingIndex, (long)access.Length);
+                startingIndex += (int)access.Length;
+            }
 
             return PacketData.Success;
         }

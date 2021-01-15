@@ -22,20 +22,19 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong length)
         {
             var content = new StringBuilder();
+            var accesses = GetTranslatedAccesses(address, length, write: false);
 
-            if(IsAccessAcrossPages(address, length))
-            {
-                return PacketData.ErrorReply();
-            }
-
-            if(!TryTranslateAddress(address, out var translatedAddress, write: false))
+            if(accesses == null)
             {
                 return PacketData.ErrorReply(Error.BadAddress);
             }
 
-            foreach(var b in manager.Machine.SystemBus.ReadBytes(translatedAddress, (int)length))
+            foreach(var access in accesses)
             {
-                content.AppendFormat("{0:x2}", b);
+                foreach(var b in manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length))
+                {
+                    content.AppendFormat("{0:x2}", b);
+                }
             }
 
             return new PacketData(content.ToString());

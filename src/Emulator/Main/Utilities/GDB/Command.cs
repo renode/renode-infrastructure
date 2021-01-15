@@ -89,15 +89,50 @@ namespace Antmicro.Renode.Utilities.GDB
             return translatedAddress != errorValue;
         }
         
-        protected bool IsAccessAcrossPages(ulong address, ulong length)
+        protected IEnumerable<MemoryFragment> GetTranslatedAccesses(ulong address, ulong length, bool write)
         {
             var pageSize = (ulong)manager.Cpu.PageSize;
-            if(address / pageSize != (address + length - 1) / pageSize)
+            var accesses = new List<MemoryFragment>();
+            var firstLength = Math.Min(length, pageSize - address % pageSize);
+
+            if(!TryAddTranslatedMemoryFragment(ref accesses, address, firstLength, write))
             {
-                Logger.LogAs(this, LogLevel.Warning, "Memory access across multiple pages is not supported!");
-                return true;
+                return null;
             }
-            return false;
+            address += firstLength;
+
+            length -= firstLength;
+            for(var i = 0; i < (int)(length / pageSize); ++i)
+            {
+                if(!TryAddTranslatedMemoryFragment(ref accesses, address, pageSize, write))
+                {
+                    return null;
+                }
+                address += length;
+            }
+
+            var lastLength = length % pageSize;
+            if(!TryAddTranslatedMemoryFragment(ref accesses, address, lastLength, write))
+            {
+                return null;
+            }
+
+            return accesses;
+        }
+
+        protected bool TryAddTranslatedMemoryFragment(ref List<MemoryFragment> accesses, ulong address, ulong length, bool write)
+        {
+            if(length > 0)
+            {
+                if(!TryTranslateAddress(address, out var translatedAddress, write))
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "Could not translate address 0x{0:X} to a valid physical address.", address);
+                    return false;
+                }
+
+                accesses.Add(new MemoryFragment(translatedAddress, length));
+            }
+            return true;
         }
 
         protected readonly CommandsManager manager;
@@ -187,6 +222,18 @@ namespace Antmicro.Renode.Utilities.GDB
             public int CurrentPosition { get; set; }
             public Packet Packet { get; set; }
         }
+    }
+
+    public struct MemoryFragment
+    {
+        public MemoryFragment(ulong address, ulong length)
+        {
+            Address = address;
+            Length = length;
+        }
+        
+        public ulong Address { get; }
+        public ulong Length { get; }
     }
 }
 
