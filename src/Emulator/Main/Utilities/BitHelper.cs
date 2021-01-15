@@ -295,16 +295,28 @@ namespace Antmicro.Renode.Utilities
 
         public static byte GetValue(byte reg, int offset, int size)
         {
+            if(size < 0 || size > 8)
+            {
+                throw new ArgumentException("size not in [0,8]");
+            }
             return (byte)(((uint)reg >> offset) & ((0x1ul << size) - 1));
         }
 
         public static uint GetValue(uint reg, int offset, int size)
         {
+            if(size < 0 || size > 32)
+            {
+                throw new ArgumentException("size not in [0,32]");
+            }
             return (uint)((reg >> offset) & ((0x1ul << size) - 1));
         }
 
         public static ulong GetValue(ulong reg, int offset, int size)
         {
+            if(size < 0 || size > 64)
+            {
+                throw new ArgumentException("size not in [0,64]");
+            }
             return (ulong)((reg >> offset) & ((size == 64 ? 0 : (0x1ul << size)) - 1));
         }
 
