@@ -305,7 +305,7 @@ namespace Antmicro.Renode.Utilities
 
         public static ulong GetValue(ulong reg, int offset, int size)
         {
-            return (ulong)((reg >> offset) & ((0x1ul << size) - 1));
+            return (ulong)((reg >> offset) & ((size == 64 ? 0 : (0x1ul << size)) - 1));
         }
 
         public static uint GetMaskedValue(uint reg, int maskOffset, int maskSize)
