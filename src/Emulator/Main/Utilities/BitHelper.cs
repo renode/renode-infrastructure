@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Utilities
 
         public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
-            uint mask = (1u << width) - 1;
+            uint mask = (uint)((1ul << width) - 1);
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
 
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Utilities
 
         public static uint ReplaceBits(this uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
-            uint mask = (1u << width) - 1;
+            uint mask = (uint)((1ul << width) - 1);
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
 
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Utilities
 
         public static ulong ReplaceBits(this ulong destination, ulong source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
-            ulong mask = (1u << width) - 1;
+            ulong mask = (width == 64 ? 0 : (1ul << width)) - 1;
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
 
