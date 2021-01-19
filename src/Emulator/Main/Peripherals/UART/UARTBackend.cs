@@ -14,6 +14,7 @@ using Antmicro.Migrant;
 using System.Threading;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Core;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -99,6 +100,15 @@ namespace Antmicro.Renode.Peripherals.UART
                 {
                     io.Write(b);
                 }
+            }
+        }
+
+        [PostDeserializationAttribute]
+        private void ReAttach()
+        {
+            if(UART != null)
+            {
+                Attach(UART);
             }
         }
 
