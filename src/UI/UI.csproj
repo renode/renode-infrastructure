@@ -73,6 +73,7 @@
     <Compile Include="ConsoleBackendAnalyzers\TerminalAppProvider.cs" />
     <Compile Include="ConsoleBackendAnalyzers\WindowPositionProvider.cs" />
     <Compile Include="ConsoleBackendAnalyzers\ProcessBasedProvider.cs" />
+    <Compile Include="DummyIOSource.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="VideoAnalyzer\FrameBufferDisplayWidget.cs" />
