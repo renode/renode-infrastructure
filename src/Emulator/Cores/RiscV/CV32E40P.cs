@@ -75,8 +75,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             InstallCustomInstruction(pattern: "1000000LLLLLSSSSS100DDDDD0110011", handler: opcode => ManipulateBitsInRegister(opcode, Source.Register, Operation.Set, Width.Word, Sign.Unsigned, "p.bsetr rD, rs1, rs2"));
             InstallCustomInstruction(pattern: "JJJJJJJIIIIISSSSS010JJJJJ1100011", handler: opcode => BranchIf(opcode, Equality.Equal, "p.beqimm rs1, Imm5, Imm12"));
             InstallCustomInstruction(pattern: "JJJJJJJIIIIISSSSS011JJJJJ1100011", handler: opcode => BranchIf(opcode, Equality.NotEqual, "p.bneimm rs1, Imm5, Imm12"));
-            InstallCustomInstruction(pattern: "0100001----------001-----0110011", handler: _ => LogUnsupported("p.msu rD, rs1, rs2"));
-            InstallCustomInstruction(pattern: "0100001----------000-----0110011", handler: _ => LogUnsupported("p.mac rD, rs1, rs2"));
+            InstallCustomInstruction(pattern: "0100001RRRRRSSSSS001DDDDD0110011", handler: opcode => MultiplyAccumulate(opcode, operationAdd: false, log: "p.msu rD, rs1, rs2"));
+            InstallCustomInstruction(pattern: "0100001RRRRRSSSSS000DDDDD0110011", handler: opcode => MultiplyAccumulate(opcode, operationAdd: true, log: "p.mac rD, rs1, rs2"));
             InstallCustomInstruction(pattern: "00---------------001-----1011011", handler: _ => LogUnsupported("p.macuN rD, rs1, rs2, Is3"));
             InstallCustomInstruction(pattern: "00---------------110-----1011011", handler: _ => LogUnsupported("p.mac.zh.zl"));
             InstallCustomInstruction(pattern: "00---------------100-----1011011", handler: _ => LogUnsupported("p.mac.zl.zl"));
@@ -108,6 +108,25 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void LogUnhandledCSRWrite(string name, ulong value)
         {
             this.Log(LogLevel.Error, "Writing to an unsupported CSR {0} value: 0x{1:X}", name, value);
+        }
+
+        private void MultiplyAccumulate(ulong opcode, bool operationAdd, string log)
+        {
+            this.Log(LogLevel.Noisy, "({0}) at PC={1:X}", log, PC.RawValue);
+
+            var rD = (int)BitHelper.GetValue(opcode, 7, 5);
+            var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
+            var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
+
+            var rDValue = (long)GetRegisterUnsafe(rD).RawValue;
+            var rs1Value = (long)GetRegisterUnsafe(rs1).RawValue;
+            var rs2Value = (long)GetRegisterUnsafe(rs2).RawValue;
+
+            var result = (ulong)(operationAdd
+                ? rDValue + rs1Value * rs2Value
+                : rDValue - rs1Value * rs2Value);
+
+            SetRegisterUnsafe(rD, result);
         }
 
         private void LoadRegisterImmediate(ulong opcode, Width width, BitExtension extension, string log)
