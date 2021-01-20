@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -20,16 +20,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             // enable all interrupt sources
             MIE = 0xffffffff;
 
-            RegisterCSR((ulong)CustomCSR.PerformanceCounterMode, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.StackCheckEnable, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.StackBase, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.StackEnd, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.HardwareLoop0Start, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.HardwareLoop0End, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.HardwareLoop0Counter, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.HardwareLoop1Start, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.HardwareLoop1End, () => 0u, _ => { });
-            RegisterCSR((ulong)CustomCSR.HardwareLoop1Counter, () => 0u, _ => { });
+            RegisterCSR((ulong)CustomCSR.PerformanceCounterMode, () => LogUnhandledCSRRead("PerformanceCounterMode"), val => LogUnhandledCSRWrite("PerformanceCounterMode", val));
+            RegisterCSR((ulong)CustomCSR.StackCheckEnable      , () => LogUnhandledCSRRead("StackCheckEnable")      , val => LogUnhandledCSRWrite("StackCheckEnable", val));
+            RegisterCSR((ulong)CustomCSR.StackBase             , () => LogUnhandledCSRRead("StackBase")             , val => LogUnhandledCSRWrite("StackBase", val));
+            RegisterCSR((ulong)CustomCSR.StackEnd              , () => LogUnhandledCSRRead("StackEnd")              , val => LogUnhandledCSRWrite("StackEnd", val));
+            RegisterCSR((ulong)CustomCSR.HardwareLoop0Start    , () => LogUnhandledCSRRead("HardwareLoop0Start")    , val => LogUnhandledCSRWrite("HardwareLoop0Start", val));
+            RegisterCSR((ulong)CustomCSR.HardwareLoop0End      , () => LogUnhandledCSRRead("HardwareLoop0End")      , val => LogUnhandledCSRWrite("HardwareLoop0End", val));
+            RegisterCSR((ulong)CustomCSR.HardwareLoop0Counter  , () => LogUnhandledCSRRead("HardwareLoop0Counter")  , val => LogUnhandledCSRWrite("HardwareLoop0Counter", val));
+            RegisterCSR((ulong)CustomCSR.HardwareLoop1Start    , () => LogUnhandledCSRRead("HardwareLoop1Start")    , val => LogUnhandledCSRWrite("HardwareLoop1Start", val));
+            RegisterCSR((ulong)CustomCSR.HardwareLoop1End      , () => LogUnhandledCSRRead("HardwareLoop1End")      , val => LogUnhandledCSRWrite("HardwareLoop1End", val));
+            RegisterCSR((ulong)CustomCSR.HardwareLoop1Counter  , () => LogUnhandledCSRRead("HardwareLoop1Counter")  , val => LogUnhandledCSRWrite("HardwareLoop1Counter", val));
 
             InstallCustomInstruction(pattern: "FFFFFFFFFFFFBBBBB000DDDDD0001011", handler: opcode => LoadRegisterImmediate(opcode, Width.Byte, BitExtension.Sign, "p.lb rD, Imm(rs1!)"));
             InstallCustomInstruction(pattern: "FFFFFFFFFFFFBBBBB100DDDDD0001011", handler: opcode => LoadRegisterImmediate(opcode, Width.Byte, BitExtension.Zero, "p.lbu rD, Imm(rs1!)"));
@@ -97,6 +97,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             InstallCustomInstruction(pattern: "11---------------000-----1011011", handler: _ => LogUnsupported("p.mulhhsN rD, rs1, rs2, Is3"));
             InstallCustomInstruction(pattern: "000100000000-----001-----0110011", handler: _ => LogUnsupported("p.fl1 rD, rs1"));
             InstallCustomInstruction(pattern: "-----------------110-----0000011", handler: _ => LogUnsupported("p.elw"));
+        }
+
+        private ulong LogUnhandledCSRRead(string name)
+        {
+            this.Log(LogLevel.Error, "Reading from an unsupported CSR {0}", name);
+            return 0u;
+        }
+
+        private void LogUnhandledCSRWrite(string name, ulong value)
+        {
+            this.Log(LogLevel.Error, "Writing to an unsupported CSR {0} value: 0x{1:X}", name, value);
         }
 
         private void LoadRegisterImmediate(ulong opcode, Width width, BitExtension extension, string log)
