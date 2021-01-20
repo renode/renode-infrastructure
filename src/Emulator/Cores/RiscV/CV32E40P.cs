@@ -293,8 +293,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             var imm5 = (int)BitHelper.SignExtend((uint)BitHelper.GetValue(opcode, 20, 5), 5);
             if((equality == Equality.NotEqual && rs1Value != imm5) || (equality == Equality.Equal && rs1Value == imm5))
             {
-                var imm12 = (BitHelper.GetValue(opcode, 31, 1) << 11) | (BitHelper.GetValue(opcode, 7, 1) << 10) | (BitHelper.GetValue(opcode, 25, 6) << 4) | BitHelper.GetValue(opcode, 8, 4);
-                var newPC = GetRegisterUnsafe((int)RiscV32Registers.PC).RawValue + (imm12 << 1);
+                var imm12 = (int)BitHelper.SignExtend((uint)((BitHelper.GetValue(opcode, 31, 1) << 11) | (BitHelper.GetValue(opcode, 7, 1) << 10) | (BitHelper.GetValue(opcode, 25, 6) << 4) | BitHelper.GetValue(opcode, 8, 4)), 12);
+                var newPC = (uint)((uint)GetRegisterUnsafe((int)RiscV32Registers.PC).RawValue + (imm12 << 1));
                 PC = newPC;
             }
         }
