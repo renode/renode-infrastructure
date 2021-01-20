@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             sampleRatio = 256;
             sampleWidth = 8;
             numberOfChannels = 2;
-            masterFrequency  = 4_000_000;
+            masterFrequency  = 4000000;
             samplesPerDoubleWord = 4;
         }
 

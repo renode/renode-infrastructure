@@ -347,7 +347,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private const int rxFIFOCapacity = 32;
         private const int txFIFOCapacity = 32;
-        private const ulong fixedClockFrequency = 50_000_000;
+        private const ulong fixedClockFrequency = 50000000;
 
         private enum ParityType
         {

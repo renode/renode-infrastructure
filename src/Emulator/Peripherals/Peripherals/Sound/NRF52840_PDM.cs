@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             multiplierR = 1.0;
             numberOfChannels = 2;
             sampleRatio = 64;
-            clockFrequency = 32_000_000 / 31;
+            clockFrequency = 32000000 / 31;
             SetSampleFrequency();
         }
 
@@ -259,22 +259,22 @@ namespace Antmicro.Renode.Peripherals.Sound
             switch(frequency)
             {
                 case ClockFrequency.f1000K:
-                    clockFrequency = 32_000_000 / 32;
+                    clockFrequency = 32000000 / 32;
                     break;
                 case ClockFrequency.Default:
-                    clockFrequency = 32_000_000 / 31;
+                    clockFrequency = 32000000 / 31;
                     break;
                 case ClockFrequency.f1067K:
-                    clockFrequency = 32_000_000 / 30;
+                    clockFrequency = 32000000 / 30;
                     break;
                 case ClockFrequency.f1231K:
-                    clockFrequency = 32_000_000 / 26;
+                    clockFrequency = 32000000 / 26;
                     break;
                 case ClockFrequency.f1280K:
-                    clockFrequency = 32_000_000 / 25;
+                    clockFrequency = 32000000 / 25;
                     break;
                 case ClockFrequency.f1333K:
-                    clockFrequency = 32_000_000 / 24;
+                    clockFrequency = 32000000 / 24;
                     break;
                 default:
                     this.Log(LogLevel.Error, "Wrong PDMCLKCTRL value, settting to default value");
