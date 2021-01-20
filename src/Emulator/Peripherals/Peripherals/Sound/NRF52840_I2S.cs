@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 this.Log(LogLevel.Error, "Trying to start aquisition, when peripheral is disabled (ENABLE==0). Will not start");
                 return;
             }
-            rxTxThread = machine.ObtainManagedThread(ProcessFrames, (int)sampleFrequency);
+            rxTxThread = machine.ObtainManagedThread(ProcessFrames, (int)(sampleFrequency / (maxSamplesCount.Value * samplesPerDoubleWord)));
             rxTxThread.Start();
         }
 
@@ -207,43 +207,43 @@ namespace Antmicro.Renode.Peripherals.Sound
             switch((MasterClockFrequency)val)
             {
                 case MasterClockFrequency.Mhz32Div8:
-                    masterFrequency = 32*10^6 / 8;
+                    masterFrequency = 32000000 / 8;
                     break;
                 case MasterClockFrequency.Mhz32Div10:
-                    masterFrequency = 32*10^6 / 10;
+                    masterFrequency = 32000000 / 10;
                     break;
                 case MasterClockFrequency.Mhz32Div11:
-                    masterFrequency = 32*10^6 / 11;
+                    masterFrequency = 32000000 / 11;
                     break;
                 case MasterClockFrequency.Mhz32Div15:
-                    masterFrequency = 32*10^6 / 15;
+                    masterFrequency = 32000000 / 15;
                     break;
                 case MasterClockFrequency.Mhz32Div16:
-                    masterFrequency = 32*10^6 / 16;
+                    masterFrequency = 32000000 / 16;
                     break;
                 case MasterClockFrequency.Mhz32Div21:
-                    masterFrequency = 32*10^6 / 21;
+                    masterFrequency = 32000000 / 21;
                     break;
                 case MasterClockFrequency.Mhz32Div23:
-                    masterFrequency = 32*10^6 / 23;
+                    masterFrequency = 32000000 / 23;
                     break;
                 case MasterClockFrequency.Mhz32Div30:
-                    masterFrequency = 32*10^6 / 30;
+                    masterFrequency = 32000000 / 30;
                     break;
                 case MasterClockFrequency.Mhz32Div31:
-                    masterFrequency = 32*10^6 / 31;
+                    masterFrequency = 32000000 / 31;
                     break;
                 case MasterClockFrequency.Mhz32Div32:
-                    masterFrequency = 32*10^6 / 32;
+                    masterFrequency = 32000000 / 32;
                     break;
                 case MasterClockFrequency.Mhz32Div42:
-                    masterFrequency = 32*10^6 / 42;
+                    masterFrequency = 32000000 / 42;
                     break;
                 case MasterClockFrequency.Mhz32Div63:
-                    masterFrequency = 32*10^6 / 63;
+                    masterFrequency = 32000000 / 63;
                     break;
                 case MasterClockFrequency.Mhz32Div125:
-                    masterFrequency = 32*10^6 / 125;
+                    masterFrequency = 32000000 / 125;
                     break;
                 default:
                     this.Log(LogLevel.Error, "Wrong CONFIG.MCK value");
