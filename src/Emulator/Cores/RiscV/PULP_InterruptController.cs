@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -7,7 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -15,7 +18,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    public class PULP_InterruptController : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize, IIRQController
+    public class PULP_InterruptController : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize, IIRQController, IPeripheralContainer<PULP_EventController, NullRegistrationPoint>
     {
         public PULP_InterruptController(Machine machine) : base(machine)
         {
@@ -73,15 +76,56 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return;
             }
-            // Temporarily treat low-number signals as events.
-            // This is an approximation, subject to further investigation.
-            if(number < EventBoundary)
-            {
-                events.Enqueue((uint)number);
-                number = SoCEvent;
-            }
             interrupt.Value |= 1u << number;
             Update();
+        }
+
+        public void OnEvent(int number, bool value)
+        {
+            if(!value)
+            {
+                return;
+            }
+            events.Enqueue((uint)number);
+            interrupt.Value |= 1u << SoCEvent;
+            Update();
+        }
+
+        public void Register(PULP_EventController peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(eventController != null)
+            {
+                throw new RegistrationException("Cannot register more than one peripheral.");
+            }
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            eventController = peripheral;
+        }
+
+        public void Unregister(PULP_EventController peripheral)
+        {
+            if(eventController == null || eventController != peripheral)
+            {
+                throw new RegistrationException("The specified peripheral was never registered.");
+            }
+            machine.UnregisterAsAChildOf(this, peripheral);
+            eventController = null;
+        }
+
+        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(PULP_EventController peripheral)
+        {
+            return eventController != null ?
+                new [] { NullRegistrationPoint.Instance } :
+                Enumerable.Empty<NullRegistrationPoint>();
+        }
+
+        public IEnumerable<IRegistered<PULP_EventController, NullRegistrationPoint>> Children
+        {
+            get
+            {
+                return eventController != null ?
+                    new [] { Registered.Create(eventController, NullRegistrationPoint.Instance) } :
+                    Enumerable.Empty<IRegistered<PULP_EventController, NullRegistrationPoint>>();
+            }
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
@@ -110,13 +154,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return result;
         }
 
+        private PULP_EventController eventController;
+
         private readonly Queue<uint> events = new Queue<uint>();
         private readonly IValueRegisterField mask;
         private readonly IValueRegisterField interrupt;
 
         private const int NumberOfOutgoingInterrupts = 32; //guess
         private const int SoCEvent = 26;
-        private const int EventBoundary = 8;
 
         private enum Registers : long
         {
