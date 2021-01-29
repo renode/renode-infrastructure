@@ -73,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 registerMappings.Add(0x8C + offset, layer[i].WindowVerticalPositionConfigurationRegister);
                 registerMappings.Add(0x94 + offset, layer[i].PixelFormatConfigurationRegister);
                 registerMappings.Add(0x98 + offset, layer[i].ConstantAlphaConfigurationRegister);
+                registerMappings.Add(0x9C + offset, layer[i].DefaultColorConfigurationRegister);
                 registerMappings.Add(0xA0 + offset, layer[i].BlendingFactorConfigurationRegister);
                 registerMappings.Add(0xAC + offset, layer[i].ColorFrameBufferAddressRegister);
             }
