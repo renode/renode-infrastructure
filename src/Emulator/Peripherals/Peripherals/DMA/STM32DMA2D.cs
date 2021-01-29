@@ -57,7 +57,9 @@ namespace Antmicro.Renode.Peripherals.DMA
         private STM32DMA2D()
         {
             var controlRegister = new DoubleWordRegister(this);
-            startFlag = controlRegister.DefineFlagField(0, FieldMode.Read | FieldMode.Write, name: "Start", changeCallback: (old, @new) => { if(@new) DoTransfer(); });
+            startFlag = controlRegister.DefineFlagField(0, FieldMode.Read | FieldMode.Write, name: "Start", writeCallback: (old, @new) => { 
+                if(@new) DoTransfer(); 
+            });
             dma2dMode = controlRegister.DefineEnumField<Mode>(16, 2, FieldMode.Read | FieldMode.Write, name: "Mode");
 
             var foregroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
@@ -71,12 +73,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             interruptStatusRegister.DefineFlagField(4, FieldMode.Read, name: "CTCIF");
             interruptStatusRegister.DefineFlagField(5, FieldMode.Read, name: "CEIF");
 
-            var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", changeCallback: (old, @new) => { if(!@new) IRQ.Unset(); transferCompleteFlag.Value = false; });
+
+            var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => { 
+                if(val) IRQ.Unset(); transferCompleteFlag.Value = false; 
+            });
 
             var numberOfLineRegister = new DoubleWordRegister(this);
             numberOfLineField = numberOfLineRegister.DefineValueField(0, 16, FieldMode.Read | FieldMode.Write, name: "NL");
-            pixelsPerLineField = numberOfLineRegister.DefineValueField(16, 14, FieldMode.Read | FieldMode.Write, name: "PL", 
-                writeCallback: (_, __) => 
+            pixelsPerLineField = numberOfLineRegister.DefineValueField(16, 14, FieldMode.Read | FieldMode.Write, name: "PL",
+                changeCallback: (_, __) => 
                 { 
                     HandleOutputBufferSizeChange(); 
                     HandleBackgroundBufferSizeChange();
@@ -88,16 +93,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             foregroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
 
             var outputPfcControlRegister = new DoubleWordRegister(this);
-            outputColorModeField = outputPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 3, FieldMode.Read | FieldMode.Write, name: "CM", 
-                writeCallback: (_, __) => 
+            outputColorModeField = outputPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 3, FieldMode.Read | FieldMode.Write, name: "CM",
+                changeCallback: (_, __) => 
                 { 
                     HandlePixelFormatChange(); 
                     HandleOutputBufferSizeChange(); 
                 });
 
             var foregroundPfcControlRegister = new DoubleWordRegister(this);
-            foregroundColorModeField = foregroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, FieldMode.Read | FieldMode.Write, name: "CM", 
-                writeCallback: (_, __) => 
+            foregroundColorModeField = foregroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, FieldMode.Read | FieldMode.Write, name: "CM",
+                changeCallback: (_, __) => 
                 {
                     HandlePixelFormatChange(); 
                     HandleForegroundBufferSizeChange(); 
@@ -120,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 machine.SystemBus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
             });
             foregroundAlphaMode = foregroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, FieldMode.Read | FieldMode.Write, name: "AM",
-                writeCallback: (_, __) =>
+                changeCallback: (_, __) =>
                 {
                     HandlePixelFormatChange();
                 });
@@ -130,15 +135,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             foregroundColorBlueChannelField = foregroundColorRegister.DefineValueField(0, 8, name: "BLUE");
             foregroundColorGreenChannelField = foregroundColorRegister.DefineValueField(8, 8, name: "GREEN");
             foregroundColorRedChannelField = foregroundColorRegister.DefineValueField(16, 8, name: "RED",
-                writeCallback: (_, __) =>
+                changeCallback: (_, __) =>
                 {
                     HandlePixelFormatChange();
                 });
 
 
             var backgroundPfcControlRegister = new DoubleWordRegister(this);
-            backgroundColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, FieldMode.Read | FieldMode.Write, name: "CM", 
-                writeCallback: (_, __) => 
+            backgroundColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, FieldMode.Read | FieldMode.Write, name: "CM",
+                changeCallback: (_, __) => 
                 { 
                     HandlePixelFormatChange(); 
                     HandleBackgroundBufferSizeChange(); 
@@ -161,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 machine.SystemBus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
             });
             backgroundAlphaMode = backgroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, FieldMode.Read | FieldMode.Write, name: "AM",
-                writeCallback: (_, __) =>
+                changeCallback: (_, __) =>
                 {
                     HandlePixelFormatChange();
                 });
@@ -171,7 +176,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             backgroundColorBlueChannelField = backgroundColorRegister.DefineValueField(0, 8, name: "BLUE");
             backgroundColorGreenChannelField = backgroundColorRegister.DefineValueField(8, 8, name: "GREEN");
             backgroundColorRedChannelField = backgroundColorRegister.DefineValueField(16, 8, name: "RED",
-                writeCallback: (_, __) =>
+                changeCallback: (_, __) =>
                 {
                     HandlePixelFormatChange();
                 });
@@ -290,8 +295,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 break;
                 case Mode.MemoryToMemoryWithBlending:
-                    var bgMultiplier = 0xff;
-                    PixelBlendingMode bgBlendingMode = PixelBlendingMode.NoModification, fgBlendingMode = PixelBlendingMode.NoModification;
+                    PixelBlendingMode bgBlendingMode = PixelBlendingMode.NoModification;
+                    PixelBlendingMode fgBlendingMode = PixelBlendingMode.NoModification;
+                    var bgAlpha = backgroundAlphaField.Value;
                     switch(backgroundAlphaMode.Value)
                     {
                         case Dma2DAlphaMode.NoModification:
@@ -305,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                             break;
                     }
 
-                    var fgMultiplier = 0xff;
+                    var fgAlpha = foregroundAlphaField.Value;
                     switch (foregroundAlphaMode.Value)
                     {
                         case Dma2DAlphaMode.NoModification:
@@ -328,7 +334,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                {
                                    machine.SystemBus.ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
                                    // per-pixel alpha blending
-                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0,0,0,255), (byte)bgMultiplier, bgBlendingMode, (byte)fgMultiplier, fgBlendingMode);
+                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0,0,0,255), (byte)bgAlpha, bgBlendingMode, (byte)fgAlpha, fgBlendingMode);
                                    return outputBuffer;
                                });
                     }
@@ -343,19 +349,34 @@ namespace Antmicro.Renode.Peripherals.DMA
                                (localForegroundBuffer, line) =>
                                 {
                                     machine.SystemBus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
-                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, (byte)bgMultiplier, bgBlendingMode, (byte)fgMultiplier, fgBlendingMode);
+                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, (byte)bgAlpha, bgBlendingMode, (byte)fgAlpha, fgBlendingMode);
                                     return outputLineBuffer;
                                 });
                     }
                 break;
                 case Mode.MemoryToMemoryWithPfc:
-                    if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
+                    fgAlpha = foregroundAlphaField.Value;
+                    fgBlendingMode = PixelBlendingMode.NoModification;
+                    switch (foregroundAlphaMode.Value)
+                    {
+                        case Dma2DAlphaMode.NoModification:
+                            fgBlendingMode = PixelBlendingMode.NoModification;
+                            break;
+                        case Dma2DAlphaMode.Replace:
+                            fgBlendingMode = PixelBlendingMode.Replace;
+                            break;
+                        case Dma2DAlphaMode.Combine:
+                            fgBlendingMode = PixelBlendingMode.Multiply;
+                            break;
+                    }
+
+                    if (outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {
                         DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
                                 foregroundBuffer,
                                 converter: (localForegroundBuffer, line) =>
                                 {
-                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, ref outputBuffer);
+                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, (byte)fgAlpha, fgBlendingMode, ref outputBuffer);
                                     return outputBuffer;
                                 });
                     }
@@ -368,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 (int)numberOfLineField.Value,
                                 (localForegroundBuffer, line) => 
                                 {
-                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, ref outputLineBuffer);
+                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, (byte)fgAlpha, fgBlendingMode, ref outputLineBuffer);
                                     return outputLineBuffer;
                                 });
                     }
