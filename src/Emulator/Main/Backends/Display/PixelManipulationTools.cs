@@ -93,6 +93,9 @@ namespace Antmicro.Renode.Backends.Display
             var vBackBufferAlphaMultiplier = Expression.Parameter(typeof(byte), "backBufferAlphaMultiplier");
             var vFrontBufferAlphaMultiplier = Expression.Parameter(typeof(byte), "frontBufferAlphaMultiplier");
 
+            var vBackgroundBlendingMode = Expression.Parameter(typeof(PixelBlendingMode), "backgroundBlendingMode");
+            var vForegroundBlendingMode = Expression.Parameter(typeof(PixelBlendingMode), "foregroundBlendingMode");
+
             var vBackAlphaBlended = Expression.Variable(typeof(uint), "backAlphaBlended");
             var vBackgroundColorAlphaBlended = Expression.Variable(typeof(uint), "backgroundColorAlphaBlended");
 
@@ -131,9 +134,36 @@ namespace Antmicro.Renode.Backends.Display
                             GenerateFrom(backgroudBufferDescriptor, vBackBuffer, vBackClutBuffer, vBackPos, inputBackgroundPixel, tmp),
                             GenerateFrom(foregroundBufferDescriptor, vFrontBuffer, vFrontClutBuffer, vFrontPos, inputForegroundPixel, tmp),
 
-                            Expression.Assign(inputBackgroundPixel.AlphaChannel, Expression.Divide(Expression.Multiply(inputBackgroundPixel.AlphaChannel, Expression.Convert(vBackBufferAlphaMultiplier, typeof(uint))), Expression.Constant((uint)0xFF))),
-                            Expression.Assign(inputForegroundPixel.AlphaChannel, Expression.Divide(Expression.Multiply(inputForegroundPixel.AlphaChannel, Expression.Convert(vFrontBufferAlphaMultiplier, typeof(uint))), Expression.Constant((uint)0xFF))),
+                            Expression.Switch(typeof(void), vBackgroundBlendingMode, null, null, new SwitchCase[]
+                            {
+                                // MULTIPLY: input BG Pixel Alpha *= bg alpha
+                                Expression.SwitchCase(
+                                    Expression.Assign(inputBackgroundPixel.AlphaChannel, Expression.Divide(Expression.Multiply(inputBackgroundPixel.AlphaChannel, Expression.Convert(vBackBufferAlphaMultiplier, typeof(uint))), Expression.Constant((uint)0xFF))),
+                                    Expression.Constant(PixelBlendingMode.MULTIPLY)
+                                ),
 
+                                // REPLACE: input BG Pixel Alpha = bg alpha
+                                Expression.SwitchCase(
+                                    Expression.Assign(inputBackgroundPixel.AlphaChannel, Expression.Convert(vBackBufferAlphaMultiplier, typeof(uint))),
+                                    Expression.Constant(PixelBlendingMode.REPLACE)
+                                )
+                            }),
+
+                            Expression.Switch(typeof(void), vForegroundBlendingMode, null, null, new SwitchCase[]
+                            {
+                                // MULTIPLY: input FG Pixel Alpha *= fg alpha
+                                Expression.SwitchCase(
+                                    Expression.Assign(inputForegroundPixel.AlphaChannel, Expression.Divide(Expression.Multiply(inputForegroundPixel.AlphaChannel, Expression.Convert(vFrontBufferAlphaMultiplier, typeof(uint))), Expression.Constant((uint)0xFF))),
+                                    Expression.Constant(PixelBlendingMode.MULTIPLY)
+                                ),
+
+                                // REPLACE: input FG Pixel Alpha = fg alpha
+                                Expression.SwitchCase(
+                                    Expression.Assign(inputForegroundPixel.AlphaChannel, Expression.Convert(vFrontBufferAlphaMultiplier, typeof(uint))),
+                                    Expression.Constant(PixelBlendingMode.REPLACE)
+                                )
+                            }),
+                            
                             Expression.Block(
                                 // (b_alpha * (0xFF - f_alpha)) / 0xFF
                                 Expression.Assign(
@@ -168,12 +198,15 @@ namespace Antmicro.Renode.Backends.Display
                                             vBackgroundColorAlphaBlended))),
 
                                 Expression.IfThenElse(
+                                    // If output pixel is 100% transparent
                                     Expression.Equal(outputPixel.AlphaChannel, Expression.Constant((uint)0)),
+                                    // ... then the outputpixel should actually be equal to the underlying background pixel
                                     Expression.Block(
                                         Expression.Assign(outputPixel.RedChannel, contantBackgroundPixel.RedChannel),
                                         Expression.Assign(outputPixel.GreenChannel, contantBackgroundPixel.GreenChannel),
                                         Expression.Assign(outputPixel.BlueChannel, contantBackgroundPixel.BlueChannel),
                                         Expression.Assign(outputPixel.AlphaChannel, contantBackgroundPixel.AlphaChannel)),
+                                    // ... else, apply alpha to all color channels
                                     Expression.Block( 
                                         Expression.Assign(
                                             outputPixel.RedChannel, 
@@ -216,7 +249,7 @@ namespace Antmicro.Renode.Backends.Display
                 )
             );
 
-            return Expression.Lambda<BlendDelegate>(block, vBackBuffer, vBackClutBuffer, vFrontBuffer, vFrontClutBuffer, vOutputBuffer, vBackgroundColor, vBackBufferAlphaMultiplier, vFrontBufferAlphaMultiplier).Compile();
+            return Expression.Lambda<BlendDelegate>(block, vBackBuffer, vBackClutBuffer, vFrontBuffer, vFrontClutBuffer, vOutputBuffer, vBackgroundColor, vBackBufferAlphaMultiplier, vBackgroundBlendingMode, vFrontBufferAlphaMultiplier, vForegroundBlendingMode).Compile();
         }
 
         private static ConvertDelegate GenerateConvertMethod(BufferDescriptor inputBufferDescriptor, BufferDescriptor outputBufferDescriptor)
@@ -654,18 +687,18 @@ namespace Antmicro.Renode.Backends.Display
                 this.blender = blender;
             }
 
-            public void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, byte frontBufferAlphaMultiplayer = 0xFF)
+            public void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY)
             {
-                Blend(backBuffer, null, frontBuffer, null, ref output, background, backBufferAlphaMulitplier, frontBufferAlphaMultiplayer);
+                Blend(backBuffer, null, frontBuffer, null, ref output, background, backBufferAlphaMultiplier, backgroundBlendingMode, frontBufferAlphaMultiplayer, foregroundBlendingMode);
             }
 
-            public void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, byte frontBufferAlphaMultiplayer = 0xFF)
+            public void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY)
             {
                 if(background == null)
                 {
                     background = new Pixel(0x00, 0x00, 0x00, 0x00);
                 }
-                blender(backBuffer, backClutBuffer, frontBuffer, frontClutBuffer, ref output, background, backBufferAlphaMulitplier, frontBufferAlphaMultiplayer);
+                blender(backBuffer, backClutBuffer, frontBuffer, frontClutBuffer, ref output, background, backBufferAlphaMultiplier, backgroundBlendingMode, frontBufferAlphaMultiplayer, foregroundBlendingMode);
             }
 
             public PixelFormat BackBuffer { get; private set; }
@@ -679,7 +712,7 @@ namespace Antmicro.Renode.Backends.Display
         private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
         private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, ref byte[] outBuffer);
-        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, byte frontBufferAlphaMultiplayer = 0xFF);
+        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY);
 
         private class PixelDescriptor
         {
