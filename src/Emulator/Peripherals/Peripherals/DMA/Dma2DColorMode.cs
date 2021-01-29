@@ -1,5 +1,6 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2020-2021 Microsoft
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +26,14 @@ namespace Antmicro.Renode.Peripherals.DMA
         L4,
         A8,
         A4
+    }
+
+    // ordering of entry is taken from the documentation and should not be altered!
+    internal enum Dma2DAlphaMode
+    {
+        NO_MODIFICATION,
+        REPLACE,
+        COMBINE
     }
 
     internal static class Dma2DColorModeExtensions
