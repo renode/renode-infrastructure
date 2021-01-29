@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.cpu = cpu;
         }
 
-        public ManualResetEvent MaskedInterruptPresent { get { return maskedInterruptPresent; } }
+        public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
 
         public IEnumerable<int> GetEnabledExternalInterrupts()
         {
@@ -551,7 +551,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(result != SpuriousInterrupt)
                 {
-                    maskedInterruptPresent.Set();
+                    maskedInterruptPresent = true;
                     if(!PRIMASK)
                     {
                         IRQ.Set(true);
@@ -559,7 +559,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 else
                 {
-                    maskedInterruptPresent.Reset();
+                    maskedInterruptPresent = false;
                 }
 
                 return result;
@@ -591,7 +591,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         [PostDeserialization]
         private void Init()
         {
-            maskedInterruptPresent = new ManualResetEvent(false);
+            maskedInterruptPresent = false;
         }
 
         private bool primask;
@@ -669,7 +669,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private int binaryPointPosition; // from the right
 
         [Transient]
-        private ManualResetEvent maskedInterruptPresent;
+        private bool maskedInterruptPresent;
 
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
