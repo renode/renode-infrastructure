@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2020-2021 Microsoft
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -72,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 registerMappings.Add(0x8C + offset, layer[i].WindowVerticalPositionConfigurationRegister);
                 registerMappings.Add(0x94 + offset, layer[i].PixelFormatConfigurationRegister);
                 registerMappings.Add(0x98 + offset, layer[i].ConstantAlphaConfigurationRegister);
+                registerMappings.Add(0xA0 + offset, layer[i].BlendingFactorConfigurationRegister);
                 registerMappings.Add(0xAC + offset, layer[i].ColorFrameBufferAddressRegister);
             }
 
@@ -187,6 +189,18 @@ namespace Antmicro.Renode.Peripherals.Video
         private IPixelBlender blender;
         private Pixel backgroundColor;
 
+        private enum BlendingFactor1
+        {
+            Constant = 0b100,
+            Multiply = 0b110
+        }
+
+        private enum BlendingFactor2
+        {
+            Constant = 0b101,
+            Multiply = 0b111
+        }
+
         private enum Register : long
         {
             BackPorchConfigurationRegister = 0x0C,
@@ -216,6 +230,12 @@ namespace Antmicro.Renode.Peripherals.Video
                 PixelFormatField = PixelFormatConfigurationRegister.DefineEnumField<Dma2DColorMode>(0, 3, FieldMode.Read | FieldMode.Write, name: "PF", writeCallback: (_, __) => { RestoreBuffers(); video.HandlePixelFormatChange(); });
 
                 ConstantAlphaConfigurationRegister = new DoubleWordRegister(video, 0xFF).WithValueField(0, 8, FieldMode.Read | FieldMode.Write, name: "CONSTA");
+
+                BlendingFactorConfigurationRegister = new DoubleWordRegister(video, 0x0607);
+                BlendingFactor1 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor1>(8, 3, FieldMode.Read | FieldMode.Write, name: "BF1", writeCallback: (_, __) => { RestoreBuffers(); });
+                BlendingFactor2 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, FieldMode.Read | FieldMode.Write, name: "BF2", writeCallback: (_, __) => { 
+                    RestoreBuffers(); 
+                });
 
                 ColorFrameBufferAddressRegister = new DoubleWordRegister(video).WithValueField(0, 32, FieldMode.Read | FieldMode.Write, name: "CFBADD", writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
 
@@ -297,6 +317,9 @@ namespace Antmicro.Renode.Peripherals.Video
             public IEnumRegisterField<Dma2DColorMode> PixelFormatField;
 
             public DoubleWordRegister ConstantAlphaConfigurationRegister;
+            public DoubleWordRegister BlendingFactorConfigurationRegister;
+            public IEnumRegisterField<BlendingFactor1> BlendingFactor1;
+            public IEnumRegisterField<BlendingFactor2> BlendingFactor2;
 
             public DoubleWordRegister ColorFrameBufferAddressRegister;
 
