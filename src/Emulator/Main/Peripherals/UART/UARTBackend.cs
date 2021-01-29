@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IOProvider io;
         private Dictionary<IOProvider, Action<byte>> actionsDictionary;
         private readonly CircularBuffer<byte> history;
-        private object lockObject= new object();
+        private object lockObject = new object();
 
         private const int BUFFER_SIZE = 100000;
     }
