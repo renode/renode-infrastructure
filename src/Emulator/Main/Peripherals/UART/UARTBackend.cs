@@ -114,6 +114,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [Transient]
         private IOProvider io;
+        [Constructor]
         private Dictionary<IOProvider, Action<byte>> actionsDictionary;
         private readonly CircularBuffer<byte> history;
         private object lockObject = new object();
