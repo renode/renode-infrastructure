@@ -20,8 +20,7 @@ namespace Antmicro.Renode.Backends.Display
             var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess, clutInputFormat, inputFixedColor);
             if(!convertersCache.ContainsKey(converterConfiguration))
             {
-                convertersCache[converterConfiguration] = ((inputFormat == outputFormat) && (inputEndianess == outputEndianess)) ?  
-                    (IPixelConverter)new IdentityPixelConverter(inputFormat) : 
+                convertersCache[converterConfiguration] = 
                     new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(
                     new BufferDescriptor 
                     {
@@ -262,6 +261,8 @@ namespace Antmicro.Renode.Backends.Display
 
             var vInputBuffer = Expression.Parameter(typeof(byte[]), "inputBuffer");
             var vClutBuffer = Expression.Parameter(typeof(byte[]), "clutBuffer");
+            var vAlpha = Expression.Parameter(typeof(byte), "alpha");
+            var vAlphaReplaceMode = Expression.Parameter(typeof(PixelBlendingMode), "alphaReplaceMode");
             var vOutputBuffer = Expression.Parameter(typeof(byte[]).MakeByRefType(), "outputBuffer");
 
             var vInPos = Expression.Variable(typeof(int), "inPos");
@@ -272,7 +273,7 @@ namespace Antmicro.Renode.Backends.Display
             var outOfLoop = Expression.Label();
 
             var block = Expression.Block(
-                new [] { vColor.RedChannel, vColor.GreenChannel, vColor.BlueChannel, vColor.AlphaChannel, vInStep, vOutStep, vLength, vInPos, vOutPos, tmp },
+                new[] { vColor.RedChannel, vColor.GreenChannel, vColor.BlueChannel, vColor.AlphaChannel, vInStep, vOutStep, vLength, vInPos, vOutPos, tmp },
 
                 Expression.Assign(vInStep, Expression.Constant(inputBufferDescriptor.ColorFormat.GetColorDepth())),
                 Expression.Assign(vOutStep, Expression.Constant(outputBufferDescriptor.ColorFormat.GetColorDepth())),
@@ -284,6 +285,24 @@ namespace Antmicro.Renode.Backends.Display
                     Expression.IfThenElse(Expression.LessThan(vInPos, vLength),
                         Expression.Block(
                             GenerateFrom(inputBufferDescriptor, vInputBuffer, vClutBuffer, vInPos, vColor, tmp),
+
+                            // handle the case where alpha needs to be changed
+                            Expression.Switch(typeof(void), vAlphaReplaceMode, null, null, new SwitchCase[]
+                            {
+                                // MULTIPLY
+                                Expression.SwitchCase(
+                                    Expression.Assign(vColor.AlphaChannel, Expression.Divide(Expression.Multiply(vColor.AlphaChannel, Expression.Convert(vAlpha, typeof(uint))), Expression.Constant((uint)0xFF))),
+                                    Expression.Constant(PixelBlendingMode.MULTIPLY)
+                                ),
+
+                                // REPLACE
+                                Expression.SwitchCase(
+                                    Expression.Assign(vColor.AlphaChannel, Expression.Convert(vAlpha, typeof(uint))),
+                                    Expression.Constant(PixelBlendingMode.REPLACE)
+                                )
+                            }),
+
+
                             GenerateTo(outputBufferDescriptor, vOutputBuffer, vOutPos, vColor),
 
                             Expression.AddAssign(vInPos, vInStep),
@@ -295,7 +314,7 @@ namespace Antmicro.Renode.Backends.Display
                 )
             );
 
-            return Expression.Lambda<ConvertDelegate>(block, vInputBuffer, vClutBuffer, vOutputBuffer).Compile();
+            return Expression.Lambda<ConvertDelegate>(block, vInputBuffer, vClutBuffer, vAlpha, vAlphaReplaceMode, vOutputBuffer).Compile();
         }
 
         /// <summary>
@@ -641,40 +660,18 @@ namespace Antmicro.Renode.Backends.Display
 
             public void Convert(byte[] inBuffer, ref byte[] outBuffer)
             {
-                converter(inBuffer, null, ref outBuffer);
+                converter(inBuffer, null, 0xff, PixelBlendingMode.NO_MODIFICATION, ref outBuffer);
             }
 
-            public void Convert(byte[] inBuffer, byte[] clutBuffer, ref byte[] outBuffer)
+            public void Convert(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer)
             {
-                converter(inBuffer, clutBuffer, ref outBuffer);
+                converter(inBuffer, clutBuffer, alpha, alphaReplaceMode, ref outBuffer);
             }
 
             public PixelFormat Input { get; private set; }
             public PixelFormat Output { get; private set; }
             
             private readonly ConvertDelegate converter;
-        }
-
-        private class IdentityPixelConverter : IPixelConverter
-        {
-            public IdentityPixelConverter(PixelFormat format)
-            {
-                Input = format;
-                Output = format;
-            }
-
-            public void Convert(byte[] inBuffer, byte[] clutBuffer, ref byte[] outBuffer)
-            {
-                outBuffer = inBuffer;
-            }
-
-            public void Convert(byte[] inBuffer, ref byte[] outBuffer)
-            {
-                outBuffer = inBuffer;
-            }
-
-            public PixelFormat Input { get; private set; }
-            public PixelFormat Output { get; private set; }
         }
 
         private class PixelBlender : IPixelBlender
@@ -711,7 +708,7 @@ namespace Antmicro.Renode.Backends.Display
         private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
         private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
-        private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, ref byte[] outBuffer);
+        private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
         private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY);
 
         private class PixelDescriptor
