@@ -14,14 +14,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_09, string cpuType = "rv32im") : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
+        public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_09, string cpuType = "rv32im", bool builtInIrqController = true) : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
         {
+            this.builtInIrqController = builtInIrqController;
+            if(builtInIrqController)
+            {
+                RegisterCustomCSRs();
+            }
 
-            RegisterCustomCSRs();
             RegisterCustomInstructions();
         }
 
-        // GPIOs in VexRiscv are divided into the following sections
+        // GPIOs for the original (non-standard) VexRiscv configuration
+        // are divided into the following sections:
         //      0 - 31 : machine level external interrupts
         //         100 : machine level timer interrupt
         //         101 : machine level software interrupt
@@ -31,23 +36,30 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(locker)
             {
                 this.Log(LogLevel.Noisy, "GPIO #{0} set to: {1}", number, value);
-                if(number == MachineTimerInterruptCustomNumber)
+                if(!builtInIrqController)
                 {
-                    base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
+                    base.OnGPIO(number, value);
                 }
-                else if (number == MachineSoftwareInterruptCustomNumber)
+                else
                 {
-                    base.OnGPIO((int)IrqType.MachineSoftwareInterrupt, value);
-                }
-                else if(number >= SupervisorExternalInterruptsOffset)
-                {
-                    BitHelper.SetBit(ref supervisorInterrupts.Pending, (byte)(number - SupervisorExternalInterruptsOffset), value);
-                    Update();
-                }
-                else // machine external
-                {
-                    BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
-                    Update();
+                    if(number == MachineTimerInterruptCustomNumber)
+                    {
+                        base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
+                    }
+                    else if (number == MachineSoftwareInterruptCustomNumber)
+                    {
+                        base.OnGPIO((int)IrqType.MachineSoftwareInterrupt, value);
+                    }
+                    else if(number >= SupervisorExternalInterruptsOffset)
+                    {
+                        BitHelper.SetBit(ref supervisorInterrupts.Pending, (byte)(number - SupervisorExternalInterruptsOffset), value);
+                        Update();
+                    }
+                    else // machine external
+                    {
+                         BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
+                         Update();
+                    }
                 }
             }
         }
@@ -55,10 +67,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             base.Reset();
-
-            machineInterrupts = new Interrupts();
-            supervisorInterrupts = new Interrupts();
             dCacheInfo = 0;
+
+            if(builtInIrqController)
+            {
+                machineInterrupts = new Interrupts();
+                supervisorInterrupts = new Interrupts();
+            }
         }
 
         // this is a helper method to allow
@@ -141,6 +156,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Interrupts supervisorInterrupts;
         private uint dCacheInfo;
 
+        private readonly bool builtInIrqController;
         private readonly object locker = new object();
 
         // this is non-standard number for Machine Timer Interrupt,
