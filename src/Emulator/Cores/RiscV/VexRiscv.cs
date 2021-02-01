@@ -16,49 +16,9 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_09, string cpuType = "rv32im") : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
         {
-            // validate only privilege level when accessing CSRs
-            // do not validate rw bit as VexRiscv custom CSRs do not follow the standard
-            CSRValidation = CSRValidationLevel.PrivilegeLevel;
 
-            RegisterCSR((ulong)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
-            {
-                lock(locker)
-                {
-                    machineInterrupts.Mask = (uint)value;
-                    this.Log(LogLevel.Noisy, "Machine IRQ mask set to 0x{0:X}", machineInterrupts.Mask);
-                    Update();
-                }
-            });
-            RegisterCSR((ulong)CSRs.MachineIrqPending, () => (ulong)machineInterrupts.Pending, value =>
-            {
-                lock(locker)
-                {
-                    machineInterrupts.Pending = (uint)value;
-                    this.Log(LogLevel.Noisy, "Machine IRQ pending set to 0x{0:X}", machineInterrupts.Pending);
-                    Update();
-                }
-            });
-            RegisterCSR((ulong)CSRs.SupervisorIrqMask, () => (ulong)supervisorInterrupts.Mask, value =>
-            {
-                lock(locker)
-                {
-                    supervisorInterrupts.Mask = (uint)value;
-                    this.Log(LogLevel.Noisy, "Supervisor IRQ mask set to 0x{0:X}", supervisorInterrupts.Mask);
-                    Update();
-                }
-            });
-            RegisterCSR((ulong)CSRs.SupervisorIrqPending, () => (ulong)supervisorInterrupts.Pending, value =>
-            {
-                lock(locker)
-                {
-                    supervisorInterrupts.Pending = (uint)value;
-                    this.Log(LogLevel.Noisy, "Supervisor IRQ pending set to 0x{0:X}", supervisorInterrupts.Pending);
-                    Update();
-                }
-            });
-            RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
-
-            InstallCustomInstruction(pattern: "00000000000000000101000000001111", handler: HandleFlushDataCacheInstruction);
+            RegisterCustomCSRs();
+            RegisterCustomInstructions();
         }
 
         // GPIOs in VexRiscv are divided into the following sections
@@ -125,6 +85,56 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             // intentionally do nothing
             // there is no data cache in Renode anyway
+        }
+
+        private void RegisterCustomInstructions()
+        {
+            InstallCustomInstruction(pattern: "00000000000000000101000000001111", handler: HandleFlushDataCacheInstruction);
+        }
+
+        private void RegisterCustomCSRs()
+        {
+            // validate only privilege level when accessing CSRs
+            // do not validate rw bit as VexRiscv custom CSRs do not follow the standard
+            CSRValidation = CSRValidationLevel.PrivilegeLevel;
+
+            RegisterCSR((ulong)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
+            {
+                lock(locker)
+                {
+                    machineInterrupts.Mask = (uint)value;
+                    this.Log(LogLevel.Noisy, "Machine IRQ mask set to 0x{0:X}", machineInterrupts.Mask);
+                    Update();
+                }
+            });
+            RegisterCSR((ulong)CSRs.MachineIrqPending, () => (ulong)machineInterrupts.Pending, value =>
+            {
+                lock(locker)
+                {
+                    machineInterrupts.Pending = (uint)value;
+                    this.Log(LogLevel.Noisy, "Machine IRQ pending set to 0x{0:X}", machineInterrupts.Pending);
+                    Update();
+                }
+            });
+            RegisterCSR((ulong)CSRs.SupervisorIrqMask, () => (ulong)supervisorInterrupts.Mask, value =>
+            {
+                lock(locker)
+                {
+                    supervisorInterrupts.Mask = (uint)value;
+                    this.Log(LogLevel.Noisy, "Supervisor IRQ mask set to 0x{0:X}", supervisorInterrupts.Mask);
+                    Update();
+                }
+            });
+            RegisterCSR((ulong)CSRs.SupervisorIrqPending, () => (ulong)supervisorInterrupts.Pending, value =>
+            {
+                lock(locker)
+                {
+                    supervisorInterrupts.Pending = (uint)value;
+                    this.Log(LogLevel.Noisy, "Supervisor IRQ pending set to 0x{0:X}", supervisorInterrupts.Pending);
+                    Update();
+                }
+            });
+            RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
         }
 
         private Interrupts machineInterrupts;
