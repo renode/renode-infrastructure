@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                   {
                                       return;
                                   }
-                                  
+
                                   if(txBufferSize.Value == 0)
                                   {
                                       this.Log(LogLevel.Warning, "TX is being enabled, but the buffer size is not configured. Ignoring the operation");
@@ -84,13 +84,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.Setup, new DoubleWordRegister(this)
                     .WithFlag(0, out parityEnable, name: "PARITY_ENA / Parity Enable")
-                    .WithValueField(1, 2, out bitLength, name: "BIT_LENGTH / Character length")
+                    .WithTag("BIT_LENGTH / Character length", 1, 2)
                     .WithFlag(3, out stopBits, name: "STOP_BITS / Stop bits length")
-                    .WithFlag(4, out pollingEnabled, name: "POLLING_EN / Polling Enabled")
-                    .WithFlag(5, out cleanFIFO, name: "CLEAN_FIFO / Clean RX FIFO")
-                    .WithFlag(8, out txEnabled, name: "TX_ENA / TX enabled")
-                    .WithFlag(9, out rxEnabled, name: "RX_ENA / RX enabled")
-                    .WithValueField(16, 16, out clockDivider, name: "CLKDIV / Clock divider")
+                    .WithTag("POLLING_EN / Polling Enabled", 4, 1)
+                    .WithTag("CLEAN_FIFO / Clean RX FIFO", 5, 1)
+                    .WithTag("TX_ENA / TX enabled", 8, 1)
+                    .WithTag("RX_ENA / RX enabled", 9, 1)
+                    .WithTag("CLKDIV / Clock divider", 16, 16)
                 },
             };
 
@@ -156,13 +156,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly DoubleWordRegisterCollection registers;
 
         private IFlagRegisterField parityEnable;
-        private IFlagRegisterField pollingEnabled;
-        private IFlagRegisterField cleanFIFO;
-        private IFlagRegisterField txEnabled;
-        private IFlagRegisterField rxEnabled;
         private IFlagRegisterField stopBits;
-        private IValueRegisterField bitLength;
-        private IValueRegisterField clockDivider;
         private IValueRegisterField txBufferAddress;
         private IValueRegisterField txBufferSize;
         private IValueRegisterField rxBufferAddress;
