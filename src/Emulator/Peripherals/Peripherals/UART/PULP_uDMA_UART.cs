@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(0, 17, out txBufferSize, name: "TX_SIZE / Tx buffer size")
                 },
                 {(long)Registers.TxConfig, new DoubleWordRegister(this)
-                    .WithFlag(4, out txStart, name: "EN / TX channel enable and start",
+                    .WithFlag(4, name: "EN / TX channel enable and start",
                               // Continuous mode is currently not supported
                               valueProviderCallback: _ => false,
                               writeCallback: (_, value) =>
@@ -158,7 +158,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField clockDivider;
         private IValueRegisterField txBufferAddress;
         private IValueRegisterField txBufferSize;
-        private IFlagRegisterField txStart;
         private IValueRegisterField rxBufferAddress;
         private IValueRegisterField rxBufferSize;
 
