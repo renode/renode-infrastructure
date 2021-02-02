@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -36,7 +37,6 @@ namespace Antmicro.Renode.Peripherals.UART
                                   rxStarted = value;
                                   if(value)
                                   {
-                                      rxData = new byte[rxBufferSize.Value];
                                       rxIdx = 0;
                                       if(Count > 0)
                                       {
@@ -101,7 +101,6 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             registers.Reset();
-            rxData = null;
             rxIdx = 0;
             rxStarted = false;
         }
@@ -128,19 +127,32 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            if(rxStarted)
+            if(!rxStarted)
             {
-                if(TryGetCharacter(out rxData[rxIdx]))
-                {
-                    rxIdx++;
-                }
+                this.Log(LogLevel.Warning, "Received byte, but the RX is not started - ignoring it");
+                return;
+            }
 
-                if(rxIdx == rxBufferSize.Value)
-                {
-                    this.Machine.SystemBus.WriteBytes(rxData, rxBufferAddress.Value, 0, (int)rxBufferSize.Value);
-                    rxStarted = false;
-                    RxIRQ.Blink();
-                }
+            if(!TryGetCharacter(out var c))
+            {
+                this.Log(LogLevel.Error, "CharWritten called, but there is no data in the buffer. This might indicate a bug in the model");
+                return;
+            }
+
+            if(rxIdx >= rxBufferSize.Value)
+            {
+                // this might happen when rxBufferSize is not initiated properly
+                this.Log(LogLevel.Warning, "Received byte {0} (0x{0:X}), but there is no more space in the buffer - ignoring it", (char)c, c);
+                return;
+            }
+
+            this.Machine.SystemBus.WriteByte((ulong)(rxBufferAddress.Value + rxIdx), c);
+            rxIdx++;
+
+            if(rxIdx == rxBufferSize.Value)
+            {
+                RxIRQ.Blink();
+                rxStarted = false;
             }
         }
 
@@ -149,7 +161,6 @@ namespace Antmicro.Renode.Peripherals.UART
             // Intentionally left blank
         }
 
-        private byte[] rxData;
         private int rxIdx;
         private bool rxStarted;
 
