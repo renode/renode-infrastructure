@@ -59,16 +59,23 @@ namespace Antmicro.Renode.Peripherals.UART
                               valueProviderCallback: _ => false,
                               writeCallback: (_, value) =>
                               {
-                                  if(value && txBufferSize.Value != 0)
+                                  if(!value)
                                   {
-                                      var data = new byte[txBufferSize.Value];
-                                      machine.SystemBus.ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value, data, 0);
-                                      foreach(var c in data)
-                                      {
-                                          TransmitCharacter(c);
-                                      }
-                                      TxIRQ.Blink();
+                                      return;
                                   }
+                                  
+                                  if(txBufferSize.Value == 0)
+                                  {
+                                      this.Log(LogLevel.Warning, "TX is being enabled, but the buffer size is not configured. Ignoring the operation");
+                                      return;
+                                  }
+
+                                  var data = machine.SystemBus.ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
+                                  foreach(var c in data)
+                                  {
+                                      TransmitCharacter(c);
+                                  }
+                                  TxIRQ.Blink();
                               })
                 },
                 {(long)Registers.Status, new DoubleWordRegister(this)
