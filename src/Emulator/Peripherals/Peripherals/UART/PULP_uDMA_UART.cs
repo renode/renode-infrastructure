@@ -33,11 +33,11 @@ namespace Antmicro.Renode.Peripherals.UART
                               valueProviderCallback: _ => false,
                               writeCallback: (_, value) =>
                               {
+                                  rxStarted = value;
                                   if(value)
                                   {
                                       rxData = new byte[rxBufferSize.Value];
                                       rxIdx = 0;
-                                      rxStarted = true;
                                       if(Count > 0)
                                       {
                                           // With the new round of reception we might still have some characters in the
@@ -45,7 +45,6 @@ namespace Antmicro.Renode.Peripherals.UART
                                           CharWritten();
                                       }
                                   }
-                                  rxStarted = value;
                               })
                 },
                 {(long)Registers.TxBaseAddress, new DoubleWordRegister(this)
