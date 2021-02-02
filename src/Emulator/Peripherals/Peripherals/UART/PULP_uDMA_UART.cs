@@ -145,7 +145,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private byte[] rxData;
         private int rxIdx;
-        private bool rxStarted = false;
+        private bool rxStarted;
 
         private readonly DoubleWordRegisterCollection registers;
 
