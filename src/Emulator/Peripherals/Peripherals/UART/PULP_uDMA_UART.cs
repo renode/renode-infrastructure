@@ -68,8 +68,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                       {
                                           TransmitCharacter(c);
                                       }
-                                      bufferSent = true;
-                                      UpdateInterrupts();
+                                      TxIRQ.Blink();
                                   }
                               })
                 },
@@ -96,8 +95,6 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             registers.Reset();
-            bufferSent = false;
-            bufferReceived = false;
             rxData = null;
             rxIdx = 0;
             rxStarted = false;
@@ -135,9 +132,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 if(rxIdx == rxBufferSize.Value)
                 {
                     this.Machine.SystemBus.WriteBytes(rxData, rxBufferAddress.Value, 0, (int)rxBufferSize.Value);
-                    bufferReceived = true;
                     rxStarted = false;
-                    UpdateInterrupts();
+                    RxIRQ.Blink();
                 }
             }
         }
@@ -147,22 +143,6 @@ namespace Antmicro.Renode.Peripherals.UART
             // Intentionally left blank
         }
 
-        private void UpdateInterrupts()
-        {
-            if(bufferSent)
-            {
-                TxIRQ.Blink();
-                bufferSent = false;
-            }
-            if(bufferReceived)
-            {
-                RxIRQ.Blink();
-                bufferReceived = false;
-            }
-        }
-
-        private bool bufferSent = false;
-        private bool bufferReceived = false;
         private byte[] rxData;
         private int rxIdx;
         private bool rxStarted = false;
