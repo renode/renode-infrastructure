@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.RxConfig, new DoubleWordRegister(this)
                     .WithFlag(4, out rxStart, name: "EN / RX channel enable and start",
                               // Continuous mode is currently not supported
-                              valueProviderCallback: _ => false,
+                              valueProviderCallback: _ => rxStarted,
                               writeCallback: (_, value) =>
                               {
                                   rxStarted = value;
