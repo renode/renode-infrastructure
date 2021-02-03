@@ -478,7 +478,9 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         [Transient]
         private IPixelBlender blender;
+        [Transient]
         private IPixelConverter bgConverter;
+        [Transient]
         private IPixelConverter fgConverter;
         [Transient]
         private IPixelConverter converter;
