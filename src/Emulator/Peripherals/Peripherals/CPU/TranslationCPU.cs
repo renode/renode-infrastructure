@@ -332,9 +332,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             var numberOfExecutedInstructions = TlibGetExecutedInstructions();
             if(numberOfExecutedInstructions > 0)
             {
-                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions, PerformanceInMips, out var residuum);
-                TlibResetExecutedInstructions(residuum);
-                machine.HandleTimeProgress(elapsed);
+                instructionsLeftThisRound -= numberOfExecutedInstructions;
+                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions + executedResiduum, PerformanceInMips, out executedResiduum);
+                TimeHandle.ReportProgress(elapsed);
             }
         }
 
@@ -1916,6 +1916,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private ulong executedResiduum;
+        private ulong instructionsLeftThisRound;
 
         private bool CpuThreadBodyInner(bool singleStep)
         {
@@ -1931,7 +1932,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 instructionsToExecuteThisRound = 1;
             }
-            var instructionsLeftThisRound = instructionsToExecuteThisRound;
+
+            DebugHelper.Assert(instructionsLeftThisRound == 0);
+            instructionsLeftThisRound = instructionsToExecuteThisRound;
 
             while(!isPaused && !isHalted && instructionsLeftThisRound > 0)
             {
@@ -2032,7 +2035,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
             }
 
-            return instructionsLeftThisRound != instructionsToExecuteThisRound;
+            var anythingExecuted = instructionsLeftThisRound != instructionsToExecuteThisRound;
+
+            instructionsLeftThisRound = 0;
+            return anythingExecuted;
         }
 
         protected virtual void ExecutionFinished(ExecutionResult result)
