@@ -58,6 +58,7 @@
       <DependentUpon>CortexMRegisters.tt</DependentUpon>
     </Compile>
     <Compile Include="Arm-M\NVIC.cs" />
+    <Compile Include="Arm-M\DWT.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Arm-M\CortexMRegisters.tt">
