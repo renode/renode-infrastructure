@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        public long Size => 0x100;
+        public long Size => 0x80;
 
         private void StartRx()
         {
