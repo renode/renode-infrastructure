@@ -15,7 +15,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class PULP_uDMA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection> 
+    public class PULP_uDMA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
         public PULP_uDMA_I2C(Machine machine) : base(machine)
         {
