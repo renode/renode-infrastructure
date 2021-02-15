@@ -333,12 +333,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             var numberOfExecutedInstructions = TlibGetExecutedInstructions();
-            if(numberOfExecutedInstructions > 0)
-            {
-                instructionsLeftThisRound -= numberOfExecutedInstructions;
-                var elapsed = TimeInterval.FromCPUCycles(numberOfExecutedInstructions + executedResiduum, PerformanceInMips, out executedResiduum);
-                TimeHandle.ReportProgress(elapsed);
-            }
+            this.Trace($"CPU executed {numberOfExecutedInstructions} instructions and time synced");
+            ReportProgress(numberOfExecutedInstructions);
         }
 
         public virtual void Start()
@@ -1981,6 +1977,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ulong executedResiduum;
         private ulong instructionsLeftThisRound;
+        private ulong instructionsExecutedThisRound;
         protected bool neverWaitForInterrupt;
 
         private bool CpuThreadBodyInner(bool singleStep)
@@ -1992,26 +1989,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
-            var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
-            if(singleStep && instructionsToExecuteThisRound >= 1)
-            {
-                instructionsToExecuteThisRound = 1;
-            }
+            var initialExecutedResiduum = executedResiduum;
+            var initialTotalElapsedTime = TimeHandle.TotalElapsedTime;
 
-            DebugHelper.Assert(instructionsLeftThisRound == 0);
-            instructionsLeftThisRound = instructionsToExecuteThisRound;
+            var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
+            if(instructionsToExecuteThisRound <= executedResiduum)
+            {
+                this.Trace("not enough time granted, reporting continue");
+                TimeHandle.ReportBackAndContinue(interval);
+                return false;
+            }
+            instructionsLeftThisRound = Math.Min(instructionsToExecuteThisRound - executedResiduum, singleStep ? 1 : ulong.MaxValue);
+            instructionsExecutedThisRound = executedResiduum;
 
             while(!isPaused && !isHalted && instructionsLeftThisRound > 0)
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
 
-                var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
-                var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
-                if(instructionsToNearestLimit != ulong.MaxValue && (nearestLimitIn.Ticks == 0 || unused > 0))
-                {
-                    // we must check for `ulong.MaxValue` as otherwise it would overflow
-                    instructionsToNearestLimit++;
-                }
+                var instructionsToNearestLimit = InstructionsToNearestLimit();
 
                 // this puts a limit on instructions to execute in one round
                 // and makes timers update independent of the current quantum
@@ -2021,16 +2016,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
                 this.Trace($"CPU executed {executed} instructions and returned {result}");
-                instructionsLeftThisRound -= executed;
                 ExecutedInstructions = TlibGetTotalExecutedInstructions();
                 machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
-                if(executed > 0)
-                {
-                    // report how much time elapsed so far
-                    var elapsed = TimeInterval.FromCPUCycles(executed + executedResiduum, PerformanceInMips, out executedResiduum);
-                    TimeHandle.ReportProgress(elapsed);
-                }
 
+                ReportProgress(executed);
                 ExecutionFinished(result);
 
                 if(result == ExecutionResult.StoppedAtBreakpoint)
@@ -2058,17 +2047,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                         // here we test if the nearest scheduled interrupt from timers will happen in this time period:
                         // if so, we simply jump directly to this moment reporting progress;
                         // otherwise we immediately finish the execution of this period
-                        nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
-                        instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out unused);
+                        instructionsToNearestLimit = InstructionsToNearestLimit();
 
-                        if(instructionsToNearestLimit >= instructionsLeftThisRound)
-                        {
-                            this.Trace($"Instructions to nearest limit are: {instructionsToNearestLimit}");
-                            instructionsLeftThisRound = 0;
-                            break;
-                        }
-                        instructionsLeftThisRound -= instructionsToNearestLimit;
-                        TimeHandle.ReportProgress(nearestLimitIn);
+                        this.Trace($"Instructions to nearest limit are: {instructionsToNearestLimit}");
+                        var instructionsToSkip = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
+                        ReportProgress(instructionsToSkip);
                     }
                     else
                     {
@@ -2090,29 +2073,70 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace("aborted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
+                executedResiduum = 0;
                 return false;
             }
             else if(isHalted)
             {
                 this.Trace("halted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
-            }
-            else if(isPaused || instructionsLeftThisRound > 0)
-            {
-                this.Trace("reporting break");
-                var ticksLeft = instructionsToExecuteThisRound > 0 ? (instructionsLeftThisRound * (interval.Ticks - ticksResiduum)) / instructionsToExecuteThisRound : 0;
-                TimeHandle.ReportBackAndBreak(TimeInterval.FromTicks(ticksLeft + ticksResiduum));
+                executedResiduum = 0;
             }
             else
             {
-                this.Trace("finished, reporting continue");
-                TimeHandle.ReportBackAndContinue(TimeInterval.FromTicks(ticksResiduum));
+                var instructionsLeft = instructionsToExecuteThisRound - instructionsExecutedThisRound;
+                // instructionsExecutedThisRound = reportedInstructions + executedResiduum
+                // reportedInstructions + executedResiduum + instructionsLeft = instructionsToExecuteThisRound
+                // reportedInstructions is divisible by instructionsPerTick and instructionsToExecuteThisRound is divisible by instructionsPerTick
+                // so instructionsLeft + executedResiduum is divisible by instructionsPerTick and residuum is 0
+                var timeLeft = TimeInterval.FromCPUCycles(instructionsLeft + executedResiduum, PerformanceInMips, out var residuum) + TimeInterval.FromTicks(ticksResiduum);
+                DebugHelper.Assert(residuum == 0);
+                if(instructionsLeft > 0)
+                {
+                    this.Trace("reporting break");
+                    TimeHandle.ReportBackAndBreak(timeLeft);
+                }
+                else
+                {
+                    DebugHelper.Assert(executedResiduum == 0);
+                    // executedResiduum < instructionsPerTick so timeLeft is 0 + ticksResiduum
+                    this.Trace("finished, reporting continue");
+                    TimeHandle.ReportBackAndContinue(timeLeft);
+                }
             }
 
-            var anythingExecuted = instructionsLeftThisRound != instructionsToExecuteThisRound;
+            return executedResiduum != initialExecutedResiduum || TimeHandle.TotalElapsedTime != initialTotalElapsedTime;
+        }
 
-            instructionsLeftThisRound = 0;
-            return anythingExecuted;
+        private ulong InstructionsToNearestLimit()
+        {
+            var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
+            var instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out var unused);
+            // the limit must be reached or surpassed for limit's owner to execute
+            if(instructionsToNearestLimit <= executedResiduum)
+            {
+                return 1;
+            }
+            instructionsToNearestLimit -= executedResiduum;
+            if(instructionsToNearestLimit != ulong.MaxValue && (nearestLimitIn.Ticks == 0 || unused > 0))
+            {
+                // we must check for `ulong.MaxValue` as otherwise it would overflow
+                instructionsToNearestLimit++;
+            }
+            return instructionsToNearestLimit;
+        }
+
+        private void ReportProgress(ulong instructions)
+        {
+            if(instructions > 0)
+            {
+                instructionsLeftThisRound -= instructions;
+                instructionsExecutedThisRound += instructions;
+                // CPU is `executedResiduum` instructions ahead of the reported time and this value is smaller than the smallest positive possible amount to report,
+                // so we report sum of currently executed/skipped instructions and residuum from previously reported progress.
+                var intervalToReport = TimeInterval.FromCPUCycles(instructions + executedResiduum, PerformanceInMips, out executedResiduum);
+                TimeHandle.ReportProgress(intervalToReport);
+            }
         }
 
         protected virtual void ExecutionFinished(ExecutionResult result)
