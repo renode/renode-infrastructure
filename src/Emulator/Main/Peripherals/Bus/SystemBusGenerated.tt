@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             ulong startAddress, endAddress;
 
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if (accessMethods == null)
+            if(accessMethods == null)
             {
                 return (<#= type #>)ReportNonExistingRead(address, SysbusAccessWidth.<#=name#>);
             }
@@ -82,7 +82,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             ulong startAddress, endAddress;
             
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if (accessMethods == null)
+            if(accessMethods == null)
             {
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.<#=name#>);
                 return;
