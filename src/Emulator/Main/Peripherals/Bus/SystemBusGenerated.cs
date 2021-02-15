@@ -56,20 +56,19 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteByte(ulong address, byte value)
         {
             ulong startAddress, endAddress;
-
-            var peripheral = WhatPeripheralIsAt(address);
-            if(!IsTargetAccessible(peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", peripheral, address, value);
-                return;
-            }
-
+            
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.Byte);
                 return;
             }
+            if(!IsTargetAccessible(accessMethods.Peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                return;
+            }
+
             var lockTaken = false;
             try
             {
@@ -125,20 +124,19 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteWord(ulong address, ushort value)
         {
             ulong startAddress, endAddress;
-
-            var peripheral = WhatPeripheralIsAt(address);
-            if(!IsTargetAccessible(peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", peripheral, address, value);
-                return;
-            }
-
+            
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.Word);
                 return;
             }
+            if(!IsTargetAccessible(accessMethods.Peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                return;
+            }
+
             var lockTaken = false;
             try
             {
@@ -194,20 +192,19 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteDoubleWord(ulong address, uint value)
         {
             ulong startAddress, endAddress;
-
-            var peripheral = WhatPeripheralIsAt(address);
-            if(!IsTargetAccessible(peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", peripheral, address, value);
-                return;
-            }
-
+            
             var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
             if (accessMethods == null)
             {
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.DoubleWord);
                 return;
             }
+            if(!IsTargetAccessible(accessMethods.Peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                return;
+            }
+
             var lockTaken = false;
             try
             {
