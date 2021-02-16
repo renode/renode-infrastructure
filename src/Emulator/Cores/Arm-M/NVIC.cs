@@ -568,13 +568,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private bool IsCandidate(IRQState state, int index)
         {
-            var result = (state & IRQState.Pending) != 0 && (state & IRQState.Enabled) != 0 && (state & IRQState.Active) == 0;
-            if (result && BASEPRI != 0)
-            {
-                result &= (priorities[index] < BASEPRI);
-            }
+            const IRQState mask = IRQState.Pending | IRQState.Enabled | IRQState.Active;
+            const IRQState candidate = IRQState.Pending | IRQState.Enabled;
 
-            return result;
+            return ((state & mask) == candidate) &&
+                   (basepri == 0 || priorities[index] < basepri);
         }
 
         private bool DoesAPreemptB(int priorityA, int priorityB)
