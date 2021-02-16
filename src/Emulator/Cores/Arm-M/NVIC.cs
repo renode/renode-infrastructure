@@ -42,7 +42,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SetPendingIRQ(15);
             };
             InitInterrupts();
-            Init();
         }
 
         public void AttachCPU(CortexM cpu)
@@ -381,6 +380,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 irqs[i] = IRQState.Enabled;
             }
+            maskedInterruptPresent = false;
             pendingIRQs.Clear();
         }
 
@@ -586,12 +586,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Pending) != 0));
         }
 
-        [PostDeserialization]
-        private void Init()
-        {
-            maskedInterruptPresent = false;
-        }
-
         private bool primask;
         public bool PRIMASK
         {
@@ -666,7 +660,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private ISet<int> pendingIRQs;
         private int binaryPointPosition; // from the right
 
-        [Transient]
         private bool maskedInterruptPresent;
 
         private readonly IRQState[] irqs;
