@@ -41,6 +41,10 @@ namespace Antmicro.Renode.UI
             if(!options.HideLog)
             {
                 Logger.AddBackend(ConsoleBackend.Instance, "console");
+                if(options.Plain)
+                {
+                    ConsoleBackend.Instance.ColoringEnabled = false;
+                }
             }
             else
             {
@@ -125,6 +129,11 @@ namespace Antmicro.Renode.UI
                         terminal = new ConsoleWindowBackendAnalyzer(true);
                         terminal.Show();
                         shell.Terminal = new NavigableTerminalEmulator(terminal.IO);
+                        if(options.Plain)
+                        {
+                            shell.Terminal.DisableColors = true;
+                        }
+
                         new System.Threading.Thread(x => shell.Start(true))
                         {
                             IsBackground = true,
@@ -217,6 +226,11 @@ namespace Antmicro.Renode.UI
             else if(!string.IsNullOrEmpty(options.ScriptPath))
             {
                 shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n", Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/", options.ScriptPath));
+            }
+
+            if(options.Plain)
+            {
+                shell.Terminal.DisableColors = true;
             }
 
             return shell;
