@@ -59,6 +59,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        public GPIO IRQ { get; }
+
+        public event Action<bool> StateChanged;
+
+        public bool Pressed { get; private set; }
+
+        public bool Inverted { get; private set; }
+
         private void OnStateChange(bool pressed)
         {
             var sc = StateChanged;
@@ -67,14 +75,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 sc(pressed);
             }
         }
-
-        public GPIO IRQ { get; private set; }
-
-        public event Action<bool> StateChanged;
-
-        public bool Pressed { get; private set; }
-
-        public bool Inverted { get; private set; }
     }
 }
 
