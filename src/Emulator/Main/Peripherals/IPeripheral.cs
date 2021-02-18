@@ -44,14 +44,18 @@ namespace Antmicro.Renode.Peripherals
             return result == null ? local : result.Union(local);
         }
 
+        public static bool TryGetMachine(this IPeripheral @this, out Machine machine)
+        {
+            return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(@this, out machine);
+        }
+
         public static Machine GetMachine(this IPeripheral @this)
         {
-            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(@this, out var mach))
+            if(!@this.TryGetMachine(out var machine))
             {
                 throw new ArgumentException($"Couldn't find machine for given peripheral of type {@this.GetType().FullName}.");
             }
-            return mach;
+            return machine;
         }
     }
 }
-
