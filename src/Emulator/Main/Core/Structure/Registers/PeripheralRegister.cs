@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -345,9 +345,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <param name="position">Offset in the register.</param>
         /// <param name="width">Width of field.</param>
-        public void Reserved(int position, int width)
+        /// <param name="allowedValue">Value allowed to be written.<\param>
+        public void Reserved(int position, int width, uint? allowedValue = null)
         {
-            Tag("RESERVED", position, width);
+            Tag("RESERVED", position, width, allowedValue);
         }
 
         /// <summary>
@@ -356,14 +357,22 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="name">Name of the unhandled field.</param>
         /// <param name="position">Offset in the register.</param>
         /// <param name="width">Width of field.</param>
-        public void Tag(string name, int position, int width)
+        /// <param name="allowedValue">Value allowed to be written.<\param>
+        public void Tag(string name, int position, int width, uint? allowedValue = null)
         {
             ThrowIfRangeIllegal(position, width, name);
+            
+            if(allowedValue != null)
+            {
+                ThrowIfAllowedValueDoesNotFitInWidth(width, allowedValue.Value, name);
+            }
+            
             tags.Add(new Tag
             {
                 Name = name,
                 Position = position,
-                Width = width
+                Width = width,
+                AllowedValue = allowedValue
             });
         }
 
@@ -558,6 +567,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 parent.Log(LogLevel.Warning, TagLogger(offset, unhandledWrites, value));
             }
+            
+            if(InvalidTagValues(offset, value, out var invalidValueLog))
+            {
+                parent.Log(LogLevel.Error, invalidValueLog);
+            }
         }
 
         protected void CallHandlers<T>(List<Action<T, T>> handlers, T oldValue, T newValue)
@@ -595,6 +609,43 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     originalValue);
         }
 
+        private bool InvalidTagValues(long offset, uint originalValue, out string log)
+        {
+            uint allowedValuesMask = 0;
+            uint allowedValues = 0;
+            
+            foreach(var tag in tags.Where(x => x.AllowedValue != null))
+            {
+                allowedValuesMask |= ((1u << tag.Width) - 1) << tag.Position;
+                allowedValues |= tag.AllowedValue.Value << tag.Position;
+            }
+
+            var invalidBits = (allowedValues ^ originalValue) & allowedValuesMask;
+            if(invalidBits == 0)
+            {
+                log = "";
+                return false; 
+            }
+
+            var writtenValue = "0b" + Convert.ToString(originalValue, 2).PadLeft(MaxRegisterLength, '0');
+            var desiredValues = "0b";
+            
+            for(int i = MaxRegisterLength - 1; i >=0; i--)
+            {
+                if(((allowedValuesMask >> i) & 1u) == 1)
+                {
+                    desiredValues += ((allowedValues >> i) & 1) == 0 ? "0" : "1";
+                }
+                else
+                {
+                    desiredValues += "x";
+                }
+            }
+            log = $"Invalid value written to offset 0x{offset:X} reserved bits. Allowed values = {desiredValues}, Value written = {writtenValue}";
+            return true;
+        }
+
+            
         private void ThrowIfRangeIllegal(int position, int width, string name)
         {
             if(width <= 0)
@@ -613,6 +664,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 {
                     throw new ArgumentException("Field {0} intersects with another range.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
                 }
+            }
+        }
+
+        private void ThrowIfAllowedValueDoesNotFitInWidth(int width, uint allowedValue, string name)
+        {
+            if((allowedValue >> width) != 0)
+            {
+                throw new ArgumentException($"Fields {name} allowedValue does not fit in its width");
             }
         }
 

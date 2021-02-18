@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public String Name;
         public int Position;
         public int Width;
+        public uint? AllowedValue;
     }
 }
 

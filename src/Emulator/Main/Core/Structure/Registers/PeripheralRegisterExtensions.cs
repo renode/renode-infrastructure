@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -241,9 +241,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
         /// </summary>
         /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static DoubleWordRegister WithReservedBits(this DoubleWordRegister register, int position, int width)
+        public static DoubleWordRegister WithReservedBits(this DoubleWordRegister register, int position, int width, uint? allowedValue = null)
         {
-            register.Reserved(position, width);
+            register.Reserved(position, width, allowedValue);
             return register;
         }
 
@@ -251,9 +251,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
         /// </summary>
         /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static WordRegister WithReservedBits(this WordRegister register, int position, int width)
+        public static WordRegister WithReservedBits(this WordRegister register, int position, int width, uint? allowedValue = null)
         {
-            register.Reserved(position, width);
+            register.Reserved(position, width, allowedValue);
             return register;
         }
 
@@ -261,9 +261,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
         /// </summary>
         /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static ByteRegister WithReservedBits(this ByteRegister register, int position, int width)
+        public static ByteRegister WithReservedBits(this ByteRegister register, int position, int width, uint? allowedValue = null)
         {
-            register.Reserved(position, width);
+            register.Reserved(position, width, allowedValue);
             return register;
         }
 
