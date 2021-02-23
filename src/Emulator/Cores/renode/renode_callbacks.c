@@ -68,3 +68,4 @@ EXTERNAL_AS(action_uint64_uint32_uint32, LogDisassembly, tlib_on_block_translati
 EXTERNAL_AS(action_uint64, OnInterruptBegin, tlib_on_interrupt_begin)
 EXTERNAL_AS(action_uint64, OnInterruptEnd, tlib_on_interrupt_end)
 EXTERNAL_AS(action_uint32_uint64, OnMemoryAccess, tlib_on_memory_access)
+EXTERNAL_AS(func_uint32, IsInDebugMode, tlib_is_in_debug_mode)

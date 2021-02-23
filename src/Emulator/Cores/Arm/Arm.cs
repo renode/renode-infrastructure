@@ -64,7 +64,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public bool WfiAsNop { get; set; }
+        public bool WfiAsNop
+        { 
+            get => wfiAsNop; 
+            set
+            {
+                wfiAsNop = value;
+                neverWaitForInterrupt = value;
+            }
+        }
+        protected bool wfiAsNop;
 
         [Export]
         protected uint Read32CP15(uint instruction)

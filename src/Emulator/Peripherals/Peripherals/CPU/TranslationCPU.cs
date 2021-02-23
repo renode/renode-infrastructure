@@ -1621,12 +1621,35 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        //The debug mode disables interrupt handling in the emulated CPU
+        //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
+        public virtual bool IsDebugModeActive
+        { 
+            get => isDebugModeActive;
+            set
+            {
+                if(value == true && !(DebuggerConnected && ExecutionMode == ExecutionMode.SingleStep))
+                {
+                    this.Log(LogLevel.Warning, "The debug mode now has no effect - connect a debugger, and switch to stepping mode.");
+                }
+                shouldEnterDebugMode = value;
+            }
+        }
+
+        protected bool isDebugModeActive;
+
         protected virtual void BeforeSave(IntPtr statePtr)
         {
         }
 
         protected virtual void AfterLoad(IntPtr statePtr)
         {
+        }
+
+        [Export]
+        protected virtual uint IsInDebugMode()
+        {
+            return (DebuggerConnected == true && IsDebugModeActive && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
         }
 
         private void UpdateBlockBeginHookPresent()
@@ -1764,6 +1787,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionInt32 TlibOnMemoryAccessEventEnabled;
+
+        [Import]
+        private Action TlibCleanWfiProcState;
 
         #pragma warning restore 649
 
@@ -1917,6 +1943,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ulong executedResiduum;
         private ulong instructionsLeftThisRound;
+        protected bool neverWaitForInterrupt;
 
         private bool CpuThreadBodyInner(bool singleStep)
         {
@@ -1987,21 +2014,30 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 else if(result == ExecutionResult.WaitingForInterrupt)
                 {
-                    this.Trace();
-                    // here we test if the nearest scheduled interrupt from timers will happen in this time period:
-                    // if so, we simply jump directly to this moment reporting progress;
-                    // otherwise we immediately finish the execution of this period
-                    nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
-                    instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out unused);
-
-                    if(instructionsToNearestLimit >= instructionsLeftThisRound)
+                    if(this.IsInDebugMode() != 1u && !this.neverWaitForInterrupt)
                     {
-                        this.Trace($"Instructions to nearest limit are: {instructionsToNearestLimit}");
-                        instructionsLeftThisRound = 0;
-                        break;
+                        this.Trace();
+                        // here we test if the nearest scheduled interrupt from timers will happen in this time period:
+                        // if so, we simply jump directly to this moment reporting progress;
+                        // otherwise we immediately finish the execution of this period
+                        nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
+                        instructionsToNearestLimit = nearestLimitIn.ToCPUCycles(PerformanceInMips, out unused);
+
+                        if(instructionsToNearestLimit >= instructionsLeftThisRound)
+                        {
+                            this.Trace($"Instructions to nearest limit are: {instructionsToNearestLimit}");
+                            instructionsLeftThisRound = 0;
+                            break;
+                        }
+                        instructionsLeftThisRound -= instructionsToNearestLimit;
+                        TimeHandle.ReportProgress(nearestLimitIn);
                     }
-                    instructionsLeftThisRound -= instructionsToNearestLimit;
-                    TimeHandle.ReportProgress(nearestLimitIn);
+                    else
+                    {
+                        // NIP always points to next instruction, on all emulated cores. If this behavior changes, this needs to change as well.
+                        this.Trace("Clearing WaitForInterruptState.");
+                        TlibCleanWfiProcState(); // Clean WFI state in the emulated core
+                    }
                 }
                 else if(result == ExecutionResult.Aborted || result == ExecutionResult.ReturnRequested || result == ExecutionResult.StoppedAtWatchpoint)
                 {

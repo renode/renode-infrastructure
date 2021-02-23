@@ -34,6 +34,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override List<GBDFeatureDescriptor> GDBFeatures { get { return new List<GBDFeatureDescriptor>(); } }
 
+        public bool ShutdownAsNop
+        { 
+            get => neverWaitForInterrupt; 
+            set
+            {
+                neverWaitForInterrupt = value;
+            }
+        }
+
         private void Init()
         {
 

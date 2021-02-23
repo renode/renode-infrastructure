@@ -212,6 +212,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public bool WfiAsNop
+        { 
+            get => neverWaitForInterrupt; 
+            set
+            {
+                neverWaitForInterrupt = value;
+            }
+        }
+
         public ulong? NMIVectorAddress { get; }
 
         public uint? NMIVectorLength { get; }
@@ -305,9 +314,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private uint IsInDebugMode()
+        protected override uint IsInDebugMode()
         {
-            return (DebuggerConnected == true && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
+            //We can enter the debug mode automatically, as it is specified in RISCV spec, or we can trigger it manually
+            return ((DebuggerConnected == true && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep)
+                    || base.IsInDebugMode() != 0) ? 1u : 0u;
         }
 
         [Export]
