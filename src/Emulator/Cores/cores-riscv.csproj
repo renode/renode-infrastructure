@@ -48,6 +48,7 @@
     <Compile Include="RiscV\CoreLevelInterruptor.cs" />
     <Compile Include="RiscV\BaseRiscV.cs" />
     <Compile Include="RiscV\PlatformLevelInterruptController.cs" />
+    <Compile Include="RiscV\OpenTitan_PlatformLevelInterruptController.cs" />
     <Compile Include="RiscV\PrivilegeLevel.cs" />
     <Compile Include="RiscV\IbexRiscV32.cs" />
     <Compile Include="RiscV\Minerva.cs" />
