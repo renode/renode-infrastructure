@@ -40,7 +40,16 @@ namespace Antmicro.Renode.UI
         {
             if(checker.TryDecode(b, out var c))
             {
-                Console.Write(c);
+                try
+                {
+                    Console.Write(c);
+                }
+                catch(ArgumentOutOfRangeException)
+                {
+                    // this sometimes happens in System.TermInfoDriver.SetCursorPosition
+                    // no idea why, but there is not much we can do
+                    ;
+                }
             }
         }
 
