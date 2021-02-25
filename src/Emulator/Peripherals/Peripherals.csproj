@@ -375,6 +375,7 @@
     <Compile Include="Peripherals\Network\LiteX_Ethernet_CSR32.cs" />
     <Compile Include="Peripherals\Timers\LiteX_Timer_CSR32.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_VerilatorSwTestStatus.cs" />
+    <Compile Include="Peripherals\Miscellaneous\OpenTitan_PowerManager.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
