@@ -132,7 +132,14 @@ namespace Antmicro.Renode.Disassembler.LLVM
             {
                 for(int i = bytes - 1; i >= 0; i--)
                 {
-                    strBldr.AppendFormat("{0:x2}", data[position + i]);
+                    if(position + i < data.Length)
+                    {
+                        strBldr.AppendFormat("{0:x2}", data[position + i]);
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
 
