@@ -380,6 +380,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_PowerManager.cs" />
     <Compile Include="Peripherals\GPIOPort\IMXRT_GPIO.cs" />
     <Compile Include="Peripherals\UART\OpenTitan_UART.cs" />
+    <Compile Include="Peripherals\Timers\OpenTitan_Timer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
