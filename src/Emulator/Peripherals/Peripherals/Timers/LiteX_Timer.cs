@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -46,6 +46,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             latchedValue = 0;
             loadValue = 0;
             reloadValue = 0;
+            uptimeLatchedValue = 0;
 
             UpdateInterrupts();
         }
