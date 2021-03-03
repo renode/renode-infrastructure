@@ -459,6 +459,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return value;
         }
 
+        protected RegisterValue BeforeSTVECWrite(RegisterValue value)
+        {
+            return value;
+        }
+
         /* Since Priv 1.10 all hypervisor interrupts descriptions were changed to 'Reserved'
          * Current state can be found in Table 3.6 of the specification (pg. 37 in version 1.11)
          */
