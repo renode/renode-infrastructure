@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU
     {
-        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false)
+        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
                 : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
@@ -48,6 +48,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             TlibAllowUnalignedAccesses(allowUnalignedAccesses ? 1 : 0);
+
+            try
+            {
+                this.interruptMode = interruptMode;
+                TlibSetInterruptMode((int)interruptMode);
+            }
+            catch(CpuAbortException)
+            {
+                throw new ConstructionException(string.Format("Unsupported interrupt mode: 0x{0:X}", interruptMode));
+            }
 
             UserState = new Dictionary<string, object>();
         }
@@ -402,6 +412,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionInt32 TlibAllowUnalignedAccesses;
 
+        [Import]
+        private ActionInt32 TlibSetInterruptMode;
+
 #pragma warning restore 649
 
         private readonly Dictionary<ulong, string> InterruptDescriptionsMap = new Dictionary<ulong, string>
@@ -454,13 +467,48 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
         }
 
+        public enum InterruptMode
+        {
+            // entries match values
+            // in tlib, do not change
+            Auto = 0,
+            Direct = 1,
+            Vectored = 2
+        }
+
         protected RegisterValue BeforeMTVECWrite(RegisterValue value)
         {
-            return value;
+            return HandleMTVEC_STVECWrite(value, "MTVEC");
         }
 
         protected RegisterValue BeforeSTVECWrite(RegisterValue value)
         {
+            return HandleMTVEC_STVECWrite(value, "STVEC");
+        }
+
+        private RegisterValue HandleMTVEC_STVECWrite(RegisterValue value, string registerName)
+        {
+            switch(interruptMode)
+            {
+                case InterruptMode.Direct:
+                    if((value.RawValue & 0x3) != 0x0)
+                    {
+                        var originalValue = value;
+                        value = RegisterValue.Create(BitHelper.ReplaceBits(value.RawValue, 0x0, width: 2), value.Bits);
+                        this.Log(LogLevel.Warning, "CPU is configured in the Direct interrupt mode, modifying {2} to 0x{0:X} (tried to set 0x{1:X})", value.RawValue, originalValue.RawValue, registerName);
+                    }
+                    break;
+
+                case InterruptMode.Vectored:
+                    if((value.RawValue & 0x3) != 0x1)
+                    {
+                        var originalValue = value;
+                        value = RegisterValue.Create(BitHelper.ReplaceBits(value.RawValue, 0x1, width: 2), value.Bits);
+                        this.Log(LogLevel.Warning, "CPU is configured in the Vectored interrupt mode, modifying {2}  to 0x{0:X} (tried to set 0x{1:X})", value.RawValue, originalValue.RawValue, registerName);
+                    }
+                    break;
+            }
+
             return value;
         }
 
@@ -481,6 +529,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 || irq == (int)IrqType.UserSoftwareInterrupt
                 || irq == (int)IrqType.UserTimerInterrupt;
         }
+
+        private readonly InterruptMode interruptMode;
 
         protected enum IrqType
         {
