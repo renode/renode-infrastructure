@@ -320,6 +320,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             set
             {
+                value = BeforeMTVECWrite(value);
                 SetRegisterValue64((int)RiscV64Registers.MTVEC, value);
             }
         }
