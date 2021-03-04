@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.IO;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,44 +18,52 @@ namespace Antmicro.Renode.Utilities
     {
         public string Compile(string sourcePath)
         {
-            using(var provider = CodeDomProvider.CreateProvider("CSharp"))
+            var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
+            var parameters = new List<string>();
+
+            if(AssemblyHelper.BundledAssembliesCount > 0)
             {
-                var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
-                var parameters = new CompilerParameters { GenerateInMemory = false, GenerateExecutable = false, OutputAssembly = outputFileName };
-                parameters.CompilerOptions = "";
-#if PLATFORM_LINUX
-                parameters.CompilerOptions = parameters.CompilerOptions + " /langversion:experimental";
-#endif
-                var locations = AssemblyHelper.GetAssembliesLocations();
-                if(AssemblyHelper.BundledAssembliesCount > 0)
-                {
-                    // portable already has all the libs included
-                    parameters.CompilerOptions = parameters.CompilerOptions + " -nostdlib";
-                }
-                foreach(var location in locations)
-                {
-                    parameters.ReferencedAssemblies.Add(location);
-                }
-
-                var result = provider.CompileAssemblyFromFile(parameters, new[] { sourcePath });
-                if(result.Errors.HasErrors)
-                {
-                    var errors = result.Errors.Cast<object>().Aggregate(string.Empty,
-                                                                        (current, error) => current + ("\n" + error));
-                    throw new RecoverableException(string.Format("There were compilation errors:\n{0}", errors));
-                }
-                try
-                {
-                    // Try to read any information from the compiled assembly to check if we have silently failed
-                    var name = result.CompiledAssembly.FullName;
-                }
-                catch(Exception e)
-                {
-                    throw new RecoverableException(string.Format("Could not compile assembly: {0}", e.Message));
-                }
-
-                return outputFileName;
+                // portable already has all the libs included
+                parameters.Add("/nostdlib+");
             }
+
+            if(Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                parameters.Add("/langversion:experimental");
+            }
+
+            var locations = AssemblyHelper.GetAssembliesLocations();
+            foreach(var location in locations)
+            {
+                parameters.Add($"/r:{location}");
+            }
+
+            parameters.Add("/target:library");
+            parameters.Add("/debug-");
+            parameters.Add("/optimize+");
+            parameters.Add($"/out:{outputFileName}");
+            parameters.Add("/noconfig");
+
+            parameters.Add("--");
+            parameters.Add(sourcePath);
+
+            var result = false;
+            var errorOutput = new StringWriter();
+            try
+            {
+                result = Mono.CSharp.CompilerCallableEntryPoint.InvokeCompiler(parameters.ToArray(), errorOutput);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException($"Could not compile assembly: {e.Message}");
+            }
+
+            if(!result)
+            {
+                throw new RecoverableException($"There were compilation errors:\n{(errorOutput.ToString())}");
+            }
+
+            return outputFileName;
         }
     }
 }
