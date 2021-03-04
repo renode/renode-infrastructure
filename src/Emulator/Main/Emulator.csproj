@@ -551,26 +551,30 @@
       <Project>{55ABBA4C-AAF9-4726-A592-0C92436CEC92}</Project>
       <Name>PacketDotNet</Name>
     </ProjectReference>
-      <ProjectReference Include="..\..\..\..\..\lib\CxxDemangler\CxxDemangler\CxxDemangler.csproj">
+    <ProjectReference Include="..\..\..\..\..\lib\CxxDemangler\CxxDemangler\CxxDemangler.csproj">
       <Project>{3A70B9B8-BBAB-47EA-8473-B7A0B4961D56}</Project>
       <Name>CxxDemangler</Name>
     </ProjectReference>
-      <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp.csproj">
-        <Project>{25FAECC1-55F0-4608-88BD-4207A7F993B0}</Project>
-        <Name>TermSharp</Name>
-      </ProjectReference>
-      <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt.csproj">
-        <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
-        <Name>Xwt</Name>
-      </ProjectReference>
-      <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt.Gtk\Xwt.Gtk.csproj" Condition=" $(CurrentPlatform) != 'Windows' And $(GUI_DISABLED) != 'true' ">
-        <Project>{C3887A93-B2BD-4097-8E2F-3A063EFF32FD}</Project>
-        <Name>Xwt.Gtk</Name>
-      </ProjectReference>
-      <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt.WPF\Xwt.WPF.csproj" Condition=" $(CurrentPlatform) == 'Windows' And $(GUI_DISABLED) != 'true' ">
-        <Project>{C93D746E-1586-4D4F-B411-BF5A966E6A08}</Project>
-        <Name>Xwt.WPF</Name>
-      </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp.csproj">
+      <Project>{25FAECC1-55F0-4608-88BD-4207A7F993B0}</Project>
+      <Name>TermSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt.csproj">
+      <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
+      <Name>Xwt</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt.Gtk\Xwt.Gtk.csproj" Condition=" $(CurrentPlatform) != 'Windows' And $(GUI_DISABLED) != 'true' ">
+      <Project>{C3887A93-B2BD-4097-8E2F-3A063EFF32FD}</Project>
+      <Name>Xwt.Gtk</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt.WPF\Xwt.WPF.csproj" Condition=" $(CurrentPlatform) == 'Windows' And $(GUI_DISABLED) != 'true' ">
+      <Project>{C93D746E-1586-4D4F-B411-BF5A966E6A08}</Project>
+      <Name>Xwt.WPF</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\BigGustave\src\BigGustave\BigGustave.csproj">
+      <Project>{959D076C-8127-4FEE-9737-0F8FDE5A0E09}</Project>
+      <Name>BigGustave</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Peripherals\Sensor\" />
