@@ -511,6 +511,7 @@
     <Compile Include="Peripherals\USB\CDC\FunctionalDescriptor.cs" />
     <Compile Include="Peripherals\I2C\I2CPeripheralBase.cs" />
     <Compile Include="Peripherals\Sensor\ICPIPeripheral.cs" />
+    <Compile Include="Utilities\RawImageData.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
