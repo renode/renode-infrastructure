@@ -26,7 +26,6 @@ using Antmicro.Renode.UserInterface.Exceptions;
 using Antmicro.Renode.Core.Structure;
 using System.Runtime.InteropServices;
 using System.Globalization;
-using TermSharp.Misc;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -328,13 +327,9 @@ namespace Antmicro.Renode.UserInterface
                 }
                 writer.Write("\r\n]" + endl);
             }
-            else if(result is System.Drawing.Bitmap bitmap)
+            else if(result is RawImageData image)
             {
-                writer.WriteRaw(InlineImage.Encode(bitmap));
-            }
-            else if(result is Xwt.Drawing.BitmapImage bitmapImage)
-            {
-                writer.WriteRaw(InlineImage.Encode(bitmapImage));
+                writer.WriteRaw(InlineImage.Encode(image.ToPng()));
             }
             else
             {
