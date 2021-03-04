@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Utilities
                 throw new InvalidOperationException("File {0} not unlocked.".FormatWith(file));
             }
             File.Delete(file);
+            Syscall.close(fd);
         }
 
         private static bool TryDoFileLocking(int fd, bool lockFile, FlockOperation? specificFlag = null)
