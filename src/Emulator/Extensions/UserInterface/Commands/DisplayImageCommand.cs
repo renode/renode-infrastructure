@@ -1,17 +1,17 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using Antmicro.Renode.UserInterface.Tokenizer;
 using AntShell.Commands;
-using TermSharp.Misc;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Backends.Display;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
@@ -40,42 +40,65 @@ namespace Antmicro.Renode.UserInterface.Commands
                 return;
             }
 
-            try
+
+            using(var file = new FileStream(pathToImage.Value, FileMode.Open))
             {
-                var image = new Bitmap(pathToImage.Value);
-                if(!ImageFormat.Jpeg.Equals(image.RawFormat) && !ImageFormat.Png.Equals(image.RawFormat))
+                if(!CheckFormat(file))
                 {
                     writer.WriteError("Bad image format. Supported formats: jpeg, png");
                     return;
                 }
-                writer.WriteRaw(InlineImage.Encode(image));
-            }
-            catch(Exception e)
-            {
-                writer.WriteError($"There was an error when loading the image: {(e.Message)}");
+
+                writer.WriteRaw(InlineImage.Encode(file));
             }
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, DecimalIntegerToken width, DecimalIntegerToken height)
+        public void Run(ICommandInteraction writer, DecimalIntegerToken widthToken, DecimalIntegerToken heightToken)
         {
-            if(width.Value <= 0 || height.Value <= 0)
+            // This method creates white rectangle, intended for testing purposes.
+            var width = (int)widthToken.Value;
+            var height = (int)heightToken.Value;
+            if(width <= 0 || height <= 0)
             {
                 throw new RecoverableException("Width and height must be positive values");
             }
 
-            var image = new Bitmap((int)width.Value, (int)height.Value);
-            using(var graphics = Graphics.FromImage(image))
+            var bytes = new byte[width * height * RawImageData.PixelFormat.GetColorDepth()];
+            for(var i = 0; i < bytes.Length; ++i)
             {
-                var imageSize = new Rectangle(0, 0, (int)width.Value, (int)height.Value);
-                graphics.FillRectangle(Brushes.White, imageSize);
+                bytes[i] = (byte)0xFF;
             }
-            writer.WriteRaw(InlineImage.Encode(image));
+            var image = new RawImageData(bytes, width, height);
+            writer.WriteRaw(InlineImage.Encode(image.ToPng()));
         }
 
         public DisplayImageCommand(Monitor monitor)
             : base(monitor, "displayImage", "Displays image in Monitor")
         {
         }
+
+        private static bool CheckFormat(Stream file)
+        {
+            var head = new byte[8];
+            file.Seek(0, SeekOrigin.Begin);
+            file.Read(head, 0, 8);
+            file.Seek(0, SeekOrigin.Begin);
+
+            if(head.Take(JpegPrefix.Length).SequenceEqual(JpegPrefix))
+            {
+                return true;
+            }
+
+            if(head.Take(PngPrefix.Length).SequenceEqual(PngPrefix))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static readonly byte[] JpegPrefix = {0xff, 0xd8, 0xff};
+        private static readonly byte[] PngPrefix = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
     }
 }
