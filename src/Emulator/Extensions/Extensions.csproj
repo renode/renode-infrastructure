@@ -172,6 +172,7 @@
     <Compile Include="UserInterface\Commands\LastLogCommand.cs" />
     <Compile Include="UserInterface\Commands\DisplayImageCommand.cs" />
     <Compile Include="Hooks\InterruptPythonEngine.cs" />
+    <Compile Include="UserInterface\InlineImage.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
