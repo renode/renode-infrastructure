@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -24,8 +24,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     /// </summary>
     public class EXTI :  IDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        public EXTI()
+        public EXTI(int numberOfOutputLines = 14)
         {
+            this.numberOfOutputLines = numberOfOutputLines;
             Reset();
         }
 
@@ -142,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
 
             var innerConnections = new Dictionary<int, IGPIO>();
-            for(var i = 0; i < NumberOfOutputLines; ++i)
+            for(var i = 0; i < numberOfOutputLines; ++i)
             {
                 innerConnections[i] = new GPIO();
             }
@@ -160,6 +161,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
         private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13 };
+        private readonly int numberOfOutputLines;
 
         private uint interruptMask;
         private uint eventMask;
@@ -168,8 +170,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint pending;
         private uint softwareInterrupt;
 
-        private const int MaxEXTILines = 22;
-        private const int NumberOfOutputLines = 14;
+        private const int MaxEXTILines = 32;
 
         private enum Registers
         {
