@@ -14,6 +14,8 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+using PacketDotNet;
+using IPProtocolType = Antmicro.Renode.Network.IPProtocolType;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -21,10 +23,11 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         public K6xF_Ethernet(Machine machine) : base(machine)
         {
-            rxIRQ = new GPIO();
-            txIRQ = new GPIO();
-            ptpIRQ = new GPIO();
-            miscIRQ = new GPIO();
+            RxIRQ = new GPIO();
+            TxIRQ = new GPIO();
+            PtpIRQ = new GPIO();
+            MiscIRQ = new GPIO();
+            TimerIRQ = new GPIO();
 
             innerLock = new object();
 
@@ -186,6 +189,22 @@ namespace Antmicro.Renode.Peripherals.Network
                         })
                     .WithReservedBits(1, 1)
                     .WithReservedBits(0, 1)
+                },
+                {(long)Registers.TransmitAcceleratorFunctionConfiguration, new DoubleWordRegister(this)
+                    .WithTaggedFlag("SHIFT16", 0)
+                    .WithReservedBits(1, 2)
+                    .WithFlag(3, out insertIPHeaderChecksum, name: "IPCHK")
+                    .WithFlag(4, out insertProtocolChecksum, name: "PROCHK")
+                    .WithReservedBits(5, 27)
+                },
+                {(long)Registers.ReceiveAcceleratorFunctionConfiguration, new DoubleWordRegister(this)
+                    .WithTaggedFlag("PADREM", 0)
+                    .WithFlag(1, out discardIPHeaderInvalidChecksum, name: "IPDIS")
+                    .WithFlag(2, out discardProtocolInvalidChecksum, name: "PRODIS")
+                    .WithReservedBits(3, 3)
+                    .WithFlag(6, out discardWithMACLayerError, name: "LINEDIS")
+                    .WithTaggedFlag("SHIFT16", 7)
+                    .WithReservedBits(8, 24)
                 }
             };
 
@@ -208,10 +227,63 @@ namespace Antmicro.Renode.Peripherals.Network
                     return;
                 }
 
-                if(!EthernetFrame.CheckCRC(frame.Bytes))
+                if(discardWithMACLayerError.Value && !EthernetFrame.CheckCRC(frame.Bytes))
                 {
                     this.Log(LogLevel.Info, "Invalid CRC, packet discarded");
                     return;
+                }
+
+                if(discardIPHeaderInvalidChecksum.Value)
+                {
+                    var packet = (IPv4Packet)frame.UnderlyingPacket.Extract(typeof(IPv4Packet));
+                    if(packet != null && !packet.ValidChecksum)
+                    {
+                        this.Log(LogLevel.Info, "Invalid IpV4 checksum, packet discarded");
+                        return;
+                    }
+                }
+
+                if(discardProtocolInvalidChecksum.Value)
+                {
+                    var tcpPacket = (TcpPacket)frame.UnderlyingPacket.Extract(typeof(TcpPacket));
+                    if(tcpPacket != null && !tcpPacket.ValidChecksum)
+                    {
+                        this.Log(LogLevel.Info, "Invalid TCP checksum, packet discarded");
+                        return;
+                    }
+
+                    var udpPacket = (UdpPacket)frame.UnderlyingPacket.Extract(typeof(UdpPacket));
+                    if(udpPacket != null && !udpPacket.ValidChecksum)
+                    {
+                        this.Log(LogLevel.Info, "Invalid UDP checksum, packet discarded");
+                        return;
+                    }
+
+                    var icmpv4Packet = (ICMPv4Packet)frame.UnderlyingPacket.Extract(typeof(ICMPv4Packet));
+                    if(icmpv4Packet != null)
+                    {
+                        var checksum = icmpv4Packet.Checksum;
+                        icmpv4Packet.Checksum = 0x0;
+                        icmpv4Packet.UpdateCalculatedValues();
+                        if(checksum != icmpv4Packet.Checksum)
+                        {
+                            this.Log(LogLevel.Info, "Invalid ICMPv4 checksum, packet discarded");
+                            return;
+                        }
+                    }
+
+                    var icmpv6Packet = (ICMPv6Packet)frame.UnderlyingPacket.Extract(typeof(ICMPv6Packet));
+                    if(icmpv6Packet != null)
+                    {
+                        var checksum = icmpv6Packet.Checksum;
+                        icmpv6Packet.Checksum = 0x0;
+                        icmpv6Packet.UpdateCalculatedValues();
+                        if(checksum != icmpv6Packet.Checksum)
+                        {
+                            this.Log(LogLevel.Info, "Invalid ICMPv6 checksum, packet discarded");
+                            return;
+                        }
+                    }
                 }
 
                 rxDescriptorsQueue.CurrentDescriptor.Read();
@@ -264,17 +336,20 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public event Action<EthernetFrame> FrameReady;
 
+        [IrqProvider("timer irq", 4)]
+        public GPIO TimerIRQ { get; }
+
         [IrqProvider("ptp irq", 3)]
-        public GPIO ptpIRQ { get; private set; }
+        public GPIO PtpIRQ { get; }
 
         [IrqProvider("misc irq", 2)]
-        public GPIO miscIRQ { get; private set; }
+        public GPIO MiscIRQ { get; }
 
         [IrqProvider("receive irq", 1)]
-        public GPIO rxIRQ { get; private set; }
+        public GPIO RxIRQ { get; }
 
         [IrqProvider("transmit irq", 0)]
-        public GPIO txIRQ { get; private set; }
+        public GPIO TxIRQ { get; }
         
         private void UpdateMac()
         {
@@ -302,6 +377,15 @@ namespace Antmicro.Renode.Peripherals.Network
             if(!Misc.TryCreateFrameOrLogWarning(this, bytesArray, out var frame, addCrc))
             {
                 return;
+            }
+
+            if(insertProtocolChecksum.Value)
+            {
+                frame.FillWithChecksums(new EtherType[] {}, new [] { IPProtocolType.ICMP, IPProtocolType.ICMPV6, IPProtocolType.TCP, IPProtocolType.UDP });
+            }
+            if(insertIPHeaderChecksum.Value)
+            {
+                frame.FillWithChecksums(new [] { EtherType.IpV4 }, new IPProtocolType[] {});
             }
 
             this.Log(LogLevel.Debug, "Sending packet, length {0}", frame.Bytes.Length);
@@ -397,6 +481,15 @@ namespace Antmicro.Renode.Peripherals.Network
         //ReceiveControl
         private readonly IFlagRegisterField receiverEnabled;
 
+        //TransmitAcceleratorFunctionConfiguration
+        private readonly IFlagRegisterField insertIPHeaderChecksum;
+        private readonly IFlagRegisterField insertProtocolChecksum;
+
+        //ReceiveAcceleratorFunctionConfiguration
+        private readonly IFlagRegisterField discardIPHeaderInvalidChecksum;
+        private readonly IFlagRegisterField discardProtocolInvalidChecksum;
+        private readonly IFlagRegisterField discardWithMACLayerError;
+
         private readonly IValueRegisterField lowerMAC;
         private readonly IValueRegisterField upperMAC;
 
@@ -415,6 +508,8 @@ namespace Antmicro.Renode.Peripherals.Network
             PhysicalAddressLower = 0x00E4,
             PhysicalAddressUpper = 0x00E8,
             OpcodePauseDuration = 0x00EC,
+            TransmitInterruptCoalescing = 0x00F0,
+            ReceiveInterruptCoalescing = 0x0100,
             DescriptorIndividualUpperAddress = 0x0118,
             DescriptorIndividualLowerAddress = 0x011C,
             DescriptorGroupUpperAddress = 0x0120,
@@ -534,7 +629,7 @@ namespace Antmicro.Renode.Peripherals.Network
             NodeWakeupRequestIndication = 17,
             [Subvector(3)]
             TransmitTimestampAvailable = 16,
-            [Subvector(3)]
+            [Subvector(4)]
             TimestampTimer = 15
         }
 

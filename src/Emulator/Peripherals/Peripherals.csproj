@@ -425,6 +425,10 @@
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet.csproj">
+      <Project>{55ABBA4C-AAF9-4726-A592-0C92436CEC92}</Project>
+      <Name>PacketDotNet</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
