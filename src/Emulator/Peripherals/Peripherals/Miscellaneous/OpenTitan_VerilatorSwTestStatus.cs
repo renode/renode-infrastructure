@@ -31,19 +31,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         SoftwareTestStatusCode statusCode = (SoftwareTestStatusCode)value;
                         switch(statusCode)
                         {
-                            case SoftwareTestStatusCode.kTestStatusInBootRom: 
+                            case SoftwareTestStatusCode.InBootRom: 
                                 this.Log(LogLevel.Info, "Opentitan in boot ROM");
                                 break;
-                            case SoftwareTestStatusCode.kTestStatusInTest:
+                            case SoftwareTestStatusCode.InTest:
                                 this.Log(LogLevel.Info, "Opentitan in test");
                                 break;
-                            case SoftwareTestStatusCode.kTestStatusInWfi:
+                            case SoftwareTestStatusCode.InWfi:
                                 this.Log(LogLevel.Info, "Opentitan in WFI");
                                 break;
-                            case SoftwareTestStatusCode.kTestStatusPassed:
+                            case SoftwareTestStatusCode.Passed:
                                 this.Log(LogLevel.Info, "Opentitan PASSED Test");
                                 break;
-                            case SoftwareTestStatusCode.kTestStatusFailed:
+                            case SoftwareTestStatusCode.Failed:
                                 this.Log(LogLevel.Info, "Opentitan FAILED Test");
                                 break;
                         }
@@ -55,12 +55,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum SoftwareTestStatusCode : uint
         {
-            kTestStatusDefault = 0x0000,
-            kTestStatusInBootRom = 0xb090,  // 'bogo', BOotrom GO
-            kTestStatusInTest = 0x4354,  // 'test'
-            kTestStatusInWfi = 0x1d1e,  // 'idle'
-            kTestStatusPassed = 0x900d,  // 'good'
-            kTestStatusFailed = 0xbaad  // 'baad'
+            Default = 0x0000,
+            InBootRom = 0xb090,  // 'bogo', BOotrom GO
+            InTest = 0x4354,  // 'test'
+            InWfi = 0x1d1e,  // 'idle'
+            Passed = 0x900d,  // 'good'
+            Failed = 0xbaad  // 'baad'
         }
 
         private enum Registers
