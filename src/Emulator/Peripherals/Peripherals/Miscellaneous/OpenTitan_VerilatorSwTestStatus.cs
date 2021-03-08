@@ -20,16 +20,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size =>  0x8;
 
-        private enum SoftwareTestStatusCode : uint
-        {
-                kTestStatusDefault = 0x0000,
-                kTestStatusInBootRom = 0xb090,  // 'bogo', BOotrom GO
-                kTestStatusInTest = 0x4354,  // 'test'
-                kTestStatusInWfi = 0x1d1e,  // 'idle'
-                kTestStatusPassed = 0x900d,  // 'good'
-                kTestStatusFailed = 0xbaad  // 'baad'
-        }
-
         private void DefineRegisters()
         {
                 Registers.SoftwareTestStatus.Define(this, 0x0)
@@ -60,6 +50,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     })
                     .WithIgnoredBits(16,16)
                 ;
+        }
+
+        private enum SoftwareTestStatusCode : uint
+        {
+                kTestStatusDefault = 0x0000,
+                kTestStatusInBootRom = 0xb090,  // 'bogo', BOotrom GO
+                kTestStatusInTest = 0x4354,  // 'test'
+                kTestStatusInWfi = 0x1d1e,  // 'idle'
+                kTestStatusPassed = 0x900d,  // 'good'
+                kTestStatusFailed = 0xbaad  // 'baad'
         }
 
         private enum Registers
