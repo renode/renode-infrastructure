@@ -25,28 +25,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 16, name: "software test status", writeCallback: (_, value) =>
                 {
                     this.Log(LogLevel.Info, "Opentitan Software test status set to 0x{0:x}", value);
-                    bool enumTestStatisIsDefined = System.Enum.IsDefined(typeof(SoftwareTestStatusCode), value);
-                    if(enumTestStatisIsDefined)
+                    switch((SoftwareTestStatusCode)value)
                     {
-                        SoftwareTestStatusCode statusCode = (SoftwareTestStatusCode)value;
-                        switch(statusCode)
-                        {
-                            case SoftwareTestStatusCode.InBootRom: 
-                                this.Log(LogLevel.Info, "Opentitan in boot ROM");
-                                break;
-                            case SoftwareTestStatusCode.InTest:
-                                this.Log(LogLevel.Info, "Opentitan in test");
-                                break;
-                            case SoftwareTestStatusCode.InWfi:
-                                this.Log(LogLevel.Info, "Opentitan in WFI");
-                                break;
-                            case SoftwareTestStatusCode.Passed:
-                                this.Log(LogLevel.Info, "Opentitan PASSED Test");
-                                break;
-                            case SoftwareTestStatusCode.Failed:
-                                this.Log(LogLevel.Info, "Opentitan FAILED Test");
-                                break;
-                        }
+                        case SoftwareTestStatusCode.InBootRom: 
+                            this.Log(LogLevel.Info, "Opentitan in boot ROM");
+                            break;
+                        case SoftwareTestStatusCode.InTest:
+                            this.Log(LogLevel.Info, "Opentitan in test");
+                            break;
+                        case SoftwareTestStatusCode.InWfi:
+                            this.Log(LogLevel.Info, "Opentitan in WFI");
+                            break;
+                        case SoftwareTestStatusCode.Passed:
+                            this.Log(LogLevel.Info, "Opentitan PASSED Test");
+                            break;
+                        case SoftwareTestStatusCode.Failed:
+                            this.Log(LogLevel.Info, "Opentitan FAILED Test");
+                            break;
                     }
                 })
                 .WithIgnoredBits(16,16)
