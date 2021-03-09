@@ -412,6 +412,7 @@
     <Compile Include="Core\SerializableMappedSegment.cs" />
     <Compile Include="Peripherals\Python\PeripheralPythonEngine.cs" />
     <Compile Include="Peripherals\Miscellaneous\ILed.cs" />
+    <Compile Include="Peripherals\Miscellaneous\CombinedInput.cs" />
     <Compile Include="Peripherals\Video\AutoRepaintingVideo.cs" />
     <Compile Include="Peripherals\Python\PythonPeripheral.cs" />
     <Compile Include="Peripherals\Memory\MappedMemory.cs" />
