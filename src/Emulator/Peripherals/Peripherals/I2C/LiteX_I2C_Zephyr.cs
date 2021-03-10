@@ -150,15 +150,15 @@ namespace Antmicro.Renode.Peripherals.I2C
                     isRead = signals[DataSignal];
                     this.Log(LogLevel.Noisy, "Operation decoded: {0}", isRead ? "read" : "write");
 
+                    // write ACK(false) or NACK(true)
+                    bufferFromDevice.Enqueue(slave == null);
+
                     state = State.AddressAck;
                     break;
                 }
 
                 case State.AddressAck:
                 {
-                    // write ACK(false) or NACK(true)
-                    bufferFromDevice.Enqueue(slave == null);
-
                     if(slave == null)
                     {
                         // ignore the rest of transmission until the next (repeated) start condition
