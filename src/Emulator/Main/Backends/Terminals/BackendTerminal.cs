@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Backends.Terminals
             CharReceived += uart.WriteChar;
             uart.CharReceived += WriteChar;
         }
+
         public virtual void DetachFrom(IUART uart)
         {
             CharReceived -= uart.WriteChar;
