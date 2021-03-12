@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             HartId = hartId;
             this.timeProvider = timeProvider;
             this.privilegeArchitecture = privilegeArchitecture;
-            ShouldEnterDebugMode = true;
+            shouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
             this.NMIVectorLength = nmiVectorLength;
@@ -225,8 +225,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint? NMIVectorLength { get; }
 
-        public bool ShouldEnterDebugMode { get; set; }
-
         public event Action<ulong> MipChanged;
 
         public Dictionary<string, object> UserState { get; }
@@ -311,14 +309,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
             return architecture.Skip(2).SkipWhile(x => Char.IsDigit(x))
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
-        }
-
-        [Export]
-        protected override uint IsInDebugMode()
-        {
-            //We can enter the debug mode automatically, as it is specified in RISCV spec, or we can trigger it manually
-            return ((DebuggerConnected == true && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep)
-                    || base.IsInDebugMode() != 0) ? 1u : 0u;
         }
 
         [Export]

@@ -1623,9 +1623,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
-        public virtual bool IsDebugModeActive
+        public virtual bool ShouldEnterDebugMode
         { 
-            get => isDebugModeActive;
+            get => shouldEnterDebugMode;
             set
             {
                 if(value == true && !(DebuggerConnected && ExecutionMode == ExecutionMode.SingleStep))
@@ -1636,7 +1636,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected bool isDebugModeActive;
+        protected bool shouldEnterDebugMode;
 
         protected virtual void BeforeSave(IntPtr statePtr)
         {
@@ -1649,7 +1649,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         protected virtual uint IsInDebugMode()
         {
-            return (DebuggerConnected == true && IsDebugModeActive && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
+            return (DebuggerConnected && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
         }
 
         private void UpdateBlockBeginHookPresent()
@@ -2034,8 +2034,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     else
                     {
-                        // NIP always points to next instruction, on all emulated cores. If this behavior changes, this needs to change as well.
-                        this.Trace("Clearing WaitForInterruptState.");
+                        // NIP always points to the next instruction, on all emulated cores. If this behavior changes, this needs to change as well.
+                        this.Trace("Clearing WaitForInterrupt processor state.");
                         TlibCleanWfiProcState(); // Clean WFI state in the emulated core
                     }
                 }
