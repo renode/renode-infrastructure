@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,11 +13,19 @@ using Antmicro.Renode.Peripherals.Bus;
 namespace Antmicro.Renode.Peripherals.UART
 {
     // This model currently does not support timeout feature, rx break detection and software tx pin override
-    public class IbexUART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public IbexUART(Machine machine) : base(machine)
+        public OpenTitan_UART(Machine machine) : base(machine)
         {
-            IRQ = new GPIO();
+            txWatermarkIRQ = new GPIO();
+            rxWatermarkIRQ = new GPIO();
+            txEmptyIRQ = new GPIO();
+            rxOverflowIRQ = new GPIO();
+            rxFrameErrorIRQ = new GPIO();
+            rxBreakErrorIRQ = new GPIO();
+            rxTimeoutIRQ = new GPIO();
+            rxParityErrorIRQ = new GPIO();
+
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             txQueue = new Queue<byte>();
         }
@@ -58,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
-                rxOverflowIrq.Value = true;
+                rxOverflowIntr.Value = true;
                 this.Log(LogLevel.Warning, "RX FIFO overflowed, incoming byte not queued.");
             }
             UpdateInterrupts();
@@ -74,7 +82,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public long Size => 0x30;
 
-        public GPIO IRQ { get; }
+        public GPIO txWatermarkIRQ { get; }
+        public GPIO rxWatermarkIRQ { get; }
+        public GPIO txEmptyIRQ { get; }
+        public GPIO rxOverflowIRQ { get; }
+        public GPIO rxFrameErrorIRQ { get; }
+        public GPIO rxBreakErrorIRQ { get; }
+        public GPIO rxTimeoutIRQ { get; }
+        public GPIO rxParityErrorIRQ { get; }
 
         public override Bits StopBits => Bits.One;
 
@@ -97,14 +112,14 @@ namespace Antmicro.Renode.Peripherals.UART
             return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.InterruptState, new DoubleWordRegister(this)
-                    .WithFlag(0, out txWatermarkIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.tx_watermark")
-                    .WithFlag(1, out rxWatermarkIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_watermark")
-                    .WithFlag(2, out txEmptyIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.tx_empty")
-                    .WithFlag(3, out rxOverflowIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_overflow")
-                    .WithFlag(4, out rxFrameErrorIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_frame_err")
-                    .WithFlag(5, out rxBreakErrorIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_break_err")
-                    .WithFlag(6, out rxTimeoutIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_timeout")
-                    .WithFlag(7, out rxParityErrorIrq, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_parity_err")
+                    .WithFlag(0, out txWatermarkIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.tx_watermark")
+                    .WithFlag(1, out rxWatermarkIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_watermark")
+                    .WithFlag(2, out txEmptyIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.tx_empty")
+                    .WithFlag(3, out rxOverflowIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_overflow")
+                    .WithFlag(4, out rxFrameErrorIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_frame_err")
+                    .WithFlag(5, out rxBreakErrorIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_break_err")
+                    .WithFlag(6, out rxTimeoutIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_timeout")
+                    .WithFlag(7, out rxParityErrorIntr, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.rx_parity_err")
                     .WithReservedBits(8, 24)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -121,14 +136,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.InterruptTest, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { txWatermarkIrq.Value |= val; },  name: "INTR_TEST.tx_watermark")
-                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { rxWatermarkIrq.Value |= val; },  name: "INTR_TEST.rx_watermark")
-                    .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { txEmptyIrq.Value |= val; },  name: "INTR_TEST.tx_empty")
-                    .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { rxOverflowIrq.Value |= val; },  name: "INTR_TEST.rx_overflow")
-                    .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { rxFrameErrorIrq.Value |= val; },  name: "INTR_TEST.rx_frame_err")
-                    .WithFlag(5, FieldMode.Write, writeCallback: (_, val) => { rxBreakErrorIrq.Value |= val; },  name: "INTR_TEST.rx_break_err")
-                    .WithFlag(6, FieldMode.Write, writeCallback: (_, val) => { rxTimeoutIrq.Value |= val; },  name: "INTR_TEST.rx_timeout")
-                    .WithFlag(7, FieldMode.Write, writeCallback: (_, val) => { rxParityErrorIrq.Value |= val; },  name: "INTR_TEST.rx_parity_err")
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { txWatermarkIntr.Value |= val; },  name: "INTR_TEST.tx_watermark")
+                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { rxWatermarkIntr.Value |= val; },  name: "INTR_TEST.rx_watermark")
+                    .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { txEmptyIntr.Value |= val; },  name: "INTR_TEST.tx_empty")
+                    .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { rxOverflowIntr.Value |= val; },  name: "INTR_TEST.rx_overflow")
+                    .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { rxFrameErrorIntr.Value |= val; },  name: "INTR_TEST.rx_frame_err")
+                    .WithFlag(5, FieldMode.Write, writeCallback: (_, val) => { rxBreakErrorIntr.Value |= val; },  name: "INTR_TEST.rx_break_err")
+                    .WithFlag(6, FieldMode.Write, writeCallback: (_, val) => { rxTimeoutIntr.Value |= val; },  name: "INTR_TEST.rx_timeout")
+                    .WithFlag(7, FieldMode.Write, writeCallback: (_, val) => { rxParityErrorIntr.Value |= val; },  name: "INTR_TEST.rx_parity_err")
                     .WithReservedBits(8, 24)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -251,21 +266,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            txWatermarkIrq.Value |= TxWatermarkValue > txQueue.Count;
-            rxWatermarkIrq.Value |= RxWatermarkValue <= Count;
-            txEmptyIrq.Value |= txQueue.Count == 0;
+            txWatermarkIntr.Value |= TxWatermarkValue > txQueue.Count;
+            rxWatermarkIntr.Value |= RxWatermarkValue <= Count;
+            txEmptyIntr.Value |= txQueue.Count == 0;
 
-            bool flag = false;
-            flag |= txWatermarkIrq.Value && txWatermarkEnabled.Value;
-            flag |= rxWatermarkIrq.Value && rxWatermarkEnabled.Value;
-            flag |= txEmptyIrq.Value && txEmptyEnabled.Value;
-            flag |= rxOverflowIrq.Value && rxOverflowEnabled.Value;
-            flag |= rxFrameErrorIrq.Value && rxFrameErrorEnabled.Value;
-            flag |= rxBreakErrorIrq.Value && rxBreakErrorEnabled.Value;
-            flag |= rxTimeoutIrq.Value && rxTimeoutEnabled.Value;
-            flag |= rxParityErrorIrq.Value && rxParityErrorEnabled.Value;
-
-            IRQ.Set(flag);
+            txWatermarkIRQ.Set(txWatermarkIntr.Value && txWatermarkEnabled.Value);
+            rxWatermarkIRQ.Set(rxWatermarkIntr.Value && rxWatermarkEnabled.Value);
+            txEmptyIRQ.Set(txEmptyIntr.Value && txEmptyEnabled.Value);
+            rxOverflowIRQ.Set(rxOverflowIntr.Value && rxOverflowEnabled.Value);
+            rxFrameErrorIRQ.Set(rxFrameErrorIntr.Value && rxFrameErrorEnabled.Value);
+            rxBreakErrorIRQ.Set(rxBreakErrorIntr.Value && rxBreakErrorEnabled.Value);
+            rxTimeoutIRQ.Set(rxTimeoutIntr.Value && rxTimeoutEnabled.Value);
+            rxParityErrorIRQ.Set(rxParityErrorIntr.Value && rxParityErrorEnabled.Value);
         }
 
         private int RxWatermarkValue
@@ -315,14 +327,14 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly DoubleWordRegisterCollection registers;
         private readonly Queue<byte> txQueue;
         // InterruptState
-        private IFlagRegisterField txWatermarkIrq;
-        private IFlagRegisterField rxWatermarkIrq;
-        private IFlagRegisterField txEmptyIrq;
-        private IFlagRegisterField rxOverflowIrq;
-        private IFlagRegisterField rxFrameErrorIrq;
-        private IFlagRegisterField rxBreakErrorIrq;
-        private IFlagRegisterField rxTimeoutIrq;
-        private IFlagRegisterField rxParityErrorIrq;
+        private IFlagRegisterField txWatermarkIntr;
+        private IFlagRegisterField rxWatermarkIntr;
+        private IFlagRegisterField txEmptyIntr;
+        private IFlagRegisterField rxOverflowIntr;
+        private IFlagRegisterField rxFrameErrorIntr;
+        private IFlagRegisterField rxBreakErrorIntr;
+        private IFlagRegisterField rxTimeoutIntr;
+        private IFlagRegisterField rxParityErrorIntr;
         // InterruptEnable
         private IFlagRegisterField txWatermarkEnabled;
         private IFlagRegisterField rxWatermarkEnabled;
