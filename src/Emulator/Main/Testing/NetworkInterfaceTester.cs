@@ -111,6 +111,28 @@ namespace Antmicro.Renode.Testing
             return false;
         }
 
+        public void SendFrame(string bytes)
+        {
+            var data = HexStringToBytes(bytes);
+            if(iface is IMACInterface macIface)
+            {
+                if(!EthernetFrame.TryCreateEthernetFrame(data, false, out var frame))
+                {
+                    throw new ArgumentException("Couldn't create Ethernet frame.");
+                }
+                var vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
+                iface.GetMachine().HandleTimeDomainEvent(macIface.ReceiveFrame, frame, vts);
+            }
+            else if(iface is IRadio)
+            {
+                throw new NotImplementedException("Sending frames is not implemented for Radio interfaces.");
+            }
+            else
+            {
+                throw new NotImplementedException("Sending frames is not implemented for this peripheral.");
+            }
+        }
+
         public void Dispose()
         {
             if(iface is IMACInterface mac)
@@ -204,6 +226,25 @@ namespace Antmicro.Renode.Testing
             }
 
             return IsNibbleEqual(input, index, (byte)((data & 0xF0) >> 4)) && IsNibbleEqual(input, index + 1, (byte)(data & 0x0F));
+        }
+
+        private byte[] HexStringToBytes(string data)
+        {
+            if(data.Length % 2 == 1)
+            {
+                data = "0" + data;
+            }
+
+            var bytes = new byte[data.Length / 2];
+            for(var i = 0; i < bytes.Length; ++i)
+            {
+                if(!Byte.TryParse(data.Substring(i * 2, 2), NumberStyles.HexNumber, null, out bytes[i]))
+                {
+                    throw new ArgumentException($"Data not in hex format at index {i * 2} (\"{data.Substring(i * 2, 2)}\")");
+                }
+            }
+            
+            return bytes;
         }
 
         private readonly AutoResetEvent newFrameEvent;
