@@ -44,7 +44,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
             irqTargets = new IrqTarget[numberOfTargets];
             for(var i = 0u; i < numberOfTargets; i++)
             {
-                irqTargets[i] = new IrqTarget(i, this, supportedLevels);
+                irqTargets[i] = (supportedLevels == null)
+                    ? new IrqTarget(i, this)
+                    : new IrqTarget(i, this, supportedLevels);
             }
         }
 
