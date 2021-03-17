@@ -9,7 +9,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
-
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_PowerManager : BasicDoubleWordPeripheral, IKnownSize
@@ -20,65 +19,70 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DefineRegisters();
         }
 
-        public long Size =>  0x100;
+        public long Size => 0x100;
+
+        public GPIO IRQ { get; }
 
         private void DefineRegisters()
         {
-            Registers.InterruptState.Define(this, 0x0)
+            Registers.InterruptState.Define(this)
                 .WithFlag(0, out wakeupState, FieldMode.Read | FieldMode.WriteOneToClear, name: "INTR_STATE.wakeup")
-                .WithIgnoredBits(1,31)
+                .WithIgnoredBits(1, 31)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
-            Registers.InterruptEnable.Define(this, 0x0)
-                .WithFlag(0, out wakeupEnable, name:"INTR_ENABLE.wakeup")
-                .WithIgnoredBits(1,31)
+            Registers.InterruptEnable.Define(this)
+                .WithFlag(0, out wakeupEnable, name: "INTR_ENABLE.wakeup")
+                .WithIgnoredBits(1, 31)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
-            Registers.InterruptTest.Define(this, 0x0)
-                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { wakeupState.Value |= val; },  name: "INTR_TEST.wakeup")
-                .WithIgnoredBits(1,31)
-                .WithWriteCallback((_, __) => UpdateInterrupts());
+            Registers.InterruptTest.Define(this)
+                .WithFlag(0, FieldMode.Write, name: "INTR_TEST.wakeup", writeCallback: (_, val) =>
+                {
+                    wakeupState.Value |= val;
+                    UpdateInterrupts();
+                })
+                .WithIgnoredBits(1, 31);
             
             Registers.ControlConfigRegWriteEnable.Define(this, 0x1)
                 .WithFlag(0, out controlConfigRegWriteEnable, FieldMode.Read, name: "CTRL_CFG_REGWEN.EN")
-                .WithIgnoredBits(1,31);
+                .WithIgnoredBits(1, 31);
 
             Registers.Control.Define(this, 0x180)
-                .WithFlag(0, out lowPowerHint, FieldMode.Read | FieldMode.Write)
+                .WithFlag(0, out lowPowerHint)
                 .WithReservedBits(1, 3)
-                .WithFlag(4, out coreClockEnable, FieldMode.Read | FieldMode.Write)
-                .WithFlag(5, out ioClockEnable, FieldMode.Read | FieldMode.Write)
-                .WithFlag(6, out usbClockEnableLowPower, FieldMode.Read | FieldMode.Write)
-                .WithFlag(7, out usbClockEnableActive, FieldMode.Read | FieldMode.Write)
-                .WithFlag(8, out mainPowerDown, FieldMode.Read | FieldMode.Write)
+                .WithFlag(4, out coreClockEnable)
+                .WithFlag(5, out ioClockEnable)
+                .WithFlag(6, out usbClockEnableLowPower)
+                .WithFlag(7, out usbClockEnableActive)
+                .WithFlag(8, out mainPowerDown)
                 .WithReservedBits(9, 23)
                 .WithWriteCallback((_, __) => LogPowerState());
-            
-            Registers.ConfigClockDomainSync.Define(this, 0x1)
-                .WithReservedBits(0,32);
-            
-            Registers.WakeupEnableRegWriteEnable.Define(this, 0x0)
-                .WithReservedBits(0,32);
 
-            Registers.WakeStatus.Define(this, 0x0)
+            Registers.ConfigClockDomainSync.Define(this, 0x1)
+                .WithReservedBits(0, 32);
+            
+            Registers.WakeupEnableRegWriteEnable.Define(this)
+                .WithReservedBits(0, 32);
+
+            Registers.WakeStatus.Define(this)
                 .WithReservedBits(0, 32);
 
             Registers.ResetEnableRegWriteEnable.Define(this, 0x1)
                 .WithReservedBits(0,32);
 
-            Registers.ResetEnable.Define(this, 0x0)
+            Registers.ResetEnable.Define(this)
                 .WithReservedBits(0, 32);
 
-            Registers.ResetStatus.Define(this, 0x0)
+            Registers.ResetStatus.Define(this)
                 .WithReservedBits(0, 32);
 
-            Registers.EscalateResetStatue.Define(this, 0x0)
+            Registers.EscalateResetStatue.Define(this)
                 .WithReservedBits(0, 32);
 
-            Registers.WakeInfoCaptureDis.Define(this, 0x0)
+            Registers.WakeInfoCaptureDis.Define(this)
                 .WithReservedBits(0, 32);
 
-            Registers.WakeInfo.Define(this, 0x0)
+            Registers.WakeInfo.Define(this)
                 .WithReservedBits(0, 32);
         }
 
@@ -97,6 +101,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                      usbClockEnableActive.Value, mainPowerDown.Value);
         }
 
+        private IFlagRegisterField wakeupState;
+        private IFlagRegisterField wakeupEnable;
+
+        private IFlagRegisterField controlConfigRegWriteEnable;
+        
+        private IFlagRegisterField lowPowerHint;
+        private IFlagRegisterField coreClockEnable;
+        private IFlagRegisterField ioClockEnable;
+        private IFlagRegisterField usbClockEnableLowPower;
+        private IFlagRegisterField usbClockEnableActive;
+        private IFlagRegisterField mainPowerDown;
+
         private enum Registers
         {
             InterruptState = 0x0,
@@ -113,24 +129,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ResetStatus = 0x2c,
             EscalateResetStatue = 0x30,
             WakeInfoCaptureDis = 0x34,
-            WakeInfo = 0x38,
+            WakeInfo = 0x38
         }
-        
-        public GPIO IRQ { get; }
-
-        private IFlagRegisterField wakeupState;
-        private IFlagRegisterField wakeupEnable;
-
-        private IFlagRegisterField controlConfigRegWriteEnable;
-        
-        private IFlagRegisterField lowPowerHint;
-        private IFlagRegisterField coreClockEnable;
-        private IFlagRegisterField ioClockEnable;
-        private IFlagRegisterField usbClockEnableLowPower;
-        private IFlagRegisterField usbClockEnableActive;
-        private IFlagRegisterField mainPowerDown;
-
-
     }
 }
 
