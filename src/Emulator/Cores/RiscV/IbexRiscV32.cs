@@ -14,6 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public IbexRiscV32(Machine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imcu") : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, endianness, interruptMode: InterruptMode.Vectored)
         {
+            CSRValidation = CSRValidationLevel.None;
         }
     }
 }
