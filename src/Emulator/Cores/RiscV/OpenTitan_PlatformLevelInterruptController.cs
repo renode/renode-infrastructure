@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptPending0 = 0x0,
             InterruptPending1 = 0x4,
             InterruptPending2 = 0x8,
-            InterruptSourceMode0 = 0xc,
+            InterruptSourceMode0 = 0xC,
             InterruptSourceMode1 = 0x10,
             InterruptSourceMode2 = 0x14,
 
