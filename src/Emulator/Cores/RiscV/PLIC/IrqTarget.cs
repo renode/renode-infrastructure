@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
     {
         public IrqTarget(uint id, IPlatformLevelInterruptController irqController)
         {
-            handlers = new []
+            Handlers = new []
             {
                 new IrqTargetHandler(irqController, 0)
             };
@@ -24,16 +24,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
         public IrqTarget(uint id, IPlatformLevelInterruptController irqController, PrivilegeLevel[] privilegeLevels)
         {
-            handlers = new IrqTargetHandler[privilegeLevels.Length];
+            Handlers = new IrqTargetHandler[privilegeLevels.Length];
             for(var i = 0; i < privilegeLevels.Length; i++)
             {
-                handlers[i] = new IrqTargetHandler(irqController, id, privilegeLevels[i]);
+                Handlers[i] = new IrqTargetHandler(irqController, id, privilegeLevels[i]);
             };
         }
 
         public void RefreshAllInterrupts()
         {
-            foreach(var h in handlers)
+            foreach(var h in Handlers)
             {
                 h.RefreshInterrupt();
             }
@@ -41,13 +41,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
         public void Reset()
         {
-            foreach(var h in handlers)
+            foreach(var h in Handlers)
             {
                 h.Reset();
             }
         }
 
-        public readonly IrqTargetHandler[] handlers;
+        public IrqTargetHandler[] Handlers { get; }
 
         public class IrqTargetHandler
         {

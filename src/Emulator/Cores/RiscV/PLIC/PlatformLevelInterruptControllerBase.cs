@@ -118,7 +118,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
             {
                 lock(irqSources)
                 {
-                    return irqTargets[hartId].handlers[(int)level].AcknowledgePendingInterrupt();
+                    return irqTargets[hartId].Handlers[(int)level].AcknowledgePendingInterrupt();
                 }
             },
             writeCallback: (_, value) =>
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 }
                 lock(irqSources)
                 {
-                    irqTargets[hartId].handlers[(int)level].CompleteHandlingInterrupt(GetIrqSource(value));
+                    irqTargets[hartId].Handlers[(int)level].CompleteHandlingInterrupt(GetIrqSource(value));
                 }
             }));
         }
@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                                 continue;
                             }
 
-                            irqTargets[hartId].handlers[(int)level].EnableSource(GetIrqSource(sourceNumber), bits[bit]);
+                            irqTargets[hartId].Handlers[(int)level].EnableSource(GetIrqSource(sourceNumber), bits[bit]);
                         }
                         RefreshInterrupts();
                     }
