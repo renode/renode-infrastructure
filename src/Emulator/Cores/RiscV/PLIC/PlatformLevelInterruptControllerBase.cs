@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
             }
             Connections = connections;
 
-            // depending on the `countSourcesFrom0` value (false by default)
+            // depending on the `countSourcesFrom0` value
             // irqSources might be identified starting from 1, as the source "0" is not used;
             // regardless, we always initiate the array starting from 0 and the 
             // identifier transformation is done in the `GetIrqSource` method
