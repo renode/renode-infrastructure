@@ -118,6 +118,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return (uint)systick.Value;
             case Registers.SystemControlRegister:
                 return 0;
+            case Registers.ConfigurationAndControl:
+                this.DebugLog("Read from CCR register. This is not yet implemented. Returning 0x10000");
+                // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
+                return 0x10000;
             case Registers.SystemHandlerPriority1:
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
@@ -639,6 +643,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptControlState = 0xD04,
             VectorTableOffset = 0xD08,
             SystemControlRegister = 0xD10,
+            ConfigurationAndControl = 0xD14,
             ApplicationInterruptAndReset = 0xD0C,
             SystemHandlerPriority1 = 0xD18,
             SystemHandlerPriority2 = 0xD1C,
