@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -89,6 +89,25 @@ namespace Antmicro.Renode.Utilities
                 throw new ArgumentException("width not in [0,32]");
             }
             uint mask = (uint)((1ul << width) - 1);
+            source &= mask << sourcePosition;
+            destination &= ~(mask << destinationPosition);
+
+            var positionDifference = sourcePosition - destinationPosition;
+            destination |= (positionDifference >= 0)
+                ? (source >> positionDifference)
+                : (source << -positionDifference);
+        }
+
+        public static void ReplaceBits(ref ulong destination, ulong source, int width, int destinationPosition = 0, int sourcePosition = 0)
+        {
+            if(width < 0 || width > 64)
+            {
+                throw new ArgumentException("width not in [0,64]");
+            }
+            ulong mask = (width == 64) 
+                ? ulong.MaxValue
+                : (ulong)((1ul << width) - 1);
+
             source &= mask << sourcePosition;
             destination &= ~(mask << destinationPosition);
 
