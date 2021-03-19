@@ -172,6 +172,12 @@
     <Compile Include="UserInterface\Commands\LastLogCommand.cs" />
     <Compile Include="UserInterface\Commands\DisplayImageCommand.cs" />
     <Compile Include="Hooks\InterruptPythonEngine.cs" />
+    <Compile Include="TAPHelper\TapIPHelper.cs" />
+    <Compile Include="HostInterfaces\Network\LinuxHostIPv4Config.cs" />
+    <Compile Include="HostInterfaces\Network\LinuxIPv4RoutingPolicy.cs" />
+    <Compile Include="HostInterfaces\Network\ILinuxHostConfig.cs" />
+    <Compile Include="HostInterfaces\Network\LinuxHostConfigurator.cs" />
+    <Compile Include="HostInterfaces\Network\LinuxDnsmasqServer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
