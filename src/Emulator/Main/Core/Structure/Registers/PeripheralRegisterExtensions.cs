@@ -113,6 +113,40 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for creation of set of enum fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithEnumFields"/>.
+        /// This overload allows you to retrieve the created array of fields via <c>enumFields</c> parameter.
+        /// </summary>
+        /// <returns>This register with defined enum fields.</returns>
+        public static R WithEnumFields<R, T>(this R register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, string name = null) where R : PeripheralRegister where T : struct, IConvertible
+        {
+            return WithEnumFields<R, T>(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+        }
+
+        /// <summary>
+        /// Fluent API for creation of set of enum fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithEnumFields"/>.
+        /// This overload allows you to retrieve the created array of fields via <c>enumFields</c> parameter.
+        /// </summary>
+        /// <returns>This register with defined enum fields.</returns>
+        public static R WithEnumFields<R, T>(this R register, int position, int width, int count, out IEnumRegisterField<T>[] enumFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, string name = null) where R : PeripheralRegister where T : struct, IConvertible
+        {
+            enumFields = new IEnumRegisterField<T>[count];
+            for(var i = 0; i < count; i++)
+            {
+                var j = i;
+
+                enumFields[j] = register.DefineEnumField<T>(position + (j * width), width, mode,
+                    readCallback == null ? null : (Action<T, T>)((x, y) => readCallback(j, x, y)),
+                    writeCallback == null ? null : (Action<T, T>)((x, y) => writeCallback(j, x, y)),
+                    changeCallback == null ? null : (Action<T, T>)((x, y) => changeCallback(j, x, y)),
+                    valueProviderCallback == null ? null : (Func<T, T>)((x) => valueProviderCallback(j, x)),
+                    name == null ? null : $"{name}_{j}");
+            }
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
         /// This overload allows you to retrieve the created field via <c>flagField</c> parameter.
         /// </summary>
