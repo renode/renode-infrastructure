@@ -36,9 +36,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             Connections = connections;
 
-            // irqSources are initialized from 1, as the source "0" is not used.
+            // the standard PLIC controller counts sources from 1
             irqSources = new IrqSource[numberOfSources + 1];
-            for(var i = 1u; i <= numberOfSources; i++)
+            for(var i = 0u; i < irqSources.Length; i++)
             {
                 irqSources[i] = new IrqSource(i, this);
             }
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.Log(LogLevel.Noisy, "Resetting peripheral state");
 
             registers.Reset();
-            foreach(var irqSource in irqSources.Skip(1))
+            foreach(var irqSource in irqSources)
             {
                 irqSource.Reset();
             }
@@ -119,14 +119,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void OnGPIO(int number, bool value)
         {
-            if(number < 1 || number >= irqSources.Length)
+            if(!IsIrqSourceAvailable(number))
             {
-                this.Log(LogLevel.Error, "Wrong gpio source: {0}. This irq controller supports sources from 1 to {1}.", number, irqSources.Length - 1);
+                this.Log(LogLevel.Error, "Wrong gpio source: {0}", number);
             }
             lock(irqSources)
             {
                 this.Log(LogLevel.Noisy, "Setting GPIO number #{0} to value {1}", number, value);
-                var irq = irqSources[(uint)number];
+                var irq = irqSources[number];
                 irq.State = value;
                 irq.IsPending |= value;
                 RefreshInterrupts();
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             },
             writeCallback: (_, value) =>
             {
-                if(value == 0 || value >= irqSources.Length)
+                if(!IsIrqSourceAvailable((int)value))
                 {
                     this.Log(LogLevel.Error, "Trying to complete handling of non-existing interrupt source {0}", value);
                     return;
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         for(var bit = 0u; bit < bits.Length; bit++)
                         {
                             var sourceNumber = sourceIdBase + bit;
-                            if(sourceNumber == 0 || irqSources.Length <= sourceNumber)
+                            if(!IsIrqSourceAvailable((int)sourceNumber))
                             {
                                 if(bits[bit])
                                 {
@@ -213,6 +213,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                 }));
             }
+        }
+
+        private bool IsIrqSourceAvailable(uint number)
+        {
+            // standard PLIC controller does not support source 0
+            return number > 0 && number < irqSources.Length;
         }
 
         private readonly IrqSource[] irqSources;
