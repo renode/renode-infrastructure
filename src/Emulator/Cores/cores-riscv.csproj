@@ -63,6 +63,7 @@
     <Compile Include="RiscV\PLIC\IPlatformLevelInterruptController.cs" />
     <Compile Include="RiscV\PLIC\IrqTarget.cs" />
     <Compile Include="RiscV\PLIC\IrqSource.cs" />
+    <Compile Include="RiscV\PLIC\PlatformLevelInterruptControllerBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">

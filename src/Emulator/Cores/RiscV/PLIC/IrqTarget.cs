@@ -16,12 +16,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
     {
         public IrqTarget(uint id, IPlatformLevelInterruptController irqController)
         {
-            levels = new IrqTargetHandler[]
+            Handlers = new []
             {
-                new IrqTargetHandler(irqController, id, PrivilegeLevel.User),
-                new IrqTargetHandler(irqController, id, PrivilegeLevel.Supervisor),
-                new IrqTargetHandler(irqController, id, PrivilegeLevel.Hypervisor),
-                new IrqTargetHandler(irqController, id, PrivilegeLevel.Machine)
+                new IrqTargetHandler(irqController, 0)
+            };
+        }
+
+        public IrqTarget(uint id, IPlatformLevelInterruptController irqController, PrivilegeLevel[] privilegeLevels)
+        {
+            Handlers = new IrqTargetHandler[privilegeLevels.Length];
+            for(var i = 0; i < privilegeLevels.Length; i++)
+            {
+                Handlers[i] = new IrqTargetHandler(irqController, id, privilegeLevels[i]);
             };
         }
 
@@ -45,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
         public class IrqTargetHandler
         {
-            public IrqTargetHandler(IPlatformLevelInterruptController irqController, uint targetId, PrivilegeLevel privilegeLevel)
+            public IrqTargetHandler(IPlatformLevelInterruptController irqController, uint targetId, PrivilegeLevel? privilegeLevel = null)
             {
                 this.irqController = irqController;
                 this.targetId = targetId;
@@ -57,7 +63,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
             public override string ToString()
             {
-                return $"[Hart #{targetId} at {privilegeLevel} level (connection output #{ConnectionNumber})]";
+                var result = $"[Hart #{targetId}";
+                if(privilegeLevel.HasValue)
+                {
+                    result +=  $" at {privilegeLevel} level";
+                }
+                result +=  $" (connection output #{ConnectionNumber})]";
+
+                return result;
             }
 
             public void Reset()
@@ -146,10 +159,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 return pendingIrq.Id;
             }
 
-            private int ConnectionNumber => (int)(4 * targetId + (int)privilegeLevel);
+            private int ConnectionNumber => (int)(4 * targetId + (privilegeLevel.HasValue ? (int)privilegeLevel.Value : 0));
 
             private readonly uint targetId;
-            private readonly PrivilegeLevel privilegeLevel;
+            private readonly PrivilegeLevel? privilegeLevel;
             private readonly IPlatformLevelInterruptController irqController;
             private readonly HashSet<IrqSource> enabledSources;
             private readonly Stack<IrqSource> activeInterrupts;
