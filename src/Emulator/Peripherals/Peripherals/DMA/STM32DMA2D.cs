@@ -66,14 +66,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             var foregroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
             var backgroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
 
-            var interruptStatusRegister = new DoubleWordRegister(this);
-            interruptStatusRegister.DefineFlagField(0, FieldMode.Read, name: "TEIF");
-            transferCompleteFlag = interruptStatusRegister.DefineFlagField(1, FieldMode.Read, name: "TCIF");
-            interruptStatusRegister.DefineFlagField(2, FieldMode.Read, name: "TWIF");
-            interruptStatusRegister.DefineFlagField(3, FieldMode.Read, name: "CAEIF");
-            interruptStatusRegister.DefineFlagField(4, FieldMode.Read, name: "CTCIF");
-            interruptStatusRegister.DefineFlagField(5, FieldMode.Read, name: "CEIF");
-
+            var interruptStatusRegister = new DoubleWordRegister(this)
+                .WithTaggedFlag("TEIF", 0)
+                .WithFlag(1, out transferCompleteFlag, FieldMode.Read, name: "TCIF")
+                .WithTaggedFlag("TWIF", 2)
+                .WithTaggedFlag("CAEIF", 3)
+                .WithTaggedFlag("CTCIF", 4)
+                .WithTaggedFlag("CEIF", 5)
+                .WithReservedBits(6, 26)
+            ;
 
             var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => { 
                 if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
