@@ -122,6 +122,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(!IsIrqSourceAvailable(number))
             {
                 this.Log(LogLevel.Error, "Wrong gpio source: {0}", number);
+                return;
             }
             lock(irqSources)
             {
