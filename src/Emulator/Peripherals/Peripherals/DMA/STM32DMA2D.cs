@@ -133,15 +133,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 });
             foregroundAlphaField = foregroundPfcControlRegister.DefineValueField(24, 8, FieldMode.Read | FieldMode.Write, name: "ALPHA");
 
-            var foregroundColorRegister = new DoubleWordRegister(this);
-            foregroundColorBlueChannelField = foregroundColorRegister.DefineValueField(0, 8, name: "BLUE");
-            foregroundColorGreenChannelField = foregroundColorRegister.DefineValueField(8, 8, name: "GREEN");
-            foregroundColorRedChannelField = foregroundColorRegister.DefineValueField(16, 8, name: "RED",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                });
-
+            var foregroundColorRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 8, out foregroundColorBlueChannelField, name: "BLUE")
+                .WithValueField(8, 8, out foregroundColorGreenChannelField, name: "GREEN")
+                .WithValueField(16, 8, out foregroundColorRedChannelField, name: "RED")
+                .WithReservedBits(24, 8)
+                .WithChangeCallback((_, __) => HandlePixelFormatChange())
+            ;
 
             var backgroundPfcControlRegister = new DoubleWordRegister(this);
             backgroundColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, FieldMode.Read | FieldMode.Write, name: "CM",
@@ -174,14 +172,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 });
             backgroundAlphaField = backgroundPfcControlRegister.DefineValueField(24, 8, FieldMode.Read | FieldMode.Write, name: "ALPHA");
 
-            var backgroundColorRegister = new DoubleWordRegister(this);
-            backgroundColorBlueChannelField = backgroundColorRegister.DefineValueField(0, 8, name: "BLUE");
-            backgroundColorGreenChannelField = backgroundColorRegister.DefineValueField(8, 8, name: "GREEN");
-            backgroundColorRedChannelField = backgroundColorRegister.DefineValueField(16, 8, name: "RED",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                });
+            var backgroundColorRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 8, out backgroundColorBlueChannelField, name: "BLUE")
+                .WithValueField(8, 8, out backgroundColorGreenChannelField, name: "GREEN")
+                .WithValueField(16, 8, out backgroundColorRedChannelField, name: "RED")
+                .WithReservedBits(24, 8)
+                .WithChangeCallback((_, __) => HandlePixelFormatChange())
+            ;
 
             outputColorRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
 
