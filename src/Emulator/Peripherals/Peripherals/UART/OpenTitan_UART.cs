@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,9 +13,9 @@ using Antmicro.Renode.Peripherals.Bus;
 namespace Antmicro.Renode.Peripherals.UART
 {
     // This model currently does not support timeout feature, rx break detection and software tx pin override
-    public class IbexUART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public IbexUART(Machine machine) : base(machine)
+        public OpenTitan_UART(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
