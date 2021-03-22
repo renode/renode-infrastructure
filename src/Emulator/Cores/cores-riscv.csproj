@@ -61,6 +61,8 @@
     <Compile Include="RiscV\PULP_InterruptController.cs" />
     <Compile Include="RiscV\PULP_EventController.cs" />
     <Compile Include="RiscV\PLIC\IPlatformLevelInterruptController.cs" />
+    <Compile Include="RiscV\PLIC\IrqTarget.cs" />
+    <Compile Include="RiscV\PLIC\IrqSource.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">

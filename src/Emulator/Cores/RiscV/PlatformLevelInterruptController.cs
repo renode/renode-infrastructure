@@ -14,6 +14,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.IRQControllers.PLIC;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -159,7 +160,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             registersMap.Add(offset, new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
             {
-                return irqTargets[hartId].levels[(int)level].AcknowledgePendingInterrupt();
+                lock(irqSources)
+                {
+                    return irqTargets[hartId].Handlers[(int)level].AcknowledgePendingInterrupt();
+                }
             },
             writeCallback: (_, value) =>
             {
@@ -168,7 +172,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.Log(LogLevel.Error, "Trying to complete handling of non-existing interrupt source {0}", value);
                     return;
                 }
-                irqTargets[hartId].levels[(int)level].CompleteHandlingInterrupt(irqSources[value]);
+                lock(irqSources)
+                {
+                    irqTargets[hartId].Handlers[(int)level].CompleteHandlingInterrupt(irqSources[value]);
+                }
             }));
         }
 
@@ -200,7 +207,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 continue;
                             }
 
-                            irqTargets[hartId].levels[(int)level].EnableSource(irqSources[sourceNumber], bits[bit]);
+                            irqTargets[hartId].Handlers[(int)level].EnableSource(irqSources[sourceNumber], bits[bit]);
                         }
                         RefreshInterrupts();
                     }
@@ -211,237 +218,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly IrqSource[] irqSources;
         private readonly IrqTarget[] irqTargets;
         private readonly DoubleWordRegisterCollection registers;
-
-        private class IrqSource
-        {
-            public IrqSource(uint id, PlatformLevelInterruptController irqController)
-            {
-                this.irqController = irqController;
-
-                Id = id;
-                Reset();
-            }
-
-            public override string ToString()
-            {
-                return $"IrqSource id: {Id}, priority: {Priority}, state: {State}, pending: {IsPending}";
-            }
-
-            public void Reset()
-            {
-                Priority = DefaultPriority;
-                State = false;
-                IsPending = false;
-            }
-
-            public uint Id { get; private set; }
-
-            public uint Priority
-            {
-                 get { return priority; }
-                 set
-                 {
-                     if(value == priority)
-                     {
-                         return;
-                     }
-
-                     irqController.Log(LogLevel.Noisy, "Setting priority {0} for source #{1}", value, Id);
-                     priority = value;
-                 }
-            }
-
-            public bool State
-            {
-                get { return state; }
-                set
-                {
-                    if(value == state)
-                    {
-                        return;
-                    }
-
-                    state = value;
-                    irqController.Log(LogLevel.Noisy, "Setting state to {0} for source #{1}", value, Id);
-                }
-            }
-            public bool IsPending
-            {
-                get { return isPending; }
-                set
-                {
-                    if(value == isPending)
-                    {
-                        return;
-                    }
-
-                    isPending = value;
-                    irqController.Log(LogLevel.Noisy, "Setting pending status to {0} for source #{1}", value, Id);
-                }
-            }
-
-            private uint priority;
-            private bool state;
-            private bool isPending;
-
-            private readonly PlatformLevelInterruptController irqController;
-
-            // 1 is the default, lowest value. 0 means "no interrupt".
-            private const uint DefaultPriority = 1;
-        }
-
-        private class IrqTarget
-        {
-            public IrqTarget(uint id, PlatformLevelInterruptController irqController)
-            {
-                levels = new IrqTargetHandler[]
-                {
-                    new IrqTargetHandler(irqController, id, PrivilegeLevel.User),
-                    new IrqTargetHandler(irqController, id, PrivilegeLevel.Supervisor),
-                    new IrqTargetHandler(irqController, id, PrivilegeLevel.Hypervisor),
-                    new IrqTargetHandler(irqController, id, PrivilegeLevel.Machine)
-                };
-            }
-
-            public void RefreshAllInterrupts()
-            {
-                foreach(var lr in levels)
-                {
-                    lr.RefreshInterrupt();
-                }
-            }
-
-            public void Reset()
-            {
-                foreach(var lr in levels)
-                {
-                    lr.Reset();
-                }
-            }
-
-            public readonly IrqTargetHandler[] levels;
-
-            public class IrqTargetHandler
-            {
-                public IrqTargetHandler(PlatformLevelInterruptController irqController, uint targetId, PrivilegeLevel privilegeLevel)
-                {
-                    this.irqController = irqController;
-                    this.targetId = targetId;
-                    this.privilegeLevel = privilegeLevel;
-
-                    enabledSources = new HashSet<IrqSource>();
-                    activeInterrupts = new Stack<IrqSource>();
-                }
-
-                public override string ToString()
-                {
-                    return $"[Hart #{targetId} at {privilegeLevel} level (connection output #{ConnectionNumber})]";
-                }
-
-                public void Reset()
-                {
-                    activeInterrupts.Clear();
-                    enabledSources.Clear();
-
-                    RefreshInterrupt();
-                }
-
-                public void RefreshInterrupt()
-                {
-                    lock(irqController.irqSources)
-                    {
-                        var forcedTarget = irqController.ForcedTarget;
-                        if(forcedTarget != -1 && this.targetId != forcedTarget)
-                        {
-                            irqController.Connections[ConnectionNumber].Set(false);
-                            return;
-                        }
-
-                        var currentPriority = activeInterrupts.Count > 0 ? activeInterrupts.Peek().Priority : 0;
-                        var isPending = enabledSources.Any(x => x.Priority > currentPriority && x.IsPending);
-                        irqController.Connections[ConnectionNumber].Set(isPending);
-                    }
-                }
-
-                public void CompleteHandlingInterrupt(IrqSource irq)
-                {
-                    lock(irqController.irqSources)
-                    {
-                        irqController.Log(LogLevel.Noisy, "Completing irq {0} at {1}", irq.Id, this);
-
-                        if(activeInterrupts.Count == 0)
-                        {
-                            irqController.Log(LogLevel.Error, "Trying to complete irq {0} @ {1}, there are no active interrupts left", irq.Id, this);
-                            return;
-                        }
-                        var topActiveInterrupt = activeInterrupts.Pop();
-                        if(topActiveInterrupt != irq)
-                        {
-                            irqController.Log(LogLevel.Error, "Trying to complete irq {0} @ {1}, but {2} is the active one", irq.Id, this, topActiveInterrupt.Id);
-                            return;
-                        }
-
-                        irq.IsPending = irq.State;
-                        RefreshInterrupt();
-                    }
-                }
-
-                public void EnableSource(IrqSource s, bool enabled)
-                {
-                    if(enabled)
-                    {
-                        enabledSources.Add(s);
-                    }
-                    else
-                    {
-                        enabledSources.Remove(s);
-                    }
-                    irqController.Log(LogLevel.Noisy, "{0} source #{1} @ {2}", enabled ? "Enabling" : "Disabling", s.Id, this);
-                    RefreshInterrupt();
-                }
-
-                public uint AcknowledgePendingInterrupt()
-                {
-                    lock(irqController.irqSources)
-                    {
-                        IrqSource pendingIrq;
-
-                        var forcedTarget = irqController.ForcedTarget;
-                        if(forcedTarget != -1 && this.targetId != forcedTarget)
-                        {
-                            pendingIrq = null;
-                        }
-                        else
-                        {
-                            pendingIrq = enabledSources.Where(x => x.IsPending)
-                                .OrderByDescending(x => x.Priority)
-                                .ThenBy(x => x.Id).FirstOrDefault();
-                        }
-
-                        if(pendingIrq == null)
-                        {
-                            irqController.Log(LogLevel.Noisy, "There is no pending interrupt to acknowledge at the moment for {0}. Currently enabled sources: {1}", this, string.Join(", ", enabledSources.Select(x => x.ToString())));
-                            return 0;
-                        }
-                        pendingIrq.IsPending = false;
-                        activeInterrupts.Push(pendingIrq);
-
-                        irqController.Log(LogLevel.Noisy, "Acknowledging pending interrupt #{0} @ {1}", pendingIrq.Id, this);
-
-                        RefreshInterrupt();
-                        return pendingIrq.Id;
-                    }
-                }
-
-                private int ConnectionNumber => (int)(4 * targetId + (int)privilegeLevel);
-
-                private readonly uint targetId;
-                private readonly PrivilegeLevel privilegeLevel;
-                private readonly PlatformLevelInterruptController irqController;
-                private readonly HashSet<IrqSource> enabledSources;
-                private readonly Stack<IrqSource> activeInterrupts;
-            }
-        }
 
         private enum Registers : long
         {
