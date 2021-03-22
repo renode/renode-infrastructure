@@ -195,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             {
                                 if(bits[bit])
                                 {
-                                    this.Log(LogLevel.Noisy, "Trying to enable non-existing source: {0}", sourceNumber);
+                                    this.Log(LogLevel.Warning, "Trying to enable non-existing source: {0}", sourceNumber);
                                 }
                                 continue;
                             }
