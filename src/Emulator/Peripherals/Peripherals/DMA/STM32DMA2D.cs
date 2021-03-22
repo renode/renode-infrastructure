@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
 
             var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => { 
-                if(val) IRQ.Unset(); transferCompleteFlag.Value = false; 
+                if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
             });
 
             var numberOfLineRegister = new DoubleWordRegister(this);
