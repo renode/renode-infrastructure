@@ -31,9 +31,9 @@ namespace Antmicro.Renode.Peripherals.DMA
     // ordering of entry is taken from the documentation and should not be altered!
     internal enum Dma2DAlphaMode
     {
-        NO_MODIFICATION,
-        REPLACE,
-        COMBINE
+        NoModification,
+        Replace,
+        Combine
     }
 
     internal static class Dma2DColorModeExtensions

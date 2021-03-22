@@ -135,31 +135,31 @@ namespace Antmicro.Renode.Backends.Display
 
                             Expression.Switch(typeof(void), vBackgroundBlendingMode, null, null, new SwitchCase[]
                             {
-                                // MULTIPLY: input BG Pixel Alpha *= bg alpha
+                                // Multiply: input BG Pixel Alpha *= bg alpha
                                 Expression.SwitchCase(
                                     Expression.Assign(inputBackgroundPixel.AlphaChannel, Expression.Divide(Expression.Multiply(inputBackgroundPixel.AlphaChannel, Expression.Convert(vBackBufferAlphaMultiplier, typeof(uint))), Expression.Constant((uint)0xFF))),
-                                    Expression.Constant(PixelBlendingMode.MULTIPLY)
+                                    Expression.Constant(PixelBlendingMode.Multiply)
                                 ),
 
-                                // REPLACE: input BG Pixel Alpha = bg alpha
+                                // Replace: input BG Pixel Alpha = bg alpha
                                 Expression.SwitchCase(
                                     Expression.Assign(inputBackgroundPixel.AlphaChannel, Expression.Convert(vBackBufferAlphaMultiplier, typeof(uint))),
-                                    Expression.Constant(PixelBlendingMode.REPLACE)
+                                    Expression.Constant(PixelBlendingMode.Replace)
                                 )
                             }),
 
                             Expression.Switch(typeof(void), vForegroundBlendingMode, null, null, new SwitchCase[]
                             {
-                                // MULTIPLY: input FG Pixel Alpha *= fg alpha
+                                // Multiply: input FG Pixel Alpha *= fg alpha
                                 Expression.SwitchCase(
                                     Expression.Assign(inputForegroundPixel.AlphaChannel, Expression.Divide(Expression.Multiply(inputForegroundPixel.AlphaChannel, Expression.Convert(vFrontBufferAlphaMultiplier, typeof(uint))), Expression.Constant((uint)0xFF))),
-                                    Expression.Constant(PixelBlendingMode.MULTIPLY)
+                                    Expression.Constant(PixelBlendingMode.Multiply)
                                 ),
 
-                                // REPLACE: input FG Pixel Alpha = fg alpha
+                                // Replace: input FG Pixel Alpha = fg alpha
                                 Expression.SwitchCase(
                                     Expression.Assign(inputForegroundPixel.AlphaChannel, Expression.Convert(vFrontBufferAlphaMultiplier, typeof(uint))),
-                                    Expression.Constant(PixelBlendingMode.REPLACE)
+                                    Expression.Constant(PixelBlendingMode.Replace)
                                 )
                             }),
                             
@@ -289,16 +289,16 @@ namespace Antmicro.Renode.Backends.Display
                             // handle the case where alpha needs to be changed
                             Expression.Switch(typeof(void), vAlphaReplaceMode, null, null, new SwitchCase[]
                             {
-                                // MULTIPLY
+                                // Multiply
                                 Expression.SwitchCase(
                                     Expression.Assign(vColor.AlphaChannel, Expression.Divide(Expression.Multiply(vColor.AlphaChannel, Expression.Convert(vAlpha, typeof(uint))), Expression.Constant((uint)0xFF))),
-                                    Expression.Constant(PixelBlendingMode.MULTIPLY)
+                                    Expression.Constant(PixelBlendingMode.Multiply)
                                 ),
 
-                                // REPLACE
+                                // Replace
                                 Expression.SwitchCase(
                                     Expression.Assign(vColor.AlphaChannel, Expression.Convert(vAlpha, typeof(uint))),
-                                    Expression.Constant(PixelBlendingMode.REPLACE)
+                                    Expression.Constant(PixelBlendingMode.Replace)
                                 )
                             }),
 
@@ -660,7 +660,7 @@ namespace Antmicro.Renode.Backends.Display
 
             public void Convert(byte[] inBuffer, ref byte[] outBuffer)
             {
-                converter(inBuffer, null, 0xff, PixelBlendingMode.NO_MODIFICATION, ref outBuffer);
+                converter(inBuffer, null, 0xff, PixelBlendingMode.NoModification, ref outBuffer);
             }
 
             public void Convert(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer)
@@ -684,12 +684,12 @@ namespace Antmicro.Renode.Backends.Display
                 this.blender = blender;
             }
 
-            public void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY)
+            public void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply)
             {
                 Blend(backBuffer, null, frontBuffer, null, ref output, background, backBufferAlphaMultiplier, backgroundBlendingMode, frontBufferAlphaMultiplayer, foregroundBlendingMode);
             }
 
-            public void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY)
+            public void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply)
             {
                 if(background == null)
                 {
@@ -709,7 +709,7 @@ namespace Antmicro.Renode.Backends.Display
         private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
         private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
-        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.MULTIPLY, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.MULTIPLY);
+        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
 
         private class PixelDescriptor
         {

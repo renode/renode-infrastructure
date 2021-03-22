@@ -127,8 +127,8 @@ namespace Antmicro.Renode.Peripherals.Video
                 blender.Blend(localLayerBuffer[0], localLayerBuffer[1], 
                     ref buffer, 
                     backgroundColor, 
-                    (byte)layer[0].ConstantAlphaConfigurationRegister.Value, (layer[1].blendingFactor2.Value == BlendingFactor2.MULTIPLY) ? PixelBlendingMode.MULTIPLY : PixelBlendingMode.NO_MODIFICATION,
-                    (byte)layer[1].ConstantAlphaConfigurationRegister.Value, (layer[1].blendingFactor1.Value == BlendingFactor1.MULTIPLY) ? PixelBlendingMode.MULTIPLY : PixelBlendingMode.NO_MODIFICATION);
+                    (byte)layer[0].ConstantAlphaConfigurationRegister.Value, (layer[1].blendingFactor2.Value == BlendingFactor2.Multiply) ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification,
+                    (byte)layer[1].ConstantAlphaConfigurationRegister.Value, (layer[1].blendingFactor1.Value == BlendingFactor1.Multiply) ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification);
 
                 if(lineInterruptEnableFlag.Value)
                 {
@@ -196,14 +196,14 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private enum BlendingFactor1
         {
-            CONSTANT = 0x100,
-            MULTIPLY = 0x110
+            Constant = 0x100,
+            Multiply = 0x110
         }
 
         private enum BlendingFactor2
         {
-            CONSTANT = 0x101,
-            MULTIPLY = 0x111
+            Constant = 0x101,
+            Multiply = 0x111
         }
 
         private enum Register : long

@@ -18,7 +18,6 @@ using Antmicro.Migrant.Hooks;
 namespace Antmicro.Renode.Peripherals.DMA
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-
     public sealed class STM32DMA2D : IDoubleWordPeripheral, IKnownSize
     {
         public STM32DMA2D(Machine machine) : this()
@@ -297,33 +296,33 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 break;
                 case Mode.MemoryToMemoryWithBlending:
-                    PixelBlendingMode bgBlendingMode = PixelBlendingMode.NO_MODIFICATION;
-                    PixelBlendingMode fgBlendingMode = PixelBlendingMode.NO_MODIFICATION;
+                    PixelBlendingMode bgBlendingMode = PixelBlendingMode.NoModification;
+                    PixelBlendingMode fgBlendingMode = PixelBlendingMode.NoModification;
                     var bgAlpha = backgroundAlphaField.Value;
                     switch(backgroundAlphaMode.Value)
                     {
-                        case Dma2DAlphaMode.NO_MODIFICATION:
-                            bgBlendingMode = PixelBlendingMode.NO_MODIFICATION;
+                        case Dma2DAlphaMode.NoModification:
+                            bgBlendingMode = PixelBlendingMode.NoModification;
                             break;
-                        case Dma2DAlphaMode.REPLACE:
-                            bgBlendingMode = PixelBlendingMode.REPLACE;
+                        case Dma2DAlphaMode.Replace:
+                            bgBlendingMode = PixelBlendingMode.Replace;
                             break;
-                        case Dma2DAlphaMode.COMBINE:
-                            bgBlendingMode = PixelBlendingMode.MULTIPLY;
+                        case Dma2DAlphaMode.Combine:
+                            bgBlendingMode = PixelBlendingMode.Multiply;
                             break;
                     }
 
                     var fgAlpha = foregroundAlphaField.Value;
                     switch (foregroundAlphaMode.Value)
                     {
-                        case Dma2DAlphaMode.NO_MODIFICATION:
-                            fgBlendingMode = PixelBlendingMode.NO_MODIFICATION;
+                        case Dma2DAlphaMode.NoModification:
+                            fgBlendingMode = PixelBlendingMode.NoModification;
                             break;
-                        case Dma2DAlphaMode.REPLACE:
-                            fgBlendingMode = PixelBlendingMode.REPLACE;
+                        case Dma2DAlphaMode.Replace:
+                            fgBlendingMode = PixelBlendingMode.Replace;
                             break;
-                        case Dma2DAlphaMode.COMBINE:
-                            fgBlendingMode = PixelBlendingMode.MULTIPLY;
+                        case Dma2DAlphaMode.Combine:
+                            fgBlendingMode = PixelBlendingMode.Multiply;
                             break;
                     }
 
@@ -358,17 +357,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                 break;
                 case Mode.MemoryToMemoryWithPfc:
                     fgAlpha = foregroundAlphaField.Value;
-                    fgBlendingMode = PixelBlendingMode.NO_MODIFICATION;
+                    fgBlendingMode = PixelBlendingMode.NoModification;
                     switch (foregroundAlphaMode.Value)
                     {
-                        case Dma2DAlphaMode.NO_MODIFICATION:
-                            fgBlendingMode = PixelBlendingMode.NO_MODIFICATION;
+                        case Dma2DAlphaMode.NoModification:
+                            fgBlendingMode = PixelBlendingMode.NoModification;
                             break;
-                        case Dma2DAlphaMode.REPLACE:
-                            fgBlendingMode = PixelBlendingMode.REPLACE;
+                        case Dma2DAlphaMode.Replace:
+                            fgBlendingMode = PixelBlendingMode.Replace;
                             break;
-                        case Dma2DAlphaMode.COMBINE:
-                            fgBlendingMode = PixelBlendingMode.MULTIPLY;
+                        case Dma2DAlphaMode.Combine:
+                            fgBlendingMode = PixelBlendingMode.Multiply;
                             break;
                     }
 
