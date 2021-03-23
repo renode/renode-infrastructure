@@ -278,36 +278,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 break;
                 case Mode.MemoryToMemoryWithBlending:
-                    var bgBlendingMode = PixelBlendingMode.NoModification;
-                    var fgBlendingMode = PixelBlendingMode.NoModification;
+                    var bgBlendingMode = backgroundAlphaMode.Value.ToPixelBlendingMode();
+                    var fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
                     var bgAlpha = backgroundAlphaField.Value;
-                    switch(backgroundAlphaMode.Value)
-                    {
-                        case Dma2DAlphaMode.NoModification:
-                            bgBlendingMode = PixelBlendingMode.NoModification;
-                            break;
-                        case Dma2DAlphaMode.Replace:
-                            bgBlendingMode = PixelBlendingMode.Replace;
-                            break;
-                        case Dma2DAlphaMode.Combine:
-                            bgBlendingMode = PixelBlendingMode.Multiply;
-                            break;
-                    }
-
                     var fgAlpha = foregroundAlphaField.Value;
-                    switch (foregroundAlphaMode.Value)
-                    {
-                        case Dma2DAlphaMode.NoModification:
-                            fgBlendingMode = PixelBlendingMode.NoModification;
-                            break;
-                        case Dma2DAlphaMode.Replace:
-                            fgBlendingMode = PixelBlendingMode.Replace;
-                            break;
-                        case Dma2DAlphaMode.Combine:
-                            fgBlendingMode = PixelBlendingMode.Multiply;
-                            break;
-                    }
-
 
                     if (outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {
@@ -339,19 +313,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 break;
                 case Mode.MemoryToMemoryWithPfc:
                     fgAlpha = foregroundAlphaField.Value;
-                    fgBlendingMode = PixelBlendingMode.NoModification;
-                    switch (foregroundAlphaMode.Value)
-                    {
-                        case Dma2DAlphaMode.NoModification:
-                            fgBlendingMode = PixelBlendingMode.NoModification;
-                            break;
-                        case Dma2DAlphaMode.Replace:
-                            fgBlendingMode = PixelBlendingMode.Replace;
-                            break;
-                        case Dma2DAlphaMode.Combine:
-                            fgBlendingMode = PixelBlendingMode.Multiply;
-                            break;
-                    }
+                    fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
 
                     if (outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {

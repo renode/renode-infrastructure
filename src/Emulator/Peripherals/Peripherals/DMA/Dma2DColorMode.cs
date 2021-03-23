@@ -66,5 +66,22 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private static Dictionary<Dma2DColorMode, PixelFormat> cache;
     }
+
+    internal static class Dma2DAlphaModeExtensions
+    {
+        public static PixelBlendingMode ToPixelBlendingMode(this Dma2DAlphaMode mode)
+        {
+            switch(mode)
+            {
+                case Dma2DAlphaMode.NoModification:
+                    return PixelBlendingMode.NoModification;
+                case Dma2DAlphaMode.Replace:
+                    return PixelBlendingMode.Replace;
+                case Dma2DAlphaMode.Combine:
+                    return PixelBlendingMode.Multiply;
+            }
+            throw new ArgumentException(string.Format("Unsupported DMA2D alpha mode: {0}", mode));
+        }
+    }
 }
 
