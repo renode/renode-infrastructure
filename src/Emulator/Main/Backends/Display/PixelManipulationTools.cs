@@ -433,7 +433,7 @@ namespace Antmicro.Renode.Backends.Display
                         break;
                     }
 
-                    if (inputBufferDescriptor.ColorFormat == PixelFormat.A4 || inputBufferDescriptor.ColorFormat == PixelFormat.A8 && inputBufferDescriptor.FixedColor != null)
+                    if((inputBufferDescriptor.ColorFormat == PixelFormat.A4 || inputBufferDescriptor.ColorFormat == PixelFormat.A8) && inputBufferDescriptor.FixedColor != null)
                     {
                         expressions.Add(Expression.Assign(color.AlphaChannel, colorExpression));
                         expressions.Add(Expression.Assign(color.RedChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Red)));
