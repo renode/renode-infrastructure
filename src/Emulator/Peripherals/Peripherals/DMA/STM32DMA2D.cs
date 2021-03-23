@@ -287,8 +287,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 case Mode.MemoryToMemoryWithBlending:
                     var bgBlendingMode = backgroundAlphaMode.Value.ToPixelBlendingMode();
                     var fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
-                    var bgAlpha = backgroundAlphaField.Value;
-                    var fgAlpha = foregroundAlphaField.Value;
+                    var bgAlpha = (byte)backgroundAlphaField.Value;
+                    var fgAlpha = (byte)foregroundAlphaField.Value;
 
                     if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {
@@ -298,7 +298,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                {
                                    machine.SystemBus.ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
                                    // per-pixel alpha blending
-                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0,0,0,255), (byte)bgAlpha, bgBlendingMode, (byte)fgAlpha, fgBlendingMode);
+                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0, 0, 0, 0xFF), bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
                                    return outputBuffer;
                                });
                     }
@@ -313,13 +313,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                                (localForegroundBuffer, line) =>
                                 {
                                     machine.SystemBus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
-                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, (byte)bgAlpha, bgBlendingMode, (byte)fgAlpha, fgBlendingMode);
+                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
                                     return outputLineBuffer;
                                 });
                     }
                     break;
                 case Mode.MemoryToMemoryWithPfc:
-                    fgAlpha = foregroundAlphaField.Value;
+                    fgAlpha = (byte)foregroundAlphaField.Value;
                     fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
 
                     if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
@@ -328,7 +328,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 foregroundBuffer,
                                 converter: (localForegroundBuffer, line) =>
                                 {
-                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, (byte)fgAlpha, fgBlendingMode, ref outputBuffer);
+                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, fgAlpha, fgBlendingMode, ref outputBuffer);
                                     return outputBuffer;
                                 });
                     }
@@ -341,7 +341,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 (int)numberOfLineField.Value,
                                 (localForegroundBuffer, line) =>
                                 {
-                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, (byte)fgAlpha, fgBlendingMode, ref outputLineBuffer);
+                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, fgAlpha, fgBlendingMode, ref outputLineBuffer);
                                     return outputLineBuffer;
                                 });
                     }
