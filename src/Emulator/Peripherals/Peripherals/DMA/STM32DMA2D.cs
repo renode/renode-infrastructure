@@ -278,8 +278,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 break;
                 case Mode.MemoryToMemoryWithBlending:
-                    PixelBlendingMode bgBlendingMode = PixelBlendingMode.NoModification;
-                    PixelBlendingMode fgBlendingMode = PixelBlendingMode.NoModification;
+                    var bgBlendingMode = PixelBlendingMode.NoModification;
+                    var fgBlendingMode = PixelBlendingMode.NoModification;
                     var bgAlpha = backgroundAlphaField.Value;
                     switch(backgroundAlphaMode.Value)
                     {
