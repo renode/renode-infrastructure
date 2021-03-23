@@ -316,6 +316,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 break;
                 case Mode.MemoryToMemoryWithPfc:
+                    fgAlpha = foregroundAlphaField.Value;
+                    fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
 
                     if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {
@@ -323,7 +325,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 foregroundBuffer,
                                 converter: (localForegroundBuffer, line) =>
                                 {
-                                    converter.Convert(localForegroundBuffer, foregroundClut, ref outputBuffer);
+                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, (byte)fgAlpha, fgBlendingMode, ref outputBuffer);
                                     return outputBuffer;
                                 });
                     }
@@ -336,7 +338,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 (int)numberOfLineField.Value,
                                 (localForegroundBuffer, line) => 
                                 {
-                                    converter.Convert(localForegroundBuffer, foregroundClut, ref outputLineBuffer);
+                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, (byte)fgAlpha, fgBlendingMode, ref outputLineBuffer);
                                     return outputLineBuffer;
                                 });
                     }
@@ -424,8 +426,8 @@ namespace Antmicro.Renode.Peripherals.DMA
         [Transient]
         private IPixelBlender blender;
         [Transient]
-        private IPixelConverter converter;
         private IPixelConverter bgConverter;
+        [Transient]
         private IPixelConverter fgConverter;
 
         private const ELFSharp.ELF.Endianess Endianness = ELFSharp.ELF.Endianess.LittleEndian;
