@@ -1,6 +1,7 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
+// Copyright (c) 2020-2021 Microsoft
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,9 +15,9 @@ namespace Antmicro.Renode.Backends.Display
 {
     public static class PixelManipulationTools
     {
-        public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, PixelFormat? clutInputFormat = null)
+        public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, PixelFormat? clutInputFormat = null, Pixel inputFixedColor = null /* fixed color for A4 and A8 mode */)
         {
-            var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess);
+            var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess, clutInputFormat, inputFixedColor);
             if(!convertersCache.ContainsKey(converterConfiguration))
             {
                 convertersCache[converterConfiguration] = ((inputFormat == outputFormat) && (inputEndianess == outputEndianess)) ?  
@@ -26,6 +27,7 @@ namespace Antmicro.Renode.Backends.Display
                     {
                         ColorFormat = inputFormat,
                         ClutColorFormat = clutInputFormat,
+                        FixedColor = inputFixedColor,
                         DataEndianness = inputEndianess
                     },
                     new BufferDescriptor 
@@ -37,9 +39,9 @@ namespace Antmicro.Renode.Backends.Display
             return convertersCache[converterConfiguration];
         }
 
-        public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat fronBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null)
+        public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat fronBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel bgFixedColor = null, Pixel fgFixedColor = null)
         {
-            var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, fronBuffer, frontBufferEndianes, output, outputEndianess);
+            var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, fronBuffer, frontBufferEndianes, output, outputEndianess, bgFixedColor, fgFixedColor);
             if(!blendersCache.ContainsKey(blenderConfiguration))
             {
                 blendersCache[blenderConfiguration] = new PixelBlender(backBuffer, fronBuffer, output, 
@@ -48,11 +50,13 @@ namespace Antmicro.Renode.Backends.Display
                         {
                             ColorFormat = backBuffer,
                             ClutColorFormat = clutBackgroundFormat,
+                            FixedColor = bgFixedColor,
                             DataEndianness = backBufferEndianess
                         },
                         new BufferDescriptor 
                         {
                             ColorFormat = fronBuffer,
+                            FixedColor = fgFixedColor,
                             ClutColorFormat = clutForegroundFormat,
                             DataEndianness = frontBufferEndianes
                         },
@@ -377,19 +381,29 @@ namespace Antmicro.Renode.Backends.Display
                         break;
                     }
 
-                    expressions.Add(Expression.Assign(currentColor, colorExpression));
-                                
-                    // filling lsb '0'-bits with copy of msb pattern
-                    var numberOfBits = colorDescriptor.Value;
-                    var zeroBits = 8 - numberOfBits;
-                    while(zeroBits > 0)
+                    if((inputBufferDescriptor.ColorFormat == PixelFormat.A4 || inputBufferDescriptor.ColorFormat == PixelFormat.A8) && inputBufferDescriptor.FixedColor != null)
                     {
-                        expressions.Add(Expression.OrAssign(
-                            currentColor, 
-                            Expression.RightShift(
-                                currentColor, 
-                                Expression.Constant((int)numberOfBits))));
-                        zeroBits -= numberOfBits;
+                        expressions.Add(Expression.Assign(color.AlphaChannel, colorExpression));
+                        expressions.Add(Expression.Assign(color.RedChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Red)));
+                        expressions.Add(Expression.Assign(color.GreenChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Green)));
+                        expressions.Add(Expression.Assign(color.BlueChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Blue)));
+                    }
+                    else
+                    {
+                        expressions.Add(Expression.Assign(currentColor, colorExpression));
+
+                        // filling lsb '0'-bits with copy of msb pattern
+                        var numberOfBits = colorDescriptor.Value;
+                        var zeroBits = 8 - numberOfBits;
+                        while(zeroBits > 0)
+                        {
+                            expressions.Add(Expression.OrAssign(
+                                currentColor,
+                                Expression.RightShift(
+                                    currentColor,
+                                    Expression.Constant((int)numberOfBits))));
+                            zeroBits -= numberOfBits;
+                        }
                     }
                 }
             }
@@ -660,8 +674,8 @@ namespace Antmicro.Renode.Backends.Display
             private readonly BlendDelegate blender;
         }
 
-        private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess>, IPixelConverter> convertersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess>, IPixelConverter>();
-        private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess>, IPixelBlender> blendersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess>, IPixelBlender>();
+        private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
+        private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
         private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, ref byte[] outBuffer);
         private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, byte frontBufferAlphaMultiplayer = 0xFF);
@@ -687,6 +701,7 @@ namespace Antmicro.Renode.Backends.Display
             public PixelFormat ColorFormat { get; set; }
             public Endianess DataEndianness { get; set; }
             public PixelFormat? ClutColorFormat { get; set; }
+            public Pixel FixedColor { get; set; } // for A4 and A8 modes
         }
     }
 }
