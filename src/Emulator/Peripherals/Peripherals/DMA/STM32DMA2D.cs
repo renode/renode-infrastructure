@@ -17,6 +17,7 @@ using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public sealed class STM32DMA2D : IDoubleWordPeripheral, IKnownSize
     {
         public STM32DMA2D(Machine machine) : this()
