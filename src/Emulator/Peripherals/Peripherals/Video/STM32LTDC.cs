@@ -127,8 +127,10 @@ namespace Antmicro.Renode.Peripherals.Video
                 blender.Blend(localLayerBuffer[0], localLayerBuffer[1], 
                     ref buffer, 
                     backgroundColor, 
-                    (byte)layer[0].ConstantAlphaConfigurationRegister.Value, (layer[1].blendingFactor2.Value == BlendingFactor2.Multiply) ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification,
-                    (byte)layer[1].ConstantAlphaConfigurationRegister.Value, (layer[1].blendingFactor1.Value == BlendingFactor1.Multiply) ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification);
+                    (byte)layer[0].ConstantAlphaConfigurationRegister.Value,
+                    layer[1].blendingFactor2.Value == BlendingFactor2.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification,
+                    (byte)layer[1].ConstantAlphaConfigurationRegister.Value,
+                    layer[1].blendingFactor1.Value == BlendingFactor1.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification);
 
                 if(lineInterruptEnableFlag.Value)
                 {
