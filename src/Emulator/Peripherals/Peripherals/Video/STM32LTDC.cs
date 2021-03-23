@@ -30,26 +30,26 @@ namespace Antmicro.Renode.Peripherals.Video
             internalLock = new object();
 
             var activeWidthConfigurationRegister = new DoubleWordRegister(this);
-            accumulatedActiveHeightField = activeWidthConfigurationRegister.DefineValueField(0, 11, FieldMode.Read | FieldMode.Write, name: "AAH");
-            accumulatedActiveWidthField = activeWidthConfigurationRegister.DefineValueField(16, 12, FieldMode.Read | FieldMode.Write, name: "AAW", writeCallback: (_, __) => HandleActiveDisplayChange());
+            accumulatedActiveHeightField = activeWidthConfigurationRegister.DefineValueField(0, 11, name: "AAH");
+            accumulatedActiveWidthField = activeWidthConfigurationRegister.DefineValueField(16, 12, name: "AAW", writeCallback: (_, __) => HandleActiveDisplayChange());
 
             var backPorchConfigurationRegister = new DoubleWordRegister(this);
-            accumulatedVerticalBackPorchField = backPorchConfigurationRegister.DefineValueField(0, 11, FieldMode.Read | FieldMode.Write, name: "AVBP");
-            accumulatedHorizontalBackPorchField = backPorchConfigurationRegister.DefineValueField(16, 12, FieldMode.Read | FieldMode.Write, name: "AHBP", writeCallback: (_, __) => HandleActiveDisplayChange());
+            accumulatedVerticalBackPorchField = backPorchConfigurationRegister.DefineValueField(0, 11, name: "AVBP");
+            accumulatedHorizontalBackPorchField = backPorchConfigurationRegister.DefineValueField(16, 12, name: "AHBP", writeCallback: (_, __) => HandleActiveDisplayChange());
 
             var backgroundColorConfigurationRegister = new DoubleWordRegister(this);
-            backgroundColorBlueChannelField = backgroundColorConfigurationRegister.DefineValueField(0, 8, FieldMode.Read | FieldMode.Write, name: "BCBLUE");
-            backgroundColorGreenChannelField = backgroundColorConfigurationRegister.DefineValueField(8, 8, FieldMode.Read | FieldMode.Write, name: "BCGREEN");
-            backgroundColorRedChannelField = backgroundColorConfigurationRegister.DefineValueField(16, 8, FieldMode.Read | FieldMode.Write, name: "BCRED", writeCallback: (_, __) => HandleBackgroundColorChange());
+            backgroundColorBlueChannelField = backgroundColorConfigurationRegister.DefineValueField(0, 8, name: "BCBLUE");
+            backgroundColorGreenChannelField = backgroundColorConfigurationRegister.DefineValueField(8, 8, name: "BCGREEN");
+            backgroundColorRedChannelField = backgroundColorConfigurationRegister.DefineValueField(16, 8, name: "BCRED", writeCallback: (_, __) => HandleBackgroundColorChange());
 
             var interruptEnableRegister = new DoubleWordRegister(this);
-            lineInterruptEnableFlag = interruptEnableRegister.DefineFlagField(0, FieldMode.Read | FieldMode.Write, name: "LIE");
+            lineInterruptEnableFlag = interruptEnableRegister.DefineFlagField(0, name: "LIE");
 
             var interruptClearRegister = new DoubleWordRegister(this);
             interruptClearRegister.DefineFlagField(0, FieldMode.Write, name: "CLIF", writeCallback: (old, @new) => { if(@new) IRQ.Unset(); });
             interruptClearRegister.DefineFlagField(3, FieldMode.Write, name: "CRRIF", writeCallback: (old, @new) => { if(@new) IRQ.Unset(); });
 
-            lineInterruptPositionConfigurationRegister = new DoubleWordRegister(this).WithValueField(0, 11, FieldMode.Read | FieldMode.Write, name: "LIPOS");
+            lineInterruptPositionConfigurationRegister = new DoubleWordRegister(this).WithValueField(0, 11, name: "LIPOS");
 
             var registerMappings = new Dictionary<long, DoubleWordRegister>
             {
@@ -120,13 +120,13 @@ namespace Antmicro.Renode.Peripherals.Video
                     }
                     else
                     {
-                        localLayerBuffer[i] = layer[i].LayerBackgroundBuffer;                
+                        localLayerBuffer[i] = layer[i].LayerBackgroundBuffer;
                     }
                 }
 
-                blender.Blend(localLayerBuffer[0], localLayerBuffer[1], 
-                    ref buffer, 
-                    backgroundColor, 
+                blender.Blend(localLayerBuffer[0], localLayerBuffer[1],
+                    ref buffer,
+                    backgroundColor,
                     (byte)layer[0].ConstantAlphaConfigurationRegister.Value,
                     layer[1].blendingFactor2.Value == BlendingFactor2.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification,
                     (byte)layer[1].ConstantAlphaConfigurationRegister.Value,
@@ -144,9 +144,9 @@ namespace Antmicro.Renode.Peripherals.Video
         private void HandleBackgroundColorChange()
         {
             backgroundColor = new Pixel(
-                (byte)backgroundColorRedChannelField.Value, 
-                (byte)backgroundColorGreenChannelField.Value, 
-                (byte)backgroundColorBlueChannelField.Value, 
+                (byte)backgroundColorRedChannelField.Value,
+                (byte)backgroundColorGreenChannelField.Value,
+                (byte)backgroundColorBlueChannelField.Value,
                 (byte)0xFF);
         }
 
@@ -223,34 +223,32 @@ namespace Antmicro.Renode.Peripherals.Video
             public Layer(STM32LTDC video, int layerId)
             {
                 ControlRegister = new DoubleWordRegister(video);
-                LayerEnableFlag = ControlRegister.DefineFlagField(0, FieldMode.Read | FieldMode.Write, name: "LEN", writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
+                LayerEnableFlag = ControlRegister.DefineFlagField(0, name: "LEN", writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
 
                 WindowHorizontalPositionConfigurationRegister = new DoubleWordRegister(video);
-                WindowHorizontalStartPositionField = WindowHorizontalPositionConfigurationRegister.DefineValueField(0, 12, FieldMode.Read | FieldMode.Write, name: "WHSTPOS");
-                WindowHorizontalStopPositionField = WindowHorizontalPositionConfigurationRegister.DefineValueField(16, 12, FieldMode.Read | FieldMode.Write, name: "WHSPPOS", writeCallback: (_, __) => HandleLayerWindowConfigurationChange());
+                WindowHorizontalStartPositionField = WindowHorizontalPositionConfigurationRegister.DefineValueField(0, 12, name: "WHSTPOS");
+                WindowHorizontalStopPositionField = WindowHorizontalPositionConfigurationRegister.DefineValueField(16, 12, name: "WHSPPOS", writeCallback: (_, __) => HandleLayerWindowConfigurationChange());
 
                 WindowVerticalPositionConfigurationRegister = new DoubleWordRegister(video);
-                WindowVerticalStartPositionField = WindowVerticalPositionConfigurationRegister.DefineValueField(0, 12, FieldMode.Read | FieldMode.Write, name: "WVSTPOS");
-                WindowVerticalStopPositionField = WindowVerticalPositionConfigurationRegister.DefineValueField(16, 12, FieldMode.Read | FieldMode.Write, name: "WVSPPOS", writeCallback: (_, __) => HandleLayerWindowConfigurationChange());
+                WindowVerticalStartPositionField = WindowVerticalPositionConfigurationRegister.DefineValueField(0, 12, name: "WVSTPOS");
+                WindowVerticalStopPositionField = WindowVerticalPositionConfigurationRegister.DefineValueField(16, 12, name: "WVSPPOS", writeCallback: (_, __) => HandleLayerWindowConfigurationChange());
 
                 PixelFormatConfigurationRegister = new DoubleWordRegister(video);
-                PixelFormatField = PixelFormatConfigurationRegister.DefineEnumField<Dma2DColorMode>(0, 3, FieldMode.Read | FieldMode.Write, name: "PF", writeCallback: (_, __) => { RestoreBuffers(); video.HandlePixelFormatChange(); });
+                PixelFormatField = PixelFormatConfigurationRegister.DefineEnumField<Dma2DColorMode>(0, 3, name: "PF", writeCallback: (_, __) => { RestoreBuffers(); video.HandlePixelFormatChange(); });
 
-                ConstantAlphaConfigurationRegister = new DoubleWordRegister(video, 0xFF).WithValueField(0, 8, FieldMode.Read | FieldMode.Write, name: "CONSTA");
+                ConstantAlphaConfigurationRegister = new DoubleWordRegister(video, 0xFF).WithValueField(0, 8, name: "CONSTA");
 
                 BlendingFactorConfigurationRegister = new DoubleWordRegister(video, 0x0607);
-                blendingFactor1 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor1>(8, 3, FieldMode.Read | FieldMode.Write, name: "BF1", writeCallback: (_, __) => { RestoreBuffers(); });
-                blendingFactor2 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, FieldMode.Read | FieldMode.Write, name: "BF2", writeCallback: (_, __) => { 
-                    RestoreBuffers(); 
-                });
+                blendingFactor1 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor1>(8, 3, name: "BF1", writeCallback: (_, __) => RestoreBuffers());
+                blendingFactor2 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, name: "BF2", writeCallback: (_, __) => RestoreBuffers());
 
-                ColorFrameBufferAddressRegister = new DoubleWordRegister(video).WithValueField(0, 32, FieldMode.Read | FieldMode.Write, name: "CFBADD", writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
+                ColorFrameBufferAddressRegister = new DoubleWordRegister(video).WithValueField(0, 32, name: "CFBADD", writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
 
                 DefaultColorConfigurationRegister = new DoubleWordRegister(video);
-                DefaultColorBlueField = DefaultColorConfigurationRegister.DefineValueField(0, 8, FieldMode.Read | FieldMode.Write, name: "DCBLUE");
-                DefaultColorGreenField = DefaultColorConfigurationRegister.DefineValueField(8, 8, FieldMode.Read | FieldMode.Write, name: "DCGREEN");
-                DefaultColorRedField = DefaultColorConfigurationRegister.DefineValueField(16, 8, FieldMode.Read | FieldMode.Write, name: "DCRED");
-                DefaultColorAlphaField = DefaultColorConfigurationRegister.DefineValueField(24, 8, FieldMode.Read | FieldMode.Write, name: "DCALPHA", writeCallback: (_, __) => HandleLayerBackgroundColorChange());
+                DefaultColorBlueField = DefaultColorConfigurationRegister.DefineValueField(0, 8, name: "DCBLUE");
+                DefaultColorGreenField = DefaultColorConfigurationRegister.DefineValueField(8, 8, name: "DCGREEN");
+                DefaultColorRedField = DefaultColorConfigurationRegister.DefineValueField(16, 8, name: "DCRED");
+                DefaultColorAlphaField = DefaultColorConfigurationRegister.DefineValueField(24, 8, name: "DCALPHA", writeCallback: (_, __) => HandleLayerBackgroundColorChange());
 
                 this.layerId = layerId;
                 this.video = video;
@@ -314,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 }
 
                 PixelManipulationTools.GetConverter(PixelFormat.ARGB8888, video.Endianess, PixelFormatField.Value.ToPixelFormat(), video.Endianess)
-                                      .Convert(colorBuffer, ref LayerBackgroundBuffer);
+                    .Convert(colorBuffer, ref LayerBackgroundBuffer);
             }
 
             public DoubleWordRegister ControlRegister;
