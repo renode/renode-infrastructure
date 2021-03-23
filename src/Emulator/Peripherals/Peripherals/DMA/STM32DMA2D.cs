@@ -1,5 +1,6 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2020-2021 Microsoft
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -62,7 +63,19 @@ namespace Antmicro.Renode.Peripherals.DMA
             var foregroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
             var backgroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
 
-            var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", changeCallback: (old, @new) => { if(!@new) IRQ.Unset(); });
+            var interruptStatusRegister = new DoubleWordRegister(this)
+                .WithTaggedFlag("TEIF", 0)
+                .WithFlag(1, out transferCompleteFlag, FieldMode.Read, name: "TCIF")
+                .WithTaggedFlag("TWIF", 2)
+                .WithTaggedFlag("CAEIF", 3)
+                .WithTaggedFlag("CTCIF", 4)
+                .WithTaggedFlag("CEIF", 5)
+                .WithReservedBits(6, 26)
+            ;
+
+            var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => { 
+                if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
+            });
 
             var numberOfLineRegister = new DoubleWordRegister(this);
             numberOfLineField = numberOfLineRegister.DefineValueField(0, 16, FieldMode.Read | FieldMode.Write, name: "NL");
@@ -150,6 +163,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             var regs = new Dictionary<long, DoubleWordRegister>
             {
                 { (long)Register.ControlRegister, controlRegister },
+                { (long)Register.InterruptStatusRegister, interruptStatusRegister },
                 { (long)Register.InterruptFlagClearRegister, interruptFlagClearRegister },
                 { (long)Register.ForegroundMemoryAddressRegister, foregroundMemoryAddressRegister },
                 { (long)Register.ForegroundOffsetRegister, foregroundOffsetRegister },
@@ -309,6 +323,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             startFlag.Value = false;
+            transferCompleteFlag.Value = true;
             IRQ.Set();
         }
 
@@ -330,6 +345,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private readonly Machine machine;
         private readonly IFlagRegisterField startFlag;
+        private readonly IFlagRegisterField transferCompleteFlag;
         private readonly IEnumRegisterField<Mode> dma2dMode;
         private readonly IValueRegisterField numberOfLineField;
         private readonly IValueRegisterField pixelsPerLineField;
@@ -374,6 +390,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private enum Register : long
         {
             ControlRegister = 0x0,
+            InterruptStatusRegister = 0x4,
             InterruptFlagClearRegister = 0x8,
             ForegroundMemoryAddressRegister = 0xC,
             ForegroundOffsetRegister = 0x10,
