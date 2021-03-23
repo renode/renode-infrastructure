@@ -325,6 +325,7 @@
     <Compile Include="Peripherals\DMA\EOSS3_SystemDMABridge.cs" />
     <Compile Include="Peripherals\Sensors\ADXL345.cs" />
     <Compile Include="Peripherals\SD\LiteSDCard.cs" />
+    <Compile Include="Peripherals\SD\LiteSDCard_CSR32.cs" />
     <Compile Include="Peripherals\Sensors\PAC1934.cs" />
     <Compile Include="Peripherals\Sound\LiteX_I2S.cs" />
     <Compile Include="Peripherals\Sound\LiteX_I2S_Master.cs" />
