@@ -123,6 +123,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 foregroundClut = new byte[(foregroundClutSizeField.Value + 1) * foregroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
                 machine.SystemBus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
             });
+            foregroundAlphaMode = foregroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange());
+            foregroundAlphaField = foregroundPfcControlRegister.DefineValueField(24, 8, name: "ALPHA");
 
             var foregroundColorRegister = new DoubleWordRegister(this)
                 .WithValueField(0, 8, out foregroundColorBlueChannelField, name: "BLUE")
@@ -156,6 +158,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 backgroundClut = new byte[(backgroundClutSizeField.Value + 1) * backgroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
                 machine.SystemBus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
             });
+            backgroundAlphaMode = backgroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange());
+            backgroundAlphaField = backgroundPfcControlRegister.DefineValueField(24, 8, name: "ALPHA");
 
             outputColorRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
             var backgroundColorRegister = new DoubleWordRegister(this)
@@ -372,12 +376,16 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly IEnumRegisterField<Dma2DColorMode> outputColorModeField;
         private readonly IEnumRegisterField<Dma2DColorMode> foregroundColorModeField;
         private readonly IEnumRegisterField<Dma2DColorMode> backgroundColorModeField;
+        private readonly IEnumRegisterField<Dma2DAlphaMode> backgroundAlphaMode;
+        private readonly IEnumRegisterField<Dma2DAlphaMode> foregroundAlphaMode;
         private readonly IValueRegisterField backgroundColorBlueChannelField;
         private readonly IValueRegisterField backgroundColorGreenChannelField;
         private readonly IValueRegisterField backgroundColorRedChannelField;
         private readonly IValueRegisterField foregroundColorBlueChannelField;
         private readonly IValueRegisterField foregroundColorGreenChannelField;
         private readonly IValueRegisterField foregroundColorRedChannelField;
+        private readonly IValueRegisterField backgroundAlphaField;
+        private readonly IValueRegisterField foregroundAlphaField;
         private readonly DoubleWordRegister outputColorRegister;
         private readonly IValueRegisterField outputLineOffsetField;
         private readonly IValueRegisterField foregroundLineOffsetField;
