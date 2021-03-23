@@ -38,12 +38,12 @@ namespace Antmicro.Renode.Backends.Display
             return convertersCache[converterConfiguration];
         }
 
-        public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat fronBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel bgFixedColor = null, Pixel fgFixedColor = null)
+        public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat frontBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel bgFixedColor = null, Pixel fgFixedColor = null)
         {
-            var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, fronBuffer, frontBufferEndianes, output, outputEndianess, bgFixedColor, fgFixedColor);
+            var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, frontBuffer, frontBufferEndianes, output, outputEndianess, bgFixedColor, fgFixedColor);
             if(!blendersCache.ContainsKey(blenderConfiguration))
             {
-                blendersCache[blenderConfiguration] = new PixelBlender(backBuffer, fronBuffer, output, 
+                blendersCache[blenderConfiguration] = new PixelBlender(backBuffer, frontBuffer, output, 
                     GenerateBlendMethod(
                         new BufferDescriptor 
                         {
@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Backends.Display
                         },
                         new BufferDescriptor 
                         {
-                            ColorFormat = fronBuffer,
+                            ColorFormat = frontBuffer,
                             FixedColor = fgFixedColor,
                             ClutColorFormat = clutForegroundFormat,
                             DataEndianness = frontBufferEndianes
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Backends.Display
 
             var vBackBuffer = Expression.Parameter(typeof(byte[]), "backBuffer");
             var vBackClutBuffer = Expression.Parameter(typeof(byte[]), "backClutBuffer");
-            var vFrontBuffer = Expression.Parameter(typeof(byte[]), "fronBuffer");
+            var vFrontBuffer = Expression.Parameter(typeof(byte[]), "frontBuffer");
             var vFrontClutBuffer = Expression.Parameter(typeof(byte[]), "frontClutBuffer");
             var vOutputBuffer = Expression.Parameter(typeof(byte[]).MakeByRefType(), "outputBuffer");
             var vBackgroundColor = Expression.Parameter(typeof(Pixel), "backgroundColor");
