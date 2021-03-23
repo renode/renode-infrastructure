@@ -6,7 +6,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
+using System;
 using System.Linq.Expressions;
 using System.Collections.Generic;
 using ELFSharp.ELF;
@@ -20,16 +20,16 @@ namespace Antmicro.Renode.Backends.Display
             var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess, clutInputFormat, inputFixedColor);
             if(!convertersCache.ContainsKey(converterConfiguration))
             {
-                convertersCache[converterConfiguration] = 
+                convertersCache[converterConfiguration] =
                     new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(
-                    new BufferDescriptor 
+                    new BufferDescriptor
                     {
                         ColorFormat = inputFormat,
                         ClutColorFormat = clutInputFormat,
                         FixedColor = inputFixedColor,
                         DataEndianness = inputEndianess
                     },
-                    new BufferDescriptor 
+                    new BufferDescriptor
                     {
                         ColorFormat = outputFormat,
                         DataEndianness = outputEndianess
@@ -43,23 +43,23 @@ namespace Antmicro.Renode.Backends.Display
             var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, frontBuffer, frontBufferEndianes, output, outputEndianess, bgFixedColor, fgFixedColor);
             if(!blendersCache.ContainsKey(blenderConfiguration))
             {
-                blendersCache[blenderConfiguration] = new PixelBlender(backBuffer, frontBuffer, output, 
+                blendersCache[blenderConfiguration] = new PixelBlender(backBuffer, frontBuffer, output,
                     GenerateBlendMethod(
-                        new BufferDescriptor 
+                        new BufferDescriptor
                         {
                             ColorFormat = backBuffer,
                             ClutColorFormat = clutBackgroundFormat,
                             FixedColor = bgFixedColor,
                             DataEndianness = backBufferEndianess
                         },
-                        new BufferDescriptor 
+                        new BufferDescriptor
                         {
                             ColorFormat = frontBuffer,
                             FixedColor = fgFixedColor,
                             ClutColorFormat = clutForegroundFormat,
                             DataEndianness = frontBufferEndianes
                         },
-                        new BufferDescriptor 
+                        new BufferDescriptor
                         {
                             ColorFormat = output,
                             DataEndianness = outputEndianess
@@ -162,7 +162,7 @@ namespace Antmicro.Renode.Backends.Display
                                     Expression.Constant(PixelBlendingMode.Replace)
                                 )
                             }),
-                            
+
                             Expression.Block(
                                 // (b_alpha * (0xFF - f_alpha)) / 0xFF
                                 Expression.Assign(
@@ -187,9 +187,9 @@ namespace Antmicro.Renode.Backends.Display
                                                         inputForegroundPixel.AlphaChannel,
                                                         vBackAlphaBlended))),
                                              Expression.Constant((uint)0xFF))),
-                                                  
+
                                 Expression.Assign(
-                                    outputPixel.AlphaChannel, 
+                                    outputPixel.AlphaChannel,
                                     Expression.Add(
                                         inputForegroundPixel.AlphaChannel,
                                         Expression.Add(
@@ -206,9 +206,9 @@ namespace Antmicro.Renode.Backends.Display
                                         Expression.Assign(outputPixel.BlueChannel, contantBackgroundPixel.BlueChannel),
                                         Expression.Assign(outputPixel.AlphaChannel, contantBackgroundPixel.AlphaChannel)),
                                     // ... else, apply alpha to all color channels
-                                    Expression.Block( 
+                                    Expression.Block(
                                         Expression.Assign(
-                                            outputPixel.RedChannel, 
+                                            outputPixel.RedChannel,
                                             Expression.Divide(
                                                 Expression.Add(
                                                     Expression.Add(
@@ -217,7 +217,7 @@ namespace Antmicro.Renode.Backends.Display
                                                     Expression.Multiply(inputForegroundPixel.AlphaChannel, inputForegroundPixel.RedChannel)),
                                                 outputPixel.AlphaChannel)),
                                         Expression.Assign(
-                                            outputPixel.GreenChannel, 
+                                            outputPixel.GreenChannel,
                                             Expression.Divide(
                                                 Expression.Add(
                                                     Expression.Add(
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Backends.Display
                                                     Expression.Multiply(inputForegroundPixel.AlphaChannel, inputForegroundPixel.GreenChannel)),
                                                 outputPixel.AlphaChannel)),
                                         Expression.Assign(
-                                            outputPixel.BlueChannel, 
+                                            outputPixel.BlueChannel,
                                             Expression.Divide(
                                                 Expression.Add(
                                                     Expression.Add(
@@ -317,7 +317,7 @@ namespace Antmicro.Renode.Backends.Display
         }
 
         /// <summary>
-        /// Generates expression reading one pixel encoded in given format from input buffer (with bytes ordered accordingly to endianess) at given position 
+        /// Generates expression reading one pixel encoded in given format from input buffer (with bytes ordered accordingly to endianess) at given position
         /// and storing each channel in separate variable expression.
         /// </summary>
         /// <returns>Generated expression.</returns>
@@ -331,38 +331,38 @@ namespace Antmicro.Renode.Backends.Display
             byte currentBit = 0;
             byte currentByte = 0;
             bool isAlphaSet = false;
-            
+
             var expressions = new List<Expression>();
             var inputBytes = new ParameterExpression[inputBufferDescriptor.ColorFormat.GetColorDepth()];
             for(int i = 0; i < inputBytes.Length; i++)
             {
                 inputBytes[i] = Expression.Variable(typeof(uint));
-                
+
                 expressions.Add(
                     Expression.Assign(
-                        inputBytes[i], 
+                        inputBytes[i],
                         Expression.Convert(
                             Expression.ArrayIndex(
                                 inBuffer,
                                 Expression.Add(
-                                    inPosition, 
+                                    inPosition,
                                     Expression.Constant((inputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? i : inputBytes.Length - i - 1))),
                             typeof(uint))));
             }
 
             foreach(var colorDescriptor in inputBufferDescriptor.ColorFormat.GetColorsLengths())
             {
-                Expression colorExpression = null; 
-                
+                Expression colorExpression = null;
+
                 foreach(var transformation in ByteInflate(colorDescriptor.Value, currentBit))
                 {
                     Expression currentExpressionFragment = inputBytes[currentByte];
-                    
+
                     if(transformation.MaskBits != 0xFF)
                     {
                         currentExpressionFragment = Expression.And(currentExpressionFragment, Expression.Constant((uint)transformation.MaskBits));
                     }
-                    
+
                     if(transformation.ShiftBits > 0)
                     {
                         currentExpressionFragment = Expression.RightShift(currentExpressionFragment, Expression.Constant((int)transformation.ShiftBits));
@@ -373,14 +373,14 @@ namespace Antmicro.Renode.Backends.Display
                             Expression.LeftShift(currentExpressionFragment, Expression.Constant((int)(-transformation.ShiftBits))),
                             Expression.Constant((uint)0xFF));
                     }
-                    
+
                     currentBit += transformation.UsedBits;
                     if(currentBit >= 8)
                     {
                         currentBit -= 8;
                         currentByte++;
                     }
-                    
+
                     colorExpression = (colorExpression == null) ? currentExpressionFragment : Expression.Or(colorExpression, currentExpressionFragment);
                 }
 
@@ -405,9 +405,9 @@ namespace Antmicro.Renode.Backends.Display
                     // todo: indirect parameters should not be needed here, but we  m u s t  pass something
                     expressions.Add(
                         GenerateFrom(new BufferDescriptor
-                    { 
-                        ColorFormat = inputBufferDescriptor.ClutColorFormat.Value, 
-                        DataEndianness = inputBufferDescriptor.DataEndianness 
+                    {
+                        ColorFormat = inputBufferDescriptor.ClutColorFormat.Value,
+                        DataEndianness = inputBufferDescriptor.DataEndianness
                     }, clutBuffer, clutBuffer, Expression.Convert(clutOffset, typeof(int)), color, tmp));
 
                     expressions.Add(Expression.Assign(color.AlphaChannel, tmp));
@@ -479,13 +479,13 @@ namespace Antmicro.Renode.Backends.Display
             byte currentBit = 0;
             byte currentByte = 0;
             var expressions = new List<Expression>();
-            
+
             Expression currentExpression = null;
-            
+
             foreach(var colorDescriptor in outputBufferDescriptor.ColorFormat.GetColorsLengths())
             {
-                Expression colorExpression = null; 
-                
+                Expression colorExpression = null;
+
                 switch(colorDescriptor.Key)
                 {
                 case ColorType.A:
@@ -510,7 +510,7 @@ namespace Antmicro.Renode.Backends.Display
                 foreach(var transformation in ByteSqueezeAndMove(colorDescriptor.Value, currentBit))
                 {
                     Expression currentExpressionFragment = colorExpression;
-                
+
                     if(transformation.MaskBits != 0xFF)
                     {
                         currentExpressionFragment = Expression.And(currentExpressionFragment, Expression.Constant((uint)transformation.MaskBits));
@@ -525,9 +525,9 @@ namespace Antmicro.Renode.Backends.Display
                         currentExpressionFragment = Expression.And(
                             Expression.LeftShift(currentExpressionFragment, Expression.Constant((int)(-transformation.ShiftBits))),
                             Expression.Constant((uint)0xFF));
-                                
+
                     }
-                    
+
                     currentExpression = (currentExpression == null) ? currentExpressionFragment : Expression.Or(currentExpression, currentExpressionFragment);
 
                     currentBit += transformation.UsedBits;
@@ -535,9 +535,9 @@ namespace Antmicro.Renode.Backends.Display
                     {
                         expressions.Add(
                             Expression.Assign(
-                                Expression.ArrayAccess(outBuffer, 
+                                Expression.ArrayAccess(outBuffer,
                                     Expression.Add(
-                                        outPosition, 
+                                        outPosition,
                                         Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int) currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() - currentByte - 1)))),
                                 Expression.Convert(currentExpression, typeof(byte))));
 
@@ -632,7 +632,7 @@ namespace Antmicro.Renode.Backends.Display
 
             return result.ToArray();
         }
-        
+
         private struct TransformationDescriptor
         {
             public TransformationDescriptor(sbyte shift, byte mask, byte usedBits) : this()
@@ -646,7 +646,7 @@ namespace Antmicro.Renode.Backends.Display
             public byte  MaskBits  { get; private set; }
             public byte  UsedBits  { get; private set; }
         }
-        
+
         private class PixelConverter : IPixelConverter
         {
             public PixelConverter(PixelFormat input, PixelFormat output, ConvertDelegate converter)
@@ -668,7 +668,7 @@ namespace Antmicro.Renode.Backends.Display
 
             public PixelFormat Input { get; private set; }
             public PixelFormat Output { get; private set; }
-            
+
             private readonly ConvertDelegate converter;
         }
 
@@ -698,7 +698,7 @@ namespace Antmicro.Renode.Backends.Display
 
             public PixelFormat BackBuffer { get; private set; }
             public PixelFormat FrontBuffer { get; private set; }
-            public PixelFormat Output { get; private set; } 
+            public PixelFormat Output { get; private set; }
 
             private readonly BlendDelegate blender;
         }
