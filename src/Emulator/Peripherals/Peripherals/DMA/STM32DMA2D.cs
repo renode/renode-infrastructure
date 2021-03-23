@@ -463,8 +463,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         private IPixelConverter bgConverter;
         [Transient]
         private IPixelConverter fgConverter;
-        [Transient]
-        private IPixelConverter converter;
 
         private const ELFSharp.ELF.Endianess Endianness = ELFSharp.ELF.Endianess.LittleEndian;
 
