@@ -110,11 +110,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     HandleForegroundBufferSizeChange(); 
                 });
             var foregroundClutSizeField = foregroundPfcControlRegister.DefineValueField(8, 8, name: "CS");
-            foregroundClutColorModeField = foregroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(4, 1, name: "CCM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                });
+            foregroundClutColorModeField = foregroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(4, 1, name: "CCM", changeCallback: (_, __) => HandlePixelFormatChange());
             foregroundPfcControlRegister.DefineFlagField(5, FieldMode.Read, name: "START",
                 writeCallback: (_, value) =>
             {
@@ -126,11 +122,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 foregroundClut = new byte[(foregroundClutSizeField.Value + 1) * foregroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
                 machine.SystemBus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
             });
-            foregroundAlphaMode = foregroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                });
+            foregroundAlphaMode = foregroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange());
             foregroundAlphaField = foregroundPfcControlRegister.DefineValueField(24, 8, name: "ALPHA");
 
             var foregroundColorRegister = new DoubleWordRegister(this)
@@ -149,11 +141,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     HandleBackgroundBufferSizeChange(); 
                 });
             var backgroundClutSizeField = backgroundPfcControlRegister.DefineValueField(8, 8, name: "CS");
-            backgroundClutColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(4, 1, name: "CCM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                });
+            backgroundClutColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(4, 1, name: "CCM", changeCallback: (_, __) => HandlePixelFormatChange());
             backgroundPfcControlRegister.DefineFlagField(5, FieldMode.Read, name: "START",
                 writeCallback: (_, value) =>
             {
@@ -165,11 +153,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 backgroundClut = new byte[(backgroundClutSizeField.Value + 1) * backgroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
                 machine.SystemBus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
             });
-            backgroundAlphaMode = backgroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                });
+            backgroundAlphaMode = backgroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange());
             backgroundAlphaField = backgroundPfcControlRegister.DefineValueField(24, 8, name: "ALPHA");
 
             var backgroundColorRegister = new DoubleWordRegister(this)
