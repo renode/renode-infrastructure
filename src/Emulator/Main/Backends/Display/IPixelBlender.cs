@@ -12,8 +12,9 @@ namespace Antmicro.Renode.Backends.Display
 {
     public interface IPixelBlender
     {
-        void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplayer = 0xFF, byte frontBufferAlphaMultiplayer = 0xFF);
-        void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplayer = 0xFF, byte frontBufferAlphaMultiplayer = 0xFF);
+        void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplayer = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
+
+        void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplayer = 0xFF, PixelBlendingMode backgroundBlendingMode = default(PixelBlendingMode), byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
 
         PixelFormat BackBuffer { get; }
         PixelFormat FrontBuffer { get; }

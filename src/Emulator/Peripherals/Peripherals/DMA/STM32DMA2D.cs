@@ -230,10 +230,22 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             var outputFormat = outputColorModeField.Value.ToPixelFormat();
             var backgroundFormat = backgroundColorModeField.Value.ToPixelFormat();
-            var foregroundFormat = foregroundColorModeField.Value.ToPixelFormat();
+            var backgroundFixedColor = new Pixel(
+                (byte)backgroundColorRedChannelField.Value,
+                (byte)backgroundColorGreenChannelField.Value,
+                (byte)backgroundColorBlueChannelField.Value,
+                (byte)0xFF);
 
-            converter = PixelManipulationTools.GetConverter(foregroundFormat, Endianness, outputFormat, Endianness, foregroundClutColorModeField.Value.ToPixelFormat());
-            blender = PixelManipulationTools.GetBlender(backgroundFormat, Endianness, foregroundFormat, Endianness, outputFormat, Endianness, foregroundClutColorModeField.Value.ToPixelFormat(), backgroundClutColorModeField.Value.ToPixelFormat());
+            var foregroundFormat = foregroundColorModeField.Value.ToPixelFormat();
+            var foregroundFixedColor = new Pixel(
+                (byte)foregroundColorRedChannelField.Value,
+                (byte)foregroundColorGreenChannelField.Value,
+                (byte)foregroundColorBlueChannelField.Value,
+                (byte)0xFF);
+
+            bgConverter = PixelManipulationTools.GetConverter(backgroundFormat, Endianness, outputFormat, Endianness, backgroundClutColorModeField.Value.ToPixelFormat(), backgroundFixedColor);
+            fgConverter = PixelManipulationTools.GetConverter(foregroundFormat, Endianness, outputFormat, Endianness, foregroundClutColorModeField.Value.ToPixelFormat(), foregroundFixedColor);
+            blender = PixelManipulationTools.GetBlender(backgroundFormat, Endianness, foregroundFormat, Endianness, outputFormat, Endianness, foregroundClutColorModeField.Value.ToPixelFormat(), backgroundClutColorModeField.Value.ToPixelFormat(), backgroundFixedColor, foregroundFixedColor);
         }
 
         private void DoTransfer()
@@ -270,6 +282,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 break;
                 case Mode.MemoryToMemoryWithBlending:
+                    var bgBlendingMode = backgroundAlphaMode.Value.ToPixelBlendingMode();
+                    var fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
+                    var bgAlpha = backgroundAlphaField.Value;
+                    var fgAlpha = foregroundAlphaField.Value;
+
                     if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {
                         // we can optimize here and copy everything at once
@@ -278,7 +295,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                {
                                    machine.SystemBus.ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
                                    // per-pixel alpha blending
-                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer);
+                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0,0,0,255), (byte)bgAlpha, bgBlendingMode, (byte)fgAlpha, fgBlendingMode);
                                    return outputBuffer;
                                });
                     }
@@ -293,12 +310,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                                (localForegroundBuffer, line) =>
                                 {
                                     machine.SystemBus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
-                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer);
+                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, (byte)bgAlpha, bgBlendingMode, (byte)fgAlpha, fgBlendingMode);
                                     return outputLineBuffer;
                                 });
                     }
                 break;
                 case Mode.MemoryToMemoryWithPfc:
+
                     if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
                     {
                         DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
@@ -407,6 +425,8 @@ namespace Antmicro.Renode.Peripherals.DMA
         private IPixelBlender blender;
         [Transient]
         private IPixelConverter converter;
+        private IPixelConverter bgConverter;
+        private IPixelConverter fgConverter;
 
         private const ELFSharp.ELF.Endianess Endianness = ELFSharp.ELF.Endianess.LittleEndian;
 
