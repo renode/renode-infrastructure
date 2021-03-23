@@ -124,6 +124,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 machine.SystemBus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
             });
 
+            var foregroundColorRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 8, out foregroundColorBlueChannelField, name: "BLUE")
+                .WithValueField(8, 8, out foregroundColorGreenChannelField, name: "GREEN")
+                .WithValueField(16, 8, out foregroundColorRedChannelField, name: "RED")
+                .WithReservedBits(24, 8)
+                .WithChangeCallback((_, __) => HandlePixelFormatChange())
+            ;
+
             var backgroundPfcControlRegister = new DoubleWordRegister(this);
             backgroundColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, FieldMode.Read | FieldMode.Write, name: "CM", 
                 writeCallback: (_, __) => 
@@ -150,6 +158,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             });
 
             outputColorRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
+            var backgroundColorRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 8, out backgroundColorBlueChannelField, name: "BLUE")
+                .WithValueField(8, 8, out backgroundColorGreenChannelField, name: "GREEN")
+                .WithValueField(16, 8, out backgroundColorRedChannelField, name: "RED")
+                .WithReservedBits(24, 8)
+                .WithChangeCallback((_, __) => HandlePixelFormatChange())
+            ;
 
             var outputOffsetRegister = new DoubleWordRegister(this);
             outputLineOffsetField = outputOffsetRegister.DefineValueField(0, 14, FieldMode.Read | FieldMode.Write, name: "LO");
@@ -170,7 +185,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                 { (long)Register.BackgroundMemoryAddressRegister, backgroundMemoryAddressRegister },
                 { (long)Register.BackgroundOffsetRegister, backgroundOffsetRegister },
                 { (long)Register.ForegroundPfcControlRegister, foregroundPfcControlRegister },
+                { (long)Register.ForegroundColorRegister, foregroundColorRegister },
                 { (long)Register.BackgroundPfcControlRegister, backgroundPfcControlRegister },
+                { (long)Register.BackgroundColorRegister, backgroundColorRegister },
                 { (long)Register.OutputPfcControlRegister, outputPfcControlRegister },
                 { (long)Register.OutputColorRegister, outputColorRegister },
                 { (long)Register.OutputMemoryAddressRegister, outputMemoryAddressRegister },
@@ -355,6 +372,12 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly IEnumRegisterField<Dma2DColorMode> outputColorModeField;
         private readonly IEnumRegisterField<Dma2DColorMode> foregroundColorModeField;
         private readonly IEnumRegisterField<Dma2DColorMode> backgroundColorModeField;
+        private readonly IValueRegisterField backgroundColorBlueChannelField;
+        private readonly IValueRegisterField backgroundColorGreenChannelField;
+        private readonly IValueRegisterField backgroundColorRedChannelField;
+        private readonly IValueRegisterField foregroundColorBlueChannelField;
+        private readonly IValueRegisterField foregroundColorGreenChannelField;
+        private readonly IValueRegisterField foregroundColorRedChannelField;
         private readonly DoubleWordRegister outputColorRegister;
         private readonly IValueRegisterField outputLineOffsetField;
         private readonly IValueRegisterField foregroundLineOffsetField;
@@ -397,7 +420,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             BackgroundMemoryAddressRegister = 0x14,
             BackgroundOffsetRegister = 0x18,
             ForegroundPfcControlRegister = 0x1C,
+            ForegroundColorRegister = 0x20,
             BackgroundPfcControlRegister = 0x24,
+            BackgroundColorRegister = 0x28,
             ForegroundClutMemoryAddressRegister = 0x2C,
             BackgroundClutMemoryAddressRegister = 0x30,
             OutputPfcControlRegister = 0x34,
