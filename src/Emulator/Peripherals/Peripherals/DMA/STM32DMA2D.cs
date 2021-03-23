@@ -57,9 +57,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private STM32DMA2D()
         {
-            var controlRegister = new DoubleWordRegister(this);
-            startFlag = controlRegister.DefineFlagField(0, name: "Start", writeCallback: (old, @new) => { if(@new) DoTransfer(); });
-            dma2dMode = controlRegister.DefineEnumField<Mode>(16, 2, name: "Mode");
+            var controlRegister = new DoubleWordRegister(this)
+                .WithFlag(0, out startFlag, name: "Start", writeCallback: (old, @new) => { if(@new) DoTransfer(); })
+                .WithEnumField(16, 2, out dma2dMode, name: "Mode")
+            ;
 
             var foregroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
             var backgroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
@@ -74,54 +75,58 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithReservedBits(6, 26)
             ;
 
-            var interruptFlagClearRegister = new DoubleWordRegister(this).WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => {
-                if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
-            });
+            var interruptFlagClearRegister = new DoubleWordRegister(this)
+                .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => {
+                    if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }})
+            ;
 
-            var numberOfLineRegister = new DoubleWordRegister(this);
-            numberOfLineField = numberOfLineRegister.DefineValueField(0, 16, name: "NL");
-            pixelsPerLineField = numberOfLineRegister.DefineValueField(16, 14, name: "PL",
-                changeCallback: (_, __) =>
-                {
-                    HandleOutputBufferSizeChange();
-                    HandleBackgroundBufferSizeChange();
-                    HandleForegroundBufferSizeChange();
-                });
+            var numberOfLineRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 16, out numberOfLineField, name: "NL")
+                .WithValueField(16, 14, out pixelsPerLineField, name: "PL")
+                .WithChangeCallback((_, __) =>
+                    {
+                        HandleOutputBufferSizeChange();
+                        HandleBackgroundBufferSizeChange();
+                        HandleForegroundBufferSizeChange();
+                    })
+            ;
 
             outputMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
             backgroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
             foregroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
 
-            var outputPfcControlRegister = new DoubleWordRegister(this);
-            outputColorModeField = outputPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 3, name: "CM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                    HandleOutputBufferSizeChange();
-                });
-
-            var foregroundPfcControlRegister = new DoubleWordRegister(this);
-            foregroundColorModeField = foregroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, name: "CM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                    HandleForegroundBufferSizeChange();
-                });
-            var foregroundClutSizeField = foregroundPfcControlRegister.DefineValueField(8, 8, name: "CS");
-            foregroundClutColorModeField = foregroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(4, 1, name: "CCM", changeCallback: (_, __) => HandlePixelFormatChange());
-            foregroundPfcControlRegister.DefineFlagField(5, FieldMode.Read, name: "START",
-                writeCallback: (_, value) =>
-                {
-                    if(!value)
+            var outputPfcControlRegister = new DoubleWordRegister(this)
+                .WithEnumField(0, 3, out outputColorModeField, name: "CM",
+                    changeCallback: (_, __) =>
                     {
-                        return;
-                    }
+                        HandlePixelFormatChange();
+                        HandleOutputBufferSizeChange();
+                    })
+            ;
 
-                    foregroundClut = new byte[(foregroundClutSizeField.Value + 1) * foregroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
-                    machine.SystemBus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
-                });
-            foregroundAlphaMode = foregroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange());
-            foregroundAlphaField = foregroundPfcControlRegister.DefineValueField(24, 8, name: "ALPHA");
+            var foregroundPfcControlRegister = new DoubleWordRegister(this)
+                .WithEnumField(0, 4, out foregroundColorModeField, name: "CM",
+                    changeCallback: (_, __) =>
+                    {
+                        HandlePixelFormatChange();
+                        HandleForegroundBufferSizeChange();
+                    })
+                .WithEnumField(4, 1, out foregroundClutColorModeField, name: "CCM", changeCallback: (_, __) => HandlePixelFormatChange())
+                .WithValueField(8, 8, out var foregroundClutSizeField, name: "CS") //out of order to use the var in the next field
+                .WithFlag(5, name: "START", valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!value)
+                        {
+                            return;
+                        }
+
+                        foregroundClut = new byte[(foregroundClutSizeField.Value + 1) * foregroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
+                        machine.SystemBus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
+                    })
+                .WithEnumField(16, 2, out foregroundAlphaMode, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange())
+                .WithValueField(24, 8, out foregroundAlphaField, name: "ALPHA")
+            ;
 
             var foregroundColorRegister = new DoubleWordRegister(this)
                 .WithValueField(0, 8, out foregroundColorBlueChannelField, name: "BLUE")
@@ -131,28 +136,29 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithChangeCallback((_, __) => HandlePixelFormatChange())
             ;
 
-            var backgroundPfcControlRegister = new DoubleWordRegister(this);
-            backgroundColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 4, name: "CM",
-                changeCallback: (_, __) =>
-                {
-                    HandlePixelFormatChange();
-                    HandleBackgroundBufferSizeChange();
-                });
-            var backgroundClutSizeField = backgroundPfcControlRegister.DefineValueField(8, 8, name: "CS");
-            backgroundClutColorModeField = backgroundPfcControlRegister.DefineEnumField<Dma2DColorMode>(4, 1, name: "CCM", changeCallback: (_, __) => HandlePixelFormatChange());
-            backgroundPfcControlRegister.DefineFlagField(5, FieldMode.Read, name: "START",
-                writeCallback: (_, value) =>
-                {
-                    if(!value)
+            var backgroundPfcControlRegister = new DoubleWordRegister(this)
+                .WithEnumField(0, 4, out backgroundColorModeField, name: "CM",
+                    changeCallback: (_, __) =>
                     {
-                        return;
-                    }
+                        HandlePixelFormatChange();
+                        HandleBackgroundBufferSizeChange();
+                    })
+                .WithEnumField(4, 1, out backgroundClutColorModeField, name: "CCM", changeCallback: (_, __) => HandlePixelFormatChange())
+                .WithValueField(8, 8, out var backgroundClutSizeField, name: "CS") //out of order to use the var in the next field
+                .WithFlag(5, name: "START", valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!value)
+                        {
+                            return;
+                        }
 
-                    backgroundClut = new byte[(backgroundClutSizeField.Value + 1) * backgroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
-                    machine.SystemBus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
-                });
-            backgroundAlphaMode = backgroundPfcControlRegister.DefineEnumField<Dma2DAlphaMode>(16, 2, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange());
-            backgroundAlphaField = backgroundPfcControlRegister.DefineValueField(24, 8, name: "ALPHA");
+                        backgroundClut = new byte[(backgroundClutSizeField.Value + 1) * backgroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
+                        machine.SystemBus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
+                    })
+                .WithEnumField(16, 2, out backgroundAlphaMode, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange())
+                .WithValueField(24, 8, out backgroundAlphaField, name: "ALPHA")
+            ;
 
             var backgroundColorRegister = new DoubleWordRegister(this)
                 .WithValueField(0, 8, out backgroundColorBlueChannelField, name: "BLUE")
@@ -164,14 +170,17 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             outputColorRegister = new DoubleWordRegister(this).WithValueField(0, 32);
 
-            var outputOffsetRegister = new DoubleWordRegister(this);
-            outputLineOffsetField = outputOffsetRegister.DefineValueField(0, 14, name: "LO");
+            var outputOffsetRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 14, out outputLineOffsetField, name: "LO")
+            ;
 
-            var foregroundOffsetRegister = new DoubleWordRegister(this);
-            foregroundLineOffsetField = foregroundOffsetRegister.DefineValueField(0, 14, name: "LO");
+            var foregroundOffsetRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 14, out foregroundLineOffsetField, name: "LO")
+            ;
 
-            var backgroundOffsetRegister = new DoubleWordRegister(this);
-            backgroundLineOffsetField = backgroundOffsetRegister.DefineValueField(0, 14, name: "LO");
+            var backgroundOffsetRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 14, out backgroundLineOffsetField, name: "LO")
+            ;
 
             var regs = new Dictionary<long, DoubleWordRegister>
             {
