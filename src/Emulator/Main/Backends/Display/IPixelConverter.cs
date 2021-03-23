@@ -13,7 +13,7 @@
         /// Converts pixels stored in <paramref name="inBuffer"/> and having the <see cref="Input"/> format, into pixels having the <see cref="Output"/> format, and stores the result in <paramref name="outBuffer"/>. 
         /// </summary>
         /// <param name="inBuffer">input buffer</param>
-        /// <param name="clutBuffer">buffer containing the LUT for each input pixel.Used if Input uses indexed colors (L mode)</param>
+        /// <param name="clutBuffer">buffer containing the LUT for each input pixel. Used if Input uses indexed colors (L mode)</param>
         /// <param name="alpha">fixed alpha value</param>
         /// <param name="alphaReplaceMode">controls how <paramref name="alpha"/> gets used to compute the alpha of output pixels</param>
         /// <param name="outBuffer">output buffer</param>
