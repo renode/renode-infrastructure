@@ -63,8 +63,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             });
             dma2dMode = controlRegister.DefineEnumField<Mode>(16, 2, name: "Mode");
 
-            var foregroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
-            var backgroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
+            var foregroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
+            var backgroundClutMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
 
             var interruptStatusRegister = new DoubleWordRegister(this)
                 .WithTaggedFlag("TEIF", 0)
@@ -90,9 +90,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                     HandleForegroundBufferSizeChange();
                 });
 
-            outputMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
-            backgroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
-            foregroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
+            outputMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
+            backgroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
+            foregroundMemoryAddressRegister = new DoubleWordRegister(this).WithValueField(0, 32);
 
             var outputPfcControlRegister = new DoubleWordRegister(this);
             outputColorModeField = outputPfcControlRegister.DefineEnumField<Dma2DColorMode>(0, 3, name: "CM",
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithChangeCallback((_, __) => HandlePixelFormatChange())
             ;
 
-            outputColorRegister = new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read | FieldMode.Write);
+            outputColorRegister = new DoubleWordRegister(this).WithValueField(0, 32);
 
             var outputOffsetRegister = new DoubleWordRegister(this);
             outputLineOffsetField = outputOffsetRegister.DefineValueField(0, 14, name: "LO");
