@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,14 +21,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class PlatformLevelInterruptController : PlatformLevelInterruptControllerBase, IKnownSize
     {
-        public PlatformLevelInterruptController(int numberOfSources, int numberOfTargets = 1, bool prioritiesEnabled = true)
+        public PlatformLevelInterruptController(int numberOfSources, int numberOfContexts = 1, bool prioritiesEnabled = true)
             // we set numberOfSources + 1, because the standard PLIC controller counts sources from 1
-            : base(numberOfSources + 1, numberOfTargets, prioritiesEnabled, supportedLevels: new [] { PrivilegeLevel.User, PrivilegeLevel.Supervisor, PrivilegeLevel.Hypervisor, PrivilegeLevel.Machine })
+            : base(numberOfSources + 1, numberOfContexts, prioritiesEnabled)
         {
-            // numberOfSources has to fit between these two registers, one bit per source
-            if(Math.Ceiling((numberOfSources + 1) / 32.0) * 4 > Targets01EnablesWidth)
+            if(numberOfSources + 1 > MaxSources)
             {
-                throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {Targets01EnablesWidth} sources");
+                throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {MaxSources} sources");
             }
 
             var registersMap = new Dictionary<long, DoubleWordRegister>();
@@ -57,17 +56,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                     });
             }
 
-            AddTargetEnablesRegister(registersMap, (long)Registers.Target0MachineEnables, 0, PrivilegeLevel.Machine, numberOfSources);
-            AddTargetClaimCompleteRegister(registersMap, (long)Registers.Target0ClaimComplete, 0, PrivilegeLevel.Machine);
-            // Target 0 does not support supervisor mode
-
-            for(var i = 0u; i < numberOfTargets; i++)
+            for(var i = 0u; i < numberOfContexts; i++)
             {
-                AddTargetEnablesRegister(registersMap, (long)Registers.Target1MachineEnables + i * Targets12EnablesWidth, i + 1, PrivilegeLevel.Machine, numberOfSources);
-                AddTargetEnablesRegister(registersMap, (long)Registers.Target1SupervisorEnables + i * Targets12EnablesWidth, i + 1, PrivilegeLevel.Supervisor, numberOfSources);
-
-                AddTargetClaimCompleteRegister(registersMap, (long)Registers.Target1MachineClaimComplete + i * Targets12ClaimCompleteWidth, i + 1, PrivilegeLevel.Machine);
-                AddTargetClaimCompleteRegister(registersMap, (long)Registers.Target1SupervisorClaimComplete + i * Targets12ClaimCompleteWidth, i + 1, PrivilegeLevel.Supervisor);
+                AddContextEnablesRegister(registersMap, (long)Registers.Context0Enables + i * ContextEnablesWidth, i, numberOfSources);
+                AddContextClaimCompleteRegister(registersMap, (long)Registers.Context0ClaimComplete + i * ContextClaimWidth, i);
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -88,26 +80,29 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Source2Priority = 0x8,
             // ...
             StartOfPendingArray = 0x1000,
-            // WARNING: offset between Enables of Targets 0 and 1 is different than between Targets 2 and 1, 3 and 2, etc.!
-            Target0MachineEnables = 0x2000,
-            Target1MachineEnables = 0x2080,
-            Target1SupervisorEnables = 0x2100,
-            Target2MachineEnables = 0x2180,
-            Target2SupervisorEnables = 0x2200,
+            Context0Enables = 0x2000,
+            Context1Enables = 0x2080,
+            Context2Enables = 0x2100,
             // ...
-            Target0PriorityThreshold = 0x200000,
-            Target0ClaimComplete = 0x200004,
+            Context0PriorityThreshold = 0x200000,
+            Context0ClaimComplete = 0x200004,
             // ...
-            Target1PriorityThreshold = 0x201000,
-            Target1MachineClaimComplete = 0x201004,
-            Target1SupervisorClaimComplete = 0x202004,
-            Target2MachineClaimComplete = 0x203004,
-            Target2SupervisorClaimComplete = 0x204004,
+            Context1PriorityThreshold = 0x201000,
+            Context1ClaimComplete = 0x201004,
+            // ...
+            Context2PriorityThreshold = 0x202000,
+            Context2ClaimComplete = 0x202004,
+            //
+            Context3PriorityThreshold = 0x203000,
+            Context3ClaimComplete = 0x203004,
+            //
+            Context4PriorityThreshold = 0x204000,
+            Context4ClaimComplete = 0x204004,
             // ...
         }
 
-        private const long Targets01EnablesWidth = Registers.Target1MachineEnables - Registers.Target0MachineEnables;
-        private const long Targets12EnablesWidth = Registers.Target2MachineEnables - Registers.Target1MachineEnables;
-        private const long Targets12ClaimCompleteWidth = Registers.Target2MachineClaimComplete - Registers.Target1MachineClaimComplete;
+        private const long ContextEnablesWidth = Registers.Context1Enables - Registers.Context0Enables;
+        private const long ContextClaimWidth = Registers.Context1ClaimComplete - Registers.Context0ClaimComplete;
+        private const uint MaxSources = 1024;
     }
 }

@@ -13,12 +13,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
     public interface IPlatformLevelInterruptController : IEmulationElement
     {
         /// <summary>
-        /// Setting this property to a value different than -1 causes all interrupts to be reported to a target with a given id.
+        /// Setting this property to a value different than -1 causes all interrupts to be reported to a context with a given id.
         ///
         /// This is mostly for debugging purposes.
         /// It allows to designate a single core (in a multi-core setup) to handle external interrupts making it easier to debug trap handlers.
         /// </summary>
-        int ForcedTarget { get; }
+        int ForcedContext { get; }
 
         IReadOnlyDictionary<int, IGPIO> Connections { get; }
     }
