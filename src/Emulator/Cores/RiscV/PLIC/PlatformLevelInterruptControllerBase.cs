@@ -20,10 +20,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 {
     public abstract class PlatformLevelInterruptControllerBase : IPlatformLevelInterruptController, IDoubleWordPeripheral, IIRQController, INumberedGPIOOutput
     {
-        public PlatformLevelInterruptControllerBase(int numberOfSources, int numberOfTargets, bool prioritiesEnabled, PrivilegeLevel[] supportedLevels)
+        public PlatformLevelInterruptControllerBase(int numberOfSources, int numberOfContexts, bool prioritiesEnabled)
         {
             var connections = new Dictionary<int, IGPIO>();
-            for(var i = 0; i < (supportedLevels != null ? supportedLevels.Length : 1) * numberOfTargets; i++)
+            for(var i = 0; i < numberOfContexts; i++)
             {
                 connections[i] = new GPIO();
             }
@@ -35,12 +35,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 irqSources[i] = new IrqSource(i, this);
             }
 
-            irqTargets = new IrqTarget[numberOfTargets];
-            for(var i = 0u; i < numberOfTargets; i++)
+            irqContexts = new IrqContext[numberOfContexts];
+            for(var i = 0u; i < irqContexts.Length; i++)
             {
-                irqTargets[i] = (supportedLevels == null)
-                    ? new IrqTarget(i, this)
-                    : new IrqTarget(i, this, supportedLevels);
+                irqContexts[i] = new IrqContext(i, this);
             }
         }
 
@@ -58,9 +56,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
             {
                 irqSource.Reset();
             }
-            foreach(var irqTarget in irqTargets)
+            foreach(var irqContext in irqContexts)
             {
-                irqTarget.Reset();
+                irqContext.Reset();
             }
             RefreshInterrupts();
         }
@@ -90,31 +88,31 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         /// <summary>
-        /// Setting this property to a value different than -1 causes all interrupts to be reported to a target with a given id.
+        /// Setting this property to a value different than -1 causes all interrupts to be reported to a context with a given id.
         ///
         /// This is mostly for debugging purposes.
         /// It allows to designate a single core (in a multi-core setup) to handle external interrupts making it easier to debug trap handlers.
         /// </summary>
-        public int ForcedTarget { get; set; } = -1;
+        public int ForcedContext { get; set; } = -1;
 
         protected void RefreshInterrupts()
         {
             lock(irqSources)
             {
-                foreach(var target in irqTargets)
+                foreach(var context in irqContexts)
                 {
-                    target.RefreshAllInterrupts();
+                    context.RefreshInterrupt();
                 }
             }
         }
 
-        protected void AddTargetClaimCompleteRegister(Dictionary<long, DoubleWordRegister> registersMap, long offset, uint hartId, PrivilegeLevel level)
+        protected void AddContextClaimCompleteRegister(Dictionary<long, DoubleWordRegister> registersMap, long offset, uint contextId)
         {
             registersMap.Add(offset, new DoubleWordRegister(this).WithValueField(0, 32, valueProviderCallback: _ =>
             {
                 lock(irqSources)
                 {
-                    return irqTargets[hartId].Handlers[(int)level].AcknowledgePendingInterrupt();
+                    return irqContexts[contextId].AcknowledgePendingInterrupt();
                 }
             },
             writeCallback: (_, value) =>
@@ -126,12 +124,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 }
                 lock(irqSources)
                 {
-                    irqTargets[hartId].Handlers[(int)level].CompleteHandlingInterrupt(irqSources[value]);
+                    irqContexts[contextId].CompleteHandlingInterrupt(irqSources[value]);
                 }
             }));
         }
 
-        protected void AddTargetEnablesRegister(Dictionary<long, DoubleWordRegister> registersMap, long address, uint hartId, PrivilegeLevel level, int numberOfSources)
+        protected void AddContextEnablesRegister(Dictionary<long, DoubleWordRegister> registersMap, long address, uint contextId, int numberOfSources)
         {
             var maximumSourceDoubleWords = (int)Math.Ceiling((numberOfSources + 1) / 32.0) * 4;
 
@@ -142,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 {
                     lock(irqSources)
                     {
-                        // Each source is represented by one bit. offset and lOffset indicate the offset in double words from TargetXEnables,
+                        // Each source is represented by one bit. offset and lOffset indicate the offset in double words from ContextXEnables,
                         // `bit` is the bit number in the given double word,
                         // and `sourceIdBase + bit` indicate the source number.
                         var sourceIdBase = lOffset * 8;
@@ -159,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                                 continue;
                             }
 
-                            irqTargets[hartId].Handlers[(int)level].EnableSource(irqSources[sourceNumber], bits[bit]);
+                            irqContexts[contextId].EnableSource(irqSources[sourceNumber], bits[bit]);
                         }
                         RefreshInterrupts();
                     }
@@ -175,6 +173,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
         protected DoubleWordRegisterCollection registers;
 
         protected readonly IrqSource[] irqSources;
-        protected readonly IrqTarget[] irqTargets;
+        protected readonly IrqContext[] irqContexts;
     }
 }
