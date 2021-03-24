@@ -58,6 +58,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private bool initialized;
         private IEnumRegisterField<GPIOSignal>[] gpioConfigurations;
         private IFlagRegisterField is802154gEnabled;
+        
         public void OnGPIO(int number, bool value)
         {
             if(!initialized && !value)
@@ -158,6 +159,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private const byte CommandStrobeHigh = 0x3d;
         private const byte BuffersOrFECOrFreeArea = 0x3e;
         private const byte StandardFIFOAccess = 0x3f;
+        
         private struct AccessDescriptor
         {
             public byte Address;
@@ -194,6 +196,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return State.WaitingForHeader;
             }
         }
+        
         private enum Target
         {
             Registers,
@@ -203,9 +206,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             FECWorkspaceOrFreeArea,
             CommandStrobe
         }
+        
         private AccessDescriptor access;
         private State state;
         private byte[] freeArea = new byte[0xFF];
+        
         private void RunCommand(Command command)
         {
             this.Log(LogLevel.Noisy, "Running command: {0}", command);
@@ -249,6 +254,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     break;
             }
         }
+        
         public byte Transmit(byte data)
         {
             var status = GetStatus();
