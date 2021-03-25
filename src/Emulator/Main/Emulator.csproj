@@ -39,6 +39,10 @@
     <DefineConstants>$(DefineConstants);GUI_DISABLED</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\..\lib\resources\libraries\IronPython.StdLib.dll">
+      <!-- See the note near the IronPython.StdLib reference -->
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <Reference Include="PresentationCore" Condition=" $(CurrentPlatform) == 'Windows'" />
     <Reference Include="WindowsBase" Condition=" $(CurrentPlatform) == 'Windows'" />
     <Reference Include="System" />
@@ -51,6 +55,14 @@
     </Reference>
     <Reference Include="IronPython">
       <HintPath>..\..\..\..\..\lib\resources\libraries\IronPython.dll</HintPath>
+    </Reference>
+    <Reference Include="IronPython.StdLib">
+      <!--
+          As this assembly does not contain types, it does not get copied to the output directory.
+          We solve it by CopyToOutputDirectory directive in the same ItemGroup.
+          The reference stays to be visible in the project explorer.
+      -->
+      <HintPath>..\..\..\..\..\lib\resources\libraries\IronPython.StdLib.dll</HintPath>
     </Reference>
     <Reference Include="IronPython.Modules">
       <HintPath>..\..\..\..\..\lib\resources\libraries\IronPython.Modules.dll</HintPath>
