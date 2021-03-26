@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
         {
             Handlers = new []
             {
-                new IrqTargetHandler(irqController, 0)
+                new IrqTargetHandler(irqController, id)
             };
         }
 
@@ -159,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 return pendingIrq.Id;
             }
 
-            private int ConnectionNumber => (int)(4 * targetId + (privilegeLevel.HasValue ? (int)privilegeLevel.Value : 0));
+            private int ConnectionNumber => (int)((privilegeLevel.HasValue ? 4 : 1) * targetId + (privilegeLevel.HasValue ? (int)privilegeLevel.Value : 0));
 
             private readonly uint targetId;
             private readonly PrivilegeLevel? privilegeLevel;
