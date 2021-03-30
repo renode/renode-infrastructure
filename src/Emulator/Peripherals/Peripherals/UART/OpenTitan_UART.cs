@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             if(lineLoopbackEnabled.Value)
             {
+                txOngoing = true;
                 TransmitCharacter(value);
                 this.Log(LogLevel.Noisy, "Line Loopback Enabled, byte echoed by hardware.");
             }
@@ -78,6 +79,8 @@ namespace Antmicro.Renode.Peripherals.UART
             registers.Reset();
             txQueue.Clear();
             UpdateInterrupts();
+
+            txOngoing = false;
         }
 
         public long Size => 0x30;
@@ -156,6 +159,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             {
                                 foreach(byte value in txQueue)
                                 {
+                                    txOngoing = true;
                                     TransmitCharacter(value);
                                 }
                             }
@@ -206,6 +210,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
                         if(txEnabled.Value)
                         {
+                            txOngoing = true;
                             TransmitCharacter((byte)val);
                         }
                         else if(txQueue.Count < txFIFOCapacity)
@@ -268,7 +273,12 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             txWatermarkPending.Value |= TxWatermarkValue > txQueue.Count;
             rxWatermarkPending.Value |= RxWatermarkValue <= Count;
-            txEmptyPending.Value |= txQueue.Count == 0;
+
+            if(txOngoing && txQueue.Count == 0)
+            {
+                txOngoing = false;    
+                txEmptyPending.Value = true;
+            }
 
             TxWatermarkIRQ.Set(txWatermarkPending.Value && txWatermarkEnabled.Value);
             RxWatermarkIRQ.Set(rxWatermarkPending.Value && rxWatermarkEnabled.Value);
@@ -356,6 +366,8 @@ namespace Antmicro.Renode.Peripherals.UART
         // FIFOControl
         private IEnumRegisterField<RxWatermarkLevel> rxWatermarkField;
         private IEnumRegisterField<TxWatermarkLevel> txWatermarkField;
+
+        private bool txOngoing;
 
         private const int rxFIFOCapacity = 32;
         private const int txFIFOCapacity = 32;
