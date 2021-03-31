@@ -247,6 +247,7 @@ namespace Antmicro.Renode.Testing
             return bytes;
         }
 
+        [Antmicro.Migrant.Constructor(false)]
         private readonly AutoResetEvent newFrameEvent;
         private readonly IPeripheral iface;
         private readonly BlockingCollection<NetworkInterfaceTesterResult> frames = new BlockingCollection<NetworkInterfaceTesterResult>();
