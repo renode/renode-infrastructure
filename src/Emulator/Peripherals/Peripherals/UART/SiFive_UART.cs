@@ -152,10 +152,11 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(innerLock)
             {
-                transmitWatermarkInterruptPending.Value = (transmitWatermarkInterruptEnable.Value && transmitWatermarkLevel.Value > 0);
-                receiveWatermarkInterruptPending.Value = (receiveWatermarkInterruptEnable.Value && Count > receiveWatermarkLevel.Value);
+                transmitWatermarkInterruptPending.Value = (transmitWatermarkLevel.Value > 0);
+                receiveWatermarkInterruptPending.Value = (Count > receiveWatermarkLevel.Value);
 
-                IRQ.Set(transmitWatermarkInterruptPending.Value || receiveWatermarkInterruptPending.Value);
+                IRQ.Set(transmitWatermarkInterruptEnable.Value && transmitWatermarkInterruptPending.Value
+			|| receiveWatermarkInterruptEnable.Value && receiveWatermarkInterruptPending.Value);
             }
         }
 
