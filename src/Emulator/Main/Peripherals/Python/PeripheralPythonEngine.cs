@@ -158,11 +158,20 @@ namespace Antmicro.Renode.Peripherals.Python
                 }
             }
 
+            public bool isUser
+            {
+                get
+                {
+                    return type == RequestType.USER;
+                }
+            }
+
             public enum RequestType
             {
                 READ,
                 WRITE,
-                INIT
+                INIT,
+                USER
             }
         }
     }
