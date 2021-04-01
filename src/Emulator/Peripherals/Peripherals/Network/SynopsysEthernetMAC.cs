@@ -216,11 +216,13 @@ namespace Antmicro.Renode.Peripherals.Network
                     this.Log(LogLevel.Debug, "DROPPING - not for us.");
                     return;
                 }
+		/*
                 if((dmaInterruptEnable & (ReceiveStatus)) == 0)
                 {
                     this.Log(LogLevel.Debug, "DROPPING - rx irq is turned off.");
                     return;
                 }
+		*/
                 this.Log(LogLevel.Noisy, Misc.DumpPacket(frame, false, machine));
                 if(dmaReceiveDescriptorListAddress < 0x20000000)
                 {
