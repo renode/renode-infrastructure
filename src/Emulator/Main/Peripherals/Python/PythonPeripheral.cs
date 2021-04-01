@@ -113,6 +113,25 @@ namespace Antmicro.Renode.Peripherals.Python
             HandleWrite(offset, value);
         }
 
+        public void ControlWrite(long command, uint value)
+        {
+            // ignoring the return value
+            ControlRead(command, value);
+        }
+
+        public uint ControlRead(long command, uint value)
+        {
+            EnsureInit();
+
+            pythonRunner.Request.value = 0;
+            pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.USER;
+            pythonRunner.Request.offset = command;
+            pythonRunner.Request.value = value;
+            pythonRunner.Request.length = 4;
+            Execute();
+            return unchecked(pythonRunner.Request.value);
+        }
+
         public void Reset()
         {
             inited = false;
