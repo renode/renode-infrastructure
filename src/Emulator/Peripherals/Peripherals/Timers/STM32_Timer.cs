@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -18,10 +19,29 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class STM32_Timer : LimitTimer, IDoubleWordPeripheral
     {
-        public STM32_Timer(Machine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit,  direction: Direction.Ascending, enabled: false, autoUpdate: false)
+        public STM32_Timer(Machine machine, long frequency, uint initialLimit, int dmaChannel = 0, IDMA dmaPeripheral = null ): base(machine.ClockSource, frequency, limit: initialLimit,  direction: Direction.Ascending, enabled: false, autoUpdate: false)
         {
             IRQ = new GPIO();
             this.initialLimit = initialLimit;
+            this.Dma = dmaPeripheral;
+
+            if(Dma == null)
+            {
+                if(dmaChannel !=0)
+                {
+                    throw new ArgumentException($"Unspecified DMA peripheral to use with channel number {dmaChannel}");
+                }
+            }
+            else
+            {
+                if(dmaChannel <= 0 || dmaChannel > Dma.numberOfChannels)
+                {
+                    throw new ArgumentException($"Invalid 'dmaChannel' argument value: '{dmaChannel}'. Available channels: 1-{Dma.numberOfChannels}");
+                }
+            }
+
+            this.dmaChannel = dmaChannel;
+            dmaRequestEnable = new IFlagRegisterField[4];
 
             LimitReached += delegate
             {
@@ -62,6 +82,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                     ccInterruptFlag[j] = true;
                     this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
                     UpdateInterrupts();
+                };
+                // DMA request
+                ccTimers[j].LimitReached += delegate
+                {
+                    if(globalDmaRequestEnable.Value && dmaRequestEnable[j].Value)
+                    {
+                        SendDmaRequest();
+                    }
                 };
             }
 
@@ -118,11 +146,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(5, 1)
                     .WithTag("Trigger interrupt enable (TIE)", 6, 1)
                     .WithReservedBits(7, 1)
-                    .WithTag("Update DMA request enable (UDE)", 8, 1)
-                    .WithTag("Capture/Compare 1 DMA request enable (CC1DE)", 9, 1)
-                    .WithTag("Capture/Compare 2 DMA request enable (CC2DE)", 10, 1)
-                    .WithTag("Capture/Compare 3 DMA request enable (CC3DE)", 11, 1)
-                    .WithTag("Capture/Compare 4 DMA request enable (CC4DE)", 12, 1)
+                    .WithFlag(8, out globalDmaRequestEnable, name: "Update DMA request enable (UDE)")
+                    .WithFlag(9, out dmaRequestEnable[0], name: "Capture/Compare 1 DMA request enable (CC1DE)")
+                    .WithFlag(10, out dmaRequestEnable[1], name: "Capture/Compare 2 DMA request enable (CC2DE)")
+                    .WithFlag(11, out dmaRequestEnable[2], name: "Capture/Compare 3 DMA request enable (CC3DE)")
+                    .WithFlag(12, out dmaRequestEnable[3], name: "Capture/Compare 4 DMA request enable (CC4DE)")
                     .WithReservedBits(13, 1)
                     .WithTag("Trigger DMA request enable (TDE)", 14, 1)
                     .WithReservedBits(15, 17)
@@ -393,6 +421,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        private void SendDmaRequest()
+        {
+            if(Dma != null)
+            {
+                Dma.RequestTransfer(dmaChannel);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "Received DMA transfer request, but no DMA is configured for this peripheral.");
+            }
+        }
+
         private void UpdateInterrupts()
         {
             var value = false;
@@ -412,7 +452,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         private bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
         private readonly IFlagRegisterField updateDisable;
         private readonly IFlagRegisterField updateRequestSource;
+        private readonly IFlagRegisterField[] dmaRequestEnable;
         private readonly IFlagRegisterField updateInterruptEnable;
+        private readonly IFlagRegisterField globalDmaRequestEnable;
         private readonly IFlagRegisterField autoReloadPreloadEnable;
         private readonly IEnumRegisterField<CenterAlignedMode> centerAlignedMode;
         private readonly IValueRegisterField repetitionCounter;
@@ -420,6 +462,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly LimitTimer[] ccTimers = new LimitTimer[NumberOfCCChannels];
 
         private const int NumberOfCCChannels = 4;
+        private readonly int dmaChannel;
+        private readonly IDMA Dma;
 
         private enum CenterAlignedMode
         {
