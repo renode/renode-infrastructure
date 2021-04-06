@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     ccTimers[i].Enabled = Enabled && ccTimers[i].EventEnabled;
                 }
-                
+
                 if(updateInterruptEnable.Value && repetitionsLeft == 0)
                 {
                     // 2 of central-aligned modes should raise IRQ only on overflow/underflow, hence it happens 2 times less often
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(10, 22)
                     .WithWriteCallback((_, __) => { UpdateCaptureCompareTimers(); UpdateInterrupts(); })
                 },
-                
+
                 {(long)Registers.Control2, new DoubleWordRegister(this)
                     .WithTaggedFlag("CCPC", 0)
                     .WithReservedBits(1, 1)
@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("OIS4", 14)
                     .WithReservedBits(15, 17)
                 },
-                
+
                 {(long)Registers.SlaveModeControl, new DoubleWordRegister(this)
                     .WithTag("SMS", 0, 3)
                     .WithTaggedFlag("OCCS", 3)
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("ETP", 15)
                     .WithReservedBits(16, 16)
                 },
-                
+
                 {(long)Registers.DmaOrInterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out updateInterruptEnable, name: "Update interrupt enable (UIE)")
                     .WithFlag(1, valueProviderCallback: _ => ccTimers[0].EventEnabled, writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(0, val), name: "Capture/Compare 1 interrupt enable (CC1IE)")
@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         }
 
                         repetitionsLeft = repetitionCounter.Value;
-                        
+
                         if(!updateRequestSource.Value && updateInterruptEnable.Value)
                         {
                             this.Log(LogLevel.Noisy, "IRQ pending");
@@ -202,7 +202,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(7, 25)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-                
+
                 {(long)Registers.CaptureOrCompareMode1, new DoubleWordRegister(this)
                     .WithTag("CC1S", 0, 2)
                     .WithTaggedFlag("OC1FE", 2)
@@ -213,7 +213,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTag("OC2M", 12, 3)
                     .WithReservedBits(15, 17)
                 },
-                
+
                 {(long)Registers.CaptureOrCompareMode2, new DoubleWordRegister(this)
                     // Fields of this register vary between 'Output compare'/'Input compare' mode
                     // Only common fields were defined
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     // Input mode:
                         // "IC3PSC", 2, 2
                         // "IC3F", 4, 4
-                    .WithReservedBits(2, 6) 
+                    .WithReservedBits(2, 6)
                     .WithTag("CC4S", 8, 2)
                     .WithReservedBits(10, 6)
                     //Output mode:
@@ -238,25 +238,25 @@ namespace Antmicro.Renode.Peripherals.Timers
                         // "IC4PSC", 2, 2
                         // "IC4F", 4, 4
                 },
-                
+
                 {(long)Registers.CaptureOrCompareEnable, new DoubleWordRegister(this)
-                    .WithTaggedFlag("CC1E", 0) 
-                    .WithTaggedFlag("CC1P", 1) 
-                    .WithTaggedFlag("CC1NE", 2) 
-                    .WithTaggedFlag("CC1NP", 3) 
-                    .WithTaggedFlag("CC2E", 4) 
-                    .WithTaggedFlag("CC2P", 5) 
-                    .WithTaggedFlag("CC2NE", 6) 
-                    .WithTaggedFlag("CC2NP", 7) 
-                    .WithTaggedFlag("CC3E", 8) 
-                    .WithTaggedFlag("CC3P", 9) 
-                    .WithTaggedFlag("CC3NE", 10) 
-                    .WithTaggedFlag("CC3NP", 11) 
-                    .WithTaggedFlag("CC4E", 12) 
-                    .WithTaggedFlag("CC4P", 13) 
+                    .WithTaggedFlag("CC1E", 0)
+                    .WithTaggedFlag("CC1P", 1)
+                    .WithTaggedFlag("CC1NE", 2)
+                    .WithTaggedFlag("CC1NP", 3)
+                    .WithTaggedFlag("CC2E", 4)
+                    .WithTaggedFlag("CC2P", 5)
+                    .WithTaggedFlag("CC2NE", 6)
+                    .WithTaggedFlag("CC2NP", 7)
+                    .WithTaggedFlag("CC3E", 8)
+                    .WithTaggedFlag("CC3P", 9)
+                    .WithTaggedFlag("CC3NE", 10)
+                    .WithTaggedFlag("CC3NP", 11)
+                    .WithTaggedFlag("CC4E", 12)
+                    .WithTaggedFlag("CC4P", 13)
                     .WithReservedBits(14, 18)
                 },
-                
+
                 {(long)Registers.Counter, new DoubleWordRegister(this)
                     .WithValueField(0, 32, writeCallback: (_, val) => Value = val, valueProviderCallback: _ => (uint)Value, name: "Counter value (CNT)")
                     .WithWriteCallback((_, val) =>
