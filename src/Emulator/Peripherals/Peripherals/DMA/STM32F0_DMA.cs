@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public sealed class STM32F0_DMA: IDoubleWordPeripheral, IKnownSize
+    public sealed class STM32F0_DMA: IDMA, IDoubleWordPeripheral, IKnownSize
     {
         public STM32F0_DMA(int numberOfChannels, Machine machine)
         {
