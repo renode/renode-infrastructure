@@ -320,6 +320,7 @@
     <Compile Include="Peripherals\SPI\EOSS3_SPIMaster.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_MMCM.cs" />
     <Compile Include="Peripherals\Analog\EOSS3_ADC.cs" />
+    <Compile Include="Peripherals\Analog\STM32F0_ADC.cs" />
     <Compile Include="Peripherals\DMA\EOSS3_SPI_DMA.cs" />
     <Compile Include="Peripherals\Miscellaneous\EOSS3_PacketFIFO.cs" />
     <Compile Include="Peripherals\Miscellaneous\EOSS3_FlexibleFusionEngine.cs" />
