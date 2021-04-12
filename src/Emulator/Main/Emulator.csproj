@@ -150,6 +150,7 @@
     <Compile Include="Peripherals\BasicDoubleWordPeripheral.cs" />
     <Compile Include="Peripherals\IPeripheral.cs" />
     <Compile Include="Utilities\Misc.cs" />
+    <Compile Include="Utilities\VideoCapturer.cs" />
     <Compile Include="Core\GPIOAttribute.cs" />
     <Compile Include="Core\Extensions\ReadWriteExtensions.cs" />
     <Compile Include="Peripherals\IHasOwnLife.cs" />
