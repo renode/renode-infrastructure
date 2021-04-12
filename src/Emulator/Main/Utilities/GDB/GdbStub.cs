@@ -14,15 +14,16 @@ namespace Antmicro.Renode.Utilities.GDB
 {
     public class GdbStub : IDisposable, IExternal
     {
-        public GdbStub(Machine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation)
+        public GdbStub(Machine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation, bool blockOnStep)
         {
             this.cpus = cpus;
             Port = port;
+            this.blockOnStep = blockOnStep;
 
             LogsEnabled = true;
 
             pcktBuilder = new PacketBuilder();
-            commandsManager = new CommandsManager(machine, cpus);
+            commandsManager = new CommandsManager(machine, cpus, blockOnStep);
             commandsManager.ShouldAutoStart = autostartEmulation;
             TypeManager.Instance.AutoLoadedType += commandsManager.Register;
 
@@ -34,7 +35,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
                     cpu.Halted += OnHalted;
-                    cpu.ExecutionMode = ExecutionMode.SingleStep;
+                    cpu.ExecutionMode = blockOnStep ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
                     cpu.DebuggerConnected = true;
                 }
             };
@@ -93,10 +94,6 @@ namespace Antmicro.Renode.Utilities.GDB
                     case BreakpointType.ReadWatchpoint:
                     case BreakpointType.HardwareBreakpoint:
                     case BreakpointType.MemoryBreakpoint:
-                        foreach(var cpu in commandsManager.ManagedCpus.Values)
-                        {
-                            cpu.IsHalted = true;
-                        }
                         if(commandsManager.Machine.SystemBus.IsMultiCore)
                         {
                             commandsManager.SelectCpuForDebugging(cpuId);
@@ -150,7 +147,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
                 foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
-                    cpu.ExecutionMode = ExecutionMode.SingleStep;
+                    cpu.ExecutionMode = blockOnStep ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
                 }
                 return;
             }
@@ -201,6 +198,7 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly SocketServerProvider terminal;
         private readonly CommandsManager commandsManager;
         private readonly CommunicationHandler commHandler;
+        private readonly bool blockOnStep;
 
         private const int TrapSignal = 5;
         private const int AbortSignal = 6;

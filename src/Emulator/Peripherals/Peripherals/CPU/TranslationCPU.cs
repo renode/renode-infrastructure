@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -282,6 +282,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             FreeState();
         }
 
+        private bool IsSingleStepMode => executionMode == ExecutionMode.SingleStepNonBlocking || executionMode == ExecutionMode.SingleStepBlocking;
+
         public ExecutionMode ExecutionMode
         {
             get
@@ -302,9 +304,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 lock(singleStepSynchronizer.Guard)
                 {
                     executionMode = value;
-                    singleStepSynchronizer.Enabled = (executionMode == ExecutionMode.SingleStep);
+                    
+                    IsHalted = executionMode == ExecutionMode.SingleStepNonBlocking;
+                    singleStepSynchronizer.Enabled = IsSingleStepMode;
                     UpdateBlockBeginHookPresent();
-                    IsHalted = (executionMode == ExecutionMode.SingleStep);
                 }
             }
         }
@@ -412,7 +415,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 started = true;
-                singleStepSynchronizer.Enabled = (ExecutionMode == ExecutionMode.SingleStep);
+                singleStepSynchronizer.Enabled = IsSingleStepMode;
                 isPaused = false;
                 StartCPUThread();
                 this.NoisyLog("Resumed.");
@@ -438,7 +441,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 this.NoisyLog("IRQ {0}, value {1}", number, value);
                 // as we are waiting for an interrupt we should, obviously, not mask it
-                if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && executionMode == ExecutionMode.SingleStep)))
+                if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && IsSingleStepMode)))
                 {
                     TlibSetIrqWrapped(number, value);
                 }
@@ -930,11 +933,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public ulong Step(int count = 1)
+        public ulong Step(bool blocking)
+        {
+            return Step(1, blocking);
+        }
+
+        public ulong Step(int count = 1, bool? blocking = null)
         {
             lock(singleStepSynchronizer.Guard)
             {
-                ExecutionMode = ExecutionMode.SingleStep;
+                var isBlocking = ChangeExecutionModeToSingleStep(blocking);
                 Resume();
 
                 this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
@@ -942,7 +950,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 IsHalted = false;
                 singleStepSynchronizer.CommandStep(count);
                 singleStepSynchronizer.WaitForStepFinished();
-                IsHalted = true;
+                IsHalted = !isBlocking;
 
                 return PC;
             }
@@ -1020,13 +1028,26 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void EnterSingleStepModeSafely(HaltArguments args)
+        public void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null)
         {
             // this method should only be called from CPU thread,
             // but we should check it anyway
             CheckCpuThreadId();
-            ExecutionMode = ExecutionMode.SingleStep;
+            ChangeExecutionModeToSingleStep(blocking);
             InvokeHalted(args);
+        }
+
+        private bool ChangeExecutionModeToSingleStep(bool? blocking = null)
+        {
+            var mode = ExecutionMode;
+            var isNonBlocking = mode == ExecutionMode.SingleStepNonBlocking;
+            if(blocking == isNonBlocking)
+            {
+                this.Log(LogLevel.Warning, "Changing current step configuration from {0} to {1}", mode, blocking.Value ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking);
+            }
+            blocking = blocking ?? mode != ExecutionMode.SingleStepNonBlocking;
+            ExecutionMode = blocking.Value ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
+            return blocking.Value;
         }
 
         private readonly object pauseLock = new object();
@@ -1645,7 +1666,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             get => shouldEnterDebugMode;
             set
             {
-                if(value == true && !(DebuggerConnected && ExecutionMode == ExecutionMode.SingleStep))
+                if(value == true && !(DebuggerConnected && IsSingleStepMode))
                 {
                     this.Log(LogLevel.Warning, "The debug mode now has no effect - connect a debugger, and switch to stepping mode.");
                 }
@@ -1666,12 +1687,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         protected virtual uint IsInDebugMode()
         {
-            return (DebuggerConnected && ShouldEnterDebugMode && ExecutionMode == ExecutionMode.SingleStep) ? 1u : 0u;
+            return (DebuggerConnected && ShouldEnterDebugMode && IsSingleStepMode) ? 1u : 0u;
         }
 
         private void UpdateBlockBeginHookPresent()
         {
-            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || ExecutionMode == ExecutionMode.SingleStep || isAnyInactiveHook) ? 1u : 0u);
+            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || IsSingleStepMode || isAnyInactiveHook) ? 1u : 0u);
         }
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
@@ -2120,7 +2141,7 @@ restart:
                             // before calling `WaitForStepCommand` method
                             lock(singleStepSynchronizer.Guard)
                             {
-                                singleStep = (executionMode == ExecutionMode.SingleStep);
+                                singleStep = IsSingleStepMode;
                                 if(singleStep)
                                 {
                                     // we become incactive as we wait for step command

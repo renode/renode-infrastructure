@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -96,12 +96,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private void HardwareBreakpointHook(ICpuSupportingGdb cpu, ulong address)
         {
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.HardwareBreakpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.HardwareBreakpoint), manager.BlockOnStep);
         }
 
         private void MemoryBreakpointHook(ICpuSupportingGdb cpu, ulong address)
         {
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.MemoryBreakpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.MemoryBreakpoint), manager.BlockOnStep);
         }
 
         private void AccessWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, uint value)
@@ -109,17 +109,17 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             //? I See a possible problem here.
             //? Here we call `Halt` event with T05 argument, but in a second we will call it once again with S05 in HandleStepping@TranlationCPU.
             //? It seems to work fine with GDB, but... I don't know if it is fully correct.
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.AccessWatchpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.AccessWatchpoint), manager.BlockOnStep);
         }
 
         private void WriteWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, uint value)
         {
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.WriteWatchpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.WriteWatchpoint), manager.BlockOnStep);
         }
 
         private void ReadWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, uint value)
         {
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.ReadWatchpoint));
+            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.ReadWatchpoint), manager.BlockOnStep);
         }
 
         private void AddWatchpointsCoveringMemoryArea(ulong address, uint kind, Access access, BusHookDelegate hook)

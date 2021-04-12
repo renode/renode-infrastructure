@@ -190,11 +190,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public interface ICpuSupportingGdb : ICPUWithHooks, IControllableCPU
     {
-        ulong Step(int count = 1);
+        ulong Step(int count = 1, bool? blocking = null);
         ExecutionMode ExecutionMode { get; set; }
         uint PageSize { get; }
         event Action<HaltArguments> Halted;
-        void EnterSingleStepModeSafely(HaltArguments args);
+        void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null);
         ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType);
 
         string GDBArchitecture { get; }

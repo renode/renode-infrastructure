@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -678,7 +678,12 @@ namespace Antmicro.Renode.Core
             gdbStubs[port].LogsEnabled = enabled;
         }
 
-        public void StartGdbServer(int port, bool autostartEmulation = false, ICpuSupportingGdb cpu = null)
+        public void StartGdbServer(int port, bool autostartEmulation, bool blockOnStep)
+        {
+            StartGdbServer(port, autostartEmulation, null, blockOnStep);
+        }
+
+        public void StartGdbServer(int port, bool autostartEmulation = false, ICpuSupportingGdb cpu = null, bool blockOnStep = true)
         {
             try
             {
@@ -700,7 +705,7 @@ namespace Antmicro.Renode.Core
                             throw new RecoverableException("One or more CPUs already added to an existing GDB server");
                         }
                     }
-                    gdbStubs.Add(port, new GdbStub(this, cpus, port, autostartEmulation));
+                    gdbStubs.Add(port, new GdbStub(this, cpus, port, autostartEmulation, blockOnStep));
                     this.Log(LogLevel.Info, "GDB server with all CPUs started on port :{0}", port);
                     return;
                 }
@@ -715,7 +720,7 @@ namespace Antmicro.Renode.Core
                 }
                 else
                 {
-                    gdbStubs.Add(port, new GdbStub(this, new[] { cpu }, port, autostartEmulation));
+                    gdbStubs.Add(port, new GdbStub(this, new[] { cpu }, port, autostartEmulation, blockOnStep));
                     this.Log(LogLevel.Info, "CPU was added to new GDB server created on port :{0}", port);
                 }
             }
