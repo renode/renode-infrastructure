@@ -20,8 +20,8 @@ namespace Antmicro.Renode.UI
         [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with startup script passed as an argument). May be used many times.")]
         public string[] Execute { get; set; }
 
-	[Name("config"), Description("Use the configuration file from the provided path, or create one if it does not exist")]
-	public string ConfigFile { get; set; }
+        [Name("config"), Description("Use the configuration file from the provided path, or create one if it does not exist")]
+        public string ConfigFile { get; set; }
 
         [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
         public bool DisableXwt { get; set; }
