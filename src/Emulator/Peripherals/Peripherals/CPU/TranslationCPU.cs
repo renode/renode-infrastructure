@@ -288,21 +288,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                lock(singleStepSynchronizer.Guard)
-                {
-                    return executionMode;
-                }
+                return executionMode;
             }
 
             set
             {
-                if(executionMode == value)
-                {
-                    return;
-                }
-
                 lock(singleStepSynchronizer.Guard)
                 {
+                    if(executionMode == value)
+                    {
+                        return;
+                    }
+
                     executionMode = value;
                     
                     IsHalted = executionMode == ExecutionMode.SingleStepNonBlocking;
