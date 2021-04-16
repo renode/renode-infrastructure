@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Utilities.GDB
             terminal.ConnectionAccepted += delegate
             {
                 commandsManager.CanAttachCPU = false;
-                foreach(var cpu in cpus)
+                foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
                     cpu.Halted += OnHalted;
                     cpu.ExecutionMode = ExecutionMode.SingleStep;
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Utilities.GDB
             };
             terminal.ConnectionClosed += delegate
             {
-                foreach(var cpu in cpus)
+                foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
                     cpu.Halted -= OnHalted;
                     cpu.ExecutionMode = ExecutionMode.Continuous;
