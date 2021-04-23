@@ -348,7 +348,17 @@ namespace Antmicro.Renode.Peripherals.CAN
                 this.Log(LogLevel.Error, "No message in mailbox.");
                 return;
             }
-            FrameSent?.Invoke(message);
+
+            var fs = FrameSent;
+            if(fs != null)
+            {
+                fs.Invoke(message);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
+            }
+            
             this.Log(LogLevel.Info, "Message sent: {0}.", message);
             txMessageInterruptsStatus.Value = true;
             UpdateInterrupts();

@@ -85,7 +85,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         protected virtual void HandleFrame(byte[] frame)
         {
-            FrameSent?.Invoke(this, frame);
+            var fs = FrameSent;
+            if(fs != null)
+            {
+                fs.Invoke(this, frame);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
+            }
         }
 
         protected virtual byte[] Encapsulate(byte[] frame)

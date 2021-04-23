@@ -632,7 +632,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var frame = new Frame(txQueue.Skip(1).Concat(crc).ToArray());
 
             this.DebugLog("Sending frame {0}.", frame.Bytes.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
-            FrameSent?.Invoke(this, frame.Bytes);
+            var fs = FrameSent;
+            if(fs != null)
+            {
+                fs.Invoke(this, frame.Bytes);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
+            }
 
             irqHandler.RequestInterrupt(InterruptSource.TxDone);
         }

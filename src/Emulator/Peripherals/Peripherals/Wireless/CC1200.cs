@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private bool initialized;
         private IEnumRegisterField<GPIOSignal>[] gpioConfigurations;
         private IFlagRegisterField is802154gEnabled;
-        
+
         public void OnGPIO(int number, bool value)
         {
             if(!initialized && !value)
@@ -561,7 +561,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     && stateMachineMode == StateMachineMode.TransmitMode && terminateOnBadPacket.Value)
             {
                 var ack = Frame.CreateACK(frame.DataSequenceNumber, true, crcInitialValue, crcPolynomial);
-                FrameSent?.Invoke(this, ack.Bytes);
+                TrySendFrame(ack.Bytes);
             }
             wasSyncTransfered = true;
             UpdateGPIOs();
@@ -620,11 +620,24 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 data = (data.Concat(crc).ToArray());
             }
             this.DebugLog("Sending frame {0}.", data.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
-            FrameSent?.Invoke(this, data.ToArray());
+            TrySendFrame(data.ToArray());
             stateMachineMode = txOffMode;
             this.Log(LogLevel.Noisy, "Setting state to {0}", stateMachineMode);
             wasSyncTransfered = true;
             UpdateGPIOs();
+        }
+
+        private void TrySendFrame(byte[] frame)
+        {
+            var fs = FrameSent;
+            if(fs != null)
+            {
+                fs.Invoke(this, frame);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
+            }
         }
 
         private byte GetStatus()
