@@ -86,6 +86,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.NumPadAdd /*53*/, KeyScanCode.KeypadPlus },
             { Key.NumPadDecimal /*53*/, KeyScanCode.KeypadComma },
             { Key.NumPadEnter /*12*/, KeyScanCode.KeypadEnter },
+            { Key.Space /*57*/, KeyScanCode.Space },
 
             { Key.F1 /*53*/, KeyScanCode.F1 },
             { Key.F2 /*53*/, KeyScanCode.F2 },
