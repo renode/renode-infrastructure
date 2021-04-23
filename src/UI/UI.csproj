@@ -87,6 +87,7 @@
     <Compile Include="VideoAnalyzer\Events\XWTEventSource.cs" />
     <Compile Include="VideoAnalyzer\Events\IEventSource.cs" />
     <Compile Include="VideoAnalyzer\Events\X11ToKeyScanCodeConverter.cs" />
+    <Compile Include="VideoAnalyzer\Events\WPFToKeyScanCodeConverter.cs" />
     <Compile Include="VideoAnalyzer\VideoAnalyzer.cs" />
     <Compile Include="VideoAnalyzer\DummyVideoAnalyzer.cs" />
   </ItemGroup>
