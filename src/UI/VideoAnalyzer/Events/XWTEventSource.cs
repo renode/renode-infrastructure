@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Runtime.InteropServices;
 using Xwt;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Extensions.Analyzers.Video.Handlers;
@@ -32,33 +33,67 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         private void HandleKeyReleased(object sender, KeyEventArgs e)
         {
-#if !PLATFORM_WINDOWS && !GUI_DISABLED
+#if !GUI_DISABLED
             e.Handled = true;
+#if PLATFORM_WINDOWS
+            IntPtr keyboardLayout = GetKeyboardLayout(0);
+            short vks = VkKeyScanEx((char)e.Key, keyboardLayout);
+            uint vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
+            var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
+#else
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
             var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
+#endif // !PLATFORM_WINDOWS
             if(key != null)
             {
                 handler.KeyReleased(key.Value);
                 return;
             }
-#endif
+#endif // !GUI_DISABLED
             Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", e.Key);
         }
 
+#if PLATFORM_WINDOWS
+        [DllImport("user32.dll")]
+        static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
+        [DllImport("user32.dll")]
+        static extern uint MapVirtualKeyW(uint uCode, uint uMapType);
+        [DllImport("user32.dll")]
+        static extern IntPtr GetKeyboardLayout(uint idThread);
+        const uint MAPVK_VK_TO_VSC = 0x00;
+        const uint MAPVK_VSC_TO_VK = 0x01;
+        const uint MAPVK_VK_TO_CHAR = 0x02;
+        const uint MAPVK_VSC_TO_VK_EX = 0x03;
+        const uint MAPVK_VK_TO_VSC_EX = 0x04;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern short VkKeyScan(char ch);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
+#endif
         private void HandleKeyPressed(object sender, KeyEventArgs e)
         {
-#if !PLATFORM_WINDOWS && !GUI_DISABLED
+#if !GUI_DISABLED
+            e.Handled = true;
+#if PLATFORM_WINDOWS
+            IntPtr keyboardLayout = GetKeyboardLayout(0);
+            short vks = VkKeyScanEx((char)e.Key, keyboardLayout);
+            uint vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
+            var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
+            Logger.LogAs(this, LogLevel.Debug, "KeyEvent {0}, vks {1}, vsc {2}, Key {3}", e.Key, vks, vsc, key);
+#else
             e.Handled = true;
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
             var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
+#endif // !PLATFORM_WINDOWS
             if(key != null)
             {
                 handler.KeyPressed(key.Value);
                 return;
             }
-#endif
+#endif // !GUI_DISABLED
             Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", e.Key);
         }
 
