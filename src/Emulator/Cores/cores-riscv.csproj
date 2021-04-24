@@ -60,6 +60,7 @@
     <Compile Include="RiscV\CV32E40P.cs" />
     <Compile Include="RiscV\PULP_InterruptController.cs" />
     <Compile Include="RiscV\PULP_EventController.cs" />
+    <Compile Include="RiscV\OpenTitan_PlatformLevelInterruptController.cs" />
     <Compile Include="RiscV\PLIC\IPlatformLevelInterruptController.cs" />
     <Compile Include="RiscV\PLIC\IrqContext.cs" />
     <Compile Include="RiscV\PLIC\IrqSource.cs" />
