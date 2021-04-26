@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -73,6 +73,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
             sensorRegisters.Reset();
         }
 
+        public OutputFormat Format => outputFormat.Value;
+        public ResolutionMode Resolution => resolution.Value;
+
         public ByteRegisterCollection RegistersCollection => sensorRegisterBankSelected ? sensorRegisters : dspRegisters;
 
         private void Write(byte b)
@@ -114,6 +117,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     })
                 .WithReservedBits(1, 7)
             ;
+
+            DSPRegister.ImageMode.Define(dspRegisters)
+                .WithTag("Byte swap enable for DVP", 0, 1)
+                .WithTag("HREF timing select in DVP JPEG output mode", 1, 1)
+                .WithEnumField<ByteRegister, OutputFormat>(2, 2, out outputFormat, name: "DVP output format")
+                .WithTag("JPEG output enable", 4, 1)
+                .WithReservedBits(5, 1)
+                .WithTag("Y8 enable for DVP", 6, 1)
+                .WithReservedBits(7, 1)
+            ;
         }
 
         private void DefineSensorRegisters()
@@ -123,7 +136,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTag("Color bar test pattern", 1, 1)
                 .WithTag("Zoom mode", 2, 1)
                 .WithReservedBits(3, 1)
-                .WithTag("Resolution selection", 4, 3)
+                .WithEnumField<ByteRegister, ResolutionMode>(4, 3, out resolution, name: "Resolution selection",
+                    writeCallback: (_, val) => parent.Log(LogLevel.Debug, "Resolution set to {0}", val))
                 .WithFlag(7, name: "SRST", writeCallback: (_, val) => 
                 { 
                     if(!val) 
@@ -149,6 +163,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool sensorRegisterBankSelected;
         private byte address;
 
+        private IEnumRegisterField<OutputFormat> outputFormat;
+        private IEnumRegisterField<ResolutionMode> resolution;
+
         private readonly ByteRegisterCollection dspRegisters;
         private readonly ByteRegisterCollection sensorRegisters;
 
@@ -158,6 +175,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             Idle,
             Processing
+        }
+
+        public enum ResolutionMode
+        {
+            UXGA_1600_1200 = 0,
+            CIF_352_288 = 2,
+            SVGA_800_600 = 4
+        }
+
+        public enum OutputFormat
+        {
+            YUV422 = 0,
+            RAW10_DVP = 1,
+            RGB565 = 2,
+            Reserved = 3
         }
 
         private enum DSPRegister
