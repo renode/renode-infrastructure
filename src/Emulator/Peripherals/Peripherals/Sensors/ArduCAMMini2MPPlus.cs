@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,6 +15,7 @@ using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.HostInterfaces.Camera;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -132,18 +133,43 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             set
             {
+                if(value == null)
+                {
+                    preloadedImageData = null;
+                    imageSource = null;
+                    return;
+                }
+
                 try
                 {
-                    imageData = File.ReadAllBytes(value);
+                    preloadedImageData = File.ReadAllBytes(value);
                     imageSource = value;
 
-                    this.NoisyLog("Loaded {0} bytes of image data to buffer", imageData.Length);
+                    this.NoisyLog("Loaded {0} bytes of image data to buffer", preloadedImageData.Length);
                 }
                 catch(Exception e)
                 {
                     throw new RecoverableException($"Could not load image {value}: {(e.Message)}");
                 }
             }
+        }
+
+        public void AttachToExternalCamera(HostCamera camera)
+        {
+#if PLATFORM_LINUX
+            externalCamera = camera;
+#else
+            throw new RecoverableException("The external camera integration is currently available on Linux only!");
+#endif
+        }
+
+        public void DetachFromExternalCamera()
+        {
+#if PLATFORM_LINUX
+            externalCamera = null;
+#else
+            throw new RecoverableException("The external camera integration is currently available on Linux only!");
+#endif
         }
 
         private void DefineRegisters()
@@ -168,6 +194,43 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     }
 
                     this.NoisyLog("Capturing frame");
+#if PLATFORM_LINUX
+                    var ec = externalCamera;
+                    if(ec != null)
+                    {
+                        switch(sensor.Resolution)
+                        {
+                            case OV2640.ResolutionMode.UXGA_1600_1200:
+                                ec.SetImageSize(1600, 1200);
+                                break;
+
+                            case OV2640.ResolutionMode.CIF_352_288:
+                                ec.SetImageSize(352, 288);
+                                break;
+
+                            case OV2640.ResolutionMode.SVGA_800_600:
+                                ec.SetImageSize(800, 600);
+                                break;
+
+                            default:
+                                this.Log(LogLevel.Error, "Unupported resolution mode: {0}. Setting the CIF resolution (352x288)", sensor.Resolution);
+                                goto case OV2640.ResolutionMode.CIF_352_288;
+                        }
+
+                        imageData = ec.GrabFrame();
+                    }
+                    else if(preloadedImageData != null)
+#else
+                    if(preloadedImageData != null)
+#endif
+                    { 
+                        imageData = preloadedImageData;
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Warning, "No image source set. Generating an empty frame");
+                        imageData = new byte[0];
+                    }
 
                     imageDataPointer = 0;
                     fifoDone.Value = true;
@@ -217,11 +280,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private int imageDataPointer;
         private byte[] imageData;
+        private byte[] preloadedImageData;
         private string imageSource;
 
         private IFlagRegisterField fifoDone;
 
         private readonly OV2640 sensor;
+
+#if PLATFORM_LINUX
+        private HostCamera externalCamera;
+#endif
 
         private enum State
         {
