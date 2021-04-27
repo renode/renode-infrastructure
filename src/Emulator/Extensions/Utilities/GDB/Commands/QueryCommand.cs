@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             {
                 return PacketData.Empty;
             }
-            if((objectType == "features" && annex != "target.xml") || offset > length)
+            if(objectType == "features" && annex != "target.xml")
             {
                 return PacketData.ErrorReply();
             }
