@@ -314,14 +314,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var currentIRQ = irqs[number];
                 if((currentIRQ & IRQState.Active) == 0)
                 {
-                    throw new InvalidOperationException(string.Format("Trying to complete not active IRQ {0}.", number));
+                    this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", number);
+                    return;
                 }
                 irqs[number] &= ~IRQState.Active;
                 var activeIRQ = activeIRQs.Pop();
                 if(activeIRQ != number)
                 {
-                    throw new InvalidOperationException(string.Format("Trying to complete IRQ {0} that was not the last active. Last active was {1}.",
-                                number, activeIRQ));
+                    this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", number, activeIRQ);
+                    return;
                 }
                 if((currentIRQ & IRQState.Running) > 0)
                 {
