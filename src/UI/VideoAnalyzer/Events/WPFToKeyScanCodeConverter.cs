@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2010-2018 Antmicro
-// Copyright (c) 2011-2015 Realtime Embedded
+// Copyright (c) 2021 Sean "xobs" Cross
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
