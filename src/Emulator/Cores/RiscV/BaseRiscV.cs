@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.timeProvider = timeProvider;
             this.privilegeArchitecture = privilegeArchitecture;
             ShouldEnterDebugMode = true;
-            nonstandardCSR = new Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>>();
+            nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
             this.NMIVectorLength = nmiVectorLength;
             this.NMIVectorAddress = nmiVectorAddress;
@@ -124,12 +124,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ConstructionException($"Cannot register CSR {customCSR.Name}, because its number 0x{customCSR.Number:X} is already registered");
             }
             simpleCSRs.Add(customCSR, 0);
-            RegisterCSR(customCSR.Number, () => simpleCSRs[customCSR], value => simpleCSRs[customCSR] = value);
+            RegisterCSR(customCSR.Number, () => simpleCSRs[customCSR], value => simpleCSRs[customCSR] = value, name);
         }
 
-        public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation)
+        public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation, string name = null)
         {
-            nonstandardCSR.Add(csr, Tuple.Create(readOperation, writeOperation));
+            nonstandardCSR.Add(csr, new NonstandardCSR(readOperation, writeOperation, name));
         }
 
         public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private ulong ReadCSR(ulong csr)
         {
-            var readMethod = nonstandardCSR[csr].Item1;
+            var readMethod = nonstandardCSR[csr].ReadOperation;
             if(readMethod == null)
             {
                 this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
@@ -324,7 +324,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void WriteCSR(ulong csr, ulong value)
         {
-            var writeMethod = nonstandardCSR[csr].Item2;
+            var writeMethod = nonstandardCSR[csr].WriteOperation;
             if(writeMethod == null)
             {
                 this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
@@ -360,7 +360,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly PrivilegeArchitecture privilegeArchitecture;
 
-        private readonly Dictionary<ulong, Tuple<Func<ulong>, Action<ulong>>> nonstandardCSR;
+        private readonly Dictionary<ulong, NonstandardCSR> nonstandardCSR;
 
         private readonly IEnumerable<InstructionSet> architectureSets;
 
