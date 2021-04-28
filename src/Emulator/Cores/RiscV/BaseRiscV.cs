@@ -222,6 +222,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public Dictionary<string, object> UserState { get; }
 
+        public override List<GBDFeatureDescriptor> GDBFeatures
+        {
+            get
+            {
+                if(gdbFeatures.Any())
+                {
+                    return gdbFeatures;
+                }
+
+                var registerWidth = (uint)MostSignificantBit + 1;
+                RiscVRegisterDescription.AddCpuFeature(ref gdbFeatures, registerWidth);
+                RiscVRegisterDescription.AddFpuFeature(ref gdbFeatures, registerWidth, false, SupportsInstructionSet(InstructionSet.F), SupportsInstructionSet(InstructionSet.D), false);
+                RiscVRegisterDescription.AddCSRFeature(ref gdbFeatures, registerWidth, SupportsInstructionSet(InstructionSet.S), SupportsInstructionSet(InstructionSet.U), false);
+                RiscVRegisterDescription.AddVirtualFeature(ref gdbFeatures, registerWidth);
+                RiscVRegisterDescription.AddCustomCSRFeature(ref gdbFeatures, registerWidth, nonstandardCSR);
+
+                return gdbFeatures;
+            }
+        }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             return Interrupt.Hard;
@@ -367,6 +387,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Dictionary<ulong, Action<UInt64>> customInstructionsMapping;
 
         private readonly Dictionary<SimpleCSR, ulong> simpleCSRs = new Dictionary<SimpleCSR, ulong>();
+
+        private List<GBDFeatureDescriptor> gdbFeatures = new List<GBDFeatureDescriptor>();
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649

@@ -65,6 +65,7 @@
     <Compile Include="RiscV\PLIC\IrqContext.cs" />
     <Compile Include="RiscV\PLIC\IrqSource.cs" />
     <Compile Include="RiscV\PLIC\PlatformLevelInterruptControllerBase.cs" />
+    <Compile Include="RiscV\RegisterDescription.cs" />
     <Compile Include="RiscV\NonstandardCSR.cs" />
   </ItemGroup>
   <ItemGroup>
