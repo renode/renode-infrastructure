@@ -1,11 +1,14 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Text;
+using System.Linq;
+using System.Collections.Generic;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -40,12 +43,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 xmlFile.Append($"<architecture>{manager.Cpu.GDBArchitecture}</architecture>\n");
                 foreach(var feature in manager.Cpu.GDBFeatures)
                 {
-                    xmlFile.Append($"<feature name=\"{feature.Name}\">\n");
-                    foreach(var register in feature.Registers)
-                    {
-                        xmlFile.Append($"<reg name=\"{register.Name}\" bitsize=\"{register.Size}\" regnum=\"{register.Number}\" type=\"{register.Type}\" group=\"{register.Group}\"/>\n");
-                    }
-                    xmlFile.Append("</feature>\n");
+                    AppendFeature(ref xmlFile, feature);
                 }
                 xmlFile.Append("</target>\n");
             }
@@ -62,6 +60,44 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             var prefix = offset + length >= xmlFile.Length ? "l" : "m";
             var xmlSubstring = xmlFile.ToString().Substring(offset, Math.Min(length, xmlFile.Length - offset));
             return new PacketData(prefix + xmlSubstring);
+        }
+
+        private static void AppendFeature(ref StringBuilder xmlFile, GBDFeatureDescriptor feature)
+        {
+            xmlFile.Append($"<feature name=\"{feature.Name}\">\n");
+            foreach(var type in feature.Types)
+            {
+                if(type.Fields.Any())
+                {
+                    var tagName = type.Type == "enum" ? "evalue" : "field";
+                    AppendTag(ref xmlFile, type.Type, type.Attributes, false);
+                    foreach(var field in type.Fields)
+                    {
+                        AppendTag(ref xmlFile, tagName, field);
+
+                    }
+                    xmlFile.Append($"</{type.Type}>\n");
+                }
+                else
+                {
+                    AppendTag(ref xmlFile, type.Type, type.Attributes);
+                }
+            }
+            foreach(var register in feature.Registers)
+            {
+                xmlFile.Append($"<reg name=\"{register.Name}\" bitsize=\"{register.Size}\" regnum=\"{register.Number}\" type=\"{register.Type}\" group=\"{register.Group}\"/>\n");
+            }
+            xmlFile.Append("</feature>\n");
+        }
+
+        private static void AppendTag(ref StringBuilder xmlFile, string name, IReadOnlyDictionary<string, string> attributes, bool closed = true)
+        {
+            xmlFile.Append($"<{name}");
+            foreach(var pair in attributes)
+            {
+                xmlFile.Append($" {pair.Key}=\"{pair.Value}\"");
+            }
+            xmlFile.Append(closed ? "/>\n" : ">\n");
         }
     }
 }
