@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -36,9 +36,9 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 #if !GUI_DISABLED
             e.Handled = true;
 #if PLATFORM_WINDOWS
-            IntPtr keyboardLayout = GetKeyboardLayout(0);
-            short vks = VkKeyScanEx((char)e.Key, keyboardLayout);
-            uint vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
+            var keyboardLayout = GetKeyboardLayout(0);
+            var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
+            var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
             var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
 #else
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
@@ -54,36 +54,16 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             Logger.LogAs(this, LogLevel.Warning, "Unhandled keycode: {0}", e.Key);
         }
 
-#if PLATFORM_WINDOWS
-        [DllImport("user32.dll")]
-        static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
-        [DllImport("user32.dll")]
-        static extern uint MapVirtualKeyW(uint uCode, uint uMapType);
-        [DllImport("user32.dll")]
-        static extern IntPtr GetKeyboardLayout(uint idThread);
-        const uint MAPVK_VK_TO_VSC = 0x00;
-        const uint MAPVK_VSC_TO_VK = 0x01;
-        const uint MAPVK_VK_TO_CHAR = 0x02;
-        const uint MAPVK_VSC_TO_VK_EX = 0x03;
-        const uint MAPVK_VK_TO_VSC_EX = 0x04;
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short VkKeyScan(char ch);
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
-#endif
         private void HandleKeyPressed(object sender, KeyEventArgs e)
         {
 #if !GUI_DISABLED
             e.Handled = true;
 #if PLATFORM_WINDOWS
-            IntPtr keyboardLayout = GetKeyboardLayout(0);
-            short vks = VkKeyScanEx((char)e.Key, keyboardLayout);
-            uint vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
+            var keyboardLayout = GetKeyboardLayout(0);
+            var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
+            var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
             var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
-            Logger.LogAs(this, LogLevel.Debug, "KeyEvent {0}, vks {1}, vsc {2}, Key {3}", e.Key, vks, vsc, key);
 #else
-            e.Handled = true;
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
             var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
@@ -148,5 +128,24 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         public int X { get { return lastX ?? 0; } }
         public int Y { get { return lastY ?? 0; } }
+
+#if PLATFORM_WINDOWS
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKeyW(uint uCode, uint uMapType);
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetKeyboardLayout(uint idThread);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern short VkKeyScan(char ch);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
+
+        private const uint MAPVK_VK_TO_VSC = 0x00;
+        private const uint MAPVK_VSC_TO_VK = 0x01;
+        private const uint MAPVK_VK_TO_CHAR = 0x02;
+        private const uint MAPVK_VSC_TO_VK_EX = 0x03;
+        private const uint MAPVK_VK_TO_VSC_EX = 0x04;
+#endif
     }
 }
