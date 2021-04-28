@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2021 Sean "xobs" Cross
 //
 // This file is licensed under the MIT License.
@@ -26,11 +26,11 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
             // This value shows up for both Return and Minus, so use the
             // untranslated code.
-            if (ScanCodesToIgnore.TryGetValue(untranslatedCode, out result))
+            if(ScanCodesToIgnore.TryGetValue(untranslatedCode, out result))
             {
                 return result;
             }
-            if (fromValue == 0)
+            if(fromValue == 0)
             {
                 return UntranslatedScanCode.TryGetValue(untranslatedCode, out result) ? (KeyScanCode?)result : null;
             }
@@ -39,7 +39,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         // These all share a scancode with a letter key, so don't bother
         // trying to read the FromValue
-        private readonly Dictionary<Key, KeyScanCode> ScanCodesToIgnore = new Dictionary<Key, KeyScanCode> {
+        private readonly Dictionary<Key, KeyScanCode> ScanCodesToIgnore = new Dictionary<Key, KeyScanCode>
+        {
             { Key.ShiftLeft /*53*/, KeyScanCode.ShiftL },
             { Key.ControlLeft /*53*/, KeyScanCode.CtrlL },
             { Key.ShiftRight /*53*/, KeyScanCode.ShiftR  },
@@ -100,7 +101,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.F10 /*53*/, KeyScanCode.F10 },
         };
 
-        private readonly Dictionary<Key, KeyScanCode> UntranslatedScanCode = new Dictionary<Key, KeyScanCode> {
+        private readonly Dictionary<Key, KeyScanCode> UntranslatedScanCode = new Dictionary<Key, KeyScanCode>
+        {
             { Key.AltLeft, KeyScanCode.AltL },
             { Key.MetaLeft, KeyScanCode.WinL },
             { Key.Space, KeyScanCode.Space },
@@ -241,7 +243,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.NumPadEnter, KeyScanCode.KeypadEnter },
         };
 
-        private readonly Dictionary<int, KeyScanCode> ToScanCode = new Dictionary<int, KeyScanCode> {
+        private readonly Dictionary<int, KeyScanCode> ToScanCode = new Dictionary<int, KeyScanCode>
+        {
             { 2, KeyScanCode.Number1 },
             { 3, KeyScanCode.Number2 },
             { 4, KeyScanCode.Number3 },
