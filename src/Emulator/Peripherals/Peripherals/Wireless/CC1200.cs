@@ -132,7 +132,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                         Connections[i].Set(stateMachineMode == StateMachineMode.Off);
                         break;
                     default:
-                        this.Log(LogLevel.Warning, "Unsupported GPIO mode on pin {0}: {1}", i, gpio.Value);
+                        // As GPIOs are set to unsupported mode on reset, this was changed to `Debug` to avoid flooding the log
+                        this.Log(LogLevel.Debug, "Unsupported GPIO mode on pin {0}: {1}", i, gpio.Value);
                         continue; //continue not to log
                 }
                 this.Log(LogLevel.Noisy, "Setting up GPIO{0} ({1}) to {2}", i, gpio.Value, Connections[i].IsSet);
