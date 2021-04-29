@@ -19,7 +19,7 @@ using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.UserInterface
 {
-    public class MonitorPythonEngine : PythonEngine
+    public class MonitorPythonEngine : PythonEngine, IDisposable
     {
         private readonly string[] Imports =
         {
@@ -43,6 +43,15 @@ namespace Antmicro.Renode.UserInterface
 
             Scope.SetVariable("self", monitor);
             Scope.SetVariable("monitor", monitor);
+        }
+
+        public void Dispose()
+        {
+            if(streamToEventConverter != null && streamToEventConverterForError != null)
+            {
+                streamToEventConverter.IgnoreWrites = true;
+                streamToEventConverterForError.IgnoreWrites = true;
+            }
         }
 
         [PreSerialization]
@@ -119,8 +128,8 @@ namespace Antmicro.Renode.UserInterface
 
         private void ConfigureOutput(ICommandInteraction writer)
         {
-            var streamToEventConverter = new StreamToEventConverter();
-            var streamToEventConverterForError = new StreamToEventConverter();
+            streamToEventConverter = new StreamToEventConverter();
+            streamToEventConverterForError = new StreamToEventConverter();
             var utf8WithoutBom = new UTF8Encoding(false);
 
             var inputStream = writer.GetRawInputStream();
@@ -135,6 +144,8 @@ namespace Antmicro.Renode.UserInterface
         }
 
         private const string MonitorPyPath = "scripts/monitor.py";
+        private StreamToEventConverter streamToEventConverter;
+        private StreamToEventConverter streamToEventConverterForError;
     }
 }
 

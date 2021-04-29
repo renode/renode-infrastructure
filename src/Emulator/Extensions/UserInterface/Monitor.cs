@@ -84,6 +84,7 @@ namespace Antmicro.Renode.UserInterface
             this.emulationManager = EmulationManager.Instance;
 
             pythonRunner = new MonitorPythonEngine(this);
+            Quitted += pythonRunner.Dispose;
             var startingCurrentDirectory = Environment.CurrentDirectory;
             variableCollections = new Dictionary<VariableType, Dictionary<string, Token>>
             {

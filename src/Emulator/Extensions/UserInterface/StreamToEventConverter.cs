@@ -20,11 +20,17 @@ namespace Antmicro.Renode.UserInterface
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            if(IgnoreWrites)
+            {
+                return;
+            }
             var bytesWritten = BytesWritten;
             var realData = new byte[count];
             Array.Copy(buffer, offset, realData, 0, count);
             bytesWritten(realData);
         }
+
+        public bool IgnoreWrites { get; set; }
 
         public override bool CanRead
         {
