@@ -514,8 +514,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 }
             }
 
-            // Prepare bytes with MPDU (MAC Protocol Data Unit) - data after PHY Header
-            var mpduBytes = bytes.Skip(2).ToArray();
+            // Prepare bytes with MPDU (MAC Protocol Data Unit) - first byte is skipped as it is a PHY Header start byte
+            var mpduBytes = bytes.Skip(1).ToArray();
             var frame = new Frame(mpduBytes, crcPolynomial);
 
             crcOK.Value = frame.CheckCRC(crcInitialValue);
@@ -597,8 +597,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 data = new byte[] { lengthByte };
             }
             data = data.Concat(txFifo.DequeueAll()).ToArray();
-            // CRC is calculated over MPDU bytes
-            var mpduBytes = data.Skip(2).ToArray();
+            // CRC is calculated over MPDU bytes - first byte is skipped as it is a PHY Header start byte
+            var mpduBytes = data.Skip(1).ToArray();
 
             IEnumerable<byte> crc;
             if(crcEnabled)
