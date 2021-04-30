@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
             if(tapFileDescriptor != -1)
             {
-                LibC.Close(tapFileDescriptor);
+                LibCWrapper.Close(tapFileDescriptor);
                 tapFileDescriptor = -1;
             }
         }
@@ -76,8 +76,8 @@ namespace Antmicro.Renode.HostInterfaces.Network
             var handle = GCHandle.Alloc(frame.Bytes, GCHandleType.Pinned);
             try
             {
-                var result = LibC.WriteData(stream.Handle, handle.AddrOfPinnedObject(), frame.Bytes.Length);
-                if(result == 0)
+                var result = LibCWrapper.Write(stream.Handle, handle.AddrOfPinnedObject(), frame.Bytes.Length);
+                if(!result)
                 {
                     this.Log(LogLevel.Error,
                         "Error while writing to TUN interface: {0}.", result);
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
             try
             {
-                tapFileDescriptor = LibC.OpenTAP(devName, persistent);
+                tapFileDescriptor = TAPTools.OpenTAP(devName, persistent);
                 if(tapFileDescriptor < 0)
                 {
                     var process = new Process();
@@ -217,7 +217,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 }
                 try
                 {
-                    buffer = LibC.ReadDataWithTimeout(stream.Handle, MTU, 1000, () => token.IsCancellationRequested);
+                    buffer = LibCWrapper.Read(stream.Handle, MTU, 1000, () => token.IsCancellationRequested);
                 }
                 catch(ArgumentException)
                 {

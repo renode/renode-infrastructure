@@ -525,6 +525,7 @@
     <Compile Include="Peripherals\I2C\I2CPeripheralBase.cs" />
     <Compile Include="Peripherals\Sensor\ICPIPeripheral.cs" />
     <Compile Include="Utilities\RawImageData.cs" />
+    <Compile Include="Utilities\LibCWrapper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

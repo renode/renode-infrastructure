@@ -96,7 +96,7 @@
     <Compile Include="UserInterface\Tokenizer\LeftBraceToken.cs" />
     <Compile Include="UserInterface\Tokenizer\RightBraceToken.cs" />
     <Compile Include="TAPHelper\DynamicModuleSpawner.cs" />
-    <Compile Include="TAPHelper\LibC.cs" />
+    <Compile Include="TAPHelper\TAPTools.cs" />
     <Compile Include="UserInterface\Tokenizer\ExecutionToken.cs" />
     <Compile Include="UserInterface\Commands\StringCommand.cs" />
     <Compile Include="UserInterface\Tokenizer\RangeToken.cs" />
