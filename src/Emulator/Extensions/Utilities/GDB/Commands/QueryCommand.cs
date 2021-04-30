@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             {
                 xmlFile.Append("<?xml version=\"1.0\"?>\n<!DOCTYPE feature SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n");
                 xmlFile.Append($"<architecture>{manager.Cpu.GDBArchitecture}</architecture>\n");
-                foreach(var feature in manager.Cpu.GDBFeatures)
+                foreach(var feature in manager.GetCompiledFeatures())
                 {
                     AppendFeature(ref xmlFile, feature);
                 }

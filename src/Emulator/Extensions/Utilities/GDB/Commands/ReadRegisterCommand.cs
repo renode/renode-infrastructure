@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -29,20 +29,26 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 {
                     content.AppendFormat("{0:x2}", b);
                 }
-                return new PacketData(content.ToString());
+            }
+            else
+            {
+                // if register does not exist in emulated core but is defined in a feature
+                // return a zero value with number of bytes defined in the feature
+                var selectedRegisters = manager.Cpu.GDBFeatures.SelectMany(f => f.Registers)
+                    .Where(r => r.Number == registerNumber);
+
+                if(selectedRegisters.Any())
+                {
+                    for(var b = 0; b < selectedRegisters.First().Size / 8; b++)
+                    {
+                        content.AppendFormat("00");
+                    }
+                }
             }
 
-            // if register no exists in emulated core but is defined in a feature
-            // return a cero value with number of bytes defined in the feature
-            var selectedRegisters = manager.Cpu.GDBFeatures.SelectMany(f => f.Registers)
-                .Where(r => r.Number == registerNumber);
-
-            if(selectedRegisters.Any())
+            ExpandRegisterValue(ref content, 0, content.Length, registerNumber);
+            if(content.Length > 0)
             {
-                for(var b = 0; b < selectedRegisters.First().Size / 8; b++)
-                {
-                    content.AppendFormat("00");
-                }
                 return new PacketData(content.ToString());
             }
 

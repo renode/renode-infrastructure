@@ -45,6 +45,7 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 throw new RecoverableException("CPU already attached to this GDB server.");
             }
+            InvalidateCompiledFeatures();
         }
 
         public bool IsCPUAttached(ICpuSupportingGdb cpu)
@@ -101,6 +102,42 @@ namespace Antmicro.Renode.Utilities.GDB
             return true;
         }
 
+        public List<GBDFeatureDescriptor> GetCompiledFeatures()
+        {
+            // GDB gets one feature description file and uses it for all threads.
+            // This method gathers features from all cores and unifies them.
+            if(ManagedCpus.Count == 1)
+            {
+                return Cpu.GDBFeatures;
+            }
+
+            // if unifiedFeatures contains any feature, it means that features were compiled and cached
+            if(unifiedFeatures.Any())
+            {
+                return unifiedFeatures;
+            }
+
+            var features = new Dictionary<string, List<GBDFeatureDescriptor>>();
+            foreach(var cpu in ManagedCpus.Values)
+            {
+                foreach(var feature in cpu.GDBFeatures)
+                {
+                    if(!features.ContainsKey(feature.Name))
+                    {
+                        features.Add(feature.Name, new List<GBDFeatureDescriptor>());
+                    }
+                    features[feature.Name].Add(feature);
+                }
+            }
+
+            foreach(var featureVariations in features.Values)
+            {
+                unifiedFeatures.Add(UnifyFeature(featureVariations));
+            }
+
+            return unifiedFeatures;
+        }
+
         public Machine Machine { get; private set; }
         public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
         public bool ShouldAutoStart { get; set; }
@@ -110,6 +147,75 @@ namespace Antmicro.Renode.Utilities.GDB
             get
             {
                 return ManagedCpus[selectedCpuNumber];
+            }
+        }
+
+        private static GBDFeatureDescriptor UnifyFeature(List<GBDFeatureDescriptor> featureVariations)
+        {
+            // This function unifies variations of a feature by taking the widest registers of matching name then adds taken register's type.
+            var unifiedFeature = new GBDFeatureDescriptor(featureVariations.First().Name);
+            var registers = new Dictionary<string, Tuple<GBDRegisterDescriptor, List<GDBCustomType>>>();
+            var types = new Dictionary<string, Tuple<GDBCustomType, uint>>();
+            foreach(var feature in featureVariations)
+            {
+                foreach(var register in feature.Registers)
+                {
+                    if(!registers.ContainsKey(register.Name))
+                    {
+                        registers.Add(register.Name, Tuple.Create(register, feature.Types));
+                    }
+                    else if(register.Size > registers[register.Name].Item1.Size)
+                    {
+                        registers[register.Name] = Tuple.Create(register, feature.Types);
+                    }
+                }
+            }
+            foreach(var pair in registers.Values.OrderByDescending(elem => elem.Item1.Size))
+            {
+                unifiedFeature.Registers.Add(pair.Item1);
+                AddFeatureTypes(ref types, pair.Item1.Type, pair.Item1.Size, pair.Item2);
+            }
+            foreach(var type in types.Values)
+            {
+                unifiedFeature.Types.Add(type.Item1);
+            }
+            return unifiedFeature;
+        }
+
+        private static void AddFeatureTypes(ref Dictionary<string, Tuple<GDBCustomType, uint>> types, string id, uint width, List<GDBCustomType> source)
+        {
+            if(types.TryGetValue(id, out var hit))
+            {
+                if(hit.Item2 != width)
+                {
+                    Logger.Log(LogLevel.Warning, string.Format("Found type \"{0}\" defined for multiple register widths ({1} and {2}). Reported target description may be erroneous.", id, hit.Item2, width));
+                }
+                return;
+            }
+
+            var index = source.FindIndex(element => element.Attributes["id"] == id);
+            if(index == -1)
+            {
+                // If type description is not found, assume it's a built-in type.
+                return;
+            }
+
+            var type = source[index];
+            foreach(var field in type.Fields)
+            {
+                if(field.TryGetValue("type", out var fieldType) && !types.ContainsKey(fieldType))
+                {
+                    AddFeatureTypes(ref types, fieldType, width, source);
+                }
+            }
+            types.Add(id, Tuple.Create(type, width));
+        }
+
+        private void InvalidateCompiledFeatures()
+        {
+            if(unifiedFeatures.Any())
+            {
+                unifiedFeatures.RemoveAll(_ => true);
             }
         }
 
@@ -137,6 +243,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<Command> activeCommands;
+        private readonly List<GBDFeatureDescriptor> unifiedFeatures = new List<GBDFeatureDescriptor>();
 
         private uint selectedCpuNumber;
 

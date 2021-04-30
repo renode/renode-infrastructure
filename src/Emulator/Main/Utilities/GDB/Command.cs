@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -133,6 +134,19 @@ namespace Antmicro.Renode.Utilities.GDB
                 accesses.Add(new MemoryFragment(translatedAddress, length));
             }
             return true;
+        }
+
+        protected void ExpandRegisterValue(ref StringBuilder data, int start, int end, int register)
+        {
+            // register may have been reported with bigger Width, fill with zeros up to reported size
+            var isLittleEndian = manager.Cpu.Endianness == Endianess.LittleEndian;
+            var width = (end - start) * 4;
+            var reportedRegisters = manager.GetCompiledFeatures().SelectMany(f => f.Registers)
+                .Where(r => r.Number == register);
+            if(reportedRegisters.Any() && reportedRegisters.First().Size > width)
+            {
+                data.Insert(isLittleEndian ? end : start, "00", ((int)reportedRegisters.First().Size - width) / 8);
+            }
         }
 
         protected readonly CommandsManager manager;
