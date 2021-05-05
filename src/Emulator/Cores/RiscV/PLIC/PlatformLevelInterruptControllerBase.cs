@@ -20,10 +20,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 {
     public abstract class PlatformLevelInterruptControllerBase : IPlatformLevelInterruptController, IDoubleWordPeripheral, IIRQController, INumberedGPIOOutput
     {
-        public PlatformLevelInterruptControllerBase(int numberOfSources, int numberOfContexts, bool prioritiesEnabled)
+        public PlatformLevelInterruptControllerBase(int numberOfSources, int numberOfContexts, bool prioritiesEnabled, uint extraInterrupts = 0)
         {
             var connections = new Dictionary<int, IGPIO>();
-            for(var i = 0; i < numberOfContexts; i++)
+            for(var i = 0; i < numberOfContexts + extraInterrupts; i++)
             {
                 connections[i] = new GPIO();
             }
