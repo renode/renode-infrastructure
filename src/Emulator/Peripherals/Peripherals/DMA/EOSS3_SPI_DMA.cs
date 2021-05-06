@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class EOSS3_SPI_DMA : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public EOSS3_SPI_DMA(Machine machine, EOSS3_SPIMaster spi) : base(machine, 1)
+        public EOSS3_SPI_DMA(Machine machine, DesignWare_SPI spi) : base(machine, 1)
         {
             this.spi = spi;
             innerLock = new object();
@@ -66,13 +66,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                     var bytesToHandle = 0u;
                     switch(spi.FrameSize)
                     {
-                        case EOSS3_SPIMaster.TransferSize.SingleByte:
+                        case DesignWare_SPI.TransferSize.SingleByte:
                         {
                             bytesToHandle = 1;
                             break;
                         }
 
-                        case EOSS3_SPIMaster.TransferSize.DoubleByte:
+                        case DesignWare_SPI.TransferSize.DoubleByte:
                         {
                             bytesToHandle = 2;
                             break;
@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private IFlagRegisterField dmaDataAvailableEnable;
         private bool enabled;
 
-        private readonly EOSS3_SPIMaster spi;
+        private readonly DesignWare_SPI spi;
         private readonly object innerLock;
 
         private enum Registers

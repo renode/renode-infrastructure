@@ -316,7 +316,7 @@
     <Compile Include="Peripherals\GPIOPort\CC2538_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_SoC_Controller.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_SoC_Controller_CSR32.cs" />
-    <Compile Include="Peripherals\SPI\EOSS3_SPIMaster.cs" />
+    <Compile Include="Peripherals\SPI\DesignWare_SPI.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_MMCM.cs" />
     <Compile Include="Peripherals\Analog\EOSS3_ADC.cs" />
     <Compile Include="Peripherals\DMA\EOSS3_SPI_DMA.cs" />

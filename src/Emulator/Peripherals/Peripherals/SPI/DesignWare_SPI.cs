@@ -16,9 +16,9 @@ using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class EOSS3_SPIMaster: SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
+    public class DesignWare_SPI: SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public EOSS3_SPIMaster(Machine machine, uint transmitDepth, uint receiveDepth) : base(machine)
+        public DesignWare_SPI(Machine machine, uint transmitDepth, uint receiveDepth) : base(machine)
         {
             transmitBuffer = new Queue<ushort>();
             receiveBuffer = new Queue<ushort>();
