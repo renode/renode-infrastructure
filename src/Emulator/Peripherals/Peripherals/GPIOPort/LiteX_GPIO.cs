@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -9,17 +9,29 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class LiteX_GPIO : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_GPIO(Machine machine, Type type) : base(machine, 32)
+        public LiteX_GPIO(Machine machine, Type type, bool enableIrq = false) : base(machine, NumberOfPins)
         {
             this.type = type;
+            this.enableIrq = enableIrq;
+
+            if(type == Type.Out && enableIrq)
+            {
+                throw new ConstructionException("Out GPIO does not support interrupts");
+            }
+
+            IRQ = new GPIO();
+
+            previousState = new bool[NumberOfPins];
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
-            DefineRegisters();
+            Size = DefineRegisters();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -36,40 +48,169 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             base.Reset();
             RegistersCollection.Reset();
+
+            for(var i = 0; i < previousState.Length; i++)
+            {
+                previousState[i] = false;
+            }
+
+            IRQ.Unset();
         }
 
-        public long Size => type == Type.InOut ? 0x8 : 0x4;
+        public GPIO IRQ { get; }
 
-        public DoubleWordRegisterCollection RegistersCollection { get; private set; }
+        public long Size { get; }
 
-        private void DefineRegisters()
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public override void OnGPIO(int number, bool value)
         {
+            if(!CheckPinNumber(number))
+            {
+                return;
+            }
+
+            base.OnGPIO(number, value);
+
+            if(!enableIrq)
+            {
+                // irq support is not enabled
+                return;
+            }
+
+            if(State[number] == previousState[number])
+            {
+                // nothing to do
+                return;
+            }
+
+            previousState[number] = State[number];
+            
+            if(irqMode[number].Value == IrqMode.Edge)
+            {
+                if(irqEdge[number].Value == IrqEdge.Rising)
+                {
+                    if(State[number])
+                    {
+                        irqPending[number].Value = true;
+                        UpdateInterrupts();
+                    }
+                }
+                else // it must be Falling
+                {
+                    if(!State[number])
+                    {
+                        irqPending[number].Value = true;
+                        UpdateInterrupts();
+                    }
+                }
+            }
+            else // it must be Change
+            {
+                irqPending[number].Value = true;
+                UpdateInterrupts();
+            }
+        }
+
+        private int DefineRegisters()
+        {
+            var offset = 0;
             if(type != Type.Out)
             {
-                Registers.Control1.Define(this)
-                    .WithValueField(0, 32, FieldMode.Read, name: "In",
-                        valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
-                ;
+                offset += DefineInRegisters(offset);
             }
 
             if(type != Type.In)
             {
-                (type == Type.Out ? Registers.Control1 : Registers.Control2).Define(this)
-                    .WithValueField(0, 32, name: "Out",
-                        writeCallback: (_, val) =>
-                        {
-                            var bits = BitHelper.GetBits(val);
-                            for(var i = 0; i < 32; i++)
-                            {
-                                Connections[i].Set(bits[i]);
-                            }
-                        },
-                        valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Where(x => x.Key >= 0).OrderBy(x => x.Key).Select(x => x.Value.IsSet)))
-                ;
+                offset += DefineOutRegisters(offset);
             }
+
+            return offset;
+        }
+
+        private int DefineInRegisters(long offset)
+        {
+            ((Registers)offset).Define(this)
+                .WithValueField(0, NumberOfPins, FieldMode.Read, name: "In",
+                    valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
+            ;
+
+            if(enableIrq)
+            {
+                ((Registers)offset + 0x4).Define(this)
+                    .WithEnumFields<DoubleWordRegister, IrqMode>(0, 1, NumberOfPins, out irqMode, name: "IRQ mode")
+                ;
+
+                ((Registers)offset + 0x8).Define(this)
+                    .WithEnumFields<DoubleWordRegister, IrqEdge>(0, 1, NumberOfPins, out irqEdge, name: "IRQ edge")
+                ;
+
+                // status - return 0s for now
+                ((Registers)offset + 0xc).Define(this)
+                    .WithFlags(0, NumberOfPins, FieldMode.Read, name: "IRQ status")
+                ;
+
+                ((Registers)offset + 0x10).Define(this)
+                    .WithFlags(0, NumberOfPins, out irqPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "IRQ pending")
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
+                ;
+
+                ((Registers)offset + 0x14).Define(this)
+                    .WithFlags(0, NumberOfPins, out irqEnable, name: "IRQ enable")
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
+                ;
+
+                return 0x18; 
+            }
+
+            return 0x4;
+        }
+
+        private int DefineOutRegisters(long offset)
+        {
+            ((Registers)offset).Define(this)
+                .WithValueField(0, NumberOfPins, name: "Out",
+                    writeCallback: (_, val) =>
+                    {
+                        var bits = BitHelper.GetBits(val);
+                        for(var i = 0; i < bits.Length; i++)
+                        {
+                            Connections[i].Set(bits[i]);
+                        }
+                    },
+                    valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Where(x => x.Key >= 0).OrderBy(x => x.Key).Select(x => x.Value.IsSet)))
+            ;
+
+            return 0x4;
+        }
+
+        private void UpdateInterrupts()
+        {
+            var flag = false;
+            for(var i = 0; i < NumberOfPins; i++)
+            {
+                flag |= irqEnable[i].Value && irqPending[i].Value;
+            }
+
+            if(IRQ.IsSet != flag)
+            {
+                this.Log(LogLevel.Debug, "Setting IRQ to {0}", flag);
+            }
+            IRQ.Set(flag);
         }
 
         private readonly Type type;
+        private readonly bool enableIrq;
+
+        private IEnumRegisterField<IrqEdge>[] irqEdge;
+        private IEnumRegisterField<IrqMode>[] irqMode;
+
+        private IFlagRegisterField[] irqPending;
+        private IFlagRegisterField[] irqEnable;
+
+        private readonly bool[] previousState;
+
+        private const int NumberOfPins = 32;
 
         public enum Type
         {
@@ -78,10 +219,29 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             InOut
         }
 
+        private enum IrqMode
+        {
+            Edge = 0,
+            Change = 1
+        }
+
+        private enum IrqEdge
+        {
+            Rising = 0,
+            Falling = 1
+        }
+
         private enum Registers
         {
-            Control1 = 0x0,
-            Control2 = 0x4
+            Register1 = 0x0,
+            Register2 = 0x4,
+            Register3 = 0x8,
+            Register4 = 0xc,
+            Register5 = 0x10,
+            Register6 = 0x14,
+            Register7 = 0x18,
+            // the actual layout of registers
+            // depends on the model configuration
         }
     }
 }
