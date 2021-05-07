@@ -43,10 +43,10 @@ namespace Antmicro.Renode.HostInterfaces.Camera
         public byte[] GrabFrame()
         {
             var frame = VideoCapturer.GrabSingleFrame();
-            if(ForcedScaleDownFactor != -1 || Quality != -1)
+            if(ForcedScaleDownFactor != -1 || Quality != -1 || cropToSize != null)
             {
                 var decompressed = DecompressJpgToRaw(frame);
-                frame = CompressRawToJpeg(decompressed.Data, decompressed.Width, decompressed.Height, ForcedScaleDownFactor, Quality);
+                frame = CompressRawToJpeg(decompressed.Data, decompressed.Width, decompressed.Height, ForcedScaleDownFactor, Quality, cropToSize);
             }
 
             lastFrame = frame;
@@ -97,7 +97,24 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 
         public void SetImageSize(int width, int height)
         {
-            VideoCapturer.SetImageSize(width, height);
+            var result = VideoCapturer.SetImageSize(width, height);
+            if(result == null)
+            {
+                throw new RecoverableException("There was an error when setting image size. See log for details");
+            }
+
+            if(result.Item1 != width || result.Item2 != height)
+            {
+                // image returned from the video capturer will not match the expected size precisely,
+                // so we'll need to recompress and crop it manually
+                cropToSize = Tuple.Create(width, height);
+            }
+            else
+            {
+                // image returned from the video capturer will be of the expected size,
+                // so there is no need for manual cropping
+                cropToSize = null;
+            }
         }
 
         public int Quality { get; set; } = -1;
@@ -153,7 +170,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 
         // the algorithm flow is based on:
         // https://bitmiracle.github.io/libjpeg.net/help/articles/KB/compression-details.html
-        private static byte[] CompressRawToJpeg(byte[] input, int width, int height, int scale, int quality)
+        private static byte[] CompressRawToJpeg(byte[] input, int width, int height, int scale, int quality, Tuple<int, int> crop)
         {
             jpeg_error_mgr errorManager = new jpeg_error_mgr();
             jpeg_compress_struct cinfo = new jpeg_compress_struct(errorManager);
@@ -161,13 +178,33 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             var memoryStream = new MemoryStream();
             cinfo.jpeg_stdio_dest(memoryStream);
 
+            var widthToSkip = 0;
+            var widthToSkipFront = 0;
+            var widthToSkipBack = 0;
+
+            if(crop != null && width > crop.Item1)
+            {
+                widthToSkip = (width - crop.Item1);
+                widthToSkipFront = widthToSkip / 2;
+                widthToSkipBack = widthToSkip - widthToSkipFront; // to handle odd 'widthToSkip' values
+            }
+
+            var heightToSkip = 0;
+            var heightToSkipTop = 0;
+
+            if(crop != null && height > crop.Item2)
+            {
+                heightToSkip = (height - crop.Item2);
+                heightToSkipTop = heightToSkip / 2;
+            }
+
             if(scale == -1)
             {
                 scale = 1;
             }
 
-            cinfo.Image_width = width / scale;
-            cinfo.Image_height = height / scale;
+            cinfo.Image_width = (width - widthToSkip) / scale;
+            cinfo.Image_height = (height - heightToSkip) / scale;
             cinfo.Input_components = 3;
             cinfo.In_color_space = J_COLOR_SPACE.JCS_RGB;
             cinfo.jpeg_set_defaults();
@@ -183,10 +220,13 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             byte[][] rowData = new byte[1][]; // single row
             rowData[0] = new byte[row_stride];
 
-            int inputOffset = 0;
+            int inputOffset = heightToSkipTop * width;
 
             while(cinfo.Next_scanline < cinfo.Image_height)
             {
+                // crop pixels at the beginning of the line
+                inputOffset += 3 * widthToSkipFront;
+
                 for(int i = 0; i < rowData[0].Length; i += 3)
                 {
                     rowData[0][i] = input[inputOffset];
@@ -195,6 +235,11 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 
                     inputOffset += 3 * scale;
                 }
+
+                // crop pixels at the end of the line
+                inputOffset += 3 * widthToSkipBack;
+
+                // drop some lines due to scaling
                 inputOffset += 3 * (scale - 1) * width;
 
                 cinfo.jpeg_write_scanlines(rowData, 1);
@@ -208,6 +253,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
         }
 
         private byte[] lastFrame;
+        private Tuple<int, int> cropToSize;
 
         private readonly string device;
 
