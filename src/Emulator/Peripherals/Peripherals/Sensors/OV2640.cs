@@ -74,9 +74,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public OutputFormat Format => outputFormat.Value;
-        public ResolutionMode Resolution => resolution.Value;
 
         public ByteRegisterCollection RegistersCollection => sensorRegisterBankSelected ? sensorRegisters : dspRegisters;
+
+        public uint OutputWidth
+        {
+            get
+            {
+                return ((zoomOutputWidthHigh.Value << 8) + zoomOutputWidthLow.Value) * 4;
+            }
+        }
+
+        public uint OutputHeight
+        {
+            get
+            {
+                return ((zoomOutputHeightHigh.Value << 8) + zoomOutputHeightLow.Value) * 4;
+            }
+        }
 
         private void Write(byte b)
         {
@@ -115,6 +130,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithReservedBits(5, 1)
                 .WithTag("Y8 enable for DVP", 6, 1)
                 .WithReservedBits(7, 1)
+            ;
+
+            DSPRegister.ZoomOutputHeight.Define(dspRegisters)
+                .WithValueField(0, 8, out zoomOutputHeightLow, name: "OUTH[7:0] (real/4)")
+            ;
+
+            DSPRegister.ZoomOutputWidth.Define(dspRegisters)
+                .WithValueField(0, 8, out zoomOutputWidthLow, name: "OUTW[7:0] (real/4)")
+            ;
+
+            DSPRegister.ZoomOutputRest.Define(dspRegisters)
+                .WithValueField(0, 2, out zoomOutputWidthHigh, name: "OUTW[9:8] (real/4)")
+                .WithValueField(2, 1, out zoomOutputHeightHigh, name: "OUTH[8] (real/4)")
+                .WithReservedBits(3, 1)
+                .WithTag("ZMSPD (zoom speed)", 4, 3)
             ;
 
             DefineBankSelectRegister(dspRegisters);
@@ -172,6 +202,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool sensorRegisterBankSelected;
         private byte address;
 
+        private IValueRegisterField zoomOutputHeightHigh;
+        private IValueRegisterField zoomOutputHeightLow;
+
+        private IValueRegisterField zoomOutputWidthHigh;
+        private IValueRegisterField zoomOutputWidthLow;
+
         private IEnumRegisterField<OutputFormat> outputFormat;
         private IEnumRegisterField<ResolutionMode> resolution;
 
@@ -186,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Processing
         }
 
-        public enum ResolutionMode
+        private enum ResolutionMode
         {
             UXGA_1600_1200 = 0,
             CIF_352_288 = 2,
@@ -218,9 +254,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DPRP = 0x56,
             Test = 0x57,
 
-            ZMOW = 0x5A,
-            ZMOH = 0x5B,
-            ZMHH = 0x5C,
+            ZoomOutputWidth = 0x5A,
+            ZoomOutputHeight = 0x5B,
+            ZoomOutputRest = 0x5C,
 
             SDEIndirectRegisterAccess_Address = 0x7C,
             SDEIndirectRegisterAccess_Data = 0x7D,

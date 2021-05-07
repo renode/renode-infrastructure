@@ -198,25 +198,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     var ec = externalCamera;
                     if(ec != null)
                     {
-                        switch(sensor.Resolution)
-                        {
-                            case OV2640.ResolutionMode.UXGA_1600_1200:
-                                ec.SetImageSize(1600, 1200);
-                                break;
-
-                            case OV2640.ResolutionMode.CIF_352_288:
-                                ec.SetImageSize(352, 288);
-                                break;
-
-                            case OV2640.ResolutionMode.SVGA_800_600:
-                                ec.SetImageSize(800, 600);
-                                break;
-
-                            default:
-                                this.Log(LogLevel.Error, "Unupported resolution mode: {0}. Setting the CIF resolution (352x288)", sensor.Resolution);
-                                goto case OV2640.ResolutionMode.CIF_352_288;
-                        }
-
+                        ec.SetImageSize((int)sensor.OutputWidth, (int)sensor.OutputHeight);
                         imageData = ec.GrabFrame();
                     }
                     else if(preloadedImageData != null)
