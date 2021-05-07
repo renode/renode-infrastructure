@@ -11,17 +11,45 @@ namespace Antmicro.Renode.Utilities
 {
     public static class UartExtensions
     {
+        public enum LineEnding
+        {
+           None,
+           CR,
+           CRLF,
+           LF
+        }
+
         public static void WriteLine(this IUART uart, string text, bool appendCarriageReturn = true)
         {
-            const byte CarriageReturn = 0xD;
+           uart.WriteLine(text, appendCarriageReturn);
+        }
 
+        public static void WriteLine(this IUART uart, string text, LineEnding lineEnding = LineEnding.CR)
+        {
             foreach(var chr in text)
             {
                 uart.WriteChar((byte)chr);
             }
-            if(appendCarriageReturn)
+
+            WriteLineEnding(uart, lineEnding);
+        }
+
+        private static void WriteLineEnding(IUART uart, LineEnding lineEnding)
+        {
+            const byte CarriageReturn = 0xD;
+            const byte LineFeed = 0xA;
+
+            byte[] eol = new byte[] {};
+            switch (lineEnding)
             {
-                uart.WriteChar(CarriageReturn);
+               case LineEnding.CR:    eol = new byte[] {CarriageReturn};            break;
+               case LineEnding.CRLF:  eol = new byte[] {CarriageReturn, LineFeed};  break;
+               case LineEnding.LF:    eol = new byte[] {LineFeed};                  break;
+            };
+
+            foreach(var chr in eol)
+            {
+                uart.WriteChar(chr);
             }
         }
     }

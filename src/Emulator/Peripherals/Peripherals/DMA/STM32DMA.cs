@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public sealed class STM32DMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
+    public sealed class STM32DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
     {
         public STM32DMA(Machine machine)
         {
@@ -29,7 +29,14 @@ namespace Antmicro.Renode.Peripherals.DMA
             Reset();
         }
 
-        public IReadOnlyDictionary<int, IGPIO> Connections { get { var i = 0; return streams.ToDictionary(x => i++, y => (IGPIO)y.IRQ); } }
+        public IReadOnlyDictionary<int, IGPIO> Connections
+        {
+           get
+           {
+              var i = 0;
+              return streams.ToDictionary(x => i++, y => (IGPIO)y.IRQ);
+           }
+        }
 
         public long Size
         {
@@ -86,6 +93,22 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 stream.Reset();
             }
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+           if (value)
+           {
+              this.Log(LogLevel.Info, $"DMA Peripheral Request on Stream {number} {value}");
+              if (streams[number].IsEnabled())
+              {
+                 streams[number].DoPeripheralTransfer();
+              }
+              else
+              {
+                 this.Log(LogLevel.Info, $"DMA Peripheral Request on Stream {number} Ignored");
+              }
+           }
         }
 
         private uint HandleInterruptRead(int offset)
@@ -216,15 +239,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                 memory0Address = 0u;
                 memory1Address = 0u;
                 numberOfData = 0;
+                transferredSize = 0;
                 memoryTransferType = TransferType.Byte;
                 peripheralTransferType = TransferType.Byte;
                 memoryIncrementAddress = false;
                 peripheralIncrementAddress = false;
                 direction = Direction.PeripheralToMemory;
                 interruptOnComplete = false;
+                streamEnabled = false;
             }
 
-            private void DoTransfer()
+            private Request CreateRequest(int? size = null, int? destinationOffset = null)
             {
                 var sourceAddress = 0u;
                 var destinationAddress = 0u;
@@ -245,8 +270,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var destinationTransferType = direction == Direction.MemoryToPeripheral ? peripheralTransferType : memoryTransferType;
                 var incrementSourceAddress = direction == Direction.PeripheralToMemory ? peripheralIncrementAddress : memoryIncrementAddress;
                 var incrementDestinationAddress = direction == Direction.MemoryToPeripheral ? peripheralIncrementAddress : memoryIncrementAddress;
-                var request = new Request(sourceAddress, destinationAddress, numberOfData, sourceTransferType, destinationTransferType,
-                                  incrementSourceAddress, incrementDestinationAddress);
+                return new Request(sourceAddress, (uint)(destinationAddress + (destinationOffset ?? 0)), size ?? numberOfData, sourceTransferType, destinationTransferType,
+                        incrementSourceAddress, incrementDestinationAddress);
+            }
+
+            public void DoTransfer()
+            {
+                var request = CreateRequest();
                 if(request.Size > 0)
                 {
                     lock(parent.streamFinished)
@@ -259,6 +289,34 @@ namespace Antmicro.Renode.Peripherals.DMA
                         }
                     }
                 }
+            }
+
+            public void DoPeripheralTransfer()
+            {
+                var request = CreateRequest((int)memoryTransferType, transferredSize);
+                transferredSize += (int)memoryTransferType;
+                if(request.Size > 0)
+                {
+                    lock(parent.streamFinished)
+                    {
+                        parent.engine.IssueCopy(request);
+                        if (transferredSize == numberOfData)
+                        {
+                            transferredSize = 0;
+                            parent.streamFinished[streamNo] = true;
+                            streamEnabled = false;
+                            if(interruptOnComplete)
+                            {
+                                parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
+                            }
+                        }
+                    }
+                }
+            }
+
+            public bool IsEnabled()
+            {
+                return streamEnabled;
             }
 
             private uint HandleConfigurationRead()
@@ -294,9 +352,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     parent.Log(LogLevel.Warning, "Channel {0}: unsupported bits written to configuration register. Value is 0x{1:X}.", streamNo, value);
                 }
+
                 if((value & 1) != 0)
                 {
-                    DoTransfer();
+                    if (direction != Direction.PeripheralToMemory)
+                    {
+                        DoTransfer();
+                    }
+                    else
+                    {
+                        streamEnabled = true;
+                    }
                 }
             }
 
@@ -335,6 +401,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private uint memory1Address;
             private uint peripheralAddress;
             private int numberOfData;
+            private int transferredSize;
             private TransferType memoryTransferType;
             private TransferType peripheralTransferType;
             private bool memoryIncrementAddress;
@@ -343,6 +410,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private bool interruptOnComplete;
             private byte channel;
             private byte priority;
+            private bool streamEnabled;
 
             private readonly STM32DMA parent;
             private readonly int streamNo;
