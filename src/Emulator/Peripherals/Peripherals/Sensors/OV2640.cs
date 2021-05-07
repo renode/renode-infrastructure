@@ -107,17 +107,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void DefineDSPRegisters()
         {
-            DSPRegister.RegisterBankSelect.Define(dspRegisters)
-                .WithFlag(0, name: "Register bank select",
-                    valueProviderCallback: _ => sensorRegisterBankSelected,
-                    writeCallback: (_, val) =>
-                    {
-                        sensorRegisterBankSelected = val;
-                        parent.NoisyLog("OV2640: Register bank selected: {0}", sensorRegisterBankSelected ? "sensor" : "DSP");
-                    })
-                .WithReservedBits(1, 7)
-            ;
-
             DSPRegister.ImageMode.Define(dspRegisters)
                 .WithTag("Byte swap enable for DVP", 0, 1)
                 .WithTag("HREF timing select in DVP JPEG output mode", 1, 1)
@@ -127,6 +116,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTag("Y8 enable for DVP", 6, 1)
                 .WithReservedBits(7, 1)
             ;
+
+            DefineBankSelectRegister(dspRegisters);
         }
 
         private void DefineSensorRegisters()
@@ -148,6 +139,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     parent.NoisyLog("OV2640: Initiating system reset");
                     Reset(); 
                 })
+            ;
+
+            DefineBankSelectRegister(sensorRegisters);
+        }
+
+        private void DefineBankSelectRegister(ByteRegisterCollection registers)
+        {
+            // this register is the same for both banks
+            // so there is no difference which enum we use
+            DSPRegister.RegisterBankSelect.Define(registers)
+                .WithFlag(0, name: "Register bank select",
+                    valueProviderCallback: _ => sensorRegisterBankSelected,
+                    writeCallback: (_, val) =>
+                    {
+                        sensorRegisterBankSelected = val;
+                        parent.NoisyLog("OV2640: Register bank selected: {0}", sensorRegisterBankSelected ? "sensor" : "DSP");
+                    })
+                .WithReservedBits(1, 7)
             ;
         }
 
@@ -310,6 +319,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             HISTO_LOW = 0x61,
             HISTO_HIGH = 0x62,
+
+            RegisterBankSelect = 0xFF
         }
     }
 }
