@@ -43,7 +43,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
         public byte[] GrabFrame()
         {
             var frame = VideoCapturer.GrabSingleFrame();
-            if(ForcedScaleDownFactor != -1 || Quality != -1 || cropToSize != null)
+            if(ForcedScaleDownFactor != 1 || Quality != -1 || cropToSize != null)
             {
                 var decompressed = DecompressJpgToRaw(frame);
                 frame = CompressRawToJpeg(decompressed.Data, decompressed.Width, decompressed.Height, ForcedScaleDownFactor, Quality, cropToSize);
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 
         public int Quality { get; set; } = -1;
 
-        public int ForcedScaleDownFactor { get; set; } = -1;
+        public int ForcedScaleDownFactor { get; set; } = 1;
 
         [PostDeserialization]
         private void InitCamera()
@@ -196,11 +196,6 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             {
                 heightToSkip = (height - crop.Item2);
                 heightToSkipTop = heightToSkip / 2;
-            }
-
-            if(scale == -1)
-            {
-                scale = 1;
             }
 
             cinfo.Image_width = (width - widthToSkip) / scale;
