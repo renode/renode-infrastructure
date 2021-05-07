@@ -106,14 +106,14 @@ namespace Antmicro.Renode
 #endif
         }
 
-        public static bool SetImageSize(int width, int height)
+        public static Tuple<int, int> SetImageSize(int width, int height)
         {
 #if !PLATFORM_LINUX
             throw new RecoverableException("Video capture is supported on Linux only!");
 #else
             if(!FreeBuffer())
             {
-                return false;
+                return null;
             }
 
             var fmt = Marshal.AllocHGlobal(V4L2_FORMAT_SIZE);
@@ -131,14 +131,22 @@ namespace Antmicro.Renode
 
             var result = DoIoctl(IoctlCode.VIDIOC_S_FMT, fmt);
 
+            var finalWidth = Marshal.ReadInt32(fmt, 0x8);
+            var finalHeight = Marshal.ReadInt32(fmt, 0xc);
+
             Marshal.FreeHGlobal(fmt);
 
             if(!result)
             {
-                return false;
+                return null;
             }
 
-            return RequestBuffer();
+            if(!RequestBuffer())
+            {
+                return null;
+            }
+
+            return Tuple.Create(finalWidth, finalHeight);
 #endif
         }
 
