@@ -222,7 +222,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
                 // crop pixels at the beginning of the line
                 inputOffset += 3 * widthToSkipFront;
 
-                for(int i = 0; i < rowData[0].Length; i += 3)
+                for(int i = 0; i < rowData[0].Length - 2; i += 3)
                 {
                     rowData[0][i] = input[inputOffset];
                     rowData[0][i + 1] = input[inputOffset + 1];
