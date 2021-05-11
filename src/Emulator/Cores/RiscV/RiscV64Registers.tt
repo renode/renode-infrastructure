@@ -11,6 +11,9 @@
 <#
     CLASS_NAME = "RiscV64";
     HEADER_FILE = "Emulator/Cores/tlib/arch/riscv/cpu_registers.h";
+    FALLBACK_SET_REGISTER = "TrySetCustomCSR";
+    FALLBACK_GET_REGISTER = "TryGetCustomCSR";
+    FALLBACK_REGISTERS = "GetCustomCSRs";
 
     DEFINES.Add("TARGET_RISCV64");
 

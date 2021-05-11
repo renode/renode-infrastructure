@@ -21,6 +21,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((RiscV32Registers)register, out var r))
             {
+                if(TrySetCustomCSR(register, value))
+                {
+                    return;
+                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
             if(r.IsReadonly)
@@ -35,15 +39,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((RiscV32Registers)register, out var r))
             {
+                if(TryGetCustomCSR(register, out var value))
+                {
+                    return value;
+                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-
             return GetRegisterValue32(r.Index);
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return mapping.Values.OrderBy(x => x.Index);
+            return mapping.Values.Concat(GetCustomCSRs()).OrderBy(x => x.Index);
         }
 
         [Register]

@@ -273,6 +273,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.GetExceptionDescription(exceptionIndex);
         }
 
+        protected bool TrySetCustomCSR(int register, ulong value)
+        {
+            if(HasCSR((ulong)register) == 0)
+            {
+                return false;
+            }
+            WriteCSR((ulong)register, value);
+            return true;
+        }
+
+        protected bool TryGetCustomCSR(int register, out ulong value)
+        {
+            value = default(ulong);
+            if(HasCSR((ulong)register) == 0)
+            {
+                return false;
+            }
+            value = ReadCSR((ulong)register);
+            return true;
+        }
+
+        protected IEnumerable<CPURegister> GetCustomCSRs()
+        {
+            return nonstandardCSR.Keys.Select(index => new CPURegister((int)index, MostSignificantBit + 1, false, false));
+        }
+
         private bool IsInterrupt(ulong exceptionIndex)
         {
             return BitHelper.IsBitSet(exceptionIndex, MostSignificantBit);
