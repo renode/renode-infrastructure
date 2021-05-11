@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -75,6 +75,17 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {
+<#
+    if(FALLBACK_SET_REGISTER != null)
+    {
+#>
+                if(<#=FALLBACK_SET_REGISTER#>(register, value))
+                {
+                    return;
+                }
+<# 
+    }
+#>
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 <#
@@ -123,9 +134,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {
+<#
+    if(FALLBACK_GET_REGISTER != null)
+    {
+#>
+                if(<#=FALLBACK_GET_REGISTER#>(register, out var value))
+                {
+                    return value;
+                }
+<# 
+    }
+#>
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-
 <#
     if(widths.Length == 1)
     {
@@ -158,7 +179,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
+<#
+    if(FALLBACK_REGISTERS != null)
+    {
+#>
+            return mapping.Values.Concat(<#=FALLBACK_REGISTERS#>()).OrderBy(x => x.Index);
+<#
+    }
+    else
+    {
+#>
             return mapping.Values.OrderBy(x => x.Index);
+<#
+    }
+#>
         }
 
 <#
