@@ -190,7 +190,7 @@ namespace Antmicro.Renode
         {
             if(!bufferAllocated)
             {
-                return false;
+                return true;
             }
 
             loggingParent.Log(LogLevel.Debug, "Freeing video IO buffer...");
