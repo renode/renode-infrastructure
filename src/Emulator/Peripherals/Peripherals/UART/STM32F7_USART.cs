@@ -17,10 +17,11 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)] 
     public sealed class STM32F7_USART : BasicDoubleWordPeripheral, IKnownSize, IUART
     {
-        public STM32F7_USART(Machine machine) : base(machine)
+        public STM32F7_USART(Machine machine, uint frequency) : base(machine)
         {
             IRQ = new GPIO();
             receiveQueue = new Queue<byte>();
+            this.frequency = frequency;
             DefineRegisters();
         }
 
@@ -43,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public uint BaudRate => ApbClock / baudRateDivisor.Value;
+        public uint BaudRate => frequency / baudRateDivisor.Value;
         
         public Bits StopBits
         {
@@ -264,8 +265,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField stopBits;
 
         private readonly Queue<byte> receiveQueue;
-
-        private const uint ApbClock = 200000000;
+        private readonly uint frequency;
 
         private enum Register
         {
