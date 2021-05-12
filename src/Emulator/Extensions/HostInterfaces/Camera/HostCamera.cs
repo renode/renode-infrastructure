@@ -117,8 +117,12 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             }
         }
 
+        // this is to manually override the quality;
+        // can be used to reduce the size of the returned JPEG image
         public int Quality { get; set; } = -1;
 
+        // this is to manually scale the image down;
+        // can be used to reduce the size of the returned JPEG image
         public int ForcedScaleDownFactor { get; set; } = 1;
 
         [PostDeserialization]
