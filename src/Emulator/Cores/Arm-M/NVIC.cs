@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -98,7 +98,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.CPUID:
                 return CPUID;
             case Registers.CoprocessorAccessControl:
-                return CPACR;
+                return cpu.CPACR;
+            case Registers.FPContextControl:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Tried to read FPContextControl from an unprivileged context. Returning 0.");
+                    return 0;
+                }
+                return cpu.FPCCR;
+            case Registers.FPContextAddress:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Tried to read FPContextAddress from an unprivileged context. Returning 0.");
+                    return 0;
+                }
+                return cpu.FPCAR;
+            case Registers.FPDefaultStatusControl:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Tried to read FPDefaultStatusControl from an unprivileged context. Returning 0.");
+                    return 0;
+                }
+                return cpu.FPDSCR;
             case Registers.InterruptControlState:
                 lock(irqs)
                 {
@@ -250,11 +271,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.DebugLog("Write to SHCS register. This is not yet implemented. Value written was 0x{0:X}.", value);
                 break;
             case Registers.CoprocessorAccessControl:
-                // if CP10 and CP11 both are set to full access (0b11) - turn on FPU
-                if ((value & 0xF00000) == 0xF00000) {
+                // for ARM v8 and CP10 values:
+                //      0b11 Full access to the FP Extension and MVE
+                //      0b01 Privileged access only to the FP Extension and MVE
+                //      0b00 No access to the FP Extension and MVE
+                //      0b10 Reserved
+                // Any attempted use without access generates a NOCP UsageFault.
+                // same for ARM v7, but if values of CP11 and CP10 differ then effects are unpredictable
+                cpu.CPACR = value;
+                // Enable FPU if any access is permitted, privilege checks in tlib use CPACR register.
+                if((value & 0x100000) == 0x100000)
+                {
                     this.DebugLog("Enabling FPU.");
                     cpu.FpuEnabled = true;
-                } else {
+                }
+                else
+                {
                     this.DebugLog("Disabling FPU.");
                     cpu.FpuEnabled = false;
                 }
@@ -269,6 +301,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     this.Log(LogLevel.Error, "Software Trigger Interrupt Register not implemented for {0}", cpu.Model);
                 }
+                break;
+            case Registers.FPContextControl:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Writing to FPContextControl requires privileged access.");
+                    break;
+                }
+                cpu.FPCCR = value;
+                break;
+            case Registers.FPContextAddress:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Writing to FPContextAddress requires privileged access.");
+                    break;
+                }
+                // address must be 8-byte aligned
+                cpu.FPCAR = value & ~0x3u;
+                break;
+            case Registers.FPDefaultStatusControl:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Writing to FPDefaultStatusControl requires privileged access.");
+                    break;
+                }
+                // set only not reserved values
+                cpu.FPDSCR = value & 0x07c00000;
                 break;
             default:
                 this.LogUnhandledWrite(offset, value);
@@ -602,6 +660,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Pending) != 0));
         }
 
+        private bool IsPrivilegedMode()
+        {
+            // Is in handler mode or is privileged
+            return (cpu.XProgramStatusRegister & InterruptProgramStatusRegisterMask) != 0 || (cpu.Control & 1) == 0;
+        }
+
         private bool primask;
         public bool PRIMASK
         {
@@ -668,9 +732,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             CoprocessorAccessControl = 0xD88,
             MPUType = 0xD90,
             SoftwareTriggerInterruptRegister = 0xF00,
+            FPContextControl = 0xF34,
+            FPContextAddress = 0xF38,
+            FPDefaultStatusControl = 0xF3C,
         }
-
-        private uint CPACR = 0x0;
 
         private bool countFlag;
         private byte priorityMask;
@@ -703,6 +768,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
         private const uint DeepSleep           = 0x4;
+
+        private const uint InterruptProgramStatusRegisterMask = 0x1FF;
     }
 }
 

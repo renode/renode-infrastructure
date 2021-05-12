@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -109,6 +109,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 tlibToggleFpu(value ? 1 : 0);
+            }
+        }
+
+        public uint XProgramStatusRegister
+        {
+            get
+            {
+                return tlibGetXpsr();
             }
         }
 
@@ -224,6 +232,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 tlibSetInterruptVectorBase;
+
+        [Import]
+        private FuncUInt32 tlibGetXpsr;
 
         #pragma warning restore 649
     }

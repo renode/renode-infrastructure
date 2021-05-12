@@ -102,6 +102,54 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.OtherSP, value);
             }
         }
+        [Register]
+        public RegisterValue FPCCR
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.FPCCR);
+            }
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.FPCCR, value);
+            }
+        }
+        [Register]
+        public RegisterValue FPCAR
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.FPCAR);
+            }
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.FPCAR, value);
+            }
+        }
+        [Register]
+        public RegisterValue FPDSCR
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.FPDSCR);
+            }
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.FPDSCR, value);
+            }
+        }
+        [Register]
+        public RegisterValue CPACR
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.CPACR);
+            }
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.CPACR, value);
+            }
+        }
 
         protected override void InitializeRegisters()
         {
@@ -131,7 +179,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             { CortexMRegisters.VecBase,  new CPURegister(20, 32, isGeneral: false, isReadonly: false) },
             { CortexMRegisters.CurrentSP,  new CPURegister(21, 32, isGeneral: false, isReadonly: false) },
             { CortexMRegisters.OtherSP,  new CPURegister(22, 32, isGeneral: false, isReadonly: false) },
+            { CortexMRegisters.FPCCR,  new CPURegister(23, 32, isGeneral: false, isReadonly: false) },
+            { CortexMRegisters.FPCAR,  new CPURegister(24, 32, isGeneral: false, isReadonly: false) },
             { CortexMRegisters.CPSR,  new CPURegister(25, 32, isGeneral: false, isReadonly: false) },
+            { CortexMRegisters.FPDSCR,  new CPURegister(26, 32, isGeneral: false, isReadonly: false) },
+            { CortexMRegisters.CPACR,  new CPURegister(27, 32, isGeneral: false, isReadonly: false) },
         };
     }
 
@@ -146,6 +198,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         VecBase = 20,
         CurrentSP = 21,
         OtherSP = 22,
+        FPCCR = 23,
+        FPCAR = 24,
+        FPDSCR = 26,
+        CPACR = 27,
         R0 = 0,
         R1 = 1,
         R2 = 2,
