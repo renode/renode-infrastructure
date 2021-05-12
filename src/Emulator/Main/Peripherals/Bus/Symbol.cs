@@ -264,7 +264,7 @@ namespace Antmicro.Renode.Core
             {
                 return symbolName;
             }
-            var substringIndex = result.IndexOf('(');
+            var substringIndex = result.LastIndexOf('(');
             if(substringIndex != -1)
             {
                 result = result.Substring(0, substringIndex);

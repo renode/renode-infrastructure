@@ -97,14 +97,15 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
                 new Symbol(0,0, "_Z1hic"),
                 new Symbol(0,0, "?h@@YAXHD@Z" ),
                 new Symbol(0,0, "_ZN4Test6Ne$ted12staticMemberE3abc" ),
-                new Symbol(0,0, "_ZNSt8ios_base4InitC1Ev@plt")
-                
+                new Symbol(0,0, "_ZNSt8ios_base4InitC1Ev@plt"),
+                new Symbol(0,0, "_ZN6tflite12_GLOBAL__N_14EvalEP13TfLiteContextP10TfLiteNode")
             };
             Assert.AreEqual("cl::pl::cons::complete object constructor", symbol[0].Name);
             Assert.AreEqual("h", symbol[1].Name);
             Assert.AreEqual("?h@@YAXHD@Z", symbol[2].Name);
             Assert.AreEqual("Test::Ne$ted::staticMember", symbol[3].Name);
             Assert.AreEqual("std::ios_base::Init::complete object constructor", symbol[4].Name);
+            Assert.AreEqual("tflite::(anonymous namespace)::Eval", symbol[5].Name);
         }
     }
 }
