@@ -130,44 +130,46 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private int DefineInRegisters(long offset)
         {
+            var size = 0;
+
             ((Registers)offset).Define(this)
                 .WithValueField(0, NumberOfPins, FieldMode.Read, name: "In",
-                    valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
-            ;
+                    valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State));
+            size += 0x4;
 
             if(enableIrq)
             {
                 ((Registers)offset + 0x4).Define(this)
-                    .WithEnumFields<DoubleWordRegister, IrqMode>(0, 1, NumberOfPins, out irqMode, name: "IRQ mode")
-                ;
+                    .WithEnumFields<DoubleWordRegister, IrqMode>(0, 1, NumberOfPins, out irqMode, name: "IRQ mode");
+                size += 0x4;
 
                 ((Registers)offset + 0x8).Define(this)
-                    .WithEnumFields<DoubleWordRegister, IrqEdge>(0, 1, NumberOfPins, out irqEdge, name: "IRQ edge")
-                ;
+                    .WithEnumFields<DoubleWordRegister, IrqEdge>(0, 1, NumberOfPins, out irqEdge, name: "IRQ edge");
+                size += 0x4;
 
                 // status - return 0s for now
                 ((Registers)offset + 0xc).Define(this)
-                    .WithFlags(0, NumberOfPins, FieldMode.Read, name: "IRQ status")
-                ;
+                    .WithFlags(0, NumberOfPins, FieldMode.Read, name: "IRQ status");
+                size += 0x4;
 
                 ((Registers)offset + 0x10).Define(this)
                     .WithFlags(0, NumberOfPins, out irqPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "IRQ pending")
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+                    .WithWriteCallback((_, __) => UpdateInterrupts());
+                size += 0x4;
 
                 ((Registers)offset + 0x14).Define(this)
                     .WithFlags(0, NumberOfPins, out irqEnable, name: "IRQ enable")
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
-
-                return 0x18; 
+                    .WithWriteCallback((_, __) => UpdateInterrupts());
+                size += 0x4;
             }
 
-            return 0x4;
+            return size;
         }
 
         private int DefineOutRegisters(long offset)
         {
+            var size = 0;
+
             ((Registers)offset).Define(this)
                 .WithValueField(0, NumberOfPins, name: "Out",
                     writeCallback: (_, val) =>
@@ -178,10 +180,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             Connections[i].Set(bits[i]);
                         }
                     },
-                    valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Where(x => x.Key >= 0).OrderBy(x => x.Key).Select(x => x.Value.IsSet)))
-            ;
+                    valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Where(x => x.Key >= 0).OrderBy(x => x.Key).Select(x => x.Value.IsSet)));
+            size += 0x4;
 
-            return 0x4;
+            return size;
         }
 
         private void UpdateInterrupts()
