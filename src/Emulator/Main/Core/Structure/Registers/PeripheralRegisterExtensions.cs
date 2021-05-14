@@ -56,6 +56,29 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for creation of a set of consecutive vaule fields
+        /// </summary>
+        /// <param name="position">Offset in the register of the first field.</param>
+        /// <param name="width">Maximum width of the value, in terms of binary representation.</param>
+        /// <param name="count">Number of flag fields to create.</param>
+        /// <param name="mode">Access modifiers of each field.</param>
+        /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the index of the value field, the second is the value of this field before read,
+        /// the third parameter is the value after read. Note that it will also be called for unreadable fields.</param>
+        /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the index of the field, the second is the value of this field before write,
+        /// the third parameter is the value written (without any modification). Note that it will also be called for unwrittable fields.</param>
+        /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the index of the field, the second is the value of this field before change,
+        /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
+        /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
+        /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
+        /// <returns>This register with defined value fields.</returns>
+        public static T WithValueFields<T>(this T register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint, uint> readCallback = null,
+            Action<int, uint, uint> writeCallback = null, Action<int, uint, uint> changeCallback = null, Func<int, uint, uint> valueProviderCallback = null, string name = null) where T: PeripheralRegister
+        {
+            return WithValueFields(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+        }
+
+        /// <summary>
         /// Fluent API for enum field creation. For parameters see <see cref="PeripheralRegister.DefineEnumField"/>.
         /// </summary>
         /// <returns>This register with a defined enum field.</returns>
@@ -96,6 +119,29 @@ namespace Antmicro.Renode.Core.Structure.Registers
             Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, string name = null) where T : PeripheralRegister
         {
             valueField = register.DefineValueField(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for creation of set of value fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithValueFields"/>.
+        /// This overload allows you to retrieve the created array of fields via <c>valueFields</c> parameter.
+        /// </summary>
+        /// <returns>This register with defined value fields.</returns>
+        public static T WithValueFields<T>(this T register, int position, int width, int count, out IValueRegisterField[] valueFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint, uint> readCallback = null,
+            Action<int, uint, uint> writeCallback = null, Action<int, uint, uint> changeCallback = null, Func<int, uint, uint> valueProviderCallback = null, string name = null) where T: PeripheralRegister
+        {
+            valueFields = new IValueRegisterField[count];
+            for(var i = 0; i < count; i++)
+            {
+                var j = i;
+
+                valueFields[j] = register.DefineValueField(position + (j * width), width, mode,
+                    readCallback == null ? null : (Action<uint, uint>)((x, y) => readCallback(j, x, y)),
+                    writeCallback == null ? null : (Action<uint, uint>)((x, y) => writeCallback(j, x, y)),
+                    changeCallback == null ? null : (Action<uint, uint>)((x, y) => changeCallback(j, x, y)),
+                    valueProviderCallback == null ? null : (Func<uint, uint>)((x) => valueProviderCallback(j, x)),
+                    name == null ? null : $"{name}_{j}");
+            }
             return register;
         }
 
