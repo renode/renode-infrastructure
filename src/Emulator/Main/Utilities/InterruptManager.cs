@@ -161,6 +161,32 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public TRegister GetInterruptEnableSetRegister<TRegister>() where TRegister : PeripheralRegister
+        {
+            var result = CreateRegister<TRegister>();
+            foreach(TInterrupt interruptType in Enum.GetValues(typeof(TInterrupt)))
+            {
+                var local = interruptType;
+                result.DefineFlagField((int)(object)interruptType, name: interruptType.ToString(),
+                                       valueProviderCallback: _ => IsEnabled(local),
+                                       writeCallback: (_, v) => { if(v) EnableInterrupt(local, true); });
+            }
+            return result;
+        }
+
+        public TRegister GetInterruptEnableClearRegister<TRegister>() where TRegister : PeripheralRegister
+        {
+            var result = CreateRegister<TRegister>();
+            foreach(TInterrupt interruptType in Enum.GetValues(typeof(TInterrupt)))
+            {
+                var local = interruptType;
+                result.DefineFlagField((int)(object)interruptType, name: interruptType.ToString(),
+                                       valueProviderCallback: _ => IsEnabled(local),
+                                       writeCallback: (_, v) => { if(!v) EnableInterrupt(local, false); });
+            }
+            return result;
+        }
+
         public TRegister GetInterruptEnableRegister<TRegister>() where TRegister : PeripheralRegister
         {
             var result = CreateRegister<TRegister>();
