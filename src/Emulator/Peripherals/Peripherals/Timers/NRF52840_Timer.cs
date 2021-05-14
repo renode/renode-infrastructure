@@ -1,18 +1,18 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class NRF52840_Timer : BasicDoubleWordPeripheral, IKnownSize
+    public class NRF52840_Timer : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
         public NRF52840_Timer(Machine machine) : base(machine)
         {
@@ -22,13 +22,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             eventCompareInterruptEnabled = new IFlagRegisterField[NumberOfEvents];
 
             innerTimers = new ComparingTimer[NumberOfEvents];
-            for(var i = 0; i < innerTimers.Length; i++)
+            for(var i = 0u; i < innerTimers.Length; i++)
             {
                 var j = i;
                 innerTimers[j] = new ComparingTimer(machine.ClockSource, InitialFrequency, this, $"compare{j}", eventEnabled: true);
                 innerTimers[j].CompareReached += () =>
                 {
                     eventCompareEnabled[j].Value = true;
+                    EventTriggered?.Invoke((uint)Register.Compare0EventPending + 0x4u * j);
                     UpdateInterrupts();
                 };
             }
@@ -52,6 +53,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x1000;
 
+
+        public event Action<uint> EventTriggered;
+
         private void DefineRegisters()
         {
             Register.Start.Define(this)
@@ -59,9 +63,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(value)
                     {
-                        foreach(var timer in innerTimers)
+                        timerRunning = true;
+                        if(isInCounterMode.Value == 0)
                         {
-                            timer.Enabled = true;
+                            foreach(var timer in innerTimers)
+                            {
+                                timer.Enabled = true;
+                            }
                         }
                     }
                 })
@@ -73,9 +81,55 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(value)
                     {
+                        timerRunning = false;
                         foreach(var timer in innerTimers)
                         {
                             timer.Enabled = false;
+                        }
+                    }
+                })
+                .WithReservedBits(1, 31)
+            ;
+
+            Register.Count.Define(this)
+                .WithFlag(0, FieldMode.Write, name: "TASK_COUNT", writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        if(!timerRunning)
+                        {
+                            this.Log(LogLevel.Warning, "Triggered TASK_COUNT before issuing TASK_START, ignoring...");
+                            return;
+                        }
+                        if(isInCounterMode.Value == 0)
+                        {
+                            this.Log(LogLevel.Warning, "Triggered TASK_COUNT in TIMER mode, ignoring...");
+                            return;
+                        }
+                        var i = 0;
+                        foreach(var timer in innerTimers)
+                        {
+                            timer.Value++;
+                            if(timer.Compare == timer.Value)
+                            {
+                                eventCompareEnabled[i].Value = true;
+                                UpdateInterrupts();
+                            }
+                            i++;
+                        }
+                    }
+                })
+                .WithReservedBits(1, 31)
+            ;
+
+            Register.Clear.Define(this)
+                .WithFlag(0, FieldMode.Write, name: "TASK_CLEAR", writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        foreach(var timer in innerTimers)
+                        {
+                            timer.Value = 0;
                         }
                     }
                 })
@@ -132,6 +186,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 })
             ;
 
+            Register.Mode.Define(this)
+                .WithValueField(0, 2, out isInCounterMode, name: "MODE", changeCallback: (_, value) =>
+                {
+                    // 0 means "timer mode", 1 is "counter (deprecated)", 2 is "low power counter"
+                    if(value > 0 && innerTimers[0].Enabled)
+                    {
+                        this.Log(LogLevel.Error, "Switching timer to COUNTER mode while the timer is running");
+                    }
+                })
+            ;
+
             Register.Prescaler.Define(this)
                 .WithValueField(0, 4, out prescaler, name: "PRESCALER", writeCallback: (_, value) =>
                 {
@@ -179,6 +244,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField[] eventCompareEnabled;
         private IFlagRegisterField[] eventCompareInterruptEnabled;
         private IValueRegisterField prescaler;
+        private IValueRegisterField isInCounterMode;
+        private bool timerRunning;
 
         private readonly ComparingTimer[] innerTimers;
 

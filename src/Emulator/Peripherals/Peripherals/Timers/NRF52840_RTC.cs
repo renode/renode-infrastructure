@@ -4,14 +4,16 @@
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class NRF52840_RTC : IDoubleWordPeripheral, IKnownSize
+    public class NRF52840_RTC : IDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
         public NRF52840_RTC(Machine machine)
         {
@@ -21,13 +23,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             eventCompareInterruptEnabled= new IFlagRegisterField[NumberOfEvents];
 
             innerTimers = new ComparingTimer[NumberOfEvents];
-            for(var i = 0; i < innerTimers.Length; i++)
+            for(var i = 0u; i < innerTimers.Length; i++)
             {
                 var j = i;
                 innerTimers[i] = new ComparingTimer(machine.ClockSource, InitialFrequency, this, $"compare{i}", eventEnabled: true);
                 innerTimers[i].CompareReached += () =>
                 {
                     eventCompareEnabled[j].Value = true;
+                    EventTriggered?.Invoke((uint)Register.Compare0EventPending + j * 4);
                     UpdateInterrupts();
                 };
             }
@@ -58,6 +61,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         private void DefineRegisters()
         {
@@ -110,21 +115,21 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(1, 31)
                 },
                 {(long)Register.Compare1EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[1], name: "EVENTS_COMPARE[0]", writeCallback: (_,__) =>
+                    .WithFlag(0, out eventCompareEnabled[1], name: "EVENTS_COMPARE[1]", writeCallback: (_,__) =>
                     {
                         UpdateInterrupts();
                     })
                     .WithReservedBits(1, 31)
                 },
                 {(long)Register.Compare2EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[2], name: "EVENTS_COMPARE[0]", writeCallback: (_,__) =>
+                    .WithFlag(0, out eventCompareEnabled[2], name: "EVENTS_COMPARE[2]", writeCallback: (_,__) =>
                     {
                         UpdateInterrupts();
                     })
                     .WithReservedBits(1, 31)
                 },
                 {(long)Register.Compare3EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[3], name: "EVENTS_COMPARE[0]", writeCallback: (_,__) =>
+                    .WithFlag(0, out eventCompareEnabled[3], name: "EVENTS_COMPARE[3]", writeCallback: (_,__) =>
                     {
                         UpdateInterrupts();
                     })
@@ -252,6 +257,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private const int NumberOfEvents = 4;
         private const int InitialFrequency = 32768;
+
 
         private enum Register : long
         {
