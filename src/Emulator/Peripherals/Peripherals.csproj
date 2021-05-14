@@ -143,6 +143,7 @@
     <Compile Include="Peripherals\I2C\VybridI2C.cs" />
     <Compile Include="Peripherals\I2C\OpenCoresI2C.cs" />
     <Compile Include="Peripherals\Wireless\EmberRadio.cs" />
+    <Compile Include="Peripherals\Wireless\NRF52840_Radio.cs" />
     <Compile Include="Peripherals\USBDeprecated\ISP1761.cs" />
     <Compile Include="Peripherals\Timers\PL031.cs" />
     <Compile Include="Peripherals\USBDeprecated\IUSBHubBase.cs" />
@@ -343,6 +344,8 @@
     <Compile Include="Peripherals\ATAPI\CDROM.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32F4_RCC.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_CLOCK.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NRF52840_PPI.cs" />
+    <Compile Include="Peripherals\Miscellaneous\INRFEventProvider.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_RTC.cs" />
     <Compile Include="Peripherals\GPIOPort\LPC43xx_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SevenSegmentsDisplay.cs" />
