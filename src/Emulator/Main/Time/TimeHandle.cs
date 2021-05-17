@@ -343,6 +343,7 @@ namespace Antmicro.Renode.Time
                 Monitor.PulseAll(innerLock);
                 this.Trace();
             }
+            ReportedBack?.Invoke();
         }
 
         /// <summary>
@@ -376,6 +377,7 @@ namespace Antmicro.Renode.Time
                 Monitor.PulseAll(innerLock);
                 this.Trace();
             }
+            ReportedBack?.Invoke();
         }
 
         /// <summary>
@@ -749,6 +751,11 @@ namespace Antmicro.Renode.Time
         /// Informs the sink that the source is about to (re)start its execution, so it should start the dispatcher thread and get ready for new grants.
         /// </summary>
         public event Action StartRequested;
+
+        /// <summary>
+        /// Call when the sink calls ReportBackAndContinue or ReportBackAndBreak.
+        /// </summary>
+        public event Action ReportedBack;
 
         [Antmicro.Migrant.Hooks.PreSerialization]
         private void VerifyStateBeforeSerialization()
