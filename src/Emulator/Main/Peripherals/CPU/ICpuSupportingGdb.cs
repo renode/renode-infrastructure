@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -197,6 +198,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null);
         ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType);
 
+        TimeHandle TimeHandle { get; }
         string GDBArchitecture { get; }
         List<GBDFeatureDescriptor> GDBFeatures { get; }
         bool DebuggerConnected { get; set; }
