@@ -722,6 +722,22 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Is set by the source, indicates whether the sink has used all of the time interval available to the source.
+        /// </summary>
+        public bool IsDone
+        {
+            get
+            {
+                return isDone;
+            }
+
+            set
+            {
+                isDone = value;
+            }
+        }
+
+        /// <summary>
         /// Informs the sink that the source wants to pause its execution.
         /// </summary>
         /// <remarks>
@@ -781,6 +797,7 @@ namespace Antmicro.Renode.Time
         private bool deferredUnlatch;
         private bool recentlyUnblocked;
         private bool delayGrant;
+        private volatile bool isDone;
 
         private readonly object innerLock;
 

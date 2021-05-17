@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -72,6 +72,7 @@ namespace Antmicro.Renode.Time
             lock(locker)
             {
                 (handle.IsReadyForNewTimeGrant ? ready : notReady).AddLast(handle);
+                handle.IsDone = handle.IsReadyForNewTimeGrant;
             }
         }
 
@@ -93,11 +94,13 @@ namespace Antmicro.Renode.Time
                 {
                     ready.Remove(handle);
                     notReady.AddLast(handle);
+                    handle.Value.IsDone = false;
                 }
                 else
                 {
                     notReady.Remove(handle);
                     ready.AddLast(handle);
+                    handle.Value.IsDone = true;
                 }
             }
         }
