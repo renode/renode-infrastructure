@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -273,7 +273,8 @@ namespace Antmicro.Renode.Time
                 {
                     // wait until a new time interval is granted or this handle is disabled/deactivated
                     innerLock.WaitWhile(() => !grantPending && Enabled && SourceSideActive, "Waiting for a time grant");
-                    result = grantPending;
+                    result = grantPending && !delayGrant;
+                    delayGrant = false;
                 }
 
                 if(!result)
@@ -702,6 +703,25 @@ namespace Antmicro.Renode.Time
         public bool DeferredEnabled { get; set; }
 
         /// <summary>
+        /// Delay time grant to sink by one call to <see cref="RequestTimeInterval"> when waiting for a time grant from source.
+        /// </summary>
+        public bool DelayGrant
+        {
+            get
+            {
+                return delayGrant;
+            }
+
+            set
+            {
+                lock(innerLock)
+                {
+                    delayGrant = value;
+                }
+            }
+        }
+
+        /// <summary>
         /// Informs the sink that the source wants to pause its execution.
         /// </summary>
         /// <remarks>
@@ -760,6 +780,7 @@ namespace Antmicro.Renode.Time
         private int latchLevel;
         private bool deferredUnlatch;
         private bool recentlyUnblocked;
+        private bool delayGrant;
 
         private readonly object innerLock;
 
