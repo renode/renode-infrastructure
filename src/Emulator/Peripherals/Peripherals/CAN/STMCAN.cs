@@ -56,7 +56,6 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public void OnFrameReceived(CANMessageFrame message)
         {
-            this.Log(LogLevel.Warning, "TODO: Received data of id {0}", message.Id);
             if(registers.CAN_MCR.SleepRequest == true)
             {
                 // Wake up if autowake up is on
@@ -76,7 +75,12 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     if(FilterCANMessage(fifo, RxMsg) == true)
                     {
+                        this.Log(LogLevel.Debug, "Message received RIR={0:X}", message.Id);
                         ReceiveCANMessage(RxMsg);
+                    }
+                    else
+                    {
+                       this.Log(LogLevel.Debug, "Message dropped by filter RIR={0:X}", message.Id);
                     }
                 }
             }
@@ -321,7 +325,11 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 if(FrameSent != null)
                 {
-                    FrameSent(new CANMessageFrame(msg.CAN_RIR, new byte[msg.DLC]));
+                    // Message frame created with receive identifier register
+                    // value because filtering can be implemented on bits other
+                    // than just standard/extended identifier value, e.g. IDE
+                    // or RTR bit.
+                    FrameSent(new CANMessageFrame(msg.CAN_RIR, msg.Data));
                 }
                 else
                 {
@@ -1582,7 +1590,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 ExtractRIRRegister();
 
                 //this.TimeStamp = (Data[6] << 8) | Data[7];
-                this.DLC = (uint)Data.Length;
+                this.DLC = (uint)message.Data.Length;
                 GenerateRDTRRegister();
 
                 this.Data = message.Data;
@@ -1611,8 +1619,17 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public void GenerateDataRegisters()
             {
-                CAN_RHR = (uint)((Data[7] << 24) | (Data[6] << 16) | (Data[5] << 8) | Data[4]);
-                CAN_RLR = (uint)((Data[3] << 24) | (Data[2] << 16) | (Data[1] << 8) | Data[0]);
+                var l = Data.Length;
+                CAN_RLR = 0U;
+                CAN_RLR |= (uint)((l > 0) ? Data[0] << 0  : 0);
+                CAN_RLR |= (uint)((l > 1) ? Data[1] << 8  : 0);
+                CAN_RLR |= (uint)((l > 2) ? Data[2] << 16 : 0);
+                CAN_RLR |= (uint)((l > 3) ? Data[3] << 24 : 0);
+                CAN_RHR = 0U;
+                CAN_RHR |= (uint)((l > 4) ? Data[4] << 0  : 0);
+                CAN_RHR |= (uint)((l > 5) ? Data[5] << 8  : 0);
+                CAN_RHR |= (uint)((l > 6) ? Data[6] << 16 : 0);
+                CAN_RHR |= (uint)((l > 7) ? Data[7] << 24 : 0);
             }
 
             public void ExtractRegisters()
