@@ -30,15 +30,28 @@ namespace Antmicro.Renode.Peripherals.UART
                 this.Log(LogLevel.Warning, "Received a character, but the receiver is not enabled, dropping.");
                 return;
             }
-            receiveFifo.Enqueue(value);
-            readFifoNotEmpty.Value = true;
-            Update();
+            lock (receiveFifo)
+            {
+                receiveFifo.Enqueue(value);
+                readFifoNotEmpty = true;
+
+                machine.ClockSource.ExecuteInLock(() =>
+                {
+                    if (receiverNotEmptyInterruptEnabled.Value)
+                    {
+                        Update();
+                    }
+                });
+            }
         }
 
         public override void Reset()
         {
             base.Reset();
-            receiveFifo.Clear();
+            lock (receiveFifo)
+            {
+                receiveFifo.Clear();
+            }
         }
 
         public uint BaudRate
@@ -81,6 +94,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public GPIO IRQ { get; } = new GPIO();
 
+        [field: Transient]
         public event Action<byte> CharReceived;
 
         private void DefineRegisters()
@@ -91,7 +105,10 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("NF", 2)
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => false, name: "ORE") // we assume no receive overruns
                 .WithTaggedFlag("IDLE", 4)
-                .WithFlag(5, out readFifoNotEmpty, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RXNE") // as these two flags are WZTC, we cannot just calculate their results
+                .WithFlag(5, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RXNE", valueProviderCallback: _ =>
+                {
+                    return readFifoNotEmpty;
+                }) // as these two flags are WZTC, we cannot just calculate their results
                 .WithFlag(6, out transmissionComplete, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TC")
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "TXE") // we always assume "transmit data register empty"
                 .WithTaggedFlag("LBD", 8)
@@ -102,13 +119,16 @@ namespace Antmicro.Renode.Peripherals.UART
             Register.Data.Define(this, name: "USART_DR")
                 .WithValueField(0, 9, valueProviderCallback: _ =>
                     {
-                        uint value = 0;
-                        if(receiveFifo.Count > 0)
+                        byte value = 0;
+                        lock (receiveFifo)
                         {
-                            value = receiveFifo.Dequeue();
+                            if(receiveFifo.Count > 0)
+                            {
+                                value = receiveFifo.Dequeue();
+                                Update();
+                            }
+                            readFifoNotEmpty = receiveFifo.Count > 0;
                         }
-                        readFifoNotEmpty.Value = receiveFifo.Count > 0;
-                        Update();
                         return value;
                     }, writeCallback: (_, value) =>
                     {
@@ -164,11 +184,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void Update()
         {
-            IRQ.Set(
-                (receiverNotEmptyInterruptEnabled.Value && readFifoNotEmpty.Value) ||
-                (transmitDataRegisterEmptyInterruptEnabled.Value) || // TXE is assumed to be true
-                (transmissionCompleteInterruptEnabled.Value && transmissionComplete.Value)
-            );
+            machine.ClockSource.ExecuteInLock(() =>
+            {
+                IRQ.Set(
+                    (receiverNotEmptyInterruptEnabled.Value && readFifoNotEmpty) ||
+                    (transmitDataRegisterEmptyInterruptEnabled.Value) || // TXE is assumed to be true
+                    (transmissionCompleteInterruptEnabled.Value && transmissionComplete.Value)
+                );
+            });
         }
 
         private readonly uint frequency;
@@ -183,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField receiverNotEmptyInterruptEnabled;
         private IFlagRegisterField receiverEnabled;
         private IFlagRegisterField transmitterEnabled;
-        private IFlagRegisterField readFifoNotEmpty;
+        private bool readFifoNotEmpty = false;
         private IFlagRegisterField transmissionComplete;
         private IValueRegisterField dividerMantissa;
         private IValueRegisterField dividerFraction;

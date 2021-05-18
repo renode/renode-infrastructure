@@ -118,17 +118,17 @@ namespace Antmicro.Renode.Utilities
                     value = -1;
                 }
 
-                var dataReceived = DataReceived;
-                if(dataReceived != null)
-                {
-                    dataReceived(value);
-                }
-
                 if(value == -1)
                 {
                     Logger.LogAs(this, LogLevel.Debug, "Client disconnected, stream closed.");
                     writerCancellationToken.Cancel();
                     break;
+                }
+
+                var dataReceived = DataReceived;
+                if(dataReceived != null)
+                {
+                    dataReceived(value);
                 }
             }
         }
