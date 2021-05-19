@@ -215,9 +215,11 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
+                transferCompleteFlag.Value = false;
                 interruptsManager.SetInterrupt(Interrupt.TransmitBufferLevel);
-                interruptsManager.SetInterrupt(Interrupt.TransmitComplete);
                 TransmitCharacter(data);
+                transferCompleteFlag.Value = true;
+                interruptsManager.SetInterrupt(Interrupt.TransmitComplete);
             }
         }
 
