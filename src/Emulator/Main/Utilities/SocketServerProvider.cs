@@ -106,31 +106,26 @@ namespace Antmicro.Renode.Utilities
 
         private void ReaderThreadBody(Stream stream)
         {
-            while(true)
+            var value = 0;
+            while(value != -1)
             {
-                int value;
                 try
                 {
                     value = stream.ReadByte();
+                    if(value != -1)
+                    {
+                        DataReceived?.Invoke(value);
+                    }
                 }
                 catch(IOException)
                 {
                     value = -1;
-                }
-
-                var dataReceived = DataReceived;
-                if(dataReceived != null)
-                {
-                    dataReceived(value);
-                }
-
-                if(value == -1)
-                {
-                    Logger.LogAs(this, LogLevel.Debug, "Client disconnected, stream closed.");
-                    writerCancellationToken.Cancel();
                     break;
                 }
             }
+
+            Logger.LogAs(this, LogLevel.Debug, "Client disconnected, stream closed.");
+            writerCancellationToken.Cancel();
         }
 
         private void ListenerThreadBody()
