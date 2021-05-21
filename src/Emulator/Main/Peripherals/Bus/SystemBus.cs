@@ -619,19 +619,36 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public string FindSymbolAt(ulong offset)
         {
-            if(!pcCache.TryGetValue(offset, out var name))
+            if(!TryFindSymbolAt(offset, out var name, out var _))
             {
-                if(!Lookup.TryGetSymbolByAddress(offset, out var symbol))
+                return null;
+            }
+            return name;
+        }
+
+        public bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol)
+        {
+            if(!pcCache.TryGetValue(offset, out var entry))
+            {
+                if(!Lookup.TryGetSymbolByAddress(offset, out symbol))
                 {
+                    symbol = null;
                     name = null;
+                    return false;
                 }
                 else
                 {
                     name = symbol.ToStringRelative(offset);
                 }
-                pcCache.Add(offset, name);
+                pcCache.Add(offset, Tuple.Create(name, symbol));
             }
-            return name;
+            else
+            {
+                name = entry.Item1;
+                symbol = entry.Item2;
+            }
+
+            return true;
         }
 
         public void MapMemory(IMappedSegment segment, IBusPeripheral owner, bool relative = true)
@@ -1531,7 +1548,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private int unexpectedReads;
         private int unexpectedWrites;
 
-        private LRUCache<ulong, string> pcCache = new LRUCache<ulong, string>(10000);
+        private LRUCache<ulong, Tuple<string, Symbol>> pcCache = new LRUCache<ulong, Tuple<string, Symbol>>(10000);
 
         private struct PeripheralLookupResult
         {
