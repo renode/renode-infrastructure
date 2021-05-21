@@ -259,7 +259,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     cpu.FpuEnabled = false;
                 }
                 break;
-            case Registers.STIR:
+            case Registers.SoftwareTriggerInterruptRegister:
                 // This register is implemented only in ARMv7m and ARMv8m
                 if(cpu.Model == "cortex-m3" || cpu.Model == "cortex-m4" || cpu.Model == "cortex-m7")
                 {
@@ -267,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 else
                 {
-                    this.Log(LogLevel.Error, "STIR Register not implemented for {0}", cpu.Model);
+                    this.Log(LogLevel.Error, "Software Trigger Interrupt Register not implemented for {0}", cpu.Model);
                 }
                 break;
             default:
@@ -667,7 +667,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // FPU registers 0xD88 .. F3C
             CoprocessorAccessControl = 0xD88,
             MPUType = 0xD90,
-            STIR = 0xF00,
+            SoftwareTriggerInterruptRegister = 0xF00,
         }
 
         private uint CPACR = 0x0;
