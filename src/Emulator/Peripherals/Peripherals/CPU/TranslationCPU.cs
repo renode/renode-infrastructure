@@ -515,7 +515,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool DisableInterruptsWhileStepping { get; set; }
         public uint PerformanceInMips { get; set; }
 
-        public void LogFunctionNames(bool value, string spaceSeparatedPrefixes = "")
+        // this is just for easier usage in Monitor
+        public void LogFunctionNames(bool value, bool removeDuplicates = false)
+        {
+            LogFunctionNames(value, string.Empty, removeDuplicates);
+        }
+
+        public void LogFunctionNames(bool value, string spaceSeparatedPrefixes = "", bool removeDuplicates = false)
         {
             if(!value)
             {
@@ -527,9 +533,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             // using string builder here is due to performance reasons: test shows that string.Format is much slower
             var messageBuilder = new StringBuilder(256);
 
+            Symbol previousSymbol = null;
+
             SetInternalHookAtBlockBegin((pc, size) =>
             {
-                var name = Bus.FindSymbolAt(pc);
+                if(!Bus.TryFindSymbolAt(pc, out var name, out var symbol))
+                {
+                    return;
+                }
+
+                if(removeDuplicates && symbol == previousSymbol)
+                {
+                    return;
+                }
+                previousSymbol = symbol;
 
                 if(spaceSeparatedPrefixes != "" && (name == null || !prefixesAsArray.Any(name.StartsWith)))
                 {
