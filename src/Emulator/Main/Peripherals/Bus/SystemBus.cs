@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,6 +7,7 @@
 //
 using System;
 using System.Linq;
+using System.Globalization;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -584,53 +585,96 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.DebugLog("Binary loaded.");
         }
 
-        public void LoadHEX(string fileName)
+        public void LoadHEX(string fileName, IControllableCPU cpu = null)
         {
             string line;
             int lineNum = 1;
-            ulong targetAddr = 0;
-            var buffer = new byte[256];
+            ulong extendedTargetAddress = 0;
+            ulong minAddr = ulong.MaxValue;
+
+            if(cpu == null)
+            {
+                cpu = (IControllableCPU)GetCPUs().FirstOrDefault();
+            }
 
             try 
             {
                 this.DebugLog("Loading HEX {0}.", fileName);
-                System.IO.StreamReader file = new System.IO.StreamReader(fileName);
-                while((line = file.ReadLine()) != null)  
-                {  
-                    if (line.Length < 11)
-                    {
-                        throw new RecoverableException(string.Format("Line is too short error at line #{0}.", lineNum));
+                using(var file = new System.IO.StreamReader(fileName))
+                {
+                    while((line = file.ReadLine()) != null)  
+                    {  
+                        if(line.Length < 11)
+                        {
+                            throw new RecoverableException($"Line is too short error at line #{lineNum}.");
+                        }
+                        if(line[0] != ':'
+                            || !int.TryParse(line.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var length)
+                            || !ulong.TryParse(line.Substring(3, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var address)
+                            || !byte.TryParse(line.Substring(7, 2), NumberStyles.HexNumber,CultureInfo.InvariantCulture, out var type))
+                        {
+                            throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse header");
+                        }
+
+                        // this does not include the final CRC
+                        if(line.Length < 9 + length * 2)
+                        {
+                            throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Line too short");
+                        }
+
+                        switch((HexRecordType)type)
+                        {
+                            case HexRecordType.Data:
+                                var targetAddr = (extendedTargetAddress << 16) | address;
+                                var pos = 9;
+                                var buffer = new byte[length];
+                                for(var i = 0; i < length; i++, pos += 2)
+                                {
+                                    if(!byte.TryParse(line.Substring(pos, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out buffer[i]))
+                                    {
+                                        throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse bytes");
+                                    }
+                                }
+                                WriteBytes(buffer, targetAddr, length);
+                                minAddr = Math.Min(minAddr, targetAddr);
+                                this.DebugLog("Writing {0} bytes at 0x{1:X}", length, targetAddr);
+                                break;
+
+                            case HexRecordType.ExtendedLinearAddress:
+                                if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedTargetAddress))
+                                {
+                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse address");
+                                }
+                                break;
+
+                            case HexRecordType.StartLinearAddress:
+                                if(!ulong.TryParse(line.Substring(9, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingAddress))
+                                {
+                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse starting address");
+                                }
+
+                                if(cpu != null)
+                                {
+                                    this.Log(LogLevel.Debug, "Setting PC to 0x{0:X}", startingAddress);
+                                    cpu.PC = startingAddress;
+                                }
+                                break;
+
+                            default:
+                                this.Log(LogLevel.Warning, "Unexpected HEX record {0}: {1}", (HexRecordType)type, line);
+                                break;
+                        }
+                        lineNum++;
                     }
-                    if (line[0] != ':') 
-                    {
-                        throw new RecoverableException(string.Format("Parsing error at line #{0}.", lineNum));
-                    }
-                    int length = int.Parse(line.Substring(1,2),System.Globalization.NumberStyles.HexNumber);
-                    ulong address = ulong.Parse(line.Substring(3,4),System.Globalization.NumberStyles.HexNumber);
-                    byte type = byte.Parse(line.Substring(7,2),System.Globalization.NumberStyles.HexNumber);
-                    switch (type)
-                    {
-                        case 0x00 :
-                            targetAddr = (targetAddr & 0xFFFF0000) | address;
-                            int pos = 9;
-                            for (int i=0;i<length;i++,pos+=2)
-                            {
-                                buffer[i] = byte.Parse(line.Substring(pos,2),System.Globalization.NumberStyles.HexNumber);
-                            }
-                            WriteBytes(buffer, targetAddr, length);
-                            break;
-                        case 0x04 :
-                            targetAddr = ulong.Parse(line.Substring(9,4),System.Globalization.NumberStyles.HexNumber);
-                            targetAddr = targetAddr << 16;
-                            break;
-                    }
-                    lineNum++;
                 }
             }
-            catch (IOException e)
+            catch(IOException e)
             {
-                throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
+                throw new RecoverableException($"Exception while loading file {fileName}: {(e.Message)}");
             }
+
+            AddFingerprint(fileName);
+            UpdateLowestLoadedAddress(minAddr);
             this.DebugLog("HEX loaded.");
         }
 
@@ -1694,6 +1738,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly IMappedSegment wrappedSegment;
             private readonly ulong peripheralOffset;
             private readonly ulong usedSize;
+        }
+
+        private enum HexRecordType
+        {
+            Data = 0,
+            EndOfFile = 1,
+            ExtendedSegmentAddress = 2,
+            StartSegmentAddress = 3,
+            ExtendedLinearAddress = 4,
+            StartLinearAddress = 5
         }
     }
 }
