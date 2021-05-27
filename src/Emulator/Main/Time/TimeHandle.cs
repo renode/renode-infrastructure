@@ -381,6 +381,25 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Informs a time source that any available time is used.
+        /// </summary>
+        /// <remarks>
+        /// It is illegal to call this method if an interval is obtained, i.e. between calls to <see cref="RequestTimeInterval"> and <see cref="ReportBackAndContinue"> or <see cref="ReportBackAndBreak">.
+        /// </remarks>
+        public bool TrySkipToSyncPoint(out TimeInterval intervalSkipped)
+        {
+            lock(innerLock)
+            {
+                if(!RequestTimeInterval(out intervalSkipped))
+                {
+                    return false;
+                }
+                ReportBackAndContinue(TimeInterval.Empty);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Disables the handle and requests detaching it from <see cref="ITimeSource"/>.
         /// </summary>
         public void Dispose()
