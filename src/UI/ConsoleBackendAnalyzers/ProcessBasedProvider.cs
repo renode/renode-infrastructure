@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,7 +23,13 @@ namespace Antmicro.Renode.UI
             var ptyUnixStream = new PtyUnixStream();
             io = new StreamIOSource(ptyUnixStream);
 
-            var commandString = string.Format("screen {0}", ptyUnixStream.SlaveName);
+            if(!CheckScreenTool())
+            {
+                process = null;
+                return false;
+            }
+
+            var commandString = $"{ScreenTool} {(ptyUnixStream.SlaveName)}";
             process = CreateProcess(consoleName, commandString);
             if(!RunProcess(process))
             {
@@ -95,7 +101,22 @@ namespace Antmicro.Renode.UI
             return false;
         }
 
+        private bool CheckScreenTool()
+        {
+            var p = new Process();
+            p.StartInfo = new ProcessStartInfo(ScreenTool, "--help")
+            {
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                RedirectStandardInput = true,
+            };
+            return RunProcess(p);
+        }
+
         private Process process;
+
+        private const string ScreenTool = "screen";
     }
 }
 
