@@ -345,6 +345,7 @@
     <Compile Include="Peripherals\Miscellaneous\STM32F4_RCC.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_CLOCK.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_PPI.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NRF52840_RNG.cs" />
     <Compile Include="Peripherals\Miscellaneous\INRFEventProvider.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_RTC.cs" />
     <Compile Include="Peripherals\GPIOPort\LPC43xx_GPIO.cs" />
