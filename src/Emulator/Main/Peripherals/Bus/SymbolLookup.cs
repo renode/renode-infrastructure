@@ -519,7 +519,7 @@ namespace Antmicro.Renode.Core
                     oldSymbols.AddTail(symbolTail);
 #if DEBUG
                     DebugAssert.AssertFalse(
-                        newSymbols.Current.Overlaps(symbolTail),
+                        newSymbols.Current.Length > 0 && newSymbols.Current.Overlaps(symbolTail),
                         "New symbol overlaps with created tail! Old and new symbols should not overlap."
                     );
 #endif
