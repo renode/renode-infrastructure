@@ -7,6 +7,7 @@
 using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 
@@ -14,14 +15,18 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class NRF52840_Timer : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_Timer(Machine machine) : base(machine)
+        public NRF52840_Timer(Machine machine, int numberOfEvents) : base(machine)
         {
             IRQ = new GPIO();
 
-            eventCompareEnabled = new IFlagRegisterField[NumberOfEvents];
-            eventCompareInterruptEnabled = new IFlagRegisterField[NumberOfEvents];
+            if(numberOfEvents > MaxNumberOfEvents)
+            {
+                throw new ConstructionException($"Cannot create {nameof(NRF52840_Timer)} with {numberOfEvents} events (must be less than {MaxNumberOfEvents})");
+            }
+            this.numberOfEvents = numberOfEvents;
 
-            innerTimers = new ComparingTimer[NumberOfEvents];
+            this.eventCompareEnabled = new IFlagRegisterField[numberOfEvents];
+            innerTimers = new ComparingTimer[numberOfEvents];
             for(var i = 0u; i < innerTimers.Length; i++)
             {
                 var j = i;
@@ -136,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(1, 31)
             ;
 
-            Register.Capture0.DefineMany(this, NumberOfEvents, setup: (register, idx) =>
+            Register.Capture0.DefineMany(this, (uint)numberOfEvents, setup: (register, idx) =>
             {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_CAPTURE", writeCallback: (_,__) =>
@@ -146,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(1, 31);
             });
 
-            Register.Compare0EventPending.DefineMany(this, NumberOfEvents, setup: (register, idx) =>
+            Register.Compare0EventPending.DefineMany(this, (uint)numberOfEvents, setup: (register, idx) =>
             {
                 register
                     .WithFlag(0, out eventCompareEnabled[idx], name: $"EVENTS_COMPARE[{idx}]", writeCallback: (_,__) =>
@@ -158,13 +163,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Register.InterruptEnableSet.Define(this)
                 .WithReservedBits(0, 16)
-                .WithFlag(16, out eventCompareInterruptEnabled[0], FieldMode.Set | FieldMode.Read, name: "COMPARE[0]")
-                .WithFlag(17, out eventCompareInterruptEnabled[1], FieldMode.Set | FieldMode.Read, name: "COMPARE[1]")
-                .WithFlag(18, out eventCompareInterruptEnabled[2], FieldMode.Set | FieldMode.Read, name: "COMPARE[2]")
-                .WithFlag(19, out eventCompareInterruptEnabled[3], FieldMode.Set | FieldMode.Read, name: "COMPARE[3]")
-                .WithFlag(20, out eventCompareInterruptEnabled[4], FieldMode.Set | FieldMode.Read, name: "COMPARE[4]")
-                .WithFlag(21, out eventCompareInterruptEnabled[5], FieldMode.Set | FieldMode.Read, name: "COMPARE[5]")
-                .WithReservedBits(22, 10)
+                .WithFlags(16, numberOfEvents, out eventCompareInterruptEnabled, FieldMode.Set | FieldMode.Read, name: "COMPARE")
+                .WithReservedBits(22 - MaxNumberOfEvents + numberOfEvents, 10 + MaxNumberOfEvents - numberOfEvents)
                 .WithChangeCallback((_, __) =>
                 {
                     UpdateInterrupts();
@@ -173,13 +173,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Register.InterruptEnableClear.Define(this)
                 .WithReservedBits(0, 16)
-                .WithFlag(16, name: "COMPARE[0]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[0].Value = false; })
-                .WithFlag(17, name: "COMPARE[1]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[1].Value = false; })
-                .WithFlag(18, name: "COMPARE[2]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[2].Value = false; })
-                .WithFlag(19, name: "COMPARE[3]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[3].Value = false; })
-                .WithFlag(20, name: "COMPARE[4]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[4].Value = false; })
-                .WithFlag(21, name: "COMPARE[5]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[5].Value = false; })
-                .WithReservedBits(22, 10)
+                .WithFlags(16, numberOfEvents, name: "COMPARE", writeCallback: (i, _, value) => { if(value) eventCompareInterruptEnabled[i].Value = false; })
+                .WithReservedBits(22 - MaxNumberOfEvents + numberOfEvents, 10 + MaxNumberOfEvents - numberOfEvents)
                 .WithChangeCallback((_, __) =>
                 {
                     UpdateInterrupts();
@@ -208,7 +203,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(12, 20)
             ;
 
-            Register.Compare0.DefineMany(this, NumberOfEvents, setup: (register, idx) =>
+            Register.Compare0.DefineMany(this, (uint)numberOfEvents, setup: (register, idx) =>
             {
                 register
                     .WithValueField(0, 32, name: "CAPTURE_COMPARE", writeCallback: (_, value) =>
@@ -233,7 +228,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             var flag = false;
 
-            for(var i = 0; i < NumberOfEvents; i++)
+            for(var i = 0; i < numberOfEvents; i++)
             {
                 flag |= eventCompareInterruptEnabled[i].Value && eventCompareEnabled[i].Value;
             }
@@ -249,8 +244,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private readonly ComparingTimer[] innerTimers;
 
-        private const int NumberOfEvents = 6;
+        private readonly int numberOfEvents;
         private const int InitialFrequency = 16000000;
+        private const int MaxNumberOfEvents = 6;
 
         private enum Register : long
         {

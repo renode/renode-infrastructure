@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 
@@ -15,14 +16,19 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class NRF52840_RTC : IDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_RTC(Machine machine)
+        public NRF52840_RTC(Machine machine, int numberOfEvents)
         {
             IRQ = new GPIO();
 
-            eventCompareEnabled = new IFlagRegisterField[NumberOfEvents];
-            eventCompareInterruptEnabled= new IFlagRegisterField[NumberOfEvents];
+            if(numberOfEvents > MaxNumberOfEvents)
+            {
+                throw new ConstructionException($"Cannot create {nameof(NRF52840_Timer)} with {numberOfEvents} events (must be less than {MaxNumberOfEvents})");
+            }
+            this.numberOfEvents = numberOfEvents;
+            eventCompareEnabled = new IFlagRegisterField[numberOfEvents];
+            eventCompareInterruptEnabled= new IFlagRegisterField[numberOfEvents];
 
-            innerTimers = new ComparingTimer[NumberOfEvents];
+            innerTimers = new ComparingTimer[numberOfEvents];
             for(var i = 0u; i < innerTimers.Length; i++)
             {
                 var j = i;
@@ -107,42 +113,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                     .WithReservedBits(1, 31)
                 },
-                {(long)Register.Compare0EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[0], name: "EVENTS_COMPARE[0]", writeCallback: (_,__) =>
-                    {
-                        UpdateInterrupts();
-                    })
-                    .WithReservedBits(1, 31)
-                },
-                {(long)Register.Compare1EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[1], name: "EVENTS_COMPARE[1]", writeCallback: (_,__) =>
-                    {
-                        UpdateInterrupts();
-                    })
-                    .WithReservedBits(1, 31)
-                },
-                {(long)Register.Compare2EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[2], name: "EVENTS_COMPARE[2]", writeCallback: (_,__) =>
-                    {
-                        UpdateInterrupts();
-                    })
-                    .WithReservedBits(1, 31)
-                },
-                {(long)Register.Compare3EventPending, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventCompareEnabled[3], name: "EVENTS_COMPARE[3]", writeCallback: (_,__) =>
-                    {
-                        UpdateInterrupts();
-                    })
-                    .WithReservedBits(1, 31)
-                },
                 {(long)Register.InterruptEnableSet, new DoubleWordRegister(this)
                     .WithTaggedFlag("TICK", 0)
                     .WithTaggedFlag("OVRFLW", 1)
                     .WithReservedBits(2, 14)
-                    .WithFlag(16, out eventCompareInterruptEnabled[0], FieldMode.Set | FieldMode.Read, name: "COMPARE[0]")
-                    .WithFlag(17, out eventCompareInterruptEnabled[1], FieldMode.Set | FieldMode.Read, name: "COMPARE[1]")
-                    .WithFlag(18, out eventCompareInterruptEnabled[2], FieldMode.Set | FieldMode.Read, name: "COMPARE[2]")
-                    .WithFlag(19, out eventCompareInterruptEnabled[3], FieldMode.Set | FieldMode.Read, name: "COMPARE[3]")
+                    .WithFlags(16, numberOfEvents, out eventCompareInterruptEnabled, FieldMode.Set | FieldMode.Read, name: "COMPARE")
                     .WithChangeCallback((_, __) =>
                     {
                         UpdateInterrupts();
@@ -152,10 +127,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("TICK", 0)
                     .WithTaggedFlag("OVRFLW", 1)
                     .WithReservedBits(2, 14)
-                    .WithFlag(16, name: "COMPARE[0]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[0].Value = false; })
-                    .WithFlag(17, name: "COMPARE[1]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[1].Value = false; })
-                    .WithFlag(18, name: "COMPARE[2]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[2].Value = false; })
-                    .WithFlag(19, name: "COMPARE[3]", writeCallback: (_,value) => { if(value) eventCompareInterruptEnabled[3].Value = false; })
+                    .WithFlags(16, numberOfEvents, name: "COMPARE", writeCallback: (j, _, value) => { if(value) eventCompareInterruptEnabled[j].Value = false; })
+                    //missing register fields defined below
                     .WithChangeCallback((_, __) =>
                     {
                         UpdateInterrupts();
@@ -179,59 +152,36 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                     .WithReservedBits(12, 20)
                 },
-                {(long)Register.Compare0, new DoubleWordRegister(this)
-                    .WithValueField(0, 24, name: "COMPARE", writeCallback: (_, value) =>
-                    {
-                        eventCompareEnabled[0].Value = false;
-                        UpdateInterrupts();
-                        innerTimers[0].Compare = value;
-                    },
-                    valueProviderCallback: _ =>
-                    {
-                        return (uint)innerTimers[0].Compare;
-                    })
-                    .WithReservedBits(24, 8)
-                },
-                {(long)Register.Compare1, new DoubleWordRegister(this)
-                    .WithValueField(0, 24, name: "COMPARE", writeCallback: (_, value) =>
-                    {
-                        eventCompareEnabled[1].Value = false;
-                        UpdateInterrupts();
-                        innerTimers[1].Compare = value;
-                    },
-                    valueProviderCallback: _ =>
-                    {
-                        return (uint)innerTimers[1].Compare;
-                    })
-                    .WithReservedBits(24, 8)
-                },
-                {(long)Register.Compare2, new DoubleWordRegister(this)
-                    .WithValueField(0, 24, name: "COMPARE", writeCallback: (_, value) =>
-                    {
-                        eventCompareEnabled[2].Value = false;
-                        UpdateInterrupts();
-                        innerTimers[2].Compare = value;
-                    },
-                    valueProviderCallback: _ =>
-                    {
-                        return (uint)innerTimers[2].Compare;
-                    })
-                    .WithReservedBits(24, 8)
-                },
-                {(long)Register.Compare3, new DoubleWordRegister(this)
-                    .WithValueField(0, 24, name: "COMPARE", writeCallback: (_, value) =>
-                    {
-                        eventCompareEnabled[3].Value = false;
-                        UpdateInterrupts();
-                        innerTimers[3].Compare = value;
-                    },
-                    valueProviderCallback: _ =>
-                    {
-                        return (uint)innerTimers[3].Compare;
-                    })
-                    .WithReservedBits(24, 8)
-                }
             };
+
+            //TODO: mover to DefineMany
+            var i = 0;
+            for(i = 0; i < numberOfEvents; i++)
+            {
+                var j = i;
+                registersMap.Add((long)Register.Compare0 + j * 4, new DoubleWordRegister(this)
+                    .WithValueField(0, 24, name: $"COMPARE[{j}]", writeCallback: (_, value) =>
+                    {
+                        eventCompareEnabled[j].Value = false;
+                        UpdateInterrupts();
+                        innerTimers[j].Compare = value;
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        return (uint)innerTimers[j].Compare;
+                    })
+                    .WithReservedBits(24, 8)
+                );
+
+                registersMap.Add((long)Register.Compare0EventPending + j * 4, new DoubleWordRegister(this)
+                    .WithFlag(0, out eventCompareEnabled[j], name: $"EVENTS_COMPARE[{j}]", writeCallback: (_,__) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                    .WithReservedBits(1, 31)
+                );
+
+            }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
@@ -240,10 +190,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             var flag = false;
 
-            flag |= eventCompareInterruptEnabled[0].Value && eventCompareEnabled[0].Value;
-            flag |= eventCompareInterruptEnabled[1].Value && eventCompareEnabled[1].Value;
-            flag |= eventCompareInterruptEnabled[2].Value && eventCompareEnabled[2].Value;
-            flag |= eventCompareInterruptEnabled[3].Value && eventCompareEnabled[3].Value;
+            for(var i = 0; i < numberOfEvents; i++)
+            {
+                flag |= eventCompareInterruptEnabled[i].Value && eventCompareEnabled[i].Value;
+            }
 
             IRQ.Set(flag);
         }
@@ -255,8 +205,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private readonly ComparingTimer[] innerTimers;
 
-        private const int NumberOfEvents = 4;
+        private readonly int numberOfEvents;
         private const int InitialFrequency = 32768;
+        private const int MaxNumberOfEvents = 4;
 
 
         private enum Register : long
