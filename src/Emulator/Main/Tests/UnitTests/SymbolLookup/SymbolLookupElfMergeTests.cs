@@ -274,6 +274,32 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
         }
 
         [Test]
+        public void ShouldSplitCake()
+        {
+            var symbols1 = new List<Symbol>
+            {
+                new Symbol(0, 5, "一"),
+                new Symbol(1, 4, "四"),
+            };
+            var symbols2 = new List<Symbol>
+            {
+                new Symbol(2, 2, "猫"),
+            };
+            var expectedSymbols = new List<Symbol> {
+                new Symbol(0, 2, "一"),
+                new Symbol(1, 2, "四"),
+                new Symbol(2, 2, "猫"),
+                new Symbol(2, 4, "四"),
+                new Symbol(2, 5, "一"),
+            };
+            var addressesToQuery = new List<uint>{0, 1, 2, 3, 4};
+            var lookup = new SymbolLookup();
+            lookup.InsertSymbols(symbols1);
+            lookup.InsertSymbols(symbols2);
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+        }
+
+        [Test]
         public void ShouldTrimAndOverShadowOnABase()
         {
             var symbols1 = new List<Symbol>
