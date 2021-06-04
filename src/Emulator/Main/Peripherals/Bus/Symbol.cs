@@ -47,6 +47,41 @@ namespace Antmicro.Renode.Core
             return new Symbol(originalSymbol);
         }
 
+        /// <summary>
+        /// Demangles the symbol name using the CxxDemangler library.
+        /// </summary>
+        /// <returns>Demangled symbol name.</returns>
+        public static string DemangleSymbol(string symbolName)
+        {
+            const int globalSymbolPrefixLength = 21;
+            if(string.IsNullOrEmpty(symbolName) || symbolName.Length < 2)
+            {
+                return symbolName;
+            }
+            //length check for the sake of Substring
+            if(symbolName.Length > globalSymbolPrefixLength && symbolName.StartsWith("_GLOBAL__sub_I", StringComparison.Ordinal))
+            {
+                return string.Format("static initializers for {0}", DemangleSymbol(symbolName.Substring(globalSymbolPrefixLength)));
+            }
+            if(symbolName.Substring(0, 2) != "_Z")
+            {
+                return symbolName;
+            }
+
+            var result = CxxDemangler.CxxDemangler.Demangle(symbolName);
+
+            if(result.Length == 0)
+            {
+                return symbolName;
+            }
+            var substringIndex = result.LastIndexOf('(');
+            if(substringIndex != -1)
+            {
+                result = result.Substring(0, substringIndex);
+            }
+            return result;
+        }
+
         public Symbol(SymbolAddress start, SymbolAddress end)
         {
             Start = start;
@@ -236,41 +271,6 @@ namespace Antmicro.Renode.Core
         public SymbolType Type { get; private set; }
         public SymbolBinding Binding { get; private set; }
         public bool IsThumbSymbol { get; private set; }
-
-        /// <summary>
-        /// Demangles the symbol name using the CxxDemangler library.
-        /// </summary>
-        /// <returns>Demangled symbol name.</returns>
-        private static string DemangleSymbol(string symbolName)
-        {
-            const int globalSymbolPrefixLength = 21;
-            if(string.IsNullOrEmpty(symbolName) || symbolName.Length < 2)
-            {
-                return symbolName;
-            }
-            //length check for the sake of Substring
-            if(symbolName.Length > globalSymbolPrefixLength && symbolName.StartsWith("_GLOBAL__sub_I", StringComparison.Ordinal))
-            {
-                return string.Format("static initializers for {0}", DemangleSymbol(symbolName.Substring(globalSymbolPrefixLength)));
-            }
-            if(symbolName.Substring(0, 2) != "_Z")
-            {
-                return symbolName;
-            }
-
-            var result = CxxDemangler.CxxDemangler.Demangle(symbolName);
-
-            if(result.Length == 0)
-            {
-                return symbolName;
-            }
-            var substringIndex = result.LastIndexOf('(');
-            if(substringIndex != -1)
-            {
-                result = result.Substring(0, substringIndex);
-            }
-            return result;
-        }
 
         private void UpdateIsThumbSymbol()
         {

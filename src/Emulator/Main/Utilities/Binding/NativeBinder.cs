@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Collections.Generic;
 using Dynamitey;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Utilities.Binding
 {
@@ -112,11 +113,12 @@ namespace Antmicro.Renode.Utilities.Binding
         private void ResolveCallsToManaged()
         {
             classToBind.NoisyLog("Binding native -> managed calls.");
-            var symbols = SharedLibraries.GetAllSymbols(libraryFileName).ToArray();
+            var symbols = SharedLibraries.GetAllSymbols(libraryFileName);
             var classMethods = classToBind.GetType().GetAllMethods().ToArray();
             var exportedMethods = new List<MethodInfo>();
-            foreach(var candidate in symbols.Where(x => x.StartsWith("renode_external_attach")))
+            foreach(var originalCandidate in symbols.Where(x => x.Contains("renode_external_attach")))
             {
+                var candidate  = FilterCppName(originalCandidate);
                 var parts = candidate.Split(new [] { "__" }, StringSplitOptions.RemoveEmptyEntries);
                 var cName = parts[2];
                 var shortName = parts[1];
@@ -157,7 +159,7 @@ namespace Antmicro.Renode.Utilities.Binding
                 delegateStore = delegateStore.Union(new [] { attachee }).ToArray();
                 // let's make the attaching function delegate
                 var attacherType = TypeFromShortTypeName(string.Format("Attach{0}", shortName));
-                var address = SharedLibraries.GetSymbolAddress(libraryAddress, candidate);
+                var address = SharedLibraries.GetSymbolAddress(libraryAddress, originalCandidate);
                 var attacher = Marshal.GetDelegateForFunctionPointer(address, attacherType);
                 // and invoke it
                 attacher.FastDynamicInvoke(attachee);
@@ -208,6 +210,16 @@ namespace Antmicro.Renode.Utilities.Binding
         private static string FirstLetterUpper(string str)
         {
             return str.Substring(0, 1).ToUpper() + str.Substring(1);
+        }
+
+        private static string FilterCppName(string name)
+        {
+            var result = Symbol.DemangleSymbol(name).Split('(')[0].ToString();
+            if(result.StartsWith("_"))
+            {
+                return result.Skip(4).ToString();
+            }
+            return result;
         }
 
         private IntPtr libraryAddress;
