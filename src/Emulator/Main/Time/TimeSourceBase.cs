@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -27,6 +27,7 @@ namespace Antmicro.Renode.Time
         public TimeSourceBase()
         {
             reportTimeProgressLock = new object();
+            isInSyncPhaseLock = new object();
 
             blockingEvent = new ManualResetEvent(true);
             delayedActions = new SortedSet<DelayedTask>();
@@ -174,16 +175,14 @@ namespace Antmicro.Renode.Time
         /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
         public void ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
         {
+            if(IsInSyncPhase && executeImmediately)
+            {
+                what(new TimeStamp(ElapsedVirtualTime, Domain));
+                return;
+            }
             lock(delayedActions)
             {
-                if(isInSyncPhase && executeImmediately)
-                {
-                    what(new TimeStamp(ElapsedVirtualTime, Domain));
-                }
-                else
-                {
-                    delayedActions.Add(new DelayedTask(what, new TimeStamp()));
-                }
+                delayedActions.Add(new DelayedTask(what, new TimeStamp()));
             }
         }
 
@@ -592,24 +591,44 @@ namespace Antmicro.Renode.Time
             State = TimeSourceState.ExecutingSyncHook;
 
             DelayedTask[] tasksAsArray;
+            TimeStamp timeNow;
             lock(delayedActions)
             {
-                isInSyncPhase = true;
+                IsInSyncPhase = true;
                 SyncHook?.Invoke(ElapsedVirtualTime);
 
                 State = TimeSourceState.ExecutingDelayedActions;
-                var timeNow = new TimeStamp(ElapsedVirtualTime, Domain);
+                timeNow = new TimeStamp(ElapsedVirtualTime, Domain);
                 var tasksToExecute = delayedActions.GetViewBetween(DelayedTask.Zero, new DelayedTask(null, timeNow));
                 tasksAsArray = tasksToExecute.ToArray();
                 tasksToExecute.Clear();
-
-                foreach(var task in tasksAsArray)
-                {
-                    task.What(timeNow);
-                }
-                isInSyncPhase = false;
             }
+
+            foreach(var task in tasksAsArray)
+            {
+                task.What(timeNow);
+            }
+            IsInSyncPhase = false;
             NumberOfSyncPoints++;
+        }
+
+        private bool IsInSyncPhase
+        {
+            get
+            {
+                lock(isInSyncPhaseLock)
+                {
+                    return executeThreadId == Thread.CurrentThread.ManagedThreadId;
+                }
+            }
+
+            set
+            {
+                lock(isInSyncPhaseLock)
+                {
+                    executeThreadId = value ? Thread.CurrentThread.ManagedThreadId : (int?)null;
+                }
+            }
         }
 
         protected bool isStarted;
@@ -634,14 +653,15 @@ namespace Antmicro.Renode.Time
 
         private TimeSpan elapsedAtLastGrant;
         private bool isBlocked;
-        private bool isInSyncPhase;
         private bool updateNearestSyncPoint;
+        private int? executeThreadId;
 
         private TimeInterval previousElapsedVirtualTime;
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
         private readonly object reportTimeProgressLock;
+        private readonly object isInSyncPhaseLock;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);
 
