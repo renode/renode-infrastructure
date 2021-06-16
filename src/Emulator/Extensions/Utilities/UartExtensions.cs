@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,17 +11,9 @@ namespace Antmicro.Renode.Utilities
 {
     public static class UartExtensions
     {
-        public enum LineEnding
-        {
-           None,
-           CR,
-           CRLF,
-           LF
-        }
-
         public static void WriteLine(this IUART uart, string text, bool appendCarriageReturn = true)
         {
-           uart.WriteLine(text, appendCarriageReturn);
+            uart.WriteLine(text, appendCarriageReturn ? LineEnding.CR : LineEnding.None);
         }
 
         public static void WriteLine(this IUART uart, string text, LineEnding lineEnding = LineEnding.CR)
@@ -36,21 +28,32 @@ namespace Antmicro.Renode.Utilities
 
         private static void WriteLineEnding(IUART uart, LineEnding lineEnding)
         {
-            const byte CarriageReturn = 0xD;
-            const byte LineFeed = 0xA;
+            const byte CarriageReturn = (byte)'\r';
+            const byte LineFeed = (byte)'\n';
 
-            byte[] eol = new byte[] {};
-            switch (lineEnding)
+            switch(lineEnding)
             {
-               case LineEnding.CR:    eol = new byte[] {CarriageReturn};            break;
-               case LineEnding.CRLF:  eol = new byte[] {CarriageReturn, LineFeed};  break;
-               case LineEnding.LF:    eol = new byte[] {LineFeed};                  break;
+               case LineEnding.CR:
+                   uart.WriteChar(CarriageReturn);
+                   break;
+                   
+               case LineEnding.CRLF:
+                   uart.WriteChar(CarriageReturn);
+                   uart.WriteChar(LineFeed);
+                   break;
+                   
+               case LineEnding.LF:
+                   uart.WriteChar(LineFeed);
+                   break;
             };
+        }
 
-            foreach(var chr in eol)
-            {
-                uart.WriteChar(chr);
-            }
+        public enum LineEnding
+        {
+           None,
+           CR,
+           CRLF,
+           LF
         }
     }
 }
