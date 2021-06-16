@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -97,18 +97,24 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public void OnGPIO(int number, bool value)
         {
-           if (value)
-           {
-              this.Log(LogLevel.Info, $"DMA Peripheral Request on Stream {number} {value}");
-              if (streams[number].IsEnabled())
-              {
-                 streams[number].DoPeripheralTransfer();
-              }
-              else
-              {
-                 this.Log(LogLevel.Info, $"DMA Peripheral Request on Stream {number} Ignored");
-              }
-           }
+            if(number != 0)
+            {
+                this.Log(LogLevel.Warning, "This peripheral supports only GPIO pin #0, but pin #{0} was set", number);
+                return;
+            }
+
+            if(value)
+            {
+                this.Log(LogLevel.Debug, "DMA peripheral request on stream {0} {1}", number, value);
+                if(streams[number].Enabled)
+                {
+                    streams[number].DoPeripheralTransfer();
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "DMA peripheral request on stream {0} ignored", number);
+                }
+            }
         }
 
         private uint HandleInterruptRead(int offset)
@@ -246,7 +252,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 peripheralIncrementAddress = false;
                 direction = Direction.PeripheralToMemory;
                 interruptOnComplete = false;
-                streamEnabled = false;
+                Enabled = false;
             }
 
             private Request CreateRequest(int? size = null, int? destinationOffset = null)
@@ -300,11 +306,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     lock(parent.streamFinished)
                     {
                         parent.engine.IssueCopy(request);
-                        if (transferredSize == numberOfData)
+                        if(transferredSize == numberOfData)
                         {
                             transferredSize = 0;
                             parent.streamFinished[streamNo] = true;
-                            streamEnabled = false;
+                            Enabled = false;
                             if(interruptOnComplete)
                             {
                                 parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
@@ -314,10 +320,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            public bool IsEnabled()
-            {
-                return streamEnabled;
-            }
+            public bool Enabled { get; private set; }
 
             private uint HandleConfigurationRead()
             {
@@ -355,13 +358,13 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 if((value & 1) != 0)
                 {
-                    if (direction != Direction.PeripheralToMemory)
+                    if(direction != Direction.PeripheralToMemory)
                     {
                         DoTransfer();
                     }
                     else
                     {
-                        streamEnabled = true;
+                        Enabled = true;
                     }
                 }
             }
@@ -410,7 +413,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             private bool interruptOnComplete;
             private byte channel;
             private byte priority;
-            private bool streamEnabled;
 
             private readonly STM32DMA parent;
             private readonly int streamNo;
