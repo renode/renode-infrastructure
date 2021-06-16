@@ -434,7 +434,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 MemoryToMemory = 2
             }
         }
-
     }
 }
 
