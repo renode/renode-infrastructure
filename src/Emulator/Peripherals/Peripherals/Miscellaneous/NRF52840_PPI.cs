@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     })
                 ;
 
-                ((Registers)((int)Registers.ChannelGroup0Disable + i * 8)).Define(this, name: "TASKS_CHG[n]")
+                ((Registers)((int)Registers.ChannelGroup0Disable + i * 8)).Define(this, name: "TASKS_CHG[n].DIS")
                     .WithFlag(0, FieldMode.Write, name: "DIS", changeCallback: (_, value) =>
                     {
                         if(value)
@@ -123,7 +123,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         this.Log(LogLevel.Noisy, "Connected channel {0} to trigger a task at 0x{1:X}", j, taskEndpoint[j]);
                     })
                 ;
-
             }
 
             for(var i = 0; i < ChannelGroups; i++)
@@ -151,31 +150,31 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefinePreprogrammedChannels()
         {
             // Predefined channels:
-            // Timer0 Compare0 -> Radio TxEn
-            // Timer0 Compare0 -> Radio RxEn
-            // Timer0 Compare1 -> Radio Disable
-            // Radio BCMatch -> AAR Start
-            // Radio Ready -> CCM KSGen
-            // Radio Address -> CCM Crypt
-            // Radio Address -> Timer0 Capture1
-            // Radio End -> Timer0 Capture2
-            // RTC0 Compare0 -> Radio TxEn
-            // RTC0 Compare0 -> Radio RxEn
-            // RTC0 Compare0 -> Radio Clear
-            // RTC0 Compare0 -> Radio Start
             var entries = new List<Tuple<uint, uint>>
             {
+                // Timer0 Compare0 -> Radio TxEn
                 Tuple.Create(0x40008140u, 0x40001000u),
+                // Timer0 Compare0 -> Radio RxEn
                 Tuple.Create(0x40008140u, 0x40001004u),
+                // Timer0 Compare1 -> Radio Disable
                 Tuple.Create(0x40008144u, 0x40001010u),
+                // Radio BCMatch -> AAR Start
                 Tuple.Create(0x40001128u, 0x4000F000u),
+                // Radio Ready -> CCM KSGen
                 Tuple.Create(0x40001100u, 0x4000F000u), //this address points both to AAR Start and CCM KSGen
+                // Radio Address -> CCM Crypt
                 Tuple.Create(0x40001104u, 0x4000F004u),
+                // Radio Address -> Timer0 Capture1
                 Tuple.Create(0x40001104u, 0x40008044u),
+                // Radio End -> Timer0 Capture2
                 Tuple.Create(0x4000110Cu, 0x40008048u),
+                // RTC0 Compare0 -> Radio TxEn
                 Tuple.Create(0x4000B140u, 0x40001000u),
+                // RTC0 Compare0 -> Radio RxEn
                 Tuple.Create(0x4000B140u, 0x40001004u),
+                // RTC0 Compare0 -> Radio Clear
                 Tuple.Create(0x4000B140u, 0x40001010u), //not sure about this. There is no 'clear' event in there
+                // RTC0 Compare0 -> Radio Start
                 Tuple.Create(0x4000B140u, 0x40001008u),
             };
             for(var i = ConfigurableChannels; i < Channels; i++)
@@ -193,7 +192,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var target = sysbus.WhatPeripheralIsAt(oldValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
-                    var eventOffset = oldValue & EventOffsetMask;
                     //todo: how to do it on reset?
                     nrfTarget.EventTriggered -= eventCallbacks[eventId];
                     this.Log(LogLevel.Debug, "Disconnected channel {1} from event 0x{0:X}", oldValue, eventId);
@@ -209,7 +207,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var target = sysbus.WhatPeripheralIsAt(newValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
-                    var eventOffset = oldValue & EventOffsetMask;
                     nrfTarget.EventTriggered += eventCallbacks[eventId];
                     this.Log(LogLevel.Debug, "Connected channel {1} to event 0x{0:X}", newValue, eventId);
                 }
@@ -229,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             if(!channelEnabled[id].Value)
             {
-                bool foundGroup = false;
+                var foundGroup = false;
                 // if the channel is disabled, it may be enabled by a group
                 for(var i = 0; i < ChannelGroups; i++)
                 {
@@ -264,12 +261,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool initialized; // should not be reset - used for delayed configuration after the machine is created
         private readonly SystemBus sysbus;
 
-        private Action<uint>[] eventCallbacks = new Action<uint>[Channels]; //todo reset
+        private readonly Action<uint>[] eventCallbacks = new Action<uint>[Channels]; //todo reset
         private uint[] eventEndpoint = new uint[Channels];
         private uint[] taskEndpoint = new uint[Channels];
         private uint[] forkEndpoint = new uint[Channels];
         private bool[] channelGroupEnabled = new bool[ChannelGroups];
-
 
         private IFlagRegisterField[][] channelGroups = new IFlagRegisterField[ChannelGroups][];
         private IFlagRegisterField[] channelEnabled = new IFlagRegisterField[Channels];
@@ -278,6 +274,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const int ChannelGroups = 6;
         private const int ConfigurableChannels = 20;
         private const int Channels = 32;
+
         private enum Registers
         {
             ChannelGroup0Enable = 0x000,

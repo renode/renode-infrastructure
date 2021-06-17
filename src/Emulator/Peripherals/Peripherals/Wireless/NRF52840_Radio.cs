@@ -36,7 +36,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             rxBuffer.Clear();
         }
 
-
         public void FakePacket()
         {
             ReceiveFrame(new byte[]{0xD6, 0xBE, 0x89, 0x8E, 0x60, 0x11, 0xFF, 0xFF, 0xFF, 0xFF, 0x0, 0xC0, 0x2, 0x1, 0x6, 0x7, 0x3, 0xD, 0x18, 0xF, 0x18, 0xA, 0x18, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0});
@@ -85,7 +84,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private void DefineEvent(Registers register, Action callbackOnSet, Events @event, string name)
         {
             register.Define(this, name: name)
-                .WithFlag(0, out events[(int)@event], writeCallback: (_, value) => {
+                .WithFlag(0, out events[(int)@event], writeCallback: (_, value) =>
+                {
                     if(value)
                     {
                         callbackOnSet();
@@ -259,7 +259,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             ;
 
             Registers.PowerControl.Define(this, 1, name: "POWER")
-                //TOjDO: radio should be disabled with powerOn == false
+                //TODO: radio should be disabled with powerOn == false
                 .WithFlag(0, out powerOn, changeCallback: (_, value) => { if(!value) Reset(); }, name: "POWER")
                 .WithReservedBits(1, 31)
             ;
@@ -271,7 +271,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 this.Log(LogLevel.Error, $"Unhandled short {shortName}!");
             }
-
         }
 
         private void SetEvent(Events @event)
@@ -387,7 +386,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
             LogUnhandledShort(shorts.AddressRSSIStart, nameof(shorts.AddressRSSIStart));
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
-
         }
 
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
@@ -403,7 +401,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             data[startIndex + i] = addressPrefixes[logicalAddress];
         }
 
-        private Queue<byte[]> rxBuffer;
+        private readonly Queue<byte[]> rxBuffer;
         private Shorts shorts;
         private byte[] addressPrefixes;
         private State radioState;
@@ -433,8 +431,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IValueRegisterField crcInitialValue;
         private IEnumRegisterField<CCAMode> ccaMode;
         private IFlagRegisterField powerOn;
-
-
 
         // Packet:
         // preamble, address (base + prefix), CI, TERM1, S0, LENGTH, S1, PAYLOAD, STATIC PAYLOAD (from STATLEN), CRC, TERM2
@@ -483,7 +479,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             public IFlagRegisterField PHYEndDisable;
             public IFlagRegisterField PHYEndStart;
         }
-
 
         private enum CRCAddressHandling
         {
@@ -630,6 +625,5 @@ namespace Antmicro.Renode.Peripherals.Wireless
             CCAControl = 0x66C,
             PowerControl = 0xFFC
         }
-
     }
 }

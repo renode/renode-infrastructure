@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Fluent API for creation of a set of consecutive vaule fields
+        /// Fluent API for creation of a set of consecutive value fields
         /// </summary>
         /// <param name="position">Offset in the register of the first field.</param>
         /// <param name="width">Maximum width of the value, in terms of binary representation.</param>

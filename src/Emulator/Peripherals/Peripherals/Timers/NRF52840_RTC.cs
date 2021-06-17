@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             this.numberOfEvents = numberOfEvents;
             eventCompareEnabled = new IFlagRegisterField[numberOfEvents];
-            eventCompareInterruptEnabled= new IFlagRegisterField[numberOfEvents];
+            eventCompareInterruptEnabled = new IFlagRegisterField[numberOfEvents];
 
             innerTimers = new ComparingTimer[numberOfEvents];
             for(var i = 0u; i < innerTimers.Length; i++)
@@ -154,9 +154,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
             };
 
-            //TODO: mover to DefineMany
-            var i = 0;
-            for(i = 0; i < numberOfEvents; i++)
+            for(var i = 0; i < numberOfEvents; i++)
             {
                 var j = i;
                 registersMap.Add((long)Register.Compare0 + j * 4, new DoubleWordRegister(this)
@@ -180,7 +178,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                     .WithReservedBits(1, 31)
                 );
-
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -208,7 +205,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly int numberOfEvents;
         private const int InitialFrequency = 32768;
         private const int MaxNumberOfEvents = 4;
-
 
         private enum Register : long
         {

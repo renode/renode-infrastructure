@@ -58,7 +58,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x1000;
 
-
         public event Action<uint> EventTriggered;
 
         private void DefineRegisters()

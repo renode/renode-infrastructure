@@ -57,7 +57,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     Update();
                 }, valueProviderCallback: _ => started.Value, name: "EVENTS_VALRDY")
                 .WithReservedBits(1, 31)
-                .WithWriteCallback((_, __) => Update())
             ;
 
             Registers.Shorts.Define(this, name: "SHORTS")
@@ -87,7 +86,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => started.Value ? (uint)rng.Next(0, byte.MaxValue) : 0u, name: "VALUE")
                 .WithReservedBits(8, 24)
             ;
-
         }
 
         private void Update()
@@ -106,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private PseudorandomNumberGenerator rng;
+        private readonly PseudorandomNumberGenerator rng;
         private IFlagRegisterField started;
         private IFlagRegisterField readyToStopShortEnabled;
         private IFlagRegisterField interruptEnabled;
@@ -123,5 +121,4 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Value = 0x508
         }
     }
-
 }
