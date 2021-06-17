@@ -182,7 +182,7 @@ namespace Antmicro.Renode.Utilities
                 var local = interruptType;
                 result.DefineFlagField((int)(object)interruptType, name: interruptType.ToString(),
                                        valueProviderCallback: _ => IsEnabled(local),
-                                       writeCallback: (_, v) => { if(!v) EnableInterrupt(local, false); });
+                                       writeCallback: (_, v) => { if(v) EnableInterrupt(local, false); });
             }
             return result;
         }
