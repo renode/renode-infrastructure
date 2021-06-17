@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     if(value)
                     {
                         timerRunning = true;
-                        if(isInCounterMode.Value == 0)
+                        if(mode.Value == Mode.Timer)
                         {
                             foreach(var timer in innerTimers)
                             {
@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             this.Log(LogLevel.Warning, "Triggered TASK_COUNT before issuing TASK_START, ignoring...");
                             return;
                         }
-                        if(isInCounterMode.Value == 0)
+                        if(mode.Value == Mode.Timer)
                         {
                             this.Log(LogLevel.Warning, "Triggered TASK_COUNT in TIMER mode, ignoring...");
                             return;
@@ -181,10 +181,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Register.Mode.Define(this)
-                .WithValueField(0, 2, out isInCounterMode, name: "MODE", changeCallback: (_, value) =>
+                .WithEnumField(0, 2, out mode, name: "MODE", changeCallback: (_, value) =>
                 {
-                    // 0 means "timer mode", 1 is "counter (deprecated)", 2 is "low power counter"
-                    if(value > 0 && innerTimers[0].Enabled)
+                    if(value != Mode.Timer && innerTimers[0].Enabled)
                     {
                         this.Log(LogLevel.Error, "Switching timer to COUNTER mode while the timer is running");
                     }
@@ -238,7 +237,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField[] eventCompareEnabled;
         private IFlagRegisterField[] eventCompareInterruptEnabled;
         private IValueRegisterField prescaler;
-        private IValueRegisterField isInCounterMode;
+        private IEnumRegisterField<Mode> mode;
         private bool timerRunning;
 
         private readonly ComparingTimer[] innerTimers;
@@ -246,6 +245,13 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly int numberOfEvents;
         private const int InitialFrequency = 16000000;
         private const int MaxNumberOfEvents = 6;
+
+        private enum Mode
+        {
+            Timer,
+            Counter,
+            LowPowerCounter
+        }
 
         private enum Register : long
         {
