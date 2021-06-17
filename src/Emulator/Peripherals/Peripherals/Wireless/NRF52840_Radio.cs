@@ -297,11 +297,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             SetEvent(Events.Ready);
             SetEvent(Events.TxReady);
 
-            if(shorts.ReadyStart.Value)
-            {
-                Start();
-            }
-            else if(shorts.TxReadyStart.Value)
+            if(shorts.ReadyStart.Value || shorts.TxReadyStart.Value)
             {
                 Start();
             }
@@ -316,11 +312,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             SetEvent(Events.Ready);
             SetEvent(Events.RxReady);
 
-            if(shorts.ReadyStart.Value)
-            {
-                Start();
-            }
-            else if(shorts.RxReadyStart.Value)
+            if(shorts.ReadyStart.Value || shorts.RxReadyStart.Value)
             {
                 Start();
             }
