@@ -142,6 +142,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 .WithFlag(19, out shorts.RxReadyStart, name: "RXREADY_START")
                 .WithFlag(20, out shorts.PHYEndDisable, name: "PHYEND_DISABLE")
                 .WithFlag(21, out shorts.PHYEndStart, name: "PHYEND_START")
+                .WithReservedBits(22, 10)
             ;
 
             RegistersCollection.AddRegister((long)Registers.InterruptEnable,
@@ -175,6 +176,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 .WithValueField(0, 4, out lengthFieldLength, name: "LFLEN")
                 .WithReservedBits(4, 4)
                 .WithValueField(8, 1, out s0Length, name: "S0LEN")
+                .WithReservedBits(9, 7)
                 .WithValueField(16, 4, out s1Length, name: "S1LEN")
                 .WithFlag(20, out s1Include, name: "S1INCL")
                 .WithReservedBits(21, 1)
