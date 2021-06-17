@@ -352,17 +352,17 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var headerLengthInRAM = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
             if(headerLength != headerLengthInRAM)
             {
-                this.Log(LogLevel.Error, "LENGTH MISMATCH {0} vs {1}", headerLength, headerLengthInRAM);
+                this.Log(LogLevel.Error, "Length mismatch {0} vs {1}, but continuing anyway", headerLength, headerLengthInRAM);
             }
 
             var data = new byte[addressLength + headerLengthInRAM + maxPacketLength.Value];
             FillCurrentAddress(data, 0, txAddress.Value);
 
             machine.SystemBus.ReadBytes(dataAddress, headerLengthInRAM, data, addressLength);
-            this.Log(LogLevel.Error, "HEADER!!! {0} S0 {1} Length {2} S1 {3} s1inc {4}", Misc.PrettyPrintCollectionHex(data), s0Length.Value, lengthFieldLength.Value, s1Length.Value, s1Include.Value);
+            this.Log(LogLevel.Noisy, "Header: {0} S0 {1} Length {2} S1 {3} s1inc {4}", Misc.PrettyPrintCollectionHex(data), s0Length.Value, lengthFieldLength.Value, s1Length.Value, s1Include.Value);
             var payloadLength = data[addressLength + s0Length.Value];
             machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLength);
-            this.Log(LogLevel.Error, "DATA!!! {0} MAXLEN {1} statlen {2}", Misc.PrettyPrintCollectionHex(data), maxPacketLength.Value, staticLength.Value);
+            this.Log(LogLevel.Noisy, "Data: {0} Maxlen {1} statlen {2}", Misc.PrettyPrintCollectionHex(data), maxPacketLength.Value, staticLength.Value);
 
             FrameSent?.Invoke(this, data);
 
