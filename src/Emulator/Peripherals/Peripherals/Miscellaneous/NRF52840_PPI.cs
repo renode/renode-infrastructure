@@ -18,7 +18,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public NRF52840_PPI(Machine machine) : base(machine)
         {
-            this.sysbus = machine.SystemBus;
             for(var i = 0; i < Channels; i++)
             {
                 var j = i;
@@ -189,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(oldValue != 0)
             {
-                var target = sysbus.WhatPeripheralIsAt(oldValue);
+                var target = machine.SystemBus.WhatPeripheralIsAt(oldValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
                     //todo: how to do it on reset?
@@ -204,7 +203,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(newValue != 0)
             {
                 eventEndpoint[eventId] = newValue;
-                var target = sysbus.WhatPeripheralIsAt(newValue);
+                var target = machine.SystemBus.WhatPeripheralIsAt(newValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
                     nrfTarget.EventTriggered += eventCallbacks[eventId];
@@ -245,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(taskEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering task at 0x{2:X}", id, eventEndpoint[id], taskEndpoint[id]);
-                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(taskEndpoint[id], 1));
+                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => machine.SystemBus.WriteDoubleWord(taskEndpoint[id], 1));
             }
             else
             {
@@ -254,12 +253,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(forkEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering fork task at 0x{2:X}", id, eventEndpoint[id], forkEndpoint[id]);
-                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(forkEndpoint[id], 1));
+                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => machine.SystemBus.WriteDoubleWord(forkEndpoint[id], 1));
             }
         }
 
         private bool initialized; // should not be reset - used for delayed configuration after the machine is created
-        private readonly SystemBus sysbus;
 
         private readonly Action<uint>[] eventCallbacks = new Action<uint>[Channels]; //todo reset
         private uint[] eventEndpoint = new uint[Channels];
