@@ -470,8 +470,7 @@ namespace UnitTests
                     return false;
                 });
 
-                // tester thread
-                new Thread(() =>
+                var testerThread = new TestThread(() =>
                 {
                     // wait for the pause
                     sinkToThreadSync.WaitOne();
@@ -484,16 +483,19 @@ namespace UnitTests
                     indicator = true;
 
                     threadToSinkSync.Set();
-                }).Start();
+                });
+                testerThread.Start();
 
                 master.RegisterSink(timeSlave);
                 timeSlave.RegisterSink(timeSink);
 
                 // just to pass the first syncpoint
                 master.Run(1);
+                testerThread.CheckExceptions();
 
                 master.Run(1);
                 Assert.IsTrue(indicator);
+                testerThread.CheckExceptions();
 
                 Assert.AreEqual(10, master.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(10, timeSlave.ElapsedVirtualTime.Ticks);
@@ -511,7 +513,7 @@ namespace UnitTests
             using(var timeSinkA2 = new MoreComplicatedTimeSink("A"))
             using(var timeSinkB2 = new MoreComplicatedTimeSink("B"))
             {
-                var ttt = new Thread(() =>
+                var ttt = new TestThread(() =>
                 {
                     Parallel(
                         () =>
@@ -662,8 +664,7 @@ namespace UnitTests
             using(var timeSlave = new SlaveTimeSource() { Quantum = TimeInterval.FromTicks(10), AdvanceImmediately = true })
             using(var timeSink = new MoreComplicatedTimeSink("A"))
             {
-                // tester thread
-                new Thread(() =>
+                var testerThread = new TestThread(() =>
                 {
                     this.Trace();
                     timeSink.ExecuteOnDispatcherThread((ts, ti) =>
@@ -697,16 +698,19 @@ namespace UnitTests
                         Assert.AreEqual(10, ti.Ticks);
                         ts.TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                     });
-                }){ Name = "tester thread" }.Start();
+                }){ Name = "tester thread" };
+                testerThread.Start();
 
                 master.RegisterSink(timeSlave);
                 timeSlave.RegisterSink(timeSink);
 
                 // just to pass the first syncpoint
                 master.Run(1);
+                testerThread.CheckExceptions();
 
                 this.Trace();
                 master.Run(1);
+                testerThread.CheckExceptions();
                 this.Trace();
                 Assert.IsTrue(indicator);
                 Assert.AreEqual(10, master.ElapsedVirtualTime.Ticks);
@@ -715,6 +719,7 @@ namespace UnitTests
                 master.Run(1);
                 Assert.AreEqual(20, master.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(20, timeSlave.ElapsedVirtualTime.Ticks);
+                testerThread.CheckExceptions();
             }
         }
 
@@ -808,8 +813,8 @@ namespace UnitTests
                 set
                 {
                     this.handle = value;
-                    var thread = new Thread(Dispatcher) { Name = $"MoreComplicatedTimeSink: {name}" };
-                    thread.Start();
+                    dispatcherThread = new TestThread(Dispatcher) { Name = $"MoreComplicatedTimeSink: {name}" };
+                    dispatcherThread.Start();
                 }
             }
 
@@ -823,6 +828,7 @@ namespace UnitTests
                     this.Trace("Waiting until execution is finished");
                     barrierBack.WaitOne();
                     this.Trace("It's finished");
+                    dispatcherThread.CheckExceptions();
                 }
             }
 
@@ -877,6 +883,7 @@ namespace UnitTests
             private Action<ITimeSink, TimeInterval> action;
             private TimeHandle handle;
             private bool isDisposed;
+            private TestThread dispatcherThread;
             private readonly AutoResetEvent barrier;
             private readonly AutoResetEvent barrierBack;
             private readonly string name;
@@ -896,8 +903,8 @@ namespace UnitTests
                 set
                 {
                     this.handle = value;
-                    var thread = new Thread(Dispatcher) { Name = "SimpleTimeSink Dispatcher Thread" };
-                    thread.Start();
+                    dispatcherThread = new TestThread(Dispatcher) { Name = "SimpleTimeSink Dispatcher Thread" };
+                    dispatcherThread.Start();
                 }
             }
 
@@ -942,6 +949,7 @@ namespace UnitTests
                 handle.SinkSideActive = false;
             }
 
+            private TestThread dispatcherThread;
             private TimeHandle handle;
             private readonly double performance;
             private readonly Func<SimpleTimeSink, TimeHandle, TimeInterval, bool> action;
@@ -998,6 +1006,52 @@ namespace UnitTests
 
             private readonly Machine machine;
             private readonly Queue<Tuple<ulong, int>> events;
+        }
+
+        private class TestThread
+        {
+            public TestThread(Action a)
+            {
+                underlyingAction = a;
+            }
+
+            public void Start()
+            {
+                underlyingThread = new Thread(InnerBody) { Name = this.Name };
+                underlyingThread.Start();
+            }
+
+            public void Join()
+            {
+                underlyingThread.Join();
+                CheckExceptions();
+            }
+
+            public void CheckExceptions()
+            {
+                if(caughtException != null)
+                {
+                    throw caughtException;
+                }
+            }
+
+            public string Name { get; set; }
+
+            private void InnerBody()
+            {
+                try
+                {
+                    underlyingAction();
+                }
+                catch(Exception e)
+                {
+                    caughtException = e;
+                }
+            }
+
+            private readonly Action underlyingAction;
+            private Exception caughtException;
+            private Thread underlyingThread;
         }
     }
 }
