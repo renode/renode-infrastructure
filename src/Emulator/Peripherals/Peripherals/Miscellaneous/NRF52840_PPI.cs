@@ -197,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
                 else
                 {
-                    this.Log(LogLevel.Error, $"Failed to unregister PPI from 0x{oldValue:X} for channel {eventId}");
+                    this.Log(LogLevel.Error, "Failed to unregister PPI from 0x{0:X} for channel {1}", oldValue, eventId);
                 }
             }
             if(newValue != 0)
