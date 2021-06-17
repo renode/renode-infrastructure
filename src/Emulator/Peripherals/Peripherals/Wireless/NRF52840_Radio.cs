@@ -415,6 +415,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var baseAddress = logicalAddress == 0 ? baseAddress0.Value : baseAddress1.Value;
             var baseBytes = BitConverter.GetBytes(baseAddress);
             var i = 0;
+            if(baseAddressLength.Value > 4)
+            {
+                this.Log(LogLevel.Error, "Trying to fill the current address, but the base address length is too large ({0}). Limiting to 4.", baseAddressLength.Value);
+                baseAddressLength.Value = 4;
+            }
             for(var j = 4 - baseAddressLength.Value; j < 4; i++, j++) // we're not supporting BALEN > 4. I don't know how  should it work.
             {
                 data[startIndex + i] = baseBytes[j];
