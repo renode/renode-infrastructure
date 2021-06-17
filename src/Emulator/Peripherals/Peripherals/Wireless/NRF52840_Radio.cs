@@ -291,6 +291,33 @@ namespace Antmicro.Renode.Peripherals.Wireless
             LogUnhandledShort(shorts.DisabledTxEnable, nameof(shorts.DisabledTxEnable));
         }
 
+        // These comments sum up some details gathered from the documentation.
+        //
+        // Packet:
+        // preamble, address (base + prefix), CI, TERM1, S0, LENGTH, S1, PAYLOAD, STATIC PAYLOAD (from STATLEN), CRC, TERM2
+
+        // Packet data stored in RAM:
+        // S0, Length, S1, Payload
+
+        // CRC:
+        // start with address, start with CI or start with L1
+
+        // S0 + Length + S1 + payload <= 258 bytes
+
+        // transmit sequence
+        // TXEn -> State.TxRampup -> Event.Ready -> State.TxIdle.  Start -> State.Tx. Sending data: P, A, --> Event.Address,  S0, L, S1, Payload, --> Event.Payload, CRC, --> Event.End (data finished) -> State.TxIdle.
+        // Disable -> State.TxDisable -> Event.Disabled
+
+        // transmit sequence with shortcuts
+        // TXEn -> State.TxRampup -> Event.Ready shortcut to Start, Event.End shortcut to Disable
+
+        // transmit multiple packets
+        // no shortcut end->disable. After Event.End, send start
+
+        // receive sequence
+        // RXEn -> State.RxRampup -> Event.Ready -> State.RxIdle. Start->State.Rx. Receiving data: P, A --> Event.Address, s0, l, s1, payload  --> Event.Payload, crc -->Event.End (data finished) --> State.RxIdle
+        // Disable --> State.RxDisable -> Event.Disabled
+
         private void TxEnable()
         {
             radioState = State.TxIdle;
@@ -425,31 +452,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IValueRegisterField crcInitialValue;
         private IEnumRegisterField<CCAMode> ccaMode;
         private IFlagRegisterField powerOn;
-
-        // Packet:
-        // preamble, address (base + prefix), CI, TERM1, S0, LENGTH, S1, PAYLOAD, STATIC PAYLOAD (from STATLEN), CRC, TERM2
-
-        // Packet in ram:
-        // S0, Length, S1, Payload
-
-        // CRC:
-        // start with address, start with CI or start with L1
-
-        // S0 + Length + S1 + payload <= 258 bytes
-
-        // transmit sequence
-        // TXEn -> State.TxRampup -> Event READY -> State.TxIdle.  Start -> State.Tx. Sending data: P, A, --> Event.Address,  S0, L, S1, Payload, --> Event.Payload, CRC, --> Event.End (data finished) -> State.TxIdle.
-        // Disable -> State.TxDisable -> Event.Disabled
-
-        // transmit sequence with shortcuts
-        // TXEn -> State.TxRampup -> Event.Ready shortcut to Start, Event.End shortcut to Disable
-
-        // transmit multiple packets
-        // no shortcut end->disable. After Event.end, send start
-
-        // receive sequence
-        // rxen -> state.rxrampup -> event.ready -> state rxidle. Start->state.rx. Receiving data: P, A --> event.address, s0, l, s1, payload  --> event.payload, crc -->event end (data finished) --> state.rxidle
-        // Disable --> State.RxDisable -> event.disabled
 
         private struct Shorts
         {
