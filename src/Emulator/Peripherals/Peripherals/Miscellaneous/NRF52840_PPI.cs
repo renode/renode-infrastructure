@@ -200,9 +200,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     this.Log(LogLevel.Error, "Failed to unregister PPI from 0x{0:X} for channel {1}", oldValue, eventId);
                 }
             }
+            eventEndpoint[eventId] = newValue;
             if(newValue != 0)
             {
-                eventEndpoint[eventId] = newValue;
                 var target = machine.SystemBus.WhatPeripheralIsAt(newValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
