@@ -43,6 +43,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 forkEndpoint[i] = 0;
             }
+            foreach(var sender in registeredEventSenders)
+            {
+                sender.Provider.EventTriggered -= eventCallbacks[sender.Channel];
+            }
+            registeredEventSenders.Clear();
+            initialized = false;
         }
 
         public override void WriteDoubleWord(long offset, uint value)
@@ -193,6 +199,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     //todo: how to do it on reset?
                     nrfTarget.EventTriggered -= eventCallbacks[eventId];
+                    registeredEventSenders.Remove(EventEntry.Create(nrfTarget, eventId));
                     this.Log(LogLevel.Debug, "Disconnected channel {1} from event 0x{0:X}", oldValue, eventId);
                 }
                 else
@@ -207,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(target is INRFEventProvider nrfTarget)
                 {
                     nrfTarget.EventTriggered += eventCallbacks[eventId];
+                    registeredEventSenders.Add(EventEntry.Create(nrfTarget, eventId));
                     this.Log(LogLevel.Debug, "Connected channel {1} to event 0x{0:X}", newValue, eventId);
                 }
                 else
@@ -268,10 +276,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField[][] channelGroups = new IFlagRegisterField[ChannelGroups][];
         private IFlagRegisterField[] channelEnabled = new IFlagRegisterField[Channels];
 
+        private HashSet<EventEntry> registeredEventSenders = new HashSet<EventEntry>();
+
         private const int EventOffsetMask = 0xFFF;
         private const int ChannelGroups = 6;
         private const int ConfigurableChannels = 20;
         private const int Channels = 32;
+
+        private struct EventEntry
+        {
+            public static EventEntry Create(INRFEventProvider provider, int channel)
+            {
+               return new EventEntry { Provider = provider, Channel = channel };
+            }
+            public INRFEventProvider Provider;
+            public int Channel;
+        }
 
         private enum Registers
         {
