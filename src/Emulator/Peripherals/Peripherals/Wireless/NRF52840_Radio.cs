@@ -390,6 +390,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             machine.SystemBus.ReadBytes(dataAddress, headerLengthInRAM, data, addressLength);
             this.Log(LogLevel.Noisy, "Header: {0} S0 {1} Length {2} S1 {3} s1inc {4}", Misc.PrettyPrintCollectionHex(data), s0Length.Value, lengthFieldLength.Value, s1Length.Value, s1Include.Value);
             var payloadLength = data[addressLength + s0Length.Value];
+            if(payloadLength > maxPacketLength.Value)
+            {
+                this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length {(1}), trimming...", payloadLength, maxPacketLength.Value);
+                payloadLength = (byte)maxPacketLength.Value;
+            }
             machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLength);
             this.Log(LogLevel.Noisy, "Data: {0} Maxlen {1} statlen {2}", Misc.PrettyPrintCollectionHex(data), maxPacketLength.Value, staticLength.Value);
 
