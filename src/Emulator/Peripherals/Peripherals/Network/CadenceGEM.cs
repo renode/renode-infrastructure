@@ -56,6 +56,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(3, name: "enable_transmit",
                         writeCallback: (_, value) =>
                         {
+                            if(!value)
+                            {
+                                isTransmissionStarted = false;
+                            }
                             if(txDescriptorsQueue != null && !value)
                             {
                                 txDescriptorsQueue.GoToBaseAddress();
