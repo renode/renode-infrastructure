@@ -183,6 +183,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 csrGroup.Types.Add(privType);
             }
             {
+                var fields = new List<GDBTypeEnumValue>();
+                fields.Add(new GDBTypeEnumValue("Off", 0));
+                fields.Add(new GDBTypeEnumValue("Initial", 1));
+                fields.Add(new GDBTypeEnumValue("Clean", 2));
+                fields.Add(new GDBTypeEnumValue("Dirty", 3));
+                var vsType = GDBCustomType.Enum("vs_type", 1, fields);
+                csrGroup.Types.Add(vsType);
+            }
+            {
                 var fields = new List<GDBTypeBitField>();
                 fields.Add(new GDBTypeBitField("UIE", 0, 0, "bool"));
                 fields.Add(new GDBTypeBitField("SIE", 1, 1, "bool"));
@@ -191,6 +200,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 fields.Add(new GDBTypeBitField("SPIE", 5, 5, "bool"));
                 fields.Add(new GDBTypeBitField("MPIE", 7, 7, "bool"));
                 fields.Add(new GDBTypeBitField("SPP", 8, 8, "priv_type"));
+                fields.Add(new GDBTypeBitField("VS", 9, 10, "vs_type"));
                 fields.Add(new GDBTypeBitField("MPP", 11, 12, "priv_type"));
                 fields.Add(new GDBTypeBitField("FS", 13, 14, "fs_type"));
                 fields.Add(new GDBTypeBitField("XS", 15, 16, "xs_type"));
