@@ -387,6 +387,7 @@
     <Compile Include="Peripherals\UART\OpenTitan_UART.cs" />
     <Compile Include="Peripherals\Timers\OpenTitan_Timer.cs" />
     <Compile Include="Peripherals\MTD\OpenTitan_FlashController.cs" />
+    <Compile Include="Peripherals\SPI\IMXRT_FlexSPI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
