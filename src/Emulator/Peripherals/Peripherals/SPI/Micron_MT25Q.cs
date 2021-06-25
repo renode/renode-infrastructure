@@ -260,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.Register = Register.EnhancedVolatileConfiguration;
                     break;
                 default:
-                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X}.", firstByte);
+                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
                     return;
             }
             this.Log(LogLevel.Noisy, "Decoded operation: {0}, write enabled {1}", currentOperation, enable.Value);
