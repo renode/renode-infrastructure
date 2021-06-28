@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.InterruptControlState:
                 lock(irqs)
                 {
-                    var activeIRQ = activeIRQs.Count == 0 ? SpuriousInterrupt : activeIRQs.Peek();
+                    var activeIRQ = activeIRQs.Count == 0 ? 0 : activeIRQs.Peek();
                     return (uint)activeIRQ;
                 }
             case Registers.SysTickControl:
