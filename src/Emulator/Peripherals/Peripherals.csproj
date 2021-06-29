@@ -41,6 +41,9 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="WebAssembly">
+      <HintPath>..\..\..\..\..\lib\WebAssembly.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Peripherals\Timers\EFR32_RTCC.cs" />
@@ -387,6 +390,7 @@
     <Compile Include="Peripherals\UART\OpenTitan_UART.cs" />
     <Compile Include="Peripherals\Timers\OpenTitan_Timer.cs" />
     <Compile Include="Peripherals\MTD\OpenTitan_FlashController.cs" />
+    <Compile Include="Peripherals\UART\RustUART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
