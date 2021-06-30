@@ -389,6 +389,7 @@
     <Compile Include="Peripherals\MTD\OpenTitan_FlashController.cs" />
     <Compile Include="Peripherals\SPI\IMXRT_FlexSPI.cs" />
     <Compile Include="Peripherals\SPI\IMXRT_LPSPI.cs" />
+    <Compile Include="Peripherals\Sensors\GenericSPISensor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
