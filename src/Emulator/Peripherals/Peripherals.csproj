@@ -391,6 +391,7 @@
     <Compile Include="Peripherals\SPI\IMXRT_FlexSPI.cs" />
     <Compile Include="Peripherals\SPI\IMXRT_LPSPI.cs" />
     <Compile Include="Peripherals\Sensors\GenericSPISensor.cs" />
+    <Compile Include="Peripherals\Analog\IMXRT_ADC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
