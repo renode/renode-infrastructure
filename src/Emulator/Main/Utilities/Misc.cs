@@ -947,12 +947,12 @@ namespace Antmicro.Renode.Utilities
             return verifyProc.ExitCode == 0;
         }
 
-        public static string PrettyPrintFlagsEnum(dynamic enumeration)
+        public static string PrettyPrintFlagsEnum(Enum enumeration)
         {
             var values = new List<string>();
-            foreach(dynamic value in Enum.GetValues(enumeration.GetType()))
+            foreach(Enum value in Enum.GetValues(enumeration.GetType()))
             {
-                if((enumeration & value) != 0)
+                if((Convert.ToUInt64(enumeration) & Convert.ToUInt64(value)) != 0)
                 {
                     values.Add(value.ToString());
                 }
