@@ -514,6 +514,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             C = 'C' - 'A',
             S = 'S' - 'A',
             U = 'U' - 'A',
+            V = 'V' - 'A',
         }
 
         public enum InterruptMode
