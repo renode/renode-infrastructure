@@ -394,6 +394,7 @@
     <Compile Include="Peripherals\Sensors\GenericSPISensor.cs" />
     <Compile Include="Peripherals\Analog\IMXRT_ADC.cs" />
     <Compile Include="Peripherals\Timers\IMXRT_PWM.cs" />
+    <Compile Include="Peripherals\Miscellaneous\MPFS_SystemServices.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
