@@ -404,6 +404,90 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)RiscV32Registers.PRIV, value);
             }
         }
+        [Register]
+        public RegisterValue VSTART
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VSTART);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VSTART, value);
+            }
+        }
+        [Register]
+        public RegisterValue VXSAT
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VXSAT);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VXSAT, value);
+            }
+        }
+        [Register]
+        public RegisterValue VXRM
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VXRM);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VXRM, value);
+            }
+        }
+        [Register]
+        public RegisterValue VCSR
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VCSR);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VCSR, value);
+            }
+        }
+        [Register]
+        public RegisterValue VL
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VL);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VL, value);
+            }
+        }
+        [Register]
+        public RegisterValue VTYPE
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VTYPE);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VTYPE, value);
+            }
+        }
+        [Register]
+        public RegisterValue VLENB
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.VLENB);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.VLENB, value);
+            }
+        }
         public RegistersGroup X { get; private set; }
         public RegistersGroup T { get; private set; }
         public RegistersGroup S { get; private set; }
@@ -622,6 +706,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.F29,  new CPURegister(62, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.F30,  new CPURegister(63, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.F31,  new CPURegister(64, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VSTART,  new CPURegister(101, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VXSAT,  new CPURegister(102, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VXRM,  new CPURegister(103, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VCSR,  new CPURegister(104, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.SSTATUS,  new CPURegister(321, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.SIE,  new CPURegister(325, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.STVEC,  new CPURegister(326, 32, isGeneral: false, isReadonly: false) },
@@ -642,6 +730,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.MCAUSE,  new CPURegister(899, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.MTVAL,  new CPURegister(900, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.MIP,  new CPURegister(901, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VL,  new CPURegister(3104, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VTYPE,  new CPURegister(3105, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.VLENB,  new CPURegister(3106, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.PRIV,  new CPURegister(4161, 32, isGeneral: false, isReadonly: false) },
         };
     }
@@ -677,6 +768,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         MTVAL = 900,
         MIP = 901,
         PRIV = 4161,
+        VSTART = 101,
+        VXSAT = 102,
+        VXRM = 103,
+        VCSR = 104,
+        VL = 3104,
+        VTYPE = 3105,
+        VLENB = 3106,
         X0 = 0,
         X1 = 1,
         X2 = 2,
