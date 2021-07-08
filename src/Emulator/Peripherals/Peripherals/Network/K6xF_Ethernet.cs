@@ -76,12 +76,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(24, FieldMode.Read | FieldMode.WriteOneToClear, name: "TDAR",
                         writeCallback: (_, value) =>
                         {
-                            if(value)
-                            {
-                                isTransmissionStarted = true;
-                                this.Log(LogLevel.Debug, "Sending Frames");
-                                SendFrames();
-                            }
+                            // transmission should be started on *any* write to this field (i.e., including 0)
+                            isTransmissionStarted = true;
+                            this.Log(LogLevel.Debug, "Sending Frames");
+                            SendFrames();
                         })
                     .WithReservedBits(0, 24)
                 },
