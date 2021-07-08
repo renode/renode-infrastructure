@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -35,18 +35,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         public CortexAPrivateTimer(Machine machine) : base(machine.ClockSource, 667 * 1000000, direction: Direction.Descending, limit: 0xffffffff, enabled: false)
         {
             IRQ = new GPIO();
+            LimitReached += IRQ.Set;
         }
 
         public GPIO IRQ { get; private set; }
-        
-        protected override void OnLimitReached()
-        {
-            if(EventEnabled)
-            {
-                IRQ.Set();
-                this.Log(LogLevel.Debug, "Timer Alarm !!!");
-            }
-        }
         
         #region IDoubleWordPeripheral implementation
         public uint ReadDoubleWord(long offset)
