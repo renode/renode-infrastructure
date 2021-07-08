@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -179,6 +179,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return AcknowledgeIRQ(cpu);
             case CPUInterfaceOffset.RunningPriority:
                 return runningPriorities[cpu];
+            case CPUInterfaceOffset.ImplementerIdentification:
+                return CpuInterfaceImplementer;
             }
             this.Log(LogLevel.Warning, "Unhandled CPU interface read from 0x{0:X}.", offset);
             return 0;
@@ -652,6 +654,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly byte[] publicPriorities;
         private readonly int numberOfCPUs;
         private readonly int itLinesNumber;
+        public uint CpuInterfaceImplementer { get; set; }
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
         private readonly LocalGPIOReceiver[] localReceivers;
 
@@ -683,6 +686,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptAcknowledge = 0x0C, // ICCIAR
             EndOfInterrupt = 0x10, // ICCEOIR
             RunningPriority = 0x14, // ICCRPR
+            ImplementerIdentification = 0xFC, // ICCIDR
         }
 
         private class LocalGPIOReceiver : IGPIOReceiver
