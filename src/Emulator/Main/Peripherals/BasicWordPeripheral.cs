@@ -20,7 +20,6 @@ namespace Antmicro.Renode.Peripherals
         {
             this.machine = machine;
             RegistersCollection = new WordRegisterCollection(this);
-            DefineRegisters();
         }
 
         public virtual void Reset()
@@ -39,8 +38,6 @@ namespace Antmicro.Renode.Peripherals
         }
 
         public WordRegisterCollection RegistersCollection { get; private set; }
-
-        protected abstract void DefineRegisters();
 
         protected readonly Machine machine;
     }
