@@ -5,14 +5,19 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using ELFSharp.ELF;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Peripherals.CFU;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class VexRiscv : RiscV32
+    public partial class VexRiscv : RiscV32, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>
     {
         public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, string cpuType = "rv32im", bool builtInIrqController = true) : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
         {
@@ -23,6 +28,49 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             RegisterCustomInstructions();
+
+            ChildCollection = new Dictionary<int, ICFU>();
+        }
+
+        public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
+        {
+            var isRegistered = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList();
+            if(isRegistered.Count != 0)
+            {
+                throw new RegistrationException("Can't register the same CFU twice.");
+            }
+            else if(ChildCollection.ContainsKey(registrationPoint.Address))
+            {
+                throw new RegistrationException("The specified registration point is already in use.");
+            }
+
+            ChildCollection.Add(registrationPoint.Address, cfu);
+            machine.RegisterAsAChildOf(this, cfu, registrationPoint);
+            cfu.ConnectedCpu = this;
+        }
+
+        public void Unregister(ICFU cfu)
+        {
+            var toRemove = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList(); //ToList required, as we remove from the source
+            foreach(var key in toRemove)
+            {
+                ChildCollection.Remove(key);
+            }
+
+            machine.UnregisterAsAChildOf(this, cfu);
+        }
+
+        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(ICFU cfu)
+        {
+            return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x));
+        }
+
+        public IEnumerable<IRegistered<ICFU, NumberRegistrationPoint<int>>> Children
+        {
+            get
+            {
+                return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
+            }
         }
 
         // GPIOs for the original (non-standard) VexRiscv configuration
@@ -152,6 +200,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
         }
 
+        public readonly Dictionary<int, ICFU> ChildCollection;
         private Interrupts machineInterrupts;
         private Interrupts supervisorInterrupts;
         private uint dCacheInfo;
