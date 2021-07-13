@@ -62,6 +62,7 @@
     <Compile Include="Peripherals\Input\AntMouse.cs" />
     <Compile Include="Peripherals\MTD\CFIFlashExtensions.cs" />
     <Compile Include="Peripherals\MTD\CC2538FlashController.cs" />
+    <Compile Include="Peripherals\MTD\STM32F407FlashController.cs" />
     <Compile Include="Peripherals\Input\PS2Keyboard.cs" />
     <Compile Include="Peripherals\Input\PS2Mouse.cs" />
     <Compile Include="Peripherals\MTD\ISPIFlash.cs" />
