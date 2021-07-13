@@ -140,9 +140,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemControlRegister:
                 return 0;
             case Registers.ConfigurationAndControl:
-                this.DebugLog("Read from CCR register. This is not yet implemented. Returning 0x10000");
-                // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
-                return 0x10000;
+                return ccr;
             case Registers.SystemHandlerPriority1:
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
@@ -328,6 +326,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // set only not reserved values
                 cpu.FPDSCR = value & 0x07c00000;
                 break;
+            case Registers.ConfigurationAndControl:
+                ccr = value;
+                break;
             default:
                 this.LogUnhandledWrite(offset, value);
                 break;
@@ -347,6 +348,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.AutoUpdate = true;
             IRQ.Unset();
             countFlag = false;
+
+            // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
+            ccr = 0x10000;
         }
 
         public long Size
@@ -736,6 +740,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             FPContextAddress = 0xF38,
             FPDefaultStatusControl = 0xF3C,
         }
+
+        // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
+        private uint ccr = 0x10000;
 
         private bool countFlag;
         private byte priorityMask;
