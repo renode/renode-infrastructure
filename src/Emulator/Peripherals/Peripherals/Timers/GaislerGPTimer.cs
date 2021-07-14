@@ -218,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly GaislerAPBPlugAndPlayRecord.SpaceType spaceType = GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
         private DeviceRegisters registers;
         private const int DefaultTimerFrequency = 1000000;
-        private const uint InitialLimit = 0xFFFF;
+        private const uint InitialLimit = 0xFFFFFFFF;
         private const int MaximumNumberTimersImplemented = 7;
 
         private enum registerOffset : uint
