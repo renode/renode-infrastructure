@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -38,7 +38,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public IEnumerable<T> ParseSamplesFile(string path)
+        public bool TryDequeueNewSample()
+        {
+            return samplesFifo.TryDequeue(out currentSample);
+        }
+
+        public T Sample => currentSample ?? DefaultSample;
+
+        public T DefaultSample { get; } = new T();
+
+        public uint SamplesCount => (uint)samplesFifo.Count;
+
+        private IEnumerable<T> ParseSamplesFile(string path)
         {
             var localQueue = new Queue<T>();
             var lineNumber = 0;
@@ -81,17 +92,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             return localQueue;
         }
-
-        public bool TryDequeueNewSample()
-        {
-            return samplesFifo.TryDequeue(out currentSample);
-        }
-
-        public T Sample => currentSample ?? DefaultSample;
-
-        public T DefaultSample { get; } = new T();
-
-        public uint SamplesCount => (uint)samplesFifo.Count;
 
         private T currentSample;
         private readonly Queue<T> samplesFifo;
