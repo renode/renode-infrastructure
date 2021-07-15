@@ -8,6 +8,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.CSharp.RuntimeBinder;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 using System.Linq;
@@ -531,8 +532,15 @@ namespace Antmicro.Renode.Peripherals.Memory
             {
                 foreach(var regPoint in registrationPoints)
                 {
-                    //it's dynamic to avoid cyclic dependency to TranslationCPU
-                    ((dynamic)cpu).InvalidateTranslationBlocks(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length));
+                    try
+                    {
+                        //it's dynamic to avoid cyclic dependency to TranslationCPU
+                        ((dynamic)cpu).InvalidateTranslationBlocks(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length));
+                    }
+                    catch(RuntimeBinderException)
+                    {
+                        // CPU does not implement `InvalidateTranslationBlocks`, there is not much we can do
+                    }
                 }
             }
         }
