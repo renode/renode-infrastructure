@@ -85,7 +85,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
             foreach(var register in feature.Registers)
             {
-                xmlFile.Append($"<reg name=\"{register.Name}\" bitsize=\"{register.Size}\" regnum=\"{register.Number}\" type=\"{register.Type}\" group=\"{register.Group}\"/>\n");
+                xmlFile.Append($"<reg name=\"{register.Name}\" bitsize=\"{register.Size}\" regnum=\"{register.Number}\" ");
+                if(!String.IsNullOrEmpty(register.Type))
+                {
+                    xmlFile.Append($"type=\"{register.Type}\" ");
+                }
+                xmlFile.Append($"group=\"{register.Group}\"/>\n");
             }
             xmlFile.Append("</feature>\n");
         }

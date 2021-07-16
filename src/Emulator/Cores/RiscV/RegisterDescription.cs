@@ -135,9 +135,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             // fflags, frm and fcsr are not implemented but are required for architecture description
             // We use `RiscV32Registers.X0` because `x0` should always be zero and stay zero even after writing a value to it.
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "fflags", "fflags_type", "float"));
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "frm", "frm_type", "float"));
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "fcsr", "fcsr_type", "float"));
+            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "fflags", "", "float"));
+            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "frm", "", "float"));
+            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "fcsr", "", "float"));
             features.Add(fpuGroup);
         }
 
@@ -382,8 +382,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MIDELEG, registerWidth, "mideleg", intType, "csr"));
             }
 
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MSTATUS, registerWidth, "mstatus", "mstatus_type", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MISA, registerWidth, "misa", "misa_type", "csr"));
+            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MSTATUS, registerWidth, "mstatus", "", "csr"));
+            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MISA, registerWidth, "misa", "", "csr"));
             csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MIE, registerWidth, "mie", "mie_type", "csr"));
             csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MIP, registerWidth, "mip", "mip_type", "csr"));
             csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MTVEC, registerWidth, "mtvec", "tvec_type", "csr"));
