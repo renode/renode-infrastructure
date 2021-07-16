@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -70,11 +70,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 wfiAsNop = value;
-                neverWaitForInterrupt = value;
+                neverWaitForInterrupt = wfiAsNop && wfeAndSevAsNop;
+            }
+        }
+
+        public bool WfeAndSevAsNop
+        {
+            get => wfeAndSevAsNop;
+            set
+            {
+                wfeAndSevAsNop = value;
+                neverWaitForInterrupt = wfiAsNop && wfeAndSevAsNop;
             }
         }
 
         protected bool wfiAsNop;
+        protected bool wfeAndSevAsNop;
 
         [Export]
         protected uint Read32CP15(uint instruction)
@@ -216,6 +227,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ExceptionDescriptions[exceptionIndex];
         }
 
+        public void SetEventFlag(bool value)
+        {
+            TlibSetEventFlag(value ? 1 : 0);
+        }
+
+        public void SetSevOnPending(bool value)
+        {
+            TlibSetSevOnPending(value ? 1 : 0);
+        }
+
         [Export]
         private uint DoSemihosting()
         {
@@ -258,7 +279,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             return WfiAsNop ? 1u : 0u;
         }
 
+        [Export]
+        private uint IsWfeAndSevAsNop()
+        {
+            return WfeAndSevAsNop ? 1u : 0u;
+        }
+
         private SemihostingUart semihostingUart = null;
+
+        [Export]
+        private void SetSystemEvent(int value)
+        {
+            var flag = value != 0;
+
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
+            {
+                cpu.SetEventFlag(flag);
+            }
+        }
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -277,6 +315,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionInt32 SetThumb;
+
+        [Import]
+        private ActionInt32 TlibSetEventFlag;
+
+        [Import]
+        private ActionInt32 TlibSetSevOnPending;
 
 #pragma warning restore 649
 

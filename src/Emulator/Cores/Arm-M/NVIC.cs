@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             activeIRQs = new Stack<int>();
             pendingIRQs = new SortedSet<int>();
             systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, autoUpdate: true);
+            this.machine = machine;
             this.priorityMask = priorityMask;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
@@ -238,15 +239,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 break;
             case Registers.SystemControlRegister:
-                if((value & DeepSleep) != 0)
+                var sevOnPending = (value & SevOnPending) != 0;
+                var deepSleep = (value & DeepSleep) != 0;
+                var unknownFlags = value & ~(DeepSleep|SevOnPending);
+
+                if(unknownFlags != 0)
+                {
+                    this.Log(LogLevel.Warning, "Unhandled value written to System Control Register: 0x{0:X}.", unknownFlags);
+                }
+                if(deepSleep)
                 {
                     systick.Enabled = false;
                     this.NoisyLog("Entering deep sleep");
                 }
-                else if((value & ~DeepSleep) != 0)
+
+                // This register gets written pretty often, this aims to reduce the number of C#->C call
+                if(currentSevOnPending != sevOnPending)
                 {
-                    this.Log(LogLevel.Warning, "Unhandled value written to System Control Register: 0x{0:X}.", value & ~DeepSleep);
+                    SetSevOnPendingOnAllCPUs(sevOnPending);
+                    currentSevOnPending = sevOnPending;
                 }
+
                 break;
             case Registers.SystemHandlerPriority1:
                 // 7th interrupt is ignored
@@ -348,6 +361,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.AutoUpdate = true;
             IRQ.Unset();
             countFlag = false;
+            currentSevOnPending = false;
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
             ccr = 0x10000;
@@ -448,6 +462,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     irqs[number] &= ~IRQState.Running;
                 }
                 FindPendingInterrupt();
+            }
+        }
+
+        public void SetSevOnPendingOnAllCPUs(bool value)
+        {
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
+            {
+                cpu.SetSevOnPending(value);
             }
         }
 
@@ -746,6 +768,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private bool countFlag;
         private byte priorityMask;
+        private bool currentSevOnPending;
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
         private int binaryPointPosition; // from the right
@@ -757,6 +780,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Action resetMachine;
         private CortexM cpu;
         private readonly LimitTimer systick;
+        private readonly Machine machine;
 
         private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
@@ -775,6 +799,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
         private const uint DeepSleep           = 0x4;
+        private const uint SevOnPending        = 0x10;
 
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
     }
