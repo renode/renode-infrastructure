@@ -525,7 +525,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 else
                 {
-                    foreach(var c in GetCPUs().Cast<IControllableCPU>())
+                    foreach(var c in GetCPUs().OfType<IControllableCPU>())
                     {
                         c.InitFromElf(elf);
                     }
