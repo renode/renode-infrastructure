@@ -831,6 +831,24 @@ namespace Antmicro.Renode.Utilities
             arr[id2] = tmp;
         }
 
+        public static bool EndiannessSwapInPlace(byte[] input, int width)
+        {
+            if(input.Length % width != 0)
+            {
+                return false;
+            }
+
+            for(var i = 0; i < input.Length; i += width)
+            {
+                for(var j = 0; j < width / 2; j++)
+                {
+                    SwapElements(input, i + j, i + width - j - 1);
+                }
+            }
+
+            return true;
+        }
+
         public static bool CalculateUnitSuffix(double value, out double newValue, out string unit)
         {
             var units = new [] { "B", "KB", "MB", "GB", "TB" };
