@@ -33,7 +33,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-
             return GetRegisterValue32(r.Index);
         }
 
@@ -42,6 +41,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             return mapping.Values.OrderBy(x => x.Index);
         }
 
+        [Register]
+        public RegisterValue Y
+        {
+            get
+            {
+                return GetRegisterValue32((int)SparcRegisters.Y);
+            }
+            set
+            {
+                SetRegisterValue32((int)SparcRegisters.Y, value);
+            }
+        }
         [Register]
         public RegisterValue PSR
         {
@@ -55,6 +66,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         [Register]
+        public RegisterValue WIM
+        {
+            get
+            {
+                return GetRegisterValue32((int)SparcRegisters.WIM);
+            }
+            set
+            {
+                SetRegisterValue32((int)SparcRegisters.WIM, value);
+            }
+        }
+        [Register]
         public RegisterValue TBR
         {
             get
@@ -64,18 +87,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 SetRegisterValue32((int)SparcRegisters.TBR, value);
-            }
-        }
-        [Register]
-        public RegisterValue Y
-        {
-            get
-            {
-                return GetRegisterValue32((int)SparcRegisters.Y);
-            }
-            set
-            {
-                SetRegisterValue32((int)SparcRegisters.Y, value);
             }
         }
         [Register]
@@ -101,18 +112,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 SetRegisterValue32((int)SparcRegisters.NPC, value);
-            }
-        }
-        [Register]
-        public RegisterValue WIM
-        {
-            get
-            {
-                return GetRegisterValue32((int)SparcRegisters.WIM);
-            }
-            set
-            {
-                SetRegisterValue32((int)SparcRegisters.WIM, value);
             }
         }
         public RegistersGroup R { get; private set; }
@@ -230,11 +229,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             { SparcRegisters.R29,  new CPURegister(29, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.R30,  new CPURegister(30, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.R31,  new CPURegister(31, 32, isGeneral: true, isReadonly: false) },
-            { SparcRegisters.PSR,  new CPURegister(32, 32, isGeneral: true, isReadonly: false) },
-            { SparcRegisters.TBR,  new CPURegister(33, 32, isGeneral: true, isReadonly: false) },
-            { SparcRegisters.Y,  new CPURegister(34, 32, isGeneral: true, isReadonly: false) },
-            { SparcRegisters.PC,  new CPURegister(35, 32, isGeneral: true, isReadonly: false) },
-            { SparcRegisters.NPC,  new CPURegister(36, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.ASR16,  new CPURegister(37, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.ASR17,  new CPURegister(38, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.ASR18,  new CPURegister(39, 32, isGeneral: true, isReadonly: false) },
@@ -251,18 +245,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             { SparcRegisters.ASR29,  new CPURegister(50, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.ASR30,  new CPURegister(51, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.ASR31,  new CPURegister(52, 32, isGeneral: true, isReadonly: false) },
-            { SparcRegisters.WIM,  new CPURegister(53, 32, isGeneral: true, isReadonly: false) },
+            { SparcRegisters.Y,  new CPURegister(64, 32, isGeneral: true, isReadonly: false) },
+            { SparcRegisters.PSR,  new CPURegister(65, 32, isGeneral: true, isReadonly: false) },
+            { SparcRegisters.WIM,  new CPURegister(66, 32, isGeneral: true, isReadonly: false) },
+            { SparcRegisters.TBR,  new CPURegister(67, 32, isGeneral: true, isReadonly: false) },
+            { SparcRegisters.PC,  new CPURegister(68, 32, isGeneral: true, isReadonly: false) },
+            { SparcRegisters.NPC,  new CPURegister(69, 32, isGeneral: true, isReadonly: false) },
         };
     }
 
     public enum SparcRegisters
     {
-        PSR = 32,
-        TBR = 33,
-        Y = 34,
-        PC = 35,
-        NPC = 36,
-        WIM = 53,
+        Y = 64,
+        PSR = 65,
+        WIM = 66,
+        TBR = 67,
+        PC = 68,
+        NPC = 69,
         R0 = 0,
         R1 = 1,
         R2 = 2,
