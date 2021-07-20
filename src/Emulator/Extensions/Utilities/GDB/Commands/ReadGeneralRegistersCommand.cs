@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             {
                 var start = registers.Length;
                 var value = manager.Cpu.GetRegisterUnsafe(i.Index);
-                foreach(var b in value.GetBytes())
+                foreach(var b in value.GetBytes(manager.Cpu.Endianness))
                 {
                     registers.AppendFormat("{0:x2}", b);
                 }

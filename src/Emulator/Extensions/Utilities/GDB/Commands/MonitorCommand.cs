@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     {
                         inputBuilder.AppendFormat("({0}) r{0} (/32): 0x", i);
                         var value = manager.Cpu.GetRegisterUnsafe(i);
-                        foreach(var b in value.GetBytes())
+                        foreach(var b in value.GetBytes(manager.Cpu.Endianness))
                         {
                             inputBuilder.AppendFormat("{0:x2}", b);
                         }

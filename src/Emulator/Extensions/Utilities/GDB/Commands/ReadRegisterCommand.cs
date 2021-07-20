@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             // if register exists in emulated core return current value of this
             if(manager.Cpu.GetRegisters().Any(x => x.Index == registerNumber))
             {
-                foreach(var b in manager.Cpu.GetRegisterUnsafe(registerNumber).GetBytes())
+                foreach(var b in manager.Cpu.GetRegisterUnsafe(registerNumber).GetBytes(manager.Cpu.Endianness))
                 {
                     content.AppendFormat("{0:x2}", b);
                 }

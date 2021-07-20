@@ -5,6 +5,9 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+using ELFSharp.ELF;
+using Microsoft.Scripting.Utils;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -22,21 +25,30 @@ namespace Antmicro.Renode.Peripherals.CPU
             return $"0x{RawValue.ToString("x")}";
         }
 
-        public byte[] GetBytes()
+        public byte[] GetBytes(Endianess endianness)
         {
-            switch(Bits)
+            bool needsByteSwap = (endianness == Endianess.LittleEndian) != BitConverter.IsLittleEndian;
+            byte[] bytes;
+
+            switch (Bits)
             {
                 case 8:
-                    return new [] { (byte)RawValue };
+                    bytes = new[] { (byte)RawValue };
+                    break;
                 case 16:
-                    return BitConverter.GetBytes((ushort)RawValue);
+                    bytes = BitConverter.GetBytes((ushort)RawValue);
+                    break;
                 case 32:
-                    return BitConverter.GetBytes((uint)RawValue);
+                    bytes = BitConverter.GetBytes((uint)RawValue);
+                    break;
                 case 64:
-                    return BitConverter.GetBytes(RawValue);
+                    bytes = BitConverter.GetBytes(RawValue);
+                    break;
                 default:
                     throw new ArgumentException($"Unexpected bits count: {Bits}");
             }
+
+            return needsByteSwap ? bytes.Reverse().ToArray() : bytes;
         }
 
         public static implicit operator RegisterValue(ulong v)
