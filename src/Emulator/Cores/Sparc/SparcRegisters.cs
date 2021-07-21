@@ -126,6 +126,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)SparcRegisters.FSR, value);
             }
         }
+        [Register]
+        public RegisterValue CSR
+        {
+            get
+            {
+                return GetRegisterValue32((int)SparcRegisters.CSR);
+            }
+            set
+            {
+                SetRegisterValue32((int)SparcRegisters.CSR, value);
+            }
+        }
         public RegistersGroup R { get; private set; }
         public RegistersGroup ASR { get; private set; }
 
@@ -264,6 +276,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { SparcRegisters.PC,  new CPURegister(68, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.NPC,  new CPURegister(69, 32, isGeneral: true, isReadonly: false) },
             { SparcRegisters.FSR,  new CPURegister(70, 32, isGeneral: false, isReadonly: false) },
+            { SparcRegisters.CSR,  new CPURegister(71, 32, isGeneral: false, isReadonly: false) },
         };
     }
 
@@ -276,6 +289,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         PC = 68,
         NPC = 69,
         FSR = 70,
+        CSR = 71,
         R0 = 0,
         R1 = 1,
         R2 = 2,
