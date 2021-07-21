@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 }
             }
 
-            manager.Cpu.SetRegisterUnsafe(registerNumber, reg.ValueFromBytes(value));
+            manager.Cpu.SetRegisterUnsafe(registerNumber, reg.ValueFromBytes(value, manager.Cpu.Endianness));
             return PacketData.Success;
         }
     }

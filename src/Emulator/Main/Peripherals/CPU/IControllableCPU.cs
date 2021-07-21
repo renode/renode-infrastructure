@@ -45,16 +45,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             IsReadonly = isReadonly;
         }
 
-        public ulong ValueFromBytes(byte[] bytes)
+        public ulong ValueFromBytes(byte[] bytes, Endianess endianness)
         {
             if(bytes.Length > Width)
             {
                 throw new ArgumentException($"Expected {Width} bytes, but {bytes.Length} received");
             }
+            bool needsByteSwap = (endianness == Endianess.LittleEndian) != BitConverter.IsLittleEndian;
 
             ulong result = 0;
 
             var bytesWithPadding = Enumerable.Repeat<byte>(0, (Width / 8) - bytes.Length).Concat(bytes).ToArray();
+            if(needsByteSwap)
+            {
+                bytesWithPadding = bytesWithPadding.Reverse().ToArray();
+            }
+
             switch(Width)
             {
                 case 8:
