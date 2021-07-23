@@ -603,6 +603,11 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 return;
             }
+            if(addCrc)
+            {
+                frame.FillWithChecksums(new [] { EtherType.IpV4, EtherType.IpV6 }, 
+                    new [] { IPProtocolType.TCP, IPProtocolType.UDP });
+            }
 
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
             FrameReady?.Invoke(frame);
