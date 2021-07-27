@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,12 +18,10 @@ namespace Antmicro.Renode.HostInterfaces.Network
     {
         public static IMACInterface CreateAndGetTap(this Emulation emulation, string hostInterfaceName, string name, bool persistent = false)
         {
-#if PLATFORM_WINDOWS
-            throw new RecoverableException("TAP is not available on Windows");
-#else
             ITapInterface result;
-
-#if PLATFORM_OSX
+#if PLATFORM_WINDOWS
+            result = new WindowsTapInterface(hostInterfaceName);
+#elif PLATFORM_OSX
             if(persistent)
             {
                 throw new RecoverableException("Persitent TAP is not available on OS X.");
@@ -35,7 +33,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
             emulation.HostMachine.AddHostMachineElement(result, name);
             return result;
-#endif
         }
 
         public static void CreateTap(this Emulation emulation, string hostInterfaceName, string name, bool persistent = false)
