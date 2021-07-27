@@ -19,7 +19,7 @@ using Antmicro.Renode.Peripherals.IRQControllers;
 0x04 Private Timer Counter Register
 0x08 Private Timer Control Register
 0x0C Private Timer Interrupt Status Register
-0x20 Watchdog Load Register 
+0x20 Watchdog Load Register
 0x24 Watchdog Counter Register
 0x28 Watchdog Control Register
 0x2C Watchdog Interrupt Status Register
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; private set; }
-        
+
         #region IDoubleWordPeripheral implementation
         public uint ReadDoubleWord(long offset)
         {
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             switch(offset)
             {
             case 0x00://load
-                return (uint)Limit; 
+                return (uint)Limit;
             case 0x04://counter value
                 return (uint)Value;
             case 0x08://control reg
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return RawInterrupt ? 1u : 0u;
             default:
                 break;
-                
+
             }
             return (uint)Value;
         }
@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 // throw new NotImplementedException ("Private Watchdog not implemented. Please contact Antmicro fo further support");
             }
-            
+
             switch(offset)
             {
             case 0x00://load
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 int prescaler;
                 uint irqEnable;
                 bool autoReload;
-                
+
                 prescaler = (byte)(value >> 8);
                 irqEnable = (uint)(value & 1u << 2);
                 autoReload = ((value & 1u << 1) != 0);
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 EventEnabled = irqEnable != 0;
                 AutoUpdate = autoReload;
                 Divider = prescaler + 1;
-                
+
                 break;
             case 0x0C://interrupt status
                 if((value & 0x01) != 0)
@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 break;
             default:
                 break;
-                
+
             }
         }
         #endregion
