@@ -256,9 +256,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                 execDestinationLow.Write(0, nextDestinationLow.Value);
                 execDestinationHigh.Write(0, nextDestinationHigh.Value);
 
-                ulong sourceAddress = (nextSourceHigh.Value << 32) | nextSourceLow.Value;
-                ulong destinationAddress = (nextDestinationHigh.Value << 32) | nextDestinationLow.Value;
-                ulong size = (nextBytesHigh.Value << 32) | nextBytesLow.Value;
+                ulong sourceAddress = nextSourceHigh.Value;
+                sourceAddress = sourceAddress << 32;
+                sourceAddress = sourceAddress + nextSourceLow.Value;
+
+                ulong destinationAddress = nextDestinationHigh.Value;
+                destinationAddress = destinationAddress << 32;
+                destinationAddress = destinationAddress + nextDestinationLow.Value;
+
+                ulong size = nextBytesHigh.Value;
+                size = size << 32;
+                size = size + nextBytesLow.Value;
 
                 parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
                 {
