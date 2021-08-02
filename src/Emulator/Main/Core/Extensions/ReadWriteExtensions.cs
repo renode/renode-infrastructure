@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ushort)(peripheral.ReadByte(address + 1) << 8 | peripheral.ReadByte(address));
-            }			
+            }
         }
 
         public static ushort ReadWordUsingByteBigEndian(this IBytePeripheral peripheral, long address)
@@ -29,14 +29,14 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ushort)(peripheral.ReadByte(address + 1) | peripheral.ReadByte(address) << 8);
-            }           
+            }
         }
 
         public static void WriteWordUsingByte(this IBytePeripheral peripheral, long address, ushort value)
         {
             unchecked
             {
-                peripheral.WriteByte(address + 1, (byte)(value >> 8));				
+                peripheral.WriteByte(address + 1, (byte)(value >> 8));
                 peripheral.WriteByte(address, (byte)value);
             }
         }
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Core.Extensions
         {
             unchecked
             {
-                peripheral.WriteByte(address, (byte)(value >> 8));              
+                peripheral.WriteByte(address, (byte)(value >> 8));
                 peripheral.WriteByte(address + 1, (byte)value);
             }
         }
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 var writeAddress = address & (~1);
-                var offset = (int)(address & 1);				
+                var offset = (int)(address & 1);
                 var oldValue = peripheral.ReadWord(writeAddress) & (0xFF << (1 - offset) * 8);
                 peripheral.WriteWord(writeAddress, (ushort)(oldValue | (value << 8 * offset)));
             }
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 var writeAddress = address & (~1);
-                var offset = 1 - (int)(address & 1);                
+                var offset = 1 - (int)(address & 1);
                 var oldValue = peripheral.ReadWord(writeAddress) & (0xFF << (1 - offset) * 8);
                 peripheral.WriteWord(writeAddress, (ushort)(oldValue | (value << 8 * offset)));
             }
@@ -200,39 +200,37 @@ namespace Antmicro.Renode.Core.Extensions
         {
             unchecked
             {
-                var alignedAddress = address & (~3);			
+                var alignedAddress = address & (~3);
                 var offset = (int)(address & 3);
-                var oldValue = peripheral.ReadDoubleWord(alignedAddress) & ~(0xFFFF << offset * 8);					
-                peripheral.WriteDoubleWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));				
+                var oldValue = peripheral.ReadDoubleWord(alignedAddress) & ~(0xFFFF << offset * 8);
+                peripheral.WriteDoubleWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));
             }
         }
 
         public static void WriteWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address, ushort value)
         {
             unchecked
-            {               
-                var alignedAddress = address & (~3);            
+            {
+                var alignedAddress = address & (~3);
                 var offset = 2 - (int)(address & 3);
-                var oldValue = peripheral.ReadDoubleWord(alignedAddress) & ~(0xFFFF << offset * 8);                   
-                peripheral.WriteDoubleWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));             
+                var oldValue = peripheral.ReadDoubleWord(alignedAddress) & ~(0xFFFF << offset * 8);
+                peripheral.WriteDoubleWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));
             }
         }
 
         public static uint ReadDoubleWordUsingWord(this IWordPeripheral peripheral, long address)
         {
             unchecked
-            {				
+            {
                 return (uint)((peripheral.ReadWord(address + 2) << 16) | peripheral.ReadWord(address));
-				
             }
         }
 
         public static uint ReadDoubleWordUsingWordBigEndian(this IWordPeripheral peripheral, long address)
         {
             unchecked
-            {               
+            {
                 return (uint)((peripheral.ReadWord(address) << 16) | peripheral.ReadWord(address + 2));
-
             }
         }
 
