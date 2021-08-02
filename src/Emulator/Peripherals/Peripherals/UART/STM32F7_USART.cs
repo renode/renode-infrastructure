@@ -135,13 +135,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("ADD", 24, 8);
 
             Register.ControlRegister3.Define(this)
-                .WithTaggedFlag("EIE", 0)
+                .WithFlag(0, name: "EIE")
                 .WithTaggedFlag("IREN", 1)
                 .WithTaggedFlag("IRLP", 2)
                 .WithTaggedFlag("HDSEL", 3)
                 .WithTaggedFlag("NACK", 4)
                 .WithTaggedFlag("SCEN", 5)
-                .WithTaggedFlag("DMAR", 6)
+                .WithFlag(6, name: "DMAR")
                 .WithTaggedFlag("DMAT", 7)
                 .WithTaggedFlag("RTSE", 8)
                 .WithTaggedFlag("CTSE", 9)

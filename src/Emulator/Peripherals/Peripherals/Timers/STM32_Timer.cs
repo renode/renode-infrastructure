@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(1, 1)
                     .WithTaggedFlag("CCUS", 2)
                     .WithTaggedFlag("CCDS", 3)
-                    .WithTag("MMS", 4, 2)
+                    .WithFlags(4, 3, name: "MMS")
                     .WithTaggedFlag("TI1S", 7)
                     .WithTaggedFlag("OIS1", 8)
                     .WithTaggedFlag("OIS1N", 9)
@@ -119,10 +119,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTag("Trigger interrupt enable (TIE)", 6, 1)
                     .WithReservedBits(7, 1)
                     .WithTag("Update DMA request enable (UDE)", 8, 1)
-                    .WithTag("Capture/Compare 1 DMA request enable (CC1DE)", 9, 1)
-                    .WithTag("Capture/Compare 2 DMA request enable (CC2DE)", 10, 1)
-                    .WithTag("Capture/Compare 3 DMA request enable (CC3DE)", 11, 1)
-                    .WithTag("Capture/Compare 4 DMA request enable (CC4DE)", 12, 1)
+                    .WithFlag(9, name: "Capture/Compare 1 DMA request enable (CC1DE)")
+                    .WithFlag(10, name: "Capture/Compare 2 DMA request enable (CC2DE)")
+                    .WithFlag(11, name: "Capture/Compare 3 DMA request enable (CC3DE)")
+                    .WithFlag(12, name: "Capture/Compare 4 DMA request enable (CC4DE)")
                     .WithReservedBits(13, 1)
                     .WithTag("Trigger DMA request enable (TDE)", 14, 1)
                     .WithReservedBits(15, 17)
@@ -203,57 +203,21 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 
-                {(long)Registers.CaptureOrCompareMode1, new DoubleWordRegister(this)
-                    .WithTag("CC1S", 0, 2)
-                    .WithTaggedFlag("OC1FE", 2)
-                    .WithTaggedFlag("OC1PE", 3)
-                    .WithTag("OC1M", 4, 3)
-                    .WithTaggedFlag("OC1CE", 7)
-                    .WithTag("CC2S", 8, 2)
-                    .WithTag("OC2M", 12, 3)
-                    .WithReservedBits(15, 17)
-                },
-                
-                {(long)Registers.CaptureOrCompareMode2, new DoubleWordRegister(this)
-                    // Fields of this register vary between 'Output compare'/'Input compare' mode
-                    // Only common fields were defined
-                    .WithTag("CC3S", 0, 2)
-                    //Output mode:
-                        // "OC3FE", 2
-                        // "OC3PE", 3
-                        // "OC3M", 4, 3
-                        // "OC3CE", 7
-                    // Input mode:
-                        // "IC3PSC", 2, 2
-                        // "IC3F", 4, 4
-                    .WithReservedBits(2, 6) 
-                    .WithTag("CC4S", 8, 2)
-                    .WithReservedBits(10, 6)
-                    //Output mode:
-                        // "OC4FE", 2
-                        // "OC4PE", 3
-                        // "OC4M", 4, 3
-                        // "OC4CE", 7
-                    // Input mode:
-                        // "IC4PSC", 2, 2
-                        // "IC4F", 4, 4
-                },
-                
                 {(long)Registers.CaptureOrCompareEnable, new DoubleWordRegister(this)
-                    .WithTaggedFlag("CC1E", 0) 
-                    .WithTaggedFlag("CC1P", 1) 
-                    .WithTaggedFlag("CC1NE", 2) 
-                    .WithTaggedFlag("CC1NP", 3) 
-                    .WithTaggedFlag("CC2E", 4) 
-                    .WithTaggedFlag("CC2P", 5) 
-                    .WithTaggedFlag("CC2NE", 6) 
-                    .WithTaggedFlag("CC2NP", 7) 
-                    .WithTaggedFlag("CC3E", 8) 
-                    .WithTaggedFlag("CC3P", 9) 
-                    .WithTaggedFlag("CC3NE", 10) 
-                    .WithTaggedFlag("CC3NP", 11) 
-                    .WithTaggedFlag("CC4E", 12) 
-                    .WithTaggedFlag("CC4P", 13) 
+                    .WithFlag(0, name: "CC1E") 
+                    .WithFlag(1, name: "CC1P") 
+                    .WithFlag(2, name: "CC1NE") 
+                    .WithFlag(3, name: "CC1NP") 
+                    .WithFlag(4, name: "CC2E") 
+                    .WithFlag(5, name: "CC2P") 
+                    .WithFlag(6, name: "CC2NE") 
+                    .WithFlag(7, name: "CC2NP") 
+                    .WithFlag(8, name: "CC3E") 
+                    .WithFlag(9, name: "CC3P") 
+                    .WithFlag(10, name: "CC3NE") 
+                    .WithFlag(11, name: "CC3NP") 
+                    .WithFlag(12, name: "CC4E") 
+                    .WithFlag(13, name: "CC4P") 
                     .WithReservedBits(14, 18)
                 },
                 
@@ -329,12 +293,31 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);
+            switch((Registers)offset)
+            {
+                case Registers.CaptureOrCompareMode1:
+                   return captureOrCompareMode1;
+                case Registers.CaptureOrCompareMode2:
+                   return captureOrCompareMode2;
+                default:
+                    return registers.Read(offset);
+            }            
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            registers.Write(offset, value);
+            switch((Registers)offset)
+            {
+                case Registers.CaptureOrCompareMode1:
+                    captureOrCompareMode1 = value;
+                    return;
+                case Registers.CaptureOrCompareMode2:
+                    captureOrCompareMode2 = value;
+                    return;
+                default:
+                    registers.Write(offset, value);
+                    break;
+            }     
         }
 
         public override void Reset()
@@ -345,6 +328,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             Limit = initialLimit;
             repetitionsLeft = 0;
             updateInterruptFlag = false;
+            captureOrCompareMode1 = 0;
+            captureOrCompareMode2 = 0;
             for(var i = 0; i < NumberOfCCChannels; ++i)
             {
                 ccTimers[i].Reset();
@@ -408,6 +393,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint initialLimit;
         private uint autoReloadValue;
         private uint repetitionsLeft;
+        private uint captureOrCompareMode1; // dependent on timer direction
+        private uint captureOrCompareMode2; // dependent on timer direction
         private bool updateInterruptFlag;
         private bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
         private readonly IFlagRegisterField updateDisable;
