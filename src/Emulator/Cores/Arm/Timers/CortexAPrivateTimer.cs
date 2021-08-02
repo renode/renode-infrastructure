@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return (uint)Value;
             case 0x08://control reg
                 uint controlReg = 0;
-                controlReg |= (uint)((Divider - 1) << 8) | (EventEnabled ? 1u : 0u) | ((AutoUpdate) ? 1u << 1 : 0u) | ((Enabled) ? 1u : 0u);
+                controlReg |= (uint)((Divider - 1) << 8) | (EventEnabled ? 1u << 2 : 0u) | ((AutoUpdate) ? 1u << 1 : 0u) | ((Enabled) ? 1u : 0u);
                 return controlReg;
             case 0x0C://interrupt status
                 return RawInterrupt ? 1u : 0u;
