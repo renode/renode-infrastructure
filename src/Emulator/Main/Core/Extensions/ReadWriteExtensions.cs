@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Core.Extensions
             {
                 var readAddress = address & (~3);
                 var offset = 2 - (int)(address & 3);
-                return (ushort)(peripheral.ReadDoubleWord(readAddress) >> offset * 8);
+                return Misc.SwapBytesUShort((ushort)(peripheral.ReadDoubleWord(readAddress) >> offset * 8));
             }
         }
 
@@ -211,6 +211,7 @@ namespace Antmicro.Renode.Core.Extensions
         {
             unchecked
             {
+                value = Misc.SwapBytesUShort(value);
                 var alignedAddress = address & (~3);
                 var offset = 2 - (int)(address & 3);
                 var oldValue = peripheral.ReadDoubleWord(alignedAddress) & ~(0xFFFF << offset * 8);
@@ -230,7 +231,8 @@ namespace Antmicro.Renode.Core.Extensions
         {
             unchecked
             {
-                return (uint)((peripheral.ReadWord(address) << 16) | peripheral.ReadWord(address + 2));
+                return (uint)((Misc.SwapBytesUShort(peripheral.ReadWord(address)) << 16) |
+                               Misc.SwapBytesUShort(peripheral.ReadWord(address + 2)));
             }
         }
 
@@ -247,8 +249,8 @@ namespace Antmicro.Renode.Core.Extensions
         {
             unchecked
             {
-                peripheral.WriteWord(address, (ushort)(value >> 16));
-                peripheral.WriteWord(address + 2, (ushort)(value));
+                peripheral.WriteWord(address, Misc.SwapBytesUShort((ushort)(value >> 16)));
+                peripheral.WriteWord(address + 2, Misc.SwapBytesUShort((ushort)(value)));
             }
         }
 
