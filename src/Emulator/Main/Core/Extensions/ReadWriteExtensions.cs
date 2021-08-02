@@ -10,6 +10,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using System.Text;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.Extensions
 {
@@ -251,6 +252,26 @@ namespace Antmicro.Renode.Core.Extensions
                 peripheral.WriteWord(address, (ushort)(value >> 16));
                 peripheral.WriteWord(address + 2, (ushort)(value));
             }
+        }
+
+        public static ushort ReadWordBigEndian(this IWordPeripheral peripheral, long address)
+        {
+            return Misc.SwapBytesUShort(peripheral.ReadWord(address));
+        }
+
+        public static void WriteWordBigEndian(this IWordPeripheral peripheral, long address, ushort value)
+        {
+            peripheral.WriteWord(address, Misc.SwapBytesUShort(value));
+        }
+
+        public static uint ReadDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address)
+        {
+            return Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address));
+        }
+
+        public static void WriteDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address, uint value)
+        {
+            peripheral.WriteDoubleWord(address, Misc.SwapBytesUInt(value));
         }
 
         public static byte ReadByteNotTranslated(this IBusPeripheral peripheral, long address)

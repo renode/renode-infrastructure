@@ -1218,8 +1218,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(wordPeripheral != null)
                 {
-                    methods.ReadWord = wordPeripheral.ReadWord;
-                    methods.WriteWord = wordPeripheral.WriteWord;
+                    methods.ReadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordReadMethod)wordPeripheral.ReadWord : wordPeripheral.ReadWordBigEndian;
+                    methods.WriteWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordWriteMethod)wordPeripheral.WriteWord : wordPeripheral.WriteWordBigEndian;
                 }
                 else if(dwordWrapper != null && (allowedTranslations & AllowedTranslation.WordToDoubleWord) != 0)
                 {
@@ -1247,13 +1247,19 @@ namespace Antmicro.Renode.Peripherals.Bus
                     methods.WriteWord = peripheral.WriteWordNotTranslated;
                 }
             }
+            else if(periEndianess == Endianess.BigEndian)
+            {
+                // if methods.ReadWord != null then we have a wordWrapper
+                methods.ReadWord = (BusAccess.WordReadMethod)wordWrapper.ReadWordBigEndian;
+                methods.WriteWord = (BusAccess.WordWriteMethod)wordWrapper.WriteWordBigEndian;
+            }
 
             if(methods.ReadDoubleWord == null)
             {
                 if(dwordPeripheral != null)
                 {
-                    methods.ReadDoubleWord = dwordPeripheral.ReadDoubleWord;
-                    methods.WriteDoubleWord = dwordPeripheral.WriteDoubleWord;
+                    methods.ReadDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordReadMethod)dwordPeripheral.ReadDoubleWord : dwordPeripheral.ReadDoubleWordBigEndian;
+                    methods.WriteDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordWriteMethod)dwordPeripheral.WriteDoubleWord : dwordPeripheral.WriteDoubleWordBigEndian;
                 }
                 else if(wordWrapper != null && (allowedTranslations & AllowedTranslation.DoubleWordToWord) != 0)
                 {
@@ -1280,6 +1286,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                     methods.ReadDoubleWord = peripheral.ReadDoubleWordNotTranslated;
                     methods.WriteDoubleWord = peripheral.WriteDoubleWordNotTranslated;
                 }
+            }
+            else if(periEndianess == Endianess.BigEndian)
+            {
+                // if methods.ReadDoubleWord != null then we have a dwordWrapper
+                methods.ReadDoubleWord = (BusAccess.DoubleWordReadMethod)dwordWrapper.ReadDoubleWordBigEndian;
+                methods.WriteDoubleWord = (BusAccess.DoubleWordWriteMethod)dwordWrapper.WriteDoubleWordBigEndian;
             }
 
             peripheralRegistered = true;
