@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Index = index;
             IsGeneral = isGeneral;
             Width = width;
-            IsReadonly = isReadonly; 
+            IsReadonly = isReadonly;
         }
 
         public ulong ValueFromBytes(byte[] bytes)
