@@ -15,7 +15,7 @@ using Antmicro.Renode.Logging;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     // This class does not implement advanced-control timers interrupts
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32_Timer : LimitTimer, IDoubleWordPeripheral
     {
         public STM32_Timer(Machine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit,  direction: Direction.Ascending, enabled: false, autoUpdate: false)
