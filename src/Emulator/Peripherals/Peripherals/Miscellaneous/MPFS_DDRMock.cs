@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             readToggle = 0x0;
         }
 
-        public long Size => 0x8DC; // Size is address space on sysbus
+        public long Size => 0xC28; // Size is address space on sysbus
 
         private uint readToggle = 0x0;
         private int byteRead = 0x0;
