@@ -19,22 +19,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public uint ReadDoubleWord(long offset)
         {
-            var value = 0u;
+            var value = 0x0u;
             switch(offset)
             {
-                case 2148:
+                case 0x864:
                     value = 0x44332211;
                     break;
-                case 2152:
+                case 0x868:
                     value = 0xDDCCBBAA;
                     break;
-                case 2076:
-                    value = 0;
+                case 0x81C:
+                    value = 0x0;
                     break;
-                case 2100:
-                    value = 8;
+                case 0x834:
+                    value = 0x8;
                     break;
-                case 2124:
+                case 0x84C:
                     value = 0xFF;
                     break;
                 default:
@@ -53,25 +53,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public byte ReadByte(long offset)
         {
-            byte value = 0;
+            byte value = 0x0;
 
             switch(offset)
             {
-                case 2068:
+                case 0x814:
                     value = (byte)(1 << byteRead);
                     byteRead = (byteRead + 1) % 5;
                     break;
-                case 2100:
-                    value = 8;
+                case 0x834:
+                    value = 0x8;
                     break;
-                case 2124:
-                case 2125:
-                case 2126:
-                case 2127:
+                case 0x84C:
+                case 0x84D:
+                case 0x84E:
+                case 0x84F:
                     value = 0xFF;
                     break;
                 default:
-                    value = 0;
+                    value = 0x0;
                     break;
             }
             this.Log(LogLevel.Noisy, "Read byte from DDR controller - offset: 0x{0:X}, value 0x{1:X}", offset, value);
@@ -85,13 +85,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
-            byteRead = 0;
-            readToggle = 0;
+            byteRead = 0x0;
+            readToggle = 0x0;
         }
 
-        public long Size => 2268; // Size is address space on sysbus
+        public long Size => 0x8DC; // Size is address space on sysbus
 
-        private uint readToggle = 0;
-        private int byteRead = 0;
+        private uint readToggle = 0x0;
+        private int byteRead = 0x0;
     }
 }
