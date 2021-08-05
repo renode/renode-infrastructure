@@ -65,14 +65,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public bool WfiAsNop
-        { 
-            get => wfiAsNop; 
+        {
+            get => wfiAsNop;
             set
             {
                 wfiAsNop = value;
                 neverWaitForInterrupt = value;
             }
         }
+
         protected bool wfiAsNop;
 
         [Export]
