@@ -37,6 +37,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case 0x84C:
                     value = 0xFF;
                     break;
+                case 0xC08:
+                    value = 0xFF;
+                    break;
                 default:
                     value = 0xFFFFFFFF * readToggle;
                     readToggle = 1 - readToggle;
