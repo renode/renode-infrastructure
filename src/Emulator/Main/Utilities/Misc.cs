@@ -819,7 +819,7 @@ namespace Antmicro.Renode.Utilities
             b = temporary;
         }
 
-        public static ushort SwapBytes(ushort val)
+        public static ushort SwapBytesUShort(ushort val)
         {
             return (ushort)((val << 8) | (val >> 8));
         }
