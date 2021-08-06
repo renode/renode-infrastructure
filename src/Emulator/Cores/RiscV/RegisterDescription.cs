@@ -93,6 +93,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.F0 + index, fWidth, $"f{index}", floatType, "float"));
             }
 
+            // fflags, frm and fcsr are not implemented but are required for architecture description
+            var fflagsIndex = (uint)RiscV32Registers.F0 + NumberOfFRegisters;
+            fpuGroup.Registers.Add(new GBDRegisterDescriptor(fflagsIndex, registerWidth, "fflags", "", "float"));
+            fpuGroup.Registers.Add(new GBDRegisterDescriptor(fflagsIndex + 1, registerWidth, "frm", "", "float"));
+            fpuGroup.Registers.Add(new GBDRegisterDescriptor(fflagsIndex + 2, registerWidth, "fcsr", "", "float"));
+
             {
                 var fields = new List<GDBTypeBitField>();
                 fields.Add(new GDBTypeBitField("NX", 0, 0, "bool"));
@@ -133,11 +139,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var fcsrType = GDBCustomType.Struct("fcsr_type", registerWidth / 8, fields);
                 fpuGroup.Types.Add(fcsrType);
             }
-            // fflags, frm and fcsr are not implemented but are required for architecture description
-            // We use `RiscV32Registers.X0` because `x0` should always be zero and stay zero even after writing a value to it.
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "fflags", "", "float"));
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "frm", "", "float"));
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0, registerWidth, "fcsr", "", "float"));
+
             features.Add(fpuGroup);
         }
 
@@ -430,5 +432,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public const uint NumberOfXRegisters = 32;
         public const uint NumberOfFRegisters = 32;
+        public const uint NumberOfAdditionalFRegisters = 3;
     }
 }
