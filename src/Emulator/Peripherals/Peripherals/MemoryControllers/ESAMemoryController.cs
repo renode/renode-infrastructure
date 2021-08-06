@@ -9,9 +9,11 @@ using System;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
+    [Endianess(Endianess.BigEndian)]
     public class ESAMemoryController : IDoubleWordPeripheral, IGaislerAPB
     {
         public ESAMemoryController()

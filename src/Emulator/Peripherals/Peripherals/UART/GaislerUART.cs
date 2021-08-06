@@ -11,9 +11,11 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Migrant;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
+    [Endianess(Endianess.BigEndian)]
     public class GaislerUART: IDoubleWordPeripheral, IUART, IGaislerAPB
     {
         public GaislerUART()

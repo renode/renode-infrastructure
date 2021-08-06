@@ -11,9 +11,11 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
+    [Endianess(Endianess.BigEndian)]
     public sealed class GaislerGPIO : BaseGPIOPort, IDoubleWordPeripheral, IGaislerAPB
     {
         public GaislerGPIO(Machine machine, int numberOfPorts, int numberOfInterrupts) : base(machine, numberOfPorts)

@@ -12,9 +12,11 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core.Structure;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
+    [Endianess(Endianess.BigEndian)]
     public class GaislerAHBPlugAndPlayInfo : IDoubleWordPeripheral
     {
         public GaislerAHBPlugAndPlayInfo(Machine machine)

@@ -12,9 +12,11 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Utilities;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
+    [Endianess(Endianess.BigEndian)]
     public class GaislerEth : NetworkWithPHY, IDoubleWordPeripheral, IGaislerAPB, IMACInterface, IKnownSize
     {
         public GaislerEth(Machine machine) : base(machine)

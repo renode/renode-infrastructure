@@ -13,9 +13,11 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Extensions;
 using System.Net;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
+    [Endianess(Endianess.BigEndian)]
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class GaislerAPBController : IDoubleWordPeripheral, IGaislerAHB
     {
