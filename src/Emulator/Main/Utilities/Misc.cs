@@ -824,6 +824,14 @@ namespace Antmicro.Renode.Utilities
             return (ushort)((val << 8) | (val >> 8));
         }
 
+        public static uint SwapBytesUInt(uint value)
+        {
+            return (value & 0xFF000000) >> 24
+                 | (value & 0x00FF0000) >> 8
+                 | (value & 0x0000FF00) << 8
+                 | (value & 0x000000FF) << 24;
+        }
+
         public static void SwapElements<T>(T[] arr, int id1, int id2)
         {
             var tmp = arr[id1];
