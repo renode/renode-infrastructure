@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -53,12 +53,30 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldReadByteUsingWordBigEndian()
+        {
+            Assert.AreEqual(0x34, wordPeripheral.ReadByteUsingWordBigEndian(0));
+            Assert.AreEqual(0x12, wordPeripheral.ReadByteUsingWordBigEndian(1));
+            Assert.AreEqual(0x78, wordPeripheral.ReadByteUsingWordBigEndian(2));
+            Assert.AreEqual(0x56, wordPeripheral.ReadByteUsingWordBigEndian(3));
+        }
+
+        [Test]
         public void ShouldReadByteUsingDoubleWord()
         {
             Assert.AreEqual(0x12, dwordPeripheral.ReadByteUsingDword(0));
             Assert.AreEqual(0x34, dwordPeripheral.ReadByteUsingDword(1));
             Assert.AreEqual(0x56, dwordPeripheral.ReadByteUsingDword(2));
             Assert.AreEqual(0x78, dwordPeripheral.ReadByteUsingDword(3));
+        }
+
+        [Test]
+        public void ShouldReadByteUsingDoubleWordBigEndian()
+        {
+            Assert.AreEqual(0x78, dwordPeripheral.ReadByteUsingDwordBigEndian(0));
+            Assert.AreEqual(0x56, dwordPeripheral.ReadByteUsingDwordBigEndian(1));
+            Assert.AreEqual(0x34, dwordPeripheral.ReadByteUsingDwordBigEndian(2));
+            Assert.AreEqual(0x12, dwordPeripheral.ReadByteUsingDwordBigEndian(3));
         }
 
         [Test]
@@ -69,10 +87,24 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldReadWordUsingByteBigEndian()
+        {
+            Assert.AreEqual(0x1234, bytePeripheral.ReadWordUsingByteBigEndian(0));
+            Assert.AreEqual(0x5678, bytePeripheral.ReadWordUsingByteBigEndian(2));
+        }
+
+        [Test]
         public void ShouldReadWordUsingByteNotAligned()
         {
             Assert.AreEqual(0x5634, bytePeripheral.ReadWordUsingByte(1));
             Assert.AreEqual(0x9078, bytePeripheral.ReadWordUsingByte(3));
+        }
+
+        [Test]
+        public void ShouldReadWordUsingByteNotAlignedBigEndian()
+        {
+            Assert.AreEqual(0x3456, bytePeripheral.ReadWordUsingByteBigEndian(1));
+            Assert.AreEqual(0x7890, bytePeripheral.ReadWordUsingByteBigEndian(3));
         }
 
         [Test]
@@ -83,9 +115,22 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldReadWordUsingDoubleWordBigEndian()
+        {
+            Assert.AreEqual(0x5678, dwordPeripheral.ReadWordUsingDwordBigEndian(0));
+            Assert.AreEqual(0x1234, dwordPeripheral.ReadWordUsingDwordBigEndian(2));
+        }
+
+        [Test]
         public void ShouldReadDoubleWordUsingByte()
         {
             Assert.AreEqual(0x78563412, bytePeripheral.ReadDoubleWordUsingByte(0));
+        }
+
+        [Test]
+        public void ShouldReadDoubleWordUsingByteBigEndian()
+        {
+            Assert.AreEqual(0x12345678, bytePeripheral.ReadDoubleWordUsingByteBigEndian(0));
         }
 
         [Test]
@@ -95,9 +140,21 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldReadDoubleWordUsingByteNotAlignedBigEndian()
+        {
+            Assert.AreEqual(0x34567890, bytePeripheral.ReadDoubleWordUsingByteBigEndian(1));
+        }
+
+        [Test]
         public void ShouldReadDoubleWordUsingWord()
         {
             Assert.AreEqual(0x78563412, wordPeripheral.ReadDoubleWordUsingWord(0));
+        }
+
+        [Test]
+        public void ShouldReadDoubleWordUsingWordBigEndian()
+        {
+            Assert.AreEqual(0x12345678, wordPeripheral.ReadDoubleWordUsingWordBigEndian(0));
         }
 
         private IBytePeripheral bytePeripheral;
