@@ -58,7 +58,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.machine = machine;
             this.bitness = bitness;
             started = false;
-            isHalted = false;
             translationCacheSync = new object();
             pagesAccessedByIo = new HashSet<ulong>();
             pauseGuard = new CpuThreadPauseGuard(this);
@@ -302,10 +301,37 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     executionMode = value;
                     
-                    IsHalted = executionMode == ExecutionMode.SingleStepNonBlocking;
                     singleStepSynchronizer.Enabled = IsSingleStepMode;
                     UpdateBlockBeginHookPresent();
+                    UpdateHaltedState();
                 }
+            }
+        }
+
+        private void UpdateHaltedState()
+        {
+            var shouldBeHalted = (isHaltedRequested || executionMode == ExecutionMode.SingleStepNonBlocking);
+
+            if(shouldBeHalted == currentHaltedState)
+            {
+                return;
+            }
+
+            lock(haltedLock)
+            {
+                this.Trace();
+                currentHaltedState = shouldBeHalted;
+                if(TimeHandle != null)
+                {
+                    this.Trace();
+                    // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
+                    TimeHandle.DeferredEnabled = !shouldBeHalted;
+                }
+            }
+
+            if(shouldBeHalted)
+            {
+                TlibSetReturnRequest();
             }
         }
 
@@ -858,7 +884,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 blockBeginUserHook?.Invoke(address, size);
             }
 
-            return (isHalted || isPaused) ? 0 : 1u;
+            return (currentHaltedState || isPaused) ? 0 : 1u;
         }
 
         [Export]
@@ -933,19 +959,33 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ulong Step(int count = 1, bool? blocking = null)
         {
-            lock(singleStepSynchronizer.Guard)
+            lock(haltedLock)
             {
-                var isBlocking = ChangeExecutionModeToSingleStep(blocking);
-                Resume();
+                if(IsHalted)
+                {
+                    this.Log(LogLevel.Warning, "Ignoring stepping on a halted CPU");
+                    return PC;
+                }
 
-                this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
+                lock(singleStepSynchronizer.Guard)
+                {
+                    ChangeExecutionModeToSingleStep(blocking);
+                    Resume();
 
-                IsHalted = false;
-                singleStepSynchronizer.CommandStep(count);
-                singleStepSynchronizer.WaitForStepFinished();
-                IsHalted = !isBlocking;
+                    this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
 
-                return PC;
+                    if(TimeHandle != null)
+                    {
+                        TimeHandle.DeferredEnabled = true;
+                    }
+
+                    singleStepSynchronizer.CommandStep(count);
+                    singleStepSynchronizer.WaitForStepFinished();
+
+                    UpdateHaltedState();
+
+                    return PC;
+                }
             }
         }
 
@@ -1027,10 +1067,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             // but we should check it anyway
             CheckCpuThreadId();
             ChangeExecutionModeToSingleStep(blocking);
+
+            UpdateHaltedState();
             InvokeHalted(args);
         }
 
-        private bool ChangeExecutionModeToSingleStep(bool? blocking = null)
+        private void ChangeExecutionModeToSingleStep(bool? blocking = null)
         {
             var mode = ExecutionMode;
             var isNonBlocking = mode == ExecutionMode.SingleStepNonBlocking;
@@ -1040,7 +1082,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             blocking = blocking ?? mode != ExecutionMode.SingleStepNonBlocking;
             ExecutionMode = blocking.Value ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
-            return blocking.Value;
         }
 
         private readonly object pauseLock = new object();
@@ -1164,7 +1205,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt64 onTranslationBlockFetch;
         private string cpuType;
         private byte[] cpuState;
-        private bool isHalted;
+        private bool isHaltedRequested;
+        private bool currentHaltedState;
         private bool isAborted;
         private bool isPaused;
 
@@ -1623,12 +1665,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return isHalted;
+                return isHaltedRequested;
             }
             set
             {
                 this.Trace();
-                if(value == isHalted)
+                if(value == isHaltedRequested)
                 {
                     return;
                 }
@@ -1636,18 +1678,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 lock(haltedLock)
                 {
                     this.Trace();
-                    isHalted = value;
-                    if(TimeHandle != null)
-                    {
-                        this.Trace();
-                        // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
-                        TimeHandle.DeferredEnabled = !value;
-                    }
-                }
-
-                if(value)
-                {
-                    TlibSetReturnRequest();
+                    isHaltedRequested = value;
+                    UpdateHaltedState();
                 }
             }
         }
@@ -1965,7 +1997,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 lock(haltedLock)
                 {
                     timeHandle = value;
-                    timeHandle.Enabled = !isHalted;
+                    timeHandle.Enabled = !currentHaltedState;
                     timeHandle.PauseRequested += RequestPause;
                     timeHandle.StartRequested += StartCPUThread;
                 }
@@ -1999,7 +2031,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             instructionsLeftThisRound = Math.Min(instructionsToExecuteThisRound - executedResiduum, singleStep ? 1 : ulong.MaxValue);
             instructionsExecutedThisRound = executedResiduum;
 
-            while(!isPaused && !isHalted && instructionsLeftThisRound > 0)
+            while(!isPaused && !currentHaltedState && instructionsLeftThisRound > 0)
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
 
@@ -2073,7 +2105,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 executedResiduum = 0;
                 return false;
             }
-            else if(isHalted)
+            else if(currentHaltedState)
             {
                 this.Trace("halted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
