@@ -38,6 +38,9 @@ namespace Antmicro.Renode.Network
             var packetNetIpProtocols = supportedIpProtocolTypes.Select(x => (PacketDotNet.IPProtocolType)x).ToArray();
             var packetNetEtherTypes = supportedEtherTypes.Select(x => (EthernetPacketType)x).ToArray();
             UnderlyingPacket.RecursivelyUpdateCalculatedValues(packetNetEtherTypes, packetNetIpProtocols);
+
+            var data = UnderlyingPacket.Bytes.ToArray();
+            crc = ComputeCRC(data).ToArray();
         }
 
         public EthernetFrame Clone()
