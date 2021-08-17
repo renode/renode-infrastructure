@@ -1162,16 +1162,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 "nor any other methods were pointed.", peripheral));
             }
 
-            Endianess periEndianess;
-            var endianessAttributes = peripheral.GetType().GetCustomAttributes(typeof(EndianessAttribute), true);
-            if(endianessAttributes.Length != 0)
-            {
-                periEndianess = ((EndianessAttribute)endianessAttributes[0]).Endianess;
-            }
-            else
-            {
-                periEndianess = Endianess;
-            }
+            // We need to pass in Endianess as a default because at this point the peripheral
+            // is not yet associated with a machine.
+            Endianess periEndianess = peripheral.GetEndianness(Endianess);
 
             var allowedTranslations = default(AllowedTranslation);
             var allowedTranslationsAttributes = peripheral.GetType().GetCustomAttributes(typeof(AllowedTranslationsAttribute), true);

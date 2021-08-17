@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System;
 using Antmicro.Renode.UserInterface;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals
 {
@@ -56,6 +57,23 @@ namespace Antmicro.Renode.Peripherals
                 throw new ArgumentException($"Couldn't find machine for given peripheral of type {@this.GetType().FullName}.");
             }
             return machine;
+        }
+
+        public static Endianess GetEndianness(this IPeripheral @this, Endianess? defaultEndianness = null)
+        {
+            var endianessAttributes = @this.GetType().GetCustomAttributes(typeof(EndianessAttribute), true);
+            if(endianessAttributes.Length != 0)
+            {
+                return ((EndianessAttribute)endianessAttributes[0]).Endianess;
+            }
+            else if(defaultEndianness == null)
+            {
+                return @this.GetMachine().SystemBus.Endianess;
+            }
+            else
+            {
+                return defaultEndianness.Value;
+            }
         }
     }
 }
