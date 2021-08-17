@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -830,6 +830,27 @@ namespace Antmicro.Renode.Utilities
                  | (value & 0x00FF0000) >> 8
                  | (value & 0x0000FF00) << 8
                  | (value & 0x000000FF) << 24;
+        }
+
+        public static T SwapBytes<T>(T value)
+        {
+            var type = typeof(T);
+            if(type == typeof(uint))
+            {
+                return (T)(object)SwapBytesUInt((uint)(object)value);
+            }
+            else if(type == typeof(ushort))
+            {
+                return (T)(object)SwapBytesUShort((ushort)(object)value);
+            }
+            else if(type == typeof(byte))
+            {
+                return value;
+            }
+            else
+            {
+                throw new ArgumentException($"Unhandled type {type}");
+            }
         }
 
         public static void SwapElements<T>(T[] arr, int id1, int id2)

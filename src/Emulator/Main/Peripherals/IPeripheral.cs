@@ -75,5 +75,10 @@ namespace Antmicro.Renode.Peripherals
                 return defaultEndianness.Value;
             }
         }
+
+        public static bool IsHostEndian(this IPeripheral @this)
+        {
+            return (@this.GetEndianness() == Endianess.LittleEndian) == BitConverter.IsLittleEndian;
+        }
     }
 }
