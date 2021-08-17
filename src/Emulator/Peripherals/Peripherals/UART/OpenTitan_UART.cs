@@ -81,6 +81,7 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
 
             txOngoing = false;
+            txWatermarkCrossed = false;
         }
 
         public long Size => 0x30;
@@ -216,6 +217,9 @@ namespace Antmicro.Renode.Peripherals.UART
                         else if(txQueue.Count < txFIFOCapacity)
                         {
                             txQueue.Enqueue((byte)val);
+                            if(txQueue.Count >= TxWatermarkValue) {
+                                txWatermarkCrossed = true;
+                            }
                         }
                         else
                         {
@@ -238,7 +242,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(val)
                         {
                             txQueue.Clear();
-
+                            txWatermarkCrossed = false;
                         }
                     })
                     .WithEnumField(2, 3, out rxWatermarkField, name: "FIFO_CTRL.RXILVL")
@@ -271,8 +275,12 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            txWatermarkPending.Value |= TxWatermarkValue > txQueue.Count;
             rxWatermarkPending.Value |= RxWatermarkValue <= Count;
+
+            if (txWatermarkCrossed && txQueue.Count < TxWatermarkValue) {
+                txWatermarkPending.Value = true;
+                txWatermarkCrossed = false;
+            }
 
             if(txOngoing && txQueue.Count == 0)
             {
@@ -368,6 +376,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IEnumRegisterField<TxWatermarkLevel> txWatermarkField;
 
         private bool txOngoing;
+        private bool txWatermarkCrossed;
 
         private const int rxFIFOCapacity = 32;
         private const int txFIFOCapacity = 32;
