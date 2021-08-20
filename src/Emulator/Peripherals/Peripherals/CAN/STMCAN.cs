@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,23 +12,25 @@ using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Renode.Core.CAN;
+using Antmicro.Renode.Exceptions;
+using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
     public class STMCAN : IDoubleWordPeripheral, ICAN, INumberedGPIOOutput
     {
-        public STMCAN()
+        public STMCAN(STMCAN master = null)
         {
+            // Register master CAN
+            this.master = master;
+
             for(int i = 0; i < NumberOfRxFifos; i++)
             {
                 RxFifo[i] = new Queue<CANMessage>();
-                FifoFiltersPrioritized[i] = new List<FilterBank>();
-            }
-
-            FilterBanks = new FilterBank[NumberOfFilterBanks];
-            for(int i = 0; i < NumberOfFilterBanks; i++)
-            {
-                FilterBanks[i] = new FilterBank();
+                if(!IsSlave)
+                {
+                    FifoFiltersPrioritized[i] = new List<FilterBank>();
+                }
             }
 
             var innerConnections = new Dictionary<int, IGPIO>();
@@ -48,6 +50,33 @@ namespace Antmicro.Renode.Peripherals.CAN
             registers.CAN_RFR[RxFifo1].SetRxFifo(RxFifo[RxFifo1]);
             registers.CAN_RFR[RxFifo1].UpdateInterruptLine =
                 new UpdateInterruptLine(UpdateFifo1InterruptLine);
+
+            if(!IsSlave)
+            {
+                FilterBanks = new FilterBank[NumberOfFilterBanks];
+                for(int i = 0; i < NumberOfFilterBanks; i++)
+                {
+                    FilterBanks[i] = new FilterBank();
+                }
+            }
+            else
+            {
+                if(master.FilterBanks == null)
+                {
+                    throw new ConstructionException("You need to construct the master first.");
+                }
+                if(master.IsSlave)
+                {
+                    throw new ConstructionException("The master of this peripheral cannot be a slave to another master.");
+                }
+                FilterBanks = master.FilterBanks;
+                FifoFiltersPrioritized = master.FifoFiltersPrioritized;
+                registers.CAN_FMR = master.registers.CAN_FMR;
+                registers.CAN_FM1R = master.registers.CAN_FM1R;
+                registers.CAN_FS1R = master.registers.CAN_FS1R;
+                registers.CAN_FFA1R = master.registers.CAN_FFA1R;
+                registers.CAN_FA1R = master.registers.CAN_FA1R;
+            }
 
             Reset();
         }
@@ -89,6 +118,12 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public void WriteDoubleWord(long address, uint value)  // cpu do per
         {
+            if(IsSlave && AddressIsWithinFilterRegistersArea(address))
+            {
+                this.Log(LogLevel.Warning, "Trying to access slave's filter registers, but the slave has to be configured via master's filters. This change has no effect.");
+                return;
+            }
+
             // Filter bank registers
             if((registerOffset)address >= registerOffset.CAN_F0R1 &&
                 (registerOffset)address <= registerOffset.CAN_F27R2)
@@ -183,6 +218,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 // Filter registers
                 case registerOffset.CAN_FMR:
                     registers.CAN_FMR.SetValue(value);
+                    UpdateFilterCANAssignment();
                     return;
                 case registerOffset.CAN_FM1R:
                     if(registers.CAN_FMR.FilterInitMode == true)
@@ -366,12 +402,21 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
+            UpdateFilterCANAssignment();
             FifoFiltersPrioritized[Fifo].Sort();
+        }
+
+        public void UpdateFilterCANAssignment()
+        {
+            for(var i = 0; i < NumberOfFilterBanks; i++)
+            {
+                FilterBanks[i].BelongsToMaster = i < registers.CAN_FMR.CAN2StartBank;
+            }
         }
 
         public bool FilterCANMessage(int RxFifo, CANMessage msg)
         {
-            foreach(FilterBank filterBank in FifoFiltersPrioritized[RxFifo])
+            foreach(FilterBank filterBank in FifoFiltersPrioritized[RxFifo].Where(m => m.BelongsToMaster == !IsSlave))
             {
                 if(filterBank.Active == true &&
                         filterBank.MatchMessage(msg) == true)
@@ -568,6 +613,11 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             uint Retval = 0;
 
+            if(IsSlave && AddressIsWithinFilterRegistersArea(offset))
+            {
+                this.Log(LogLevel.Warning, "Trying to read slave's filter registers, but the slave uses master's filter registers - reading from master instead.");
+            }
+
             // Filter bank registers
             if((registerOffset)offset >= registerOffset.CAN_F0R1 && (registerOffset)offset <= registerOffset.CAN_F27R2)
             {
@@ -730,14 +780,27 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public void Reset()
         {
-            registers.Reset();
-            for(int i = 0; i < NumberOfFilterBanks; i++)
+            registers.Reset(!IsSlave);
+
+            if(!IsSlave)
             {
-                FilterBanks[i].Active = false;
-                FilterBanks[i].Mode = FilterBankMode.FilterModeIdMask;
-                FilterBanks[i].FifoAssignment = 0;
-                FilterBanks[i].Scale = FilterBankScale.FilterScale16Bit;
+                for(int i = 0; i < NumberOfFilterBanks; i++)
+                {
+                    FilterBanks[i].Active = false;
+                    FilterBanks[i].Mode = FilterBankMode.FilterModeIdMask;
+                    FilterBanks[i].FifoAssignment = 0;
+                    FilterBanks[i].Scale = FilterBankScale.FilterScale16Bit;
+                }
+                UpdateFilterCANAssignment();
             }
+        }
+
+        public bool IsSlave => master != null;
+
+        private bool AddressIsWithinFilterRegistersArea(long address)
+        {
+            return (registerOffset)address >= registerOffset.CAN_FMR
+                && (registerOffset)address <= registerOffset.CAN_F27R2;
         }
 
         private enum registerOffset : uint
@@ -853,7 +916,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
-            public void Reset()
+            public void Reset(bool resetFilters = true)
             {
                 CAN_MCR.SetValue(0x00010002);
                 CAN_MSR.SetResetValue(0x00000C02);
@@ -864,12 +927,15 @@ namespace Antmicro.Renode.Peripherals.CAN
                 CAN_ESR.SetResetValue(0x0);
                 CAN_BTR.SetValue(0x01230000);
 
-                // Filter Registers
-                CAN_FMR.SetValue(0x2A1C0E01);
-                CAN_FM1R.SetValue(0x0);
-                CAN_FS1R.SetValue(0x0);
-                CAN_FFA1R.SetValue(0x0);
-                CAN_FA1R.SetValue(0x0);
+                if(resetFilters)
+                {
+                    // Filter Registers
+                    CAN_FMR.SetValue(0x2A1C0E01);
+                    CAN_FM1R.SetValue(0x0);
+                    CAN_FS1R.SetValue(0x0);
+                    CAN_FFA1R.SetValue(0x0);
+                    CAN_FA1R.SetValue(0x0);
+                }
             }
 
             public class MasterControlRegister
@@ -1710,6 +1776,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public uint FifoAssignment;
             public uint[] FR = new uint[2];
             public uint FirstFilterNumber;
+            public bool BelongsToMaster;
 
             public FilterBank()
             {
@@ -1717,6 +1784,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 Mode = FilterBankMode.FilterModeIdMask;
                 FifoAssignment = 0;
                 Scale = FilterBankScale.FilterScale16Bit;
+                BelongsToMaster = true;
             }
 
             public bool MatchMessage(CANMessage msg)
@@ -1849,6 +1917,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return NumFiltersInBank;
             }
         }
+
+        private readonly STMCAN master;
 
         private const int NumberOfInterruptLines = 4;
         private const int CAN_Tx = 0;
