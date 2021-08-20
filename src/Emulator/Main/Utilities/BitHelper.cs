@@ -317,6 +317,18 @@ namespace Antmicro.Renode.Utilities
 
         }
 
+        public static byte[] GetBytesFromValue(ulong val, int typeSize)
+        {
+            var result = new byte[typeSize];
+            int offset = 0;
+            for(int i = typeSize - 1; i >= 0; --i)
+            {
+                result[i] = (byte)((val >> offset) & 0xFF);
+                offset += 8;
+            }
+            return result;
+        }
+
         public static bool[] GetBits(uint reg)
         {
             var result = new bool[32];
