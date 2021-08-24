@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -91,10 +91,12 @@ namespace Antmicro.Renode.Peripherals.Network
                 switch((Offset)offset)
                 {
                 case Offset.NetConfig:
+                    registers.Config = value;
                     if((value & 1u << 3) == 0)
                     {
                         registers.TxQueueBaseAddr = txBufferBase;
                     }
+                    rxBufferOffset = (value >> 14) & 3;
                     return;
                 case Offset.NetControl:
                     registers.Control = value & 0x619Fu;
@@ -309,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     rxBD.StartOfFrame = true;
                     rxBD.EndOfFrame = true;
                     rxBD.Length = (ushort)frame.Bytes.Length;
-                    machine.SystemBus.WriteBytes(frame.Bytes, rxBD.BufferAddress);
+                    machine.SystemBus.WriteBytes(frame.Bytes, rxBD.BufferAddress + rxBufferOffset);
                     rxBD.WriteBack();
                     if(rxBD.Wrap)
                     {
@@ -416,6 +418,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private uint txBufferBase;
         private uint rxBufferBase;
+        private uint rxBufferOffset;
 
         private class txBufferDescriptor
         {
