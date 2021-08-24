@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         public ZynqEthernet(Machine machine) : base(machine)
         {
-            registers = new regs();        
+            registers = new regs();
             IRQ = new GPIO();
             //crc = new Crc16();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
@@ -82,7 +82,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     return 0;
                 }
             }
-            
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -98,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     return;
                 case Offset.NetControl:
-                    registers.Control = value & 0x619Fu; 
+                    registers.Control = value & 0x619Fu;
                     if((value & (1u << 9)) != 0) //if start tx
                     {
                         this.SendFrames();
@@ -109,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     return;
                 case Offset.TxStatus:
                     var txstat = value & 0x1F3; //mask writable bits
-                    registers.TxStatus &= ~(txstat);  
+                    registers.TxStatus &= ~(txstat);
                     return;
                 case Offset.RxQueueBaseAddr:
                     registers.RxQueueBaseAddr = value & (~(0x03u));
@@ -137,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     var id = ((value >> 23) & 0xf);
                     var op = ((value >> 28) & 0x3);
                     var reg = ((value >> 18) & 0x1f);
-                
+
                     if(!phys.ContainsKey(id))
                     {
                         this.Log(LogLevel.Warning, "Write to phy with unknown ID {0}", id);
@@ -154,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         phy.Write((ushort)reg, (ushort)(value & 0xFF));
                     }
-                    else//unknown 
+                    else//unknown
                     {
                         this.Log(LogLevel.Warning, "Unknown phy op code 0x{0:X}", op);
                     }
@@ -163,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         registers.InterruptStatus |= 1u << 0;
                         IRQ.Set();
                     }
-                    return;  
+                    return;
                 case Offset.SpecificAddress1Bottom:
                     registers.SpecificAddress1Bottom = value;
                     return;
@@ -173,10 +172,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 default:
                 //this.LogUnhandledWrite(offset, value);
                     return;
-                
                 }
             }
-            
         }
 
         private void SendFrames()
@@ -186,10 +183,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 txBufferDescriptor txBD = new txBufferDescriptor(machine.SystemBus);
                 bool interrupt = false;
                 List <byte> packet = new List<byte>();
-            
-            
+
                 txBD.Fetch(registers.TxQueueBaseAddr);
-                       
+
                 while(!txBD.Used)
                 {
                     while(!txBD.Last)
@@ -209,9 +205,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     interrupt = false;
                     txBD.Used = true;
-                
+
                     packet.AddRange(machine.SystemBus.ReadBytes(txBD.Word0, txBD.Length));
-                
+
                     if((registers.DMAConfig & 1u << 11) != 0)//if checksum offload enable
                     {
                         if((packet[14] & 0xF0) == 0x40) //IP packet
@@ -220,7 +216,6 @@ namespace Antmicro.Renode.Peripherals.Network
                             IPHeaderLength = (ushort)((packet[14] & 0x0F) * 4);
                             if(packet[23] == 0x06) // TCP packet
                             {
-                            
                                 IPpacket tcpPacket = new IPpacket(IPHeaderLength, IPpacket.PacketType.TCP);
                                 tcpPacket.ReadFromBuffer(packet.ToArray());
                                 cksum = tcpPacket.GetChecksum();
@@ -250,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     FrameReady?.Invoke(frame);
 
                     txBD.WriteBack();
-                
+
                     if(txBD.Wrap)
                     {
                         registers.TxQueueBaseAddr = txBufferBase;
@@ -259,10 +254,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         registers.TxQueueBaseAddr += 8;
                     }
-                
+
                     registers.TxStatus |= 1u << 5; //tx complete
                     txBD.Fetch(registers.TxQueueBaseAddr);
-                
+
                     if(txBD.Used)
                     {
                         registers.TxStatus |= 0x01;
@@ -272,19 +267,17 @@ namespace Antmicro.Renode.Peripherals.Network
                             interrupt = true;
                         }
                     }
-                
+
                     if((registers.InterruptMask & (1u << 7)) == 0)
                     {
                         registers.InterruptStatus |= 1u << 7;
                         interrupt = true;
-                    
                     }
-                
+
                     if(interrupt)
                     {
                         IRQ.Set();
                     }
-            
                 }
             }
         }
@@ -433,13 +426,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public uint Word0;
             public uint Word1;
-            
+
             public bool Used;
             public bool Wrap;
             public bool Last;
             public ushort Length;
             public bool NoCRC;
-            
+
             private uint ramAddr;
             private const uint noCrc = 0x10000;
             //location of this BD in ram
@@ -448,16 +441,15 @@ namespace Antmicro.Renode.Peripherals.Network
             public void Fetch(uint addr)
             {
                 ramAddr = addr;
-                
+
                 Word0 = sbus.ReadDoubleWord(ramAddr);
                 Word1 = sbus.ReadDoubleWord(ramAddr + 4);
-                
+
                 Used = (Word1 & 1u << 31) != 0;
                 Wrap = (Word1 & 1u << 30) != 0;
                 Last = (Word1 & 1u << 15) != 0;
                 Length = (ushort)(Word1 & 0x3FFFu);
                 NoCRC = (Word1 & 1u << 16) != 0;
-                
             }
 
             public void WriteBack()
@@ -475,7 +467,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        
+
         private class rxBufferDescriptor
         {
             public rxBufferDescriptor(SystemBus sysbus)
@@ -485,7 +477,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public uint Word0;
             public uint Word1;
-            
+
             public uint BufferAddress;
             public bool Wrap;
             public bool Ownership;
@@ -493,7 +485,7 @@ namespace Antmicro.Renode.Peripherals.Network
             public bool EndOfFrame;
 
             public ushort Length;
-            
+
             private uint ramAddr;
             //location of this BD in ram
             private SystemBus sbus;
@@ -503,7 +495,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 ramAddr = addr;
                 Word0 = sbus.ReadDoubleWord(addr);
                 Word1 = sbus.ReadDoubleWord(addr + 4);
-                
+
                 BufferAddress = Word0 & (~(0x03u));
                 Wrap = ((Word0 & (1u << 1)) != 0) ? true : false;
                 Ownership = ((Word0 & (1u << 0)) != 0) ? true : false;
@@ -523,12 +515,11 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 Word0 = BufferAddress;
                 Word0 |= (Wrap ? 1u << 1 : 0u) | (Ownership ? 1u << 0 : 0u);
-                
+
                 var tmpWord1 = Word1 & (~(0xDFFFu));
                 tmpWord1 |= (EndOfFrame ? 1u << 15 : 0) | (StartOfFrame ? 1u << 14 : 0) | ((uint)(Length & 0x1FFF));
                 Word1 = tmpWord1;
             }
-             
         }
 
         #endregion
@@ -538,7 +529,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private ushort IPHeaderLength = 20;
         private const ushort MACHeaderLegth = 14;
 
-                        
         private class IPpacket
         {
             public IPpacket(ushort IPLength, PacketType type)
@@ -551,7 +541,7 @@ namespace Antmicro.Renode.Peripherals.Network
             public void ReadFromBuffer(byte[] buffer)
             {
                 pseudoheader.FillFromBuffer(buffer);
-                
+
                 packet = new byte[buffer.Length - (MACHeaderLegth + IPHeaderLength) ];
                 Array.Copy(buffer, MACHeaderLegth + IPHeaderLength, packet, 0, (buffer.Length - (MACHeaderLegth + IPHeaderLength)));
                 if(packetType == PacketType.TCP)
@@ -564,7 +554,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     packet[6] = 0;
                     packet[7] = 0;
                 }
-                
             }
 
             private ushort CalculateChecksum(byte[] data)
@@ -582,8 +571,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
                 if(size != 0) //if odd length
                     sum += (ushort)((data[i] << 8) | 0x00);
-                
-                
+
                 while((sum >> 16) != 0)
                 {
                     sum = (sum >> 16) + (sum & 0xffff);
@@ -594,15 +582,14 @@ namespace Antmicro.Renode.Peripherals.Network
             public ushort GetChecksum()
             {
                 ushort cksum;
-                
+
                 checksumCalculationBase = new byte[packet.Length + pseudoheader.Length];
-                
+
                 Array.Copy(pseudoheader.ToArray(), 0, checksumCalculationBase, 0, pseudoheader.Length);
                 Array.Copy(packet, 0, checksumCalculationBase, pseudoheader.Length, packet.Length);
-                
+
                 cksum = CalculateChecksum(checksumCalculationBase);
                 return (ushort)(cksum);
-                    
             }
 
             private class PseudoHeader
@@ -633,9 +620,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 private readonly byte zeros = 0x00;
                 private byte protocol;
                 private ushort packetLength;
-                
+
                 public readonly ushort Length = 12;
-                
             }
 
             public enum PacketType
@@ -647,15 +633,14 @@ namespace Antmicro.Renode.Peripherals.Network
             private PacketType packetType;
             private static ushort IPHeaderLength;
             private const ushort MACHeaderLegth = 14;
-            
+
             private PseudoHeader pseudoheader;
             private byte[] packet;
             private byte[] checksumCalculationBase;
-                            
+
         }
 
         #endregion
-             
     }
 }
 
