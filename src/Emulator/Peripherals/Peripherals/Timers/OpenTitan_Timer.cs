@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class OpenTitan_Timer : IDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
+    public class OpenTitan_Timer : IDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize, IRiscVTimeProvider
     {
         public OpenTitan_Timer(Machine machine, long frequency = 24_000_000, int timersPerHart = 1, int numberOfHarts = 1)
         {
@@ -112,6 +112,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => MaxHartRegMapSize * (numberOfHarts + 1);
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+        // Uses the first timer of the first hart for IRiscVTimeProvider
+        public ulong TimerValue => Timers[0, 0].Value;
 
         private IGPIO GetIrqForHart(int hartIdx, int timerIdx)
         {
