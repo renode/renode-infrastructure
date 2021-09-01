@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -125,9 +125,13 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 try
                 {
-                    if(await deviceFile.ReadAsync(buffer, 0, buffer.Length, cts.Token) > 0)
+                    int bytesRead = await deviceFile.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+
+                    if(bytesRead > 0)
                     {
-                        if(!Misc.TryCreateFrameOrLogWarning(this, buffer, out var frame, addCrc: true))
+                        byte[] packet = new byte[bytesRead];
+                        Array.Copy(buffer, packet, bytesRead);
+                        if(!Misc.TryCreateFrameOrLogWarning(this, packet, out var frame, addCrc: true))
                         {
                             return;
                         }
@@ -163,7 +167,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
             if(!File.Exists(interfaceNameOrPath))
             {
-                var tapDevicePath = ConfigurationManager.Instance.Get<string>("tap", "tap-device-path", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                var tapDevicePath = ConfigurationManager.Instance.Get<String>("tap", "tap-device-path", "/dev");
                 interfaceNameOrPath = Path.Combine(tapDevicePath, interfaceNameOrPath);
             }
 
