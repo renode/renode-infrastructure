@@ -171,8 +171,18 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 interfaceNameOrPath = Path.Combine(tapDevicePath, interfaceNameOrPath);
             }
 
-            deviceFile = File.Open(interfaceNameOrPath, FileMode.Open, FileAccess.ReadWrite);
-
+            try
+            {
+                deviceFile = File.Open(interfaceNameOrPath, FileMode.Open, FileAccess.ReadWrite);
+            }
+            catch(FileNotFoundException)
+            {
+                throw new RecoverableException($"The requested tap device file at path: {interfaceNameOrPath} was not found.");
+            }
+            catch(UnauthorizedAccessException)
+            {
+                throw new RecoverableException($"Failed to open the requested tap device: {interfaceNameOrPath} due to the lack of permissions. Please make sure that Renode is given a read and write permissions on this file.");
+            }
             // let's find out to what interface the character device file belongs
             var deviceType = new UnixFileInfo(interfaceNameOrPath).DeviceType;
             var majorNumber = deviceType >> 24;
