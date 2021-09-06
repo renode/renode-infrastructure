@@ -1563,12 +1563,12 @@ namespace Antmicro.Renode.Config
                 obj = null;
             }
             else
-            if((value is long && type == typeof(long)) || (value is double && type == typeof(double)))
+            if((value is long && type == typeof(long)) || (value is double && type == typeof(double)) || (value is int && type == typeof(int)))
             {
                 obj = value;
             }
             else
-            if((value is double && type != typeof(double)) || (value is long && type != typeof(long)))
+            if((value is double && type != typeof(double)) || (value is long && type != typeof(long)) || (value is int && type != typeof(int)))
             {
                 obj = typeof(IConvertible).IsAssignableFrom(type) ? Convert.ChangeType(value, type, CultureInfo.InvariantCulture) : value;
             }
