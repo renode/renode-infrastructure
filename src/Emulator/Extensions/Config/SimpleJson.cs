@@ -1647,8 +1647,11 @@ namespace Antmicro.Renode.Config
 
                     obj = list;
                 }
+            }
 
-                return obj;
+            if(obj == null && value != null)
+            {
+                Logging.Logger.Log(Logging.LogLevel.Warning, "SimpleJson: Failed to properly deserialize value '{0}' of type '{1}'!", value, value.GetType());
             }
 
             if(ReflectionUtils.IsNullableType(type))
