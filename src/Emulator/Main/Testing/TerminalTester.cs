@@ -83,9 +83,9 @@ namespace Antmicro.Renode.Testing
             }
             else
             {
-                var line = currentLineBuffer.Unload();
                 lock(lines)
                 {
+                    var line = currentLineBuffer.Unload();
                     lines.Add(new Line(line, machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds));
                 }
             }
@@ -201,7 +201,11 @@ namespace Antmicro.Renode.Testing
 
             do
             {
-                var result = matchResult.Invoke();
+                TerminalTesterResult result;
+                lock(lines)
+                {
+                    result = matchResult.Invoke();
+                }
 #if DEBUG_EVENTS
                 this.Log(LogLevel.Noisy, "Matching result: {0}", result);
 #endif
