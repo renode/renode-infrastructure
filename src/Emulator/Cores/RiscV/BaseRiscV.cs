@@ -175,6 +175,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation, string name = null)
         {
             nonstandardCSR.Add(csr, new NonstandardCSR(readOperation, writeOperation, name));
+            if(TlibInstallCustomCSR(csr) == -1)
+            {
+                throw new ConstructionException($"CSR limit exceeded. Cannot register CSR 0x{csr:X}");
+            }
         }
 
         public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
@@ -350,7 +354,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected bool TrySetCustomCSR(int register, ulong value)
         {
-            if(HasCSR((ulong)register) == 0)
+            if(!nonstandardCSR.ContainsKey((ulong)register))
             {
                 return false;
             }
@@ -361,7 +365,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected bool TryGetCustomCSR(int register, out ulong value)
         {
             value = default(ulong);
-            if(HasCSR((ulong)register) == 0)
+            if(!nonstandardCSR.ContainsKey((ulong)register))
             {
                 return false;
             }
@@ -423,12 +427,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             SyncTime();
             return timeProvider.TimerValue;
-        }
-
-        [Export]
-        private int HasCSR(ulong csr)
-        {
-            return nonstandardCSR.ContainsKey(csr) ? 1 : 0;
         }
 
         [Export]
@@ -519,6 +517,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
+        
+        [Import(Name="tlib_install_custom_csr")]
+        private FuncInt32UInt64 TlibInstallCustomCSR;
 
         [Import]
         private ActionUInt32UInt32 TlibMarkFeatureSilent;
