@@ -221,6 +221,37 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public uint VectorRegisterLength
+        {
+            set
+            {
+                if(!SupportsInstructionSet(InstructionSet.V))
+                {
+                    throw new RecoverableException("Attempted to set Vector Register Length (VLEN), but V extention is not enabled");
+                }
+                if(TlibSetVlen(value) != 0)
+                {
+                    throw new RecoverableException($"Attempted to set Vector Register Length (VLEN), but {value} is not a valid value");
+                }
+            }
+        }
+
+        public uint VectorElementMaxWidth
+        {
+            set
+            {
+                if(!SupportsInstructionSet(InstructionSet.V))
+                {
+                    throw new RecoverableException("Attempted to set Vector Element Max Width (ELEN), but V extention is not enabled");
+                }
+                if(TlibSetElen(value) != 0)
+                {
+                    throw new RecoverableException($"Attempted to set Vector Element Max Width (ELEN), but {value} is not a valid value");
+                }
+            }
+        }
+
+
         public ulong? NMIVectorAddress { get; }
 
         public uint? NMIVectorLength { get; }
@@ -463,6 +494,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionInt32 TlibSetInterruptMode;
+
+        [Import]
+        private FuncUInt32UInt32 TlibSetVlen;
+
+        [Import]
+        private FuncUInt32UInt32 TlibSetElen;
 
 #pragma warning restore 649
 
