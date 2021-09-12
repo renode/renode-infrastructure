@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             for(var i = 0; i < ChannelGroups; i++)
             {
                 var j = i;
-                ((Registers)((int)Registers.ChannelGroup0 + i * 8)).Define(this, name: "CHG[n]")
+                ((Registers)((int)Registers.ChannelGroup0 + i * 4)).Define(this, name: "CHG[n]")
                     .WithFlags(0, 32, out channelGroups[j])
                 ;
             }
@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var j = i;
 
-                ((Registers)((int)Registers.Fork0TaskEndpoint + i * 8)).Define(this, name: "FORK[n].TEP")
+                ((Registers)((int)Registers.Fork0TaskEndpoint + i * 4)).Define(this, name: "FORK[n].TEP")
                     .WithValueField(0, 32, changeCallback: (_, value) =>
                     {
                         forkEndpoint[j] = value;
