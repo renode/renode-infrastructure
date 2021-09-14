@@ -1,6 +1,12 @@
 #ifndef RENODE_IMPORTS_H_
 #define RENODE_IMPORTS_H_
 
+#ifdef __cplusplus
+#define EXTERN_C extern "C"
+#else
+#define EXTERN_C
+#endif
+
 #include "renode_imports_generated.h"
 
 #define renode_direct_glue(a, b) a##b
@@ -8,7 +14,7 @@
 #define renode_glue(a, b) renode_direct_glue(a, b)
 
 #define renode_func_header(TYPE, IMPORTED_NAME, LOCAL_NAME) \
-void renode_glue(renode_glue(renode_glue(renode_external_attach__, renode_glue(RENODE_EXT_TYPE_, TYPE)), __), IMPORTED_NAME) (TYPE param)
+EXTERN_C void renode_glue(renode_glue(renode_glue(renode_external_attach__, renode_glue(RENODE_EXT_TYPE_, TYPE)), __), IMPORTED_NAME) (TYPE param)
 
 #define EXTERNAL(TYPE, NAME) EXTERNAL_AS(TYPE, $##NAME, NAME)
 
