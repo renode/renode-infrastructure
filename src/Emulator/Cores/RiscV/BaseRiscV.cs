@@ -213,8 +213,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public bool WfiAsNop
-        { 
-            get => neverWaitForInterrupt; 
+        {
+            get => neverWaitForInterrupt;
             set
             {
                 neverWaitForInterrupt = value;
@@ -250,7 +250,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
         }
-
 
         public ulong? NMIVectorAddress { get; }
 
