@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 this.Log(LogLevel.Warning, "Sytem Loopback Enabled, incoming byte not queued.");
                 return;
             }
-            
+
             if(!rxEnabled.Value)
             {
                 this.Log(LogLevel.Warning, "CTRL.RX is unset, incoming byte not queued.");
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             // intentionally left empty
         }
-        
+
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
             return new Dictionary<long, DoubleWordRegister>
@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
                         }
-                        return character;   
+                        return character;
                     })
                     .WithReservedBits(8, 24)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
@@ -238,7 +238,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(val)
                         {
                             txQueue.Clear();
-                            
+
                         }
                     })
                     .WithEnumField(2, 3, out rxWatermarkField, name: "FIFO_CTRL.RXILVL")
@@ -276,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             if(txOngoing && txQueue.Count == 0)
             {
-                txOngoing = false;    
+                txOngoing = false;
                 txEmptyPending.Value = true;
             }
 
