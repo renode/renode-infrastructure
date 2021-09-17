@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             var localOffset = GetLocalOffset((uint)offset);
             var segment = segments[GetSegmentNo((uint)offset)];
             Marshal.WriteByte(segment + localOffset, value);
-            InvalidateMemoryFragment(segment + localOffset, 1);
+            InvalidateMemoryFragment(offset, 1);
         }
 
         public ushort ReadWord(long offset)
@@ -122,13 +122,13 @@ namespace Antmicro.Renode.Peripherals.Memory
                 Marshal.WriteByte(segment + localOffset, bytes[0]);
                 var secondSegment = segments[GetSegmentNo((uint)(offset + 1))];
                 Marshal.WriteByte(secondSegment, bytes[1]);
-                InvalidateMemoryFragment(segment + localOffset, 1);
-                InvalidateMemoryFragment(secondSegment, 1);
+                InvalidateMemoryFragment(offset, 1);
+                InvalidateMemoryFragment(offset + 1, 1);
             }
             else
             {
                 Marshal.WriteInt16(segment + localOffset, unchecked((short)value));
-                InvalidateMemoryFragment(segment + localOffset, 2);
+                InvalidateMemoryFragment(offset, 2);
             }
         }
 
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             else
             {
                 Marshal.WriteInt32(segment + localOffset, unchecked((int)value));
-                InvalidateMemoryFragment(segment + localOffset, 4);
+                InvalidateMemoryFragment(offset, 4);
             }
         }
 
@@ -202,8 +202,9 @@ namespace Antmicro.Renode.Peripherals.Memory
                 var segment = segments[GetSegmentNo((uint)currentOffset)];
                 var length = Math.Min(count - written, SegmentSize - localOffset);
                 Marshal.Copy(array, startingIndex + written, segment + localOffset, length);
-                InvalidateMemoryFragment(segment + localOffset, length);
                 written += length;
+                
+                InvalidateMemoryFragment(currentOffset, length);
             }
         }
 
@@ -479,7 +480,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             return Marshal.AllocHGlobal(SegmentSize + Alignment);
         }
 
-        private void InvalidateMemoryFragment(IntPtr start, int length)
+        private void InvalidateMemoryFragment(long start, int length)
         {
             if(machine == null)
             {
@@ -487,13 +488,26 @@ namespace Antmicro.Renode.Peripherals.Memory
                 return;
             }
 
-            this.NoisyLog("Invalidating memory fragment at 0x{0:X} of size {1} bytes.", start, SegmentSize);
+            this.NoisyLog("Invalidating memory fragment at 0x{0:X} of size {1} bytes.", start, length);
 
+            var registrationPoints = GetRegistrationPoints();
             foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CPU.ICPU>())
             {
-                //it's dynamic to avoid cyclic dependency to TranslationCPU
-                ((dynamic)cpu).InvalidateTranslationBlocks(start, start + length);
+                foreach(var regPoint in registrationPoints)
+                {
+                    //it's dynamic to avoid cyclic dependency to TranslationCPU
+                    ((dynamic)cpu).InvalidateTranslationBlocks(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length));
+                }
             }
+        }
+
+        private List<long> GetRegistrationPoints()
+        {
+            if(registrationPointsCached == null)
+            {
+                registrationPointsCached = machine.SystemBus.GetRegistrationPoints(this).Select(x => (long)(x.Range.StartAddress + x.Offset)).ToList();
+            }
+            return registrationPointsCached;
         }
 
 #if PLATFORM_WINDOWS
@@ -514,6 +528,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         private IMappedSegment[] describedSegments;
         private bool disposed;
         private long size;
+        private List<long> registrationPointsCached;
         private readonly Machine machine;
 
         private const uint Magic = 0xABCD6366;
