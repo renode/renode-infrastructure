@@ -56,6 +56,11 @@ namespace Antmicro.Renode.Time
             return (t1.ticks <= t2.ticks) ? t1 : t2;
         }
 
+        public static TimeInterval FromMicroseconds(ulong v)
+        {
+            return FromTicks(v * TimeInterval.TicksPerMicrosecond);
+        }
+
         public static TimeInterval FromMilliseconds(ulong v)
         {
             return FromTicks(v * TimeInterval.TicksPerMillisecond);
