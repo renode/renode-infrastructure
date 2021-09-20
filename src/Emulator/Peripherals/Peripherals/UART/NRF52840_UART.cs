@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         if(newValue)
                         {
-                            interruptManager.EnableInterrupt(interrupt);
+                            this.Machine.LocalTimeSource.ExecuteInNearestSyncedState(ts => interruptManager.EnableInterrupt(interrupt));
                         }
                     },
                     valueProviderCallback: (interrupt, _) => interruptManager.IsEnabled(interrupt)
