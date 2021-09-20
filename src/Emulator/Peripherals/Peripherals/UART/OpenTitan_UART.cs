@@ -151,6 +151,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(8, 24)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
+                {(long)Registers.AlertTest, new DoubleWordRegister(this)
+                    .WithTaggedFlag("fatal_fault", 0)
+                    .WithIgnoredBits(1, 31)
+                },
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithFlag(0, out txEnabled, name: "CTRL.TX", writeCallback: (_, val) =>
                     {
@@ -410,15 +414,16 @@ namespace Antmicro.Renode.Peripherals.UART
             InterruptState       = 0x0,
             InterruptEnable      = 0x4,
             InterruptTest        = 0x8,
-            Control              = 0xC,
-            LiveStatus           = 0x10,
-            ReadData             = 0x14,
-            WriteData            = 0x18,
-            FIFOControl          = 0x1C,
-            FIFOStatus           = 0x20,
-            TxPinOverrideControl = 0x24,
-            OversampledValues    = 0x28,
-            RxTimeoutControl     = 0x2C
+            AlertTest            = 0xC,
+            Control              = 0x10,
+            LiveStatus           = 0x14,
+            ReadData             = 0x18,
+            WriteData            = 0x1C,
+            FIFOControl          = 0x20,
+            FIFOStatus           = 0x24,
+            TxPinOverrideControl = 0x28,
+            OversampledValues    = 0x2C,
+            RxTimeoutControl     = 0x30,
         }
     }
 }
