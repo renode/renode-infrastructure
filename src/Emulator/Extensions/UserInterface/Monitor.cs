@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using System.Security.Cryptography;
 using AntShell;
 using AntShell.Commands;
 using Antmicro.Renode.UserInterface.Tokenizer;
@@ -530,12 +531,32 @@ namespace Antmicro.Renode.UserInterface
 
         private bool TryCompilePlugin(string filename, ICommandInteraction writer)
         {
+            byte[] sha = null;
+            using(var shaComputer = SHA256.Create())
+            {
+                using(var f = File.OpenRead(filename))
+                {
+                    sha = shaComputer.ComputeHash(f);
+                    if(compiledFilesCache.Any(x => Enumerable.SequenceEqual(x, sha)))
+                    {
+                        writer.WriteLine($"Code from file {filename} has already been compiled. Ignoring...");
+
+                        return true;
+                    }
+                }
+            }
+
             var compiler = new AdHocCompiler();
             try
             {
-                var result = compiler.Compile(filename);
+                var compiledCode = compiler.Compile(filename);
                 cache.ClearCache();
-                return TypeManager.Instance.ScanFile(result);
+                var result = TypeManager.Instance.ScanFile(compiledCode);
+                if(result)
+                {
+                    compiledFilesCache.Add(sha);
+                }
+                return result;
             }
             catch(Exception e)
                 when(e is RecoverableException
@@ -545,6 +566,8 @@ namespace Antmicro.Renode.UserInterface
                 return false;
             }
         }
+
+        private List<byte[]> compiledFilesCache = new List<byte[]>();
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
         {
