@@ -8,9 +8,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Peripherals.CFU;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
@@ -18,7 +20,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>
     {
         protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
                 : base(hartId, cpuType, machine, endianness, bitness)
@@ -60,6 +62,49 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             UserState = new Dictionary<string, object>();
+
+            ChildCollection = new Dictionary<int, ICFU>();
+        }
+
+        public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
+        {
+            var isRegistered = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList();
+            if(isRegistered.Count != 0)
+            {
+                throw new RegistrationException("Can't register the same CFU twice.");
+            }
+            else if(ChildCollection.ContainsKey(registrationPoint.Address))
+            {
+                throw new RegistrationException("The specified registration point is already in use.");
+            }
+
+            ChildCollection.Add(registrationPoint.Address, cfu);
+            machine.RegisterAsAChildOf(this, cfu, registrationPoint);
+            cfu.ConnectedCpu = this;
+        }
+
+        public void Unregister(ICFU cfu)
+        {
+            var toRemove = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList(); //ToList required, as we remove from the source
+            foreach(var key in toRemove)
+            {
+                ChildCollection.Remove(key);
+            }
+
+            machine.UnregisterAsAChildOf(this, cfu);
+        }
+
+        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(ICFU cfu)
+        {
+            return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x));
+        }
+
+        public IEnumerable<IRegistered<ICFU, NumberRegistrationPoint<int>>> Children
+        {
+            get
+            {
+                return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
+            }
         }
 
         public virtual void OnNMI(int number, bool value)
@@ -430,6 +475,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             handler(opcode);
             return pcWrittenFlag ? 1 : 0;
         }
+
+        public readonly Dictionary<int, ICFU> ChildCollection;
 
         private bool pcWrittenFlag;
 
