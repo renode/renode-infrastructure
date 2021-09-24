@@ -483,7 +483,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             ResetInnerStatus();
         }
 
-        public long Size => 0x1000;
+        public long Size => 0x400;
         public GPIO AlarmIRQ { get; }
 
         private static DateTime UpdateTimeState(DateTime timeState, DateTimeSelect select, int value)
