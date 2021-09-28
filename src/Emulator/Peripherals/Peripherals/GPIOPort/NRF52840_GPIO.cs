@@ -113,7 +113,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(0, name: "DIR",
                         writeCallback: (_, val) => Pins[idx].Direction = val ? PinDirection.Output : PinDirection.Input,
                         valueProviderCallback: _ => Pins[idx].Direction == PinDirection.Output)
-                    .WithTag("INPUT", 1, 1)
+                    .WithFlag(1, name: "INPUT",
+                        writeCallback: (_, val) => Pins[idx].InputOverride = !val,
+                        valueProviderCallback: _ => !Pins[idx].InputOverride)
                     .WithTag("PULL", 2, 2)
                     .WithReservedBits(4, 4)
                     .WithTag("DRIVE", 8, 3)
@@ -142,13 +144,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 Parent.Connections[Id].Set(false);
                 Direction = PinDirection.Input;
+                InputOverride = false;
             }
 
             public bool Value
             {
                 get
                 {
-                    if(Direction != PinDirection.Input)
+                    if(Direction != PinDirection.Input && !InputOverride)
                     {
                         Parent.Log(LogLevel.Noisy, "Trying to read pin #{0} that is not configured as input", Id);
                         return false;
@@ -169,12 +172,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                     Parent.NoisyLog("Setting pin {0} to {1}", Id, value);
                     Parent.Connections[Id].Set(value);
-
+                    Parent.State[Id] = value;
                     Parent.PinChanged(this, value);
                 }
             }
 
             public PinDirection Direction { get; set; }
+
+            public bool InputOverride { set; get; }
 
             public SenseMode SenseMode { get; set; }
 
