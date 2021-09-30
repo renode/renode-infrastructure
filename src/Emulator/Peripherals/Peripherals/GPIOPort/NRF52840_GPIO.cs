@@ -141,9 +141,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(1, name: "INPUT",
                         writeCallback: (_, val) => Pins[idx].InputOverride = !val,
                         valueProviderCallback: _ => !Pins[idx].InputOverride)
-                    .WithTag("PULL", 2, 2)
+                    .WithEnumField<DoubleWordRegister, PullMode>(2, 2, name: "PULL",
+                        writeCallback: (_, val) =>
+                        {
+                            Pins[idx].PullMode = val;
+                            switch(val)
+                            {
+                                case PullMode.PullUp:
+                                    Pins[idx].RawValue = true;
+                                    break;
+                                case PullMode.PullDown:
+                                    Pins[idx].RawValue = false;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        },
+                        valueProviderCallback: _ => Pins[idx].PullMode)
                     .WithReservedBits(4, 4)
-                    .WithTag("DRIVE", 8, 3)
+                    .WithEnumField<DoubleWordRegister, DriveMode>(8, 3, name: "DRIVE",
+                        valueProviderCallback: _ => Pins[idx].DriveMode,
+                        writeCallback: (_, val) => Pins[idx].DriveMode = val
+                    )
                     .WithReservedBits(11, 5)
                     .WithEnumField<DoubleWordRegister, SenseMode>(16, 2, name: "SENSE",
                         writeCallback: (_, val) =>
@@ -204,9 +223,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         Parent.Log(LogLevel.Noisy, "Trying to read pin #{0} that is not configured as input", Id);
                         return false;
                     }
-                    return Parent.State[Id];
-                }
 
+                    switch(DriveMode)
+                    {
+                        case DriveMode.OpenZeroStandardOne:
+                        case DriveMode.OpenZeroHighDriveOne:
+                            // Open-source aka. wired-or
+                            return (RawValue | PullMode == PullMode.PullUp);
+                        case DriveMode.StandardZeroOpenOne:
+                        case DriveMode.HighDriveZeroOpenOne:
+                            // Open-drain aka. wired-and
+                            return (RawValue & PullMode == PullMode.PullUp);
+                        default:
+                            return RawValue;
+                    }
+                }
                 set
                 {
                     if(Direction != PinDirection.Output)
@@ -226,11 +257,29 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
             }
 
+            // This property is needed as the pull-up and pull-down should be
+            // able to override Pin state not matter Direction it is set to.
+            public bool RawValue
+            {
+                get
+                {
+                    return Parent.State[Id];
+                }
+                set
+                {
+                    Parent.State[Id] = value;
+                }
+            }
+
             public PinDirection Direction { get; set; }
 
             public bool InputOverride { set; get; }
 
+            public DriveMode DriveMode { set; get; }
+
             public SenseMode SenseMode { get; set; }
+
+            public PullMode PullMode { get; set; }
 
             public bool IsSensing
             {
@@ -254,6 +303,25 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Disabled = 0,
             High = 2,
             Low = 3
+        }
+
+        public enum PullMode
+        {
+            Disabled = 0,
+            PullDown = 1,
+            PullUp = 3,
+        }
+
+        public enum DriveMode
+        {
+            Standard = 0,
+            HighDriveZero,
+            HighDriveOne,
+            HighDrive,
+            OpenZeroStandardOne,
+            OpenZeroHighDriveOne,
+            StandardZeroOpenOne,
+            HighDriveZeroOpenOne
         }
 
         public enum PinDirection
