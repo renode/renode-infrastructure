@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -62,6 +62,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+        public Pin[] Pins { get; }
 
         public long Size => 0x1000;
 
@@ -122,6 +123,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithFlags(0, NumberOfPins,
                     valueProviderCallback: (id, _) => Pins[id].Direction == PinDirection.Output,
                     writeCallback: (id, _, val) => { if(val) Pins[id].Direction = PinDirection.Input; })
+            ;
+
+            Registers.Latch.Define(this)
+                .WithTag("LATCH", 0, 32)
+            ;
+
+            Registers.DetectMode.Define(this)
+                .WithTaggedFlag("DETECTMODE", 0)
+                .WithReservedBits(1, 31)
             ;
 
             Registers.PinConfigure.DefineMany(this, NumberOfPins, (register, idx) =>
@@ -194,8 +204,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private bool detectState;
         private IFlagRegisterField[] physicalPinState;
-
-        public Pin[] Pins { get; }
 
         private const int NumberOfPins = 32;
 
