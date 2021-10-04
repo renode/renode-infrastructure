@@ -238,6 +238,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        public ulong Vector(uint registerNumber, uint elementIndex, ulong? value = null)
+        {
+            if(value.HasValue)
+            {
+                TlibSetVector(registerNumber, elementIndex, value.Value);
+            }
+            return TlibGetVector(registerNumber, elementIndex);
+        }
+
         public CSRValidationLevel CSRValidation
         {
             get => (CSRValidationLevel)TlibGetCsrValidationLevel();
@@ -547,6 +556,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt32 TlibSetElen;
+
+        [Import]
+        private FuncUInt64UInt32UInt32 TlibGetVector;
+
+        [Import]
+        private ActionUInt32UInt32UInt64 TlibSetVector;
 
 #pragma warning restore 649
 
