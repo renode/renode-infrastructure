@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -74,6 +74,48 @@ namespace Antmicro.Renode.UnitTests
             clockSource.Advance(TimeInterval.FromTicks(20), true);
 
             CollectionAssert.AreEqual(new [] { 10, 20, 30 }, values);
+        }
+
+        [Test]
+        public void ShouldObserveShorterPeriodClockAfterAdd()
+        {
+            var clockSource = new BaseClockSource();
+            var counterA = 0;
+            var counterB = 0;
+            Action handlerA = () => counterA++;
+            Action handlerB = () => counterB++;
+            ClockEntry entryA = new ClockEntry(1000, -1, handlerA, null, String.Empty) { Value = 0 };
+            ClockEntry entryB = new ClockEntry(100, -1, handlerB, null, String.Empty) { Value = 0 };
+
+            clockSource.AddClockEntry(entryA);
+            clockSource.Advance(TimeInterval.FromTicks(500));
+            clockSource.AddClockEntry(entryB);
+            entryA = clockSource.GetClockEntry(handlerA);
+            entryB = clockSource.GetClockEntry(handlerB);
+            Assert.AreEqual(entryA.Value, 500);
+            Assert.AreEqual(entryA.Period, 1000);
+            Assert.AreEqual(entryB.Value, 0);
+            Assert.AreEqual(entryB.Period, 100);
+
+            clockSource.Advance(TimeInterval.FromTicks(50));
+            entryA = clockSource.GetClockEntry(handlerA);
+            entryB = clockSource.GetClockEntry(handlerB);
+            Assert.AreEqual(counterA, 0);
+            Assert.AreEqual(counterB, 0);
+            Assert.AreEqual(entryA.Value, 550);
+            Assert.AreEqual(entryA.Period, 1000);
+            Assert.AreEqual(entryB.Value, 50);
+            Assert.AreEqual(entryB.Period, 100);
+
+            clockSource.Advance(TimeInterval.FromTicks(50));
+            entryA = clockSource.GetClockEntry(handlerA);
+            entryB = clockSource.GetClockEntry(handlerB);
+            Assert.AreEqual(counterA, 0);
+            Assert.AreEqual(counterB, 1);
+            Assert.AreEqual(entryA.Value, 600);
+            Assert.AreEqual(entryA.Period, 1000);
+            Assert.AreEqual(entryB.Value, 0);
+            Assert.AreEqual(entryB.Period, 100);
         }
     }
 }

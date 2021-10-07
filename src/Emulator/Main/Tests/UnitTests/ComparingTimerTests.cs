@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -72,6 +72,29 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0, timer.Value);
             Assert.AreEqual(0, timer.Compare);
             Assert.AreEqual(2, compareCounter);
+        }
+
+        [Test]
+        public void ShouldClearWhenValueSetToZero()
+        {
+            var compare = 200UL;
+            var limit = 300UL;
+            var compareCounter = 0;
+            var clockSource = new BaseClockSource();
+            var timer = new ComparingTimer(clockSource, frequency: 1000000, owner: null, localName: String.Empty, limit: limit, enabled: true, eventEnabled: true, compare: compare);
+            timer.CompareReached += delegate { compareCounter++; };
+
+            // Run to 100 ticks
+            var advance = 100UL;
+            clockSource.Advance(TimeInterval.FromTicks(advance), true);
+            Assert.AreEqual(advance, timer.Value);
+            Assert.AreEqual(compare, timer.Compare);
+            Assert.AreEqual(compareCounter, 0);
+
+            // Clear timer
+            timer.Value = 0;
+            Assert.AreEqual(timer.Value, 0);
+            Assert.AreEqual(timer.Compare, compare);
         }
     }
 }
