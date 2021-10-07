@@ -109,6 +109,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return GetActive((int)(offset - ActiveBitStart));
             }
+            if(offset >= MPUStart && offset < MPUEnd)
+            {
+                return HandleMPURead(offset - MPUStart);
+            }
             switch((Registers)offset)
             {
             case Registers.SysTickCalibrationValue:
@@ -173,12 +177,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.ApplicationInterruptAndReset:
                 return HandleApplicationInterruptAndResetRead();
             case Registers.ConfigurableFaultStatus:
-                // this is not a full implementation but should be enough to get lazy FPU implementations to work.
-                this.DebugLog("ConfigurableFaultStatus read. Returning NOCP.");
-                return (1 << 19) /* NOCP */;
-            case Registers.MPUType:
-                // Bits 0-7 and 16-31 are RAZ in ARMv6-M, ARMv7-M and ARMv8-M.
-                return (numberOfMPURegions & 0xFF) << 8;  
+                return cpu.FaultStatus;
             case Registers.InterruptControllerType:
                 return 0b0111;
             default:
@@ -214,6 +213,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(offset >= SetPendingStart && offset < SetPendingEnd)
             {
                 SetOrClearPendingInterrupt((int)offset - SetPendingStart, value, true);
+                return;
+            }
+            if(offset >= MPUStart && offset < MPUEnd)
+            {
+                HandleMPUWrite(offset - MPUStart, value);
                 return;
             }
             switch((Registers)offset)
@@ -282,6 +286,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     currentSevOnPending = sevOnPending;
                 }
 
+                break;
+            case Registers.ConfigurableFaultStatus:
+                cpu.FaultStatus &= ~value;
                 break;
             case Registers.SystemHandlerPriority1:
                 // 7th interrupt is ignored
@@ -384,6 +391,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ.Unset();
             countFlag = false;
             currentSevOnPending = false;
+            mpuControlRegister = 0;
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
             ccr = 0x10000;
@@ -543,6 +551,73 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 returnValue |= priorities[startingInterrupt];
                 return returnValue;
+            }
+        }
+
+        private uint HandleMPURead(long offset)
+        {
+            uint value;
+            switch((MPURegisters)offset)
+            {
+                case MPURegisters.Type:
+                    value = (numberOfMPURegions & 0xFF) << 8;
+                    break;
+                case MPURegisters.Control:
+                    value = mpuControlRegister;
+                    break;
+                case MPURegisters.RegionNumber:
+                    value = cpu.MPURegionNumber;
+                    break;
+                case MPURegisters.RegionBaseAddress:
+                case MPURegisters.RegionBaseAddressAlias1:
+                case MPURegisters.RegionBaseAddressAlias2:
+                case MPURegisters.RegionBaseAddressAlias3:
+                    value = cpu.MPURegionBaseAddress;
+                    break;
+                case MPURegisters.RegionAttributeAndSize:
+                case MPURegisters.RegionAttributeAndSizeAlias1:
+                case MPURegisters.RegionAttributeAndSizeAlias2:
+                case MPURegisters.RegionAttributeAndSizeAlias3:
+                    value = cpu.MPURegionAttributeAndSize;
+                    break;
+                default:
+                    value = 0x0;
+                    break;
+            }
+            this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(MPURegisters), offset), value);
+            return value;
+        }
+
+        private void HandleMPUWrite(long offset, uint value)
+        {
+            this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(MPURegisters), offset), value);
+            switch((MPURegisters)offset)
+            {
+                case MPURegisters.Type:
+                    this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
+                    break;
+                case MPURegisters.Control:
+                    if((mpuControlRegister & 0x1) != (value & 0x1))
+                    {
+                        this.cpu.MPUEnabled = (value & 0x1) != 0x0;
+                    }
+                    mpuControlRegister = value;
+                    break;
+                case MPURegisters.RegionNumber: // MPU_RNR
+                    cpu.MPURegionNumber = value;
+                    break;
+                case MPURegisters.RegionBaseAddress:
+                case MPURegisters.RegionBaseAddressAlias1:
+                case MPURegisters.RegionBaseAddressAlias2:
+                case MPURegisters.RegionBaseAddressAlias3:
+                    cpu.MPURegionBaseAddress = value;
+                    break;
+                case MPURegisters.RegionAttributeAndSize:
+                case MPURegisters.RegionAttributeAndSizeAlias1:
+                case MPURegisters.RegionAttributeAndSizeAlias2:
+                case MPURegisters.RegionAttributeAndSizeAlias3:
+                    cpu.MPURegionAttributeAndSize = value;
+                    break;
             }
         }
 
@@ -792,11 +867,25 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             DebugFaultStatus = 0xD30,
             // FPU registers 0xD88 .. F3C
             CoprocessorAccessControl = 0xD88,
-            MPUType = 0xD90,
             SoftwareTriggerInterruptRegister = 0xF00,
             FPContextControl = 0xF34,
             FPContextAddress = 0xF38,
             FPDefaultStatusControl = 0xF3C,
+        }
+
+        private enum MPURegisters
+        {
+            Type = 0x00,
+            Control = 0x04,
+            RegionNumber = 0x08,
+            RegionBaseAddress = 0x0C,
+            RegionAttributeAndSize = 0x10,
+            RegionBaseAddressAlias1 = 0x14,
+            RegionAttributeAndSizeAlias1 = 0x18,
+            RegionBaseAddressAlias2 = 0x1C,
+            RegionAttributeAndSizeAlias2 = 0x20,
+            RegionBaseAddressAlias3 = 0x24,
+            RegionAttributeAndSizeAlias3 = 0x28,
         }
 
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
@@ -809,6 +898,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
         private int binaryPointPosition; // from the right
+        private uint mpuControlRegister;
 
         private bool maskedInterruptPresent;
 
@@ -820,6 +910,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Machine machine;
         private readonly uint cpuId;
 
+        private const int MPUStart             = 0xD90;
+        private const int MPUEnd               = 0xDBC;
         private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
         private const int SetEnableEnd         = 0x140;
