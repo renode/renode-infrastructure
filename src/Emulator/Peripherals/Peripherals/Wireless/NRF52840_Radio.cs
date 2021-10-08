@@ -52,6 +52,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             frame = frame.Skip(4).ToArray();
 
+            this.Log(LogLevel.Noisy, "ReceiveFrame {0}", Misc.PrettyPrintCollectionHex(frame));
+
             var dataAddress = packetPointer.Value;
             machine.SystemBus.WriteBytes(frame, dataAddress);
 
