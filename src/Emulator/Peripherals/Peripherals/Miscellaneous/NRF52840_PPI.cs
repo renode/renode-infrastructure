@@ -98,6 +98,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     if(value)
                     {
+                        this.Log(LogLevel.Noisy, "PPI enable channel {0}", i);
                         channelEnabled[i].Value = true;
                     }
                 }, valueProviderCallback: (i, _) => channelEnabled[i].Value)
@@ -108,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     if(value)
                     {
+                        this.Log(LogLevel.Noisy, "PPI disable channel {0}", i);
                         channelEnabled[i].Value = false;
                     }
                 }, valueProviderCallback: (i, _) => channelEnabled[i].Value)
