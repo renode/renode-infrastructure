@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class CortexM
     {
-        public override void SetRegisterUnsafe(int register, ulong value)
+        public override void SetRegisterUnsafe(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((CortexMRegisters)register, out var r))
             {
@@ -33,7 +33,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-
             return GetRegisterValue32(r.Index);
         }
 

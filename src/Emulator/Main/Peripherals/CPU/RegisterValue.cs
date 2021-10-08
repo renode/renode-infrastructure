@@ -14,6 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public struct RegisterValue
     {
         public ulong RawValue { get; private set; }
+        public byte[] ByteArrayValue { get; private set; }
         public uint Bits { get; private set; }
 
         // this is not the perfect solution,
@@ -29,6 +30,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             bool needsByteSwap = (endianness == Endianess.LittleEndian) != BitConverter.IsLittleEndian;
             byte[] bytes;
+
+            if(ByteArrayValue != null)
+            {
+                return ByteArrayValue;
+            }
 
             switch (Bits)
             {
@@ -51,33 +57,62 @@ namespace Antmicro.Renode.Peripherals.CPU
             return needsByteSwap ? bytes.Reverse().ToArray() : bytes;
         }
 
+        // this is to support using 64bit integer values for RegisterValue in monitor
+        public static implicit operator RegisterValue(long v)
+        {
+            return new RegisterValue { RawValue = (ulong)v, ByteArrayValue = null, Bits = 64 };
+        }
+
         public static implicit operator RegisterValue(ulong v)
         {
-            return new RegisterValue { RawValue = v, Bits = 64 };
+            return new RegisterValue { RawValue = v, ByteArrayValue = null, Bits = 64 };
         }
 
         public static implicit operator RegisterValue(uint v)
         {
-            return new RegisterValue { RawValue = v, Bits = 32 };
+            return new RegisterValue { RawValue = v, ByteArrayValue = null, Bits = 32 };
         }
 
         public static implicit operator RegisterValue(ushort v)
         {
-            return new RegisterValue { RawValue = v, Bits = 16 };
+            return new RegisterValue { RawValue = v, ByteArrayValue = null, Bits = 16 };
         }
 
         public static implicit operator RegisterValue(byte v)
         {
-            return new RegisterValue { RawValue = v, Bits = 8 };
+            return new RegisterValue { RawValue = v, ByteArrayValue = null, Bits = 8 };
+        }
+
+        public static implicit operator RegisterValue(byte[] v)
+        {
+            return new RegisterValue { RawValue = default(ulong), ByteArrayValue = v, Bits = (uint)v.Length * 8 };
         }
 
         public static implicit operator ulong(RegisterValue v)
         {
+            if(v.ByteArrayValue != null)
+            {
+                if(v.TryGetBytesForInt(8, out var bytes))
+                {
+                    return BitConverter.ToUInt64(bytes, 0);
+                }
+                throw new InvalidCastException("Value is too big to be expressed as UInt64");
+            }
+
             return v.RawValue;
         }
 
         public static implicit operator uint(RegisterValue v)
         {
+            if(v.ByteArrayValue != null)
+            {
+                if(v.TryGetBytesForInt(4, out var bytes))
+                {
+                    return BitConverter.ToUInt32(bytes, 0);
+                }
+                throw new InvalidCastException("Value is too big to be expressed as UInt32");
+            }
+
             if(v.Bits > 32 && v.RawValue > UInt32.MaxValue)
             {
                 throw new InvalidCastException("Value is too big to be expressed as UInt32");
@@ -88,6 +123,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public static implicit operator ushort(RegisterValue v)
         {
+            if(v.ByteArrayValue != null)
+            {
+                if(v.TryGetBytesForInt(2, out var bytes))
+                {
+                    return BitConverter.ToUInt16(bytes, 0);
+                }
+                throw new InvalidCastException("Value is too big to be expressed as UInt16");
+            }
+
             if(v.Bits > 16 && v.RawValue > UInt16.MaxValue)
             {
                 throw new InvalidCastException("Value is too big to be expressed as UInt16");
@@ -98,6 +142,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public static implicit operator byte(RegisterValue v)
         {
+            if(v.ByteArrayValue != null)
+            {
+                if(v.TryGetBytesForInt(1, out var bytes))
+                {
+                    return bytes[0];
+                }
+                throw new InvalidCastException("Value is too big to be expressed as Byte");
+            }
+
             if(v.Bits > 8 && v.RawValue > Byte.MaxValue)
             {
                 throw new InvalidCastException("Value is too big to be expressed as Byte");
@@ -108,7 +161,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public static RegisterValue Create(ulong rawValue, uint bits)
         {
-            return new RegisterValue { RawValue = rawValue, Bits = bits };
+            return new RegisterValue { RawValue = rawValue, ByteArrayValue = null, Bits = bits };
+        }
+
+        private bool TryGetBytesForInt(int size, out byte[] bytes)
+        {
+            if(ByteArrayValue == null || ByteArrayValue.Skip(size).Any(b => b != 0))
+            {
+                bytes = default(byte[]);
+                return false;
+            }
+
+            bytes = ByteArrayValue.Take(size).ToArray();
+            return true;
         }
     }
 }

@@ -361,7 +361,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.GetExceptionDescription(exceptionIndex);
         }
 
-        protected bool TrySetCustomCSR(int register, ulong value)
+        protected bool TrySetCustomCSR(int register, RegisterValue value)
         {
             if(!nonstandardCSR.ContainsKey((ulong)register))
             {
@@ -371,9 +371,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
-        protected bool TryGetCustomCSR(int register, out ulong value)
+        protected bool TryGetCustomCSR(int register, out RegisterValue value)
         {
-            value = default(ulong);
+            value = default(RegisterValue);
             if(!nonstandardCSR.ContainsKey((ulong)register))
             {
                 return false;

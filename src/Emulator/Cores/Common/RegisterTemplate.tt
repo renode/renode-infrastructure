@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         .Distinct()
         .ToArray();
 #>
-        public override void SetRegisterUnsafe(int register, ulong value)
+        public override void SetRegisterUnsafe(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {

@@ -745,7 +745,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return $"Undecoded {exceptionIndex}";
         }
 
-        public abstract void SetRegisterUnsafe(int register, ulong value);
+        public abstract void SetRegisterUnsafe(int register, RegisterValue value);
 
         public abstract RegisterValue GetRegisterUnsafe(int register);
 

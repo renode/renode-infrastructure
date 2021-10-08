@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class PowerPc64
     {
-        public override void SetRegisterUnsafe(int register, ulong value)
+        public override void SetRegisterUnsafe(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((PowerPc64Registers)register, out var r))
             {
@@ -33,7 +33,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-
             return GetRegisterValue64(r.Index);
         }
 

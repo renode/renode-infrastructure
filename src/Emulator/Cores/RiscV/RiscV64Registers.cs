@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class RiscV64
     {
-        public override void SetRegisterUnsafe(int register, ulong value)
+        public override void SetRegisterUnsafe(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((RiscV64Registers)register, out var r))
             {

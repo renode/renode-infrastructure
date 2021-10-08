@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IControllableCPU : ICPU
     {
-        void SetRegisterUnsafe(int register, ulong value);
+        void SetRegisterUnsafe(int register, RegisterValue value);
 
         RegisterValue GetRegisterUnsafe(int register);
 
@@ -30,11 +30,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         Endianess Endianness { get; }
     }
 
+    public static class ControllableCPUExtension
+    {
+        // this is to support Python integration
+        public static void SetRegisterUnsafeUlong(this IControllableCPU cpu, int register, ulong value)
+        {
+            cpu.SetRegisterUnsafe(register, value);
+        }
+    }
+
     public struct CPURegister
     {
         public CPURegister(int index, int width, bool isGeneral, bool isReadonly)
         {
-            if(width != 8 && width != 16 && width != 32 && width != 64)
+            if(width % 8 != 0)
             {
                 throw new ArgumentException($"Unsupported width: {width}");
             }
@@ -45,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             IsReadonly = isReadonly;
         }
 
-        public ulong ValueFromBytes(byte[] bytes, Endianess endianness)
+        public RegisterValue ValueFromBytes(byte[] bytes, Endianess endianness)
         {
             if(bytes.Length > Width)
             {
@@ -53,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             bool needsByteSwap = (endianness == Endianess.LittleEndian) != BitConverter.IsLittleEndian;
 
-            ulong result = 0;
+            RegisterValue result = 0;
 
             var bytesWithPadding = Enumerable.Repeat<byte>(0, (Width / 8) - bytes.Length).Concat(bytes).ToArray();
             if(needsByteSwap)
@@ -74,6 +83,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     break;
                 case 64:
                     result = BitConverter.ToUInt64(bytesWithPadding, 0);
+                    break;
+                default:
+                    result = bytesWithPadding;
                     break;
             }
 
