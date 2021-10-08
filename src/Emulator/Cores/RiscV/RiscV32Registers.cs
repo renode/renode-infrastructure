@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((RiscV32Registers)register, out var r))
             {
-                if(TrySetCustomCSR(register, value))
+                if(TrySetNonMappedRegister(register, value))
                 {
                     return;
                 }
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((RiscV32Registers)register, out var r))
             {
-                if(TryGetCustomCSR(register, out var value))
+                if(TryGetNonMappedRegister(register, out var value))
                 {
                     return value;
                 }
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return mapping.Values.Concat(GetCustomCSRs()).OrderBy(x => x.Index);
+            return mapping.Values.Concat(GetNonMappedRegisters()).OrderBy(x => x.Index);
         }
 
         [Register]

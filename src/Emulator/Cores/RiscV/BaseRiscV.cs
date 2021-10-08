@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -329,9 +330,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var registerWidth = (uint)MostSignificantBit + 1;
                 RiscVRegisterDescription.AddCpuFeature(ref gdbFeatures, registerWidth);
                 RiscVRegisterDescription.AddFpuFeature(ref gdbFeatures, registerWidth, false, SupportsInstructionSet(InstructionSet.F), SupportsInstructionSet(InstructionSet.D), false);
-                RiscVRegisterDescription.AddCSRFeature(ref gdbFeatures, registerWidth, SupportsInstructionSet(InstructionSet.S), SupportsInstructionSet(InstructionSet.U), false);
+                RiscVRegisterDescription.AddCSRFeature(ref gdbFeatures, registerWidth, SupportsInstructionSet(InstructionSet.S), SupportsInstructionSet(InstructionSet.U), false, SupportsInstructionSet(InstructionSet.V));
                 RiscVRegisterDescription.AddVirtualFeature(ref gdbFeatures, registerWidth);
                 RiscVRegisterDescription.AddCustomCSRFeature(ref gdbFeatures, registerWidth, nonstandardCSR);
+                if(SupportsInstructionSet(InstructionSet.V))
+                {
+                    RiscVRegisterDescription.AddVectorFeature(ref gdbFeatures, VLEN);
+                }
 
                 return gdbFeatures;
             }
@@ -363,6 +368,64 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.GetExceptionDescription(exceptionIndex);
         }
 
+        protected bool TrySetNonMappedRegister(int register, RegisterValue value)
+        {
+            if(SupportsInstructionSet(InstructionSet.V) && IsVectorRegisterNumber(register))
+            {
+                return TrySetVectorRegister((uint)register - RiscVRegisterDescription.StartOfVRegisters, value);
+            }
+            return TrySetCustomCSR(register, value);
+        }
+
+        protected bool TryGetNonMappedRegister(int register, out RegisterValue value)
+        {
+            if(SupportsInstructionSet(InstructionSet.V) && IsVectorRegisterNumber(register))
+            {
+                return TryGetVectorRegister((uint)register - RiscVRegisterDescription.StartOfVRegisters, out value);
+            }
+            return TryGetCustomCSR(register, out value);
+        }
+
+        protected bool TrySetVectorRegister(uint registerNumber, RegisterValue value)
+        {
+            var vlenb = VLEN / 8;
+            var valueArray = value.GetBytes(Endianess.BigEndian);
+
+            if(valueArray.Length != vlenb)
+            {
+                return false;
+            }
+
+            var valuePointer = Marshal.AllocHGlobal(vlenb);
+            Marshal.Copy(valueArray, 0, valuePointer, vlenb);
+            
+            var result = true;
+            if(TlibSetWholeVector(registerNumber, valuePointer) != 0)
+            {
+                result = false;
+            }
+
+            Marshal.FreeHGlobal(valuePointer);
+            return result;
+        }
+
+        protected bool TryGetVectorRegister(uint registerNumber, out RegisterValue value)
+        {
+            var vlenb = VLEN / 8;
+            var valuePointer = Marshal.AllocHGlobal(vlenb);
+            if(TlibGetWholeVector(registerNumber, valuePointer) != 0)
+            {
+                Marshal.FreeHGlobal(valuePointer);
+                value = default(RegisterValue);
+                return false;
+            }
+            var bytes = new byte[vlenb];
+            Marshal.Copy(valuePointer, bytes, 0, vlenb);
+            value = bytes;
+            Marshal.FreeHGlobal(valuePointer);
+            return true;
+        }
+
         protected bool TrySetCustomCSR(int register, RegisterValue value)
         {
             if(!nonstandardCSR.ContainsKey((ulong)register))
@@ -382,6 +445,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             value = ReadCSR((ulong)register);
             return true;
+        }
+
+        protected IEnumerable<CPURegister> GetNonMappedRegisters()
+        {
+            var registers = GetCustomCSRs();
+            if(SupportsInstructionSet(InstructionSet.V))
+            {
+                var vlen = VLEN;
+                registers = registers.Concat(Enumerable.Range((int)RiscVRegisterDescription.StartOfVRegisters, (int)RiscVRegisterDescription.NumberOfVRegisters)
+                    .Select(index => new CPURegister(index, vlen, false, false)));
+            }
+            return registers;
         }
 
         protected IEnumerable<CPURegister> GetCustomCSRs()
@@ -425,6 +500,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
             return architecture.Skip(2).SkipWhile(x => Char.IsDigit(x))
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
+        }
+
+        private bool IsVectorRegisterNumber(int register)
+        {
+            return RiscVRegisterDescription.StartOfVRegisters <= register && register < RiscVRegisterDescription.StartOfVRegisters + RiscVRegisterDescription.NumberOfVRegisters; 
         }
 
         [Export]
@@ -564,6 +644,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32UInt64 TlibSetVector;
+
+        [Import]
+        private FuncUInt32UInt32IntPtr TlibGetWholeVector;
+
+        [Import]
+        private FuncUInt32UInt32IntPtr TlibSetWholeVector;
 
 #pragma warning restore 649
 

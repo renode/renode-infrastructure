@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             features.Add(fpuGroup);
         }
 
-        public static void AddCSRFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth, bool extensionS, bool extensionU, bool extensionN)
+        public static void AddCSRFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth, bool extensionS, bool extensionU, bool extensionN, bool extensionV)
         {
             var csrGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.csr");
             var intType = $"uint{registerWidth}";
@@ -404,6 +404,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MCAUSE, registerWidth, "mcause", "cause_type", "csr"));
             csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MTVAL, registerWidth, "mtval", intType, "csr"));
 
+            if(extensionV)
+            {
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VSTART, registerWidth, "vstart", group: "vector"));
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VXSAT, registerWidth, "vxsat", group: "vector"));
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VXRM, registerWidth, "vxrm", group: "vector"));
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VCSR, registerWidth, "vcsr", group: "vector"));
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VL, registerWidth, "vl", group: "vector"));
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VTYPE, registerWidth, "vtype", group: "vector"));
+                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VLENB, registerWidth, "vlenb", group: "vector"));
+            }
+
             features.Add(csrGroup);
         }
 
@@ -440,8 +451,67 @@ namespace Antmicro.Renode.Peripherals.CPU
             features.Add(customCSRGroup);
         }
 
+        public static void AddVectorFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth)
+        {
+            var vectorGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.vector");
+
+            var riscvVectorTypeFields = new List<GDBTypeField>();
+
+            if(registerWidth / 128 > 0)
+            {
+                var vu128TypeID = $"vector_u128_{registerWidth / 128}";
+                var vu128Type = GDBCustomType.Vector(vu128TypeID, "uint128", registerWidth / 128);
+                vectorGroup.Types.Add(vu128Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("q", vu128TypeID));
+            }
+
+            if(registerWidth / 64 > 0)
+            {
+                var vu64TypeID = $"vector_u64_{registerWidth / 64}";
+                var vu64Type = GDBCustomType.Vector(vu64TypeID, "uint64", registerWidth / 64);
+                vectorGroup.Types.Add(vu64Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("l", vu64TypeID));
+            }
+
+            if(registerWidth / 32 > 0)
+            {
+                var vu32TypeID = $"vector_u32_{registerWidth / 32}";
+                var vu32Type = GDBCustomType.Vector(vu32TypeID, "uint32", registerWidth / 32);
+                vectorGroup.Types.Add(vu32Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("w", vu32TypeID));
+            }
+
+            if(registerWidth / 16 > 0)
+            {
+                var vu16TypeID = $"vector_u16_{registerWidth / 16}";
+                var vu16Type = GDBCustomType.Vector(vu16TypeID, "uint16", registerWidth / 16);
+                vectorGroup.Types.Add(vu16Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("s", vu16TypeID));
+            }
+
+            if(registerWidth / 8 > 0)
+            {
+                var vu8TypeID = $"vector_u8_{registerWidth / 8}";
+                var vu8Type = GDBCustomType.Vector(vu8TypeID, "uint8", registerWidth / 8);
+                vectorGroup.Types.Add(vu8Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("b", vu8TypeID));
+            }
+            
+            var riscvVectorType = GDBCustomType.Union("riscv_vector", riscvVectorTypeFields);
+            vectorGroup.Types.Add(riscvVectorType);
+
+            for(var index = 0u; index < NumberOfVRegisters; ++index)
+            {
+                vectorGroup.Registers.Add(new GBDRegisterDescriptor(StartOfVRegisters + index, registerWidth, $"v{index}", "riscv_vector", "vector"));
+            }
+            
+            features.Add(vectorGroup);
+        }
+
         public const uint NumberOfXRegisters = 32;
         public const uint NumberOfFRegisters = 32;
         public const uint NumberOfAdditionalFRegisters = 3;
+        public const uint StartOfVRegisters = 68;
+        public const uint NumberOfVRegisters = 32;
     }
 }
