@@ -5,7 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             interruptManager = new InterruptManager<Events>(this, IRQ, "RadioIrq");
             shorts = new Shorts();
             events = new IFlagRegisterField[(int)Events.PHYEnd + 1];
-            rxBuffer = new Queue<byte[]>();
+            rxBuffer = new ConcurrentQueue<byte[]>();
             DefineRegisters();
             Reset();
         }
@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             interruptManager.Reset();
             base.Reset();
             addressPrefixes = new byte[8];
-            rxBuffer.Clear();
+            while (rxBuffer.TryDequeue(out var _)) { }
         }
 
         public void FakePacket()
@@ -437,7 +437,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             data[startIndex + i] = addressPrefixes[logicalAddress];
         }
 
-        private readonly Queue<byte[]> rxBuffer;
+        private readonly ConcurrentQueue<byte[]> rxBuffer;
         private Shorts shorts;
         private byte[] addressPrefixes;
         private State radioState;
