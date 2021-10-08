@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public NRF52840_Radio(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
-            interruptManager = new InterruptManager<Events>(this, IRQ);
+            interruptManager = new InterruptManager<Events>(this, IRQ, "RadioIrq");
             shorts = new Shorts();
             events = new IFlagRegisterField[(int)Events.PHYEnd + 1];
             rxBuffer = new Queue<byte[]>();
