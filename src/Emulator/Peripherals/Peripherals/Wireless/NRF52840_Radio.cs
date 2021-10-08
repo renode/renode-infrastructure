@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -48,6 +49,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 rxBuffer.Enqueue(frame);
                 return;
             }
+
+            frame = frame.Skip(4).ToArray();
 
             var dataAddress = packetPointer.Value;
             machine.SystemBus.WriteBytes(frame, dataAddress);
