@@ -90,7 +90,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 {
                     xmlFile.Append($"type=\"{register.Type}\" ");
                 }
-                xmlFile.Append($"group=\"{register.Group}\"/>\n");
+                if(!String.IsNullOrEmpty(register.Group))
+                {
+                    xmlFile.Append($"group=\"{register.Group}\" ");
+                }
+                xmlFile.Append("/>\n");
             }
             xmlFile.Append("</feature>\n");
         }

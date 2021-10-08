@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public struct GBDRegisterDescriptor
     {
-        public GBDRegisterDescriptor(uint number, uint size, string name, string type, string group) : this()
+        public GBDRegisterDescriptor(uint number, uint size, string name, string type = null, string group = null) : this()
         {
             this.Number = number;
             this.Size = size;

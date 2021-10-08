@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Utilities.GDB
                     }
                 }
             }
-            foreach(var pair in registers.Values.OrderByDescending(elem => elem.Item1.Size))
+            foreach(var pair in registers.Values.Where(elem => !String.IsNullOrEmpty(elem.Item1.Type)).OrderByDescending(elem => elem.Item1.Size))
             {
                 unifiedFeature.Registers.Add(pair.Item1);
                 AddFeatureTypes(ref types, pair.Item1.Type, pair.Item1.Size, pair.Item2);
