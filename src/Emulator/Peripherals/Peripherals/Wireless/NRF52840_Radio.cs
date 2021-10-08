@@ -392,7 +392,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var payloadLength = data[addressLength + s0Length.Value];
             if(payloadLength > maxPacketLength.Value)
             {
-                this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length {(1}), trimming...", payloadLength, maxPacketLength.Value);
+                this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length ({1}), trimming...", payloadLength, maxPacketLength.Value);
                 payloadLength = (byte)maxPacketLength.Value;
             }
             machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLength);
