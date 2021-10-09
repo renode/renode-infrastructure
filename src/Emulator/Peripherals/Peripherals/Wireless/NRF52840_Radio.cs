@@ -12,6 +12,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
@@ -54,13 +55,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var dataAddress = packetPointer.Value;
             machine.SystemBus.WriteBytes(frame, dataAddress);
 
-            SetEvent(Events.Address);
-            SetEvent(Events.Payload);
-            SetEvent(Events.End);
-            if(shorts.EndDisable.Value)
-            {
-                Disable();
-            }
+            var crcLen = 4;
+            ScheduleRadioEvents((uint)(headerLengthInAir + payloadLength + crcLen));
         }
 
         public event Action<IRadio, byte[]> FrameSent;
@@ -421,18 +417,51 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             FrameSent?.Invoke(this, data);
 
-            SetEvent(Events.Address);
-            SetEvent(Events.Payload);
-            SetEvent(Events.End);
-
-            if(shorts.EndDisable.Value)
-            {
-                Disable();
-            }
+            var crcLen = 4;
+            ScheduleRadioEvents((uint)(headerLengthInAir + payloadLength + crcLen));
 
             LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
             LogUnhandledShort(shorts.AddressRSSIStart, nameof(shorts.AddressRSSIStart));
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
+        }
+
+        private void ScheduleRadioEvents(uint packetLen)
+        {
+           var timeSource = machine.LocalTimeSource;
+           var now = timeSource.ElapsedVirtualTime;
+
+           // @note  Transmit times assume 1M PHY. Low level BLE firmware
+           //        usually takes into account the active phy when calculating
+           //        timing delays, so we might need to do that.
+
+           // End event
+           var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
+           var endTimeStamp = new TimeStamp(endTime, timeSource.Domain);
+
+           var disableTime = endTime + TimeInterval.FromMicroseconds(10);
+           var disableTimeStamp = new TimeStamp(disableTime, timeSource.Domain);
+
+           // Address modelled as happening immediatley and serves as anchor
+           // point for other events. RIOT triggers IRQ from it.
+           SetEvent(Events.Address);
+
+           // Schedule "end" events all at once, simulating the transmision time
+           // as 8 microseconds-per-byte. Timing distinction between events here doesn't
+           // seem important
+           timeSource.ExecuteInSyncedState(_ =>
+           {
+              SetEvent(Events.Payload);
+              SetEvent(Events.End);
+           }, endTimeStamp);
+
+           // BLE stacks use disabled event as common processing trigger.
+           timeSource.ExecuteInSyncedState(_ =>
+           {
+              if(shorts.EndDisable.Value)
+              {
+                 Disable();
+              }
+           }, disableTimeStamp);
         }
 
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
