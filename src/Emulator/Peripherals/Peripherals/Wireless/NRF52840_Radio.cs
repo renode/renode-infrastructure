@@ -405,14 +405,25 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             FrameSent?.Invoke(this, data);
 
-            SetEvent(Events.Address);
-            SetEvent(Events.Payload);
-            SetEvent(Events.End);
+            machine.LocalTimeSource.ExecuteInNearestSyncedState((_) => {
+                  // End event triggers capture of packet end time by Timer0.  This PPI channle
+                  // enabled by code directly after transmit enabled, hence we need some delay
+                  // before setting the event to give CPU time to enable channel.
+                  SetEvent(Events.Address);
+                  SetEvent(Events.Payload);
+                  SetEvent(Events.End);
 
-            if(shorts.EndDisable.Value)
-            {
-                Disable();
-            }
+                  // Radio disable triggers interrupt which will cause code to execute that assumes
+                  // END event has occurred and resulted in appropriate end of packet time capture.
+                  // This time is used to calculate header completion timeout for next packet
+                  // transmission.
+                  machine.LocalTimeSource.ExecuteInNearestSyncedState((__) => {
+                      if(shorts.EndDisable.Value)
+                      {
+                         Disable();
+                      }
+                  });
+            });
 
             LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
             LogUnhandledShort(shorts.AddressRSSIStart, nameof(shorts.AddressRSSIStart));
