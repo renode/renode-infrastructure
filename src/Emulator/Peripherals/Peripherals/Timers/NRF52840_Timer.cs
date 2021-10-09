@@ -33,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 innerTimers[j] = new ComparingTimer(machine.ClockSource, InitialFrequency, this, $"compare{j}", eventEnabled: true);
                 innerTimers[j].CompareReached += () =>
                 {
+                    this.Log(LogLevel.Noisy, "Compare Reached on CC{0} is {1}", j, innerTimers[j].Compare);
                     eventCompareEnabled[j].Value = true;
                     EventTriggered?.Invoke((uint)Register.Compare0EventPending + 0x4u * j);
                     UpdateInterrupts();
