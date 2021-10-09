@@ -57,13 +57,17 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var dataAddress = packetPointer.Value;
             machine.SystemBus.WriteBytes(frame, dataAddress);
 
-            SetEvent(Events.Address);
-            SetEvent(Events.Payload);
-            SetEvent(Events.End);
-            if(shorts.EndDisable.Value)
-            {
-                Disable();
-            }
+            machine.LocalTimeSource.ExecuteInNearestSyncedState((_) => {
+               SetEvent(Events.Address);
+               SetEvent(Events.Payload);
+               SetEvent(Events.End);
+               machine.LocalTimeSource.ExecuteInNearestSyncedState((__) => {
+                  if(shorts.EndDisable.Value)
+                  {
+                      Disable();
+                  }
+               });
+            });
         }
 
         public event Action<IRadio, byte[]> FrameSent;
