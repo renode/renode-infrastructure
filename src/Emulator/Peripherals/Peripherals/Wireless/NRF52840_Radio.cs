@@ -357,7 +357,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             else if(radioState == State.RxIdle)
             {
-                while(rxBuffer.TryDequeue(out var packet))
+                // Can only receive one packet per enable
+                if(rxBuffer.TryDequeue(out var packet))
                 {
                     ReceiveFrame(packet);
                 }
