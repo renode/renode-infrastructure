@@ -15,11 +15,11 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class STM32F4_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_Watchdog(Machine machine, long frequency) : base(machine)
+        //TODO: Could propably get osc_frequency from RCC.
+        public STM32F4_Watchdog(Machine machine, long osc_frequency) : base(machine)
         {
             DefineRegisters();
-            watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, watchdogDefaultRLRValue, workMode: WorkMode.OneShot, eventEnabled: false);
-            watchdogTimer.LimitReached += TimerLimitReached;
+            watchdogTimer = new LimitTimer(machine.ClockSource, osc_frequency / watchdogDefaultPrescalerValue, this, String.Empty, watchdogDefaultRLRValue, workMode: WorkMode.OneShot, eventEnabled: false);
         }
 
         public override void Reset()
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Register.IWDG_KR.Define(this)
             .WithValueField(0, 16, writeCallback: (_, value) =>
             {
-                switch (value)
+                switch(value)
                 {
                     case valueToResetWatchdog:
                         watchdogTimer.Limit = watchdogRLRValue;
@@ -55,13 +55,16 @@ namespace Antmicro.Renode.Peripherals.Timers
             .WithReservedBits(16, 16);
 
             Register.IWDG_PR.Define(this)
-            .WithTag("PR", 0, 3)
+            .WithValueField(0, 3, writeCallback: (_, value) =>
+            {
+                watchdogTimer.Frequency = (long)Math.Pow(2, (2 + value));
+            }, name: "PR")
             .WithReservedBits(3, 29);
 
             Register.IWDG_RLR.Define(this)
            .WithValueField(0, 12, writeCallback: (_, value) =>
            {
-               if (registersUnlocked)
+               if(registersUnlocked)
                {
                    watchdogRLRValue = value;
                    registersUnlocked = false;
@@ -74,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Timers
            .WithReservedBits(12, 20);
 
             Register.IWDG_SR.Define(this)
-            .WithTaggedFlag("PVU",0)
+            .WithTaggedFlag("PVU", 0)
             .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => registersUnlocked, name: "RVU")
             .WithReservedBits(2, 30);
         }
@@ -91,6 +94,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const uint valueToStartWatchdog = 0xCCCC;
         private const uint valueToUnlockRegisters = 0x5555;
         private const uint watchdogDefaultRLRValue = 0xFFF;
+        private const uint watchdogDefaultPrescalerValue = 4;
         private uint watchdogRLRValue = watchdogDefaultRLRValue;
 
         private enum Register
