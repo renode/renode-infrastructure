@@ -16,10 +16,13 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class STM32F4_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
         //TODO: Could propably get osc_frequency from RCC.
+        //TODO: Stop timer on debug stop.
+        //TODO: Use RCC to set restart cause.
         public STM32F4_Watchdog(Machine machine, long osc_frequency) : base(machine)
         {
+            watchdogTimer = new LimitTimer(machine.ClockSource, osc_frequency, this, "STM32_IWDG", watchdogDefaultRLRValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: false);
+            watchdogTimer.LimitReached += TimerLimitReachedCallback;
             DefineRegisters();
-            watchdogTimer = new LimitTimer(machine.ClockSource, osc_frequency / watchdogDefaultPrescalerValue, this, String.Empty, watchdogDefaultRLRValue, workMode: WorkMode.OneShot, eventEnabled: false);
         }
 
         public override void Reset()
@@ -37,11 +40,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     case valueToResetWatchdog:
                         watchdogTimer.Limit = watchdogRLRValue;
-                        watchdogTimer.ResetValue();
                         registersUnlocked = false;
                         break;
                     case valueToStartWatchdog:
                         watchdogTimer.EventEnabled = true;
+                        watchdogTimer.Enabled = true;
                         registersUnlocked = false;
                         break;
                     case valueToUnlockRegisters:
@@ -57,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Register.IWDG_PR.Define(this)
             .WithValueField(0, 3, writeCallback: (_, value) =>
             {
-                watchdogTimer.Frequency = (long)Math.Pow(2, (2 + value));
+                watchdogTimer.Divider = (int)Math.Pow(2, (2 + value));
             }, name: "PR")
             .WithReservedBits(3, 29);
 
@@ -67,7 +70,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                if(registersUnlocked)
                {
                    watchdogRLRValue = value;
-                   registersUnlocked = false;
                }
                else
                {
@@ -77,18 +79,19 @@ namespace Antmicro.Renode.Peripherals.Timers
            .WithReservedBits(12, 20);
 
             Register.IWDG_SR.Define(this)
-            .WithTaggedFlag("PVU", 0)
+            .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => registersUnlocked, name: "PVU")
             .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => registersUnlocked, name: "RVU")
             .WithReservedBits(2, 30);
         }
 
-        private void TimerLimitReached()
+        private void TimerLimitReachedCallback()
         {
             this.Log(LogLevel.Warning, "Watchdog reset triggered!");
             machine.RequestReset();
         }
 
-        private LimitTimer watchdogTimer;
+
+        private readonly LimitTimer watchdogTimer;
         private bool registersUnlocked = false;
         private const uint valueToResetWatchdog = 0xAAAA;
         private const uint valueToStartWatchdog = 0xCCCC;
