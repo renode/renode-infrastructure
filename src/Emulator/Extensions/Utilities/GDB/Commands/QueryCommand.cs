@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             xmlFile.Append($"<feature name=\"{feature.Name}\">\n");
             foreach(var type in feature.Types)
             {
-                if(type.Fields.Any())
+                if(type.Fields?.Any() ?? false)
                 {
                     var tagName = type.Type == "enum" ? "evalue" : "field";
                     AppendTag(ref xmlFile, type.Type, type.Attributes, false);
