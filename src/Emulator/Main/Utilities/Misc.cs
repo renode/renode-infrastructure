@@ -1205,7 +1205,15 @@ namespace Antmicro.Renode.Utilities
                 renamed = true;
             }
             return renamed;
-	}
+        }
+
+        // Allows to have static initialization of a two-element tuple list.
+        // To enable other arities of tuples, add more overloads.
+        public static void Add<T1, T2>(this IList<Tuple<T1, T2>> list,
+            T1 item1, T2 item2)
+        {
+            list.Add(Tuple.Create(item1, item2));
+        }
 
         private static bool TryCreateEmptyFile(string p)
         {
