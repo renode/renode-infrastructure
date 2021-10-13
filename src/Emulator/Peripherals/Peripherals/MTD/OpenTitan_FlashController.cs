@@ -31,40 +31,57 @@ namespace Antmicro.Renode.Peripherals.MTD
             mpRegionEraseEnabled = new IFlagRegisterField[NumberOfMpRegions];
 
             // TODO(julianmb): support interrupts. no unittests exist though.
-            Registers.IntrState.Define(this)
+            Registers.InterruptState.Define(this)
                 .WithFlag(0, name: "prog_empty", mode: FieldMode.Read | FieldMode.WriteOneToClear)
                 .WithFlag(1, name: "prog_lvl", mode: FieldMode.Read | FieldMode.WriteOneToClear)
                 .WithFlag(2, name: "rd_full", mode: FieldMode.Read | FieldMode.WriteOneToClear)
                 .WithFlag(3, name: "rd_lvl", mode: FieldMode.Read | FieldMode.WriteOneToClear)
                 .WithFlag(4, out interruptStatusRegisterOpDoneFlag, name: "op_done",
                     mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithFlag(5, out interruptStatusRegisterOpErrorFlag, name: "op_error",
-                    mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithIgnoredBits(6, 1 + 31 - 6);
+                .WithTaggedFlag("corr_err", 5)
+                .WithReservedBits(6, 1 + 31 - 6);
 
             // TODO(julianmb): support interrupts. no unittests exist though.
-            Registers.IntrEnable.Define(this)
+            Registers.InterruptEnable.Define(this)
                 .WithFlag(0, name: "prog_empty")
                 .WithFlag(1, name: "prog_lvl")
                 .WithFlag(2, name: "rd_full")
                 .WithFlag(3, name: "rd_lvl")
                 .WithFlag(4, name: "op_done")
-                .WithFlag(5, name: "op_error")
-                .WithIgnoredBits(6, 1 + 31 - 6);
+                .WithTaggedFlag("corr_err", 5)
+                .WithReservedBits(6, 1 + 31 - 6);
 
             // TODO(julianmb): support interrupts. no unittests exist though.
-            Registers.IntrTest.Define(this)
+            Registers.InterruptTest.Define(this)
                 .WithFlag(0, name: "prog_empty", mode: FieldMode.Write)
                 .WithFlag(1, name: "prog_lvl", mode: FieldMode.Write)
                 .WithFlag(2, name: "rd_full", mode: FieldMode.Write)
                 .WithFlag(3, name: "rd_lvl", mode: FieldMode.Write)
                 .WithFlag(4, name: "op_done", mode: FieldMode.Write)
-                .WithIgnoredBits(5, 1 + 31 - 5);
+                .WithTaggedFlag("corr_err", 5)
+                .WithReservedBits(6, 1 + 31 - 6);
+
+            Registers.AlertTest.Define(this)
+                .WithTaggedFlag("recov_err", 0)
+                .WithTaggedFlag("fatal_err", 1)
+                .WithReservedBits(2, 30);
+
+            Registers.DisableFlashFunctionality.Define(this)
+                .WithTag("VAL", 0, 4)
+                .WithReservedBits(4, 28);
+
+            Registers.ExecutionFetchesEnabled.Define(this)
+                .WithTag("EN", 0, 4)
+                .WithReservedBits(4, 28);
+
+            Registers.ControllerInit.Define(this)
+                .WithTaggedFlag("VAL", 0)
+                .WithReservedBits(1, 31);
 
             // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
-            Registers.CtrlRegwen.Define(this, 0x1)
-                .WithFlag(0, name: "EN", mode: FieldMode.Read)
-                .WithIgnoredBits(1, 31);
+            Registers.ControlEnable.Define(this, 0x1)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "EN")
+                .WithReservedBits(1, 31);
 
             Registers.Control.Define(this)
                 .WithFlag(0, name: "START", writeCallback: (o, n) => {
@@ -79,246 +96,201 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(7, out flashSelectEraseMode, name: "ERASE_SEL")
                 .WithFlag(8, out flashSelectPartition, name: "PARTITION_SEL")
                 .WithValueField(9, 2, name: "INFO_SEL")
-                .WithIgnoredBits(11, 1 + 15 - 11)
+                .WithReservedBits(11, 1 + 15 - 11)
                 .WithValueField(16, 1 + 27 - 16, out controlNum, name: "NUM")
-                .WithIgnoredBits(28, 1 + 31 - 28);
+                .WithReservedBits(28, 1 + 31 - 28);
 
-            Registers.Addr.Define(this)
+            Registers.AddressForFlashOperation.Define(this)
                 .WithValueField(0, 32, out address, name: "START");
+
+            Registers.EnableDifferentProgramTypes.Define(this)
+                .WithTaggedFlag("NORMAL", 0)
+                .WithTaggedFlag("REPAIR", 1)
+                .WithReservedBits(2, 30);
+
+            // Erase is performed immediately so write to SuspendErase will never happen during erasing process.
+            // Cleared immediately.
+            Registers.SuspendErase.Define(this)
+                .WithTaggedFlag("REQ", 0)
+                .WithReservedBits(1, 31);
 
             for(var i = 0; i < NumberOfMpRegions; i++)
             {
                 // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
-                RegistersCollection.AddRegister((long)Registers.RegionCfgRegwen0 + 0x4 * i, new DoubleWordRegister(this, 0x1)
+                RegistersCollection.AddRegister((long)Registers.RegionConfigurationEnable0 + 0x4 * i, new DoubleWordRegister(this, 0x1)
                     .WithFlag(0, name: $"REGION_{i}", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                    .WithIgnoredBits(1, 31));
+                    .WithReservedBits(1, 31));
 
-                RegistersCollection.AddRegister((long)(Registers.MpRegionCfg0 + 0x4 * i), new DoubleWordRegister(this)
+                RegistersCollection.AddRegister((long)(Registers.RegionConfiguration0 + 0x4 * i), new DoubleWordRegister(this)
                     .WithFlag(0, out mpRegionEnabled[i], name: $"EN_{i}")
                     .WithFlag(1, out mpRegionReadEnabled[i], name: $"RD_EN_{i}")
                     .WithFlag(2, out mpRegionProgEnabled[i], name: $"PROG_EN_{i}")
                     .WithFlag(3, out mpRegionEraseEnabled[i], name: $"ERASE_EN_{i}")
                     .WithTaggedFlag($"SCRAMBLE_EN_{i}", 4)
-                    .WithIgnoredBits(5, 1 + 7 - 5)
+                    .WithTaggedFlag($"ECC_EN_{i}", 5)
+                    .WithTaggedFlag($"HE_EN_{i}", 6)
+                    .WithReservedBits(7, 1)
                     .WithValueField(8, 1 + 16 - 8, out mpRegionBase[i], name: $"BASE_{i}")
-                    .WithIgnoredBits(17, 1 + 19 - 17)
-                    .WithValueField(20, 1 + 29 - 20, out mpRegionSize[i], name: $"SIZE_{i}")
-                    .WithIgnoredBits(30, 1 + 31 - 30));
+                    .WithValueField(17, 1 + 26 - 17, out mpRegionSize[i], name: $"SIZE_{i}")
+                    .WithReservedBits(27, 1 + 31 - 27));
             }
-
-            // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
-            Registers.Bank0Info0Regwen0.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_0", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info0Regwen1.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_1", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info0Regwen2.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_2", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info0Regwen3.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_3", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info1Regwen0.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_0", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info1Regwen1.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_1", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info1Regwen2.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_2", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank0Info1Regwen3.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_3", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
             
-            Registers.Bank0Info0PageCfg0.Define(this)
-                .WithFlag(0, name: "EN_0")
-                .WithFlag(1, name: "RD_EN_0")
-                .WithFlag(2, name: "PROG_EN_0")
-                .WithFlag(3, name: "ERASE_EN_0")
-                .WithFlag(4, name: "SCRAMBLE_EN_0")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info0PageCfg1.Define(this)
-                .WithFlag(0, name: "EN_1")
-                .WithFlag(1, name: "RD_EN_1")
-                .WithFlag(2, name: "PROG_EN_1")
-                .WithFlag(3, name: "ERASE_EN_1")
-                .WithFlag(4, name: "SCRAMBLE_EN_1")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info0PageCfg2.Define(this)
-                .WithFlag(0, name: "EN_2")
-                .WithFlag(1, name: "RD_EN_2")
-                .WithFlag(2, name: "PROG_EN_2")
-                .WithFlag(3, name: "ERASE_EN_2")
-                .WithFlag(4, name: "SCRAMBLE_EN_2")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info0PageCfg3.Define(this)
-                .WithFlag(0, name: "EN_3")
-                .WithFlag(1, name: "RD_EN_3")
-                .WithFlag(2, name: "PROG_EN_3")
-                .WithFlag(3, name: "ERASE_EN_3")
-                .WithFlag(4, name: "SCRAMBLE_EN_3")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info1PageCfg0.Define(this)
-                .WithFlag(0, name: "EN_0")
-                .WithFlag(1, name: "RD_EN_0")
-                .WithFlag(2, name: "PROG_EN_0")
-                .WithFlag(3, name: "ERASE_EN_0")
-                .WithFlag(4, name: "SCRAMBLE_EN_0")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info1PageCfg1.Define(this)
-                .WithFlag(0, name: "EN_1")
-                .WithFlag(1, name: "RD_EN_1")
-                .WithFlag(2, name: "PROG_EN_1")
-                .WithFlag(3, name: "ERASE_EN_1")
-                .WithFlag(4, name: "SCRAMBLE_EN_1")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info1PageCfg2.Define(this)
-                .WithFlag(0, name: "EN_2")
-                .WithFlag(1, name: "RD_EN_2")
-                .WithFlag(2, name: "PROG_EN_2")
-                .WithFlag(3, name: "ERASE_EN_2")
-                .WithFlag(4, name: "SCRAMBLE_EN_2")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank0Info1PageCfg3.Define(this)
-                .WithFlag(0, name: "EN_3")
-                .WithFlag(1, name: "RD_EN_3")
-                .WithFlag(2, name: "PROG_EN_3")
-                .WithFlag(3, name: "ERASE_EN_3")
-                .WithFlag(4, name: "SCRAMBLE_EN_3")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            
-            // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
-            Registers.Bank1Info0Regwen0.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_0", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info0Regwen1.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_1", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info0Regwen2.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_2", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info0Regwen3.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_3", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info1Regwen0.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_0", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info1Regwen1.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_1", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info1Regwen2.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_2", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.Bank1Info1Regwen3.Define(this, 0x1)
-                .WithFlag(0, name: "REGION_3", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-
-            Registers.Bank1Info0PageCfg0.Define(this)
-                .WithFlag(0, name: "EN_0")
-                .WithFlag(1, name: "RD_EN_0")
-                .WithFlag(2, name: "PROG_EN_0")
-                .WithFlag(3, name: "ERASE_EN_0")
-                .WithFlag(4, name: "SCRAMBLE_EN_0")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info0PageCfg1.Define(this)
-                .WithFlag(0, name: "EN_1")
-                .WithFlag(1, name: "RD_EN_1")
-                .WithFlag(2, name: "PROG_EN_1")
-                .WithFlag(3, name: "ERASE_EN_1")
-                .WithFlag(4, name: "SCRAMBLE_EN_1")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info0PageCfg2.Define(this)
-                .WithFlag(0, name: "EN_2")
-                .WithFlag(1, name: "RD_EN_2")
-                .WithFlag(2, name: "PROG_EN_2")
-                .WithFlag(3, name: "ERASE_EN_2")
-                .WithFlag(4, name: "SCRAMBLE_EN_2")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info0PageCfg3.Define(this)
-                .WithFlag(0, name: "EN_3")
-                .WithFlag(1, name: "RD_EN_3")
-                .WithFlag(2, name: "PROG_EN_3")
-                .WithFlag(3, name: "ERASE_EN_3")
-                .WithFlag(4, name: "SCRAMBLE_EN_3")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info1PageCfg0.Define(this)
-                .WithFlag(0, name: "EN_0")
-                .WithFlag(1, name: "RD_EN_0")
-                .WithFlag(2, name: "PROG_EN_0")
-                .WithFlag(3, name: "ERASE_EN_0")
-                .WithFlag(4, name: "SCRAMBLE_EN_0")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info1PageCfg1.Define(this)
-                .WithFlag(0, name: "EN_1")
-                .WithFlag(1, name: "RD_EN_1")
-                .WithFlag(2, name: "PROG_EN_1")
-                .WithFlag(3, name: "ERASE_EN_1")
-                .WithFlag(4, name: "SCRAMBLE_EN_1")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info1PageCfg2.Define(this)
-                .WithFlag(0, name: "EN_2")
-                .WithFlag(1, name: "RD_EN_2")
-                .WithFlag(2, name: "PROG_EN_2")
-                .WithFlag(3, name: "ERASE_EN_2")
-                .WithFlag(4, name: "SCRAMBLE_EN_2")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            Registers.Bank1Info1PageCfg3.Define(this)
-                .WithFlag(0, name: "EN_3")
-                .WithFlag(1, name: "RD_EN_3")
-                .WithFlag(2, name: "PROG_EN_3")
-                .WithFlag(3, name: "ERASE_EN_3")
-                .WithFlag(4, name: "SCRAMBLE_EN_3")
-                .WithIgnoredBits(5, 1 + 31 - 5);
-            
-            Registers.DefaultRegion.Define(this)
+            Registers.DefaultRegionConfiguration.Define(this)
                 .WithFlag(0, out defaultMpRegionReadEnabled, name: "RD_EN")
                 .WithFlag(1, out defaultMpRegionProgEnabled, name: "PROG_EN")
                 .WithFlag(2, out defaultMpRegionEraseEnabled, name: "ERASE_EN")
                 .WithTaggedFlag("SCRAMBLE_EN", 3)
-                .WithIgnoredBits(4, 1 + 31 - 4);
+                .WithTaggedFlag("ECC_EN", 4)
+                .WithTaggedFlag("HE_EN", 5)
+                .WithReservedBits(6, 1 + 31 - 6);
+            
+            // TODO: move magic numbers to constants
+            for(var bankNumber = 0; bankNumber < 10; bankNumber++)
+            {
+                var bankOffset = (Registers.Bank1Info0Enable0 - Registers.Bank0Info0Enable0) * bankNumber;
+
+                for(var i = 0; i < 10; i++)
+                {
+                    // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
+                    (Registers.Bank0Info0Enable0 + bankOffset + 0x4 * i).Define(this, 0x1)
+                        .WithFlag(0, name: $"REGION_{i}", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
+                        .WithReservedBits(1, 31);
+
+                    (Registers.Bank0Info0PageConfiguration0 + bankOffset + 0x4 * i).Define(this)
+                        .WithFlag(0, name: $"EN_{i}")
+                        .WithFlag(1, name: $"RD_EN_{i}")
+                        .WithFlag(2, name: $"PROG_EN_{i}")
+                        .WithFlag(3, name: $"ERASE_EN_{i}")
+                        .WithFlag(4, name: $"SCRAMBLE_EN_{i}")
+                        .WithTaggedFlag($"ECC_EN_{i}", 5)
+                        .WithTaggedFlag($"HE_EN_{i}", 6)
+                        .WithReservedBits(7, 1 + 31 - 7);
+                }
+
+                (Registers.Bank0Info1Enable + bankOffset).Define(this, 0x1)
+                    .WithFlag(0, name: "REGION_0", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
+                    .WithReservedBits(1, 31);
+
+                (Registers.Bank0Info1PageConfiguration + bankOffset).Define(this)
+                    .WithFlag(0, name: "EN_0")
+                    .WithFlag(1, name: "RD_EN_0")
+                    .WithFlag(2, name: "PROG_EN_0")
+                    .WithFlag(3, name: "ERASE_EN_0")
+                    .WithFlag(4, name: "SCRAMBLE_EN_0")
+                    .WithTaggedFlag($"ECC_EN_0", 5)
+                    .WithTaggedFlag($"HE_EN_0", 6)
+                    .WithReservedBits(7, 1 + 31 - 7);
+
+                for(var i = 0; i < 2; i++)
+                {
+                    (Registers.Bank0Info2Enable0 + bankOffset + 0x4 * i).Define(this, 0x1)
+                        .WithFlag(0, name: $"REGION_{i}", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
+                        .WithReservedBits(1, 31);
+
+                    (Registers.Bank0Info2PageConfiguration0 + bankOffset + 0x4 * i).Define(this)
+                        .WithFlag(0, name: $"EN_{i}")
+                        .WithFlag(1, name: $"RD_EN_{i}")
+                        .WithFlag(2, name: $"PROG_EN_{i}")
+                        .WithFlag(3, name: $"ERASE_EN_{i}")
+                        .WithFlag(4, name: $"SCRAMBLE_EN_{i}")
+                        .WithTaggedFlag($"ECC_EN_{i}", 5)
+                        .WithTaggedFlag($"HE_EN_{i}", 6)
+                        .WithReservedBits(7, 1 + 31 - 7);
+                }
+            }
             
             // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
-            Registers.BankCfgRegwen.Define(this, 0x1)
+            Registers.BankConfigurationEnable.Define(this, 0x1)
                 .WithFlag(0, name: "BANK", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                .WithIgnoredBits(1, 31);
-            Registers.MpBankCfg.Define(this)
+                .WithReservedBits(1, 31);
+            Registers.BankConfiguration.Define(this)
                 .WithFlag(0, out eraseBank0, name: "ERASE_EN_0")
                 .WithFlag(1, out eraseBank1, name: "ERASE_EN_1")
-                .WithIgnoredBits(2, 1 + 31 - 2);
+                .WithReservedBits(2, 1 + 31 - 2);
             
-            Registers.OpStatus.Define(this)
+            Registers.FlashOperationStatus.Define(this)
                 .WithFlag(0, out opStatusRegisterDoneFlag, name: "done")
                 .WithFlag(1, out opStatusRegisterErrorFlag, name: "err")
-                .WithIgnoredBits(2, 1 + 31 - 2);
+                .WithReservedBits(2, 1 + 31 - 2);
             Registers.Status.Define(this, 0xa)
                 .WithFlag(0, name: "rd_full", mode: FieldMode.Read)
                 .WithFlag(1, out statusRegisterReadEmptyFlag, name: "rd_empty", mode: FieldMode.Read)
                 .WithFlag(2, name: "prog_full", mode: FieldMode.Read)
                 .WithFlag(3, name: "prog_empty", mode: FieldMode.Read)
                 .WithFlag(4, name: "init_wip", mode: FieldMode.Read)
-                .WithIgnoredBits(5, 1 + 7 - 5)
-                .WithValueField(8, 1 + 16 - 8, name: "error_addr", mode: FieldMode.Read)
-                .WithIgnoredBits(17, 1 + 31 - 17);
+                .WithReservedBits(5, 1 + 31 - 5);
+
+            Registers.ErrorCode.Define(this)
+                .WithTaggedFlag("oob_err", 0)
+                .WithTaggedFlag("mp_err", 1)
+                .WithTaggedFlag("rd_err", 2)
+                .WithTaggedFlag("prog_win_err", 3)
+                .WithTaggedFlag("prog_type_err", 4)
+                .WithTaggedFlag("flash_phy_err", 5)
+                .WithTaggedFlag("update_err", 6)
+                .WithReservedBits(7, 1 + 31 - 7);
+
+            Registers.FaultStatus.Define(this)
+                .WithTaggedFlag("oob_err", 0)
+                .WithTaggedFlag("mp_err", 1)
+                .WithTaggedFlag("rd_err", 2)
+                .WithTaggedFlag("prog_win_err", 3)
+                .WithTaggedFlag("prog_type_err", 4)
+                .WithTaggedFlag("flash_phy_err", 5)
+                .WithTaggedFlag("reg_intg_err", 6)
+                .WithTaggedFlag("phy_intg_err", 7)
+                .WithTaggedFlag("lcmgr_err", 8)
+                .WithTaggedFlag("storage_err", 9)
+                .WithReservedBits(10, 1 + 31 - 10);
+
+            Registers.ErrorAddress.Define(this)
+                .WithTag("ERR_ADDR", 0, 32);
+
+            Registers.ECCSingleErrorCount.Define(this)
+                .WithTag("ECC_SINGLE_ERR_CNT_0", 0, 8)
+                .WithTag("ECC_SINGLE_ERR_CNT_1", 8, 8)
+                .WithReservedBits(16, 16);
+
+            Registers.ECCSingleErrorAddress0.Define(this)
+                .WithTag("ECC_SINGLE_ERR_ADDR_0", 0, 20)
+                .WithReservedBits(20, 12);
+
+            Registers.ECCSingleErrorAddress1.Define(this)
+                .WithTag("ECC_SINGLE_ERR_ADDR_1", 0, 20)
+                .WithReservedBits(20, 12);
+
+            Registers.PhyErrorConfigurationEnable.Define(this)
+                .WithTaggedFlag("EN", 0)
+                .WithReservedBits(1, 31);
+
+            Registers.PhyErrorConfiguration.Define(this)
+                .WithTaggedFlag("ECC_MULTI_ERR_DATA_EN", 0)
+                .WithReservedBits(1, 31);
+
+            Registers.PhyAlertConfiguration.Define(this)
+                .WithTaggedFlag("alert_ack", 0)
+                .WithTaggedFlag("alert_trig", 1)
+                .WithReservedBits(2, 30);
+
             Registers.PhyStatus.Define(this, 0x6)
                 .WithFlag(0, name: "init_wip", mode: FieldMode.Read)
                 .WithFlag(1, name: "prog_normal_avail", mode: FieldMode.Read)
                 .WithFlag(2, name: "prog_repair_avail", mode: FieldMode.Read)
-                .WithIgnoredBits(3, 1 + 31 - 3);
+                .WithReservedBits(3, 1 + 31 - 3);
             
             Registers.Scratch.Define(this)
                 .WithValueField(0, 32, name: "data");
+
             Registers.FifoLevel.Define(this, 0xf0f)
                 .WithValueField(0, 5, name: "PROG")
                 .WithReservedBits(5, 1 + 7 - 5)
                 .WithValueField(8, 1 + 12 - 8, name: "RD")
-                .WithIgnoredBits(13, 1 + 31 - 13);
+                .WithReservedBits(13, 1 + 31 - 13);
 
             // TODO(julianmb): implement fifo reset. There isnt any unittest for this currently.
-            Registers.FifoRst.Define(this)
+            Registers.FifoReset.Define(this)
                 .WithFlag(0, name: "EN")
-                .WithIgnoredBits(1, 31);
+                .WithReservedBits(1, 31);
             // TODO(julianmb): handle writes while fifo is full. There isnt any unittest for this currently.
             Registers.ProgramFifo.Define(this)
                 .WithValueField(0, 32, mode: FieldMode.Write, writeCallback: (_, n) =>
@@ -340,7 +312,6 @@ namespace Antmicro.Renode.Peripherals.MTD
                     }
                     else
                     {
-                        interruptStatusRegisterOpErrorFlag.Value = true;
                         opStatusRegisterErrorFlag.Value = true;
                         opStatusRegisterDoneFlag.Value = true;
                         interruptStatusRegisterOpDoneFlag.Value = true;
@@ -373,7 +344,6 @@ namespace Antmicro.Renode.Peripherals.MTD
                     }
                     else
                     {
-                        interruptStatusRegisterOpErrorFlag.Value = true;
                         opStatusRegisterErrorFlag.Value = true;
                         opStatusRegisterDoneFlag.Value = true;
                         interruptStatusRegisterOpDoneFlag.Value = true;
@@ -495,7 +465,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             /*
             ** TODO(julianmb): bank level memory protection should be implemented.
             ** It currently doesnt have a unit test though.
-            ** MpBankCfg register is of interest
+            ** BankConfiguration register is of interest
             */
             bool blockOperation = !flashSelectEraseMode.Value && !flashSelectPartition.Value &&
                 !IsOperationAllowed(OperationType.EraseDataPage, address.Value);
@@ -528,7 +498,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
             else
             {
-                interruptStatusRegisterOpErrorFlag.Value = true;
                 opStatusRegisterErrorFlag.Value = true;
             }
             opStatusRegisterDoneFlag.Value = true;
@@ -613,7 +582,6 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IFlagRegisterField opStatusRegisterDoneFlag;
         private readonly IFlagRegisterField opStatusRegisterErrorFlag;
         private readonly IFlagRegisterField interruptStatusRegisterOpDoneFlag;
-        private readonly IFlagRegisterField interruptStatusRegisterOpErrorFlag;
         private readonly IFlagRegisterField statusRegisterReadEmptyFlag;
 
         private readonly IFlagRegisterField defaultMpRegionReadEnabled;
@@ -641,7 +609,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private const uint ReadFifoDepth = 16;
         private const uint ProgramFifoDepth = 16;
-        private const uint FlashWordsPerPage = 128;
+        private const uint FlashWordsPerPage = 256;
         private const uint FlashWordSize = 8;
         private const uint FlashPagesPerBank = 256;
         private const long FlashMemBaseAddr = 0x20000000;
@@ -650,71 +618,106 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private enum Registers : long
         {
-            IntrState = 0x00, // Reset default = 0x0, mask 0x1f
-            IntrEnable = 0x04, // Reset default = 0x0, mask 0x1f
-            IntrTest = 0x08, // Reset default = 0x0, mask 0x1f
-            CtrlRegwen = 0x0c, // Reset default = 0x1, mask 0x1
-            Control = 0x10, // Reset default = 0x0, mask 0xfff07f1
-            Addr = 0x14, // Reset default = 0x0, mask 0xffffffff
-            RegionCfgRegwen0 = 0x18, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen1 = 0x1c, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen2 = 0x20, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen3 = 0x24, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen4 = 0x28, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen5 = 0x2c, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen6 = 0x30, // Reset default = 0x1, mask 0x1
-            RegionCfgRegwen7 = 0x34, // Reset default = 0x1, mask 0x1
-            MpRegionCfg0 = 0x38, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg1 = 0x3c, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg2 = 0x40, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg3 = 0x44, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg4 = 0x48, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg5 = 0x4c, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg6 = 0x50, // Reset default = 0x0, mask 0x7ffff7f
-            MpRegionCfg7 = 0x54, // Reset default = 0x0, mask 0x7ffff7f
-            Bank0Info0Regwen0 = 0x58, // Reset default = 0x1, mask 0x1
-            Bank0Info0Regwen1 = 0x5c, // Reset default = 0x1, mask 0x1
-            Bank0Info0Regwen2 = 0x60, // Reset default = 0x1, mask 0x1
-            Bank0Info0Regwen3 = 0x64, // Reset default = 0x1, mask 0x1
-            Bank0Info1Regwen0 = 0x68, // Reset default = 0x1, mask 0x1
-            Bank0Info1Regwen1 = 0x6c, // Reset default = 0x1, mask 0x1
-            Bank0Info1Regwen2 = 0x70, // Reset default = 0x1, mask 0x1
-            Bank0Info1Regwen3 = 0x74, // Reset default = 0x1, mask 0x1
-            Bank0Info0PageCfg0 = 0x78, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageCfg1 = 0x7c, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageCfg2 = 0x80, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageCfg3 = 0x84, // Reset default = 0x0, mask 0x7f
-            Bank0Info1PageCfg0 = 0x88, // Reset default = 0x0, mask 0x7f
-            Bank0Info1PageCfg1 = 0x8c, // Reset default = 0x0, mask 0x7f
-            Bank0Info1PageCfg2 = 0x90, // Reset default = 0x0, mask 0x7f
-            Bank0Info1PageCfg3 = 0x94, // Reset default = 0x0, mask 0x7f
-            Bank1Info0Regwen0 = 0x98, // Reset default = 0x1, mask 0x1
-            Bank1Info0Regwen1 = 0x9c, // Reset default = 0x1, mask 0x1
-            Bank1Info0Regwen2 = 0xa0, // Reset default = 0x1, mask 0x1
-            Bank1Info0Regwen3 = 0xa4, // Reset default = 0x1, mask 0x1
-            Bank1Info1Regwen0 = 0xa8, // Reset default = 0x1, mask 0x1
-            Bank1Info1Regwen1 = 0xac, // Reset default = 0x1, mask 0x1
-            Bank1Info1Regwen2 = 0xb0, // Reset default = 0x1, mask 0x1
-            Bank1Info1Regwen3 = 0xb4, // Reset default = 0x1, mask 0x1
-            Bank1Info0PageCfg0 = 0xb8, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageCfg1 = 0xbc, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageCfg2 = 0xc0, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageCfg3 = 0xc4, // Reset default = 0x0, mask 0x7f
-            Bank1Info1PageCfg0 = 0xc8, // Reset default = 0x0, mask 0x7f
-            Bank1Info1PageCfg1 = 0xcc, // Reset default = 0x0, mask 0x7f
-            Bank1Info1PageCfg2 = 0xd0, // Reset default = 0x0, mask 0x7f
-            Bank1Info1PageCfg3 = 0xd4, // Reset default = 0x0, mask 0x7f
-            DefaultRegion = 0xd8, // Reset default = 0x0, mask 0x3f
-            BankCfgRegwen = 0xdc, // Reset default = 0x1, mask 0x1
-            MpBankCfg = 0xe0, // Reset default = 0x0, mask 0x3
-            OpStatus = 0xe4, // Reset default = 0x0, mask 0x3
-            Status = 0xe8, // Reset default = 0xa, mask 0x1f
-            PhyStatus = 0xec, // Reset default = 0x6, mask 0x7
-            Scratch = 0xf0, // Reset default = 0x0, mask 0xffffffff
-            FifoLevel = 0xf4, // Reset default = 0xf0f, mask 0x1f1f
-            FifoRst = 0xf8, // Reset default = 0x0, mask 0x1
-            ProgramFifo = 0xfc, // 1 item wo window. Byte writes are not supported
-            ReadFifo = 0x100, // 1 item ro window. Byte writes are not supported
+            InterruptState                  = 0x000, // Reset default = 0x0, mask 0x3f
+            InterruptEnable                 = 0x004, // Reset default = 0x0, mask 0x3f
+            InterruptTest                   = 0x008, // Reset default = 0x0, mask 0x3f
+            AlertTest                       = 0x00C, // Reset default = 0x0, mask 0x3
+            DisableFlashFunctionality       = 0x010, // Reset default = 0x0, mask 0x1
+            ExecutionFetchesEnabled         = 0x014, // Reset default = 0x5, mask 0xf
+            ControllerInit                  = 0x018, // Reset default = 0x0, mask 0x1
+            ControlEnable                   = 0x01C, // Reset default = 0x1, mask 0x1
+            Control                         = 0x020, // Reset default = 0x0, mask 0xfff07f1
+            AddressForFlashOperation        = 0x024, // Reset default = 0x0, mask 0xffffffff
+            EnableDifferentProgramTypes     = 0x028, // Reset default = 0x3, mask 0x3
+            SuspendErase                    = 0x02C, // Reset default = 0x0, mask 0x1
+            RegionConfigurationEnable0      = 0x030, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable1      = 0x034, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable2      = 0x038, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable3      = 0x03C, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable4      = 0x040, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable5      = 0x044, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable6      = 0x048, // Reset default = 0x1, mask 0x1
+            RegionConfigurationEnable7      = 0x04C, // Reset default = 0x1, mask 0x1
+            RegionConfiguration0            = 0x050, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration1            = 0x054, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration2            = 0x058, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration3            = 0x05C, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration4            = 0x060, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration5            = 0x064, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration6            = 0x068, // Reset default = 0x0, mask 0x7ffff7f
+            RegionConfiguration7            = 0x06C, // Reset default = 0x0, mask 0x7ffff7f
+            DefaultRegionConfiguration      = 0x070, // Reset default = 0x0, mask 0x3f
+            Bank0Info0Enable0               = 0x074, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable1               = 0x078, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable2               = 0x07C, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable3               = 0x080, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable4               = 0x084, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable5               = 0x088, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable6               = 0x08C, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable7               = 0x090, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable8               = 0x094, // Reset default = 0x1, mask 0x1
+            Bank0Info0Enable9               = 0x098, // Reset default = 0x1, mask 0x1
+            Bank0Info0PageConfiguration0    = 0x09C, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration1    = 0x0A0, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration2    = 0x0A4, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration3    = 0x0A8, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration4    = 0x0AC, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration5    = 0x0B0, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration6    = 0x0B4, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration7    = 0x0B8, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration8    = 0x0BC, // Reset default = 0x0, mask 0x7f
+            Bank0Info0PageConfiguration9    = 0x0C0, // Reset default = 0x0, mask 0x7f
+            Bank0Info1Enable                = 0x0C4, // Reset default = 0x1, mask 0x1
+            Bank0Info1PageConfiguration     = 0x0C8, // Reset default = 0x0, mask 0x7f
+            Bank0Info2Enable0               = 0x0CC, // Reset default = 0x1, mask 0x1
+            Bank0Info2Enable1               = 0x0D0, // Reset default = 0x1, mask 0x1
+            Bank0Info2PageConfiguration0    = 0x0D4, // Reset default = 0x0, mask 0x7f
+            Bank0Info2PageConfiguration1    = 0x0D8, // Reset default = 0x0, mask 0x7f
+            Bank1Info0Enable0               = 0x0DC, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable1               = 0x0E0, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable2               = 0x0E4, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable3               = 0x0E8, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable4               = 0x0EC, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable5               = 0x0F0, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable6               = 0x0F4, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable7               = 0x0F8, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable8               = 0x0FC, // Reset default = 0x1, mask 0x1
+            Bank1Info0Enable9               = 0x100, // Reset default = 0x1, mask 0x1
+            Bank1Info0PageConfiguration0    = 0x104, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration1    = 0x108, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration2    = 0x10C, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration3    = 0x110, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration4    = 0x114, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration5    = 0x118, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration6    = 0x11C, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration7    = 0x120, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration8    = 0x124, // Reset default = 0x0, mask 0x7f
+            Bank1Info0PageConfiguration9    = 0x128, // Reset default = 0x0, mask 0x7f
+            Bank1Info1Enable                = 0x12C, // Reset default = 0x1, mask 0x1
+            Bank1Info1PageConfiguration     = 0x130, // Reset default = 0x0, mask 0x7f
+            Bank1Info2Enable0               = 0x134, // Reset default = 0x1, mask 0x1
+            Bank1Info2Enable1               = 0x138, // Reset default = 0x1, mask 0x1
+            Bank1Info2PageConfiguration0    = 0x13C, // Reset default = 0x0, mask 0x7f
+            Bank1Info2PageConfiguration1    = 0x140, // Reset default = 0x0, mask 0x7f
+            BankConfigurationEnable         = 0x144, // Reset default = 0x1, mask 0x1
+            BankConfiguration               = 0x148, // Reset default = 0x1, mask 0x1
+            FlashOperationStatus            = 0x14C, // Reset default = 0x0, mask 0x3
+            Status                          = 0x150, // Reset default = 0xa, mask 0x1f
+            ErrorCode                       = 0x154, // Reset default = 0x0, mask 0x7f
+            FaultStatus                     = 0x158, // Reset default = 0x0, mask 0x3ff
+            ErrorAddress                    = 0x15C, // Reset default = 0x0, mask 0xffffffff
+            ECCSingleErrorCount             = 0x160, // Reset default = 0x0, mask 0xffff
+            ECCSingleErrorAddress0          = 0x164, // Reset default = 0x0, mask 0xfffff
+            ECCSingleErrorAddress1          = 0x168, // Reset default = 0x0, mask 0xfffff
+            PhyErrorConfigurationEnable     = 0x16C, // Reset default = 0x1, mask 0x1
+            PhyErrorConfiguration           = 0x170, // Reset default = 0x1, mask 0x1
+            PhyAlertConfiguration           = 0x174, // Reset default = 0x0, mask 0x3
+            PhyStatus                       = 0x178, // Reset default = 0x6, mask 0x7
+            Scratch                         = 0x17C, // Reset default = 0x0, mask 0xffffffff
+            FifoLevel                       = 0x180, // Reset default = 0xf0f, mask 0x1f1f
+            FifoReset                       = 0x184, // Reset default = 0x0, mask 0x1
+            ProgramFifo                     = 0x188, // 1 item wo window. Byte writes are not supported
+            ReadFifo                        = 0x18C, // 1 item ro window. Byte writes are not supported
         }
 
         private enum ControlOp : uint
