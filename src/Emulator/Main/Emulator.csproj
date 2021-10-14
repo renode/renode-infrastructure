@@ -529,6 +529,7 @@
     <Compile Include="Peripherals\Sensor\ICPIPeripheral.cs" />
     <Compile Include="Utilities\RawImageData.cs" />
     <Compile Include="Utilities\LibCWrapper.cs" />
+    <Compile Include="Peripherals\SPI\SPIConnector.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
