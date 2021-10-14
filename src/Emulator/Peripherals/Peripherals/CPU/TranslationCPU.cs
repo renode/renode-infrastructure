@@ -559,16 +559,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             SetInternalHookAtBlockBegin((pc, size) =>
             {
-                if(!Bus.TryFindSymbolAt(pc, out var name, out var symbol))
+                if(Bus.TryFindSymbolAt(pc, out var name, out var symbol))
                 {
-                    return;
+                    if(removeDuplicates && symbol == previousSymbol)
+                    {
+                        return;
+                    }
+                    previousSymbol = symbol;
                 }
-
-                if(removeDuplicates && symbol == previousSymbol)
-                {
-                    return;
-                }
-                previousSymbol = symbol;
 
                 if(spaceSeparatedPrefixes != "" && (name == null || !prefixesAsArray.Any(name.StartsWith)))
                 {
