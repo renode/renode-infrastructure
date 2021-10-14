@@ -489,8 +489,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
             this.NoisyLog("Invalidating memory fragment at 0x{0:X} of size {1} bytes.", start, SegmentSize);
 
-            var otherCpus = machine.SystemBus.GetCPUs().OfType<CPU.ICPU>();
-            foreach(var cpu in otherCpus)
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CPU.ICPU>())
             {
                 //it's dynamic to avoid cyclic dependency to TranslationCPU
                 ((dynamic)cpu).InvalidateTranslationBlocks(start, start + length);
