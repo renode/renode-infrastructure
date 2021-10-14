@@ -21,16 +21,18 @@ namespace Antmicro.Renode.Logging.Profiling
             buffer = new List<byte>();
         }
 
-        public void RegisterPeripherals(IEnumerable<PeripheralTreeEntry> peripherals)
+        public void RegisterPeripherals(Machine machine)
         {
-            var cpuNames = peripherals.Where(x => x.Peripheral is ICPU).Select(x => x.Name);
+            var peripherals = machine.GetRegisteredPeripherals();
+            var cpus = peripherals.Where(x => x.Peripheral is ICPU).ToList();
 
-            buffer.AddRange(BitConverter.GetBytes(cpuNames.Count()));
+            buffer.AddRange(BitConverter.GetBytes(cpus.Count));
 
-            foreach(var name in cpuNames)
+            foreach(var cpu in cpus)
             {
-                buffer.AddRange(BitConverter.GetBytes(name.Length));
-                buffer.AddRange(Encoding.ASCII.GetBytes(name));
+                buffer.AddRange(BitConverter.GetBytes(machine.SystemBus.GetCPUId(cpu.Peripheral as ICPU)));
+                buffer.AddRange(BitConverter.GetBytes(cpu.Name.Length));
+                buffer.AddRange(Encoding.ASCII.GetBytes(cpu.Name));
             }
 
             var busPeripherals = peripherals.Where(x => x.RegistrationPoint is BusRangeRegistration && x.Name != null);

@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Logging.Profiling
         private void WriteHeader()
         {
             var header = new ProfilerHeader();
-            header.RegisterPeripherals(machine.GetRegisteredPeripherals());
+            header.RegisterPeripherals(machine);
             output.Write(header.Bytes, 0, header.Bytes.Length);
         }
 
