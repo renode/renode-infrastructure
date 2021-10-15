@@ -1262,7 +1262,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibDispose();
             RenodeFreeHostBlocks();
             binder.Dispose();
-            File.Delete(libraryFile);
+            if(!EmulationManager.DisableEmulationFilesCleanup)
+            {
+                File.Delete(libraryFile);
+            }
             memoryManager.CheckIfAllIsFreed();
         }
 
@@ -1285,6 +1288,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string Name => this.GetCPUThreadName(machine);
 
+        /*
+            Increments each time a new translation library resource is created.
+            This counter marks each new instance of a translation library with a new number, which is used in file names to avoid collisions.
+            It has to survive emulation reset, so the file names remain unique.
+        */
+        private static int CpuCounter = 0;
+
         private void Init()
         {
             memoryManager = new SimpleMemoryManager(this);
@@ -1296,15 +1306,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
             foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile))
+                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
                 {
                     break;
                 }
             }
 
+            Interlocked.Increment(ref CpuCounter);
+
             if(libraryFile == null)
             {
-                throw new ArgumentException($"Cannot find library {libraryResource}");
+                throw new ConstructionException($"Cannot find library {libraryResource}");
             }
 
             binder = new NativeBinder(this, libraryFile);

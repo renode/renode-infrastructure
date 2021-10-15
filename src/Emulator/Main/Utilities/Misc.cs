@@ -23,6 +23,7 @@ using System.Diagnostics;
 using Antmicro.Renode.Core.Structure.Registers;
 using System.Threading;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -471,7 +472,7 @@ namespace Antmicro.Renode.Utilities
             return (byte)(value & 0xFF);
         }
 
-        public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFile)
+        public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFileFullPath, string nonstandardOutputFilename = null)
         {
             // `GetManifestResourceStream` is not supported by dynamic assemblies
             Stream libraryStream = assembly.IsDynamic
@@ -486,11 +487,32 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(libraryStream == null)
                 {
-                    outputFile = null;
+                    outputFileFullPath = null;
                     return false;
                 }
             }
-            outputFile = CopyToFile(libraryStream, resourceName);
+
+            string libraryFile;
+            if(nonstandardOutputFilename != null)
+            {
+                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile))
+                {
+                    Logging.Logger.Log(Logging.LogLevel.Error, "Could not unpack resource {0} to {1}. This likely signifies an internal error.", resourceName, nonstandardOutputFilename);
+                    outputFileFullPath = null;
+                    return false;
+                }
+            }
+            else
+            {
+                libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile(resourceName);
+                
+                if(String.IsNullOrEmpty(libraryFile))
+                {
+                    outputFileFullPath = null;
+                    return false;
+                }
+            }
+            outputFileFullPath = CopyToFile(libraryStream, libraryFile);
             return true;
         }
 
@@ -627,11 +649,10 @@ namespace Antmicro.Renode.Utilities
 
         }
 
-        private static string CopyToFile(Stream libraryStream, string fileNameSuffix = null)
+        private static string CopyToFile(Stream libraryStream, string libraryFile)
         {
             try
             {
-                var libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile(fileNameSuffix);
                 using(var destination = new FileStream(libraryFile, FileMode.Open, FileAccess.Write, FileShare.None))
                 {
                     libraryStream.Copy(destination);

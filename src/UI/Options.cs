@@ -52,6 +52,9 @@ namespace Antmicro.Renode.UI
         [Name("console"), Description("Run monitor in the console instead of a separate window")]
         public bool Console { get; set; }
 
+        [Name("keep-temporary-files"), Description("Don't clean temporary files on exit")]
+        public bool KeepTemporaryFiles { get; set; }
+
         public bool Validate(out string error)
         {
             if(HideMonitor && Console)

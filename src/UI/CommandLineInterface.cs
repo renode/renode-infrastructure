@@ -38,6 +38,11 @@ namespace Antmicro.Renode.UI
                 return;
             }
 
+            if(options.KeepTemporaryFiles)
+            {
+                EmulationManager.DisableEmulationFilesCleanup = true;
+            }
+
             if(!options.HideLog)
             {
                 Logger.AddBackend(ConsoleBackend.Instance, "console");
