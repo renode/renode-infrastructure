@@ -151,6 +151,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RegistersCollection.AddRegister((long)Registers.InterruptDisable,
                 interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
 
+            Registers.CRCStatus.Define(this)
+               .WithFlag(0, name: "CRCSTATUS", valueProviderCallback: _ => true) // we assume here that CRCs are always ok
+               .WithReservedBits(1, 31)
+            ;
+
             Registers.PacketPointer.Define(this)
                 .WithValueField(0, 32, out packetPointer, name: "PACKETPTR")
             ;
