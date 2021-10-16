@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -124,7 +124,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 currentEmulation.TryGetEmulationElementName(receiver, out var receiverName);
                 if(!mediumFunction.CanReach(senderPosition, radioAndPosition.Value) || receiver.Channel != sender.Channel)
                 {
-                    this.NoisyLog("Packet {0} -> {1} NOT delivered, size {2}.", senderName, receiverName, packet.Length);
+                    this.NoisyLog("Packet {0}:chan{1} -> {2}:chan{3} NOT delivered, size {4}.",
+                          senderName, sender.Channel, receiverName, receiver.Channel, packet.Length);
                     continue;
                 }
 
@@ -149,7 +150,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
                 receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packetCopy, vts, () =>
                 {
-                    this.NoisyLog("Packet {0} -> {1} delivered, size {2}.", senderName, receiverName, packetCopy.Length);
+                    this.NoisyLog("Packet {0}:chan{1} -> {2}:chan{3} delivered, size {4}.",
+                          senderName, sender.Channel, receiverName, receiver.Channel, packet.Length);
                     FrameTransmitted?.Invoke(this, sender, receiver, packetCopy);
                 });
             }
