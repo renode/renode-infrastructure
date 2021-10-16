@@ -6,8 +6,10 @@
 //
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
@@ -65,11 +67,24 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public event Action<uint> EventTriggered;
 
-        public int Channel { get; set; }
+        public int Channel 
+        { 
+            get
+            {
+                return bluetoothLEChannelMap.TryGetValue(Frequency, out var result)
+                    ? result
+                    : -1;
+            }
+            
+            set 
+            { 
+                throw new RecoverableException("Setting channel manually is not supported");
+            } 
+        }
 
         public long Size => 0x1000;
 
-        public uint Frequency => 2400 + frequency.Value;
+        public uint Frequency => (frequencyMap.Value ? 2360 : 2400U) + frequency.Value;
 
         public GPIO IRQ { get; }
 
@@ -163,7 +178,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Registers.Frequency.Define(this, name: "FREQUENCY")
                 .WithValueField(0, 7, out frequency, name: "FREQUENCY")
                 .WithReservedBits(7, 1)
-                .WithTaggedFlag("MAP", 8)
+                .WithFlag(8, out frequencyMap, name: "MAP")
                 .WithReservedBits(9, 23)
             ;
 
@@ -447,6 +462,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IFlagRegisterField[] events;
         private IValueRegisterField packetPointer;
         private IValueRegisterField frequency;
+        private IFlagRegisterField frequencyMap;
         private IValueRegisterField lengthFieldLength;
         private IValueRegisterField s0Length;
         private IValueRegisterField s1Length;
@@ -468,6 +484,50 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IValueRegisterField crcInitialValue;
         private IEnumRegisterField<CCAMode> ccaMode;
         private IFlagRegisterField powerOn;
+        
+        private readonly Dictionary<uint, int> bluetoothLEChannelMap = new Dictionary<uint, int>()
+        {
+           { 2402, 37 },
+           { 2404, 0 },
+           { 2406, 1 },
+           { 2408, 2 },
+           { 2410, 3 },
+           { 2412, 4 },
+           { 2414, 5 },
+           { 2416, 6 },
+           { 2418, 7 },
+           { 2420, 8 },
+           { 2422, 9 },
+           { 2424, 10 },
+           { 2426, 38 },
+           { 2428, 11 },
+           { 2430, 12 },
+           { 2432, 13 },
+           { 2434, 14 },
+           { 2436, 15 },
+           { 2438, 16 },
+           { 2440, 17 },
+           { 2442, 18 },
+           { 2444, 19 },
+           { 2446, 20 },
+           { 2448, 21 },
+           { 2450, 22 },
+           { 2452, 23 },
+           { 2454, 24 },
+           { 2456, 25 },
+           { 2458, 26 },
+           { 2460, 27 },
+           { 2462, 28 },
+           { 2464, 29 },
+           { 2466, 30 },
+           { 2468, 31 },
+           { 2470, 32 },
+           { 2472, 33 },
+           { 2474, 34 },
+           { 2476, 35 },
+           { 2478, 36 },
+           { 2480, 39 },
+        };
 
         private struct Shorts
         {
