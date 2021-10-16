@@ -160,6 +160,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RegistersCollection.AddRegister((long)Registers.InterruptDisable,
                 interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
 
+            Registers.CRCStatus.Define(this)
+               .WithFlag(0, valueProviderCallback: (_) => true);
+
             Registers.PacketPointer.Define(this)
                 .WithValueField(0, 32, out packetPointer, name: "PACKETPTR")
             ;
