@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var j = i;
                 ((Registers)((int)Registers.ChannelGroup0Enable + i * 8)).Define(this, name: "TASKS_CHG[n].EN")
-                    .WithFlag(0, FieldMode.Write, name: "EN", changeCallback: (_, value) =>
+                    .WithFlag(0, FieldMode.Write, name: "EN", writeCallback: (_, value) =>
                     {
                         if(value)
                         {
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
 
                 ((Registers)((int)Registers.ChannelGroup0Disable + i * 8)).Define(this, name: "TASKS_CHG[n].DIS")
-                    .WithFlag(0, FieldMode.Write, name: "DIS", changeCallback: (_, value) =>
+                    .WithFlag(0, FieldMode.Write, name: "DIS", writeCallback: (_, value) =>
                     {
                         if(value)
                         {
