@@ -23,6 +23,13 @@ namespace Antmicro.Renode.Peripherals.MTD
     {
         public OpenTitan_FlashController(Machine machine, MappedMemory flash) : base(machine)
         {
+            ProgramEmptyIRQ = new GPIO();
+            ProgramLevelIRQ = new GPIO();
+            ReadFullIRQ = new GPIO();
+            ReadLevelIRQ = new GPIO();
+            OperationDoneIRQ = new GPIO();
+            CorrectableErrorIRQ = new GPIO();
+
             mpRegionEnabled = new IFlagRegisterField[NumberOfMpRegions];
             mpRegionBase = new IValueRegisterField[NumberOfMpRegions];
             mpRegionSize = new IValueRegisterField[NumberOfMpRegions];
@@ -30,36 +37,51 @@ namespace Antmicro.Renode.Peripherals.MTD
             mpRegionProgEnabled = new IFlagRegisterField[NumberOfMpRegions];
             mpRegionEraseEnabled = new IFlagRegisterField[NumberOfMpRegions];
 
-            // TODO(julianmb): support interrupts. no unittests exist though.
+            bankInfoPageEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageReadEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageProgramEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageEraseEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+
+            for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
+            {
+                for(var infoType = 0; infoType < FlashNumberOfInfoTypes; ++infoType)
+                {
+                    bankInfoPageEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageReadEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageProgramEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageEraseEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
+                }
+            }
+
             Registers.InterruptState.Define(this)
-                .WithFlag(0, name: "prog_empty", mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithFlag(1, name: "prog_lvl", mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithFlag(2, name: "rd_full", mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithFlag(3, name: "rd_lvl", mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithFlag(4, out interruptStatusRegisterOpDoneFlag, name: "op_done",
-                    mode: FieldMode.Read | FieldMode.WriteOneToClear)
-                .WithTaggedFlag("corr_err", 5)
-                .WithReservedBits(6, 1 + 31 - 6);
+                .WithFlag(0, out interruptStatusProgramEmpty, FieldMode.Read | FieldMode.WriteOneToClear, name: "prog_empty")
+                .WithFlag(1, out interruptStatusProgramLevel, FieldMode.Read | FieldMode.WriteOneToClear, name: "prog_lvl")
+                .WithFlag(2, out interruptStatusReadFull, FieldMode.Read | FieldMode.WriteOneToClear, name: "rd_full")
+                .WithFlag(3, out interruptStatusReadLevel, FieldMode.Read | FieldMode.WriteOneToClear, name: "rd_lvl")
+                .WithFlag(4, out interruptStatusOperationDone, FieldMode.Read | FieldMode.WriteOneToClear, name: "op_done")
+                .WithFlag(5, out interruptStatusCorrectableError, FieldMode.Read | FieldMode.WriteOneToClear, name: "corr_err")
+                .WithReservedBits(6, 1 + 31 - 6)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
-            // TODO(julianmb): support interrupts. no unittests exist though.
             Registers.InterruptEnable.Define(this)
-                .WithFlag(0, name: "prog_empty")
-                .WithFlag(1, name: "prog_lvl")
-                .WithFlag(2, name: "rd_full")
-                .WithFlag(3, name: "rd_lvl")
-                .WithFlag(4, name: "op_done")
-                .WithTaggedFlag("corr_err", 5)
-                .WithReservedBits(6, 1 + 31 - 6);
+                .WithFlag(0, out interruptEnableProgramEmpty, name: "prog_empty")
+                .WithFlag(1, out interruptEnableProgramLevel, name: "prog_lvl")
+                .WithFlag(2, out interruptEnableReadFull, name: "rd_full")
+                .WithFlag(3, out interruptEnableReadLevel, name: "rd_lvl")
+                .WithFlag(4, out interruptEnableOperationDone, name: "op_done")
+                .WithFlag(5, out interruptEnableCorrectableError, name: "corr_err")
+                .WithReservedBits(6, 1 + 31 - 6)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
-            // TODO(julianmb): support interrupts. no unittests exist though.
             Registers.InterruptTest.Define(this)
-                .WithFlag(0, name: "prog_empty", mode: FieldMode.Write)
-                .WithFlag(1, name: "prog_lvl", mode: FieldMode.Write)
-                .WithFlag(2, name: "rd_full", mode: FieldMode.Write)
-                .WithFlag(3, name: "rd_lvl", mode: FieldMode.Write)
-                .WithFlag(4, name: "op_done", mode: FieldMode.Write)
-                .WithTaggedFlag("corr_err", 5)
-                .WithReservedBits(6, 1 + 31 - 6);
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { interruptStatusProgramEmpty.Value |= val; }, name: "prog_empty")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { interruptStatusProgramLevel.Value |= val; }, name: "prog_lvl")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { interruptStatusReadFull.Value |= val; }, name: "rd_full")
+                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { interruptStatusReadLevel.Value |= val; }, name: "rd_lvl")
+                .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { interruptStatusOperationDone.Value |= val; }, name: "op_done")
+                .WithFlag(5, FieldMode.Write, writeCallback: (_, val) => { interruptStatusCorrectableError.Value |= val; }, name: "corr_err")
+                .WithReservedBits(6, 1 + 31 - 6)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
                 .WithTaggedFlag("recov_err", 0)
@@ -92,16 +114,30 @@ namespace Antmicro.Renode.Peripherals.MTD
                 })
                 .WithReservedBits(1, 3)
                 .WithEnumField<DoubleWordRegister, ControlOp>(4, 2, out operation, name: "OP")
-                .WithFlag(6, name: "PROG_SEL")
+                .WithTaggedFlag("PROG_SEL", 6)
                 .WithFlag(7, out flashSelectEraseMode, name: "ERASE_SEL")
                 .WithFlag(8, out flashSelectPartition, name: "PARTITION_SEL")
-                .WithValueField(9, 2, name: "INFO_SEL")
+                .WithValueField(9, 2, out flashSelectInfo, name: "INFO_SEL")
                 .WithReservedBits(11, 1 + 15 - 11)
                 .WithValueField(16, 1 + 27 - 16, out controlNum, name: "NUM")
                 .WithReservedBits(28, 1 + 31 - 28);
 
             Registers.AddressForFlashOperation.Define(this)
-                .WithValueField(0, 32, out address, name: "START");
+                .WithValueField(0, 32, out address, changeCallback: (_, address) => {
+                    flashAddress = null;
+                    var addresses = machine.SystemBus.GetRegistrationPoints(dataFlash)
+                        .Select(pint => pint.Range)
+                        .Where(range => range.Contains(address))
+                        .Select(range => range.StartAddress);
+
+                    if(!addresses.Any())
+                    {
+                        this.Log(LogLevel.Warning, "Underlying data flash is not registered on the system bus, so it cannot be accessed");
+                        return;
+                    }
+
+                    flashAddress = (long)addresses.First();
+                }, name: "START");
 
             Registers.EnableDifferentProgramTypes.Define(this)
                 .WithTaggedFlag("NORMAL", 0)
@@ -111,14 +147,14 @@ namespace Antmicro.Renode.Peripherals.MTD
             // Erase is performed immediately so write to SuspendErase will never happen during erasing process.
             // Cleared immediately.
             Registers.SuspendErase.Define(this)
-                .WithTaggedFlag("REQ", 0)
+                .WithFlag(0, valueProviderCallback: _ => false, name: "REQ")
                 .WithReservedBits(1, 31);
 
             for(var i = 0; i < NumberOfMpRegions; i++)
             {
                 // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
                 RegistersCollection.AddRegister((long)Registers.RegionConfigurationEnable0 + 0x4 * i, new DoubleWordRegister(this, 0x1)
-                    .WithFlag(0, name: $"REGION_{i}", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
+                    .WithTaggedFlag($"REGION_{i}", 0)
                     .WithReservedBits(1, 31));
 
                 RegistersCollection.AddRegister((long)(Registers.RegionConfiguration0 + 0x4 * i), new DoubleWordRegister(this)
@@ -144,64 +180,41 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTaggedFlag("HE_EN", 5)
                 .WithReservedBits(6, 1 + 31 - 6);
             
-            // TODO: move magic numbers to constants
-            for(var bankNumber = 0; bankNumber < 10; bankNumber++)
+            var registerOffset = Registers.Bank0Info0Enable0;
+            for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
             {
-                var bankOffset = (Registers.Bank1Info0Enable0 - Registers.Bank0Info0Enable0) * bankNumber;
-
-                for(var i = 0; i < 10; i++)
+                for(var infoType = 0; infoType < FlashNumberOfInfoTypes; ++infoType)
                 {
-                    // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
-                    (Registers.Bank0Info0Enable0 + bankOffset + 0x4 * i).Define(this, 0x1)
-                        .WithFlag(0, name: $"REGION_{i}", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                        .WithReservedBits(1, 31);
+                    // For each info type, first are defined configuration enabling registers and then
+                    // configuration registers.
+                    for(var pageNumber = 0; pageNumber < FlashNumberOfPagesInInfo[infoType]; ++pageNumber)
+                    {
+                        // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
+                        registerOffset.Define(this, 0x1)
+                            .WithTaggedFlag($"REGION_{pageNumber}", 0)
+                            .WithReservedBits(1, 31);
+                        registerOffset += 0x4;
+                    }
 
-                    (Registers.Bank0Info0PageConfiguration0 + bankOffset + 0x4 * i).Define(this)
-                        .WithFlag(0, name: $"EN_{i}")
-                        .WithFlag(1, name: $"RD_EN_{i}")
-                        .WithFlag(2, name: $"PROG_EN_{i}")
-                        .WithFlag(3, name: $"ERASE_EN_{i}")
-                        .WithFlag(4, name: $"SCRAMBLE_EN_{i}")
-                        .WithTaggedFlag($"ECC_EN_{i}", 5)
-                        .WithTaggedFlag($"HE_EN_{i}", 6)
-                        .WithReservedBits(7, 1 + 31 - 7);
-                }
-
-                (Registers.Bank0Info1Enable + bankOffset).Define(this, 0x1)
-                    .WithFlag(0, name: "REGION_0", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                    .WithReservedBits(1, 31);
-
-                (Registers.Bank0Info1PageConfiguration + bankOffset).Define(this)
-                    .WithFlag(0, name: "EN_0")
-                    .WithFlag(1, name: "RD_EN_0")
-                    .WithFlag(2, name: "PROG_EN_0")
-                    .WithFlag(3, name: "ERASE_EN_0")
-                    .WithFlag(4, name: "SCRAMBLE_EN_0")
-                    .WithTaggedFlag($"ECC_EN_0", 5)
-                    .WithTaggedFlag($"HE_EN_0", 6)
-                    .WithReservedBits(7, 1 + 31 - 7);
-
-                for(var i = 0; i < 2; i++)
-                {
-                    (Registers.Bank0Info2Enable0 + bankOffset + 0x4 * i).Define(this, 0x1)
-                        .WithFlag(0, name: $"REGION_{i}", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
-                        .WithReservedBits(1, 31);
-
-                    (Registers.Bank0Info2PageConfiguration0 + bankOffset + 0x4 * i).Define(this)
-                        .WithFlag(0, name: $"EN_{i}")
-                        .WithFlag(1, name: $"RD_EN_{i}")
-                        .WithFlag(2, name: $"PROG_EN_{i}")
-                        .WithFlag(3, name: $"ERASE_EN_{i}")
-                        .WithFlag(4, name: $"SCRAMBLE_EN_{i}")
-                        .WithTaggedFlag($"ECC_EN_{i}", 5)
-                        .WithTaggedFlag($"HE_EN_{i}", 6)
-                        .WithReservedBits(7, 1 + 31 - 7);
+                    for(var pageNumber = 0; pageNumber < FlashNumberOfPagesInInfo[infoType]; ++pageNumber)
+                    {
+                        registerOffset.Define(this)
+                            .WithFlag(0, out bankInfoPageEnabled[bankNumber, infoType][pageNumber], name: $"EN_{pageNumber}")
+                            .WithFlag(1, out bankInfoPageReadEnabled[bankNumber, infoType][pageNumber], name: $"RD_EN_{pageNumber}")
+                            .WithFlag(2, out bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber], name: $"PROG_EN_{pageNumber}")
+                            .WithFlag(3, out bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber], name: $"ERASE_EN_{pageNumber}")
+                            .WithTaggedFlag($"SCRAMBLE_EN_{pageNumber}", 4)
+                            .WithTaggedFlag($"ECC_EN_{pageNumber}", 5)
+                            .WithTaggedFlag($"HE_EN_{pageNumber}", 6)
+                            .WithReservedBits(7, 1 + 31 - 7);
+                        registerOffset += 0x4;
+                    }
                 }
             }
             
             // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
             Registers.BankConfigurationEnable.Define(this, 0x1)
-                .WithFlag(0, name: "BANK", mode: FieldMode.Read | FieldMode.WriteZeroToClear)
+                .WithTaggedFlag("BANK", 0)
                 .WithReservedBits(1, 31);
             Registers.BankConfiguration.Define(this)
                 .WithFlag(0, out eraseBank0, name: "ERASE_EN_0")
@@ -212,17 +225,18 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(0, out opStatusRegisterDoneFlag, name: "done")
                 .WithFlag(1, out opStatusRegisterErrorFlag, name: "err")
                 .WithReservedBits(2, 1 + 31 - 2);
+
             Registers.Status.Define(this, 0xa)
-                .WithFlag(0, name: "rd_full", mode: FieldMode.Read)
-                .WithFlag(1, out statusRegisterReadEmptyFlag, name: "rd_empty", mode: FieldMode.Read)
-                .WithFlag(2, name: "prog_full", mode: FieldMode.Read)
-                .WithFlag(3, name: "prog_empty", mode: FieldMode.Read)
-                .WithFlag(4, name: "init_wip", mode: FieldMode.Read)
+                .WithFlag(0, out statusReadFullFlag, FieldMode.Read, name: "rd_full")
+                .WithFlag(1, out statusReadEmptyFlag, FieldMode.Read, name: "rd_empty")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "prog_full")
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => true, name: "prog_empty")
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => false, name: "init_wip")
                 .WithReservedBits(5, 1 + 31 - 5);
 
             Registers.ErrorCode.Define(this)
-                .WithTaggedFlag("oob_err", 0)
-                .WithTaggedFlag("mp_err", 1)
+                .WithFlag(0, out outOfBoundsError, FieldMode.Read | FieldMode.WriteOneToClear, name: "oob_err")
+                .WithFlag(1, out memoryProtectionError, FieldMode.Read | FieldMode.WriteOneToClear, name: "mp_err")
                 .WithTaggedFlag("rd_err", 2)
                 .WithTaggedFlag("prog_win_err", 3)
                 .WithTaggedFlag("prog_type_err", 4)
@@ -244,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(10, 1 + 31 - 10);
 
             Registers.ErrorAddress.Define(this)
-                .WithTag("ERR_ADDR", 0, 32);
+                .WithValueField(0, 32, out errorAddress, FieldMode.Read, name: "ERR_ADDR");
 
             Registers.ECCSingleErrorCount.Define(this)
                 .WithTag("ECC_SINGLE_ERR_CNT_0", 0, 8)
@@ -273,106 +287,158 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(2, 30);
 
             Registers.PhyStatus.Define(this, 0x6)
-                .WithFlag(0, name: "init_wip", mode: FieldMode.Read)
-                .WithFlag(1, name: "prog_normal_avail", mode: FieldMode.Read)
-                .WithFlag(2, name: "prog_repair_avail", mode: FieldMode.Read)
+                .WithTaggedFlag("init_wip", 0)
+                .WithTaggedFlag("prog_normal_avail", 1)
+                .WithTaggedFlag("prog_repair_avail", 2)
                 .WithReservedBits(3, 1 + 31 - 3);
             
             Registers.Scratch.Define(this)
-                .WithValueField(0, 32, name: "data");
+                .WithTag("data", 0, 32);
 
             Registers.FifoLevel.Define(this, 0xf0f)
-                .WithValueField(0, 5, name: "PROG")
+                .WithValueField(0, 5, out programFifoLevel, name: "PROG")
                 .WithReservedBits(5, 1 + 7 - 5)
-                .WithValueField(8, 1 + 12 - 8, name: "RD")
+                .WithValueField(8, 1 + 12 - 8, out readFifoLevel, name: "RD")
                 .WithReservedBits(13, 1 + 31 - 13);
 
             // TODO(julianmb): implement fifo reset. There isnt any unittest for this currently.
             Registers.FifoReset.Define(this)
-                .WithFlag(0, name: "EN")
+                .WithTaggedFlag("EN", 0)
                 .WithReservedBits(1, 31);
-            // TODO(julianmb): handle writes while fifo is full. There isnt any unittest for this currently.
+
             Registers.ProgramFifo.Define(this)
-                .WithValueField(0, 32, mode: FieldMode.Write, writeCallback: (_, n) =>
+                .WithValueField(0, 32, mode: FieldMode.Write, writeCallback: (_, data) =>
                 {
-                    var programFlash = flashSelectPartition.Value ? infoFlash : (IDoubleWordPeripheral)dataFlash;
+                    var isInBounds = flashAddress.HasValue && IsOffsetInBounds(programOffset);
+                    var isAllowed = isInBounds && IsOperationAllowed(OperationType.ProgramData, programOffset);
 
-                    /*
-                    ** TODO(julianmb): memory protection should be implemented.
-                    ** It currently doesnt have a unit test though.
-                    ** BANK*_INFO*_PAGE_CFG_* registers are of interest
-                    */
-                    bool blockOperation = !flashSelectPartition.Value &&
-                        !IsOperationAllowed(OperationType.ProgramData, programAddress);
-
-                    if(!blockOperation)
+                    if(isInBounds && isAllowed)
                     {
-                        programFlash.WriteDoubleWord(programAddress - FlashMemBaseAddr, n);
-                        programAddress += 4;
+                        var oldData = ReadFlashDoubleWord(programOffset);
+                        WriteFlashDoubleWord(programOffset, oldData & data);
+                        programOffset += 4;
                     }
                     else
                     {
                         opStatusRegisterErrorFlag.Value = true;
                         opStatusRegisterDoneFlag.Value = true;
-                        interruptStatusRegisterOpDoneFlag.Value = true;
+                        interruptStatusOperationDone.Value = true;
+
+                        if(isInBounds)
+                        {
+                            memoryProtectionError.Value = true;
+                            errorAddress.Value = (uint)(programOffset + flashAddress.Value);
+                        }
+                        else
+                        {
+                            outOfBoundsError.Value = true;
+                        }
+                        return;
                     }
 
-                    if(programAddress > (address.Value + 4 * (controlNum.Value)) || opStatusRegisterErrorFlag.Value)
+                    if(TryGetOffset(out var offset))
                     {
-                        opStatusRegisterDoneFlag.Value = true;
-                        interruptStatusRegisterOpDoneFlag.Value = true;
+                        if(programOffset > (offset + 4 * controlNum.Value))
+                        {
+                            opStatusRegisterDoneFlag.Value = true;
+                            interruptStatusOperationDone.Value = true;
+                        }
+                        else
+                        {
+                            interruptStatusProgramLevel.Value = true;
+                            interruptStatusProgramEmpty.Value = true;
+                        }
                     }
-                });
+                    else
+                    {
+                        outOfBoundsError.Value = true;
+                    }
+                })
+                .WithWriteCallback((_, __) => UpdateInterrupts());
+
             Registers.ReadFifo.Define(this)
                 .WithValueField(0, 32, mode: FieldMode.Read, valueProviderCallback: _ =>
                 {
                     uint value = 0;
-                    var readFlash = flashSelectPartition.Value ? infoFlash : (IDoubleWordPeripheral)dataFlash;
+                    var isInBounds = flashAddress.HasValue && IsOffsetInBounds(readOffset);
+                    var isAllowed = isInBounds && IsOperationAllowed(OperationType.ReadData, readOffset);
 
-                    /*
-                    ** TODO(julianmb): memory protection should be implemented.
-                    ** It currently doesnt have a unit test though.
-                    ** BANK*_INFO*_PAGE_CFG_* registers are of interest
-                    */
-                    bool blockOperation = !flashSelectPartition.Value &&
-                        !IsOperationAllowed(OperationType.ReadData, readAddress);
-
-                    if(!blockOperation)
+                    if(isInBounds && isAllowed)
                     {
-                        value = readFlash.ReadDoubleWord(readAddress - FlashMemBaseAddr);
-                        readAddress += 4;
+                        value = ReadFlashDoubleWord(readOffset);
+                        readOffset += 4;
                     }
                     else
                     {
                         opStatusRegisterErrorFlag.Value = true;
                         opStatusRegisterDoneFlag.Value = true;
-                        interruptStatusRegisterOpDoneFlag.Value = true;
+                        interruptStatusOperationDone.Value = true;
+
+                        if(isInBounds)
+                        {
+                            memoryProtectionError.Value = true;
+                            errorAddress.Value = (uint)(readOffset + flashAddress.Value);
+                        }
+                        else
+                        {
+                            outOfBoundsError.Value = true;
+                        }
+                        return value;
                     }
 
-                    if(readAddress > (address.Value + 4 * (controlNum.Value)) || opStatusRegisterErrorFlag.Value){
-                        opStatusRegisterDoneFlag.Value = true;
-                        interruptStatusRegisterOpDoneFlag.Value = true;
-                        statusRegisterReadEmptyFlag.Value = true;
+                    if(TryGetOffset(out var offset))
+                    {
+                        if(readOffset > (offset + 4 * controlNum.Value))
+                        {
+                            opStatusRegisterDoneFlag.Value = true;
+                            interruptStatusOperationDone.Value = true;
+                            UpdateReadFifoSignals(false);
+                        }
+                        else
+                        {
+                            UpdateReadFifoSignals(true);
+                        }
+                    }
+                    else
+                    {
+                        outOfBoundsError.Value = true;
                     }
 
                     return value;
-                });
+                })
+                .WithWriteCallback((_, __) => UpdateInterrupts());
             
             dataFlash = flash;
-            infoFlash = new ArrayMemory((int)dataFlash.Size);
+            infoFlash = new ArrayMemory[FlashNumberOfBanks, FlashNumberOfInfoTypes];
+            for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
+            {
+                for(var infoType = 0; infoType < FlashNumberOfInfoTypes; ++infoType)
+                {
+                    infoFlash[bankNumber, infoType] = new ArrayMemory((int)(FlashNumberOfPagesInInfo[infoType] * BytesPerPage));
+                }
+            }
             this.Reset();
         }
 
         public override void Reset()
         {
             RegistersCollection.Reset();
-            statusRegisterReadEmptyFlag.Value = true;
+            statusReadFullFlag.Value = false;
+            statusReadEmptyFlag.Value = true;
 
-            readAddress = 0;
-            programAddress = 0;
+            readOffset = 0;
+            programOffset = 0;
+            UpdateInterrupts();
         }
 
         public long Size => 0x1000;
+
+        public GPIO ProgramEmptyIRQ { get; }
+        public GPIO ProgramLevelIRQ { get; }
+        public GPIO ReadFullIRQ { get; }
+        public GPIO ReadLevelIRQ { get; }
+        public GPIO OperationDoneIRQ { get; }
+        public GPIO CorrectableErrorIRQ { get; }
 
         private void StartOperation()
         {
@@ -419,7 +485,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             this.Log(
                 LogLevel.Noisy,
-                "OpenTitan_FlashController/StartReadOperation: addrValue = 0x{0:X}",
+                "OpenTitan_FlashController/StartReadOperation: address = 0x{0:X}",
                 address.Value);
 
             this.Log(
@@ -427,15 +493,22 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartReadOperation: reading {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            statusRegisterReadEmptyFlag.Value = false;
-            readAddress = address.Value;
+            if(TryGetOffset(out var offset))
+            {
+                readOffset = offset;
+                UpdateReadFifoSignals(true);
+            }
+            else
+            {
+                outOfBoundsError.Value = true;
+            }
         }
 
         private void StartProgramOperation()
         {
             this.Log(
                 LogLevel.Noisy,
-                "OpenTitan_FlashController/StartProgramOperation: addrValue = 0x{0:X}",
+                "OpenTitan_FlashController/StartProgramOperation: address = 0x{0:X}",
                 address.Value);
 
             this.Log(
@@ -443,103 +516,218 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartProgramOperation: programming {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            programAddress = address.Value;
+            if(TryGetOffset(out var offset))
+            {
+                programOffset = offset;
+            }
+            else
+            {
+                outOfBoundsError.Value = true;
+            }
         }
 
         private void StartEraseOperation()
         {
             this.Log(
                 LogLevel.Noisy,
-                "OpenTitan_FlashController/StartEraseOperation: addrValue = 0x{0:X}",
+                "OpenTitan_FlashController/StartEraseOperation: address = 0x{0:X}",
                 address.Value);
 
             this.Log(
                 LogLevel.Noisy,
                 "OpenTitan_FlashController/StartEraseOperation: eraseing {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
-
-            bool flashEraseBank0 = !flashSelectEraseMode.Value && eraseBank0.Value;
-            bool flashEraseBank1 = !flashSelectEraseMode.Value && eraseBank1.Value;
-
-            var eraseFlash = flashSelectPartition.Value ? infoFlash : (IBytePeripheral)dataFlash;
-            /*
-            ** TODO(julianmb): bank level memory protection should be implemented.
-            ** It currently doesnt have a unit test though.
-            ** BankConfiguration register is of interest
-            */
-            bool blockOperation = !flashSelectEraseMode.Value && !flashSelectPartition.Value &&
-                !IsOperationAllowed(OperationType.EraseDataPage, address.Value);
-            this.Log(
-                LogLevel.Noisy,
-                "OpenTitan_FlashController/StartEraseOperation: blockOperation = {0}",
-                blockOperation);
-
-            long eraseOffset = 0;
-            long eraseBytes = 0;
-            if(!flashSelectEraseMode.Value)
+            
+            if(!TryGetOffset(out var offset))
             {
-                eraseOffset = address.Value - FlashMemBaseAddr;
-                eraseBytes = FlashWordsPerPage * FlashWordSize;
-            }
-            else if(flashEraseBank0 || flashEraseBank1)
-            {
-                int bankNumber = flashEraseBank0 ? 0 : 1;
-                long bytesPerBank = FlashPagesPerBank * FlashWordsPerPage * FlashWordSize;
-                eraseOffset = bankNumber * bytesPerBank;
-                eraseBytes = bytesPerBank;
+                outOfBoundsError.Value = true;
+                return;
             }
 
-            if(!blockOperation)
+            var size = flashSelectEraseMode.Value ? BytesPerBank : BytesPerPage;
+            var truncatedOffset = offset & ~(size - 1);
+            var bankNumber = truncatedOffset / BytesPerBank;
+
+            if(!IsOffsetInBounds(truncatedOffset))
             {
-                for(long i = 0 ; i < eraseBytes ; i++)
+                outOfBoundsError.Value = true;
+                opStatusRegisterErrorFlag.Value = true;
+                opStatusRegisterDoneFlag.Value = true;
+                interruptStatusOperationDone.Value = true;
+                UpdateInterrupts();
+                return;
+            }
+
+            var notAllowed = false;
+            if(flashSelectEraseMode.Value)
+            {
+                switch(bankNumber)
                 {
-                    eraseFlash.WriteByte(eraseOffset + i, 0xff);
+                    case 0:
+                        notAllowed = !eraseBank0.Value;
+                        break;
+                    case 1:
+                        notAllowed = !eraseBank1.Value;
+                        break;
+                    default:
+                        notAllowed = true;
+                        break;
                 }
             }
             else
             {
+                notAllowed = !IsOperationAllowed(OperationType.EraseDataPage, truncatedOffset);
+            }
+
+            if(notAllowed)
+            {
                 opStatusRegisterErrorFlag.Value = true;
+                opStatusRegisterDoneFlag.Value = true;
+                interruptStatusOperationDone.Value = true;
+                memoryProtectionError.Value = true;
+                UpdateInterrupts();
+                return;
+            }
+
+            for(var i = 0 ; i < size ; i += 4)
+            {
+                WriteFlashDoubleWord(truncatedOffset + i, 0xffffffff);
             }
             opStatusRegisterDoneFlag.Value = true;
-            interruptStatusRegisterOpDoneFlag.Value = true;
+            interruptStatusOperationDone.Value = true;
+            UpdateInterrupts();
         }
 
-        private bool IsOperationAllowedInDefaultRegion(OperationType opType)
+        private void UpdateReadFifoSignals(bool readInProgress)
         {
-            bool ret = (opType == OperationType.ReadData && defaultMpRegionReadEnabled.Value)
-                || (opType == OperationType.ProgramData && defaultMpRegionProgEnabled.Value)
-                || (opType == OperationType.EraseDataPage && defaultMpRegionEraseEnabled.Value);
+            if(readInProgress && TryGetOffset(out var flashOffset))
+            {
+                var wordsLeft = (readOffset - flashOffset) / 4 + 1;
+                statusReadFullFlag.Value = wordsLeft >= 16;
+                interruptStatusReadFull.Value |= statusReadFullFlag.Value;
+                interruptStatusReadLevel.Value |= wordsLeft >= readFifoLevel.Value;
+                statusReadEmptyFlag.Value = false;
+            }
+            else
+            {
+                statusReadFullFlag.Value = false;
+                statusReadEmptyFlag.Value = true;
+            }
+            UpdateInterrupts();
+        }
+
+        private bool IsOffsetInBounds(long offset)
+        {
+            if(offset < 0)
+            {
+                return false;
+            }
+
+            if(flashSelectPartition.Value)
+            {
+                var infoType = flashSelectInfo.Value;
+                return (offset % BytesPerBank) < BytesPerPage * FlashNumberOfPagesInInfo[infoType];
+            }
+            else
+            {
+                return offset < BytesPerBank * FlashNumberOfBanks;
+            }
+        }
+
+        private bool IsOperationAllowed(OperationType opType, long operationOffset)
+        {
+            return flashSelectPartition.Value
+                ? IsOperationAllowedInfo(opType, operationOffset)
+                : IsOperationAllowedData(opType, operationOffset);
+        }
+
+        private bool IsOperationAllowedInfo(OperationType opType, long operationOffset)
+        {
+            var bankNumber = operationOffset / BytesPerBank;
+            var infoType = flashSelectInfo.Value;
+            var pageNumber = (operationOffset % BytesPerBank) / BytesPerPage;
+
+            if(!bankInfoPageEnabled[bankNumber, infoType][pageNumber].Value)
+            {
+                return false;
+            }
+
+            var ret = false;
+            switch(opType)
+            {
+                case OperationType.ReadData:
+                    ret = bankInfoPageReadEnabled[bankNumber, infoType][pageNumber].Value;
+                    break;
+                case OperationType.ProgramData:
+                    ret = bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber].Value;
+                    break;
+                case OperationType.EraseDataPage:
+                    ret = bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber].Value;
+                    break;
+                default:
+                    break;
+            }
 
             if(!ret)
             {
                 this.Log(
-                LogLevel.Debug,
-                    "OpenTitan_FlashController/IsOperationAllowedInDefaultRegion: " +
-                    "Operation not allowed in the default region");
+                    LogLevel.Debug, "OpenTitan_FlashController/IsOperationAllowedInfo: Operation not allowed!");
             }
 
             return ret;
         }
 
-        private bool IsOperationAllowed(OperationType opType, long operationAddress)
+        private bool IsOperationAllowedInDefaultRegion(OperationType opType)
         {
-            bool ret = IsOperationAllowedInDefaultRegion(opType);
-
-            for(var i = 0; i < NumberOfMpRegions; i++)
+            var ret = false;
+            switch(opType)
             {
-                if(MpRegionRegisterAppliesToOperation(i, operationAddress)
-                    && IsOperationAllowedInMpRegion(opType, i))
-                {
-                    ret = true;
+                case OperationType.ReadData:
+                    ret = defaultMpRegionReadEnabled.Value;
                     break;
-                }
+                case OperationType.ProgramData:
+                    ret = defaultMpRegionProgEnabled.Value;
+                    break;
+                case OperationType.EraseDataPage:
+                    ret = defaultMpRegionEraseEnabled.Value;
+                    break;
+                default:
+                    break;
             }
 
             if(!ret)
             {
                 this.Log(
-                    LogLevel.Debug, "OpenTitan_FlashController/IsOperationAllowed: " +
-                    "Operation not allowed!");
+                LogLevel.Debug,
+                    "OpenTitan_FlashController/IsOperationAllowedInDefaultRegion: Operation not allowed in the default region");
+            }
+
+            return ret;
+        }
+
+        private bool IsOperationAllowedData(OperationType opType, long operationOffset)
+        {
+            var ret = false;
+            var matched = false;
+
+            for(var i = 0; i < NumberOfMpRegions; i++)
+            {
+                if(MpRegionRegisterAppliesToOperation(i, operationOffset))
+                {
+                    matched = true;
+                    ret = IsOperationAllowedInMpRegion(opType, i);
+                    break;
+                }
+            }
+            if(!matched)
+            {
+                ret = IsOperationAllowedInDefaultRegion(opType);
+            }
+
+            if(!ret)
+            {
+                this.Log(
+                    LogLevel.Debug, "OpenTitan_FlashController/IsOperationAllowedData: Operation not allowed!");
             }
 
             return ret;
@@ -547,42 +735,131 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private bool IsOperationAllowedInMpRegion(OperationType opType, int regionId)
         {
-            bool ret = (opType == OperationType.ReadData && mpRegionReadEnabled[regionId].Value)
-                || (opType == OperationType.ProgramData && mpRegionProgEnabled[regionId].Value)
-                || (opType == OperationType.EraseDataPage && mpRegionEraseEnabled[regionId].Value);
+            if(!mpRegionEnabled[regionId].Value)
+            {
+                return false;
+            }
 
-            ret = ret && mpRegionEnabled[regionId].Value;
+            var ret = false;
+            switch(opType)
+            {
+                case OperationType.ReadData:
+                    ret = mpRegionReadEnabled[regionId].Value;
+                    break;
+                case OperationType.ProgramData:
+                    ret = mpRegionProgEnabled[regionId].Value;
+                    break;
+                case OperationType.EraseDataPage:
+                    ret = mpRegionEraseEnabled[regionId].Value;
+                    break;
+                default:
+                    break;
+            }
 
-            if(mpRegionEnabled[regionId].Value && !ret)
+            if(!ret)
             {
                 this.Log(
-                    LogLevel.Debug, "OpenTitan_FlashController/IsOperationAllowedInMpRegion: " +
-                    "Operation not allowed!");
+                    LogLevel.Debug, "OpenTitan_FlashController/IsOperationAllowedInMpRegion: Operation not allowed!");
             }
 
             return ret;
         }
 
-        private bool MpRegionRegisterAppliesToOperation(int regionId, long operationAddress)
+        private bool MpRegionRegisterAppliesToOperation(int regionId, long operationOffset)
         {
-            long regionStart = FlashMemBaseAddr + (mpRegionBase[regionId].Value * FlashWordsPerPage * FlashWordSize);
-            long regionEnd = regionStart + (mpRegionSize[regionId].Value * FlashWordsPerPage * FlashWordSize);
+            if(!mpRegionEnabled[regionId].Value)
+            {
+                return false;
+            }
 
-            // The bus is 4 bytes wide. Should that effect the border logic?
-            return (mpRegionEnabled[regionId].Value
-                && operationAddress >= regionStart
-                && operationAddress < regionEnd);
+            var operationPage = operationOffset / BytesPerPage;
+            var regionStart = mpRegionBase[regionId].Value;
+            var regionEnd = regionStart + mpRegionSize[regionId].Value;
+
+            return regionStart <= operationPage && operationPage < regionEnd;
         }
 
-        private long readAddress;
-        private long programAddress;
+        private void WriteFlashDoubleWord(long offset, uint value)
+        {
+            if(flashSelectPartition.Value)
+            {
+                var bankNumber = offset / BytesPerBank;
+                var bankOffset = offset % BytesPerBank;
+
+                infoFlash[bankNumber, flashSelectInfo.Value].WriteDoubleWord(bankOffset, value);
+            }
+            else
+            {
+                dataFlash.WriteDoubleWord(offset, value);
+            }
+        }
+
+        private uint ReadFlashDoubleWord(long offset)
+        {
+            if(flashSelectPartition.Value)
+            {
+                var bankNumber = offset / BytesPerBank;
+                var bankOffset = offset % BytesPerBank;
+
+                return infoFlash[bankNumber, flashSelectInfo.Value].ReadDoubleWord(bankOffset);
+            }
+            else
+            {
+                return dataFlash.ReadDoubleWord(offset);
+            }
+        }
+
+        private void UpdateInterrupts()
+        {
+            ProgramEmptyIRQ.Set(interruptStatusProgramEmpty.Value && interruptEnableProgramEmpty.Value);
+            ProgramLevelIRQ.Set(interruptStatusProgramLevel.Value && interruptEnableProgramLevel.Value);
+            ReadFullIRQ.Set(interruptStatusReadFull.Value && interruptEnableReadFull.Value);
+            ReadLevelIRQ.Set(interruptStatusReadLevel.Value && interruptEnableReadLevel.Value);
+            OperationDoneIRQ.Set(interruptStatusOperationDone.Value && interruptEnableOperationDone.Value);
+            CorrectableErrorIRQ.Set(interruptStatusCorrectableError.Value && interruptEnableCorrectableError.Value);
+        }
+
+        private bool TryGetOffset(out long offset)
+        {
+            if(flashAddress.HasValue)
+            {
+                offset = (address.Value & ~(FlashWordSize - 1)) - flashAddress.Value;
+                return true;
+            }
+            else
+            {
+                offset = default(long);
+                return false;
+            }
+        }
+
+        private long readOffset;
+        private long programOffset;
+        private long? flashAddress;
+
+        private readonly IFlagRegisterField interruptStatusProgramEmpty;
+        private readonly IFlagRegisterField interruptStatusProgramLevel;
+        private readonly IFlagRegisterField interruptStatusReadFull;
+        private readonly IFlagRegisterField interruptStatusReadLevel;
+        private readonly IFlagRegisterField interruptStatusOperationDone;
+        private readonly IFlagRegisterField interruptStatusCorrectableError;
+
+        private readonly IFlagRegisterField interruptEnableProgramEmpty;
+        private readonly IFlagRegisterField interruptEnableProgramLevel;
+        private readonly IFlagRegisterField interruptEnableReadFull;
+        private readonly IFlagRegisterField interruptEnableReadLevel;
+        private readonly IFlagRegisterField interruptEnableOperationDone;
+        private readonly IFlagRegisterField interruptEnableCorrectableError;
 
         private readonly MappedMemory dataFlash;
-        private readonly ArrayMemory infoFlash;
+        private readonly ArrayMemory[,] infoFlash;
         private readonly IFlagRegisterField opStatusRegisterDoneFlag;
         private readonly IFlagRegisterField opStatusRegisterErrorFlag;
-        private readonly IFlagRegisterField interruptStatusRegisterOpDoneFlag;
-        private readonly IFlagRegisterField statusRegisterReadEmptyFlag;
+        private readonly IFlagRegisterField statusReadFullFlag;
+        private readonly IFlagRegisterField statusReadEmptyFlag;
+
+        private readonly IFlagRegisterField outOfBoundsError;
+        private readonly IFlagRegisterField memoryProtectionError;
 
         private readonly IFlagRegisterField defaultMpRegionReadEnabled;
         private readonly IFlagRegisterField defaultMpRegionProgEnabled;
@@ -594,9 +871,14 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IFlagRegisterField[] mpRegionReadEnabled;
         private readonly IFlagRegisterField[] mpRegionProgEnabled;
         private readonly IFlagRegisterField[] mpRegionEraseEnabled;
+        private readonly IFlagRegisterField[,][] bankInfoPageEnabled;
+        private readonly IFlagRegisterField[,][] bankInfoPageReadEnabled;
+        private readonly IFlagRegisterField[,][] bankInfoPageProgramEnabled;
+        private readonly IFlagRegisterField[,][] bankInfoPageEraseEnabled;
 
         private readonly IFlagRegisterField flashSelectEraseMode;
         private readonly IFlagRegisterField flashSelectPartition;
+        private readonly IValueRegisterField flashSelectInfo;
         
         private readonly IFlagRegisterField eraseBank0;
         private readonly IFlagRegisterField eraseBank1;
@@ -607,14 +889,24 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private readonly IValueRegisterField controlNum;
 
+        private readonly IValueRegisterField errorAddress;
+
+        private readonly IValueRegisterField programFifoLevel;
+        private readonly IValueRegisterField readFifoLevel;
+
+        private readonly uint[] FlashNumberOfPagesInInfo = { 10, 1, 2 };
+
         private const uint ReadFifoDepth = 16;
         private const uint ProgramFifoDepth = 16;
         private const uint FlashWordsPerPage = 256;
         private const uint FlashWordSize = 8;
         private const uint FlashPagesPerBank = 256;
-        private const long FlashMemBaseAddr = 0x20000000;
+        private const uint FlashNumberOfBanks = 2;
+        private const uint FlashNumberOfInfoTypes = 3;
 
         private const int NumberOfMpRegions = 8;
+        private const uint BytesPerPage = FlashWordsPerPage * FlashWordSize;
+        private const uint BytesPerBank = FlashPagesPerBank * BytesPerPage;
 
         private enum Registers : long
         {
