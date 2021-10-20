@@ -51,12 +51,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return;
             }
 
-            frame = frame.Skip(4).ToArray();
+            var addressLength = (int)baseAddressLength.Value + 1;
+            var headerLengthInAir = HeaderLengthInAir();
+            var headerLengthInRAM = HeaderLengthInRAM();
 
             this.Log(LogLevel.Noisy, "ReceiveFrame {0}", Misc.PrettyPrintCollectionHex(frame));
 
             var dataAddress = packetPointer.Value;
-            machine.SystemBus.WriteBytes(frame, dataAddress);
+            machine.SystemBus.WriteBytes(frame, dataAddress, addressLength, headerLengthInAir);
+            var payloadLength = Math.Min(frame[addressLength + s0Length.Value], maxPacketLength.Value);
+            machine.SystemBus.WriteBytes(frame, (ulong)(dataAddress + headerLengthInRAM), addressLength + headerLengthInAir, payloadLength);
 
             machine.LocalTimeSource.ExecuteInNearestSyncedState((_) => {
                SetEvent(Events.Address);
@@ -441,20 +445,30 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
+        private int HeaderLengthInAir()
+        {
+           return (int)Math.Ceiling((s0Length.Value * 8 + lengthFieldLength.Value + s1Length.Value) / 8.0);
+        }
+
+        private int HeaderLengthInRAM()
+        {
+           int ret = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
+           if(s1Length.Value == 0 && s1Include.Value)
+           {
+              ret += 1;
+           }
+           return ret;
+        }
+
         private void SendPacket()
         {
             var dataAddress = packetPointer.Value;
-            var headerLength = (int)Math.Ceiling((s0Length.Value * 8 + lengthFieldLength.Value + s1Length.Value) / 8.0);
+            var headerLengthInAir = HeaderLengthInAir();
             var addressLength = (int)baseAddressLength.Value + 1;
-            if(s1Length.Value == 0 && s1Include.Value)
+            var headerLengthInRAM = HeaderLengthInRAM();
+            if(headerLengthInAir != headerLengthInRAM)
             {
-                // based on https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.nrf52832.ps.v1.1/radio.html?cp=4_2_0_22_0#concept_dxt_xfj_4r
-                headerLength++;
-            }
-            var headerLengthInRAM = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
-            if(headerLength != headerLengthInRAM)
-            {
-                this.Log(LogLevel.Error, "Length mismatch {0} vs {1}, but continuing anyway", headerLength, headerLengthInRAM);
+                this.Log(LogLevel.Info, "Header length difference between onAir={0} and inRam={1}", headerLengthInAir, headerLengthInRAM);
             }
 
             var data = new byte[addressLength + headerLengthInRAM + maxPacketLength.Value];
@@ -468,7 +482,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length ({1}), trimming...", payloadLength, maxPacketLength.Value);
                 payloadLength = (byte)maxPacketLength.Value;
             }
-            machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLength);
+            machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLengthInAir);
             this.Log(LogLevel.Noisy, "Data: {0} Maxlen {1} statlen {2}", Misc.PrettyPrintCollectionHex(data), maxPacketLength.Value, staticLength.Value);
 
             FrameSent?.Invoke(this, data);
