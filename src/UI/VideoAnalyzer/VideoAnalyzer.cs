@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Input;
 using Xwt;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 using Antmicro.Migrant;
 using System.IO;
 using Xwt.Drawing;
@@ -209,11 +210,29 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 
             if((now - lastRewrite).TotalSeconds > 1)
             {
-                framerateL.Text = string.Format("{0} fps", (int)(1 / (now - prev).Value.TotalSeconds));
+                var framerate = (int)(1 / (now - prev).Value.TotalSeconds);
+                var deviation = (lastOffendingFramerate > framerate ? (float)lastOffendingFramerate / framerate : (float)framerate / lastOffendingFramerate) - 1.0;
+                if(framerate >= HighFramerateThreshold && deviation > OffendingFramerateDeviation)
+                {
+                    lastOffendingFramerate = framerate;
+                    this.Log(LogLevel.Info, "The framebuffer fps is very high and can cause high CPU usage. Consider decreasing FramesPerVirtualSecond in video peripheral.");
+                }
+                if(framerate <= LowFramerateThreshold && Math.Abs(lastOffendingFramerate - framerate) > MinimalFramerateDelta && deviation > OffendingFramerateDeviation)
+                {
+                    lastOffendingFramerate = framerate;
+                    this.Log(LogLevel.Info, "The framebuffer fps is very low and can cause video playback to be choppy. Consider increasing FramesPerVirtualSecond in video peripheral.");
+                }
+
+                framerateL.Text = string.Format("{0} fps", framerate);
                 lastRewrite = now;
             }
             prev = now;
         }
+
+        private const int HighFramerateThreshold = 100;
+        private const int LowFramerateThreshold = 10;
+        private const int MinimalFramerateDelta = 5;
+        private const float OffendingFramerateDeviation = 0.4F;
 
         private FrameBufferDisplayWidget displayWidget;
         private Widget analyserWidget;
@@ -223,6 +242,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         private Label framerateL;
         private DateTime? prev;
         private DateTime lastRewrite;
+        private int lastOffendingFramerate;
     }
 }
 

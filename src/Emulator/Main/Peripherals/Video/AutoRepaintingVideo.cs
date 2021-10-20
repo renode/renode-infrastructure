@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,7 +22,8 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             innerLock = new object();
             // we use synchronized thread since some deriving classes can generate interrupt on repainting
-            repainter = machine.ObtainManagedThread(DoRepaint, FramesPerSecond);
+            this.machine = machine;
+            repainter = machine.ObtainManagedThread(DoRepaint, FramesPerVirtualSecond);
             Endianess = ELFSharp.ELF.Endianess.LittleEndian;
         }
 
@@ -48,10 +49,29 @@ namespace Antmicro.Renode.Peripherals.Video
         [field: Transient]
         public event Action<byte[]> FrameRendered;
 
+        public int FramesPerVirtualSecond
+        {
+            get
+            {
+                return framesPerVirtualSecond;
+            }
+            set
+            {
+                repainter.Dispose();
+                repainter = machine.ObtainManagedThread(DoRepaint, value);
+                if(RepainterIsRunning)
+                {
+                    repainter.Start();
+                }
+
+                framesPerVirtualSecond = value;
+            }
+        }
         public int Width { get; private set; }
         public int Height { get; private set; }
         public PixelFormat Format { get; private set; }
         public ELFSharp.ELF.Endianess Endianess { get; protected set; }
+        public bool RepainterIsRunning { get; private set; }
 
         public event Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> ConfigurationChanged
         {
@@ -106,15 +126,18 @@ namespace Antmicro.Renode.Peripherals.Video
                     }
                     if(autoRepaint)
                     {
+                        RepainterIsRunning = true;
                         repainter.Start();
                     }
                     else
                     {
+                        RepainterIsRunning = false;
                         repainter.Stop();
                     }
                 }
                 else
                 {
+                    RepainterIsRunning = false;
                     repainter.Stop();
                 }
             }
@@ -144,8 +167,8 @@ namespace Antmicro.Renode.Peripherals.Video
         [Transient]
         private Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> configurationChanged;
         private readonly object innerLock;
-
-        private const int FramesPerSecond = 25;
+        private readonly Machine machine;
+        private int framesPerVirtualSecond = 25;
     }
 }
 
