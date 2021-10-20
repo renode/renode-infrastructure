@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -213,9 +213,7 @@ namespace Antmicro.Renode.Logging
             {
                 if(!useSynchronousLogging)
                 {
-                    stopThread = true;
-                    cancellationToken.Cancel();
-                    loggingThread.Join();
+                    StopLoggingThread();
                 }
             }
 
@@ -336,12 +334,24 @@ namespace Antmicro.Renode.Logging
                 {
                     entries = new BlockingCollection<LogEntry>(10000);
 
-                    cancellationToken = new CancellationTokenSource();
-                    loggingThread = new Thread(LoggingThreadBody);
-                    loggingThread.IsBackground = true;
-                    loggingThread.Name = "Logging thread";
-                    loggingThread.Start();
+                    StartLoggingThread();
                 }
+            }
+
+            private void StartLoggingThread()
+            {
+                cancellationToken = new CancellationTokenSource();
+                loggingThread = new Thread(LoggingThreadBody);
+                loggingThread.IsBackground = true;
+                loggingThread.Name = "Logging thread";
+                loggingThread.Start();
+            }
+
+            private void StopLoggingThread()
+            {
+                stopThread = true;
+                cancellationToken.Cancel();
+                loggingThread.Join();
             }
 
             [Transient]
