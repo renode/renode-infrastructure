@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 break;
             }
         }
-        
+
         #region IDoubleWordPeripheral implementation
         public uint ReadDoubleWord (long offset)
         {
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return 0;
             }
         }
-        
+
         public void WriteDoubleWord (long offset, uint value)
         {
             if(offset < (int)(registerOffset.ProcessorInterruptMaskBase))
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 switch((registerOffset)offset)
                 {
                 case registerOffset.InterruptLevel:
-                    // Each interrupt can be assigned to one of two levels (0 or 1) as programmed in 
+                    // Each interrupt can be assigned to one of two levels (0 or 1) as programmed in
                     // the interrupt level register - bit 1-15. Level 1 has higher priority than level 0.
                     if(value < 0xFFFF)
                     {
@@ -189,11 +189,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         for(var i = 0; i < numberOfProcessors; i++)
                         {
                             // Check if CPU is halted and then if it is requested to reset
-                            if((( ~(registers.MultiprocessorStatus >> i) & 0x1) == 0x1)  
+                            if((( ~(registers.MultiprocessorStatus >> i) & 0x1) == 0x1)
                                 && (((value >> i) & 0x1) == 0x1))
                             {
                                     resets[i].Set();
-                                    runs[i].Set();                            }
+                                    runs[i].Set();
+                            }
                         }
                     }
                     // Make setting a bit sticky
@@ -284,49 +285,50 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             uint pendingInterrupts = 0;
             uint processorPendingInterrupts = 0;
 
-                if(value)
+            if(value)
+            {
+                pendingInterrupts |= (1u << number);
+                // If interrupt is enabled in Broadcast register use cpu Force registers instead of global Pending
+                if(isBroadcastEnabled() && ((registers.Broadcast & pendingInterrupts) != 0))
                 {
-                    pendingInterrupts |= (1u << number);
-                    // If interrupt is enabled in Broadcast register use cpu Force registers instead of global Pending
-                    if(isBroadcastEnabled() && ((registers.Broadcast & pendingInterrupts) != 0))
+                    for(i = 0; i < numberOfProcessors; i++)
                     {
-                        for(i = 0; i < numberOfProcessors; i++)
+                        processorPendingInterrupts = pendingInterrupts & registers.ProcessorInterruptMask[i];
+                        if(processorPendingInterrupts != 0)
                         {
-                            processorPendingInterrupts = pendingInterrupts & registers.ProcessorInterruptMask[i];
-                            if(processorPendingInterrupts != 0)
+                            lock(interrupts[i])
                             {
-                                lock(interrupts[i])
+                                registers.ProcessorInterruptForce[i] |= processorPendingInterrupts;
+                                addPendingInterrupt(i, number);
+                                if (number == NMI_IRQ)
                                 {
-                                    registers.ProcessorInterruptForce[i] |= processorPendingInterrupts;
-                                    addPendingInterrupt(i, number);
-                                    if (number == NMI_IRQ)
-                                    {
-                                        set_nmi_interrupt[i] = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        for(i = 0; i < numberOfProcessors; i++)
-                        {
-                            processorPendingInterrupts = pendingInterrupts & registers.ProcessorInterruptMask[i];
-                            if(processorPendingInterrupts != 0)
-                            {
-                                lock(interrupts[i])
-                                {
-                                    registers.InterruptPending |= processorPendingInterrupts;
-                                    addPendingInterrupt(i, number);
-                                    if (number == NMI_IRQ)
-                                    {
-                                        set_nmi_interrupt[i] = true;
-                                    }
+                                    set_nmi_interrupt[i] = true;
                                 }
                             }
                         }
                     }
                 }
+                else
+                {
+                    for(i = 0; i < numberOfProcessors; i++)
+                    {
+                        processorPendingInterrupts = pendingInterrupts & registers.ProcessorInterruptMask[i];
+                        if(processorPendingInterrupts != 0)
+                        {
+                            lock(interrupts[i])
+                            {
+                                registers.InterruptPending |= processorPendingInterrupts;
+                                addPendingInterrupt(i, number);
+                                if (number == NMI_IRQ)
+                                {
+                                    set_nmi_interrupt[i] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             this.forwardInterrupt();
         }
         #endregion
@@ -346,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             return spaceType;
         }
-        
+
         public uint GetInterruptNumber()
         {
             var irqEndpoints = irqs[0].Endpoints;
@@ -379,34 +381,34 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void forwardInterrupt()
         {
-                for(var i = 0; i < numberOfProcessors; i++)
+            for(var i = 0; i < numberOfProcessors; i++)
+            {
+                lock(interrupts[i])
                 {
-                    lock(interrupts[i])
+                    // If broadcast is set for an irq send this to each CPU
+                    if(isBroadcastEnabled())
                     {
-                        // If broadcast is set for an irq send this to each CPU
-                        if(isBroadcastEnabled())
-                        {
-                            if((!irqs[i].IsSet) && (registers.ProcessorInterruptForce[i] != 0))
-                            {
-                                irqs[i].Set();
-                            }
-                        }
-                        if((!irqs[i].IsSet) && (registers.InterruptPending & registers.ProcessorInterruptMask[i]) != 0)
+                        if((!irqs[i].IsSet) && (registers.ProcessorInterruptForce[i] != 0))
                         {
                             irqs[i].Set();
-                        }
-
-                        // Always forward the NMI interrupt, even if the cpu is already servicing
-                        // another interrupt. Not doing this when running an SMP Linux kernel will
-                        // result in a deadlock in the kernels cpu cross call mechanism.
-                        if(set_nmi_interrupt[i])
-                        {
-                            irqs[i].Unset();
-                            irqs[i].Set();
-                            set_nmi_interrupt[i] = false;
                         }
                     }
+                    if((!irqs[i].IsSet) && (registers.InterruptPending & registers.ProcessorInterruptMask[i]) != 0)
+                    {
+                        irqs[i].Set();
+                    }
+
+                    // Always forward the NMI interrupt, even if the cpu is already servicing
+                    // another interrupt. Not doing this when running an SMP Linux kernel will
+                    // result in a deadlock in the kernels cpu cross call mechanism.
+                    if(set_nmi_interrupt[i])
+                    {
+                        irqs[i].Unset();
+                        irqs[i].Set();
+                        set_nmi_interrupt[i] = false;
+                    }
                 }
+            }
         }
 
         // Needs to be (interrupts[i]) locked from caller
@@ -435,7 +437,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     // Find interrupt with highest priority for this CPU
                     var interrupt = interrupts[cpuid].OrderByDescending(x => x.Value).First().Key;
                     // As the irq no is external, we have to add 0x10
-                    var intNo = interrupt + 0x10; 
+                    var intNo = interrupt + 0x10;
                     return intNo;
                 }
             }
@@ -443,7 +445,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         // When a processor acknowledges the interrupt, the corresponding pending bit will automatically be
-        // cleared. Interrupt can also be forced by setting a bit in the interrupt force register. 
+        // cleared. Interrupt can also be forced by setting a bit in the interrupt force register.
         // In this case, the processor acknowledgement will clear the force bit rather than the pending bit.
         public void CPUAckInterrupt(int cpuid, int interruptNumber)
         {
@@ -479,10 +481,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.forwardInterruptSingleCPU(cpuid);
             }
         }
-        
+
         private void addPendingInterrupt(int cpuid, int number)
         {
-            // Interrupts are added per CPU and have been checked against processor irq mask 
+            // Interrupts are added per CPU and have been checked against processor irq mask
             // in OnGPIO function before call - only handle priority here
             // Interrupt Level is either high (1) or low (0) - irq is prioritized per level, with 15 as highest
             var interruptPriority = number + (((registers.InterruptLevel & 1u<<number) != 0) ? 16 : 0);
@@ -518,13 +520,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly uint vendorID = 0x01;  // Aeroflex Gaisler
         private readonly uint deviceID = 0x00d; // GRLIB IRQMP
         private static uint maxNumberOfProcessors = 16;
-        private readonly GaislerAPBPlugAndPlayRecord.SpaceType spaceType = GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;    
+        private readonly GaislerAPBPlugAndPlayRecord.SpaceType spaceType = GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
         private deviceRegisters registers;
         private readonly GPIO[] irqs;
         private readonly GPIO[] resets;
         private readonly GPIO[] runs;
         private Dictionary<int, int>[] interrupts = new Dictionary<int, int>[maxNumberOfProcessors];
-              
+
         private enum registerOffset : uint
         {
             InterruptLevel = 0x00,
@@ -533,11 +535,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptClear = 0x0C,
             MultiprocessorStatus = 0x10,
             Broadcast = 0x14,
-            ProcessorInterruptMaskBase = 0x40, 
+            ProcessorInterruptMaskBase = 0x40,
             ProcessorInterruptForceBase = 0x80,
             ProcessorExtendedInterruptAcknowledgeBase = 0xC0
         }
-        
+
         private class deviceRegisters
         {
             public uint InterruptLevel;
@@ -547,7 +549,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public uint[] ProcessorInterruptMask;
             public uint[] ProcessorInterruptForce;
             public uint[] ProcessorExtendedInterruptAcknowledge;
-            
+
             public deviceRegisters()
             {
                 ProcessorInterruptMask = new uint[maxNumberOfProcessors];
