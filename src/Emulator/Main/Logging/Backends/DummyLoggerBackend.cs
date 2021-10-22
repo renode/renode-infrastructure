@@ -34,6 +34,10 @@ namespace Antmicro.Renode.Logging.Backends
         {
         }
 
+        public void Flush()
+        {
+        }
+
         public void SetLogLevel(LogLevel level, int sourceId = -1)
         {
         }
