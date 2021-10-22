@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -52,6 +52,11 @@ namespace Antmicro.Renode.Logging.Backends
         {
         }
 
+        public override void Flush()
+        {
+            cache.Flush();
+        }
+        
         public Task<SearchResults> FilterHistoryViewAsync(string queryString, ViewFilter view, int count, Direction direction, ulong? referenceId = null)
         {
             return Task.Run<SearchResults>(() => FilterHistoryView(queryString, view, count, direction, referenceId));
@@ -228,6 +233,10 @@ namespace Antmicro.Renode.Logging.Backends
                 }
             }
 
+            public void Flush()
+            {
+                currentWriter.Writer.Flush();
+            }
 
             private static bool TryDeserializeEntry(PrimitiveReader reader, out LogEntry entry)
             {
