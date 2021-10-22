@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -251,13 +251,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             else if(offset < (int)(registerOffset.ProcessorExtendedInterruptAcknowledgeBase) + 4 * maxNumberOfProcessors)
             {
-                for(var i = 0; i < numberOfProcessors; i++)
-                {
-                    if(offset == (int)(registerOffset.ProcessorExtendedInterruptAcknowledgeBase) + 4 * i)
-                    {
-                        registers.ProcessorExtendedInterruptAcknowledge[i] = value;
-                    }
-                }
+                this.Log(LogLevel.Warning, "Write to read-only register (ProcessorExtendedInterruptAcknowledge) value {0:X}", value);
             }
             else
             {
@@ -436,6 +430,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     // Find interrupt with highest priority for this CPU
                     var interrupt = interrupts[cpuid].OrderByDescending(x => x.Value).First().Key;
+                    // Treat all extended interrupts as interrupt #1
+                    if(IsExtendedInterruptNumber(interrupt))
+                    {
+                        interrupt = 1;
+                    }
                     // As the irq no is external, we have to add 0x10
                     var intNo = interrupt + 0x10;
                     return intNo;
@@ -454,6 +453,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             lock(interrupts[cpuid])
             {
+                // Handle extended interrupts, which are all mapped to IRQ 1
+                if(realInterruptNumber == 1)
+                {
+                    // Extended interrupts have no prioritization between individual interrupts
+                    var extendedInt = interrupts[cpuid].Keys.FirstOrDefault(IsExtendedInterruptNumber);
+                    if(extendedInt == 0)
+                    {
+                        // This is unusual, but supported by the documentation
+                        this.DebugLog("Interrupt #1 acknowledged without a pending extended interrupt.");
+                        registers.ProcessorExtendedInterruptAcknowledge[cpuid] = 0; // Clear PEXTACK register
+                    }
+                    else
+                    {
+                        realInterruptNumber = extendedInt;
+                        registers.ProcessorExtendedInterruptAcknowledge[cpuid] = (uint)extendedInt;
+                    }
+                }
+
                 // Check the irq is forced
                 if((registers.ProcessorInterruptForce[cpuid] & (1u << realInterruptNumber)) != 0)
                 {
@@ -487,7 +504,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Interrupts are added per CPU and have been checked against processor irq mask
             // in OnGPIO function before call - only handle priority here
             // Interrupt Level is either high (1) or low (0) - irq is prioritized per level, with 15 as highest
-            var interruptPriority = number + (((registers.InterruptLevel & 1u<<number) != 0) ? 16 : 0);
+            // Extended interrupts have no prioritization between individual interrupts
+
+            int interruptPriority;
+            if(IsExtendedInterruptNumber(number))
+            {
+                interruptPriority = 1;
+            }
+            else
+            {
+                interruptPriority = number + (((registers.InterruptLevel & 1u<<number) != 0) ? 16 : 0);
+            }
+
             try
             {
                 interrupts[cpuid].Add(number, interruptPriority);
@@ -513,6 +541,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return false;
             }
+        }
+
+        private static bool IsExtendedInterruptNumber(int irq)
+        {
+            return irq >= 16 && irq <= 32;
         }
 
         private readonly bool[] set_nmi_interrupt;
@@ -544,7 +577,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             public uint InterruptLevel;
             public uint InterruptPending;
-            public uint MultiprocessorStatus = 0x01;
+            public uint MultiprocessorStatus = 0x01 | (1 << 16); // 1 - interrupt number used for extended IRQs
             public uint Broadcast;
             public uint[] ProcessorInterruptMask;
             public uint[] ProcessorInterruptForce;
