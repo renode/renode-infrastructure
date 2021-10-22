@@ -289,6 +289,32 @@ namespace Antmicro.Renode.Logging
                 }
             }
 
+            public void Flush()
+            {
+                if(useSynchronousLogging)
+                {
+                    FlushBackends();
+                    return;
+                }
+
+                StopLoggingThread();
+
+                // switch collections to avoid
+                // stucking forever in the loop below
+                var localEntries = entries;
+                entries = new BlockingCollection<LogEntry>(10000);
+                
+                while(localEntries.TryTake(out var entry))
+                {
+                    // we set ids here to avoid the need of locking counter in `ObjectInnerLog`
+                    entry.Id = Logger.nextEntryId++;
+                    WriteLogEntryToBackends(entry);
+                }
+                
+                FlushBackends();
+                StartLoggingThread(); 
+            }
+
             private void LoggingThreadBody()
             {
                 while(!stopThread)
@@ -315,6 +341,15 @@ namespace Antmicro.Renode.Logging
                 for(var i = 0; i < allBackends.Length; i++)
                 {
                     allBackends[i].Log(entry);
+                }
+            }
+
+            private void FlushBackends()
+            {
+                var allBackends = Logger.backends.Items;
+                for(var i = 0; i < allBackends.Length; i++)
+                {
+                    allBackends[i].Flush();
                 }
             }
 

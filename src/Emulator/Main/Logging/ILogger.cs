@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,6 +13,8 @@ namespace Antmicro.Renode.Logging
     {
         string GetMachineName(int id);
         string GetObjectName(int id);
+
+        void Flush();
 
         int GetOrCreateSourceId(object source);
         bool TryGetName(int id, out string objectName, out string machineName);
