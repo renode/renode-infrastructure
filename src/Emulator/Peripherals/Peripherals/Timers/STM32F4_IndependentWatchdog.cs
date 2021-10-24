@@ -11,7 +11,6 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
 
-
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public class STM32F4_IndependentWatchdog : BasicDoubleWordPeripheral, IKnownSize
@@ -28,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public override void Reset()
         {
+            base.reset();
+
             watchdogTimer.Reset();
         }
 
@@ -36,22 +37,22 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void DefineRegisters()
         {
             Register.IWDG_KR.Define(this)
-            .WithValueField(0, 16,FieldMode.Read, writeCallback: (_, value) =>
-            {
-                registersUnlocked = false;
-                switch(value)
-                {
-                    case valueToResetWatchdog:
-                        watchdogTimer.Limit = watchdogRLRValue;
-                        break;
-                    case valueToStartWatchdog:
-                        watchdogTimer.Enabled = true;
-                        break;
-                    case valueToUnlockRegisters:
-                        registersUnlocked = true;
-                        break;
-                }
-            }, name: "KEY")
+            .WithValueField(0, 16, FieldMode.Read, writeCallback: (_, value) =>
+             {
+                 registersUnlocked = false;
+                 switch(value)
+                 {
+                     case valueToResetWatchdog:
+                         watchdogTimer.Limit = watchdogRLRValue;
+                         break;
+                     case valueToStartWatchdog:
+                         watchdogTimer.Enabled = true;
+                         break;
+                     case valueToUnlockRegisters:
+                         registersUnlocked = true;
+                         break;
+                 }
+             }, name: "KEY")
             .WithReservedBits(16, 16);
 
             Register.IWDG_PR.Define(this)
