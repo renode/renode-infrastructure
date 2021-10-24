@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -380,6 +381,7 @@
     <Compile Include="Peripherals\Sound\EOSS3_Voice.cs" />
     <Compile Include="Peripherals\Network\LiteX_Ethernet_CSR32.cs" />
     <Compile Include="Peripherals\Timers\LiteX_Timer_CSR32.cs" />
+    <Compile Include="Peripherals\Timers\STM32F4_IndependentWatchdog.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_VerilatorSwTestStatus.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_PowerManager.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_HMAC.cs" />
@@ -403,12 +405,7 @@
           <TextStylePolicy FileWidth="120" TabWidth="4" IndentWidth="4" RemoveTrailingWhitespace="True" TabsToSpaces="True" NoTabsAfterNonTabs="True" EolMarker="Unix" scope="text/plain" />
           <DotNetNamingPolicy DirectoryNamespaceAssociation="PrefixedHierarchical" ResourceNamePolicy="FileName" />
           <CSharpFormattingPolicy IndentBlock="True" IndentBraces="False" IndentSwitchSection="True" IndentSwitchCaseSection="True" LabelPositioning="OneLess" NewLinesForBracesInTypes="True" NewLinesForBracesInMethods="True" NewLinesForBracesInProperties="True" NewLinesForBracesInAccessors="True" NewLinesForBracesInAnonymousMethods="True" NewLinesForBracesInControlBlocks="True" NewLinesForBracesInAnonymousTypes="True" NewLinesForBracesInObjectCollectionArrayInitializers="True" NewLinesForBracesInLambdaExpressionBody="True" NewLineForElse="True" NewLineForCatch="True" NewLineForFinally="True" NewLineForMembersInObjectInit="True" NewLineForMembersInAnonymousTypes="True" NewLineForClausesInQuery="True" SpacingAfterMethodDeclarationName="False" SpaceWithinMethodDeclarationParenthesis="False" SpaceBetweenEmptyMethodDeclarationParentheses="False" SpaceAfterMethodCallName="False" SpaceWithinMethodCallParentheses="False" SpaceBetweenEmptyMethodCallParentheses="False" SpaceWithinExpressionParentheses="False" SpaceWithinCastParentheses="False" SpaceWithinOtherParentheses="False" SpaceAfterCast="False" SpacesIgnoreAroundVariableDeclaration="False" SpaceBeforeOpenSquareBracket="False" SpaceBetweenEmptySquareBrackets="False" SpaceWithinSquareBrackets="False" SpaceAfterColonInBaseTypeDeclaration="True" SpaceAfterComma="True" SpaceAfterDot="False" SpaceAfterSemicolonsInForStatement="True" SpaceBeforeColonInBaseTypeDeclaration="True" SpaceBeforeComma="False" SpaceBeforeDot="False" SpaceBeforeSemicolonsInForStatement="False" SpacingAroundBinaryOperator="Single" WrappingPreserveSingleLine="True" WrappingKeepStatementsOnSingleLine="True" PlaceSystemDirectiveFirst="True" SpaceAfterControlFlowStatementKeyword="False" scope="text/x-csharp" />
-          <StandardHeader IncludeInNewFiles="True" Text="
-Copyright (c) 2010-${Year} Antmicro
-
- This file is licensed under the MIT License.
- Full license text is available in 'licenses/MIT.txt'.
-" />
+          <StandardHeader IncludeInNewFiles="True" Text="&#xA;Copyright (c) 2010-${Year} Antmicro&#xA;&#xA; This file is licensed under the MIT License.&#xA; Full license text is available in 'licenses/MIT.txt'.&#xA;" />
         </Policies>
       </Properties>
     </MonoDevelop>
@@ -450,6 +447,5 @@ Copyright (c) 2010-${Year} Antmicro
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
-    <Compile Include="Peripherals\Timers\STM32F4_Watchdog.cs" />
   </ItemGroup>
 </Project>
