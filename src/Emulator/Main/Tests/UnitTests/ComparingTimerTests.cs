@@ -119,6 +119,36 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(timer.Value, compare);
             Assert.AreEqual(timer.Compare, compare);
         }
+
+        [Test]
+        public void ShouldNotGenerateAdditionalCompareEvent()
+        {
+            var limit = 300UL;
+            var compare = 100UL;
+            var compareCounter = 0;
+            var clockSource = new BaseClockSource();
+            var timer = new ComparingTimer(clockSource, frequency: 1000000, owner: null,
+                  localName: String.Empty, limit: limit, enabled: true, eventEnabled: true, compare: compare);
+            timer.CompareReached += delegate { compareCounter++; };
+
+            Assert.AreEqual(0, compareCounter);
+
+            // Run up to the first compare
+            clockSource.Advance(TimeInterval.FromTicks(100), true);
+            Assert.AreEqual(1, compareCounter);
+
+            // overwrite timer's value with the same value it has;
+            // this should be a nop
+            timer.Value = 100;
+
+            Assert.AreEqual(1, compareCounter);
+
+            // Now run to the next compare event
+            clockSource.Advance(TimeInterval.FromTicks(300), true);
+            Assert.AreEqual(2, compareCounter);
+            Assert.AreEqual(timer.Value, compare);
+            Assert.AreEqual(timer.Compare, compare);
+        }
     }
 }
 
