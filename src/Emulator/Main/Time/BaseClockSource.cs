@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -74,6 +74,7 @@ namespace Antmicro.Renode.Time
                 {
                     throw new ArgumentException("A clock entry with given handler already exists in the clock source.");
                 }
+                UpdateLimits();
                 clockEntries.Add(entry);
                 clockEntriesUpdateHandlers.Add(null);
                 UpdateUpdateHandler(clockEntries.Count - 1);
@@ -159,6 +160,7 @@ namespace Antmicro.Renode.Time
                 {
                     return false;
                 }
+                UpdateLimits();
                 clockEntries.RemoveAt(indexToRemove);
                 clockEntriesUpdateHandlers.RemoveAt(indexToRemove);
                 UpdateLimits();
