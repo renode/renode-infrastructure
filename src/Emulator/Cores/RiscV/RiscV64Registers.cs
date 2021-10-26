@@ -732,7 +732,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV64Registers.MIP,  new CPURegister(901, 64, isGeneral: false, isReadonly: false) },
             { RiscV64Registers.VL,  new CPURegister(3104, 64, isGeneral: false, isReadonly: false) },
             { RiscV64Registers.VTYPE,  new CPURegister(3105, 64, isGeneral: false, isReadonly: false) },
-            { RiscV64Registers.VLENB,  new CPURegister(3106, 64, isGeneral: false, isReadonly: false) },
+            { RiscV64Registers.VLENB,  new CPURegister(3106, 64, isGeneral: false, isReadonly: true) },
             { RiscV64Registers.PRIV,  new CPURegister(4161, 64, isGeneral: false, isReadonly: false) },
         };
     }

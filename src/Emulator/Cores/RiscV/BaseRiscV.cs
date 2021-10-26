@@ -337,6 +337,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public abstract RegisterValue VLEN { get; }
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             return Interrupt.Hard;

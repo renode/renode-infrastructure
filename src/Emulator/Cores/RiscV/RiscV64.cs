@@ -22,6 +22,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string GDBArchitecture { get { return "riscv:rv64"; } }
 
+        public override RegisterValue VLEN => VLENB * 8u;
+
         protected override byte MostSignificantBit => 63;
 
         private ulong BeforePCWrite(ulong value)

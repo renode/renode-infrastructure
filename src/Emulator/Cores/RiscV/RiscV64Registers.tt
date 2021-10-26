@@ -26,7 +26,7 @@
                                        "X20", "X21", "X22", "X23", "X24", "X25", "X26", "X27", "X28", "X29",
                                        "X30", "X31", "PC" });
                                        
-    UNSETTABLE_REGISTERS.AddRange(new[] {"X0"});
+    UNSETTABLE_REGISTERS.AddRange(new[] {"X0", "VLENB"});
 
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>
