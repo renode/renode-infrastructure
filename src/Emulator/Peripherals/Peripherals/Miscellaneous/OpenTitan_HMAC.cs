@@ -183,6 +183,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithIgnoredBits(3, 29)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
+            Registers.AlertTest.Define(this)
+                .WithTaggedFlag("fatal_fault", 0)
+                .WithIgnoredBits(1, 31);
+
             Registers.ConfigurationRegister.Define(this, 0x4)
                 .WithFlag(0, out hmacEnabled, name: "hmac_en")
                 .WithFlag(1, out shaEnabled, name: "sha_en")
@@ -324,29 +328,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             InterruptStatus        = 0x0,
             InterruptEnable        = 0x4,
             InterruptTest          = 0x8,
-            ConfigurationRegister  = 0xC, 
-            Command                = 0x10,
-            Status                 = 0x14,
-            ErrorCode              = 0x18,
-            RandomizationInput     = 0x1C,
-            SecretKey_0            = 0x20,
-            SecretKey_1            = 0x24,
-            SecretKey_2            = 0x28,
-            SecretKey_3            = 0x2C,
-            SecretKey_4            = 0x30,
-            SecretKey_5            = 0x34,
-            SecretKey_6            = 0x38,
-            SecretKey_7            = 0x3C,
-            Digest_0               = 0x40,
-            Digest_1               = 0x44,
-            Digest_2               = 0x48,
-            Digest_3               = 0x4C,
-            Digest_4               = 0x50,
-            Digest_5               = 0x54,
-            Digest_6               = 0x58,
-            Digest_7               = 0x5C,
-            MessageLengthLowerPart = 0x60,
-            MessageLengthUpperPart = 0x64,
+            AlertTest              = 0xC,
+            ConfigurationRegister  = 0x10,
+            Command                = 0x14,
+            Status                 = 0x18,
+            ErrorCode              = 0x1C,
+            RandomizationInput     = 0x20,
+            SecretKey_0            = 0x24,
+            SecretKey_1            = 0x28,
+            SecretKey_2            = 0x2C,
+            SecretKey_3            = 0x30,
+            SecretKey_4            = 0x34,
+            SecretKey_5            = 0x38,
+            SecretKey_6            = 0x3C,
+            SecretKey_7            = 0x40,
+            Digest_0               = 0x44,
+            Digest_1               = 0x48,
+            Digest_2               = 0x4C,
+            Digest_3               = 0x50,
+            Digest_4               = 0x54,
+            Digest_5               = 0x58,
+            Digest_6               = 0x5C,
+            Digest_7               = 0x60,
+            MessageLengthLowerPart = 0x64,
+            MessageLengthUpperPart = 0x68, 
             FifoWindow             = 0x800,
         }
     }
