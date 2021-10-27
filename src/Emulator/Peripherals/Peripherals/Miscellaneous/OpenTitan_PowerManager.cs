@@ -42,6 +42,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     UpdateInterrupts();
                 })
                 .WithIgnoredBits(1, 31);
+
+            Registers.AlertTest.Define(this)
+                .WithTaggedFlag("fatal_fault", 0)
+                .WithIgnoredBits(1, 31);
             
             Registers.ControlConfigRegWriteEnable.Define(this, 0x1)
                 .WithFlag(0, out controlConfigRegWriteEnable, FieldMode.Read, name: "CTRL_CFG_REGWEN.EN")
@@ -118,18 +122,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             InterruptState = 0x0,
             InterruptEnable = 0x4,
             InterruptTest = 0x8,
-            ControlConfigRegWriteEnable = 0xc,
-            Control = 0x10,
-            ConfigClockDomainSync = 0x14,
-            WakeupEnableRegWriteEnable = 0x18,
-            WakeupEnable = 0x1c,
-            WakeStatus = 0x20,
-            ResetEnableRegWriteEnable = 0x24,
-            ResetEnable = 0x28,
-            ResetStatus = 0x2c,
-            EscalateResetStatue = 0x30,
-            WakeInfoCaptureDis = 0x34,
-            WakeInfo = 0x38
+            AlertTest = 0xC,
+            ControlConfigRegWriteEnable = 0x10,
+            Control = 0x14,
+            ConfigClockDomainSync = 0x18,
+            WakeupEnableRegWriteEnable = 0x1C,
+            WakeupEnable = 0x20,
+            WakeStatus = 0x24,
+            ResetEnableRegWriteEnable = 0x28,
+            ResetEnable = 0x2c,
+            ResetStatus = 0x30,
+            EscalateResetStatue = 0x34,
+            WakeInfoCaptureDis = 0x38,
+            WakeInfo = 0x3C
         }
     }
 }
