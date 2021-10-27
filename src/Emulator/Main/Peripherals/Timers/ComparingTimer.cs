@@ -89,8 +89,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry =>
                 {
                     valueAccumulatedSoFar = value;
-                    Compare = compareValue;
-                    return entry.With(value: 0);
+                    return entry.With(period: CalculatePeriod(), value: 0);
                 });
             }
         }
@@ -111,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     compareValue = value;
                     valueAccumulatedSoFar += entry.Value;
-                    return entry.With(period: ((compareValue > valueAccumulatedSoFar) ? compareValue : initialLimit) - valueAccumulatedSoFar, value: 0);
+                    return entry.With(period: CalculatePeriod(), value: 0);
                 });
             }
         }
@@ -153,6 +152,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             CompareReached?.Invoke();
+        }
+
+        private ulong CalculatePeriod()
+        {
+            return ((compareValue > valueAccumulatedSoFar) ? compareValue : initialLimit) - valueAccumulatedSoFar;
         }
 
         private void CompareReachedInternal()
