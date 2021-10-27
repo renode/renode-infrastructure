@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -124,6 +124,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlags(0, 32, FieldMode.Write, name: "INTR_TEST",
                         writeCallback: (id, _, val) => { interruptRequest[id] |= val; })
                     .WithWriteCallback((_, __) => UpdateIRQ())
+                },
+                {(long)Registers.AlertTest, new DoubleWordRegister(this)
+                    .WithTaggedFlag("fatal_fault", 0)
+                    .WithIgnoredBits(1, 31)
                 },
                 {(long)Registers.Input, new DoubleWordRegister(this)
                     .WithFlags(0, 32, FieldMode.Read, name: "DATA_IN",
@@ -282,18 +286,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             InterruptState          = 0x0,
             InterruptEnable         = 0x4,
             InterruptTest           = 0x8,
-            Input                   = 0xC,
-            Output                  = 0x10,
-            OutputMaskedLower       = 0x14,
-            OutputMaskedUpper       = 0x18,
-            OutputEnable            = 0x1C,
-            OutputEnableMaskedLower = 0x20,
-            OutputEnableMaskedUpper = 0x24,
-            InterruptEnableRising   = 0x28,
-            InterruptEnableFalling  = 0x2C,
-            InterruptEnableHigh     = 0x30,
-            InterruptEnableLow      = 0x34,
-            InputFilter             = 0x38
+            AlertTest               = 0xC,
+            Input                   = 0x10,
+            Output                  = 0x14,
+            OutputMaskedLower       = 0x18,
+            OutputMaskedUpper       = 0x1C,
+            OutputEnable            = 0x20,
+            OutputEnableMaskedLower = 0x24,
+            OutputEnableMaskedUpper = 0x28,
+            InterruptEnableRising   = 0x2C,
+            InterruptEnableFalling  = 0x30,
+            InterruptEnableHigh     = 0x34,
+            InterruptEnableLow      = 0x38,
+            InputFilter             = 0x3C
         }
     }
 }
