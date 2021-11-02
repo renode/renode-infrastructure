@@ -247,6 +247,18 @@ namespace Antmicro.Renode.Utilities
             reg &= (byte)mask;
         }
 
+        public static void SetBit(ref ulong reg, byte bit, bool value)
+        {
+            if(value)
+            {
+                reg |= (0x1ul << bit);
+            }
+            else
+            {
+                reg &= (ulong.MaxValue - (0x1ul << bit));
+            }
+        }
+
         public static void SetBit(ref uint reg, byte bit, bool value)
         {
             if(value)
