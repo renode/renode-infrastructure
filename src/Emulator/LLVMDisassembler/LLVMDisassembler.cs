@@ -56,6 +56,9 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 case "e200z6":
                     model = "ppc32";
                     break;
+                case "gr716":
+                    model = "leon3";
+                    break;
                 default:
                     model = cpu.Model;
                     break;
