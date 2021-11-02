@@ -471,6 +471,12 @@ namespace Antmicro.Renode.Utilities
                            (ReverseBits((byte)(s >> 16)) << 8) | ReverseBits((byte)(s >> 24)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong ReverseBits(ulong v)
+        {
+            return ((ulong)ReverseBits((uint)v) << 32) | ReverseBits((uint)(v >> 32));
+        }
+
         // TODO: enumerator + lazy calculation
         public class VariableLengthValue
         {
