@@ -179,10 +179,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 Tuple.Create(0x4000B140u, 0x40001000u),
                 // RTC0 Compare0 -> Radio RxEn
                 Tuple.Create(0x4000B140u, 0x40001004u),
-                // RTC0 Compare0 -> Radio Clear
-                Tuple.Create(0x4000B140u, 0x40001010u), //not sure about this. There is no 'clear' event in there
-                // RTC0 Compare0 -> Radio Start
-                Tuple.Create(0x4000B140u, 0x40001008u),
+                // RTC0 Compare0 -> Timer0 Clear
+                Tuple.Create(0x4000B140u, 0x4000800Cu),
+                // RTC0 Compare0 -> Timer0 Start
+                Tuple.Create(0x4000B140u, 0x40008000u),
             };
             for(var i = ConfigurableChannels; i < Channels; i++)
             {
