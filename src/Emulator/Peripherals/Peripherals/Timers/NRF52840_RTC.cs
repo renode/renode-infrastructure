@@ -132,7 +132,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("TICK", 0)
                     .WithTaggedFlag("OVRFLW", 1)
                     .WithReservedBits(2, 14)
-                    .WithFlags(16, numberOfEvents, name: "COMPARE", writeCallback: (j, _, value) => { if(value) eventCompareInterruptEnabled[j].Value = false; })
+                    .WithFlags(16, numberOfEvents, name: "COMPARE",
+                          writeCallback: (j, _, value) => eventCompareInterruptEnabled[j].Value &= !value,
+                          valueProviderCallback: (j, value) => eventCompareInterruptEnabled[j].Value)
                     //missing register fields defined below
                     .WithChangeCallback((_, __) =>
                     {
