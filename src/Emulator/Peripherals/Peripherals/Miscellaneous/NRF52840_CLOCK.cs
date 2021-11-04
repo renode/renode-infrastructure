@@ -96,8 +96,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => Update());
 
             Registers.DisableInterrupt.Define(this)
-                .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, changeCallback: (_, value) => hfclkStartedEventEnabled.Value = !value, valueProviderCallback: _ => hfclkStartedEventEnabled.Value, name: "HFCLKSTARTED")
-                .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, changeCallback: (_, value) => lfclkStartedEventEnabled.Value = !value, valueProviderCallback: _ => lfclkStartedEventEnabled.Value, name: "LFCLKSTARTED")
+                .WithFlag(0, 
+                    writeCallback: (_, value) => hfclkStartedEventEnabled.Value &= !value,
+                    valueProviderCallback: _ => hfclkStartedEventEnabled.Value, name: "HFCLKSTARTED")
+                .WithFlag(1,
+                    writeCallback: (_, value) => lfclkStartedEventEnabled.Value &= !value,
+                    valueProviderCallback: _ => lfclkStartedEventEnabled.Value, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
                 .WithTaggedFlag("DONE", 3)
                 .WithTaggedFlag("CTTO", 4)
