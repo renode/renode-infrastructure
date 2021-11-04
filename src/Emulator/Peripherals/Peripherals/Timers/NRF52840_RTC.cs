@@ -216,7 +216,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 var thisEventSet = eventCompareInterruptEnabled[i].Value && eventCompareSet[i].Value && eventCompareEnabled[i].Value;
                 if (thisEventSet)
                 {
-                   this.Log(LogLevel.Noisy, $"Interrupt set by CC{0} interruptEnable={1} compareSet={2} compareEventEnable={3}",
+                   this.Log(LogLevel.Noisy, "Interrupt set by CC{0} interruptEnable={1} compareSet={2} compareEventEnable={3}",
                          i, eventCompareInterruptEnabled[i].Value, eventCompareSet[i].Value, eventCompareEnabled[i].Value);
                 }
                 flag |= thisEventSet;
