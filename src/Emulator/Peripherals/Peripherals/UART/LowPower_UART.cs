@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                 this.Log(LogLevel.Warning, "Trying to read form an empty fifo");
                             }
 
-                            receiveDataRegisterFull.Value = false;
+                            UpdateFillLevels();
                             return b;
                         },
                         writeCallback: (_, val) =>
@@ -225,14 +225,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             {
                                 txQueue.Enqueue((byte)val);
 
-                                if(transmitFifoEnabled.Value)
-                                {
-                                    transmitDataRegisterEmpty.Value &= !(txQueue.Count > transmitWatermark.Value);
-                                }
-                                else
-                                {
-                                    transmitDataRegisterEmpty.Value = false;
-                                }
+                                UpdateFillLevels();
                             }
                             else
                             {
@@ -417,20 +410,20 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             if(receiveFifoEnabled.Value)
             {
-                receiveDataRegisterFull.Value |= Count > receiveWatermark.Value;
+                receiveDataRegisterFull.Value = Count > receiveWatermark.Value;
             }
             else
             {
-                receiveDataRegisterFull.Value |= Count == rxMaxBytes;
+                receiveDataRegisterFull.Value = Count == rxMaxBytes;
             }
 
             if(transmitFifoEnabled.Value)
             {
-                transmitDataRegisterEmpty.Value |= txQueue.Count <= transmitWatermark.Value;
+                transmitDataRegisterEmpty.Value = txQueue.Count <= transmitWatermark.Value;
             }
             else
             {
-                transmitDataRegisterEmpty.Value |= txQueue.Count == 0;
+                transmitDataRegisterEmpty.Value = txQueue.Count == 0;
             }
         }
 
