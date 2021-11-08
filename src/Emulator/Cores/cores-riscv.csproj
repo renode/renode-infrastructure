@@ -67,6 +67,7 @@
     <Compile Include="RiscV\PLIC\PlatformLevelInterruptControllerBase.cs" />
     <Compile Include="RiscV\RegisterDescription.cs" />
     <Compile Include="RiscV\NonstandardCSR.cs" />
+    <Compile Include="RiscV\VectorInstructionsOpcodes.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
