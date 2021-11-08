@@ -33,7 +33,7 @@ using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, IDisposable, IDisassemblable, ITimeSink
+    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, IDisposable, IDisassemblable, ITimeSink
     {
         public Endianess Endianness { get; protected set; }
 
@@ -448,6 +448,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Pause();
             HandleRamSetup();
             TlibReset();
+            ResetOpcodesCounters();
         }
 
         public virtual void OnGPIO(int number, bool value)
