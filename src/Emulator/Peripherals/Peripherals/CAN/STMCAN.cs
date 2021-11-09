@@ -1587,7 +1587,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public const int STIDSHIFT = 21;
             public const uint STIDMASK = 0x7FF;
             public const int EXIDSHIFT = 3;
-            public const uint EXIDMASK = 0x3FFF;
+            public const uint EXIDMASK = 0x3FFFF;
             public const int IDESHIFT = 2;
             public const uint IDEMASK = 0x1;
             public const int RTRSHIFT = 1;
@@ -1759,7 +1759,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public const int EXIDSHIFT2 = 16;
             public const int EXIDSHIFT3 = 0;
             public const int EXIDSHIFT4 = 15;
-            public const uint EXIDMASK = 0x3FFF;
+            public const uint EXIDMASK = 0x3FFFF;
             public const uint EXIDMASK2 = 0x7;
             public const int IDESHIFT = 2;
             public const int IDESHIFT2 = 20;
