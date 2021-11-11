@@ -169,14 +169,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                          writeCallback: (i, _, val) => {
                             if (val) eventCompareEnabled[i].Value = true;
                             this.Log(LogLevel.Noisy, $"eventCompareEnabled[{i}] = {val}");
-                         })
+                         },
+                         valueProviderCallback: (i, _) => eventCompareEnabled[i].Value)
                 },
                 {(long)Register.EventClear, new DoubleWordRegister(this)
                    .WithFlags(16, numberOfEvents, mode: FieldMode.Read | FieldMode.WriteOneToClear,
                          writeCallback: (i, _, val) => {
                                if (val) eventCompareEnabled[i].Value = false;
                                this.Log(LogLevel.Noisy, $"eventCompareEnabled[{i}] = {!val}");
-                         })
+                         },
+                         valueProviderCallback: (i, _) => eventCompareEnabled[i].Value)
                 }
             };
 
