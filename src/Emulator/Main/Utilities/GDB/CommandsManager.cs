@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Utilities.GDB
             return command != null;
         }
 
-        public List<GBDFeatureDescriptor> GetCompiledFeatures()
+        public List<GDBFeatureDescriptor> GetCompiledFeatures()
         {
             // GDB gets one feature description file and uses it for all threads.
             // This method gathers features from all cores and unifies them.
@@ -118,14 +118,14 @@ namespace Antmicro.Renode.Utilities.GDB
                 return unifiedFeatures;
             }
 
-            var features = new Dictionary<string, List<GBDFeatureDescriptor>>();
+            var features = new Dictionary<string, List<GDBFeatureDescriptor>>();
             foreach(var cpu in ManagedCpus.Values)
             {
                 foreach(var feature in cpu.GDBFeatures)
                 {
                     if(!features.ContainsKey(feature.Name))
                     {
-                        features.Add(feature.Name, new List<GBDFeatureDescriptor>());
+                        features.Add(feature.Name, new List<GDBFeatureDescriptor>());
                     }
                     features[feature.Name].Add(feature);
                 }
@@ -152,11 +152,11 @@ namespace Antmicro.Renode.Utilities.GDB
         }
         public bool BlockOnStep { get; }
 
-        private static GBDFeatureDescriptor UnifyFeature(List<GBDFeatureDescriptor> featureVariations)
+        private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
         {
             // This function unifies variations of a feature by taking the widest registers of matching name then adds taken register's type.
-            var unifiedFeature = new GBDFeatureDescriptor(featureVariations.First().Name);
-            var registers = new Dictionary<string, Tuple<GBDRegisterDescriptor, List<GDBCustomType>>>();
+            var unifiedFeature = new GDBFeatureDescriptor(featureVariations.First().Name);
+            var registers = new Dictionary<string, Tuple<GDBRegisterDescriptor, List<GDBCustomType>>>();
             var types = new Dictionary<string, Tuple<GDBCustomType, uint>>();
             foreach(var feature in featureVariations)
             {
@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<Command> activeCommands;
-        private readonly List<GBDFeatureDescriptor> unifiedFeatures = new List<GBDFeatureDescriptor>();
+        private readonly List<GDBFeatureDescriptor> unifiedFeatures = new List<GDBFeatureDescriptor>();
 
         private readonly Dictionary<string,Command> commandsCache;
         private uint selectedCpuNumber;

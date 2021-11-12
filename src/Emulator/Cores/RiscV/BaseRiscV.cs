@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public Dictionary<string, object> UserState { get; }
 
-        public override List<GBDFeatureDescriptor> GDBFeatures
+        public override List<GDBFeatureDescriptor> GDBFeatures
         {
             get
             {
@@ -572,7 +572,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly Dictionary<SimpleCSR, ulong> simpleCSRs = new Dictionary<SimpleCSR, ulong>();
 
-        private List<GBDFeatureDescriptor> gdbFeatures = new List<GBDFeatureDescriptor>();
+        private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649

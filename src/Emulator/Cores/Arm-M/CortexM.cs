@@ -55,30 +55,30 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "arm-m"; } }
 
-        public override List<GBDFeatureDescriptor> GDBFeatures
+        public override List<GDBFeatureDescriptor> GDBFeatures
         {
             get
             {
-                var features = new List<GBDFeatureDescriptor>();
+                var features = new List<GDBFeatureDescriptor>();
 
-                var mProfileFeature = new GBDFeatureDescriptor("org.gnu.gdb.arm.m-profile");
+                var mProfileFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.m-profile");
                 for(var index = 0u; index <= 12; index++)
                 {
-                    mProfileFeature.Registers.Add(new GBDRegisterDescriptor(index, 32, $"r{index}", "uint32", "general"));
+                    mProfileFeature.Registers.Add(new GDBRegisterDescriptor(index, 32, $"r{index}", "uint32", "general"));
                 }
-                mProfileFeature.Registers.Add(new GBDRegisterDescriptor(13, 32, "sp", "data_ptr", "general"));
-                mProfileFeature.Registers.Add(new GBDRegisterDescriptor(14, 32, "lr", "uint32", "general"));
-                mProfileFeature.Registers.Add(new GBDRegisterDescriptor(15, 32, "pc", "code_ptr", "general"));
-                mProfileFeature.Registers.Add(new GBDRegisterDescriptor(25, 32, "xpsr", "uint32", "general"));
+                mProfileFeature.Registers.Add(new GDBRegisterDescriptor(13, 32, "sp", "data_ptr", "general"));
+                mProfileFeature.Registers.Add(new GDBRegisterDescriptor(14, 32, "lr", "uint32", "general"));
+                mProfileFeature.Registers.Add(new GDBRegisterDescriptor(15, 32, "pc", "code_ptr", "general"));
+                mProfileFeature.Registers.Add(new GDBRegisterDescriptor(25, 32, "xpsr", "uint32", "general"));
                 features.Add(mProfileFeature);
 
-                var mSystemFeature = new GBDFeatureDescriptor("org.gnu.gdb.arm.m-system");
-                mSystemFeature.Registers.Add(new GBDRegisterDescriptor(26, 32, "msp", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GBDRegisterDescriptor(27, 32, "psp", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GBDRegisterDescriptor(28, 32, "primask", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GBDRegisterDescriptor(29, 32, "basepri", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GBDRegisterDescriptor(30, 32, "faultmask", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GBDRegisterDescriptor(31, 32, "control", "uint32", "general"));
+                var mSystemFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.m-system");
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(26, 32, "msp", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(27, 32, "psp", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(28, 32, "primask", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(29, 32, "basepri", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(30, 32, "faultmask", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(31, 32, "control", "uint32", "general"));
                 features.Add(mSystemFeature);
 
                 return features;
