@@ -526,6 +526,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
               SetEvent(Events.RSSIEnd);
            }
 
+           // @todo  Fixed PPI channel triggers Timer0 capture. PPI events are
+           //        scheduled through a sync delay, but on hardware that delay
+           //        is sub-microsecond, which is important for timer capture
+           //        behavior in RIOT stack. However, this hard-coding here
+           //        will yield a double capture that might cause incorrect
+           //        behavior. And removing sync delay from PPI implementation
+           //        didn't seem to result in correct behavior.
+           machine.SystemBus.WriteDoubleWord(0x40008044, 0x1);
+
            // Schedule a single bit-counter compare event. This is sufficient
            // for BLE with RIOT stack, however it is possible to use bit
            // counter to generate successive events, which this model will not
@@ -542,6 +551,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
               SetEvent(Events.Payload);
               SetEvent(Events.End);
               SetEvent(Events.CRCOk);
+              // @todo Fixed PPI event for Timer0 capture needs to be fast
+              machine.SystemBus.WriteDoubleWord(0x40008048, 0x1);
            }, endTimeStamp);
 
            // BLE stacks use disabled event as common processing trigger. On transmit,
