@@ -177,6 +177,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             DefineEvent(Registers.AddressSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger ADDRESS event, not supported"), Events.Address, "EVENTS_ADDRESS");
             DefineEvent(Registers.PayloadSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger PAYLOAD event, not supported"), Events.Payload, "EVENTS_PAYLOAD");
             DefineEvent(Registers.PacketSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger END event, not supported"), Events.End, "EVENTS_END");
+            DefineEvent(Registers.CRCOk, () => this.Log(LogLevel.Error, "Trying to trigger CRCOk event, not supported"), Events.CRCOk, "EVENTS_CRCOK");
 
             DefineEvent(Registers.RadioDisabled, Disable, Events.Disabled, "EVENTS_DISABLED");
 
@@ -512,6 +513,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
            timeSource.ExecuteInSyncedState((_) => {
               SetEvent(Events.Payload);
               SetEvent(Events.End);
+              SetEvent(Events.CRCOk);
            }, endTimeStamp);
 
            // BLE stacks use disabled event as common processing trigger. On transmit,
