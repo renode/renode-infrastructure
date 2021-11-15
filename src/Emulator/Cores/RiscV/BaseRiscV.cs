@@ -65,6 +65,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             UserState = new Dictionary<string, object>();
 
             ChildCollection = new Dictionary<int, ICFU>();
+
+            customOpcodes = new List<Tuple<string, ulong, ulong>>();            
         }
 
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
@@ -187,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibMarkFeatureSilent((uint)set, silent ? 1 : 0u);
         }
 
-        public bool InstallCustomInstruction(string pattern, Action<UInt64> handler)
+        public bool InstallCustomInstruction(string pattern, Action<UInt64> handler, string name = null)
         {
             if(pattern == null)
             {
@@ -213,8 +215,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ConstructionException($"Could not install custom instruction handler for length {length}, mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
             }
 
+            customOpcodes.Add(Tuple.Create(name ?? pattern, bitPattern, bitMask)); 
             customInstructionsMapping[id] = handler;
             return true;
+        }
+
+        public void EnableCustomOpcodesCounting()
+        {
+            foreach(var opc in customOpcodes)
+            {
+                InstallOpcodeCounterPattern(opc.Item1, opc.Item2, opc.Item3);
+            }
+            
+            EnableOpcodesCounting = true;
         }
 
         public ulong Vector(uint registerNumber, uint elementIndex, ulong? value = null)
@@ -746,6 +759,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private readonly InterruptMode interruptMode;
+        
+        private readonly List<Tuple<string, ulong, ulong>> customOpcodes;
 
         protected enum IrqType
         {
