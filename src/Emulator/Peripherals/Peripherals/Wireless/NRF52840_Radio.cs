@@ -130,6 +130,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             DefineEvent(Registers.AddressSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger ADDRESS event, not supported"), Events.Address, "EVENTS_ADDRESS");
             DefineEvent(Registers.PayloadSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger PAYLOAD event, not supported"), Events.Payload, "EVENTS_PAYLOAD");
             DefineEvent(Registers.PacketSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger END event, not supported"), Events.End, "EVENTS_END");
+            DefineEvent(Registers.BitCounterMatch, () => this.Log(LogLevel.Error, "Trying to trigger BCMATCH event, not supported"), Events.BitCountMatch, "EVENTS_BCMATCH");
             DefineEvent(Registers.RSSIEnd, () => this.Log(LogLevel.Error, "Trying to trigger RSSIEnd event, not supported"), Events.RSSIEnd, "EVENTS_RSSIEND");
             DefineEvent(Registers.CRCOk, () => this.Log(LogLevel.Error, "Trying to trigger CRCOk event, not supported"), Events.CRCOk, "EVENTS_CRCOK");
 
@@ -271,6 +272,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Registers.State.Define(this, name: "STATE")
                 .WithEnumField<DoubleWordRegister, State>(0, 4, FieldMode.Read, valueProviderCallback: _ => radioState, name: "STATE")
                 .WithReservedBits(4, 28)
+            ;
+
+            Registers.BitCounterCompare.Define(this, name: "BCC")
+                .WithValueField(0, 32, out bitCountCompare)
 
             ;
             Registers.ModeConfiguration0.Define(this, 0x200)
@@ -442,7 +447,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var crcLen = 4;
             ScheduleRadioEvents((uint)(headerLengthInAir + payloadLength + crcLen));
 
-            LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
         }
 
@@ -454,6 +458,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
            // @note  Transmit times assume 1M PHY. Low level BLE firmware
            //        usually takes into account the active phy when calculating
            //        timing delays, so we might need to do that.
+
+           // Bit-counter
+           var bcMatchTime = now + TimeInterval.FromMicroseconds(bitCountCompare.Value);
+           var bcMatchTimeStamp = new TimeStamp(bcMatchTime, timeSource.Domain);
 
            // End event
            var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
@@ -471,6 +479,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
            if(shorts.AddressRSSIStart.Value)
            {
               SetEvent(Events.RSSIEnd);
+           }
+
+           // Schedule a single bit-counter compare event not eariler than
+           // `bitCountCompare` microseconds from now.
+           // This is sufficient for BLE with RIOT stack, however it is possible to use bit
+           // counter to generate successive events, which this model will not
+           // support.
+           if(shorts.AddressBitCountStart.Value)
+           {
+              timeSource.ExecuteInSyncedState(_ =>
+              {
+                 SetEvent(Events.BitCountMatch);
+              }, bcMatchTimeStamp);
            }
 
            // Schedule "end" events all at once, simulating the transmision time
@@ -537,6 +558,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IValueRegisterField baseAddress1;
         private IValueRegisterField txAddress;
         private IFlagRegisterField[] rxAddressEnabled;
+
+        private IValueRegisterField bitCountCompare;
 
         private IValueRegisterField crcLength;
         private IEnumRegisterField<CRCAddressHandling> crcSkipAddress;
