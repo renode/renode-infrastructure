@@ -130,6 +130,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             DefineEvent(Registers.AddressSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger ADDRESS event, not supported"), Events.Address, "EVENTS_ADDRESS");
             DefineEvent(Registers.PayloadSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger PAYLOAD event, not supported"), Events.Payload, "EVENTS_PAYLOAD");
             DefineEvent(Registers.PacketSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger END event, not supported"), Events.End, "EVENTS_END");
+            DefineEvent(Registers.RSSIEnd, () => this.Log(LogLevel.Error, "Trying to trigger RSSIEnd event, not supported"), Events.RSSIEnd, "EVENTS_RSSIEND");
             DefineEvent(Registers.CRCOk, () => this.Log(LogLevel.Error, "Trying to trigger CRCOk event, not supported"), Events.CRCOk, "EVENTS_CRCOK");
 
             DefineEvent(Registers.RadioDisabled, Disable, Events.Disabled, "EVENTS_DISABLED");
@@ -261,6 +262,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Registers.CRCInitialValue.Define(this, name: "CRCINIT")
                 .WithValueField(0, 24, out crcInitialValue, name: "CRCINIT")
                 .WithReservedBits(24, 8)
+            ;
+
+            Registers.RSSISample.Define(this, name: "RSSISAMPLE")
+                .WithValueField(0, 32, valueProviderCallback: _ => DefaultRSSISample, name: "RSSISAMPLE");
             ;
 
             Registers.State.Define(this, name: "STATE")
@@ -438,7 +443,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             ScheduleRadioEvents((uint)(headerLengthInAir + payloadLength + crcLen));
 
             LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
-            LogUnhandledShort(shorts.AddressRSSIStart, nameof(shorts.AddressRSSIStart));
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
         }
 
@@ -461,6 +465,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
            // Address modelled as happening immediatley and serves as anchor
            // point for other events. RIOT triggers IRQ from it.
            SetEvent(Events.Address);
+
+           // RSSI sample period is 0.25 us. Acceptable to model as happening
+           // immediatley upon start
+           if(shorts.AddressRSSIStart.Value)
+           {
+              SetEvent(Events.RSSIEnd);
+           }
 
            // Schedule "end" events all at once, simulating the transmision time
            // as 8 microseconds-per-byte. Timing distinction between events here doesn't
@@ -499,6 +510,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             data[startIndex + i] = addressPrefixes[logicalAddress];
         }
+        
+        private const int DefaultRSSISample = 10;
 
         private readonly ConcurrentQueue<byte[]> rxBuffer;
         private Shorts shorts;
