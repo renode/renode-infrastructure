@@ -71,6 +71,8 @@ namespace Antmicro.Renode.Core
 
         public BlobManager BlobManager { get; set; }
 
+        public bool NonDeterministicMode { get; set; }
+
         private readonly object machLock = new object();
 
         public bool AllMachinesStarted
