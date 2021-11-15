@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
@@ -62,24 +63,14 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var payloadLength = Math.Min(frame[addressLength + s0Length.Value], maxPacketLength.Value);
             machine.SystemBus.WriteBytes(frame, (ulong)(dataAddress + headerLengthInRAM), addressLength + headerLengthInAir, payloadLength);
 
-            machine.LocalTimeSource.ExecuteInNearestSyncedState((_) => {
-               SetEvent(Events.Address);
-               SetEvent(Events.Payload);
-               SetEvent(Events.End);
-               machine.LocalTimeSource.ExecuteInNearestSyncedState((__) => {
-                  if(shorts.EndDisable.Value)
-                  {
-                      Disable();
-                  }
-               });
-            });
+            var crcLen = 4;
+            ScheduleRadioEvents(true, (uint)(headerLengthInAir + payloadLength + crcLen));
         }
 
         private uint GetCurrentFrequencyMHz()
         {
            return (uint)(((frequencyMap.Value) ? 2360 : 2400) + frequency.Value);
         }
-
 
         readonly Dictionary<uint, uint> bluetoothLEChannelMap = new Dictionary<uint, uint>() {
            { 2402, 37 },
@@ -487,29 +478,51 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             FrameSent?.Invoke(this, data);
 
-            machine.LocalTimeSource.ExecuteInNearestSyncedState((_) => {
-                  // End event triggers capture of packet end time by Timer0.  This PPI channle
-                  // enabled by code directly after transmit enabled, hence we need some delay
-                  // before setting the event to give CPU time to enable channel.
-                  SetEvent(Events.Address);
-                  SetEvent(Events.Payload);
-                  SetEvent(Events.End);
-
-                  // Radio disable triggers interrupt which will cause code to execute that assumes
-                  // END event has occurred and resulted in appropriate end of packet time capture.
-                  // This time is used to calculate header completion timeout for next packet
-                  // transmission.
-                  machine.LocalTimeSource.ExecuteInNearestSyncedState((__) => {
-                      if(shorts.EndDisable.Value)
-                      {
-                         Disable();
-                      }
-                  });
-            });
+            var crcLen = 4;
+            ScheduleRadioEvents(false, (uint)(headerLengthInAir + payloadLength + crcLen));
 
             LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
             LogUnhandledShort(shorts.AddressRSSIStart, nameof(shorts.AddressRSSIStart));
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
+        }
+
+        private void ScheduleRadioEvents(bool isReceive, uint packetLen)
+        {
+           var timeSource = machine.LocalTimeSource;
+           var now = timeSource.ElapsedVirtualTime;
+
+           // @note  Transmit times assume 1M PHY. Low level BLE firmware
+           //        usually takes into account the active phy when calculating
+           //        timing delays, so we might need to do that.
+
+           // End event
+           var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
+           var endTimeStamp = new TimeStamp(endTime, timeSource.Domain);
+
+           // Radio doesn't take any time to disable for receive, only transmit.
+           var disableTime = (isReceive) ? endTime : endTime + TimeInterval.FromMicroseconds(10);
+           var disableTimeStamp = new TimeStamp(disableTime, timeSource.Domain);
+
+           // Address modelled as happening immediatley and serves as anchor
+           // point for other events. RIOT triggers IRQ from it.
+           SetEvent(Events.Address);
+
+           // Trigger "end" events all at once. Timing distinction here doesn't
+           // seem important
+           timeSource.ExecuteInSyncedState((_) => {
+              SetEvent(Events.Payload);
+              SetEvent(Events.End);
+           }, endTimeStamp);
+
+           // BLE stacks use disabled event as common processing trigger. On transmit,
+           // it takes some time to disable, but for receive, should occur at same time
+           // as end events.
+           timeSource.ExecuteInSyncedState((_) => {
+              if(shorts.EndDisable.Value)
+              {
+                 Disable();
+              }
+           }, disableTimeStamp);
         }
 
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
