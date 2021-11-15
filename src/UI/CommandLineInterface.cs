@@ -43,7 +43,7 @@ namespace Antmicro.Renode.UI
                 Logger.AddBackend(ConsoleBackend.Instance, "console");
                 if(options.Plain)
                 {
-                    ConsoleBackend.Instance.ColoringEnabled = false;
+                    ConsoleBackend.Instance.PlainMode = true;
                 }
             }
             else

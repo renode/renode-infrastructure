@@ -21,15 +21,24 @@ namespace Antmicro.Renode.Logging
         {
             get
             {
-                return Console.Title;
+                return PlainMode
+                    ? string.Empty
+                    : Console.Title;
             }
             set
             {
-                Console.Title = value;
+                if(!PlainMode)
+                {
+                    Console.Title = value;
+                }
             }
         }
 
-        public bool ColoringEnabled { get; set; }
+        // do not generate color output
+        // do not set window title
+        // minimize the use of VT100 codes
+        public bool PlainMode { get; set; }
+        
         public bool LogThreadId { get; set; }
         public bool ReportRepeatingLines { get; set; }
 
@@ -41,7 +50,7 @@ namespace Antmicro.Renode.Logging
             }
 
             var type = entry.Type;
-            var changeColor = ColoringEnabled && output == Console.Out && type.Color.HasValue && !isRedirected;
+            var changeColor = !PlainMode && output == Console.Out && type.Color.HasValue && !isRedirected;
             var message = FormatLogEntry(entry);
             
             lock(syncObject)
@@ -60,16 +69,19 @@ namespace Antmicro.Renode.Logging
                     line = string.Format("{0:HH:mm:ss.ffff} [{1}] {2}", CustomDateTime.Now, type, message);
                 }
 
-                int width;
-                try
+                var width = 0;
+                
+                if(!PlainMode)
                 {
-                    width = Console.WindowWidth;
-                }
-                catch(IOException)
-                {
-                    // It sometimes happens that we cannot read the console window width.
-                    // There is not much we can do about it, so just return 0 (this will disable the repeated messages counter)
-                    width = 0;
+                    try
+                    {
+                        width = Console.WindowWidth;
+                    }
+                    catch(IOException)
+                    {
+                        // It sometimes happens that we cannot read the console window width.
+                        // There is not much we can do about it, so just use the default value of 0 (this will disable the repeated messages counter)
+                    }
                 }
 
                 if(output == Console.Out && !ReportRepeatingLines && width != 0 &&
@@ -124,7 +136,6 @@ namespace Antmicro.Renode.Logging
 
         private ConsoleBackend()
         {
-            ColoringEnabled = true;
             syncObject = new object();
             isRedirected = Console.IsOutputRedirected;
         }
