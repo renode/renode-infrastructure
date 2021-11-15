@@ -203,30 +203,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"Unsupported custom instruction length: {pattern.Length}. Supported values are: 16, 32, 64 bits");
             }
 
-            var currentBit = pattern.Length - 1;
-            var bitMask = 0uL;
-            var bitPattern = 0uL;
-
-            foreach(var p in pattern)
-            {
-                switch(p)
-                {
-                    case '0':
-                        bitMask |= (1uL << currentBit);
-                        break;
-
-                    case '1':
-                        bitMask |= (1uL << currentBit);
-                        bitPattern |= (1uL << currentBit);
-                        break;
-
-                    default:
-                        // all characters other than '0' or '1' are treated as 'any-value'
-                        break;
-                }
-
-                currentBit--;
-            }
+            // we know that the size is correct so the below method will alwyas succeed
+            Misc.TryParseBitPattern(pattern, out var bitPattern, out var bitMask);
 
             var length = (ulong)pattern.Length / 8;
             var id = TlibInstallCustomInstruction(bitMask, bitPattern, length);

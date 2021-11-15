@@ -1228,6 +1228,42 @@ namespace Antmicro.Renode.Utilities
                 return false;
             }
         }
+
+        public static bool TryParseBitPattern(string pattern, out ulong value, out ulong mask)
+        {
+            value = 0uL;
+            mask = 0uL;
+            
+            if(pattern.Length > 64)
+            {
+                return false;
+            }
+            
+            var currentBit = pattern.Length - 1;
+
+            foreach(var p in pattern)
+            {
+                switch(p)
+                {
+                    case '0':
+                        mask |= (1uL << currentBit);
+                        break;
+
+                    case '1':
+                        mask |= (1uL << currentBit);
+                        value |= (1uL << currentBit);
+                        break;
+
+                    default:
+                        // all characters other than '0' or '1' are treated as 'any-value'
+                        break;
+                }
+
+                currentBit--;
+            }
+
+            return true;
+        }
     }
 }
 
