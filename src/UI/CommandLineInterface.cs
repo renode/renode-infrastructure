@@ -43,6 +43,8 @@ namespace Antmicro.Renode.UI
                 Logger.AddBackend(ConsoleBackend.Instance, "console");
                 if(options.Plain)
                 {
+                    //This is set in Program.cs already, but we leave it here in case CommandLineInterface is reused,
+                    //to prevent hard to trace bugs
                     ConsoleBackend.Instance.PlainMode = true;
                 }
             }
@@ -129,10 +131,7 @@ namespace Antmicro.Renode.UI
                         terminal = new ConsoleWindowBackendAnalyzer(true);
                         terminal.Show();
                         shell.Terminal = new NavigableTerminalEmulator(terminal.IO);
-                        if(options.Plain)
-                        {
-                            shell.Terminal.DisableColors = true;
-                        }
+                        shell.Terminal.PlainMode = options.Plain;
 
                         new System.Threading.Thread(x => shell.Start(true))
                         {
@@ -228,10 +227,7 @@ namespace Antmicro.Renode.UI
                 shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n", Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/", options.ScriptPath));
             }
 
-            if(options.Plain)
-            {
-                shell.Terminal.DisableColors = true;
-            }
+            shell.Terminal.PlainMode = options.Plain;
 
             return shell;
         }
