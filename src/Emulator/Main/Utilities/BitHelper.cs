@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Utilities
 
         public static bool IsBitSet(ulong reg, byte bit)
         {
-            return ((ulong)(0x1 << bit) & reg) != 0;
+            return ((0x1UL << bit) & reg) != 0;
         }
 
         public static uint SetBitsFrom(uint source, uint newValue, int position, int width)
