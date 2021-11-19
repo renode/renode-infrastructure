@@ -472,6 +472,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(var elf = GetELFFromFile(fileName))
             {
                 var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load);
+                if(!segmentsToLoad.Any())
+                {
+                    throw new RecoverableException($"ELF '{fileName}' has no loadable segments.");
+                }
+
                 foreach (var s in segmentsToLoad)
                 {
                     var contents = s.GetContents();
