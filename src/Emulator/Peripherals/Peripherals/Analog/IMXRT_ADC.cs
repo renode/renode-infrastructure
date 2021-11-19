@@ -155,7 +155,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
               register
                 .WithValueField(0, 12, out cdata[idx], FieldMode.Read, name: "CDATA - Data")
-                .WithReservedBits(12, 20);
+                .WithReservedBits(12, 20)
+                .WithReadCallback((_, __) => 
+                {
+                    conversionComplete.Value = false; // Set this to clear COCOn and turn off IRQ after read
+                    UpdateInterrupts();
+                });
             });
 
             Registers.Configuration.Define(this)
