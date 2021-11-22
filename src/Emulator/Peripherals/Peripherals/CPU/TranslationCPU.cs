@@ -227,7 +227,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             var table = new Table().AddRow("Name", "Value");
             table.AddRows(result, x => x.Key, x => "0x{0:X}".FormatWith(x.Value));
+            AddNonMappedRegistersValues(ref table);
             return table.ToArray();
+        }
+
+        protected virtual void AddNonMappedRegistersValues(ref Table table)
+        {
         }
 
         public void UpdateContext()
