@@ -71,6 +71,28 @@ namespace Antmicro.Renode.Core
 
         public BlobManager BlobManager { get; set; }
 
+        private EmulationMode mode;
+        public EmulationMode Mode 
+        { 
+            get => mode;
+            
+            set
+            {
+                lock(machLock)
+                {
+                    if(mode != EmulationMode.SynchronizedIO)
+                    {
+                        var machine = machs.Rights.FirstOrDefault(m => m.HasPlayer || m.HasRecorder);
+                        if(machine != null)
+                        {
+                            throw new RecoverableException($"Could not set the new emulation mode because an event player/recorder is active for machine {machs[machine]}");
+                        }
+                    }
+                    mode = value;
+                }
+            }
+        }
+
         private readonly object machLock = new object();
 
         public bool AllMachinesStarted
@@ -590,6 +612,12 @@ namespace Antmicro.Renode.Core
 
         private const int NameCacheSize = 100;
         private const int PeripheralToMachineCacheSize = 100;
+        
+        public enum EmulationMode
+        {
+            SynchronizedIO,
+            SynchronizedTimers
+        }
 
         private class PausedState : IDisposable
         {

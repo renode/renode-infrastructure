@@ -618,45 +618,133 @@ namespace Antmicro.Renode.Core
 
         public void HandleTimeDomainEvent<T>(Action<T> handler, T handlerArgument, TimeStamp eventTime, Action postAction = null)
         {
-            LocalTimeSource.ExecuteInSyncedState(ts =>
+            switch(EmulationManager.Instance.CurrentEmulation.Mode)
             {
-                HandleTimeDomainEvent(handler, handlerArgument, ts.Domain == LocalTimeSource.Domain);
-                postAction?.Invoke();
-            }, eventTime);
+                case Emulation.EmulationMode.SynchronizedIO:
+                {
+                    LocalTimeSource.ExecuteInSyncedState(ts =>
+                    {
+                        HandleTimeDomainEvent(handler, handlerArgument, ts.Domain == LocalTimeSource.Domain);
+                        postAction?.Invoke();
+                    }, eventTime);
+                    break;
+                }
+                
+                case Emulation.EmulationMode.SynchronizedTimers:
+                {
+                    handler(handlerArgument);
+                    postAction?.Invoke();
+                    break;
+                }
+
+                default:
+                    throw new Exception("Should not reach here");
+            }
         }
 
         public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, TimeStamp eventTime, Action postAction = null)
         {
-            LocalTimeSource.ExecuteInSyncedState(ts =>
+            switch(EmulationManager.Instance.CurrentEmulation.Mode)
             {
-                HandleTimeDomainEvent(handler, handlerArgument1, handlerArgument2, ts.Domain == LocalTimeSource.Domain);
-                postAction?.Invoke();
-            }, eventTime);
+                case Emulation.EmulationMode.SynchronizedIO:
+                {
+                    LocalTimeSource.ExecuteInSyncedState(ts =>
+                    {
+                        HandleTimeDomainEvent(handler, handlerArgument1, handlerArgument2, ts.Domain == LocalTimeSource.Domain);
+                        postAction?.Invoke();
+                    }, eventTime);
+                    break;
+                }
+                
+                case Emulation.EmulationMode.SynchronizedTimers:
+                {
+                    handler(handlerArgument1, handlerArgument2);
+                    postAction?.Invoke();
+                    break;
+                }
+
+                default:
+                    throw new Exception("Should not reach here");
+            }
         }
 
         public void HandleTimeDomainEvent<T>(Action<T> handler, T handlerArgument, bool timeDomainInternalEvent)
         {
-            ReportForeignEventInner(
-                recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument, handler, timestamp, eventNotFromDomain),
-                () => handler(handlerArgument), timeDomainInternalEvent);
+            switch(EmulationManager.Instance.CurrentEmulation.Mode)
+            {
+                case Emulation.EmulationMode.SynchronizedIO:
+                {
+                    ReportForeignEventInner(
+                            recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument, handler, timestamp, eventNotFromDomain),
+                            () => handler(handlerArgument), timeDomainInternalEvent);
+                    break;
+                }
+                
+                case Emulation.EmulationMode.SynchronizedTimers:
+                {
+                    handler(handlerArgument);
+                    break;
+                }
+
+                default:
+                    throw new Exception("Should not reach here");
+            }
         }
 
         public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, bool timeDomainInternalEvent)
         {
-            ReportForeignEventInner(
-                recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument1, handlerArgument2, handler, timestamp, eventNotFromDomain),
-                () => handler(handlerArgument1, handlerArgument2), timeDomainInternalEvent);
+            switch(EmulationManager.Instance.CurrentEmulation.Mode)
+            {
+                case Emulation.EmulationMode.SynchronizedIO:
+                {
+                    ReportForeignEventInner(
+                        recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument1, handlerArgument2, handler, timestamp, eventNotFromDomain),
+                        () => handler(handlerArgument1, handlerArgument2), timeDomainInternalEvent);
+                    break;
+                }
+                
+                case Emulation.EmulationMode.SynchronizedTimers:
+                {
+                    handler(handlerArgument1, handlerArgument2);
+                    break;
+                }
+
+                default:
+                    throw new Exception("Should not reach here");
+            }
         }
+
+        public bool HasRecorder => recorder != null;
+
+        private object recorderPlayerLock = new object();
 
         public void RecordTo(string fileName, RecordingBehaviour recordingBehaviour)
         {
-            recorder = new Recorder(File.Create(fileName), this, recordingBehaviour);
+            lock(recorderPlayerLock)
+            {
+                if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+                {
+                    throw new RecoverableException($"Recording events only allowed in the synchronized IO emulation mode (current mode is {EmulationManager.Instance.CurrentEmulation.Mode}");
+                }
+                
+                recorder = new Recorder(File.Create(fileName), this, recordingBehaviour);
+            }
         }
+        
+        public bool HasPlayer => player != null;
 
         public void PlayFrom(string fileName)
         {
-            player = new Player(File.OpenRead(fileName), this);
-            LocalTimeSource.SyncHook += player.Play;
+            lock(recorderPlayerLock)
+            {
+                if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+                {
+                    throw new RecoverableException($"Replying events only allowed in the synchronized IO emulation mode (current mode is {EmulationManager.Instance.CurrentEmulation.Mode}");
+                }
+                
+                player = new Player(File.OpenRead(fileName), this);
+                LocalTimeSource.SyncHook += player.Play;
+            }
         }
 
         public void AddUserStateHook(Func<string, bool> predicate, Action<string> hook)
@@ -765,6 +853,24 @@ namespace Antmicro.Renode.Core
             Profiler?.Dispose();
             Profiler = new Profiler(this, outputPath ?? TemporaryFilesManager.Instance.GetTemporaryFile("renode_profiler"));
         }
+        
+        public void CheckRecorderPlayer()
+        {
+            lock(recorderPlayerLock)
+            {
+                if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+                {
+                    if(recorder != null)
+                    {
+                        throw new RecoverableException("Detected existing event recorder attached to the machine - it won't work in the non-deterministic mode");
+                    }
+                    if(player != null)
+                    {
+                        throw new RecoverableException("Detected existing event player attached to the machine - it won't work in the non-deterministic mode");
+                    }
+                }
+            }
+        }
 
         public Profiler Profiler { get; private set; }
 
@@ -828,7 +934,7 @@ namespace Antmicro.Renode.Core
         public const string SystemBusName = "sysbus";
         public const string UnnamedPeripheral = "[no-name]";
         public const string MachineKeyword = "machine";
-
+        
         private void InnerUnregisterFromParent(IPeripheral peripheral)
         {
             using(ObtainPausedState())
