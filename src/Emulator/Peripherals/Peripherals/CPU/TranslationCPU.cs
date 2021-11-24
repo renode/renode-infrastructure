@@ -480,6 +480,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(started && (lastTlibResult == ExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && IsSingleStepMode)))
                 {
                     TlibSetIrqWrapped(number, value);
+                    if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+                    {
+                        sleeper.Interrupt();
+                    }
                 }
             }
         }
