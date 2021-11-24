@@ -71,6 +71,19 @@ namespace Antmicro.Renode.Time
             cancellationToken = new CancellationTokenSource();
         }
 
+        /// <summary>
+        /// Interrupts sleeping.
+        /// </summary>
+        /// <remarks>
+        /// Calling this method will wake up the sleeping thread.
+        /// If the thread is not sleeping at the moment of calling this method, it has no effects.
+        /// </remarks>
+        public void Interrupt()
+        {
+            Disable();
+            Enable();
+        }
+        
         [Constructor]
         private CancellationTokenSource cancellationToken;
         private readonly Stopwatch stopwatch;
