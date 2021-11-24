@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -73,30 +73,6 @@ namespace UnitTests
 
                 var after = sw.Elapsed;
                 Assert.IsTrue(after.TotalSeconds < roundsCount);
-            }
-        }
-
-        [Test]
-        public void ShouldSleep()
-        {
-            const int slavesCount = 5;
-            const int roundsCount = 3;
-
-            using(var timeSource = new MasterTimeSource() { Quantum = TimeInterval.FromMilliseconds(1000), AdvanceImmediately = false })
-            {
-                var timeSinks = new SimpleTimeSink[slavesCount];
-                for(int i = 0; i < slavesCount; i++)
-                {
-                    timeSinks[i] = new SimpleTimeSink(double.MaxValue);
-                    timeSource.RegisterSink(timeSinks[i]);
-                }
-                var sw = Stopwatch.StartNew();
-
-                // the first round does not increment the time - it just triggers a sync point
-                timeSource.Run(roundsCount + 1);
-
-                var after = sw.Elapsed;
-                Assert.IsTrue(after.TotalSeconds > roundsCount);
             }
         }
 

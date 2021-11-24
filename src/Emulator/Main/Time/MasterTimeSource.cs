@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -107,7 +107,6 @@ namespace Antmicro.Renode.Time
             this.Trace("Starting...");
             lock(locker)
             {
-                sleeper.Enable();
                 if(!base.Start())
                 {
                     this.Trace();
@@ -127,7 +126,6 @@ namespace Antmicro.Renode.Time
             this.Trace("Stopping...");
             lock(locker)
             {
-                sleeper.Disable();
                 base.Stop();
                 this.Trace("Waiting for dispatcher thread");
                 dispatcherThread?.Join();
