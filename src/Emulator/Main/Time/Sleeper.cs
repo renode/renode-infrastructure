@@ -35,11 +35,12 @@ namespace Antmicro.Renode.Time
         {
             stopwatch.Restart();
             var timeLeft = time;
+            var tokenSource = cancellationToken;
             this.Trace($"Asked to sleep for {timeLeft}");
-            while(timeLeft.Ticks > 0 && !cancellationToken.IsCancellationRequested)
+            while(timeLeft.Ticks > 0 && !tokenSource.IsCancellationRequested)
             {
                 this.Trace($"Sleeping for {timeLeft}");
-                cancellationToken.Token.WaitHandle.WaitOne(timeLeft);
+                tokenSource.Token.WaitHandle.WaitOne(timeLeft);
                 timeLeft = time - stopwatch.Elapsed;
             }
             stopwatch.Stop();
