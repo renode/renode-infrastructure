@@ -266,6 +266,11 @@ namespace Antmicro.Renode.Utilities
             // TODO: case insensitive
             foreach(var assembly in Directory.GetFiles(path, "*.dll").Union(Directory.GetFiles(path, "*.exe")))
             {
+                if(assemblyBlacklist.Any(x => assembly.Contains(x)))
+                {
+                    Logger.LogAs(this, LogLevel.Noisy, "Ignoring assembly '{0}'", assembly);
+                    continue;
+                }
                 AnalyzeAssembly(assembly, throwOnBadImage: false);
             }
             if(recursive)
@@ -735,6 +740,39 @@ namespace Antmicro.Renode.Utilities
         private readonly List<PluginDescriptor> foundPlugins;
 
         private readonly bool isBundled;
+
+        // This list filters out assemblies that are known not to be interesting for TypeManager.
+        // It has to be manualy catered for, but it shaves about 400ms from the startup time.
+        private static string[] assemblyBlacklist = new []
+        {
+            "AntShell.dll",
+            "BigGustave.dll",
+            "BitMiracle.LibJpeg.NET.dll",
+            "CookComputing.XmlRpcV2.dll",
+            "CxxDemangler.dll",
+            "Dynamitey.dll",
+            "ELFSharp.dll",
+            "FdtSharp.dll",
+            "IronPython.dll",
+            "IronPython.Modules.dll",
+            "IronPython.StdLib.dll",
+            "libtftp.dll",
+            "Lucene.Net.dll",
+            "LZ4.dll",
+            "mcs.dll",
+            "Microsoft.Dynamic.dll",
+            "Microsoft.Scripting.dll",
+            "Microsoft.Scripting.Metadata.dll",
+            "Migrant.dll",
+            "Mono.Cecil.dll",
+            "Nini.dll",
+            "OptionsParser.dll",
+            "PacketDotNet.dll",
+            "Sprache.dll",
+            "TermSharp.dll",
+            "Xwt.dll",
+            "Xwt.Gtk.dll",
+        };
 
         private class AssemblyDescription
         {
