@@ -73,6 +73,19 @@ namespace Antmicro.Renode.Utilities
                 }
                 );
             }
+            else if(input.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+            {
+                input = input.Substring(2);
+                parser = GetFromCacheOrAdd(
+                    binaryCache,
+                    outputType,
+                    () =>
+                {
+                    TryGetConvertMethodDelegate(outputType, 2, out Delegate del);
+                    return del;
+                }
+                );
+            }
             else
             {
                 parser = GetFromCacheOrAdd(
@@ -100,6 +113,24 @@ namespace Antmicro.Renode.Utilities
                 return false;
             }
         }
+        
+        private static bool TryGetConvertMethodDelegate(Type type, int fromBase, out Delegate result)
+        {
+            var parameters = new [] { typeof(string), typeof(int) };
+            var method = typeof(Convert).GetMethod($"To{type.Name}", parameters);
+
+            if(method == null)
+            {
+                result = null;
+                return false;
+            }
+
+            var delegateType = Expression.GetDelegateType(parameters.Concat(new[] { method.ReturnType }).ToArray());
+            var methodDelegate = method.CreateDelegate(delegateType);
+            result = (Func<string, object>)(i => methodDelegate.DynamicInvoke(new object[] { i, fromBase }));
+
+            return true;
+        }
 
         private static bool TryGetParseMethodDelegate(Type type, Type[] parameters, object[] additionalParameters, out Delegate result)
         {
@@ -121,6 +152,7 @@ namespace Antmicro.Renode.Utilities
         {
             cache = new Dictionary<Type, Delegate>();
             hexCache = new Dictionary<Type, Delegate>();
+            binaryCache = new Dictionary<Type, Delegate>();
         }
 
         private Delegate GetFromCacheOrAdd(Dictionary<Type, Delegate> cacheDict, Type outputType, Func<Delegate> function)
@@ -139,6 +171,7 @@ namespace Antmicro.Renode.Utilities
 
         private readonly Dictionary<Type, Delegate> cache;
         private readonly Dictionary<Type, Delegate> hexCache;
+        private readonly Dictionary<Type, Delegate> binaryCache;
     }
 }
 
