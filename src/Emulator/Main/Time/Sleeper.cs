@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -27,7 +27,11 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Suspends execution of the current thread for <see cref="time"> period. This can be interrupted by calling <see cref="Disable"> method on this object from other thread.
         /// </summary>
-        public void Sleep(TimeSpan time)
+        /// <returns>
+        /// The flag informing if sleeping was interrupted.
+        /// See <see cref="timeElapsed"> for the actual time spent sleeping before interruption.
+        /// </returns>
+        public bool Sleep(TimeSpan time, out TimeSpan timeElapsed)
         {
             stopwatch.Restart();
             var timeLeft = time;
@@ -39,6 +43,9 @@ namespace Antmicro.Renode.Time
                 timeLeft = time - stopwatch.Elapsed;
             }
             stopwatch.Stop();
+            
+            timeElapsed = stopwatch.Elapsed > time ? time : stopwatch.Elapsed;
+            return tokenSource.IsCancellationRequested;
         }
 
         /// <summary>
