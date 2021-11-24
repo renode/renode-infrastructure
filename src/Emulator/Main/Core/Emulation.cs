@@ -71,6 +71,8 @@ namespace Antmicro.Renode.Core
 
         public BlobManager BlobManager { get; set; }
 
+        public EmulationMode Mode { get; set; }
+
         private readonly object machLock = new object();
 
         public bool AllMachinesStarted
@@ -587,6 +589,12 @@ namespace Antmicro.Renode.Core
 
         private const int NameCacheSize = 100;
         private const int PeripheralToMachineCacheSize = 100;
+        
+        public enum EmulationMode
+        {
+            SynchronizedIO,
+            SynchronizedTimers
+        }
 
         private class PausedState : IDisposable
         {

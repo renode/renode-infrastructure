@@ -617,43 +617,89 @@ namespace Antmicro.Renode.Core
 
         public void HandleTimeDomainEvent<T>(Action<T> handler, T handlerArgument, TimeStamp eventTime, Action postAction = null)
         {
-            LocalTimeSource.ExecuteInSyncedState(ts =>
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            if(emulation.Mode != Emulation.EmulationMode.SynchronizedIO)
             {
-                HandleTimeDomainEvent(handler, handlerArgument, ts.Domain == LocalTimeSource.Domain);
-                postAction?.Invoke();
-            }, eventTime);
+                CheckRecorder();
+                handler(handlerArgument);
+            }
+            else
+            {
+                LocalTimeSource.ExecuteInSyncedState(ts =>
+                {
+                    HandleTimeDomainEvent(handler, handlerArgument, ts.Domain == LocalTimeSource.Domain);
+                    postAction?.Invoke();
+                }, eventTime);
+            }
         }
 
         public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, TimeStamp eventTime, Action postAction = null)
         {
-            LocalTimeSource.ExecuteInSyncedState(ts =>
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            if(emulation.Mode != Emulation.EmulationMode.SynchronizedIO)
             {
-                HandleTimeDomainEvent(handler, handlerArgument1, handlerArgument2, ts.Domain == LocalTimeSource.Domain);
-                postAction?.Invoke();
-            }, eventTime);
+                CheckRecorder();
+                handler(handlerArgument1, handlerArgument2);
+            }
+            else
+            {
+                LocalTimeSource.ExecuteInSyncedState(ts =>
+                {
+                    HandleTimeDomainEvent(handler, handlerArgument1, handlerArgument2, ts.Domain == LocalTimeSource.Domain);
+                    postAction?.Invoke();
+                }, eventTime);
+            }
         }
 
         public void HandleTimeDomainEvent<T>(Action<T> handler, T handlerArgument, bool timeDomainInternalEvent)
         {
-            ReportForeignEventInner(
-                recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument, handler, timestamp, eventNotFromDomain),
-                () => handler(handlerArgument), timeDomainInternalEvent);
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            if(emulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+            {
+                CheckRecorder();
+                handler(handlerArgument);
+            }
+            else
+            {
+                ReportForeignEventInner(
+                        recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument, handler, timestamp, eventNotFromDomain),
+                        () => handler(handlerArgument), timeDomainInternalEvent);
+            }
         }
 
         public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, bool timeDomainInternalEvent)
         {
-            ReportForeignEventInner(
-                recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument1, handlerArgument2, handler, timestamp, eventNotFromDomain),
-                () => handler(handlerArgument1, handlerArgument2), timeDomainInternalEvent);
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            if(emulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+            {
+                CheckRecorder();
+                handler(handlerArgument1, handlerArgument2);
+            }
+            else
+            {
+                ReportForeignEventInner(
+                    recorder == null ? (Action<TimeInterval, bool>)null : (timestamp, eventNotFromDomain) => recorder.Record(handlerArgument1, handlerArgument2, handler, timestamp, eventNotFromDomain),
+                    () => handler(handlerArgument1, handlerArgument2), timeDomainInternalEvent);
+            }
         }
 
         public void RecordTo(string fileName, RecordingBehaviour recordingBehaviour)
         {
+            if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+            {
+                throw new RecoverableException(string.Format("Recording events only allowed in the synchronized IO emulation mode (current mode is {0}", EmulationManager.Instance.CurrentEmulation.Mode));
+            }
+            
             recorder = new Recorder(File.Create(fileName), this, recordingBehaviour);
         }
 
         public void PlayFrom(string fileName)
         {
+            if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+            {
+                throw new RecoverableException(string.Format("Recording events only allowed in the synchronized IO emulation mode (current mode is {0}", EmulationManager.Instance.CurrentEmulation.Mode));
+            }
+            
             player = new Player(File.OpenRead(fileName), this);
             LocalTimeSource.SyncHook += player.Play;
         }
@@ -827,6 +873,14 @@ namespace Antmicro.Renode.Core
         public const string SystemBusName = "sysbus";
         public const string UnnamedPeripheral = "[no-name]";
         public const string MachineKeyword = "machine";
+        
+        private void CheckRecorder()
+        {
+            if(recorder != null)
+            {
+                this.Log(LogLevel.Error, "Detected existing event recorder attached to the machine - it won't work in the non-deterministic mode");
+            }
+        }
 
         private void InnerUnregisterFromParent(IPeripheral peripheral)
         {
