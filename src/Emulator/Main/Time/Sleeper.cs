@@ -80,6 +80,27 @@ namespace Antmicro.Renode.Time
             }
         }
 
+        /// <summary>
+        /// Interrupts sleeping.
+        /// </summary>
+        /// <remarks>
+        /// Calling this method will wake up the sleeping thread if the sleeper is enabled.
+        /// If the thread is not sleeping at the moment of calling this method, it has no effects.
+        /// </remarks>
+        public void Interrupt()
+        {
+            lock(locker)
+            {
+                if(cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                
+                Disable();
+                Enable();
+            }
+        }
+        
         [Constructor]
         private CancellationTokenSource cancellationToken;
         private readonly Stopwatch stopwatch;
