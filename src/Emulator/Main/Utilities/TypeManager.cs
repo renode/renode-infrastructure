@@ -533,10 +533,7 @@ namespace Antmicro.Renode.Utilities
                 {
                     defaultAssemblyResolver.AddSearchDirectory(directory);
                 }
-                foreach(var type in module.GetTypes())
-                {
-                    types.Add(type);
-                }
+                types.AddRange(module.GetTypes());
             }
 
             var hidePluginsFromThisAssembly = false;
