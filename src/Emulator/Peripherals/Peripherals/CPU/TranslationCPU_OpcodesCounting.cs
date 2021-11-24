@@ -41,6 +41,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void InstallOpcodeCounterPattern(string name, ulong opcode, ulong mask)
         {
+            if(opcodesMap.ContainsKey(name))
+            {
+                throw new RecoverableException($"Opcode '{name}' already registered");
+            }
+            
             var id = TlibInstallOpcodeCounter(opcode, mask);
             if(id == 0)
             {
