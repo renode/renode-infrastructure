@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
-        /// Interrupts sleeping.
+        /// Disables sleeping.
         /// </summary>
         /// <remarks>
         /// All subsequent calls to <see cref="Sleep"> will finish immediately after calling this method.
@@ -60,6 +60,12 @@ namespace Antmicro.Renode.Time
             cancellationToken.Cancel();
         }
 
+        /// <summary>
+        /// Enables sleeping.
+        /// </summary>
+        /// <remarks>
+        /// Use this method to re-enable sleeping after calling <see cref="Disable">.
+        /// </remarks>
         public void Enable()
         {
             cancellationToken = new CancellationTokenSource();
