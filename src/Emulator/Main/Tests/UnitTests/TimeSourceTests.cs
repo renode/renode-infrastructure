@@ -76,30 +76,6 @@ namespace UnitTests
             }
         }
 
-        [Test]
-        public void ShouldSleep()
-        {
-            const int slavesCount = 5;
-            const int roundsCount = 3;
-
-            using(var timeSource = new MasterTimeSource() { Quantum = TimeInterval.FromMilliseconds(1000), AdvanceImmediately = false })
-            {
-                var timeSinks = new SimpleTimeSink[slavesCount];
-                for(int i = 0; i < slavesCount; i++)
-                {
-                    timeSinks[i] = new SimpleTimeSink(double.MaxValue);
-                    timeSource.RegisterSink(timeSinks[i]);
-                }
-                var sw = Stopwatch.StartNew();
-
-                // the first round does not increment the time - it just triggers a sync point
-                timeSource.Run(roundsCount + 1);
-
-                var after = sw.Elapsed;
-                Assert.IsTrue(after.TotalSeconds > roundsCount);
-            }
-        }
-
         // TODO: think about those tests
         [Test, Ignore("Ignored")]
         public void ShouldCalculateCumulativeLoadForIndefinitePerformance()

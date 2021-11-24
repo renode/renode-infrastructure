@@ -32,7 +32,6 @@ namespace Antmicro.Renode.Time
             blockingEvent = new ManualResetEvent(true);
             delayedActions = new SortedSet<DelayedTask>();
             handles = new HandlesCollection();
-            sleeper = new Sleeper();
             stopwatch = Stopwatch.StartNew();
 
             hostTicksElapsed = new TimeVariantValue(10);
@@ -427,16 +426,9 @@ namespace Antmicro.Renode.Time
 
                 handles.UnlatchAll();
 
-                State = TimeSourceState.Sleeping;
-                var elapsedThisTime = stopwatch.Elapsed - elapsedAtLastGrant;
-                if(!AdvanceImmediately)
-                {
-                    var scaledVirtualTicksElapsed = virtualTimeElapsed.WithScaledTicks(1 / Performance).ToTimeSpan() - elapsedThisTime;
-                    sleeper.Sleep(scaledVirtualTicksElapsed);
-                }
-
                 lock(hostTicksElapsed)
                 {
+                    var elapsedThisTime = stopwatch.Elapsed - elapsedAtLastGrant;
                     this.Trace($"Updating virtual time by {virtualTimeElapsed.InMicroseconds} us");
                     this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
                     this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
@@ -638,7 +630,6 @@ namespace Antmicro.Renode.Time
         protected readonly Stopwatch stopwatch;
         // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
         protected readonly PrioritySynchronizer sync;
-        protected readonly Sleeper sleeper;
 
         /// <summary>
         /// Used to request a pause on sinks before trying to acquire their locks.

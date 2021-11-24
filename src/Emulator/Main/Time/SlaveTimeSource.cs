@@ -61,7 +61,6 @@ namespace Antmicro.Renode.Time
                     this.Trace();
                     return;
                 }
-                sleeper.Disable(); //this will interrupt a sleeping thread keeping `sync` and prevent other threads from obtaining it and going into sleep
                 RequestStop();
                 using(sync.HighPriority)
                 {
@@ -78,7 +77,6 @@ namespace Antmicro.Renode.Time
         public void Resume()
         {
             this.Trace("Resuming...");
-            sleeper.Enable();
             lock(locker)
             {
                 using(sync.HighPriority)
