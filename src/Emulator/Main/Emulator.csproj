@@ -532,6 +532,7 @@
     <Compile Include="Utilities\ByteArrayWithAccessTracking.cs" />
     <Compile Include="Utilities\Crypto\PRINCECipher.cs" />
     <Compile Include="Utilities\Crypto\PRESENTCipher.cs" />
+    <Compile Include="Utilities\Crypto\AesProvider.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
