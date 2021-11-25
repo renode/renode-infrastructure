@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public TimeSourceBase()
         {
-            reportTimeProgressLock = new object();
+            virtualTimeSyncLock = new object();
             isInSyncPhaseLock = new object();
 
             blockingEvent = new ManualResetEvent(true);
@@ -226,15 +226,21 @@ namespace Antmicro.Renode.Time
         /// <see cref="ITimeSource.ReportTimeProgress">
         public void ReportTimeProgress()
         {
-            lock(reportTimeProgressLock)
+            SynchronizeVirtualTime();
+        }
+
+        private void SynchronizeVirtualTime()
+        {
+            lock(virtualTimeSyncLock)
             {
                 var currentCommonElapsedTime = handles.CommonElapsedTime;
-                if(currentCommonElapsedTime > previousElapsedVirtualTime)
+                if(currentCommonElapsedTime > ElapsedVirtualTime)
                 {
-                    var timeDiff = currentCommonElapsedTime - previousElapsedVirtualTime;
+                    var timeDiff = currentCommonElapsedTime - ElapsedVirtualTime;
                     this.Trace($"Reporting time passed: {timeDiff}");
                     TimePassed?.Invoke(timeDiff);
-                    previousElapsedVirtualTime = currentCommonElapsedTime;
+                    // this will update ElapsedVirtualTime
+                    UpdateTime(timeDiff);
                 }
             }
         }
@@ -377,7 +383,9 @@ namespace Antmicro.Renode.Time
             var quantum = NearestSyncPoint - ElapsedVirtualTime;
             this.Trace($"Starting a loop with #{quantum.Ticks} ticks");
 
-            virtualTimeElapsed = TimeInterval.Empty;
+            SynchronizeVirtualTime();
+            var elapsedVirtualTimeAtStart = ElapsedVirtualTime;
+            
             using(sync.LowPriority)
             {
                 handles.LatchAllAndCollectGarbage();
@@ -409,9 +417,8 @@ namespace Antmicro.Renode.Time
                         executor.ExecuteInParallel(handles.WithLinkedListNode);
                     }
 
-                    var commonElapsedTime = handles.CommonElapsedTime;
-                    DebugHelper.Assert(commonElapsedTime >= ElapsedVirtualTime, $"A slave reports time from the past! The current virtual time is {ElapsedVirtualTime}, but {commonElapsedTime} has been reported");
-                    virtualTimeElapsed = commonElapsedTime - ElapsedVirtualTime;
+                    SynchronizeVirtualTime();
+                    virtualTimeElapsed = ElapsedVirtualTime - elapsedVirtualTimeAtStart;
                 }
                 else
                 {
@@ -419,14 +426,13 @@ namespace Antmicro.Renode.Time
                     // if there are no slaves just make the time pass
                     virtualTimeElapsed = quantum;
 
+                    UpdateTime(quantum);
                     // here we must trigger `TimePassed` manually as no handles has been updated so they won't reflect the passed time
                     TimePassed?.Invoke(quantum);
                 }
 
                 handles.UnlatchAll();
             }
-            
-            UpdateTime(virtualTimeElapsed);
 
             if(!isBlocked)
             {
@@ -654,11 +660,10 @@ namespace Antmicro.Renode.Time
         private bool updateNearestSyncPoint;
         private int? executeThreadId;
 
-        private TimeInterval previousElapsedVirtualTime;
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
-        private readonly object reportTimeProgressLock;
+        private readonly object virtualTimeSyncLock;
         private readonly object isInSyncPhaseLock;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);

@@ -284,6 +284,7 @@ namespace Antmicro.Renode.Time
                 else
                 {
                     interval = intervalGranted + timeResiduum;
+                    overGranted = timeResiduum;
                     timeResiduum = TimeInterval.Empty;
 
                     sinkSideInProgress = true;
@@ -304,6 +305,15 @@ namespace Antmicro.Renode.Time
 
             lock(innerLock)
             {
+                if(overGranted >= progress)
+                {
+                    overGranted -= progress;
+                    return;
+                }
+                
+                progress -= overGranted;
+                overGranted = TimeInterval.Empty;
+                
                 this.Trace($"Reporting progress: {progress}");
                 TotalElapsedTime += progress;
                 reportedSoFar += progress;
@@ -813,6 +823,10 @@ namespace Antmicro.Renode.Time
         /// Flag is set when the handle is actively waiting to be unblocked
         /// </summary>
         private bool waitsToBeUnblocked;
+        ///<summary>
+        /// The amount of time granted to sink over what normally would be given that includes residuum previously return as a result of ReportBackAndContinue.
+        ///</summary>
+        private TimeInterval overGranted;
 
         private bool enabled;
         private bool sinkSideActive;
