@@ -393,7 +393,6 @@ namespace Antmicro.Renode.Time
                 var shouldGrantTime = handles.AreAllReadyForNewGrant;
 
                 this.Trace($"Iteration start: slaves left {handles.ActiveCount}; will we try to grant time? {shouldGrantTime}");
-                elapsedAtLastGrant = stopwatch.Elapsed;
 
                 if(handles.ActiveCount > 0)
                 {
@@ -434,15 +433,9 @@ namespace Antmicro.Renode.Time
                 }
 
                 handles.UnlatchAll();
-
-                lock(hostTicksElapsed)
-                {
-                    var elapsedThisTime = stopwatch.Elapsed - elapsedAtLastGrant;
-                    this.Trace($"Updating virtual time by {virtualTimeElapsed.InMicroseconds} us");
-                    this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
-                    this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
-                }
             }
+            
+            UpdateTime(virtualTimeElapsed);
 
             if(!isBlocked)
             {
@@ -458,6 +451,20 @@ namespace Antmicro.Renode.Time
 
             this.Trace($"The end of {nameof(InnerExecute)} with result={!isBlocked}");
             return !isBlocked;
+        }
+
+        private void UpdateTime(TimeInterval virtualTimeElapsed)
+        {
+            lock(hostTicksElapsed)
+            {
+                var currentTimestamp = stopwatch.Elapsed;
+                var elapsedThisTime = currentTimestamp - elapsedAtLastUpdate;
+                elapsedAtLastUpdate = currentTimestamp;
+                
+                this.Trace($"Updating virtual time by {virtualTimeElapsed.InMicroseconds} us");
+                this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
+                this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
+            }
         }
 
         /// <summary>
@@ -654,7 +661,7 @@ namespace Antmicro.Renode.Time
         [Antmicro.Migrant.Constructor(true)]
         private ManualResetEvent blockingEvent;
 
-        private TimeSpan elapsedAtLastGrant;
+        private TimeSpan elapsedAtLastUpdate;
         private bool isBlocked;
         private bool updateNearestSyncPoint;
         private int? executeThreadId;
