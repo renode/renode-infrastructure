@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Text;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -31,7 +31,22 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
             foreach(var access in accesses)
             {
-                foreach(var b in manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length))
+                if(manager.Machine.SystemBus.WhatIsAt(access.Address) == null)
+                {
+                    return PacketData.ErrorReply(Error.BadAddress);
+                }
+
+                byte[] data;
+                try
+                {
+                    data = manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length, onlyMemory: true);
+                }
+                catch(RecoverableException)
+                {
+                    return PacketData.ErrorReply(Error.BadAddress);
+                }
+
+                foreach(var b in data)
                 {
                     content.AppendFormat("{0:x2}", b);
                 }
