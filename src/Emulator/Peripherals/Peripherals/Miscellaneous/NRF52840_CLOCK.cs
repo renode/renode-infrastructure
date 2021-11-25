@@ -84,8 +84,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 31);
 
             Registers.EnableInterrupt.Define(this)
-                .WithFlag(0, out hfclkStartedEventEnabled, name: "HFCLKSTARTED")
-                .WithFlag(1, out lfclkStartedEventEnabled, name: "LFCLKSTARTED")
+                .WithFlag(0, out hfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "HFCLKSTARTED")
+                .WithFlag(1, out lfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
                 .WithTaggedFlag("DONE", 3)
                 .WithTaggedFlag("CTTO", 4)
