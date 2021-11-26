@@ -10,15 +10,26 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Binding;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Xtensa : TranslationCPU
     {
-        public Xtensa(string cpuType, Machine machine)
+        private ComparingTimer[] innerTimers;
+        private const int InnerTimersCount = 3;
+        
+        public Xtensa(string cpuType, Machine machine, long frequency = 10000000)
                 : base(cpuType, machine, Endianess.LittleEndian)
         {
+            innerTimers = new ComparingTimer[InnerTimersCount];
+            for(var i = 0; i < innerTimers.Length; i++)
+            {
+                var j = i;
+                innerTimers[i] = new ComparingTimer(machine.ClockSource, frequency, this, "", enabled: true, eventEnabled: true);
+                innerTimers[i].CompareReached += () => HandleCompareReached(j) ;
+            }
         }
 
         public override string Architecture { get { return "xtensa"; } }
@@ -26,6 +37,36 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string GDBArchitecture { get { return "xtensa"; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
+
+        private void HandleCompareReached(int id)
+        { 
+            // this.Log(LogLevel.Error, "Copmare reached, what to do now?!");
+            
+            // this is a mapping for sample_controller
+            var intMap = new uint[] { 6, 10, 13 };
+            
+            // this is a mapping for baytrail
+            // var intMap = new uint[] { 1, 5, 7 };
+            TlibSetIrqPendingBit(intMap[id], 1u);
+        }
+        
+        [Export]
+        private ulong GetCPUTime()
+        {
+            SyncTime();
+            return innerTimers[0].Value;
+        }
+        
+        [Export]
+        private void TimerMod(uint id, ulong value)
+        {
+            if(id >= InnerTimersCount)
+            {
+                throw new Exception($"Unsupported compare #{id}");
+            }
+
+            innerTimers[id].Compare = value;
+        }
 
         protected override void AddNonMappedRegistersValues(ref Table table)
         {
@@ -112,6 +153,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 BitHelper.GetMaskedValue((uint)source.RawValue, maskOffset, maskSize),
                 (uint)maskSize);
         }
+        
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+#pragma warning disable 649
+        [Import]
+        private ActionUInt32UInt32 TlibSetIrqPendingBit;
+#pragma warning restore 649
 
         private enum XtensaMaskedRegister
         {
