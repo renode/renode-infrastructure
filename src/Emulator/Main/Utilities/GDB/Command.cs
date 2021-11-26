@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Utilities.GDB
         public static PacketData Execute(Command command, Packet packet)
         {
             var executeMethod = GetExecutingMethod(command, packet);
-            var mnemonic = executeMethod.GetCustomAttribute<ExecuteAttribute>().Mnemonic;
+            var mnemonic = packet.Data.Mnemonic;
             var parsingContext = new ParsingContext(packet, mnemonic.Length);
             var parameters = executeMethod.GetParameters().Select(x => HandleArgumentNotResolved(parsingContext, x)).ToArray();
 
@@ -43,6 +43,7 @@ namespace Antmicro.Renode.Utilities.GDB
         protected Command(CommandsManager manager)
         {
             this.manager = manager;
+            executingMethods = new Dictionary<string, MethodInfo>();
         }
 
         protected bool TryTranslateAddress(ulong address, out ulong translatedAddress, bool write)
@@ -156,14 +157,23 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private static MethodInfo GetExecutingMethod(Command command, Packet packet)
         {
+            var mnemonic = packet.Data.Mnemonic;
+            if(executingMethods.TryGetValue(mnemonic, out var output))
+            {
+                return output;
+            }
+
             var interestingMethods = GetExecutingMethods(command.GetType());
             if(!interestingMethods.Any())
             {
                 return null;
             }
 
-            var methods = interestingMethods.Where(x => packet.Data.DataAsString.StartsWith(x.GetCustomAttribute<ExecuteAttribute>().Mnemonic, StringComparison.Ordinal));
-            return methods.OrderByDescending(x => x.GetCustomAttribute<ExecuteAttribute>().Mnemonic.Length).FirstOrDefault();
+            // May return null if the given mnemonic is not supported. We should still put it in the executeMethods to avoid repeating the lookup
+            var method = interestingMethods.FirstOrDefault(x => x.GetCustomAttribute<ExecuteAttribute>().Mnemonic == mnemonic);
+
+            executingMethods.Add(mnemonic, method);
+            return method;
         }
 
         private static object HandleArgumentNotResolved(ParsingContext context, ParameterInfo parameterInfo)
@@ -227,6 +237,8 @@ namespace Antmicro.Renode.Utilities.GDB
 
             throw new ArgumentException(string.Format("Unsupported type for parsing: {0}", type.Name));
         }
+
+        private static Dictionary<string, MethodInfo> executingMethods;
 
         private class ParsingContext
         {
