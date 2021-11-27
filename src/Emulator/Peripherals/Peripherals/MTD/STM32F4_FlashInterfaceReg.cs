@@ -54,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.MTD {
         private uint _sectorNumber;
         private KeyState _state = KeyState.KEY_1;
         private MappedMemory _flashMemory;
+        private bool _busy = false;
 
         public STM32F4_FlashInterfaceReg(MappedMemory flashMemory) {
             var registersMap = new Dictionary<long, DoubleWordRegister> {
@@ -89,7 +90,8 @@ namespace Antmicro.Renode.Peripherals.MTD {
                         })
                 },
                 {(long)_registers.FLASH_SR, new DoubleWordRegister(this, 0x0)
-                    .WithFlag(16, name: "BSY", mode: FieldMode.Read)
+                    .WithFlag(16, name: "BSY", mode: FieldMode.Read, valueProviderCallback: _ => _busy)
+                    .WithReservedBits(17, 15)
                 },
                 {(long)_registers.FLASH_CR, new DoubleWordRegister(this, 0x80000000)
                     .WithFlag(0, name: "PG", mode: FieldMode.Write | FieldMode.Read)
@@ -99,23 +101,23 @@ namespace Antmicro.Renode.Peripherals.MTD {
                         })
                     .WithTag("PSIZE", 8, 2)
                     .WithFlag(16, valueProviderCallback: _ => false, name: "STRT", changeCallback: (_, value) => {
+
                             var valCR = _registers_coll.Read((long)_registers.FLASH_CR);
+                            _busy = value;
+
                             if (value && (valCR & (uint)(1 << 1)) != 0) {
                                 var sector = _sectors[_sectorNumber];
                                 this.Log(LogLevel.Debug, $"Started erasing sector #{_sectorNumber} (offset {sector.Offset}, size {sector.Size}) ");
 
-                                var valBSY = _registers_coll.Read((long)_registers.FLASH_SR);
-                                _registers_coll.Write((long)_registers.FLASH_SR, valBSY | (1 << 16));
-
                                 var pattern = Enumerable.Repeat((byte)0xFF, 1).ToArray();
-                                // _flashMemory.WriteBytes(sector.Offset, pattern, 0, (int)sector.Size);
                                 for (int i = 0; i < sector.Size; i++) {
                                     _flashMemory.WriteByte(sector.Offset + i, 0xff);
                                 }
 
-                                _registers_coll.Write((long)_registers.FLASH_SR, valBSY & ~(uint)(1 << 16));
                                 _registers_coll.Write((long)_registers.FLASH_CR, valCR & ~(uint)(1 << 16));
                             }
+
+                            _busy = false;
                         })
                     .WithFlag(24, name: "EOPIE", mode: FieldMode.Write | FieldMode.Read)
                     .WithFlag(25, name: "ERRIE", mode: FieldMode.Write | FieldMode.Read)
