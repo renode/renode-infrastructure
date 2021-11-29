@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Utilities.GDB
             CanAttachCPU = true;
             BlockOnStep = blockOnStep;
 
+            commandsCache = new Dictionary<string, Command>();
             ManagedCpus = new Dictionary<uint, ICpuSupportingGdb>();
             foreach(var cpu in cpus)
             {
@@ -91,16 +92,15 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public bool TryGetCommand(Packet packet, out Command command)
         {
-            var commandDescriptors = availableCommands.Where(x => packet.Data.DataAsString.StartsWith(x.Mnemonic, StringComparison.Ordinal));
-            if(!commandDescriptors.Any())
-            {
-                command = null;
-                return false;
-            }
+            var mnemonic = packet.Data.Mnemonic;
 
-            var descriptor = commandDescriptors.OrderByDescending(x => x.Mnemonic.Length).FirstOrDefault();
-            command = GetOrCreateCommand(descriptor.Method.DeclaringType);
-            return true;
+            if(!commandsCache.TryGetValue(mnemonic, out command))
+            {
+                var commandDescriptor = availableCommands.FirstOrDefault(x => mnemonic == x.Mnemonic);
+                command = commandDescriptor == null ? null: GetOrCreateCommand(commandDescriptor.Method.DeclaringType);
+                commandsCache[mnemonic] = command;
+            }
+            return command != null;
         }
 
         public List<GBDFeatureDescriptor> GetCompiledFeatures()
@@ -247,6 +247,7 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly HashSet<Command> activeCommands;
         private readonly List<GBDFeatureDescriptor> unifiedFeatures = new List<GBDFeatureDescriptor>();
 
+        private readonly Dictionary<string,Command> commandsCache;
         private uint selectedCpuNumber;
 
         private class CommandDescriptor
