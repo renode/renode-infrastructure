@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public void Register(Type t)
         {
-            if((!Machine.SystemBus.IsMultiCore && typeof(IMultithreadCommand).IsAssignableFrom(t)) || t == typeof(Command) || !typeof(Command).IsAssignableFrom(t))
+            if(t == typeof(Command) || !typeof(Command).IsAssignableFrom(t))
             {
                 return;
             }
