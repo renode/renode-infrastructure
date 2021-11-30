@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Utilities
     {
         public SocketServerProvider(bool emitConfigBytes = true)
         {
-            queue = new BlockingCollection<byte>();
+            queue = new ConcurrentQueue<byte>();
             this.emitConfigBytes = emitConfigBytes;
         }
 
@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Utilities
 
         public void SendByte(byte b)
         {
-            queue.Add(b);
+            queue.Enqueue(b);
         }
 
         public void Send(IEnumerable<byte> bytes)
@@ -90,7 +90,11 @@ namespace Antmicro.Renode.Utilities
             {
                 while(!writerCancellationToken.IsCancellationRequested)
                 {
-                    stream.WriteByte(queue.Take(writerCancellationToken.Token));
+                    byte dequequed;
+                    if(queue.TryDequeue(out dequequed))
+                    {
+                        stream.WriteByte(dequequed);
+                    }
                 }
             }
             catch(OperationCanceledException)
@@ -212,7 +216,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private readonly BlockingCollection<byte> queue;
+        private readonly ConcurrentQueue<byte> queue;
 
         private CancellationTokenSource writerCancellationToken;
         private bool emitConfigBytes;
