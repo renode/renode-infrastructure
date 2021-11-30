@@ -7,15 +7,18 @@
 using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class Xtensa : TranslationCPU
+    public partial class Xtensa : TranslationCPU, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
         private ComparingTimer[] innerTimers;
         private const int InnerTimersCount = 3;
@@ -30,6 +33,22 @@ namespace Antmicro.Renode.Peripherals.CPU
                 innerTimers[i] = new ComparingTimer(machine.ClockSource, frequency, this, "", enabled: true, eventEnabled: true);
                 innerTimers[i].CompareReached += () => HandleCompareReached(j) ;
             }
+        }
+
+        public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(semihostingUart != null)
+            {
+                throw new RegistrationException("A semihosting uart is already registered.");
+            }
+            semihostingUart = peripheral;
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(SemihostingUart peripheral)
+        {
+            semihostingUart = null;
+            machine.UnregisterAsAChildOf(this, peripheral);
         }
 
         public override string Architecture { get { return "xtensa"; } }
@@ -48,6 +67,49 @@ namespace Antmicro.Renode.Peripherals.CPU
             // this is a mapping for baytrail
             // var intMap = new uint[] { 1, 5, 7 };
             TlibSetIrqPendingBit(intMap[id], 1u);
+        }
+
+        private SemihostingUart semihostingUart = null;
+
+        [Export]
+        /* AKA SIMCALL. After the simcall: "a return code will be stored to a2 and an error number to a3." */
+        private void DoSemihosting()
+        {
+            uint op = A[2];
+
+            switch((XtensaSimcallOperation)op){
+            case XtensaSimcallOperation.WRITE:
+                uint fd = A[3];
+                uint vaddr = A[4];
+                uint len = A[5];
+                this.Log(LogLevel.Debug, "WRITE SIMCALL: fd={0}; vaddr=0x{1:X}; len={2}", fd, vaddr, len);
+
+                if(semihostingUart == null)
+                {
+                    this.Log(LogLevel.Warning, "WRITE SIMCALL: Semihosting UART not available!");
+                    break;
+                }
+                if(fd != 1 && fd != 2)
+                {
+                    this.Log(LogLevel.Warning, "WRITE SIMCALL: Only writing to fd=1 or fd=2 is supported!", fd);
+                    break;
+                }
+
+                var buf = Bus.ReadBytes(vaddr, (int)len);
+                var bufString = System.Text.Encoding.ASCII.GetString(buf);
+                semihostingUart.SemihostingWriteString(bufString);
+
+                A[2] = bufString.Length;
+                A[3] = 0; // errno
+                return;
+            default:
+                var opType = typeof(XtensaSimcallOperation);
+                this.Log(LogLevel.Warning, "Unimplemented simcall op={0} ({1})!", op,
+                    Enum.IsDefined(opType, op) ? Enum.GetName(opType, op) : "UNKNOWN");
+                break;
+            }
+            A[2] = uint.MaxValue;
+            A[3] = 88; // ENOSYS
         }
         
         [Export]
@@ -159,6 +221,21 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionUInt32UInt32 TlibSetIrqPendingBit;
 #pragma warning restore 649
+
+        private enum XtensaSimcallOperation : uint
+        {
+            EXIT = 1,
+            READ = 3,
+            WRITE = 4,
+            OPEN = 5,
+            CLOSE = 6,
+            LSEEK = 19,
+            SELECT_ONE = 29,
+            ARGC = 1000,
+            ARGV_SZ = 1001,
+            ARGV = 1002,
+            MEMSET = 1004,
+        }
 
         private enum XtensaMaskedRegister
         {
