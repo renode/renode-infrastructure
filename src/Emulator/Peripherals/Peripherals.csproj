@@ -401,6 +401,7 @@
     <Compile Include="Peripherals\Storage\VirtIOBlockDevice.cs" />
     <Compile Include="Peripherals\Analog\ADCChannel.cs" />
     <Compile Include="Peripherals\MTD\STM32F4_FlashInterfaceReg.cs" />
+    <Compile Include="Peripherals\MemoryControllers\OpenTitan_ROMController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

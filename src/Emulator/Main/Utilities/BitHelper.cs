@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Utilities
 
         public static bool IsBitSet(ulong reg, byte bit)
         {
-            return ((ulong)(0x1 << bit) & reg) != 0;
+            return ((0x1UL << bit) & reg) != 0;
         }
 
         public static uint SetBitsFrom(uint source, uint newValue, int position, int width)
@@ -245,6 +245,18 @@ namespace Antmicro.Renode.Utilities
                 }
             }
             reg &= (byte)mask;
+        }
+
+        public static void SetBit(ref ulong reg, byte bit, bool value)
+        {
+            if(value)
+            {
+                reg |= (0x1ul << bit);
+            }
+            else
+            {
+                reg &= (ulong.MaxValue - (0x1ul << bit));
+            }
         }
 
         public static void SetBit(ref uint reg, byte bit, bool value)
@@ -457,6 +469,12 @@ namespace Antmicro.Renode.Utilities
         {
             return (uint)((ReverseBits((byte)s) << 24) | (ReverseBits((byte)(s >> 8)) << 16) |
                            (ReverseBits((byte)(s >> 16)) << 8) | ReverseBits((byte)(s >> 24)));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong ReverseBits(ulong v)
+        {
+            return ((ulong)ReverseBits((uint)v) << 32) | ReverseBits((uint)(v >> 32));
         }
 
         // TODO: enumerator + lazy calculation

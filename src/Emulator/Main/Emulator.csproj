@@ -530,6 +530,8 @@
     <Compile Include="Utilities\RawImageData.cs" />
     <Compile Include="Utilities\LibCWrapper.cs" />
     <Compile Include="Utilities\ByteArrayWithAccessTracking.cs" />
+    <Compile Include="Utilities\Crypto\PRINCECipher.cs" />
+    <Compile Include="Utilities\Crypto\PRESENTCipher.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
