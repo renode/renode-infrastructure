@@ -1877,7 +1877,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Slot;
         }
 
-        public string DisassembleBlock(uint addr, uint blockSize = 40, uint flags = 0)
+        public string DisassembleBlock(ulong addr, uint blockSize = 40, uint flags = 0)
         {
             var block = DisasEngine.Disassemble(addr, true, blockSize, flags);
             return block != null ? block.Replace("\n", "\r\n") : string.Empty;
