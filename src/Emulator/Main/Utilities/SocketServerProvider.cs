@@ -11,6 +11,7 @@ using Antmicro.Renode.Logging;
 using System.IO;
 using System.Net;
 using System.Threading;
+using System.Diagnostics;
 using System.Collections.Concurrent;
 using Antmicro.Renode.Exceptions;
 using System.Collections.Generic;
@@ -22,6 +23,7 @@ namespace Antmicro.Renode.Utilities
         public SocketServerProvider(bool emitConfigBytes = true)
         {
             queue = new ConcurrentQueue<byte>();
+            enqueuedEvent = new AutoResetEvent(false);
             this.emitConfigBytes = emitConfigBytes;
         }
 
@@ -68,6 +70,7 @@ namespace Antmicro.Renode.Utilities
         public void SendByte(byte b)
         {
             queue.Enqueue(b);
+            enqueuedEvent.Set();
         }
 
         public void Send(IEnumerable<byte> bytes)
@@ -88,13 +91,20 @@ namespace Antmicro.Renode.Utilities
         {
             try
             {
+                // This thread will poll for bytes constantly for `MaxReadThreadPoolingTimeMs` to assert we have the lowest possible latency while transmiting packet.
+                var watch = new Stopwatch();
                 while(!writerCancellationToken.IsCancellationRequested)
                 {
-                    byte dequequed;
-                    if(queue.TryDequeue(out dequequed))
+                    watch.Start();
+                    while(watch.ElapsedMilliseconds < MaxReadThreadPoolingTimeMs)
                     {
-                        stream.WriteByte(dequequed);
+                        while(queue.TryDequeue(out var dequequed))
+                        {
+                            stream.WriteByte(dequequed);
+                        }
                     }
+                    watch.Reset();
+                    enqueuedEvent.WaitOne();
                 }
             }
             catch(OperationCanceledException)
@@ -130,6 +140,7 @@ namespace Antmicro.Renode.Utilities
 
             Logger.LogAs(this, LogLevel.Debug, "Client disconnected, stream closed.");
             writerCancellationToken.Cancel();
+            enqueuedEvent.Set();
         }
 
         private void ListenerThreadBody()
@@ -219,6 +230,7 @@ namespace Antmicro.Renode.Utilities
         private readonly ConcurrentQueue<byte> queue;
 
         private CancellationTokenSource writerCancellationToken;
+        private AutoResetEvent enqueuedEvent;
         private bool emitConfigBytes;
         private bool stopRequested;
         private Thread listenerThread;
@@ -226,5 +238,7 @@ namespace Antmicro.Renode.Utilities
         private Thread writerThread;
         private Socket server;
         private Socket socket;
+
+        private const int MaxReadThreadPoolingTimeMs = 60;
     }
 }
