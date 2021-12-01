@@ -20,6 +20,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.EnableOpcodesCounting = true;
         }
         
+        public static void EnableVectorOpcodesCounting2(this BaseRiscV cpu)
+        {
+            // TODO: use embedded files
+            
+            foreach(var opc in vectorOpcodes)
+            {
+                cpu.InstallOpcodeCounterPattern(opc.Item1, opc.Item2, opc.Item3);
+            }
+            cpu.EnableOpcodesCounting = true;
+        }
+        
         private static List<Tuple<string, uint, uint>> vectorOpcodes = new List<Tuple<string, uint, uint>>
         {
             // name, opcode, mask
