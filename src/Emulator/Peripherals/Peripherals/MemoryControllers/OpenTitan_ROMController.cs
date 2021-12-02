@@ -7,12 +7,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
+using Org.BouncyCastle.Crypto.Digests;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
@@ -20,9 +23,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
     {
         public OpenTitan_ROMController(MappedMemory rom, ulong nonce, ulong keyLow, ulong keyHigh)
         {
-            if(rom.Size <= 0)
+            if(rom.Size / 4 <= 8)
             {
-                throw new ConstructionException("Provided rom's size has to be greater than zero");
+                throw new ConstructionException("Provided rom's size has to be greater than 8 words (32 bytes)");
             }
             if(rom.Size % 4 != 0)
             {
@@ -35,7 +38,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             romIndexWidth = BitHelper.GetMostSignificantSetBitIndex((ulong)rom.Size / 4 - 1) + 1;
             addressKey = nonce >> (64 - romIndexWidth);
             dataNonce = nonce << romIndexWidth;
-            expectedDigest = new IValueRegisterField[NumberOfDigestRegisters];
+            digest = new byte[NumberOfDigestRegisters * 4];
+            expectedDigest = new byte[NumberOfDigestRegisters * 4];
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             Reset();
         }
@@ -52,11 +56,12 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         public void Load(string fileName)
         {
+            var size = (ulong)rom.Size / 4;
+            var digestData = new ulong[size - 8];
             try
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
                 {
-                    var size = (ulong)rom.Size / 4;
                     var buffer = new byte[8];
                     var read = 0;
                     for(var scrambledIndex = 0UL; scrambledIndex < size; ++scrambledIndex)
@@ -80,7 +85,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                         if(index >= size - 8)
                         {
                             // top 8 (by logical addressing) words are 256-bit expected hash, stored not scrambled.
-                            expectedDigest[index - size + 8].Value = (uint)data;
+                            expectedDigest.SetBytesFromValue((uint)data, (int)(index + 8 - size) * 4);
+                        }
+                        else
+                        {
+                            digestData[index] = data;
                         }
 
                         // data's width is 32 bits of proper data and 7 bits of ECC
@@ -100,28 +109,35 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             {
                 throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
             }
+            CalculateDigest(digestData);
         }
 
         public void Reset()
         {
             // do not clear ROM
             registers.Reset();
-            fatalTriggered = false;
+            CheckDigest();
         }
 
         public long Size => 0x1000;
+
+        public IEnumerable<byte> Digest => digest;
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
             var registersDictionary = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.AlertTest, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, value) => { fatalTriggered |= value; }, name: "fatal")
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                        {
+                            checkerError.Value |= value;
+                            integrityError.Value |= value;
+                        }, name: "fatal")
                     .WithReservedBits(1, 31)
                 },
                 {(long)Registers.FatalAlertCause, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => fatalTriggered, name: "checker_error")
-                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => fatalTriggered, name: "integrity_error")
+                    .WithFlag(0, out checkerError, FieldMode.Read, name: "checker_error")
+                    .WithFlag(1, out integrityError, FieldMode.Read, name: "integrity_error")
                     .WithReservedBits(2, 30)
                 },
             };
@@ -129,12 +145,29 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             for(var i = 0; i < NumberOfDigestRegisters; ++i)
             {
                 registersDictionary.Add((long)Registers.Digest0 + i * 4, new DoubleWordRegister(this)
-                    .WithTag($"DIGEST_{i}", 0, 32));
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)BitConverter.ToInt32(digest, i * 4), name: $"DIGEST_{i}"));
                 registersDictionary.Add((long)Registers.ExpectedDigest0 + i * 4, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out expectedDigest[i], FieldMode.Read, name: $"EXP_DIGEST_{i}"));
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)BitConverter.ToInt32(expectedDigest, i * 4), name: $"EXP_DIGEST_{i}"));
             }
 
             return registersDictionary;
+        }
+
+        private void CalculateDigest(ulong[] words)
+        {
+            var hasher = new CShakeDigest(256, null, Encoding.ASCII.GetBytes("ROM_CTRL"));
+            foreach(var word in words)
+            {
+                hasher.BlockUpdate(BitConverter.GetBytes(word), 0, 8);
+            }
+
+            hasher.DoFinal(digest, 0, digest.Length);
+            CheckDigest();
+        }
+
+        private void CheckDigest()
+        {
+            integrityError.Value = expectedDigest.Zip(digest, (b0, b1) => b0 != b1).Any(b => b);
         }
 
         private readonly ulong addressKey;
@@ -145,9 +178,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private readonly MappedMemory rom;
         private readonly DoubleWordRegisterCollection registers;
 
-        private readonly IValueRegisterField[] expectedDigest;
+        private readonly byte[] digest;
+        private readonly byte[] expectedDigest;
 
-        private bool fatalTriggered;
+        private IFlagRegisterField checkerError;
+        private IFlagRegisterField integrityError;
 
         private const int NumberOfDigestRegisters = 8;
         private const int NumberOfScramblingRounds = 2;
