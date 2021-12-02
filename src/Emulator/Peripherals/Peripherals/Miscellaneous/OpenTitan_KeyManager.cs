@@ -1,8 +1,8 @@
 //
 // Copyright (c) 2010-2021 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Globalization;
@@ -14,39 +14,72 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.MemoryControllers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_KeyManager : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_KeyManager(Machine machine, string revisionSeed, int randomSeed = 0) : base(machine)
+        public OpenTitan_KeyManager(Machine machine, OpenTitan_ROMController romController,
+            string deviceId, string lifeCycleDiversificationConstant, string creatorKey, string ownerKey, string rootKey,
+            string softOutputSeed, string hardOutputSeed, string destinationNoneSeed, string destinationAesSeed, string destinationOtbnSeed, string destinationKmacSeed,
+            string revisionSeed, string creatorIdentitySeed, string ownerIntermediateIdentitySeed, string ownerIdentitySeed,
+            bool kmacEnableMasking = true, int randomSeed = 0, ISideloadableKey kmac = null, ISideloadableKey aes = null, ISideloadableKey otbn = null) : base(machine)
         {
+            this.romController = romController;
+            destinations = new Dictionary<Destination, ISideloadableKey>();
+            if(kmac != null)
+            {
+                destinations.Add(Destination.KMAC, kmac);
+            }
+            if(aes != null)
+            {
+                destinations.Add(Destination.AES, aes);
+            }
+            if(otbn != null)
+            {
+                destinations.Add(Destination.OTBN, otbn);
+            }
             OperationDoneIRQ = new GPIO();
-            internalKey = new byte[KeySize];
             random = new Random(randomSeed);
             sealingSoftwareBinding = new byte[MultiRegistersCount * 4];
             attestationSoftwareBinding = new byte[MultiRegistersCount * 4];
             salt = new byte[MultiRegistersCount * 4];
-            softwareShareOutput = new byte[NumberOfSoftwareShareOutputs][];
-            for(var i = 0; i < NumberOfSoftwareShareOutputs; ++i)
-            {
-                softwareShareOutput[i] = new byte[MultiRegistersCount * 4];
-            }
+            softwareShareOutput = new byte[MultiRegistersCount * 4 * NumberOfSoftwareShareOutputs];
 
-            try
+            this.deviceId = ConstructorParseHexstringArgument("deviceId", deviceId, DeviceIdExpectedLength); // OTP_HW_CFG_DATA_DEFAULT.device_id
+            this.lifeCycleDiversificationConstant = ConstructorParseHexstringArgument("lifeCycleDiversificationConstant", lifeCycleDiversificationConstant, LifeCycleDiversificationConstantLength); // RndCnstLcKeymgrDiv
+            this.creatorKey = ConstructorParseHexstringArgument("creatorKey", creatorKey, CreatorKeyExpectedLength); // KEYMGR_FLASH_DEFAULT.seeds[CreatorSeedIdx]
+            this.ownerKey = ConstructorParseHexstringArgument("ownerKey", ownerKey, OwnerKeyExpectedLength); // KEYMGR_FLASH_DEFAULT.seeds[OwnerSeedIdx]
+            var rootKeyTemp = ConstructorParseHexstringArgument("rootKey", rootKey, RootKeyExpectedLength); // OTP_KEYMGR_KEY_DEFAULT
+            // If `KmacEnMasking` is set then key is composed of both shares,
+            // otherwise the first key share is a xor of shares and the second key share is zero 
+            if(kmacEnableMasking)
             {
-                this.revisionSeed = ParseHexstring(revisionSeed).ToArray();
+                this.rootKey = rootKeyTemp;
             }
-            catch(FormatException)
+            else
             {
-                throw new ConstructionException($"Could not parse `revisionSeed`: Expected hexstring, got: \"{revisionSeed}\"");
+                this.rootKey = rootKeyTemp
+                    .Take(rootKeyTemp.Length / 2)
+                    .Zip(rootKeyTemp.Skip(rootKeyTemp.Length / 2), (b0, b1) => (byte)(b0 ^ b1))
+                    .Concat(Enumerable.Repeat((byte)0, rootKeyTemp.Length / 2))
+                    .ToArray();
             }
-            if(this.revisionSeed.Length != RevisionSeedExpectedLength)
-            {
-                throw new ConstructionException($"Expected `revisionSeed`'s size is {RevisionSeedExpectedLength} bytes, got {this.revisionSeed.Length}");
-            }
+            this.softOutputSeed = ConstructorParseHexstringArgument("softOutputSeed", softOutputSeed, SeedExpectedLength); // RndCnstSoftOutputSeed
+            this.hardOutputSeed = ConstructorParseHexstringArgument("hardOutputSeed", hardOutputSeed, SeedExpectedLength); // RndCnstHardOutputSeed
+            this.destinationNoneSeed = ConstructorParseHexstringArgument("destinationNoneSeed", destinationNoneSeed, SeedExpectedLength); // RndCnstAesSeed
+            this.destinationAesSeed = ConstructorParseHexstringArgument("destinationAesSeed", destinationAesSeed, SeedExpectedLength); // RndCnstKmacSeed
+            this.destinationOtbnSeed = ConstructorParseHexstringArgument("destinationOtbnSeed", destinationOtbnSeed, SeedExpectedLength); // RndCnstOtbnSeed
+            this.destinationKmacSeed = ConstructorParseHexstringArgument("destinationKmacSeed", destinationKmacSeed, SeedExpectedLength); // RndCnstNoneSeed
+            this.revisionSeed = ConstructorParseHexstringArgument("revisionSeed", revisionSeed, SeedExpectedLength); // RndCnstRevisionSeed
+            this.creatorIdentitySeed = ConstructorParseHexstringArgument("creatorIdentitySeed", creatorIdentitySeed, SeedExpectedLength); // RndCnstCreatorIdentitySeed
+            this.ownerIntermediateIdentitySeed = ConstructorParseHexstringArgument("ownerIntermediateIdentitySeed", ownerIntermediateIdentitySeed, SeedExpectedLength); // RndCnstOwnerIntIdentitySeed
+            this.ownerIdentitySeed = ConstructorParseHexstringArgument("ownerIdentitySeed", ownerIdentitySeed, SeedExpectedLength); // RndCnstOwnerIdentitySeed
 
             DefineRegisters();
             Reset();
@@ -56,14 +89,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             base.Reset();
 
-            Array.Clear(internalKey, 0, internalKey.Length);
             Array.Clear(sealingSoftwareBinding, 0, sealingSoftwareBinding.Length);
             Array.Clear(attestationSoftwareBinding, 0, attestationSoftwareBinding.Length);
+            Array.Clear(salt, 0, salt.Length);
+            Array.Clear(softwareShareOutput, 0, softwareShareOutput.Length);
         }
 
         public long Size => 0x1000;
-
-        public IEnumerable<byte> InternalKey => internalKey;
 
         public GPIO OperationDoneIRQ { get; }
 
@@ -76,6 +108,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             var i = value.Length % 2;
             return chars.GroupBy(c => i++ / 2).Select(c => byte.Parse(string.Join("", c), NumberStyles.HexNumber));
+        }
+
+        static private byte[] ConstructorParseHexstringArgument(string fieldName, string value, int expectedLength)
+        {
+            byte[] field;
+            try
+            {
+                field = ParseHexstring(value).ToArray();
+            }
+            catch(FormatException)
+            {
+                throw new ConstructionException($"Could not parse `{fieldName}`: Expected hexstring, got: \"{value}\"");
+            }
+            if(field.Length != expectedLength)
+            {
+                throw new ConstructionException($"Expected `{fieldName}`'s size is {expectedLength} bytes, got {field.Length}");
+            }
+            return field;
         }
 
         private static WorkingState[] IllegalForAdvance = { WorkingState.Invalid, WorkingState.Disabled };
@@ -104,22 +154,36 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case OperationMode.GenerateID:
                     if(CheckLegality(IllegalForGenerate))
                     {
-                        // Requires KMAC
-                        this.Log(LogLevel.Warning, "Unsupported GenerateID operation");
+                        softwareShareOutput = CalculateKMAC(IdentitySeed, softwareShareOutput.Length);
                     }
                     break;
                 case OperationMode.GenerateHWOutput:
-                    if(CheckLegality(IllegalForGenerate))
+                    if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
                     {
-                        // Requires KMAC
-                        this.Log(LogLevel.Warning, "Unsupported GenerateHWOutput operation");
+                        var data = BitConverter.GetBytes(keyVersion.Value)
+                            .Concat(salt)
+                            .Concat(DestinationCipherSeed)
+                            .Concat(hardOutputSeed);
+                        var length = destination.Value == Destination.OTBN ? SideloadKeyLengthOTBN : SideloadKeyLength;
+                        var output = CalculateKMAC(data, length);
+                        if(destinations.TryGetValue(destination.Value, out var dest))
+                        {
+                            dest.SideloadKey = output;
+                        }
+                        else
+                        {
+                            this.Log(LogLevel.Warning, "Sideload key for {0} is not possible, peripheral is not specified", destination.Value);
+                        }
                     }
                     break;
                 case OperationMode.GenerateSWOutput:
-                    if(CheckLegality(IllegalForGenerate))
+                    if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
                     {
-                        // Requires KMAC
-                        this.Log(LogLevel.Warning, "Unsupported GenerateSWOutput operation");
+                        var data = BitConverter.GetBytes(keyVersion.Value)
+                            .Concat(salt)
+                            .Concat(DestinationCipherSeed)
+                            .Concat(softOutputSeed);
+                        softwareShareOutput = CalculateKMAC(data, softwareShareOutput.Length);
                     }
                     break;
                 case OperationMode.Disable:
@@ -144,24 +208,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return true;
         }
 
-        private void DoTransitionActions()
+        private bool CheckKeyVersion()
         {
-            switch(state.Value)
+            if(keyVersion.Value > MaxKeyVersion)
             {
-                case WorkingState.Init:
-                    PopulateInternalKey();
-                    break;
-                    // TODO: Add Calculating next working state/internalKey
-                    // Requires KMAC
-                default:
-                    this.Log(LogLevel.Warning, "Reached unimplemented state: {0}", state.Value);
-                    break;
+                invalidKmacInputFlag.Value = true;
+                return false;
             }
+            return true;
         }
 
-        private void PopulateInternalKey()
+        private void Invalidate()
         {
-            random.NextBytes(internalKey);
+            var key = new byte[SideloadKeyLength];
+            foreach(var dest in destinations.Values)
+            {
+                random.NextBytes(key);
+                dest.SideloadKey = key;
+            }
+            random.NextBytes(softwareShareOutput);
         }
 
         private void HandleIllegalOperation()
@@ -170,32 +235,67 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             invalidOperationFlag.Value = true;
         }
 
-        private void AdvanceState(WorkingState? nextState = null)
+        private void AdvanceState()
         {
-            if(nextState.HasValue)
+            IEnumerable<byte> data;
+            
+            switch(state.Value)
             {
-                state.Value = nextState.Value;
-            }
-            else
-            {
-                if(state.Value != WorkingState.Disabled)
-                {
+                case WorkingState.Reset:
                     state.Value++;
-                    DoTransitionActions();
-                }
-                else
-                {
-                    //TODO: Update hardware outputs and keys with randomly computed values
-                    for(var i = 0; i < NumberOfSoftwareShareOutputs; ++i)
-                    {
-                        random.NextBytes(softwareShareOutput[i]);
-                    }
-                    PopulateInternalKey();
-                }
+                    internalKey = rootKey;
+                    break;
+                case WorkingState.Init:
+                    state.Value++;
+                    data = SoftwareBinding
+                        .Concat(revisionSeed)
+                        .Concat(deviceId)
+                        .Concat(lifeCycleDiversificationConstant)
+                        .Concat(romController.Digest)
+                        .Concat(creatorKey);
+                    creatorRootStateKey = CalculateKMAC(data, RootKeyExpectedLength);
+                    internalKey = creatorRootStateKey;
+                    break;
+                case WorkingState.CreatorRootKey:
+                    state.Value++;
+                    data = SoftwareBinding
+                        .Concat(ownerKey);
+                    ownerIntermediateStateKey = CalculateKMAC(data, RootKeyExpectedLength);
+                    internalKey = ownerIntermediateStateKey;
+                    break;
+                case WorkingState.OwnerIntermediateKey:
+                    state.Value++;
+                    data = SoftwareBinding;
+                    ownerStateKey = CalculateKMAC(data, RootKeyExpectedLength);
+                    internalKey = ownerStateKey;
+                    break;
+                case WorkingState.OwnerKey:
+                    state.Value++;
+                    break;
+                case WorkingState.Disabled:
+                    Invalidate();
+                    break;
+                case WorkingState.Invalid:
+                    // This is a proper state, no additonal logging is required
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Reached unexpected state: {0}", state.Value);
+                    break;
             }
 
             this.Log(LogLevel.Debug, "WorkingState advanced to '{0}'", state.Value);
             status.Value = Status.Idle;
+        }
+
+        public byte[] CalculateKMAC(IEnumerable<byte> data, int outputLength)
+        {
+            var mac = new KMac(KmacBitLength, null);
+            mac.Init(new KeyParameter(internalKey));
+            var dataArray = data.ToArray();
+            mac.BlockUpdate(dataArray, 0, dataArray.Length);
+            var output = new byte[outputLength];
+            mac.DoFinal(output, 0, outputLength);
+            return output;
         }
 
         private void DefineRegisters()
@@ -265,28 +365,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             });
 
             Registers.KeyVersion.Define(this)
-                .WithTag("VAL", 0, 32);
+                .WithValueField(0, 32, out keyVersion, name: "VAL");
 
             Registers.MaxCreatorKeyVersionWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("EN", 0) // FieldMode.Read | FieldMode.WriteZeroToClear
                 .WithIgnoredBits(1, 31);
 
             Registers.MaxCreatorKeyVersion.Define(this)
-                .WithTag("VAL", 0, 32);
+                .WithValueField(0, 32, out maxCreatorKeyVersion, name: "VAL");
 
             Registers.MaxOwnerIntermediateKeyVersionWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("EN", 0) // FieldMode.Read | FieldMode.WriteZeroToClear
                 .WithIgnoredBits(1, 31);
 
             Registers.MaxOwnerIntermediateKeyVersion.Define(this)
-                .WithTag("VAL", 0, 32);
+                .WithValueField(0, 32, out maxOwnerIntermediateKeyVersion, name: "VAL");
 
             Registers.MaxOwnerKeyVersionWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("EN", 0) // FieldMode.Read | FieldMode.WriteZeroToClear
                 .WithIgnoredBits(1, 31);
 
             Registers.MaxOwnerKeyVersion.Define(this)
-                .WithTag("VAL", 0, 32);
+                .WithValueField(0, 32, out maxOwnerKeyVersion, name: "VAL");
 
             for(var i = 0; i < NumberOfSoftwareShareOutputs; ++i)
             {
@@ -295,8 +395,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     register.WithValueField(0, 32, FieldMode.ReadToClear, valueProviderCallback: _ =>
                     {
-                        var value = (uint)BitConverter.ToInt32(softwareShareOutput[i], idx * 4);
-                        softwareShareOutput[i].SetBytesFromValue(0, idx * 4);
+                        var startIndex = i * MultiRegistersCount * 4 + idx * 4;
+                        var value = (uint)BitConverter.ToInt32(softwareShareOutput, startIndex);
+                        softwareShareOutput.SetBytesFromValue(0, startIndex);
                         return value;
                     }, name: $"VAL_{idx}");
                 });
@@ -312,7 +413,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.ErrorCode.Define(this)
                 .WithFlag(0, out invalidOperationFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "INVALID_OP")
-                .WithTaggedFlag("INVALID_KMAC_INPUT", 1)    // FieldMode.Read | FieldMode.WriteOneToClear
+                .WithFlag(1, out invalidKmacInputFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "INVALID_KMAC_INPUT")
                 .WithTaggedFlag("INVALID_SHADOW_UPDATE", 2) // FieldMode.Read | FieldMode.WriteOneToClear
                 .WithIgnoredBits(3, 29);
 
@@ -335,6 +436,66 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             OperationDoneIRQ.Set(interruptStatusOperationDone.Value && interruptEnableOperationDone.Value);
         }
 
+        private IEnumerable<byte> SoftwareBinding => cdiSetting.Value == CDISetting.Sealing ? sealingSoftwareBinding : attestationSoftwareBinding;
+
+        private IEnumerable<byte> DestinationCipherSeed
+        {
+            get
+            {
+                switch(destination.Value)
+                {
+                    case Destination.None:
+                        return destinationNoneSeed;
+                    case Destination.AES:
+                        return destinationAesSeed;
+                    case Destination.KMAC:
+                        return destinationKmacSeed;
+                    case Destination.OTBN:
+                        return destinationOtbnSeed;
+                    default:
+                        this.Log(LogLevel.Error, "Invalid state, destination's value is 0x{0:X}", destination.Value);
+                        return Enumerable.Empty<byte>();
+                }
+            }
+        }
+
+        private IEnumerable<byte> IdentitySeed
+        {
+            get
+            {
+                switch(state.Value)
+                {
+                    case WorkingState.CreatorRootKey:
+                        return creatorIdentitySeed;
+                    case WorkingState.OwnerIntermediateKey:
+                        return ownerIntermediateIdentitySeed;
+                    case WorkingState.OwnerKey:
+                    default:
+                        this.Log(LogLevel.Error, "Invalid state for getting `IdentitySeed`, state's value is 0x{0:X}", state.Value);
+                        return Enumerable.Empty<byte>();
+                }
+            }
+        }
+
+        private uint MaxKeyVersion
+        {
+            get
+            {
+                switch(state.Value)
+                {
+                    case WorkingState.CreatorRootKey:
+                        return maxCreatorKeyVersion.Value;
+                    case WorkingState.OwnerIntermediateKey:
+                        return maxOwnerIntermediateKeyVersion.Value;
+                    case WorkingState.OwnerKey:
+                        return maxOwnerKeyVersion.Value;
+                    default:
+                        this.Log(LogLevel.Error, "Invalid state for getting `MaxKeyVersion`, state's value is 0x{0:X}", state.Value);
+                        return 0;
+                }
+            }
+        }
+
         private IFlagRegisterField interruptStatusOperationDone;
         private IFlagRegisterField interruptEnableOperationDone;
         private IEnumRegisterField<CDISetting> cdiSetting;
@@ -343,20 +504,51 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<Status> status;
         private IEnumRegisterField<WorkingState> state;
         private IFlagRegisterField invalidOperationFlag;
+        private IFlagRegisterField invalidKmacInputFlag;
         private IValueRegisterField entropyReseedInterval;
+        private IValueRegisterField keyVersion;
+        private IValueRegisterField maxCreatorKeyVersion;
+        private IValueRegisterField maxOwnerIntermediateKeyVersion;
+        private IValueRegisterField maxOwnerKeyVersion;
+        private byte[] creatorRootStateKey;
+        private byte[] ownerIntermediateStateKey;
+        private byte[] ownerStateKey;
+        private byte[] softwareShareOutput;
+        private byte[] internalKey;
 
         private readonly byte[] sealingSoftwareBinding;
         private readonly byte[] attestationSoftwareBinding;
         private readonly byte[] salt;
-        private readonly byte[][] softwareShareOutput;
-        private readonly byte[] internalKey;
         private readonly byte[] revisionSeed;
+        private readonly byte[] deviceId;
+        private readonly byte[] lifeCycleDiversificationConstant;
+        private readonly byte[] creatorKey;
+        private readonly byte[] ownerKey;
+        private readonly byte[] rootKey;
+        private readonly byte[] softOutputSeed;
+        private readonly byte[] hardOutputSeed;
+        private readonly byte[] destinationNoneSeed;
+        private readonly byte[] destinationAesSeed;
+        private readonly byte[] destinationOtbnSeed;
+        private readonly byte[] destinationKmacSeed;
+        private readonly byte[] creatorIdentitySeed;
+        private readonly byte[] ownerIntermediateIdentitySeed;
+        private readonly byte[] ownerIdentitySeed;
         private readonly Random random;
+        private readonly OpenTitan_ROMController romController;
+        private readonly Dictionary<Destination, ISideloadableKey> destinations;
 
         private const int MultiRegistersCount = 8;
-        private const int KeySize = 32;
-        private const int RevisionSeedExpectedLength = 256 / 8;
+        private const int KmacBitLength = 256;
+        private const int SeedExpectedLength = 256 / 8;
+        private const int DeviceIdExpectedLength = 256 / 8;
+        private const int LifeCycleDiversificationConstantLength = 128 / 8;
+        private const int CreatorKeyExpectedLength = 256 / 8;
+        private const int OwnerKeyExpectedLength = 256 / 8;
+        private const int RootKeyExpectedLength = 256 * 2 / 8;
         private const int NumberOfSoftwareShareOutputs = 2;
+        private const int SideloadKeyLength = 256 / 8;
+        private const int SideloadKeyLengthOTBN = 384 / 8;
 
         public enum OperationMode
         {
