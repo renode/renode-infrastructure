@@ -238,9 +238,9 @@ namespace Antmicro.Renode.Time
                 {
                     var timeDiff = currentCommonElapsedTime - ElapsedVirtualTime;
                     this.Trace($"Reporting time passed: {timeDiff}");
-                    TimePassed?.Invoke(timeDiff);
                     // this will update ElapsedVirtualTime
                     UpdateTime(timeDiff);
+                    TimePassed?.Invoke(timeDiff);
                 }
             }
         }
