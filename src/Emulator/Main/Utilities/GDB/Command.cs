@@ -34,8 +34,8 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 return new MethodInfo[0];
             }
-            
-            return t.GetMethods().Where(x => 
+
+            return t.GetMethods().Where(x =>
                 x.GetCustomAttribute<ExecuteAttribute>() != null &&
                 x.GetParameters().All(y => y.GetCustomAttribute<ArgumentAttribute>() != null)).ToArray();
         }
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             var errorValue = ulong.MaxValue;
             translatedAddress = errorValue;
-            
+
             if(write)
             {
                 translatedAddress = manager.Cpu.TranslateAddress(address, MpuAccess.Write);
@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
             return translatedAddress != errorValue;
         }
-        
+
         protected IEnumerable<MemoryFragment> GetTranslatedAccesses(ulong address, ulong length, bool write)
         {
             var pageSize = (ulong)manager.Cpu.PageSize;
@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 return Parse(type.GetEnumUnderlyingType(), input, style);
             }
             if(type == typeof(int))
-            {   
+            {
                 return int.Parse(input, style);
             }
             if(type == typeof(uint))
@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Utilities.GDB
             Address = address;
             Length = length;
         }
-        
+
         public ulong Address { get; }
         public ulong Length { get; }
     }

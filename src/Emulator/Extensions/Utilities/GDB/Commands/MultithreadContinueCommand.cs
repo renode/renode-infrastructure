@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
         [Execute("vCont?")]
         public PacketData GetSupportedActions()
         {
-            // packets `C` is deprecated for multi-threading support, but at the same time it is required in a valid reply 
+            // packets `C` is deprecated for multi-threading support, but at the same time it is required in a valid reply
             return new PacketData("vCont;c;C;s");
         }
 
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     }
                     cpu.TimeHandle.ReportedBack -= callbacks[operation.CoreId];
                     cpu.ExecutionMode = ExecutionMode.SingleStepBlocking;
-                    // skip time if core stopped before sync-point 
+                    // skip time if core stopped before sync-point
                     if(!isDone)
                     {
                         if(!cpu.TimeHandle.TrySkipToSyncPoint(out var interval))
@@ -294,7 +294,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             None,
         }
 
-        private const int AllCores = -1; 
-        private const int AnyCore = 0; 
+        private const int AllCores = -1;
+        private const int AnyCore = 0;
     }
 }
