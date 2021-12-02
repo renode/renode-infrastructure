@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Time
         public SlaveTimeSource()
         {
             locker = new object();
+            TimePassed += HandleTimePassed;
         }
 
         /// <summary>
@@ -274,6 +275,11 @@ namespace Antmicro.Renode.Time
                 }
             }
             threadToJoin?.Join();
+        }
+        
+        private void HandleTimePassed(TimeInterval diff)
+        {
+            TimeHandle?.ReportProgress(diff);
         }
 
         [Transient]
