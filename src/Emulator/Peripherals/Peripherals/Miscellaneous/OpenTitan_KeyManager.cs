@@ -67,14 +67,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public GPIO OperationDoneIRQ { get; }
 
-        private static void SetBytesFromDoubleWord(byte[] array, uint value, int startIndex)
-        {
-            foreach(var b in BitConverter.GetBytes(value))
-            {
-                array[startIndex++] = b;
-            }
-        }
-
         private static IEnumerable<byte> ParseHexstring(string value)
         {
             var chars = value.AsEnumerable(); 
@@ -259,17 +251,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.SealingSoftwareBinding0.DefineMany(this, MultiRegistersCount, (register, idx) =>
             {
-                register.WithValueField(0, 32, writeCallback: (_, val) => { SetBytesFromDoubleWord(sealingSoftwareBinding, val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(sealingSoftwareBinding, idx * 4), name: $"VAL_{idx}");
+                register.WithValueField(0, 32, writeCallback: (_, val) => { sealingSoftwareBinding.SetBytesFromValue(val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(sealingSoftwareBinding, idx * 4), name: $"VAL_{idx}");
             });
 
             Registers.AttestationSoftwareBinding0.DefineMany(this, MultiRegistersCount, (register, idx) =>
             {
-                register.WithValueField(0, 32, writeCallback: (_, val) => { SetBytesFromDoubleWord(attestationSoftwareBinding, val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(attestationSoftwareBinding, idx * 4), name: $"VAL_{idx}");
+                register.WithValueField(0, 32, writeCallback: (_, val) => { attestationSoftwareBinding.SetBytesFromValue(val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(attestationSoftwareBinding, idx * 4), name: $"VAL_{idx}");
             });
 
             Registers.Salt0.DefineMany(this, MultiRegistersCount, (register, idx) =>
             {
-                register.WithValueField(0, 32, writeCallback: (_, val) => { SetBytesFromDoubleWord(salt, val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(salt, idx * 4), name: $"VAL_{idx}");
+                register.WithValueField(0, 32, writeCallback: (_, val) => { salt.SetBytesFromValue(val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(salt, idx * 4), name: $"VAL_{idx}");
             });
 
             Registers.KeyVersion.Define(this)
@@ -304,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     register.WithValueField(0, 32, FieldMode.ReadToClear, valueProviderCallback: _ =>
                     {
                         var value = (uint)BitConverter.ToInt32(softwareShareOutput[i], idx * 4);
-                        SetBytesFromDoubleWord(softwareShareOutput[i], 0, idx * 4);
+                        softwareShareOutput[i].SetBytesFromValue(0, idx * 4);
                         return value;
                     }, name: $"VAL_{idx}");
                 });

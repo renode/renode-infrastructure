@@ -1264,6 +1264,14 @@ namespace Antmicro.Renode.Utilities
 
             return true;
         }
+
+        public static void SetBytesFromValue(this byte[] array, uint value, int startIndex)
+        {
+            foreach(var b in BitConverter.GetBytes(value))
+            {
+                array[startIndex++] = b;
+            }
+        }
     }
 }
 
