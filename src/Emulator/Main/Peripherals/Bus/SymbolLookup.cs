@@ -87,6 +87,10 @@ namespace Antmicro.Renode.Core
             // deduplicate symbols
             foreach(var symbol in symbols)
             {
+                if(symbol.Name == "")
+                {
+                    continue;
+                }
                 symbolsToAdd.Add(GetUnique(symbol));
             }
 
