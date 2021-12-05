@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -43,11 +43,16 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Peripherals\Analog\SAMD20_ADC.cs" />
+    <Compile Include="Peripherals\GPIOPort\SAMD20_GPIO.cs" />
+    <Compile Include="Peripherals\I2C\SAMD20_I2C_Master.cs" />
     <Compile Include="Peripherals\Timers\EFR32_RTCC.cs" />
     <Compile Include="Peripherals\Timers\EFR32_Timer.cs" />
     <Compile Include="Peripherals\Timers\LiteX_CPUTimer.cs" />
     <Compile Include="Peripherals\Timers\LiteX_Timer.cs" />
     <Compile Include="Peripherals\Timers\LiteX_Timer_64bit.cs" />
+    <Compile Include="Peripherals\Timers\SAMD20_Timer.cs" />
+    <Compile Include="Peripherals\UART\SAMD20_UART.cs" />
     <Compile Include="Peripherals\USB\MPFS_USB.cs" />
     <Compile Include="Peripherals\USB\USBPendrive.cs" />
     <Compile Include="Peripherals\Timers\MPFS_RTC.cs" />
@@ -453,7 +458,5 @@
       <Name>PacketDotNet</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
-  </ItemGroup>
+  <ItemGroup />
 </Project>
