@@ -65,6 +65,7 @@ namespace Antmicro.Renode.Time
                 RequestStop();
                 using(sync.HighPriority)
                 {
+                    stopwatch.Stop();
                     isPaused = true;
                     DeactivateSlavesSourceSide();
                 }
@@ -84,6 +85,7 @@ namespace Antmicro.Renode.Time
                 {
                     ActivateSlavesSourceSide();
                     isPaused = false;
+                    stopwatch.Start();
                 }
             }
             this.Trace("Resumed");

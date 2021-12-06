@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Time
             blockingEvent = new ManualResetEvent(true);
             delayedActions = new SortedSet<DelayedTask>();
             handles = new HandlesCollection();
-            stopwatch = Stopwatch.StartNew();
+            stopwatch = new Stopwatch();
 
             hostTicksElapsed = new TimeVariantValue(10);
             virtualTicksElapsed = new TimeVariantValue(10);
@@ -125,6 +125,7 @@ namespace Antmicro.Renode.Time
                     return false;
                 }
 
+                stopwatch.Start();
                 isStarted = true;
                 return true;
             }
@@ -170,6 +171,7 @@ namespace Antmicro.Renode.Time
                     return;
                 }
 
+                stopwatch.Stop();
                 isStarted = false;
                 sync.Pulse();
                 blockingEvent.Set();
