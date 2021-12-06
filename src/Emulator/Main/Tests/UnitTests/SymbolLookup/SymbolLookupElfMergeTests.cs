@@ -83,7 +83,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
             CollectionAssert.AreEqual(
-                expectedSymbols, 
+                expectedSymbols,
                 addressesToQuery.Select(address => lookup.GetSymbolByAddress(address))
             );
         }
@@ -238,7 +238,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
-            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
         }
 
         [Test]
@@ -270,7 +270,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
-            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
         }
 
         [Test]
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
-            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
         }
 
         [Test]
@@ -329,7 +329,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
-            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
         }
 
         [Test]
@@ -364,7 +364,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
-            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
         }
 
         [Test]
@@ -392,7 +392,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
-            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));        
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
             var name = expectedSymbols[1].Name;
             Assert.AreEqual(expectedSymbols[1], lookup.GetSymbolsByName(name).ElementAt(0));
             Assert.AreEqual(expectedSymbols[2], lookup.GetSymbolsByName(name).ElementAt(1));
@@ -448,7 +448,6 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             IReadOnlyCollection<Symbol> symbols;
             Assert.IsFalse(lookup.TryGetSymbolsByName("二", out symbols), "Symbol \"二\"should not be present.");
         }
-
 
         [Test]
         public void ShouldZeroLenghtSymbolCutAfterCake()
@@ -518,11 +517,11 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             lookup[1].InsertSymbols(symbols1);
             lookup[0].InsertSymbols(symbols2);
             CollectionAssert.AreEqual(
-                mergedSymbols, 
+                mergedSymbols,
                 addressesToQuery.Select(address => lookup[0].GetSymbolByAddress(address))
             );
             CollectionAssert.AreEqual(
-                symbols1, 
+                symbols1,
                 symbols1.Select(symbol => lookup[1].GetSymbolByAddress(symbol.Start))
             );
         }
