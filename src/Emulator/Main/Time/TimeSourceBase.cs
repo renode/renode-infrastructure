@@ -40,7 +40,6 @@ namespace Antmicro.Renode.Time
             sync = new PrioritySynchronizer();
 
             Quantum = DefaultQuantum;
-            Performance = 1;
 
             this.Trace();
         }
@@ -254,7 +253,6 @@ namespace Antmicro.Renode.Time
                 $"Cumulative load: {CumulativeLoad}",
                 $"State: {State}",
                 $"Advance immediately: {AdvanceImmediately}",
-                $"Performance: {Performance}",
                 $"Quantum: {Quantum}");
         }
 
@@ -278,18 +276,6 @@ namespace Antmicro.Renode.Time
         // TODO: do not allow to set Quantum of 0
         /// <see cref="ITimeSource.Quantum">
         public TimeInterval Quantum { get; set; }
-
-        /// <summary>
-        /// Gets or sets a scaling value for the ratio of virtual to real time flow.
-        /// </summary>
-        /// <remarks>
-        /// Value 1 means that virtual time should pass at the same pace as real time.
-        /// Value 0.5 means that each second of virtual time will take two seconds of the real time.
-        /// Value 2 means that each second of virtual time will take half a second of the real time.
-        /// CPU performance puts a limit to an effective value of this parameter (see <see cref="CurrentLoad">).
-        /// This value can be temporarily overridden by setting <see cref="AdvanceImmediately">.
-        /// </remarks>
-        public double Performance { get; set; }
 
         /// <summary>
         /// Gets the value representing current load, i.e., value indicating how much time the emulation spends sleeping in order to match the expected <see cref="Performance">.
