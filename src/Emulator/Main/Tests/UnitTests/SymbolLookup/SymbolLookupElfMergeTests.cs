@@ -573,5 +573,27 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             lookup.InsertSymbols(symbols1);
             lookup.InsertSymbols(symbols2);
         }
+
+        [Test]
+        public void ShouldFavorUnempty()
+        {
+            var symbols = new List<Symbol>
+            {
+                new Symbol(0, 10, "Unempty"),
+                new Symbol(0, 10, ""),
+                new Symbol(10, 20, "Other"),
+            };
+
+            var expectedSymbols = new List<Symbol>
+            {
+                new Symbol(0, 10, "Unempty"),
+                new Symbol(10, 20, "Other"),
+            };
+
+            var addressesToQuery = new List<uint>{0, 10};
+            var lookup = new SymbolLookup();
+            lookup.InsertSymbols(symbols);
+            CollectionAssert.AreEqual(expectedSymbols, addressesToQuery.Select(address => lookup.GetSymbolByAddress(address)));
+        }
     }
 }
