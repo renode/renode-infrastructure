@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2017 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,11 +19,6 @@ namespace Antmicro.Renode.UserInterface
             @this.LocalTimeSource.AdvanceImmediately = val;
         }
 
-        public static void SetPerformance(this Machine @this, double p)
-        {
-            @this.LocalTimeSource.Performance = p;
-        }
-
         public static void SetQuantum(this Machine @this, TimeInterval interval)
         {
             @this.LocalTimeSource.Quantum = interval;
@@ -39,11 +34,6 @@ namespace Antmicro.Renode.UserInterface
             @this.MasterTimeSource.AdvanceImmediately = val;
         }
 
-        public static void SetPerformance(this Emulation @this, double p)
-        {
-            @this.MasterTimeSource.Performance = p;
-        }
-
         public static void SetQuantum(this Emulation @this, TimeInterval interval)
         {
             @this.MasterTimeSource.Quantum = interval;
@@ -52,11 +42,6 @@ namespace Antmicro.Renode.UserInterface
         public static void SetGlobalQuantum(this Emulation @this, TimeInterval quantum)
         {
             SetQuantumRecursively(@this.MasterTimeSource, quantum);
-        }
-
-        public static void SetGlobalPerformance(this Emulation @this, double p)
-        {
-            SetPerformanceRecursively(@this.MasterTimeSource, p);
         }
 
         public static void SetGlobalAdvanceImmediately(this Emulation @this, bool val)
@@ -96,15 +81,6 @@ namespace Antmicro.Renode.UserInterface
             foreach(var sink in source.Sinks.OfType<TimeSourceBase>())
             {
                 SetAdvanceImmediatelyRecursively(sink, val);
-            }
-        }
-
-        private static void SetPerformanceRecursively(TimeSourceBase source, double p)
-        {
-            source.Performance = p;
-            foreach(var sink in source.Sinks.OfType<TimeSourceBase>())
-            {
-                SetPerformanceRecursively(sink, p);
             }
         }
 
