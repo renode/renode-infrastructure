@@ -67,8 +67,6 @@
     <Compile Include="RiscV\PLIC\PlatformLevelInterruptControllerBase.cs" />
     <Compile Include="RiscV\RegisterDescription.cs" />
     <Compile Include="RiscV\NonstandardCSR.cs" />
-    <Compile Include="RiscV\VectorInstructionsOpcodes.cs" />
-    <Compile Include="RiscV\RiscvOpcodesParser.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
@@ -104,107 +102,6 @@
       <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-custom">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Custom</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-pseudo">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Pseudo</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32a">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32b">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32b</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32c">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32c</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32d">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32d-zfh">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d-zfh</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32f">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32h">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32h</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32i">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32i</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32k">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32k</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32m">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32q">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32q</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32q-zfh">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32q-zfh</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv32zfh">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32zfh</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64a">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64a</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64b">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64b</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64c">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64c</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64d">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64d</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64f">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64f</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64h">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64h</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64i">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64i</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64k">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64k</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64m">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64m</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64q">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64q</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rv64zfh">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64zfh</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rvc">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvc</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rvk">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvk</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rvp">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvp</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rvv">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvv</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-rvv-pseudo">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-svinval">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Svinval</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="RiscV/opcodes/opcodes-system">
-      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.System</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
