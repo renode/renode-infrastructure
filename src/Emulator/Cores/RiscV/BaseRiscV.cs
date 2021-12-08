@@ -556,6 +556,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pcWrittenFlag ? 1 : 0;
         }
 
+        public IEnumerable<InstructionSet> ArchitectureSets => architectureSets;
+
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private bool pcWrittenFlag;
