@@ -30,6 +30,7 @@ using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
 using ELFSharp.UImage;
 using Machine = Antmicro.Renode.Core.Machine;
+using Antmicro.Renode.Disassembler.LLVM;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -365,10 +366,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             Resume();
         }
 
+        private string logFile;
         public string LogFile
         {
-            get { return DisasEngine.LogFile; }
-            set { DisasEngine.LogFile = value; }
+            get { return logFile; }
+            set
+            {
+                logFile = value;
+                LogTranslatedBlocks = (value != null);
+
+                if(logFile != null && File.Exists(logFile))
+                {
+                    // truncate the file if it already exists
+                    File.WriteAllText(logFile, string.Empty);
+                }
+            }
         }
 
         public SystemBus Bus
@@ -1589,43 +1601,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public string Disassembler
-        {
-            get
-            {
-                return DisasEngine.CurrentDisassemblerType;
-            }
-
-            set
-            {
-                if(!TrySetDisassembler(value))
-                {
-                    throw new RecoverableException(string.Format("Could not create disassembler of type: {0}. Are you missing an extension library or a plugin?", value));
-                }
-            }
-        }
-
-        private bool TrySetDisassembler(string type)
-        {
-            IDisassembler disas = null;
-            if(!string.IsNullOrEmpty(type))
-            {
-                disas = DisassemblerManager.Instance.CreateDisassembler(type, this);
-                if(disas == null)
-                {
-                    return false;
-                }
-            }
-
-            DisasEngine.SetDisassembler(disas);
-            return true;
-        }
-
-        public string[] AvailableDisassemblers
-        {
-            get { return DisassemblerManager.Instance.GetAvailableDisassemblers(Architecture); }
-        }
-
         public ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType)
         {
             return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accessType);
@@ -1634,12 +1609,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [PostDeserialization]
         protected void InitDisas()
         {
-            DisasEngine = new DisassemblyEngine(this, logicalAddress => TranslateAddress(logicalAddress, MpuAccess.InstructionFetch));
-            var diss = AvailableDisassemblers;
-            if(diss.Length > 0)
-            {
-                TrySetDisassembler(diss[0]);
-            }
+            disassembler = new LLVMDisassembler(this);
         }
 
         #endregion
@@ -1866,9 +1836,48 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void LogDisassembly(ulong pc, uint count, uint flags)
+        private void LogDisassembly(ulong pc, uint size, uint flags)
         {
-            DisasEngine.LogSymbol(pc, count, flags);
+            if(LogFile == null)
+            {
+                return;
+            }
+            
+            var phy = TranslateAddress(pc, MpuAccess.InstructionFetch);
+            var symbol = Bus.FindSymbolAt(pc);
+            var tab = Bus.ReadBytes(phy, (int)size, true);
+            
+            Disassembler.DisassembleBlock(pc, tab, flags, out var disas);
+
+            if(disas == null)
+            {
+                return;
+            }
+
+            using(var file = File.AppendText(LogFile))
+            {
+                file.WriteLine("-------------------------");
+                if(size > 0)
+                {
+                    file.Write("IN: {0} ", symbol ?? string.Empty);
+                    if(phy != pc)
+                    {
+                        file.WriteLine("(physical: 0x{0:x8}, virtual: 0x{1:x8})", phy, pc);
+                    }
+                    else
+                    {
+                        file.WriteLine("(address: 0x{0:x8})", phy);
+                    }
+                }
+                else
+                {
+                    // special case when disassembling magic addresses in Cortex-M
+                    file.WriteLine("Magic PC value detected: 0x{0:x8}", flags > 0 ? pc | 1 : pc);
+                }
+
+                file.WriteLine(string.IsNullOrWhiteSpace(disas) ? string.Format("Cannot disassemble from 0x{0:x8} to 0x{1:x8}", pc, pc + size)  : disas);
+                file.WriteLine(string.Empty);
+            }
         }
 
         [Export]
@@ -1879,12 +1888,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string DisassembleBlock(ulong addr, uint blockSize = 40, uint flags = 0)
         {
-            var block = DisasEngine.Disassemble(addr, true, blockSize, flags);
-            return block != null ? block.Replace("\n", "\r\n") : string.Empty;
+            var opcodes = Bus.ReadBytes(addr, (int)blockSize, true);
+            Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
+            return result.Replace("\n", "\r\n");
         }
 
         [Transient]
-        protected DisassemblyEngine DisasEngine;
+        private IDisassembler disassembler;
+        
+        public IDisassembler Disassembler => disassembler;
 
         protected static readonly Exception InvalidInterruptNumberException = new InvalidOperationException("Invalid interrupt number.");
 

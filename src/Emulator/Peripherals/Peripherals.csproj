@@ -255,8 +255,6 @@
     <Compile Include="Peripherals\CPU\CpuBitness.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\IDisassembler.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\IDisassemblable.cs" />
-    <Compile Include="Peripherals\CPU\Disassembler\DisassemblerManager.cs" />
-    <Compile Include="Peripherals\CPU\Disassembler\DisassemblyEngine.cs" />
     <Compile Include="Peripherals\CPU\Registers\IRegisters.cs" />
     <Compile Include="Peripherals\CPU\CpuAbortException.cs" />
     <Compile Include="Peripherals\CPU\Registers\RegistersGroup.cs" />
@@ -264,7 +262,6 @@
     <Compile Include="..\Cores\Common\RegisterEnumParser.cs">
       <DependentUpon>RegisterEnumParser.tt</DependentUpon>
     </Compile>
-    <Compile Include="Peripherals\CPU\Disassembler\DisassemblerAttribtue.cs" />
     <Compile Include="Peripherals\GPIOPort\MiV_CoreGPIO.cs" />
     <Compile Include="Peripherals\Timers\MiV_CoreTimer.cs" />
     <Compile Include="Peripherals\UART\MiV_CoreUART.cs" />
@@ -403,6 +400,8 @@
     <Compile Include="Peripherals\Storage\VirtIOBlockDevice.cs" />
     <Compile Include="Peripherals\Analog\ADCChannel.cs" />
     <Compile Include="Peripherals\MemoryControllers\OpenTitan_ROMController.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer.cs" />
+    <Compile Include="Peripherals\CPU\Disassembler\LLVMDisassembler.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
@@ -456,4 +455,18 @@
   <ItemGroup>
     <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dll" />
+    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.so" />
+    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dylib" />
+  </ItemGroup>
+  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="EnvironmentTask" />
+  <Target Name="CopySharedLibraries" AfterTargets="Build">
+    <PropertyGroup>
+        <Extension Condition=" '$(CurrentPlatform)' == 'Windows'">dll</Extension>
+        <Extension Condition=" '$(CurrentPlatform)' == 'Linux'"  >so</Extension>
+        <Extension Condition=" '$(CurrentPlatform)' == 'OSX'"    >dylib</Extension>
+    </PropertyGroup>
+    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)" DestinationFiles="$(OutputPath)\libllvm-disas.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)')" />
+  </Target>
 </Project>
