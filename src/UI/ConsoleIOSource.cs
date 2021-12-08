@@ -6,22 +6,20 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using AntShell.Terminal;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UI
 {
-    public class ConsoleIOSource : IActiveIOSource, IDisposable
+    public class ConsoleIOSource : IActiveIOSource
     {
         public ConsoleIOSource()
         {
             Console.TreatControlCAsInput = true;
 
             checker = new UTF8Checker();
-            resetEvent = new ManualResetEvent(true);
             
-            inputHandler = new Thread(HandleInput)
+            var inputHandler = new System.Threading.Thread(HandleInput)
             {
                 IsBackground = true,
                 Name = "Console IO handler thread"
@@ -32,8 +30,6 @@ namespace Antmicro.Renode.UI
 
         public void Dispose()
         {
-            resetEvent.Set();
-            inputHandler.Join();
         }
 
         public void Flush()
@@ -77,15 +73,6 @@ namespace Antmicro.Renode.UI
 
             while(true)
             {
-                resetEvent.Reset();
-                while(!Console.KeyAvailable)
-                {
-                    if(resetEvent.WaitOne(50))
-                    {
-                        // Finish the thread if Dispose was called.
-                        return;
-                    }
-                }
                 var key = Console.ReadKey(true);
                 // this is to support Home/End keys
                 if(key.Key == (ConsoleKey)0 && (key.Modifiers & ConsoleModifiers.Alt) != 0)
@@ -94,6 +81,7 @@ namespace Antmicro.Renode.UI
                     ByteRead?.Invoke(CSICode);
                     continue;
                 }
+
                 if(mappings.TryGetValue(key.Key, out var sequence))
                 {
                     foreach(var b in sequence)
@@ -112,8 +100,6 @@ namespace Antmicro.Renode.UI
         }
 
         private readonly UTF8Checker checker;
-        private readonly ManualResetEvent resetEvent;
-        private readonly Thread inputHandler;
 
         private const byte ESCCode = 0x1B;
         private const byte CSICode = 0x5B;
