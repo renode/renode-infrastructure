@@ -1580,7 +1580,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             set
             {
-                if(LogFile == null)
+                if(LogFile == null && value)
                 {
                     throw new RecoverableException("Log file not set. Nothing will be logged.");
                 }
