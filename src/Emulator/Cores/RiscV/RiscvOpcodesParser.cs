@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Reflection;
 using System.Text;
 using System.Linq;
 using System.IO;
@@ -26,6 +27,88 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             cpu.EnableOpcodesCounting = true;
         }
+
+        public static void EnableRiscvOpcodesCounting(this BaseRiscV cpu)
+        {
+            foreach(var set in cpu.ArchitectureSets)
+            {
+                cpu.EnableRiscvOpcodesCounting(set);
+            }
+        }
+        
+        public static void EnableRiscvOpcodesCountingFromEmbeddedResource(this BaseRiscV cpu, string name)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            if(!assembly.TryFromResourceToTemporaryFile($"{ResourceNamePrefix}.{name}", out var file))
+            {
+                var availableResources = string.Join("\n", cpu.GetRiscvOpcodesEmbeddedResourceNames());
+                throw new RecoverableException($"Couldn't load the {name} resource - please choose from:\n{availableResources}");
+            }
+            cpu.EnableRiscvOpcodesCounting(file);
+        }
+        
+        public static IEnumerable<string> GetRiscvOpcodesEmbeddedResourceNames(this BaseRiscV cpu)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            return assembly.GetManifestResourceNames().Where(x => x.StartsWith(ResourceNamePrefix)).Select(x => x.Substring(ResourceNamePrefix.Length + 1));
+        }
+        
+        public static void EnableRiscvOpcodesCounting(this BaseRiscV cpu, BaseRiscV.InstructionSet instructionSet)
+        {
+            Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> map = null;
+            if(cpu.Architecture == "riscv")
+            {
+                map = opcodesFilesMap32;
+            }
+            else if(cpu.Architecture == "riscv64")
+            {
+                map = opcodesFilesMap64;
+            }
+            else
+            {
+                throw new RecoverableException($"Unsupported CPU type: {cpu.GetType()}");
+            }
+            
+            if(!map.TryGetValue(instructionSet, out var resourceNames))
+            {
+                throw new RecoverableException($"Opcodes counting for the {instructionSet} extension not supported");
+            }
+            
+            foreach(var resourceName in resourceNames)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                if(!assembly.TryFromResourceToTemporaryFile(resourceName, out var file))
+                {
+                    throw new RecoverableException($"Couldn't load the {resourceName} resource - this might indicate a broken compilation");
+                }
+
+                cpu.EnableRiscvOpcodesCounting(file);
+            }
+        }
+        
+        private const string ResourceNamePrefix = "Antmicro.Renode.Cores.RiscV.Opcodes";
+
+        private static Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> opcodesFilesMap32 = new Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>>
+        {
+            { BaseRiscV.InstructionSet.I, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.System",  "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32i" } },
+            { BaseRiscV.InstructionSet.M, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m" } },
+            { BaseRiscV.InstructionSet.A, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a" } },
+            { BaseRiscV.InstructionSet.F, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f" } },
+            { BaseRiscV.InstructionSet.D, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d-zfh" } },
+            { BaseRiscV.InstructionSet.C, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvc", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32c" } },
+            { BaseRiscV.InstructionSet.V, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv", "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo" } },
+        };
+        
+        private static Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> opcodesFilesMap64 = new Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>>
+        {
+            { BaseRiscV.InstructionSet.I, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.System", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32i", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64i" } },
+            { BaseRiscV.InstructionSet.M, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64m" } },
+            { BaseRiscV.InstructionSet.A, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64a" } },
+            { BaseRiscV.InstructionSet.F, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64f" } },
+            { BaseRiscV.InstructionSet.D, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64d" } },
+            { BaseRiscV.InstructionSet.C, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvc", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64c" } },
+            { BaseRiscV.InstructionSet.V, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv", "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo" } },
+        };
     }
     
     public static class RiscVOpcodesParser
