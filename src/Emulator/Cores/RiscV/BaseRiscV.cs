@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.NMIVectorLength = nmiVectorLength;
             this.NMIVectorAddress = nmiVectorAddress;
 
-            architectureSets = DecodeArchitecture(cpuType);
+            ArchitectureSets = DecodeArchitecture(cpuType);
             EnableArchitectureVariants();
 
             if(this.NMIVectorAddress.HasValue && this.NMIVectorLength.HasValue && this.NMIVectorLength > 0)
@@ -332,6 +332,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return gdbFeatures;
             }
         }
+        
+        public IEnumerable<InstructionSet> ArchitectureSets { get; }
 
         public abstract RegisterValue VLEN { get; }
 
@@ -464,7 +466,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void EnableArchitectureVariants()
         {
-            foreach(var @set in architectureSets)
+            foreach(var @set in ArchitectureSets)
             {
                 if(Enum.IsDefined(typeof(InstructionSet), set))
                 {
@@ -565,8 +567,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly PrivilegeArchitecture privilegeArchitecture;
 
         private readonly Dictionary<ulong, NonstandardCSR> nonstandardCSR;
-
-        private readonly IEnumerable<InstructionSet> architectureSets;
 
         private readonly Dictionary<ulong, Action<UInt64>> customInstructionsMapping;
 
