@@ -37,6 +37,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 pin.Reset();
             }
+
+            detectState = false;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -63,6 +65,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size => 0x1000;
 
         public event Action<Pin, bool> PinChanged;
+        public event Action Detect;
 
         private void DefineRegisters()
         {
@@ -121,12 +124,34 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithTag("DRIVE", 8, 3)
                     .WithReservedBits(11, 5)
                     .WithEnumField<DoubleWordRegister, SenseMode>(16, 2, name: "SENSE",
-                        writeCallback: (_, val) => Pins[idx].SenseMode = val,
+                        writeCallback: (_, val) =>
+                        {
+                            if(Pins[idx].SenseMode != val)
+                            {
+                                Pins[idx].SenseMode = val;
+                                UpdateDetect();
+                            }
+                        },
                         valueProviderCallback: _ => Pins[idx].SenseMode)
                     .WithReservedBits(18, 14)
                 ;
             });
         }
+
+        private void UpdateDetect()
+        {
+            var nextDetectState = Pins.Any(x => x.IsSensing);
+            if(nextDetectState != detectState)
+            {
+                detectState = nextDetectState;
+                if(nextDetectState)
+                {
+                    Detect?.Invoke();
+                }
+            }
+        }
+
+        private bool detectState;
 
         public Pin[] Pins { get; }
 
@@ -174,6 +199,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     Parent.Connections[Id].Set(value);
                     Parent.State[Id] = value;
                     Parent.PinChanged(this, value);
+                    Parent.UpdateDetect();
                 }
             }
 

@@ -25,10 +25,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             if(port0 != null)
             {
                 port0.PinChanged += OnPinChanged;
+                port0.Detect += OnDetect;
             }
             if(port1 != null)
             {
                 port1.PinChanged += OnPinChanged;
+                port1.Detect += OnDetect;
             }
 
             pinToChannelMapping = new Dictionary<NRF52840_GPIO.Pin, Channel>();
@@ -57,28 +59,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void DefineRegisters()
         {
-            Registers.TasksOut.DefineMany(this, NumberOfChannels, (register, idx) => { 
+            Registers.TasksOut.DefineMany(this, NumberOfChannels, (register, idx) => {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_OUT",
                         writeCallback: (_, val) => channels[idx].WritePin(val))
                     .WithReservedBits(1, 31);
             });
 
-            Registers.TasksSet.DefineMany(this, NumberOfChannels, (register, idx) => { 
+            Registers.TasksSet.DefineMany(this, NumberOfChannels, (register, idx) => {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_SET",
                         writeCallback: (_, val) => { if(val) channels[idx].SetPin(); })
                     .WithReservedBits(1, 31);
             });
 
-            Registers.TasksClear.DefineMany(this, NumberOfChannels, (register, idx) => { 
+            Registers.TasksClear.DefineMany(this, NumberOfChannels, (register, idx) => {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_CLR",
                         writeCallback: (_, val) => { if(val) channels[idx].ClearPin(); })
                     .WithReservedBits(1, 31);
             });
 
-            Registers.EventsIn.DefineMany(this, NumberOfChannels, (register, idx) => { 
+            Registers.EventsIn.DefineMany(this, NumberOfChannels, (register, idx) => {
                 register
                     .WithFlag(0, name: "EVENTS_IN",
                         valueProviderCallback: _ => channels[idx].EventPending,
@@ -113,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithWriteCallback((_, __) => UpdateInterrupt())
             ;
 
-            Registers.Configuration.DefineMany(this, NumberOfChannels, (register, idx) => { 
+            Registers.Configuration.DefineMany(this, NumberOfChannels, (register, idx) => {
                 register
                     .WithEnumField<DoubleWordRegister,Mode>(0, 2, name: "MODE",
                         valueProviderCallback: _ => channels[idx].Mode,
@@ -200,6 +202,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             UpdateInterrupt();
         }
 
+        private void OnDetect()
+        {
+            portInterruptPending.Value = true;
+            UpdateInterrupt();
+        }
+
         private void UpdateInterrupt()
         {
             var flag = false;
@@ -252,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         break;
                 }
             }
-          
+
             public void SetPin()
             {
                 WritePinInner(true);
