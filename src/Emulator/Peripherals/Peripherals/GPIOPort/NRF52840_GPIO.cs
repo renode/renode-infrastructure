@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public DoubleWordRegisterCollection RegistersCollection { get; }
         public Pin[] Pins { get; }
 
-        public long Size => 0x1000;
+        public long Size => 0x300;
 
         public event Action<Pin, bool> PinChanged;
         public event Action Detect;
@@ -340,17 +340,17 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private enum Registers
         {
-            Out = 0x504,
-            OutSet = 0x508,
-            OutClear = 0x50C,
-            In = 0x510,
-            Direction = 0x514,
-            DirectionSet = 0x518,
-            DirectionClear = 0x51C,
-            Latch = 0x520,
-            DetectMode = 0x524,
+            Out = 0x4,
+            OutSet = 0x8,
+            OutClear = 0xC,
+            In = 0x10,
+            Direction = 0x14,
+            DirectionSet = 0x18,
+            DirectionClear = 0x1C,
+            Latch = 0x20,
+            DetectMode = 0x24,
             // this is a group of 32 registers for each pin
-            PinConfigure = 0x700
+            PinConfigure = 0x200
         }
     }
 }
