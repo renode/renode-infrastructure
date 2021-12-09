@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
+            physicalPinState = new IFlagRegisterField[NumberOfPins];
             DefineRegisters();
         }
 
@@ -70,21 +71,34 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void DefineRegisters()
         {
             Registers.Out.Define(this)
-                .WithFlags(0, NumberOfPins,
-                    valueProviderCallback: (id, _) => Pins[id].Value,
+                .WithFlags(0, NumberOfPins, out physicalPinState,
                     writeCallback: (id, _, val) => Pins[id].Value = val)
             ;
 
             Registers.OutSet.Define(this)
                 .WithFlags(0, NumberOfPins,
-                    valueProviderCallback: (id, _) => Pins[id].Value,
-                    writeCallback: (id, _, val) => { if(val) Pins[id].Value = true; })
+                    valueProviderCallback: (id, _) => physicalPinState[id].Value,
+                    writeCallback: (id, _, val) =>
+                    {
+                        if(val)
+                        {
+                            Pins[id].Value = true;
+                            physicalPinState[id].Value = true;
+                        }
+                    })
             ;
 
             Registers.OutClear.Define(this)
                 .WithFlags(0, NumberOfPins,
-                    valueProviderCallback: (id, _) => Pins[id].Value,
-                    writeCallback: (id, _, val) => { if(val) Pins[id].Value = false; })
+                    valueProviderCallback: (id, _) => physicalPinState[id].Value,
+                    writeCallback: (id, _, val) =>
+                    {
+                        if(val)
+                        {
+                            Pins[id].Value = false;
+                            physicalPinState[id].Value = false;
+                        }
+                    })
             ;
 
             Registers.In.Define(this)
@@ -114,7 +128,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 register
                     .WithFlag(0, name: "DIR",
-                        writeCallback: (_, val) => Pins[idx].Direction = val ? PinDirection.Output : PinDirection.Input,
+                        writeCallback: (_, val) =>
+                        {
+                            var newValue = val ? PinDirection.Output : PinDirection.Input;
+                            if(newValue != Pins[idx].Direction)
+                            {
+                                Pins[idx].Direction = newValue;
+                                Pins[idx].Value = physicalPinState[idx].Value;
+                            }
+                        },
                         valueProviderCallback: _ => Pins[idx].Direction == PinDirection.Output)
                     .WithFlag(1, name: "INPUT",
                         writeCallback: (_, val) => Pins[idx].InputOverride = !val,
@@ -152,6 +174,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         private bool detectState;
+        private IFlagRegisterField[] physicalPinState;
 
         public Pin[] Pins { get; }
 
