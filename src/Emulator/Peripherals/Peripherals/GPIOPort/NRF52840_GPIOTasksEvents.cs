@@ -166,9 +166,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void OnPinChanged(NRF52840_GPIO.Pin pin, bool value)
         {
             if((pin.Direction != NRF52840_GPIO.PinDirection.Input && !pin.InputOverride)
-               || !TryGetChannel(pin, out var channel)
-               || channel.Mode != Mode.Event)
+               || !TryGetChannel(pin, out var channel))
             {
+                return;
+            }
+
+            if(channel.Mode != Mode.Event)
+            {
+                channel.CurrentState = value;
                 return;
             }
 
