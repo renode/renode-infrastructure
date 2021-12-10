@@ -211,6 +211,16 @@ namespace Antmicro.Renode.Utilities
             reg ^= (newValue & mask);
         }
 
+        public static bool CalculateParity(uint word)
+        {
+            word ^= word >> 16;
+            word ^= word >> 8;
+            word ^= word >> 4;
+            word ^= word >> 2;
+            word ^= word >> 1;
+            return (word & 0x1) == 0x1;
+        }
+
         public static void ClearBits(ref byte reg, params byte[] bits)
         {
             uint mask = 0xFFFFFFFFu;
