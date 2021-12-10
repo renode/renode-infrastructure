@@ -12,6 +12,7 @@ using System.Text;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
@@ -175,6 +176,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             var dataPresent = PRESENTCipher.Descramble(data, 0, 32 + 7, NumberOfScramblingRounds);
             var dataPrince = PRINCECipher.Scramble(index | dataNonce, keyLow, keyHigh, rounds: 6);
             var descrabled = (uint)(dataPresent ^ dataPrince);
+            if(index < romLengthInWords - 8 && !ECCHsiao.CheckECC(descrabled))
+            {
+                this.Log(LogLevel.Warning, "ECC error at logical index 0x{0:X}", index);
+            }
             rom.WriteDoubleWord((long)index * 4, descrabled);
         }
 
@@ -213,6 +218,34 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private const int NumberOfDigestRegisters = 8;
         private const int NumberOfScramblingRounds = 2;
         private const int WordSizeWithECC = 5;
+
+        private class ECCHsiao
+        {
+            // A variation of/optimization over Hamming Code (39,32)
+            // For explenation on parity-check matrix construction see:
+            // https://www.ysu.am/files/11-1549527438-.pdf
+            public static ulong AddECC(uint word)
+            {
+                var code = 0ul;
+                for(byte i = 0; i < 7; ++i)
+                {
+                    BitHelper.SetBit(ref code, i, BitHelper.CalculateParity(word & bitmask[i]));
+                }
+                return (ulong)word | (code << 32);
+            }
+            
+            public static bool CheckECC(ulong word)
+            {
+                return word == AddECC((uint)word);
+            }
+
+            // generated with opentitan's secded_gen.py
+            private static readonly uint[] bitmask = new uint[]
+            {
+                0x2606bd25, 0xdeba8050, 0x413d89aa, 0x31234ed1,
+                0xc2c1323b, 0x2dcc624c, 0x98505586
+            };
+        }
 
         private enum Registers : long
         {
