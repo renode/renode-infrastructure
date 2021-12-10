@@ -23,7 +23,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
     {
         public OpenTitan_ROMController(MappedMemory rom, ulong nonce, ulong keyLow, ulong keyHigh)
         {
-            if(rom.Size / 4 <= 8)
+            this.rom = rom;
+            romLengthInWords = (ulong)rom.Size / 4;
+            if(romLengthInWords <= 8)
             {
                 throw new ConstructionException("Provided rom's size has to be greater than 8 words (32 bytes)");
             }
@@ -32,10 +34,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 throw new ConstructionException("Provided rom's size has to be divisible by word size (4)");
             }
 
-            this.rom = rom;
             this.keyLow = keyLow;
             this.keyHigh = keyHigh;
-            romIndexWidth = BitHelper.GetMostSignificantSetBitIndex((ulong)rom.Size / 4 - 1) + 1;
+            romIndexWidth = BitHelper.GetMostSignificantSetBitIndex(romLengthInWords - 1) + 1;
             addressKey = nonce >> (64 - romIndexWidth);
             dataNonce = nonce << romIndexWidth;
             digest = new byte[NumberOfDigestRegisters * 4];
@@ -54,17 +55,36 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             registers.Write(offset, value);
         }
 
-        public void Load(string fileName)
+        public void LoadVmem(string fileName)
         {
-            var size = (ulong)rom.Size / 4;
-            var digestData = new ulong[size - 8];
+            var digestData = new ulong[romLengthInWords - 8];
+            try
+            {
+                var reader = new VmemReader(fileName);
+                foreach(var touple in reader.GetIndexDataPairs())
+                {
+                    var scrambledIndex = (ulong)touple.Item1;
+                    var data = touple.Item2;
+                    LoadWord(scrambledIndex, data, digestData);
+                }
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
+            }
+            CalculateDigest(digestData);
+        }
+
+        public void LoadBinary(string fileName)
+        {
+            var digestData = new ulong[romLengthInWords - 8];
             try
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
                 {
                     var buffer = new byte[8];
                     var read = 0;
-                    for(var scrambledIndex = 0UL; scrambledIndex < size; ++scrambledIndex)
+                    for(var scrambledIndex = 0UL; scrambledIndex < romLengthInWords; ++scrambledIndex)
                     {
                         read = reader.Read(buffer, 0, WordSizeWithECC);
                         if(read == 0)
@@ -77,26 +97,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                         }
 
                         var data = BitConverter.ToUInt64(buffer, 0);
-                        var index = PRESENTCipher.Descramble(scrambledIndex, addressKey, romIndexWidth, NumberOfScramblingRounds);
-                        if(index >= size)
-                        {
-                            throw new RecoverableException($"Error while loading file {fileName}: decoded offset (0x{(index * 4):X}) is out of bounds [0;0x{rom.Size:X})");
-                        }
-                        if(index >= size - 8)
-                        {
-                            // top 8 (by logical addressing) words are 256-bit expected hash, stored not scrambled.
-                            expectedDigest.SetBytesFromValue((uint)data, (int)(index + 8 - size) * 4);
-                        }
-                        else
-                        {
-                            digestData[index] = data;
-                        }
-
-                        // data's width is 32 bits of proper data and 7 bits of ECC
-                        var dataPresent = PRESENTCipher.Descramble(data, 0, 32 + 7, NumberOfScramblingRounds);
-                        var dataPrince = PRINCECipher.Scramble(index | dataNonce, keyLow, keyHigh, rounds: 6);
-                        var descrabled = (uint)(dataPresent ^ dataPrince);
-                        rom.WriteDoubleWord((long)index * 4, descrabled);
+                        LoadWord(scrambledIndex, data, digestData);
                     }
                     read = reader.Read(buffer, 0, buffer.Length);
                     if(read != 0)
@@ -153,6 +154,30 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             return registersDictionary;
         }
 
+        private void LoadWord(ulong scrambledIndex, ulong data, ulong[] digestData)
+        {
+            var index = PRESENTCipher.Descramble(scrambledIndex, addressKey, romIndexWidth, NumberOfScramblingRounds);
+            if(index >= romLengthInWords)
+            {
+                throw new RecoverableException($"Error while loading: decoded offset (0x{(index * 4):X}) is out of bounds [0;0x{rom.Size:X})");
+            }
+            if(index >= romLengthInWords - 8)
+            {
+                // top 8 (by logical addressing) words are 256-bit expected hash, stored not scrambled.
+                expectedDigest.SetBytesFromValue((uint)data, (int)(index + 8 - romLengthInWords) * 4);
+            }
+            else
+            {
+                digestData[index] = data;
+            }
+
+            // data's width is 32 bits of proper data and 7 bits of ECC
+            var dataPresent = PRESENTCipher.Descramble(data, 0, 32 + 7, NumberOfScramblingRounds);
+            var dataPrince = PRINCECipher.Scramble(index | dataNonce, keyLow, keyHigh, rounds: 6);
+            var descrabled = (uint)(dataPresent ^ dataPrince);
+            rom.WriteDoubleWord((long)index * 4, descrabled);
+        }
+
         private void CalculateDigest(ulong[] words)
         {
             var hasher = new CShakeDigest(256, null, Encoding.ASCII.GetBytes("ROM_CTRL"));
@@ -174,6 +199,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private readonly ulong dataNonce;
         private readonly ulong keyLow;
         private readonly ulong keyHigh;
+        private readonly ulong romLengthInWords;
         private readonly int romIndexWidth;
         private readonly MappedMemory rom;
         private readonly DoubleWordRegisterCollection registers;
