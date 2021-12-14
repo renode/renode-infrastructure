@@ -321,8 +321,6 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        private TimeInterval reportedSoFar;
-
         /// <summary>
         /// Informs a time source that the time interval is used, i.e., no more work can be done without exceeding it, and the sink is ready for the next one.
         /// </summary>
@@ -485,7 +483,7 @@ namespace Antmicro.Renode.Time
                 Debugging.DebugHelper.Assert(reportedSoFar <= intervalUsed);
                 // here we report the remaining part of granted time
                 ReportProgress(intervalUsed - reportedSoFar);
-                reportedSoFar  = TimeInterval.Empty;
+                reportedSoFar = TimeInterval.Empty;
 
                 reportPending = false;
 
@@ -827,6 +825,10 @@ namespace Antmicro.Renode.Time
         /// The amount of time granted to sink over what normally would be given that includes residuum previously return as a result of ReportBackAndContinue.
         ///</summary>
         private TimeInterval overGranted;
+        ///<summary>
+        /// The amount of time already reported since last WaitUntilDone.
+        ///</summary>
+        private TimeInterval reportedSoFar;
 
         private bool enabled;
         private bool sinkSideActive;
