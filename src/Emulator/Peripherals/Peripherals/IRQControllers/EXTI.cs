@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -59,6 +59,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             var lineNumber = (byte)number;
             var irqNumber = gpioMapping[lineNumber];
+
+            if(number == 23 && value)
+            {
+                pending |= (1u << lineNumber);
+                Connections[irqNumber].Set();
+                return;
+            }
+            if(number == 23 && !value)
+            {
+                pending &= ~(1u << lineNumber);
+                Connections[irqNumber].Unset();
+                return;
+            }
+
             if(BitHelper.IsBitSet(interruptMask, lineNumber) && // irq unmasked
                ((BitHelper.IsBitSet(risingTrigger, lineNumber) && value) // rising edge
                || (BitHelper.IsBitSet(fallingTrigger, lineNumber) && !value))) // falling edge
@@ -160,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
-        private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13 };
+        private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 23 };
         private readonly int numberOfOutputLines;
 
         private uint interruptMask;
