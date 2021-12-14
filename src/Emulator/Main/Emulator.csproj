@@ -535,6 +535,7 @@
     <Compile Include="Utilities\Crypto\PRESENTCipher.cs" />
     <Compile Include="Utilities\Crypto\AesProvider.cs" />
     <Compile Include="Utilities\VmemReader.cs" />
+    <Compile Include="Peripherals\I2C\DummyI2CSlave.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
