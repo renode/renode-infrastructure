@@ -411,6 +411,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 isPaused = true;
                 this.Trace("Requesting pause");
                 TlibSetReturnRequest();
+                sleeper.Interrupt();
             }
         }
 
