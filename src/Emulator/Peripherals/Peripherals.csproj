@@ -400,6 +400,7 @@
     <Compile Include="Peripherals\Storage\VirtIOBlockDevice.cs" />
     <Compile Include="Peripherals\Analog\ADCChannel.cs" />
     <Compile Include="Peripherals\MemoryControllers\OpenTitan_ROMController.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\LLVMDisassembler.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
