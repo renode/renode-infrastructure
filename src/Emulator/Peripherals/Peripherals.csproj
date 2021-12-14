@@ -406,6 +406,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_KMAC.cs" />
     <Compile Include="Peripherals\Miscellaneous\IMX_TRNG.cs" />
     <Compile Include="Peripherals\SPI\NORFlash\DecodedOperation.cs" />
+    <Compile Include="Peripherals\SPI\GigaDevice_GD25LQ.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
