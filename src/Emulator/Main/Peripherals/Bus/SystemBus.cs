@@ -254,13 +254,14 @@ namespace Antmicro.Renode.Peripherals.Bus
              * thread with such storage won't be used for another purposes than it was
              * used originally (i.e. cpu loop).
              */
+            if(cachedCpuId.IsValueCreated)
+            {
+                cpuId = cachedCpuId.Value;
+                return true;
+            }
+            
             lock(cpuSync)
             {
-                if(cachedCpuId.IsValueCreated)
-                {
-                    cpuId = cachedCpuId.Value;
-                    return true;
-                }
                 foreach(var entry in cpuById)
                 {
                     var candidate = entry.Value;
