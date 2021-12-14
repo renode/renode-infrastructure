@@ -36,7 +36,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.LimitReached += () =>
             {
                 countFlag = true;
-                SetPendingIRQ(15);
+                if(eventEnabled)
+                {
+                    SetPendingIRQ(15);
+                }
             };
             Reset();
             systick.EventEnabled = true;
