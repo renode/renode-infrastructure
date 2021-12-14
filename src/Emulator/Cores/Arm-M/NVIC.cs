@@ -39,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SetPendingIRQ(15);
             };
             Reset();
+            systick.EventEnabled = true;
         }
 
         public void AttachCPU(CortexM cpu)
@@ -353,7 +354,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             activeIRQs.Clear();
             systick.Reset();
-            systick.EventEnabled = false;
             eventEnabled = false;
             systick.AutoUpdate = true;
             IRQ.Unset();
