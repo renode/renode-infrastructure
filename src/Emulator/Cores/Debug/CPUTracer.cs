@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Debug
                 var resultString = new StringBuilder();
                 while(!done)
                 {
-                    var readBytes = bus.ReadBytes(value, SizeOfStringBatch);
+                    var readBytes = bus.ReadBytes(value, SizeOfStringBatch, context: cpu);
                     for(var i = 0; i < readBytes.Length; ++i)
                     {
                         var currentByte = readBytes[i];
@@ -161,14 +161,14 @@ namespace Antmicro.Renode.Debug
                 }
                 return resultString.ToString();
             case FunctionCallParameterType.ByteArray:
-                return bus.ReadBytes(value, size);
+                return bus.ReadBytes(value, size, context: cpu);
             case FunctionCallParameterType.Int32Array:
                 var intResult = new int[size];
-                Buffer.BlockCopy(bus.ReadBytes(value, size * sizeof(int)), 0, intResult, 0, intResult.Length);
+                Buffer.BlockCopy(bus.ReadBytes(value, size * sizeof(int), context: cpu), 0, intResult, 0, intResult.Length);
                 return intResult;
             case FunctionCallParameterType.UInt32Array:
                 var uintResult = new uint[size];
-                Buffer.BlockCopy(bus.ReadBytes(value, size * sizeof(uint)), 0, uintResult, 0, uintResult.Length);
+                Buffer.BlockCopy(bus.ReadBytes(value, size * sizeof(uint), context: cpu), 0, uintResult, 0, uintResult.Length);
                 return uintResult;
             default:
                 throw new ArgumentOutOfRangeException();

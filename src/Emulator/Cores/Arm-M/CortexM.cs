@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 vtorInitialized = true;
-                if(machine.SystemBus.FindMemory(value) == null)
+                if(machine.SystemBus.FindMemory(value, this) == null)
                 {
                     this.Log(LogLevel.Warning, "Tried to set VTOR address at 0x{0:X} which does not lay in memory. Aborted.", value);
                     return;
@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var sysbus = machine.SystemBus;
                 var pc = sysbus.ReadDoubleWord(VectorTableOffset + 4);
                 var sp = sysbus.ReadDoubleWord(VectorTableOffset);
-                if(sysbus.FindMemory(pc) == null || (pc == 0 && sp == 0))
+                if(sysbus.FindMemory(pc, this) == null || (pc == 0 && sp == 0))
                 {
                     this.Log(LogLevel.Error, "PC does not lay in memory or PC and SP are equal to zero. CPU was halted.");
                     IsHalted = true;

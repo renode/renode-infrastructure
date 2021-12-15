@@ -1853,7 +1853,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             
             var phy = TranslateAddress(pc, MpuAccess.InstructionFetch);
             var symbol = Bus.FindSymbolAt(pc);
-            var tab = Bus.ReadBytes(phy, (int)size, true);
+            var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
             
             Disassembler.DisassembleBlock(pc, tab, flags, out var disas);
 
@@ -1896,7 +1896,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string DisassembleBlock(ulong addr, uint blockSize = 40, uint flags = 0)
         {
-            var opcodes = Bus.ReadBytes(addr, (int)blockSize, true);
+            var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
             return result;
         }

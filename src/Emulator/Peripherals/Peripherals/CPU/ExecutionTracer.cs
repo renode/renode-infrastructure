@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(!cache.TryGetValue(key, out var cachedItem))
                 {
                     // here we are prepared for longer opcodes
-                    var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes);
+                    var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes, context: AttachedCPU);
                     // TODO: what about flags?
                     if(!AttachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, 0, out var result))
                     {
