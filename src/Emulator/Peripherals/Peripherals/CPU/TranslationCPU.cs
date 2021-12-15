@@ -828,7 +828,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void SetPCFromEntryPoint(ulong entryPoint)
         {
-            var what = machine.SystemBus.WhatIsAt(entryPoint);
+            var what = machine.SystemBus.WhatIsAt(entryPoint, this);
             if(what != null)
             {
                 if(((what.Peripheral as IMemory) == null) && ((what.Peripheral as Redirector) != null))

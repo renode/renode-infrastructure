@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.UnitTests
             {
                 if(random.Next(100) < 10)
                 {
-                    sysbus.UnregisterFromAddress(regPoints[i]);
+                    sysbus.UnregisterFromAddress(regPoints[i], context: null);
                     unregisteredPoints.Add(regPoints[i]);
                 }
             }
