@@ -27,13 +27,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             
             tracer.Start();
         }
+        
+        public static void DisableExecutionTracing(this TranslationCPU @this)
+        {
+            var em = EmulationManager.Instance.CurrentEmulation.ExternalsManager;
+            var tracers = em.GetExternalsOfType<ExecutionTracer>().Where(t => t.AttachedCPU == @this).ToList();
+            foreach(var tracer in tracers)
+            {
+                tracer.Stop();
+                em.RemoveExternal(tracer);
+            }
+        }
     }
     
     public class ExecutionTracer : IDisposable, IExternal
     {
         public ExecutionTracer(TranslationCPU cpu, string file, Format format)
         {
-            blocks = new BlockingCollection<Block>();
             this.file = file;
             this.format = format;
             this.attachedCPU = cpu;
@@ -53,23 +63,34 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Dispose()
         {
-            if(underlyingThread != null)
-            {
-                blocks.CompleteAdding();
-                
-                underlyingThread.Join();
-                underlyingThread = null;
-            }
+            Stop();
         }
 
         public void Start()
         {
+            blocks = new BlockingCollection<Block>();
+            
             underlyingThread = new Thread(WriterThreadBody);
             underlyingThread.IsBackground = true;
             underlyingThread.Name = "Execution tracer worker";
             underlyingThread.Start();
         }
 
+        public void Stop()
+        {
+            if(underlyingThread == null)
+            {
+                return;
+            }
+
+            this.Log(LogLevel.Info, "Stopping the execution tracer worker and dumping the trace to a file...");
+            
+            blocks.CompleteAdding();
+            underlyingThread.Join();
+            underlyingThread = null;
+
+            this.Log(LogLevel.Info, "Execution tracer stopped");
+        }
         private void WriterThreadBody()
         {
             while(true)
@@ -150,9 +171,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
         
         private Thread underlyingThread;
+        private BlockingCollection<Block> blocks;
 
         private readonly TranslationCPU attachedCPU;
-        private readonly BlockingCollection<Block> blocks;
         private readonly string file;
         private readonly Format format;
 
