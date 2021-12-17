@@ -165,7 +165,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 #>
             case <#=width#>:
                 return GetRegisterValue<#=width#>(r.Index);
-                break;
 <#
         }
 #>
