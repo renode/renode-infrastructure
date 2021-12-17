@@ -21,19 +21,15 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public static void EnableExecutionTracing(this TranslationCPU @this, string file, ExecutionTracer.Format format)
         {
-            tracer = new ExecutionTracer(@this, file, format);
-            EmulationManager.Instance.EmulationChanged += () =>
-            {
-                tracer.Dispose();
-            };
+            var tracer = new ExecutionTracer(@this, file, format);
+            // we keep it as external to dispose/flush on quit 
+            EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, "executionTracer");
             
             tracer.Start();
         }
-
-        private static ExecutionTracer tracer;
     }
     
-    public class ExecutionTracer : IDisposable
+    public class ExecutionTracer : IDisposable, IExternal
     {
         public ExecutionTracer(TranslationCPU cpu, string file, Format format)
         {
