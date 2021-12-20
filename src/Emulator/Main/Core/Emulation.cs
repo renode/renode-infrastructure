@@ -593,7 +593,8 @@ namespace Antmicro.Renode.Core
         public enum EmulationMode
         {
             SynchronizedIO,
-            SynchronizedTimers
+            SynchronizedTimers,
+            FreeRunningTimers
         }
 
         private class PausedState : IDisposable

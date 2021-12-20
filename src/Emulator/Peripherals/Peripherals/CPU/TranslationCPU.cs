@@ -2089,11 +2089,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
 
-                var instructionsToNearestLimit = InstructionsToNearestLimit();
-
-                // this puts a limit on instructions to execute in one round
-                // and makes timers update independent of the current quantum
-                var toExecute = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
+                var toExecute = (EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.FreeRunningTimers)
+                    ? Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound)
+                    : instructionsLeftThisRound;
 
                 ActivateNewHooks();
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
@@ -2124,7 +2122,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     if(this.IsInDebugMode() != 1u && !this.neverWaitForInterrupt)
                     {
                         this.Trace();
-                        var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
+                        
+                        var instructionsToSkip = (EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.FreeRunningTimers)
+                            ? Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound)
+                            : instructionsLeftThisRound;
                         
                         if(!machine.LocalTimeSource.AdvanceImmediately)
                         {
@@ -2400,9 +2401,19 @@ restart:
                     queuedAction();
                 }
 
+                if(EmulationManager.Instance.CurrentEmulation.Mode == Emulation.EmulationMode.FreeRunningTimers)
+                {
+                    StartTimeSyncThread();
+                }
+
                 pauseGuard.Enter();
                 lastTlibResult = (ExecutionResult)TlibExecute(checked((int)numberOfInstructionsToExecute));
                 pauseGuard.Leave();
+                
+                if(EmulationManager.Instance.CurrentEmulation.Mode == Emulation.EmulationMode.FreeRunningTimers)
+                {
+                    StopTimeSyncThread();
+                }
             }
             catch(CpuAbortException)
             {
