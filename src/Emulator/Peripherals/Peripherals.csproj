@@ -402,6 +402,7 @@
     <Compile Include="Peripherals\MemoryControllers\OpenTitan_ROMController.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\LLVMDisassembler.cs" />
+    <Compile Include="Peripherals\Miscellaneous\ISideloadableKey.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
