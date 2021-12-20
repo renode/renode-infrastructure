@@ -33,6 +33,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 innerTimers[i] = new ComparingTimer(machine.ClockSource, frequency, this, "", enabled: true, eventEnabled: true);
                 innerTimers[i].CompareReached += () => HandleCompareReached(j) ;
             }
+            Reset();
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            ShouldEnterDebugMode = true;
         }
 
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
