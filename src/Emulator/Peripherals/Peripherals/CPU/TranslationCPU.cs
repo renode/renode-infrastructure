@@ -365,7 +365,42 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private void StartTimeSyncThread()
+        {
+            timeSyncSleeper.Enable();
+            
+            timeSyncThread = new Thread(TimeSyncThreadBody);
+            timeSyncThread.Name = $"Time sync thread for {Name}";
+            timeSyncThread.IsBackground = true;
+
+            timeSyncThread.Start();
+        }
+
+        private void StopTimeSyncThread()
+        {
+            timeSyncSleeper.Disable();
+            timeSyncThread.Join();
+        }
+        
+        private void TimeSyncThreadBody()
+        {
+            while(true)
+            {
+                SyncTime();
+                
+                if(timeSyncSleeper.Sleep(TimeSpan.FromMilliseconds(TimerSyncPeriod), out var _))
+                {
+                    break;
+                }
+            }
+        }
+
+        private Thread timeSyncThread;
+        private readonly Sleeper timeSyncSleeper = new Sleeper();
+        private const int TimerSyncPeriod = 100;
         private ulong lastTotalNumberOfExecutedInstructions;
+        private object syncTimeLock = new object();
+
         public virtual void Start()
         {
             Resume();
