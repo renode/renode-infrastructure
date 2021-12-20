@@ -73,13 +73,13 @@ namespace Antmicro.Renode.Core
                 var deserializationResult = serializer.TryDeserialize<string>(stream, out var version);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}");
+                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
                 }
 
                 deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}");
+                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
                 }
 
                 CurrentEmulation = emulation;
