@@ -350,17 +350,22 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SyncTime()
         {
-            if(!OnPossessedThread)
-            {
-                this.Log(LogLevel.Error, "Syncing time should be done from CPU thread only. Ignoring the operation");
-                return;
-            }
-
-            var numberOfExecutedInstructions = TlibGetExecutedInstructions();
-            this.Trace($"CPU executed {numberOfExecutedInstructions} instructions and time synced");
-            ReportProgress(numberOfExecutedInstructions);
+            SyncTime(out var _);
         }
 
+        private void SyncTime(out ulong numberOfExecutedInstructions)
+        {
+            lock(syncTimeLock)
+            {
+                var totalNumberOfExecutedInstructions = TlibGetTotalExecutedInstructions();
+                numberOfExecutedInstructions = totalNumberOfExecutedInstructions - lastTotalNumberOfExecutedInstructions;
+                lastTotalNumberOfExecutedInstructions = totalNumberOfExecutedInstructions;
+               
+                ReportProgress(numberOfExecutedInstructions);
+            }
+        }
+
+        private ulong lastTotalNumberOfExecutedInstructions;
         public virtual void Start()
         {
             Resume();
@@ -1803,9 +1808,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncInt32 TlibGetStateSize;
 
         [Import]
-        protected FuncUInt64 TlibGetExecutedInstructions;
-
-        [Import]
         private ActionUInt32 TlibSetBlockFinishedHookPresent;
 
         [Import]
@@ -1814,8 +1816,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionUInt64 TlibFlushPage;
 
-        [Import]
-        protected ActionUInt64 TlibResetExecutedInstructions;
         [Import]
         private ActionUInt32 TlibSetInterruptBeginHookPresent;
 
@@ -2062,12 +2062,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 ActivateNewHooks();
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
-                var result = ExecuteInstructions(toExecute, out var executed);
-                this.Trace($"CPU executed {executed} instructions and returned {result}");
-                ExecutedInstructions = TlibGetTotalExecutedInstructions();
+                var result = ExecuteInstructions(toExecute);
                 machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
 
-                ReportProgress(executed);
                 ExecutionFinished(result);
 
                 if(result == ExecutionResult.StoppedAtBreakpoint)
@@ -2359,7 +2356,7 @@ restart:
             Aborted = ulong.MaxValue
         }
 
-        private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
+        private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute)
         {
             try
             {
@@ -2381,11 +2378,8 @@ restart:
             }
             finally
             {
-                numberOfExecutedInstructions = TlibGetExecutedInstructions();
-                if(numberOfExecutedInstructions == 0)
-                {
-                    this.Trace($"Asked tlib to execute {numberOfInstructionsToExecute}, but did nothing");
-                }
+                SyncTime(out var numberOfExecutedInstructions);
+                this.Trace($"CPU executed {numberOfExecutedInstructions} instructions and returned {lastTlibResult}");
                 DebugHelper.Assert(numberOfExecutedInstructions <= numberOfInstructionsToExecute, "tlib executed more instructions than it was asked to");
             }
 
