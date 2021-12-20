@@ -307,6 +307,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     executionMode = value;
                     
+                    TlibUpdateExecutionMode((uint)value);
+
                     singleStepSynchronizer.Enabled = IsSingleStepMode;
                     UpdateBlockBeginHookPresent();
                     UpdateHaltedState();
@@ -1830,6 +1832,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibCleanWfiProcState;
+
+        [Import]
+        private ActionUInt32 TlibUpdateExecutionMode;
 
         #pragma warning restore 649
 
