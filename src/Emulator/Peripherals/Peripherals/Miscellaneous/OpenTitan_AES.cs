@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using Antmicro.Renode.Core;
@@ -18,7 +19,7 @@ using Antmicro.Renode.Peripherals.Utilities;
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     // OpenTitan HMAC AES as per https://docs.opentitan.org/hw/ip/aes/doc/ (16.09.2021)
-    public class OpenTitan_AES : BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_AES : BasicDoubleWordPeripheral, IKnownSize, ISideloadableKey
     {
         public OpenTitan_AES(Machine machine) : base(machine)
         {
@@ -51,6 +52,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public bool InputDataReady => inputData.AllDataWritten;
 
+        public IEnumerable<byte> SideloadKey
+        {
+            set
+            {
+                sideloadKey = value.ToArray();
+            }
+        }
+
         private void DefineRegisters()
         {
             // As the opentitan software often writes 1's to unused register fields they are defined as `IgnoredBits` to avoid flooding the logs
@@ -64,6 +73,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var part = (uint)idx;
                 register.WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) =>
                 {
+                    if(useSideloadedKey.Value)
+                    {
+                        this.Log(LogLevel.Noisy, "Ignored write to key_share_0_{0}, sideload is set", part);
+                        return;
+                    }
                     initialKeyShare_0.SetPart(part, value);
                     TryPrepareKey();
                 }, name: $"key_share_0_{part}");
@@ -74,6 +88,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var part = (uint)idx;
                 register.WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) =>
                 {
+                    if(useSideloadedKey.Value)
+                    {
+                        this.Log(LogLevel.Noisy, "Ignored write to key_share_1_{0}, sideload is set", part);
+                        return;
+                    }
                     initialKeyShare_1.SetPart(part, value);
                     TryPrepareKey();
                 }, name: $"key_share_1_{part}");
@@ -117,14 +136,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(0, out decryptionMode, name: "OPERATION")
                 .WithEnumField<DoubleWordRegister, OperationMode>(1, 6, out operationMode, name: "MODE")
                 .WithEnumField<DoubleWordRegister, KeyLength>(7, 3, out keyLength, name: "KEY_LEN")
-                .WithTaggedFlag("SIDELOAD", 10)
+                .WithFlag(10, out useSideloadedKey, name: "SIDELOAD")
                 .WithFlag(11, out manualOperation, name: "MANUAL_OPERATION")
                 .WithTaggedFlag("FORCE_ZERO_MASKS", 12)
                 .WithIgnoredBits(13, 19)
                 .WithWriteCallback((_, val) =>
                 {
-                    this.Log(LogLevel.Debug, "New configuration:\n\tOPERATION = {0}\n\tMODE = {1}\n\tKEY_LEN = {2}\n\tMANUAL_OPERATION = {3}",
-                             decryptionMode.Value, operationMode.Value, keyLength.Value, manualOperation.Value);
+                    this.Log(LogLevel.Debug, "New configuration:\n\tOPERATION = {0}\n\tMODE = {1}\n\tKEY_LEN = {2}\n\tSIDELOAD = {3}\n\tMANUAL_OPERATION = {4}",
+                             decryptionMode.Value, operationMode.Value, keyLength.Value, useSideloadedKey.Value, manualOperation.Value);
                 });
 
             Registers.Trigger.Define(this, 0xe)
@@ -211,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{1:x}'. Undefined behavior ahead!", keyLength.Value);
                     return false;
             }
-            aes.Key = key;
+            aes.Key = useSideloadedKey.Value ? sideloadKey : key;
 #if DEBUG
             this.Log(LogLevel.Debug, "Generated key: {0}", Misc.Stringify(key, " "));
 #endif
@@ -266,6 +285,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private readonly byte[] key;
+        private byte[] sideloadKey;
         private bool readyForInputWrite;
         private readonly ByteArrayWithAccessTracking initialKeyShare_0;
         private readonly ByteArrayWithAccessTracking initialKeyShare_1;
@@ -277,6 +297,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField manualOperation;
         private IFlagRegisterField statusIdle;
         private IFlagRegisterField outputValid;
+        private IFlagRegisterField useSideloadedKey;
         private IEnumRegisterField<OperationMode> operationMode;
         private IEnumRegisterField<KeyLength> keyLength;
 
