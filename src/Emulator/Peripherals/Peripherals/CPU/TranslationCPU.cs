@@ -522,12 +522,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 RegisterMemoryChecked(segment.StartingOffset, segment.Size);
                 checked
                 {
-                    TranslationCacheSize = 0;
-                    foreach(var mapping in currentMappings)
-                    {
-                        TranslationCacheSize += mapping.Segment.Size;
-                    }
-                    TranslationCacheSize /= 4;
+                    TranslationCacheSize += segment.Size / 4;
                 }
             }
         }
@@ -547,6 +542,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // and second is to remove mappings that are not used anymore
                 currentMappings = currentMappings.
                     Where(x => TlibIsRangeMapped(x.Segment.StartingOffset, x.Segment.StartingOffset + x.Segment.Size) == 1).ToList();
+                checked
+                {
+                    TranslationCacheSize -= range.Size / 4;
+                }
             }
         }
 
