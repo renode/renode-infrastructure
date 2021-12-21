@@ -185,6 +185,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUId(this); return slot.Value;} private set {slot = value;} }
         private int? slot;
 
+        public override string ToString()
+        {
+            return $"[CPU: {Name}]";
+        }
+
         public void ClearTranslationCache()
         {
             using(machine.ObtainPausedState())
