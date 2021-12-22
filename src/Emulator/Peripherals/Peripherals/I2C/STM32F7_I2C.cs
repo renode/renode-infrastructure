@@ -1,16 +1,16 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using System.Linq;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
