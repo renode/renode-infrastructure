@@ -37,7 +37,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         public override void Reset()
         {
             registers.Reset();
-            dataPacket = new Queue<byte>();
+            txData = new Queue<byte>();
+            rxData = new Queue<byte>();
             currentSlaveAddress = 0;
         }
 
@@ -49,64 +50,160 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private DoubleWordRegisterCollection CreateRegisters()
         {
-            var map = new Dictionary<long, DoubleWordRegister> { {(long)Registers.Control1, new DoubleWordRegister(this)
-                        .WithFlag(0, changeCallback: PeripheralEnabledChange, name: "PE")
+            var map = new Dictionary<long, DoubleWordRegister> { {
+                    (long)Registers.Control1, new DoubleWordRegister(this)
+                        .WithFlag(0, writeCallback: PeripheralEnabledWrite, name: "PE")
                         .WithFlag(1, out transferInterruptEnabled, name: "TXIE")
                         .WithFlag(2, out receiveInterruptEnabled, name: "RXIE")
-                        .WithTag("ADDRIE", 3, 1)
+                        .WithFlag(3, out addressMatchedInterruptEnabled, name: "ADDRIE")
                         .WithFlag(4, out nackReceivedInterruptEnabled, name: "NACKIE")
                         .WithFlag(5, out stopDetectionInterruptEnabled, name: "STOPIE")
                         .WithFlag(6, out transferCompleteInterruptEnabled, name: "TCIE")
-                        .WithTag("ERRIE", 7, 1).WithTag("DNF", 8, 4)
-                        .WithTag("ANFOFF", 12, 1).WithTag("TXDMAEN", 14, 1).WithTag("RXDMAEN", 15, 1).WithTag("SBC", 16, 1).WithTag("NOSTRETCH", 17, 1).WithTag("GCEN", 19, 1)
-                        .WithTag("SMBHEN", 20, 1).WithTag("SMBDEN", 21, 1).WithTag("ALERTEN", 22, 1).WithTag("PECEN", 23, 1)
-                        .WithChangeCallback((_,__)=>Update())
+                        .WithTag("ERRIE", 7, 1)
+                        .WithTag("DNF", 8, 4)
+                        .WithTag("ANFOFF", 12, 1)
+                        .WithReservedBits(13, 1)
+                        .WithTag("TXDMAEN", 14, 1)
+                        .WithTag("RXDMAEN", 15, 1)
+                        .WithTag("SBC", 16, 1)
+                        .WithFlag(17, out noStretch, name: "NOSTRETCH")
+                        .WithTag("WUPEN", 18, 1)
+                        .WithTag("GCEN", 19, 1)
+                        .WithTag("SMBHEN", 20, 1)
+                        .WithTag("SMBDEN", 21, 1)
+                        .WithTag("ALERTEN", 22, 1)
+                        .WithTag("PECEN", 23, 1)
+                        .WithReservedBits(24, 8)
+                        .WithChangeCallback((_,__) => Update())
                 }, {
                     (long)Registers.Control2,
                     new DoubleWordRegister(this)
-                        .WithTag("HEAD10R", 12, 1).WithTag("STOP", 14, 1).WithTag("NACK", 15, 1).WithTag("PECBYTE", 26, 1)
                         .WithValueField(0, 10, out slaveAddress, name: "SADD") //Changing this from a normal field to a callback requires a change in StartWrite
                         .WithFlag(10, out isReadTransfer, name: "RD_WRN")
                         .WithFlag(11, out use10BitAddressing, name: "ADD10")
+                        .WithTag("HEAD10R", 12, 1)
                         .WithFlag(13, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: StartWrite, name: "START")
+                        .WithTag("STOP", 14, 1)
+                        .WithTag("NACK", 15, 1)
                         .WithValueField(16, 8, out bytesToTransfer, name: "NBYTES")
                         .WithFlag(24, out reload, name: "RELOAD")
                         .WithFlag(25, out autoEnd, name: "AUTOEND")
-                        .WithChangeCallback((_,__)=>Update())
+                        .WithTag("PECBYTE", 26, 1)
+                        .WithReservedBits(27, 5)
+                        .WithChangeCallback((_,__) => Update())
                 }, {
-                    (long)Registers.OwnAddress1, new DoubleWordRegister(this).WithTag("OA1", 0, 10).WithTag("OA1MODE", 10, 1).WithTag("OA1EN", 15, 1)
+                    (long)Registers.OwnAddress1, new DoubleWordRegister(this)
+                        .WithValueField(0, 10, out ownAddress1, name: "OA1")
+                        .WithFlag(10, out ownAddress1Mode, name: "OA1MODE")
+                        .WithReservedBits(11, 4)
+                        .WithFlag(15, out ownAddress1Enabled, name: "OA1EN")
+                        .WithReservedBits(16, 16)
+                        .WithWriteCallback((_, val) => 
+                            this.Log(LogLevel.Info, "Slave address 1: 0x{0:X}, mode: {1}, status: {2}", ownAddress1.Value, ownAddress1Mode.Value ? "10-bit" : "7-bit", ownAddress1Enabled.Value ? "enabled" : "disabled")
+                        )
                 }, {
-                    (long)Registers.OwnAddress2, new DoubleWordRegister(this).WithTag("OA2", 1, 7).WithTag("OA2MSK", 8, 3).WithTag("OA2EN", 15, 1)
+                    (long)Registers.OwnAddress2, new DoubleWordRegister(this)
+                        .WithReservedBits(0, 1)
+                        .WithValueField(1, 7, out ownAddress2, name: "OA2")
+                        .WithValueField(8, 3, out ownAddress2Mask, name: "OA2MSK")
+                        .WithReservedBits(11, 4)
+                        .WithFlag(15, out ownAddress2Enabled, name: "OA2EN")
+                        .WithReservedBits(16, 16)
+                        .WithWriteCallback((_, val) =>
+                            this.Log(LogLevel.Info, "Slave address 2: 0x{0:X}, mask: 0x{1:X}, status: {2}", ownAddress2.Value, ownAddress2Mask.Value, ownAddress2Enabled.Value ? "enabled" : "disabled")
+                        )
                 }, {
-                    (long)Registers.Timing, new DoubleWordRegister(this).WithValueField(0, 32) //written, but ignored
+                    (long)Registers.Timing, new DoubleWordRegister(this)
+                        .WithTag("SCLL", 0, 8)
+                        .WithTag("SCLH", 8, 8)
+                        .WithTag("SDADEL", 16, 4)
+                        .WithTag("SCLDEL", 20, 4)
+                        .WithReservedBits(24, 4)
+                        .WithTag("PRESC", 28, 4)
                 }, {
                     (long)Registers.InterruptAndStatus, new DoubleWordRegister(this, 1)
-                        .WithFlag(0, FieldMode.Read, writeCallback: (_, value)=> {if(value) dataPacket.Clear();}, name: "TXE")
-                        .WithFlag(1, out transmitInterruptStatus, FieldMode.Set | FieldMode.Read, name: "TXIS")
-                        .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => dataPacket.Any() && isReadTransfer.Value, name: "RXNE")
-                        .WithTag("ADDR", 3, 1).WithTag("NACKF", 4, 1)
+                        .WithFlag(0,
+                            valueProviderCallback: _ => txData.Count == 0,
+                            writeCallback: (_, value)=> 
+                            {
+                                if(value)
+                                {
+                                    txData.Clear();
+                                }
+                            }, name: "TXE")
+                        .WithFlag(1, 
+                            valueProviderCallback: _ => transmitInterruptStatus,
+                            writeCallback: (_, val) =>
+                            {
+                                if(!noStretch.Value)
+                                {
+                                    return;
+                                }
+                                transmitInterruptStatus = val && transferInterruptEnabled.Value;
+                            } , name: "TXIS")
+                        .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => (rxData.Count > 0), name: "RXNE")
+                        .WithFlag(3, out addressMatched, FieldMode.Read, name: "ADDR")
+                        .WithTag("NACKF", 4, 1)
                         .WithFlag(5, out stopDetection, FieldMode.Read, name: "STOPF")
-                        .WithTag("BERR", 8, 1).WithTag("ARLO", 9, 1).WithTag("OVR", 10, 1).WithTag("PECERR", 11, 1).WithTag("TIMEOUT", 12, 1)
-                        .WithTag("ALERT", 13, 1).WithTag("BUSY", 15, 1).WithTag("DIR", 16, 1).WithTag("ADDCODE", 17, 7)
                         .WithFlag(6, out transferComplete, FieldMode.Read, name: "TC")
                         .WithFlag(7, out transferCompleteReload, FieldMode.Read, name: "TCR")
-                        .WithChangeCallback((_,__)=>Update())
+                        .WithTag("BERR", 8, 1)
+                        .WithTag("ARLO", 9, 1)
+                        .WithTag("OVR", 10, 1)
+                        .WithTag("PECERR", 11, 1)
+                        .WithTag("TIMEOUT", 12, 1)
+                        .WithTag("ALERT", 13, 1)
+                        .WithReservedBits(14, 1)
+                        .WithTag("BUSY", 15, 1)
+                        .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => transferOutgoing, name: "DIR")
+                        .WithTag("ADDCODE", 17, 7)
+                        .WithReservedBits(24, 8)
+                        .WithChangeCallback((_,__) => Update())
                 }, {
-                    (long)Registers.InterruptClear, new DoubleWordRegister(this, 0).WithTag("ADDRCF", 3, 1).WithTag("NACKCF", 4, 1)
-                        .WithFlag(5, FieldMode.WriteOneToClear, writeCallback: (_, value) => stopDetection.Value = !value, name: "STOPCF")
-                        .WithTag("BERRCF", 8, 1).WithTag("ARLOCF", 9, 1).WithTag("OVRCF", 10, 1).WithTag("PECCF", 11, 1).WithTag("TIMOUTCF", 12, 1).WithTag("ALERTCF", 13, 1)
-                        .WithChangeCallback((_,__)=>Update())
+                    (long)Registers.InterruptClear, new DoubleWordRegister(this, 0)
+                        .WithReservedBits(0, 3)
+                        .WithFlag(3, FieldMode.WriteOneToClear, 
+                            writeCallback: (_, value) =>
+                            {
+                                if(value)
+                                {
+                                    transmitInterruptStatus = transferOutgoing & (txData.Count == 0);
+                                    addressMatched.Value = false;
+                                }
+                            }, name: "ADDRCF")
+                        .WithTag("NACKCF", 4, 1)
+                        .WithFlag(5, FieldMode.WriteOneToClear, 
+                            writeCallback: (_, value) =>
+                            {
+                                if(value)
+                                {
+                                    stopDetection.Value = false;
+                                }
+                            }, name: "STOPCF")
+                        .WithReservedBits(6, 2)
+                        .WithTag("BERRCF", 8, 1)
+                        .WithTag("ARLOCF", 9, 1)
+                        .WithTag("OVRCF", 10, 1)
+                        .WithTag("PECCF", 11, 1)
+                        .WithTag("TIMOUTCF", 12, 1)
+                        .WithTag("ALERTCF", 13, 1)
+                        .WithReservedBits(14, 18)
+                        .WithChangeCallback((_,__) => Update())
                 }, {
-                    (long)Registers.ReceiveData, new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReceiveDataRead, name: "RXDATA")
+                    (long)Registers.ReceiveData, new DoubleWordRegister(this, 0)
+                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReceiveDataRead, name: "RXDATA")
+                        .WithReservedBits(9, 23)
                 }, {
-                    (long)Registers.TransmitData, new DoubleWordRegister(this, 0).WithValueField(0, 8, writeCallback: TransmitDataWrite, name: "TXDATA")
+                    (long)Registers.TransmitData, new DoubleWordRegister(this, 0)
+                        .WithValueField(0, 8, writeCallback: HandleTransmitDataWrite, name: "TXDATA")
+                        .WithReservedBits(9, 23)
                 }
             };
 
             return new DoubleWordRegisterCollection(this, map);
         }
 
-        private void PeripheralEnabledChange(bool oldValue, bool newValue)
+        private void PeripheralEnabledWrite(bool oldValue, bool newValue)
         {
             if(newValue)
             {
@@ -115,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             stopDetection.Value = false;
             transferComplete.Value = false;
             transferCompleteReload.Value = false;
-            transmitInterruptStatus.Value = false;
+            transmitInterruptStatus = false;
         }
 
         private void StartWrite(bool oldValue, bool newValue)
@@ -124,12 +221,12 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 return;
             }
-            transmitInterruptStatus.Value = true;
+            transmitInterruptStatus = true;
             transferComplete.Value = false;
 
             currentSlave = null;
 
-            dataPacket.Clear();
+            rxData.Clear();
             //This is kinda volatile. If we change slaveAddress setting to a callback action, it might not be set at this moment.
             currentSlaveAddress = (int)(use10BitAddressing.Value ? slaveAddress.Value : ((slaveAddress.Value >> 1) & 0x7F));
             if(!TryGetByAddress(currentSlaveAddress, out currentSlave))
@@ -143,7 +240,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 var data = currentSlave.Read((int)bytesToTransfer.Value);
                 foreach(var item in data)
                 {
-                    dataPacket.Enqueue(item);
+                    rxData.Enqueue(item);
                 }
                 SetTransferCompleteFlags();
             }
@@ -151,9 +248,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private uint ReceiveDataRead(uint oldValue)
         {
-            if(dataPacket.Any())
+            if(rxData.Count > 0)
             {
-                var value = dataPacket.Dequeue();
+                var value = rxData.Dequeue();
                 Update();
                 return value;
             }
@@ -194,43 +291,53 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
             else
             {
-                transmitInterruptStatus.Value = false; //this is a guess based on a driver
+                transmitInterruptStatus = false; //this is a guess based on a driver
             }
         }
 
         private void Update()
         {
             var value = (transferCompleteInterruptEnabled.Value && (transferCompleteReload.Value || transferComplete.Value))
-                || (transferInterruptEnabled.Value && transmitInterruptStatus.Value)
-                || (receiveInterruptEnabled.Value && isReadTransfer.Value && dataPacket.Count > 0) //RXNE is calculated dynamically
+                || (transferInterruptEnabled.Value && transmitInterruptStatus)
+                || (receiveInterruptEnabled.Value && isReadTransfer.Value && rxData.Count > 0) //RXNE is calculated dynamically
                 || (stopDetectionInterruptEnabled.Value && stopDetection.Value)
-                || (nackReceivedInterruptEnabled.Value && false); //TODO: implement NACKF
+                || (nackReceivedInterruptEnabled.Value && false) //TODO: implement NACKF
+                || (addressMatchedInterruptEnabled.Value && addressMatched.Value);
             EventInterrupt.Set(value);
         }
 
+        private IValueRegisterField bytesToTransfer;
+        private IValueRegisterField slaveAddress;
+        private IValueRegisterField ownAddress1;
+        private IValueRegisterField ownAddress2;
+        private IValueRegisterField ownAddress2Mask;
         private IFlagRegisterField transferInterruptEnabled;
         private IFlagRegisterField receiveInterruptEnabled;
+        private IFlagRegisterField addressMatchedInterruptEnabled;
         private IFlagRegisterField nackReceivedInterruptEnabled;
         private IFlagRegisterField stopDetectionInterruptEnabled;
         private IFlagRegisterField transferCompleteInterruptEnabled;
-
-        private IFlagRegisterField transmitInterruptStatus;
-        private IFlagRegisterField transferComplete;
-        private IFlagRegisterField transferCompleteReload;
-        private IFlagRegisterField stopDetection;
-
-        private IValueRegisterField bytesToTransfer;
-        private IValueRegisterField slaveAddress;
         private IFlagRegisterField isReadTransfer;
         private IFlagRegisterField use10BitAddressing;
         private IFlagRegisterField reload;
         private IFlagRegisterField autoEnd;
+        private IFlagRegisterField noStretch;
+        private IFlagRegisterField ownAddress1Mode;
+        private IFlagRegisterField ownAddress1Enabled;
+        private IFlagRegisterField ownAddress2Enabled;
+        private IFlagRegisterField transferComplete;
+        private IFlagRegisterField transferCompleteReload;
+        private IFlagRegisterField stopDetection;
+        private IFlagRegisterField addressMatched;
 
         private DoubleWordRegisterCollection registers;
 
         private II2CPeripheral currentSlave;
-        private Queue<byte> dataPacket;
+        private Queue<byte> rxData;
+        private Queue<byte> txData;
         private int currentSlaveAddress;
+        private bool transferOutgoing;
+        private bool transmitInterruptStatus;
 
         private enum Registers
         {
