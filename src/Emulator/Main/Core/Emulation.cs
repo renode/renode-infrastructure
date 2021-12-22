@@ -473,13 +473,16 @@ namespace Antmicro.Renode.Core
             lock(machLock)
             {
                 PauseAll();
+                // dispose externals before machines;
+                // some externals, e.g. execution tracer,
+                // require access to peripherals when operating
+                ExternalsManager.Clear();
                 Array.ForEach(machs.Rights, x => x.Dispose());
                 machs.Clear();
                 MasterTimeSource.Dispose();
-                ExternalsManager.Clear();
                 HostMachine.Dispose();
-                CurrentLogger.Dispose();
                 BackendManager.Dispose();
+                CurrentLogger.Dispose();
             }
         }
 
