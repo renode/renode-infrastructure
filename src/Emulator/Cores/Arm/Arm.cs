@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 2)]
     public partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
-        public Arm(string cpuType, Machine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, endianness)
+        public Arm(string cpuType, Machine machine, uint id = 0, Endianess endianness = Endianess.LittleEndian) : base(id, cpuType, machine, endianness)
         {
         }
 

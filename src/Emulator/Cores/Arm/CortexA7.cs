@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public sealed class CortexA7 : Arm
     {
-        public CortexA7(Machine machine, GIC gic, ulong genericTimerCompareValue, Endianess endianness = Endianess.LittleEndian) : base("cortex-a15", machine, endianness)
+        public CortexA7(Machine machine, GIC gic, ulong genericTimerCompareValue, uint id = 0, Endianess endianness = Endianess.LittleEndian) : base("cortex-a15", machine, id, endianness)
         {
             genericTimer = new CortexAGenericTimer(machine, gic, genericTimerCompareValue);
         }
