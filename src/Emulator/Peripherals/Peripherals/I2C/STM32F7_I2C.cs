@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public sealed class STM32F7_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IKnownSize
+    public sealed class STM32F7_I2C : SimpleContainer<II2CPeripheral>, II2CPeripheral, IDoubleWordPeripheral, IKnownSize
     {
         public STM32F7_I2C(Machine machine) : base(machine)
         {
@@ -40,6 +40,56 @@ namespace Antmicro.Renode.Peripherals.I2C
             txData = new Queue<byte>();
             rxData = new Queue<byte>();
             currentSlaveAddress = 0;
+            transferOutgoing = false;
+        }
+
+        public void Write(byte[] data)
+        {
+            // RM0444 Rev 5, p.991/1390
+            // "0: Write transfer, slave enters receiver mode."
+            transferOutgoing = false;
+
+            rxData.EnqueueRange(data);
+        }
+
+        public byte[] Read(int count = 1)
+        {
+            if(!addressMatched.Value)
+            {
+                // Note 1:
+                // RM0444 Rev 5, p.991/1390
+                // "1: Read transfer, slave enters transmitter mode."
+                // Note 2:
+                // this is a workaround for the protocol not supporting start/stop bits
+                transferOutgoing = (count > 0);
+                bytesToTransfer.Value = (uint)count;
+                addressMatched.Value = true;
+                Update();
+            }
+
+            if(txData.Count >= bytesToTransfer.Value)
+            {
+                // STOP condition
+                stopDetection.Value = true;
+                transmitInterruptStatus = false;
+                addressMatched.Value = false;
+            }
+            else
+            {
+                // TODO: return partial results
+                return new byte[0];
+            }
+
+            var result = new byte[count];
+            for(var i = 0; i < count; i++)
+            {
+                result[i] = txData.Dequeue();
+            }
+            return result;
+        }
+
+        public void FinishTransmission()
+        {
         }
 
         public long Size { get { return 0x400; } }
@@ -258,21 +308,38 @@ namespace Antmicro.Renode.Peripherals.I2C
             return 0;
         }
 
-        private void TransmitDataWrite(uint oldValue, uint newValue)
+        private void HandleTransmitDataWrite(uint oldValue, uint newValue)
+        {
+            if(!ownAddress1Enabled.Value && !ownAddress2Enabled.Value)
+            {
+                MasterTransmitDataWrite(oldValue, newValue);
+            }
+            else
+            {
+                SlaveTransmitDataWrite(oldValue, newValue);
+            }
+        }
+
+        private void MasterTransmitDataWrite(uint oldValue, uint newValue)
         {
             if(currentSlave == null)
             {
                 this.Log(LogLevel.Warning, "Trying to send byte {0} to an unknown slave with address {1}.", newValue, currentSlaveAddress);
                 return;
             }
-            dataPacket.Enqueue((byte)newValue);
-            if(dataPacket.Count == bytesToTransfer.Value)
+            txData.Enqueue((byte)newValue);
+            if(txData.Count == bytesToTransfer.Value)
             {
-                currentSlave.Write(dataPacket.ToArray());
-                dataPacket.Clear();
+                currentSlave.Write(txData.ToArray());
+                txData.Clear();
                 SetTransferCompleteFlags();
                 Update();
             }
+        }
+
+        private void SlaveTransmitDataWrite(uint oldValue, uint newValue)
+        {
+            txData.Enqueue((byte)newValue);
         }
 
         private void SetTransferCompleteFlags()
