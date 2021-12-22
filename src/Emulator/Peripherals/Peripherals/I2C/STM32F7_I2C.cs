@@ -41,6 +41,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             rxData = new Queue<byte>();
             currentSlaveAddress = 0;
             transferOutgoing = false;
+            EventInterrupt.Unset();
+            ErrorInterrupt.Unset();
         }
 
         public void Write(byte[] data)
