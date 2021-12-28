@@ -33,6 +33,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             Reset();
         }
 
+        public override void OnGPIO(int number, bool value)
+        {
+            TlibSetIrqPendingBit((uint)number, value ? 1u : 0u);
+            base.OnGPIO(number, value);
+        }
+
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
         {
             if(semihostingUart != null)
