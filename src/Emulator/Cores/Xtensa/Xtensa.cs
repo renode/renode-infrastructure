@@ -20,9 +20,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Xtensa : TranslationCPU, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
-        private ComparingTimer[] innerTimers;
-        private const int InnerTimersCount = 3;
-        
         public Xtensa(string cpuType, Machine machine, long frequency = 10000000)
                 : base(cpuType, machine, Endianess.LittleEndian)
         {
@@ -36,12 +33,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             Reset();
         }
 
-        public override void Reset()
-        {
-            base.Reset();
-            ShouldEnterDebugMode = true;
-        }
-
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
         {
             if(semihostingUart != null)
@@ -50,6 +41,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             semihostingUart = peripheral;
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            ShouldEnterDebugMode = true;
         }
 
         public void Unregister(SemihostingUart peripheral)
@@ -64,19 +61,55 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
 
-        private void HandleCompareReached(int id)
-        { 
-            // this.Log(LogLevel.Error, "Copmare reached, what to do now?!");
-            
-            // this is a mapping for sample_controller
-            var intMap = new uint[] { 6, 10, 13 };
-            
-            // this is a mapping for baytrail
-            // var intMap = new uint[] { 1, 5, 7 };
-            TlibSetIrqPendingBit(intMap[id], 1u);
+        protected override void AddNonMappedRegistersValues(ref Table table)
+        {
+            var nonMappedRegisterValues = new Dictionary<string, ulong>();
+            var enumType = typeof(XtensaMaskedRegister);
+            foreach(var register in enumType.GetEnumValues())
+            {
+                nonMappedRegisterValues.Add(
+                    enumType.GetEnumName(register),
+                    GetRegisterUnsafe((int)register).RawValue
+                );
+            }
+            table.AddRows(nonMappedRegisterValues, x => x.Key, x => "0x{0:X}".FormatWith(x.Value));
         }
 
-        private SemihostingUart semihostingUart = null;
+        protected override Interrupt DecodeInterrupt(int number)
+        {
+            return Interrupt.Hard;
+        }
+
+        protected IEnumerable<CPURegister> GetNonMappedRegisters()
+        {
+            var registers = new List<CPURegister>();
+            foreach(var register in Enum.GetValues(typeof(XtensaMaskedRegister)))
+            {
+                registers.Add(new CPURegister((int)register, 32, false, false));
+            }
+            return registers;
+        }
+
+        protected bool TryGetNonMappedRegister(int register, out RegisterValue value)
+        {
+            if(register >= (int)XtensaMaskedRegister.PSINTLEVEL
+                && register <= (int)XtensaMaskedRegister.PSOWB)
+            {
+                if(GetRegisterMask(register, out var maskOffset, out var maskWidth))
+                {
+                    value = GetRegisterMaskedValue(PS, maskOffset, maskWidth);
+                    return true;
+                }
+            }
+            value = default(RegisterValue);
+            return false;
+        }
+
+        protected bool TrySetNonMappedRegister(int register, RegisterValue value)
+        {
+            this.Log(LogLevel.Error, "Writing to PS* registers isn't implemented.");
+            return false;
+        }
 
         [Export]
         /* AKA SIMCALL. After the simcall: "a return code will be stored to a2 and an error number to a3." */
@@ -118,73 +151,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             A[2] = uint.MaxValue;
             A[3] = 88; // ENOSYS
         }
-        
+
         [Export]
         private ulong GetCPUTime()
         {
             SyncTime();
             return innerTimers[0].Value;
-        }
-        
-        [Export]
-        private void TimerMod(uint id, ulong value)
-        {
-            if(id >= InnerTimersCount)
-            {
-                throw new Exception($"Unsupported compare #{id}");
-            }
-
-            innerTimers[id].Compare = value;
-        }
-
-        protected override void AddNonMappedRegistersValues(ref Table table)
-        {
-            var nonMappedRegisterValues = new Dictionary<string, ulong>();
-            var enumType = typeof(XtensaMaskedRegister);
-            foreach(var register in enumType.GetEnumValues())
-            {
-                nonMappedRegisterValues.Add(
-                    enumType.GetEnumName(register),
-                    GetRegisterUnsafe((int)register).RawValue
-                );
-            }
-            table.AddRows(nonMappedRegisterValues, x => x.Key, x => "0x{0:X}".FormatWith(x.Value));
-        }
-
-        protected override Interrupt DecodeInterrupt(int number)
-        {
-            return Interrupt.Hard;
-        }
-
-        protected bool TrySetNonMappedRegister(int register, RegisterValue value)
-        {
-            this.Log(LogLevel.Error, "Writing to PS* registers isn't implemented.");
-            return false;
-        }
-
-        protected bool TryGetNonMappedRegister(int register, out RegisterValue value)
-        {
-            if(register >= (int)XtensaMaskedRegister.PSINTLEVEL
-                && register <= (int)XtensaMaskedRegister.PSOWB)
-            {
-                if(GetRegisterMask(register, out var maskOffset, out var maskWidth))
-                {
-                    value = GetRegisterMaskedValue(PS, maskOffset, maskWidth);
-                    return true;
-                }
-            }
-            value = default(RegisterValue);
-            return false;
-        }
-
-        protected IEnumerable<CPURegister> GetNonMappedRegisters()
-        {
-            var registers = new List<CPURegister>();
-            foreach(var register in Enum.GetValues(typeof(XtensaMaskedRegister)))
-            {
-                registers.Add(new CPURegister((int)register, 32, false, false));
-            }
-            return registers;
         }
 
         private static bool GetRegisterMask(int register, out int offset, out int width)
@@ -222,12 +194,48 @@ namespace Antmicro.Renode.Peripherals.CPU
                 BitHelper.GetMaskedValue((uint)source.RawValue, maskOffset, maskSize),
                 (uint)maskSize);
         }
-        
+
+        private void HandleCompareReached(int id)
+        {
+            // this is a mapping for sample_controller
+            var intMap = new uint[] { 6, 10, 13 };
+
+            // this is a mapping for baytrail
+            // var intMap = new uint[] { 1, 5, 7 };
+            TlibSetIrqPendingBit(intMap[id], 1u);
+        }
+
+        [Export]
+        private void TimerMod(uint id, ulong value)
+        {
+            if(id >= InnerTimersCount)
+            {
+                throw new Exception($"Unsupported compare #{id}");
+            }
+
+            innerTimers[id].Compare = value;
+        }
+
+        private readonly ComparingTimer[] innerTimers;
+        private SemihostingUart semihostingUart = null;
+
+        private const int InnerTimersCount = 3;
+
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
         [Import]
         private ActionUInt32UInt32 TlibSetIrqPendingBit;
 #pragma warning restore 649
+
+        private enum XtensaMaskedRegister
+        {
+            PSINTLEVEL = 105,
+            PSUM = 106,
+            PSWOE = 107,
+            PSEXCM = 108,
+            PSCALLINC = 109,
+            PSOWB = 110,
+        }
 
         private enum XtensaSimcallOperation : uint
         {
@@ -242,16 +250,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             ARGV_SZ = 1001,
             ARGV = 1002,
             MEMSET = 1004,
-        }
-
-        private enum XtensaMaskedRegister
-        {
-            PSINTLEVEL = 105,
-            PSUM = 106,
-            PSWOE = 107,
-            PSEXCM = 108,
-            PSCALLINC = 109,
-            PSOWB = 110,
         }
     }
 }
