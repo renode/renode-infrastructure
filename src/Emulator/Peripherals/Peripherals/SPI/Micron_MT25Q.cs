@@ -11,7 +11,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Storage;
+using Antmicro.Renode.Peripherals.SPI.NORFlash;
 using Antmicro.Renode.Utilities;
 using ELFSharp.ELF;
 
@@ -54,26 +54,26 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void FinishTransmission()
         {
-            switch(state)
+            switch(currentOperation.State)
             {
-                case State.RecognizeOperation:
-                case State.AccumulateCommandAddressBytes:
-                case State.AccumulateNoDataCommandAddressBytes:
-                    this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", state);
+                case DecodedOperation.OperationState.RecognizeOperation:
+                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+                    this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
                     break;
             }
             // If an operation has at least 1 data byte or more than 0 address bytes,
             // we can clear the write enable flag only when we are finishing a transmission.
             switch(currentOperation.Operation)
             {
-                case Operation.Program:
-                case Operation.Erase:
-                case Operation.WriteRegister:
+                case DecodedOperation.OperationType.Program:
+                case DecodedOperation.OperationType.Erase:
+                case DecodedOperation.OperationType.WriteRegister:
                     //although the docs are not clear, it seems that all register writes should clear the flag
                     enable.Value = false;
                     break;
             }
-            state = State.RecognizeOperation;
+            currentOperation.State = DecodedOperation.OperationState.RecognizeOperation;
             currentOperation = default(DecodedOperation);
             temporaryNonVolatileConfiguration = 0;
         }
@@ -85,32 +85,33 @@ namespace Antmicro.Renode.Peripherals.SPI
             volatileConfigurationRegister.Reset();
             nonVolatileConfigurationRegister.Reset();
             enhancedVolatileConfigurationRegister.Reset();
+            currentOperation = default(DecodedOperation);
             FinishTransmission();
         }
 
         public byte Transmit(byte data)
         {
-            this.Log(LogLevel.Noisy, "Transmitting data 0x{0:X}, current state: {1}", data, state);
-            switch(state)
+            this.Log(LogLevel.Noisy, "Transmitting data 0x{0:X}, current state: {1}", data, currentOperation.State);
+            switch(currentOperation.State)
             {
-                case State.RecognizeOperation:
+                case DecodedOperation.OperationState.RecognizeOperation:
                     // When the command is decoded, depending on the operation we will either start accumulating address bytes
                     // or immediately handle the command bytes
                     RecognizeOperation(data);
                     break;
-                case State.AccumulateCommandAddressBytes:
-                    AccumulateAddressBytes(data, State.HandleCommand);
+                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+                    AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleCommand);
                     break;
-                case State.AccumulateNoDataCommandAddressBytes:
-                    AccumulateAddressBytes(data, State.HandleNoDataCommand);
+                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+                    AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleNoDataCommand);
                     break;
-                case State.HandleCommand:
+                case DecodedOperation.OperationState.HandleCommand:
                     // Process the remaining command bytes
                     return HandleCommand(data);
             }
 
             // Warning: commands without data require immediate handling after the address was accumulated
-            if(state == State.HandleNoDataCommand)
+            if(currentOperation.State == DecodedOperation.OperationState.HandleNoDataCommand)
             {
                 HandleNoDataCommand();
             }
@@ -119,12 +120,12 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
-        private void AccumulateAddressBytes(byte addressByte, State nextState)
+        private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
         {
             if(currentOperation.TryAccumulateAddress(addressByte))
             {
                 this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
-                state = nextState;
+                currentOperation.State = nextState;
             }
         }
 
@@ -164,20 +165,20 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void RecognizeOperation(byte firstByte)
         {
-            currentOperation.Operation = Operation.None;
+            currentOperation.Operation = DecodedOperation.OperationType.None;
             currentOperation.AddressLength = 0;
-            state = State.HandleCommand;
+            currentOperation.State = DecodedOperation.OperationState.HandleCommand;
             switch(firstByte)
             {
                 case (byte)Commands.ReadID:
                 case (byte)Commands.MultipleIoReadID:
-                    currentOperation.Operation = Operation.ReadID;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadID;
                     break;
                 case (byte)Commands.FastRead:
                     // fast read - 3 bytes of address + a dummy byte
-                    currentOperation.Operation = Operation.ReadFast;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadFast;
                     currentOperation.AddressLength = 3;
-                    state = State.AccumulateCommandAddressBytes;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.Read:
                 case (byte)Commands.DualOutputFastRead:
@@ -190,18 +191,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.DtrQuadOutputFastRead:
                 case (byte)Commands.DtrQuadInputOutputFastRead:
                 case (byte)Commands.QuadInputOutputWordRead:
-                    currentOperation.Operation = Operation.Read;
+                    currentOperation.Operation = DecodedOperation.OperationType.Read;
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
-                    state = State.AccumulateCommandAddressBytes;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.PageProgram:
                 case (byte)Commands.DualInputFastProgram:
                 case (byte)Commands.ExtendedDualInputFastProgram:
                 case (byte)Commands.QuadInputFastProgram:
                 case (byte)Commands.ExtendedQuadInputFastProgram:
-                    currentOperation.Operation = Operation.Program;
+                    currentOperation.Operation = DecodedOperation.OperationType.Program;
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
-                    state = State.AccumulateCommandAddressBytes;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.WriteEnable:
                     this.Log(LogLevel.Noisy, "Setting write enable latch");
@@ -212,52 +213,52 @@ namespace Antmicro.Renode.Peripherals.SPI
                     enable.Value = false;
                     return; //return to prevent further logging
                 case (byte)Commands.SectorErase:
-                    currentOperation.Operation = Operation.Erase;
-                    currentOperation.EraseSize = EraseSize.Sector;
+                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
-                    state = State.AccumulateNoDataCommandAddressBytes;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.DieErase:
-                    currentOperation.Operation = Operation.Erase;
-                    currentOperation.EraseSize = EraseSize.Die;
+                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Die;
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
-                    state = State.AccumulateNoDataCommandAddressBytes;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.ReadStatusRegister:
-                    currentOperation.Operation = Operation.ReadRegister;
-                    currentOperation.Register = Register.Status;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.Status;
                     break;
                 case (byte)Commands.WriteStatusRegister:
-                    currentOperation.Operation = Operation.WriteRegister;
-                    currentOperation.Register = Register.Status;
+                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                    currentOperation.Register = (uint)Register.Status;
                     break;
                 case (byte)Commands.ReadFlagStatusRegister:
-                    currentOperation.Operation = Operation.ReadRegister;
-                    currentOperation.Register = Register.FlagStatus;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.FlagStatus;
                     break;
                 case (byte)Commands.ReadVolatileConfigurationRegister:
-                    currentOperation.Operation = Operation.ReadRegister;
-                    currentOperation.Register = Register.VolatileConfiguration;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.VolatileConfiguration;
                     break;
                 case (byte)Commands.WriteVolatileConfigurationRegister:
-                    currentOperation.Operation = Operation.WriteRegister;
-                    currentOperation.Register = Register.VolatileConfiguration;
+                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                    currentOperation.Register = (uint)Register.VolatileConfiguration;
                     break;
                 case (byte)Commands.ReadNonVolatileConfigurationRegister:
-                    currentOperation.Operation = Operation.ReadRegister;
-                    currentOperation.Register = Register.NonVolatileConfiguration;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.NonVolatileConfiguration;
                     break;
                 case (byte)Commands.WriteNonVolatileConfigurationRegister:
-                    currentOperation.Operation = Operation.WriteRegister;
-                    currentOperation.Register = Register.NonVolatileConfiguration;
+                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                    currentOperation.Register = (uint)Register.NonVolatileConfiguration;
                     break;
                 case (byte)Commands.ReadEnhancedVolatileConfigurationRegister:
-                    currentOperation.Operation = Operation.ReadRegister;
-                    currentOperation.Register = Register.EnhancedVolatileConfiguration;
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
                     break;
                 case (byte)Commands.WriteEnhancedVolatileConfigurationRegister:
-                    currentOperation.Operation = Operation.WriteRegister;
-                    currentOperation.Register = Register.EnhancedVolatileConfiguration;
+                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                    currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
                     break;
                 default:
                     this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
@@ -271,16 +272,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             byte result = 0;
             switch(currentOperation.Operation)
             {
-                case Operation.ReadFast:
+                case DecodedOperation.OperationType.ReadFast:
                     // handle dummy byte and switch to read
-                    currentOperation.Operation = Operation.Read;
+                    currentOperation.Operation = DecodedOperation.OperationType.Read;
                     currentOperation.CommandBytesHandled--;
                     this.Log(LogLevel.Noisy, "Handling dummy byte in ReadFast operation");
                     break;
-                case Operation.Read:
+                case DecodedOperation.OperationType.Read:
                     result = ReadFromMemory();
                     break;
-                case Operation.ReadID:
+                case DecodedOperation.OperationType.ReadID:
                     if(currentOperation.CommandBytesHandled < deviceData.Length)
                     {
                         result = deviceData[currentOperation.CommandBytesHandled];
@@ -291,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         result = 0;
                     }
                     break;
-                case Operation.Program:
+                case DecodedOperation.OperationType.Program:
                     if(enable.Value)
                     {
                         WriteToMemory(data);
@@ -302,11 +303,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                         this.Log(LogLevel.Error, "Memory write operations are disabled.");
                     }
                     break;
-                case Operation.ReadRegister:
-                    result = ReadRegister(currentOperation.Register);
+                case DecodedOperation.OperationType.ReadRegister:
+                    result = ReadRegister((Register)currentOperation.Register);
                     break;
-                case Operation.WriteRegister:
-                    WriteRegister(currentOperation.Register, data);
+                case DecodedOperation.OperationType.WriteRegister:
+                    WriteRegister((Register)currentOperation.Register, data);
                     break;
                 default:
                     this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
@@ -391,7 +392,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             // but at the moment we have implemented just these ones
             switch(currentOperation.Operation)
             {
-                case Operation.Erase:
+                case DecodedOperation.OperationType.Erase:
                     if(enable.Value)
                     {
                         if(currentOperation.ExecutionAddress >= underlyingMemory.Size)
@@ -401,10 +402,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                         switch(currentOperation.EraseSize)
                         {
-                            case EraseSize.Sector:
+                            case DecodedOperation.OperationEraseSize.Sector:
                                 EraseSector();
                                 break;
-                            case EraseSize.Die:
+                            case DecodedOperation.OperationEraseSize.Die:
                                 EraseDie();
                                 break;
                             default:
@@ -479,7 +480,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             return  underlyingMemory.ReadByte(position);
         }
 
-        private State state;
         private DecodedOperation currentOperation;
         private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
@@ -501,63 +501,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const byte DeviceConfiguration = 0x0;   // standard
         private const byte DeviceGeneration = 0x1;      // 2nd generation
         private const byte ExtendedDeviceID = DeviceGeneration << 6;
-
-        private struct DecodedOperation
-        {
-            public Operation Operation;
-            public Register Register;
-            public EraseSize EraseSize;
-            public int AddressLength
-            {
-                get
-                {
-                    return addressLength;
-                }
-                set
-                {
-                    addressLength = value;
-                    if(addressLength > 0)
-                    {
-                        AddressBytes = new byte[addressLength];
-                    }
-                }
-            }
-            public uint ExecutionAddress;
-            public int CommandBytesHandled;
-
-            public bool TryAccumulateAddress(byte data)
-            {
-                AddressBytes[currentAddressByte] = data;
-                currentAddressByte++;
-                if(currentAddressByte == AddressLength)
-                {
-                    ExecutionAddress = BitHelper.ToUInt32(AddressBytes, 0, AddressLength, false);
-                    return true;
-                }
-                return false;
-            }
-
-            public override string ToString()
-            {
-                return $"Operation: {Operation}"
-                    .AppendIf(Operation == Operation.ReadRegister || Operation == Operation.WriteRegister, $", register: {Register}")
-                    .AppendIf(EraseSize != 0, $", erase size: {EraseSize}")
-                    .AppendIf(AddressLength != 0, $", address length: {AddressLength}")
-                    .ToString();
-            }
-
-            private byte[] AddressBytes;
-            private int addressLength;
-            private int currentAddressByte;
-        }
-
-        private enum EraseSize
-        {
-            Die = 1, // starting from 1 to leave 0 as explicitly unused
-            Sector,
-            Subsector32K,
-            Subsector4K
-        }
 
         private enum Commands : byte
         {
@@ -685,28 +628,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             CyclicRedundancyCheck = 0x27
         }
 
-        private enum State
-        {
-            RecognizeOperation,
-            AccumulateCommandAddressBytes,
-            AccumulateNoDataCommandAddressBytes,
-            HandleCommand,
-            HandleNoDataCommand
-        }
-
-        private enum Operation
-        {
-            None,
-            Read,
-            ReadFast,
-            ReadID,
-            Program,
-            Erase,
-            ReadRegister,
-            WriteRegister,
-        }
-
-        private enum Register
+        private enum Register : uint
         {
             Status = 1, //starting from 1 to leave 0 as an unused value
             FlagStatus,

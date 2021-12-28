@@ -405,6 +405,7 @@
     <Compile Include="Peripherals\Miscellaneous\ISideloadableKey.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_KMAC.cs" />
     <Compile Include="Peripherals\Miscellaneous\IMX_TRNG.cs" />
+    <Compile Include="Peripherals\SPI\NORFlash\DecodedOperation.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
@@ -461,6 +462,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
+    <Folder Include="Peripherals\SPI\NORFlash\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dll" />
