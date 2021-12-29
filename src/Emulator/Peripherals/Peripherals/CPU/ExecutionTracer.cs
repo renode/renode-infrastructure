@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             this.file = file;
             this.format = format;
-            this.attachedCPU = cpu;
+            AttachedCPU = cpu;
 
             try
             {
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"There was an error when preparing the execution trace output file {file}: {e.Message}");
             }
             
-            attachedCPU.SetHookAtBlockEnd(HandleBlock);
+            AttachedCPU.SetHookAtBlockEnd(HandleBlock);
         }
 
         public void Dispose()
@@ -91,6 +91,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             this.Log(LogLevel.Info, "Execution tracer stopped");
         }
+
+        public TranslationCPU AttachedCPU { get; }
+
         private void WriterThreadBody()
         {
             while(true)
@@ -105,10 +108,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     while(counter < (int)block.InstructionsCount)
                     {
-                        var mem = attachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes);
+                        var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes);
 
                         // TODO: what about flags?
-                        if(!attachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, 0, out var result))
+                        if(!AttachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, 0, out var result))
                         {
                             val += $"Couldn't disassemble opcode at PC 0x{pc:X}\n";
                             break;
@@ -130,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                                     break;
 
                                 default:
-                                    attachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
+                                    AttachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
                                     break;
                             }
                             
@@ -173,7 +176,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Thread underlyingThread;
         private BlockingCollection<Block> blocks;
 
-        private readonly TranslationCPU attachedCPU;
         private readonly string file;
         private readonly Format format;
 
