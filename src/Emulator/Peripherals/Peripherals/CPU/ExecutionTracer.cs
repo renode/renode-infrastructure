@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 // 
 using System;
+using System.Text;
 using System.Linq;
 using System.Globalization;
 using System.Threading;
@@ -14,6 +15,7 @@ using System.Collections.Concurrent;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -44,6 +46,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public ExecutionTracer(TranslationCPU cpu, string file, Format format)
         {
+            cache = new LRUCache<uint, Antmicro.Renode.Peripherals.CPU.Disassembler.DisassemblyResult?>(CacheSize);
             this.file = file;
             this.format = format;
             AttachedCPU = cpu;
@@ -94,58 +97,96 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public TranslationCPU AttachedCPU { get; }
 
+        private void HandleBlock(Block block, StringBuilder sb)
+        {
+            var pc = block.StartingPC;
+            var counter = 0;
+
+            while(counter < (int)block.InstructionsCount)
+            {
+                // here we read only 4-bytes as it should cover most cases
+                var key = AttachedCPU.Bus.ReadDoubleWord(pc);
+                if(!cache.TryGetValue(key, out var cachedItem))
+                {
+                    // here we are prepared for longer opcodes
+                    var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes);
+                    // TODO: what about flags?
+                    if(!AttachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, 0, out var result))
+                    {
+                        cachedItem = null;
+                        // mark this as an invalid opcode
+                        cache.Add(key, null);
+                    }
+                    else
+                    {
+                        cachedItem = result;
+                        // we only cache opcodes up to 4-bytes
+                        if(result.OpcodeSize <= 4)
+                        {
+                            cache.Add(key, result);
+                        }
+                    }
+                }
+
+                if(!cachedItem.HasValue)
+                {
+                    sb.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
+                    break;
+                }
+                else
+                {
+                    var result = cachedItem.Value;
+                    
+                    switch(format)
+                    {
+                        case Format.PC:
+                            sb.AppendFormat("0x{0:X}\n", pc);
+                            break;
+
+                        case Format.Opcode:
+                            sb.AppendFormat("0x{0}\n", result.OpcodeString.ToUpper());
+                            break;
+                            
+                        case Format.PCAndOpcode:
+                            sb.AppendFormat("0x{0:X}: 0x{1}\n", pc, result.OpcodeString.ToUpper());
+                            break;
+
+                        default:
+                            AttachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
+                            break;
+                    }
+                    
+                    pc += (ulong)result.OpcodeSize;
+                    counter++;
+                }
+            }
+        }
+
+        private void DumpBuffer(StringBuilder sb)
+        {
+            File.AppendAllText(file, sb.ToString());
+            sb.Clear();
+        }
+
         private void WriterThreadBody()
         {
+            var sb = new StringBuilder();
+            
             while(true)
             {
                 try
                 {
-                    var val = string.Empty;
                     var block = blocks.Take();
-
-                    var pc = block.StartingPC;
-                    var counter = 0;
-
-                    while(counter < (int)block.InstructionsCount)
+                    do
                     {
-                        var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes);
-
-                        // TODO: what about flags?
-                        if(!AttachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, 0, out var result))
+                        HandleBlock(block, sb);
+                        if(sb.Length > BufferFlushLevel)
                         {
-                            val += $"Couldn't disassemble opcode at PC 0x{pc:X}\n";
-                            break;
-                        }
-                        else
-                        {
-                            switch(format)
-                            {
-                                case Format.PC:
-                                    val += $"0x{pc:X}\n"; 
-                                    break;
-
-                                case Format.Opcode:
-                                    val += "0x" + result.OpcodeString.ToUpper() + "\n";
-                                    break;
-                                    
-                                case Format.PCAndOpcode:
-                                    val += $"0x{pc:X}: 0x{result.OpcodeString.ToUpper()}\n";
-                                    break;
-
-                                default:
-                                    AttachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
-                                    break;
-                            }
-                            
-                            pc += (ulong)result.OpcodeSize;
-                            counter++;
+                            DumpBuffer(sb);
                         }
                     }
-                    
-                    // this opens/closes the file for each PC
-                    // * it ensures flushing
-                    // * it might not be optimal
-                    File.AppendAllText(file, val);
+                    while(blocks.TryTake(out block));
+                    DumpBuffer(sb);
                 }
                 catch(InvalidOperationException)
                 {
@@ -153,6 +194,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     break;
                 }
             }
+            DumpBuffer(sb);
         }
 
         private void HandleBlock(ulong pc, uint instructionsInBlock)
@@ -178,8 +220,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly string file;
         private readonly Format format;
+        private readonly LRUCache<uint, Antmicro.Renode.Peripherals.CPU.Disassembler.DisassemblyResult?> cache;
 
         private const int MaxOpcodeBytes = 16;
+        private const int BufferFlushLevel = 1000000;
+        private const int CacheSize = 100000;
         
         public enum Format
         {
