@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Utilities.GDB
             commandsManager.ShouldAutoStart = autostartEmulation;
             TypeManager.Instance.AutoLoadedType += commandsManager.Register;
 
-            terminal = new SocketServerProvider();
+            terminal = new SocketServerProvider(false);
             terminal.DataReceived += OnByteWritten;
             terminal.ConnectionAccepted += delegate
             {
