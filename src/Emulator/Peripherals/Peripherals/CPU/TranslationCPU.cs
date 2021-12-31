@@ -1624,7 +1624,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [PostDeserialization]
         protected void InitDisas()
         {
-            disassembler = new LLVMDisassembler(this);
+            try
+            {
+                disassembler = new LLVMDisassembler(this);
+            }
+            catch(ArgumentOutOfRangeException e)
+            {
+                this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
+            }
         }
 
         #endregion
@@ -1860,11 +1867,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return;
             }
-            
+            if(Disassembler == null)
+            {
+                return;
+            }
+
             var phy = TranslateAddress(pc, MpuAccess.InstructionFetch);
             var symbol = Bus.FindSymbolAt(pc);
             var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
-            
             Disassembler.DisassembleBlock(pc, tab, flags, out var disas);
 
             if(disas == null)
@@ -1906,6 +1916,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string DisassembleBlock(ulong addr, uint blockSize = 40, uint flags = 0)
         {
+            if(Disassembler == null)
+            {
+                throw new RecoverableException("Disassembly engine not available");
+            }
             var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
             return result;
