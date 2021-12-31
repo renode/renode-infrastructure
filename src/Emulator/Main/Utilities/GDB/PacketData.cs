@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly List<byte> rawBytes;
         private readonly List<byte> bytes;
 
-        private static readonly Regex mnemonicRegex = new Regex(@"^(p|[A-Za-z,]*[;?]?)");
+        private static readonly Regex mnemonicRegex = new Regex(@"^(p|m|P|Hg|M|X|[A-Za-z,]*[;?]?)");
     }
 
     public enum Error : int
