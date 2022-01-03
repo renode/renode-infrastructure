@@ -1628,7 +1628,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 disassembler = new LLVMDisassembler(this);
             }
-            catch(ArgumentOutOfRangeException e)
+            catch(ArgumentOutOfRangeException)
             {
                 this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
             }
