@@ -9,7 +9,6 @@ using System.Text;
 using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using System.Linq;
 
 namespace Antmicro.Renode.Utilities.GDB
@@ -86,7 +85,7 @@ namespace Antmicro.Renode.Utilities.GDB
             if(!escapeNextByte)
             {
                 cachedString = null;
-                cachedMnemonic = null;
+                Mnemonic = null;
                 return true;
             }
             return false;
@@ -104,7 +103,21 @@ namespace Antmicro.Renode.Utilities.GDB
             else
             {
                 return cs.Substring(0, Math.Min(cs.Length, DataAsStringLimit));
-            } }
+            }
+        }
+
+        public string MatchMnemonicFromList(List<string> mnemonicList)
+        {
+            foreach(var entry in mnemonicList)
+            {
+                if(DataAsString.StartsWith(entry))
+                {
+                    Mnemonic = entry;
+                    break;
+                }
+            }
+            return Mnemonic;
+        }
 
         public static PacketData Success { get; private set; }
         public static PacketData Empty { get; private set; }
@@ -129,30 +142,16 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
-        public string Mnemonic
-        {
-            get
-            {
-                if(cachedMnemonic == null)
-                {
-                    var mnemonicMatch = PacketData.mnemonicRegex.Match(DataAsString);
-                    cachedMnemonic = mnemonicMatch.Success ? mnemonicMatch.Value : "";
-                }
-                return cachedMnemonic;
-            }
-        }
+        public string Mnemonic { get; private set; }
 
         private const byte EscapeOffset = 0x20;
         private const byte EscapeSymbol = (byte)'}';
         private const int DataAsStringLimit = 100;
 
         private string cachedString;
-        private string cachedMnemonic;
         private bool escapeNextByte;
         private readonly List<byte> rawBytes;
         private readonly List<byte> bytes;
-
-        private static readonly Regex mnemonicRegex = new Regex(@"^(p|m|P|Hg|M|X|[A-Za-z,]*[;?]?)");
     }
 
     public enum Error : int

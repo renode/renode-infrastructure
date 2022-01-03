@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             availableCommands = new HashSet<CommandDescriptor>();
             activeCommands = new HashSet<Command>();
+            mnemonicList = new List<string>();
             Machine = machine;
             CanAttachCPU = true;
             BlockOnStep = blockOnStep;
@@ -87,12 +88,18 @@ namespace Antmicro.Renode.Utilities.GDB
             foreach(var interestingMethod in interestingMethods)
             {
                 availableCommands.Add(new CommandDescriptor(interestingMethod));
+                mnemonicList.Add(interestingMethod.GetCustomAttribute<ExecuteAttribute>().Mnemonic);
             }
         }
 
         public bool TryGetCommand(Packet packet, out Command command)
         {
-            var mnemonic = packet.Data.Mnemonic;
+            var mnemonic = packet.Data.MatchMnemonicFromList(mnemonicList);
+            if(mnemonic == null)
+            {
+                command = null;
+                return false;
+            }
 
             if(!commandsCache.TryGetValue(mnemonic, out command))
             {
@@ -249,6 +256,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private readonly Dictionary<string,Command> commandsCache;
         private uint selectedCpuNumber;
+        private readonly List<string> mnemonicList;
 
         private class CommandDescriptor
         {

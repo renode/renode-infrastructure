@@ -158,6 +158,10 @@ namespace Antmicro.Renode.Utilities.GDB
         private static MethodInfo GetExecutingMethod(Command command, Packet packet)
         {
             var mnemonic = packet.Data.Mnemonic;
+            if(mnemonic == null)
+            {
+                return null;
+            }
             if(executingMethods.TryGetValue(mnemonic, out var output))
             {
                 return output;
