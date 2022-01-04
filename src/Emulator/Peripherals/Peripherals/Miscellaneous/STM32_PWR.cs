@@ -87,12 +87,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public uint ReadDoubleWord(long offset)
         {
-                return registers.Read(offset);
+            return registers.Read(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-                registers.Write(offset, value);
+            registers.Write(offset, value);
         }
 
         public void Reset()
@@ -110,8 +110,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum Registers : long
         {
-                PowerControl = 0x0,
-                PowerControlStatus = 0x4
+            PowerControl = 0x0,
+            PowerControlStatus = 0x4
         }
 
         private enum PvdLevelSelection
