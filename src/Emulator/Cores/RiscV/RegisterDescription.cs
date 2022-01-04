@@ -12,28 +12,28 @@ namespace Antmicro.Renode.Peripherals.CPU
     // Those methods use RiscV32Registers enum and assume those values are also valid for rv64
     public static class RiscVRegisterDescription
     {
-        public static void AddCpuFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth)
+        public static void AddCpuFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth)
         {
-            var cpuGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.cpu");
+            var cpuGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.cpu");
             var intType = $"uint{registerWidth}";
 
             for(var index = 0u; index < NumberOfXRegisters; ++index)
             {
-                cpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.X0 + index, registerWidth, $"x{index}", intType, "general"));
+                cpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.X0 + index, registerWidth, $"x{index}", intType, "general"));
             }
 
-            cpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.PC, registerWidth, "pc", "code_ptr", "general"));
+            cpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.PC, registerWidth, "pc", "code_ptr", "general"));
             features.Add(cpuGroup);
         }
 
-        public static void AddFpuFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth, bool extensionH, bool extensionF, bool extensionD, bool extensionQ)
+        public static void AddFpuFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth, bool extensionH, bool extensionF, bool extensionD, bool extensionQ)
         {
             if(!(extensionH || extensionF || extensionD || extensionQ))
             {
                 return;
             }
 
-            var fpuGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.fpu");
+            var fpuGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.fpu");
             var intType = $"uint{registerWidth}";
             var fWidth = 0u;
             var types = new List<string>();
@@ -90,14 +90,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             for(var index = 0u; index < NumberOfFRegisters; ++index)
             {
-                fpuGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.F0 + index, fWidth, $"f{index}", floatType, "float"));
+                fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.F0 + index, fWidth, $"f{index}", floatType, "float"));
             }
 
             // fflags, frm and fcsr are not implemented but are required for architecture description
             var fflagsIndex = (uint)RiscV32Registers.F0 + NumberOfFRegisters;
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor(fflagsIndex, registerWidth, "fflags", "", "float"));
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor(fflagsIndex + 1, registerWidth, "frm", "", "float"));
-            fpuGroup.Registers.Add(new GBDRegisterDescriptor(fflagsIndex + 2, registerWidth, "fcsr", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex, registerWidth, "fflags", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 1, registerWidth, "frm", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 2, registerWidth, "fcsr", "", "float"));
 
             {
                 var fields = new List<GDBTypeBitField>();
@@ -143,9 +143,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             features.Add(fpuGroup);
         }
 
-        public static void AddCSRFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth, bool extensionS, bool extensionU, bool extensionN, bool extensionV)
+        public static void AddCSRFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth, bool extensionS, bool extensionU, bool extensionN, bool extensionV)
         {
-            var csrGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.csr");
+            var csrGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.csr");
             var intType = $"uint{registerWidth}";
 
             {
@@ -378,49 +378,49 @@ namespace Antmicro.Renode.Peripherals.CPU
                     csrGroup.Types.Add(satpType);
                 }
 
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SSTATUS, registerWidth, "sstatus", "sstatus_type", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SIE, registerWidth, "sie", "sie_type", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SIP, registerWidth, "sip", "sip_type", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.STVEC, registerWidth, "stvec", "tvec_type", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SSCRATCH, registerWidth, "sscratch", "data_ptr", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SEPC, registerWidth, "sepc", "code_ptr", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SCAUSE, registerWidth, "scause", "cause_type", "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.STVAL, registerWidth, "stval", intType, "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.SATP, registerWidth, "satp", "satp_type", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SSTATUS, registerWidth, "sstatus", "sstatus_type", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SIE, registerWidth, "sie", "sie_type", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SIP, registerWidth, "sip", "sip_type", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.STVEC, registerWidth, "stvec", "tvec_type", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SSCRATCH, registerWidth, "sscratch", "data_ptr", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SEPC, registerWidth, "sepc", "code_ptr", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SCAUSE, registerWidth, "scause", "cause_type", "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.STVAL, registerWidth, "stval", intType, "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.SATP, registerWidth, "satp", "satp_type", "csr"));
             }
             if(extensionS || (extensionU && extensionN))
             {
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MEDELEG, registerWidth, "medeleg", intType, "csr"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MIDELEG, registerWidth, "mideleg", intType, "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MEDELEG, registerWidth, "medeleg", intType, "csr"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MIDELEG, registerWidth, "mideleg", intType, "csr"));
             }
 
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MSTATUS, registerWidth, "mstatus", "", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MISA, registerWidth, "misa", "", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MIE, registerWidth, "mie", "mie_type", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MIP, registerWidth, "mip", "mip_type", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MTVEC, registerWidth, "mtvec", "tvec_type", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MSCRATCH, registerWidth, "mscratch", "data_ptr", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MEPC, registerWidth, "mepc", "code_ptr", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MCAUSE, registerWidth, "mcause", "cause_type", "csr"));
-            csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.MTVAL, registerWidth, "mtval", intType, "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MSTATUS, registerWidth, "mstatus", "", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MISA, registerWidth, "misa", "", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MIE, registerWidth, "mie", "mie_type", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MIP, registerWidth, "mip", "mip_type", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MTVEC, registerWidth, "mtvec", "tvec_type", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MSCRATCH, registerWidth, "mscratch", "data_ptr", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MEPC, registerWidth, "mepc", "code_ptr", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MCAUSE, registerWidth, "mcause", "cause_type", "csr"));
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MTVAL, registerWidth, "mtval", intType, "csr"));
 
             if(extensionV)
             {
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VSTART, registerWidth, "vstart", group: "vector"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VXSAT, registerWidth, "vxsat", group: "vector"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VXRM, registerWidth, "vxrm", group: "vector"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VCSR, registerWidth, "vcsr", group: "vector"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VL, registerWidth, "vl", group: "vector"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VTYPE, registerWidth, "vtype", group: "vector"));
-                csrGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.VLENB, registerWidth, "vlenb", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VSTART, registerWidth, "vstart", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VXSAT, registerWidth, "vxsat", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VXRM, registerWidth, "vxrm", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VCSR, registerWidth, "vcsr", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VL, registerWidth, "vl", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VTYPE, registerWidth, "vtype", group: "vector"));
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.VLENB, registerWidth, "vlenb", group: "vector"));
             }
 
             features.Add(csrGroup);
         }
 
-        public static void AddVirtualFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth)
+        public static void AddVirtualFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth)
         {
-            var virtualGroup =  new GBDFeatureDescriptor("org.gnu.gdb.riscv.virtual");
+            var virtualGroup =  new GDBFeatureDescriptor("org.gnu.gdb.riscv.virtual");
             {
                 var fields = new List<GDBTypeEnumValue>();
                 fields.Add(new GDBTypeEnumValue("User/Application", 0b00));
@@ -429,13 +429,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var privType = GDBCustomType.Enum("priv_type", 1, fields);
                 virtualGroup.Types.Add(privType);
             }
-            virtualGroup.Registers.Add(new GBDRegisterDescriptor((uint)RiscV32Registers.PRIV, registerWidth, "priv", "priv_type", "virtual"));
+            virtualGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.PRIV, registerWidth, "priv", "priv_type", "virtual"));
             features.Add(virtualGroup);
         }
 
-        public static void AddCustomCSRFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth, IReadOnlyDictionary<ulong, NonstandardCSR> customRegisters)
+        public static void AddCustomCSRFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth, IReadOnlyDictionary<ulong, NonstandardCSR> customRegisters)
         {
-            var customCSRGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.custom-csr");
+            var customCSRGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.custom-csr");
             var intType = $"uint{registerWidth}";
 
             foreach(var customRegister in customRegisters)
@@ -444,16 +444,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(name != null)
                 {
                     var number = (uint)customRegister.Key;
-                    customCSRGroup.Registers.Add(new GBDRegisterDescriptor(number, registerWidth, name, intType, "custom-csr"));
+                    customCSRGroup.Registers.Add(new GDBRegisterDescriptor(number, registerWidth, name, intType, "custom-csr"));
                 }
             }
 
             features.Add(customCSRGroup);
         }
 
-        public static void AddVectorFeature(ref List<GBDFeatureDescriptor> features, uint registerWidth)
+        public static void AddVectorFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth)
         {
-            var vectorGroup = new GBDFeatureDescriptor("org.gnu.gdb.riscv.vector");
+            var vectorGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.vector");
 
             var riscvVectorTypeFields = new List<GDBTypeField>();
 
@@ -502,7 +502,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             for(var index = 0u; index < NumberOfVRegisters; ++index)
             {
-                vectorGroup.Registers.Add(new GBDRegisterDescriptor(StartOfVRegisters + index, registerWidth, $"v{index}", "riscv_vector", "vector"));
+                vectorGroup.Registers.Add(new GDBRegisterDescriptor(StartOfVRegisters + index, registerWidth, $"v{index}", "riscv_vector", "vector"));
             }
             
             features.Add(vectorGroup);

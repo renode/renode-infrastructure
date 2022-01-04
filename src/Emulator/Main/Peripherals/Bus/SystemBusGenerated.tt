@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -32,6 +32,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -43,12 +44,60 @@ namespace Antmicro.Renode.Peripherals.Bus
     {
         var type = entry.Key;
         var name = entry.Value;
+
+        // Read/Write methods come in two flavors - one with an explicit ICPU context and the second one without it.
+        // Their logic is mostly duplicated, the only difference is a call to `TryGetCurrentCPU`.
+        // For performance reasons we want to avoid calling it if not necessary, and that's why we don't implement one of them as a wrapper for the second one.
 #>
         public <#= type #> Read<#= name #>(ulong address)
         {
             ulong startAddress, endAddress;
+            
+            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            if(accessMethods == null)
+            {
+                if(TryGetCurrentCPU(out var currentCPU))
+                {
+                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                }
+            }
+            if(accessMethods == null)
+            {
+                return (<#= type #>)ReportNonExistingRead(address, SysbusAccessWidth.<#=name#>);
+            }
+            if(!IsTargetAccessible(accessMethods.Peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                return 0;
+            }
+            var lockTaken = false;
+            try
+            {
+                accessMethods.Lock.Enter(ref lockTaken);
+                if(accessMethods.SetAbsoluteAddress != null)
+                {
+                    accessMethods.SetAbsoluteAddress(address);
+                }
+                return accessMethods.Read<#=name#>(checked((long)(address - startAddress)));
+            }
+            finally
+            {
+                if(lockTaken)
+                {
+                    accessMethods.Lock.Exit();
+                }
+            }
+        }
 
-            var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
+        public <#= type #> Read<#= name #>(ulong address, ICPU context)
+        {
+            ulong startAddress, endAddress;
+            
+            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            if(accessMethods == null)
+            {
+                accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+            }
             if(accessMethods == null)
             {
                 return (<#= type #>)ReportNonExistingRead(address, SysbusAccessWidth.<#=name#>);
@@ -81,7 +130,53 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             ulong startAddress, endAddress;
             
-            var accessMethods = peripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            if(accessMethods == null)
+            {
+                if(TryGetCurrentCPU(out var currentCPU))
+                {
+                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                }
+            }
+            if(accessMethods == null)
+            {
+                ReportNonExistingWrite(address, value, SysbusAccessWidth.<#=name#>);
+                return;
+            }
+            if(!IsTargetAccessible(accessMethods.Peripheral))
+            {
+                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                return;
+            }
+
+            var lockTaken = false;
+            try
+            {
+                accessMethods.Lock.Enter(ref lockTaken);
+                if(accessMethods.SetAbsoluteAddress != null)
+                {
+                    accessMethods.SetAbsoluteAddress(address);
+                }
+                accessMethods.Write<#=name#>(checked((long)(address - startAddress)), value);
+            }
+            finally
+            {
+                if(lockTaken)
+                {
+                    accessMethods.Lock.Exit();
+                }
+            }
+        }
+
+        public void Write<#=name#>(ulong address, <#=type#> value, ICPU context)
+        {
+            ulong startAddress, endAddress;
+            
+            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+            if(accessMethods == null)
+            {
+                accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+            }
             if(accessMethods == null)
             {
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.<#=name#>);
@@ -140,18 +235,21 @@ namespace Antmicro.Renode.Peripherals.Bus
 #>
             if(type == typeof(<#=type#>))
             {
-                peripherals.VisitAccessMethods(peripheral, pam =>
+                foreach(var peripherals in allPeripherals)
                 {
-                    if(pam.<#=operation#><#=name#>.Target is <#=operation#>HookWrapper<<#=type#>>)
+                    peripherals.VisitAccessMethods(peripheral, pam =>
                     {
-                        pam.<#=operation#><#=name#> = new BusAccess.<#=name#><#=operation#>Method(((<#=operation#>HookWrapper<<#=type#>>)pam.<#=operation#><#=name#>.Target).OriginalMethod);
-                    }
-                    if(hook != null)
-                    {
-                        pam.<#=operation#><#=name#> = new BusAccess.<#=name#><#=operation#>Method(new <#=operation#>HookWrapper<<#=type#>>(peripheral, new <#=actionOrFunc#><long, <#=type#>>(pam.<#=operation#><#=name#>), (Func<<#=type#>, long, <#=type#>>)(object)hook, subrange).<#=operation#>);
-                    }
-                    return pam;
-                });
+                        if(pam.<#=operation#><#=name#>.Target is <#=operation#>HookWrapper<<#=type#>>)
+                        {
+                            pam.<#=operation#><#=name#> = new BusAccess.<#=name#><#=operation#>Method(((<#=operation#>HookWrapper<<#=type#>>)pam.<#=operation#><#=name#>.Target).OriginalMethod);
+                        }
+                        if(hook != null)
+                        {
+                            pam.<#=operation#><#=name#> = new BusAccess.<#=name#><#=operation#>Method(new <#=operation#>HookWrapper<<#=type#>>(peripheral, new <#=actionOrFunc#><long, <#=type#>>(pam.<#=operation#><#=name#>), (Func<<#=type#>, long, <#=type#>>)(object)hook, subrange).<#=operation#>);
+                        }
+                        return pam;
+                    });
+                }
                 return;
             }
 <#

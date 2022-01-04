@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return new PacketData(prefix + xmlSubstring);
         }
 
-        private static void AppendFeature(ref StringBuilder xmlFile, GBDFeatureDescriptor feature)
+        private static void AppendFeature(ref StringBuilder xmlFile, GDBFeatureDescriptor feature)
         {
             xmlFile.Append($"<feature name=\"{feature.Name}\">\n");
             foreach(var type in feature.Types)

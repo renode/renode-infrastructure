@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
             foreach(var access in accesses)
             {
-                if(manager.Machine.SystemBus.WhatIsAt(access.Address) == null)
+                if(manager.Machine.SystemBus.WhatIsAt(access.Address, context: manager.Cpu) == null)
                 {
                     return PacketData.ErrorReply(Error.BadAddress);
                 }
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 byte[] data;
                 try
                 {
-                    data = manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length, onlyMemory: true);
+                    data = manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length, onlyMemory: true, context: manager.Cpu);
                 }
                 catch(RecoverableException)
                 {

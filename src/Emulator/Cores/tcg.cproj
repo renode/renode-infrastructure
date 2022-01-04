@@ -29,6 +29,7 @@
       <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug'" />
 
       <CSources Include="$(TcgDirectory)/tcg.c" />
+      <CSources Include="$(TcgDirectory)/tcg-runtime.c" />
       <CSources Include="$(TcgDirectory)/optimize.c" />
       <CSources Include="$(TcgDirectory)/additional.c" />
 

@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string GDBArchitecture { get { return Architecture; } }
 
-        public override List<GBDFeatureDescriptor> GDBFeatures { get { return new List<GBDFeatureDescriptor>(); } }
+        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
 
         public bool HltAsNop
         { 

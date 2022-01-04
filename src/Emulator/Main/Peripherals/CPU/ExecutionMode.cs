@@ -6,6 +6,7 @@
 //
 namespace Antmicro.Renode.Peripherals.CPU
 {
+    // If modified, make sure tlib's 'export.c:tlib_update_execution_mode' remains correct.
     public enum ExecutionMode
     {
         Continuous,

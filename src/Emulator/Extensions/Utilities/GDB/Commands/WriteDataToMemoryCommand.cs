@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             int startingIndex = 0;
             foreach(var access in accesses)
             {
-                manager.Machine.SystemBus.WriteBytes(data, access.Address, startingIndex, (long)access.Length);
+                manager.Machine.SystemBus.WriteBytes(data, access.Address, startingIndex, (long)access.Length, context: manager.Cpu);
                 startingIndex += (int)access.Length;
             }
 

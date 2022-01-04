@@ -185,6 +185,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUId(this); return slot.Value;} private set {slot = value;} }
         private int? slot;
 
+        public override string ToString()
+        {
+            return $"[CPU: {Name}]";
+        }
+
         public void ClearTranslationCache()
         {
             using(machine.ObtainPausedState())
@@ -222,7 +227,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             var table = new Table().AddRow("Name", "Value");
             table.AddRows(result, x => x.Key, x => "0x{0:X}".FormatWith(x.Value));
+            AddNonMappedRegistersValues(ref table);
             return table.ToArray();
+        }
+
+        protected virtual void AddNonMappedRegistersValues(ref Table table)
+        {
         }
 
         public void UpdateContext()
@@ -302,6 +312,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     executionMode = value;
                     
+                    TlibUpdateExecutionMode((uint)value);
+
                     singleStepSynchronizer.Enabled = IsSingleStepMode;
                     UpdateBlockBeginHookPresent();
                     UpdateHaltedState();
@@ -823,7 +835,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void SetPCFromEntryPoint(ulong entryPoint)
         {
-            var what = machine.SystemBus.WhatIsAt(entryPoint);
+            var what = machine.SystemBus.WhatIsAt(entryPoint, this);
             if(what != null)
             {
                 if(((what.Peripheral as IMemory) == null) && ((what.Peripheral as Redirector) != null))
@@ -1152,7 +1164,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract string GDBArchitecture { get; }
 
-        public abstract List<GBDFeatureDescriptor> GDBFeatures { get; }
+        public abstract List<GDBFeatureDescriptor> GDBFeatures { get; }
 
         public bool DebuggerConnected { get; set; }
 
@@ -1612,7 +1624,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [PostDeserialization]
         protected void InitDisas()
         {
-            disassembler = new LLVMDisassembler(this);
+            try
+            {
+                disassembler = new LLVMDisassembler(this);
+            }
+            catch(ArgumentOutOfRangeException e)
+            {
+                this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
+            }
         }
 
         #endregion
@@ -1826,6 +1845,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private Action TlibCleanWfiProcState;
 
+        [Import]
+        private ActionUInt32 TlibUpdateExecutionMode;
+
         #pragma warning restore 649
 
         private readonly HashSet<ulong> pagesAccessedByIo;
@@ -1845,11 +1867,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return;
             }
-            
+            if(Disassembler == null)
+            {
+                return;
+            }
+
             var phy = TranslateAddress(pc, MpuAccess.InstructionFetch);
             var symbol = Bus.FindSymbolAt(pc);
-            var tab = Bus.ReadBytes(phy, (int)size, true);
-            
+            var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
             Disassembler.DisassembleBlock(pc, tab, flags, out var disas);
 
             if(disas == null)
@@ -1891,7 +1916,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string DisassembleBlock(ulong addr, uint blockSize = 40, uint flags = 0)
         {
-            var opcodes = Bus.ReadBytes(addr, (int)blockSize, true);
+            if(Disassembler == null)
+            {
+                throw new RecoverableException("Disassembly engine not available");
+            }
+            var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
             return result;
         }

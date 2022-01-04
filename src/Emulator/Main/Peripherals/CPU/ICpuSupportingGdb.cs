@@ -10,9 +10,9 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public struct GBDRegisterDescriptor
+    public struct GDBRegisterDescriptor
     {
-        public GBDRegisterDescriptor(uint number, uint size, string name, string type = null, string group = null) : this()
+        public GDBRegisterDescriptor(uint number, uint size, string name, string type = null, string group = null) : this()
         {
             this.Number = number;
             this.Size = size;
@@ -28,17 +28,17 @@ namespace Antmicro.Renode.Peripherals.CPU
         public string Group { get; }
     }
 
-    public struct GBDFeatureDescriptor
+    public struct GDBFeatureDescriptor
     {
-        public GBDFeatureDescriptor(string name) : this()
+        public GDBFeatureDescriptor(string name) : this()
         {
             this.Name = name;
-            this.Registers = new List<GBDRegisterDescriptor>();
+            this.Registers = new List<GDBRegisterDescriptor>();
             this.Types = new List<GDBCustomType>();
         }
 
         public string Name { get; }
-        public List<GBDRegisterDescriptor> Registers { get; }
+        public List<GDBRegisterDescriptor> Registers { get; }
         public List<GDBCustomType> Types { get; }
     }
 
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         TimeHandle TimeHandle { get; }
         string GDBArchitecture { get; }
-        List<GBDFeatureDescriptor> GDBFeatures { get; }
+        List<GDBFeatureDescriptor> GDBFeatures { get; }
         bool DebuggerConnected { get; set; }
         uint Id { get; }
         string Name { get; }
