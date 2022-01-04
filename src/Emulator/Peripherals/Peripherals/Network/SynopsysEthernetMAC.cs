@@ -389,12 +389,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     this.Log(LogLevel.Debug, Misc.DumpPacket(frame, true, machine));
 
                     packetSent = true;
-                    //We recreate the EthernetFrame because the CRC should be appended after creating inner checksums.
-                    if(!Misc.TryCreateFrameOrLogWarning(this, packetData.ToArray(), out var frameWithCrc, addCrc: true))
-                    {
-                        continue;
-                    }
-                    FrameReady?.Invoke(frameWithCrc);
+                    FrameReady?.Invoke(frame);
                 }
                 transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);
             }
