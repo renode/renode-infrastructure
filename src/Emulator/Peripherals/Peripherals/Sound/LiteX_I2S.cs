@@ -190,10 +190,21 @@ namespace Antmicro.Renode.Peripherals.Sound
                 .WithReservedBits(2, 30)
             ;
 
+            Registers.Config0.Define(this)
+                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (byte)(samplingRate >> 16), name: "sampling_rate")
+            ;
+
+            Registers.Config1.Define(this)
+                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (byte)(samplingRate >> 8), name: "sampling_rate")
+            ;
+
+            Registers.Config2.Define(this)
+                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (byte)(samplingRate >> 0), name: "sampling_rate")
+            ;
+
             Registers.Config3.Define(this)
                 .WithEnumField<DoubleWordRegister, DataFormat>(0, 2, FieldMode.Read, valueProviderCallback: _ => dataFormat, name: "format")
                 .WithValueField(2, 6, FieldMode.Read, valueProviderCallback: _ => sampleWidth, name: "sample_width")
-                .WithValueField(8, 24, FieldMode.Read, valueProviderCallback: _ => samplingRate, name: "sampling_rate")
             ;
         }
 
@@ -226,7 +237,9 @@ namespace Antmicro.Renode.Peripherals.Sound
             // this is a single 32-bit LiteX CSR
             // scattered accross 4 regular 32-bit registers
             Config0      = 0x020,
+            Config1      = 0x020 + 0x4,
+            Config2      = 0x020 + 0x8,
             Config3      = 0x020 + 0xC
-        }    
+        }
     }
 }
