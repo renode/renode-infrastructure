@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             var maximumControlRegCount = (int)Math.Ceiling((hartCount) / 32.0);
             for(int timerCtrlIdx = 0; timerCtrlIdx < maximumControlRegCount; timerCtrlIdx++)
             {
-                var offset = timerCtrlIdx * 4;
+                var offset = timerCtrlIdx * 4 + 4;
                 int hartBitCount = (hartCount < 32) ? hartCount : 32;
                 hartCount -= hartBitCount;
                 var controlRegister = new DoubleWordRegister(this);
