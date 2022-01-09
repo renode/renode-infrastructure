@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Utilities
                     yield return assembly;
                 }
             }
-            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location))
+            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location).Where(Path.IsPathRooted))
             {
                 yield return assembly;
             }
