@@ -47,9 +47,15 @@ namespace Antmicro.Renode.Utilities
         {
             if(BundledAssembliesCount > 0)
             {
-                return bundledAssemblies.Select(x => x.Location);
+                foreach(var assembly in bundledAssemblies.Select(x => x.Location))
+                {
+                    yield return assembly;
+                }
             }
-            return AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location);
+            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic).Select(x => x.Location))
+            {
+                yield return assembly;
+            }
         }
 
         public static int BundledAssembliesCount
