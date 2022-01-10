@@ -221,8 +221,6 @@
     <Compile Include="Utilities\Binding\ExportAttribute.cs" />
     <Compile Include="Peripherals\Bus\BusMultiRegistration.cs" />
     <Compile Include="Peripherals\Bus\IPerCoreRegistration.cs" />
-    <Compile Include="Peripherals\Bus\BusPerCorePointRegistration.cs" />
-    <Compile Include="Peripherals\Bus\BusPerCoreRangeRegistration.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\BytePeripheralWrapper.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\WordPeripheralWrapper.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\DoubleWordPeripheralWrapper.cs" />

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     [Icon("sysbus")]
     [ControllerMask(typeof(IPeripheral))]
     public sealed partial class SystemBus : IPeripheralContainer<IBusPeripheral, BusRangeRegistration>, IPeripheralRegister<IKnownSize, BusPointRegistration>,
-        IPeripheralRegister<ICPU, CPURegistrationPoint>, IDisposable, IPeripheral, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, IPeripheralRegister<IKnownSize, BusPerCorePointRegistration>, IPeripheralRegister<IBusPeripheral, BusPerCoreRangeRegistration>
+        IPeripheralRegister<ICPU, CPURegistrationPoint>, IDisposable, IPeripheral, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>
     {
         internal SystemBus(Machine machine)
         {
@@ -51,13 +51,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             hooksOnWrite = new Dictionary<ulong, List<BusHookHandler>>();
             InitStructures();
             this.Log(LogLevel.Info, "System bus created.");
-        }
-
-        public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
-        {
-            var methods = PeripheralAccessMethods.CreateWithLock();
-            FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-            RegisterInner(peripheral, methods, registrationPoint, context: null);
         }
 
         public void Unregister(IBusPeripheral peripheral)
@@ -77,13 +70,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 UnregisterInner(busRegisteredPeripheral);
             }
         }
-        
-        public void Register(IKnownSize peripheral, BusPerCorePointRegistration registrationPoint)
-        {
-            Register(peripheral, registrationPoint.ToBusPerCoreRangeRegistration((ulong)peripheral.Size));
-        }
 
-        public void Register(IBusPeripheral peripheral, BusPerCoreRangeRegistration registrationPoint)
+        public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
             var methods = PeripheralAccessMethods.CreateWithLock();
             FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
@@ -99,9 +87,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             var methods = PeripheralAccessMethods.CreateWithLock();
             FillAccessMethodsWithTaggedMethods(peripheral, registrationPoint.ConnectionRegionName, ref methods);
-            RegisterInner(peripheral, methods, registrationPoint, context: null);
+            RegisterInner(peripheral, methods, registrationPoint, context: registrationPoint.CPU);
         }
-
+        
         void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
         {
             Unregister(peripheral);
@@ -109,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(IKnownSize peripheral, BusPointRegistration registrationPoint)
         {
-            Register(peripheral, new BusRangeRegistration(new Range(registrationPoint.StartingPoint, checked((ulong)peripheral.Size)), registrationPoint.Offset));
+            Register(peripheral, new BusRangeRegistration(new Range(registrationPoint.StartingPoint, checked((ulong)peripheral.Size)), registrationPoint.Offset, registrationPoint.CPU));
         }
 
         public void Unregister(IKnownSize peripheral)
