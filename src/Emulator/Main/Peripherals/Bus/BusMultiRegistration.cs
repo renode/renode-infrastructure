@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2021 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,11 +18,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 throw new ConstructionException("'Region' parameter cannot be null or empty.");
             }
-            Address = address;
             ConnectionRegionName = region;
         }
 
-        public ulong Address { get; private set; }
         public string ConnectionRegionName { get; private set; }
         public override string PrettyString { get { return ToString(); } }
 
@@ -33,18 +31,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return false;
             }
-            if(ReferenceEquals(this, obj))
+            if(!base.Equals(obj))
             {
-                return true;
+                return false;
             }
-            return Address == other.Address && ConnectionRegionName == other.ConnectionRegionName;
+            return ConnectionRegionName == other.ConnectionRegionName;
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return 17 * Address.GetHashCode() + 101 * ConnectionRegionName.GetHashCode();
+                return 17 * base.GetHashCode() + 101 * ConnectionRegionName.GetHashCode();
             }
         }        
     }
