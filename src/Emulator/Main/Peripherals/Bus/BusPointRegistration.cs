@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,20 +7,31 @@
 //
 using System;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusPointRegistration : IRegistrationPoint
     {
-        public BusPointRegistration(ulong address, ulong offset = 0)
+        public BusPointRegistration(ulong address, ulong offset = 0, ICPU cpu = null)
         {
             StartingPoint = address;
             Offset = offset;
+            CPU = cpu;
         }
         
         public override string ToString()
         {
-            return string.Format ("{0} with offset {1}", StartingPoint, Offset);
+            var result = StartingPoint.ToString();
+            if(Offset != 0)
+            {
+                result += $" with offset {Offset}";
+            }
+            if(CPU != null)
+            {
+                result += $" for core {CPU}";
+            }
+            return result;
         }
 
         public string PrettyString
@@ -38,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         
         public ulong StartingPoint { get; set; }
         public ulong Offset { get; set; }
+        public ICPU CPU { get; set; }
 
         public override bool Equals(object obj)
         {
@@ -47,14 +59,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(ReferenceEquals(this, obj))
                 return true;
 
-            return StartingPoint == other.StartingPoint && Offset == other.Offset;
+            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU;
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode();
+                return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0);
             }
         }
     }

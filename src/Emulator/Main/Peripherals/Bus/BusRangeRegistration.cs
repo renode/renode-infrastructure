@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,19 +8,21 @@
 using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusRangeRegistration : IRegistrationPoint
     {
-        public BusRangeRegistration(Range range, ulong offset = 0)
+        public BusRangeRegistration(Range range, ulong offset = 0, ICPU cpu = null)
         {
             Range = range;
             Offset = offset;
+            CPU = cpu;
         }
 
-        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0) :
-            this(new Range(address, size), offset)
+        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, ICPU cpu = null) :
+            this(new Range(address, size), offset, cpu)
         {
         }
 
@@ -34,11 +36,16 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public override string ToString()
         {
+            var result = Range.ToString();
             if(Offset != 0)
             {
-                return string.Format ("{0} with offset {1}", Range, Offset);
+                result += $" with offset {Offset}";
             }
-            return string.Format("{0}", Range);
+            if(CPU != null)
+            {
+                result += $" for core {CPU}";
+            }
+            return result;
         }
 
         public static implicit operator BusRangeRegistration(Range range)
@@ -46,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BusRangeRegistration(range);
         }
 
+        public ICPU CPU { get; }
         public Range Range { get; set; }
         public ulong Offset { get; set; }
 
@@ -56,14 +64,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return false;
             if(ReferenceEquals(this, obj))
                 return true;
-            return Range == other.Range && Offset == other.Offset;
+            return Range == other.Range && Offset == other.Offset && CPU == other.CPU;
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return 17 * Range.GetHashCode() + 23 * Offset.GetHashCode();
+                return 17 * Range.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0);
             }
         }
     }

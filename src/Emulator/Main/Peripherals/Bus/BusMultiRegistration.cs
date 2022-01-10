@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,12 +7,13 @@
 //
 using System;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusMultiRegistration : BusRangeRegistration
     {
-        public BusMultiRegistration(ulong address, ulong size, string region) : base(address, size)
+        public BusMultiRegistration(ulong address, ulong size, string region, ICPU cpu = null) : base(address, size, 0, cpu)
         {
             if(string.IsNullOrWhiteSpace(region))
             {
