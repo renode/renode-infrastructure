@@ -404,6 +404,7 @@
     <Compile Include="Peripherals\CPU\Disassembler\LLVMDisassembler.cs" />
     <Compile Include="Peripherals\Miscellaneous\ISideloadableKey.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_KMAC.cs" />
+    <Compile Include="Peripherals\Miscellaneous\IMX_TRNG.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
