@@ -688,33 +688,36 @@ namespace Antmicro.Renode.Config.Devices
             var sortedParams = new Dictionary<string, object>();
             foreach(var ctorParam in ctor.GetParameters())
             {
-                if(typeof(IPeripheral).IsAssignableFrom(ctorParam.ParameterType) && ctorParam.ParameterType != typeof(Machine) && !ctorParam.ParameterType.IsArray)
+                if(node.ContainsKey(ctorParam.Name))
                 {
-                    var info = deviceList.SingleOrDefault(di => di.Name == node[ctorParam.Name]);
-                    if(info != null)
+                    if(typeof(IPeripheral).IsAssignableFrom(ctorParam.ParameterType) && ctorParam.ParameterType != typeof(Machine) && !ctorParam.ParameterType.IsArray)
                     {
-                        sortedParams.Add(ctorParam.Name, info.Peripheral);
+                        var info = deviceList.SingleOrDefault(di => di.Name == node[ctorParam.Name]);
+                        if(info != null)
+                        {
+                            sortedParams.Add(ctorParam.Name, info.Peripheral);
+                        }
+                        else
+                        {
+                            // required peripheral is not yet created, so we need to defer the construction
+                            constructedObject = null;
+                            return true;
+                        }
                     }
                     else
                     {
-                        // required peripheral is not yet created, so we need to defer the construction
-                        constructedObject = null;
-                        return true;
-                    }
-                }
-                else if(node.ContainsKey(ctorParam.Name))
-                {
-                    var temp = GenerateObject(node[ctorParam.Name], ctorParam.ParameterType);
-                    //HACK: The reason of the following line is described at the top of this class.
-                    if(ctorParam.ParameterType.IsPrimitive || ctorParam.ParameterType.IsEnum || Nullable.GetUnderlyingType(ctorParam.ParameterType) != null || temp != null)
-                    {
-                        sortedParams.Add(ctorParam.Name, temp);
-                    }
-                    else
-                    {
-                        // required peripheral is not yet created, so we need to defer the construction
-                        constructedObject = null;
-                        return true;
+                        var temp = GenerateObject(node[ctorParam.Name], ctorParam.ParameterType);
+                        //HACK: The reason of the following line is described at the top of this class.
+                        if(ctorParam.ParameterType.IsPrimitive || ctorParam.ParameterType.IsEnum || Nullable.GetUnderlyingType(ctorParam.ParameterType) != null || temp != null)
+                        {
+                            sortedParams.Add(ctorParam.Name, temp);
+                        }
+                        else
+                        {
+                            // required peripheral is not yet created, so we need to defer the construction
+                            constructedObject = null;
+                            return true;
+                        }
                     }
                 }
                 else if(ctorParam.ParameterType == typeof(Machine))
