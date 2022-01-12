@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             register.Define(this, name: name)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) => { if(value) callback(); })
-                .WithReservedBits(1, 30)
+                .WithReservedBits(1, 31)
             ;
         }
 
