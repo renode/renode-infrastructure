@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -503,7 +503,7 @@ namespace Antmicro.Renode.Core
 
         public IManagedThread ObtainManagedThread(Action action, int frequency)
         {
-            var ce = new ClockEntry(1, ClockEntry.FrequencyToRatio(this, frequency), action, this, "managed thread", enabled: false);
+            var ce = new ClockEntry(1, frequency, action, this, "managed thread", enabled: false);
             ClockSource.AddClockEntry(ce);
             return new ManagedThreadWrappingClockEntry(ClockSource, action);
         }

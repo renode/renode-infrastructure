@@ -13,10 +13,10 @@ namespace Antmicro.Renode.Time
 {
     public struct ClockEntry
     {
-        public ClockEntry(ulong period, long ratio, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic) : this()
+        public ClockEntry(ulong period, long frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic) : this()
         {
             this.Value = direction == Direction.Ascending ? 0 : period;
-            this.Ratio = ratio;
+            this.Frequency = frequency;
             this.Period = period;
             this.Handler = handler;
             this.Enabled = enabled;
@@ -24,14 +24,15 @@ namespace Antmicro.Renode.Time
             this.WorkMode = workMode;
             this.Owner = owner;
             this.LocalName = localName;
+            this.Ratio = FrequencyToRatio(owner, Frequency);
         }
 
-        public ClockEntry With(ulong? period = null, long? ratio = null, Action handler = null, bool? enabled = null,
+        public ClockEntry With(ulong? period = null, long? frequency = null, Action handler = null, bool? enabled = null,
             ulong? value = null, Direction? direction = null, WorkMode? workMode = null)
         {
             var result = new ClockEntry(
                 period ?? Period,
-                ratio ?? Ratio,
+                frequency ?? Frequency,
                 handler ?? Handler,
                 Owner,
                 LocalName,
@@ -53,23 +54,12 @@ namespace Antmicro.Renode.Time
         public WorkMode WorkMode { get; }
         public IEmulationElement Owner { get; }
         public string LocalName { get; }
+        public long Frequency { get; }
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick (when ratio is positive)
         // or how many clock entry tick are needed for emulator tick (when ratio is negative)
         public long Ratio { get; }
 
-        public double Frequency
-        {
-            get
-            {
-                if(Ratio >= 0)
-                {
-                    return (long)TimeInterval.TicksPerSecond * Ratio;
-                }
-                return (long)TimeInterval.TicksPerSecond / -Ratio;
-            }
-        }
-
-        public static long FrequencyToRatio(object parentForLogging, long desiredFrequency)
+        private static long FrequencyToRatio(object parentForLogging, long desiredFrequency)
         {
             var maxHz = (long)TimeInterval.TicksPerSecond;
             long result;

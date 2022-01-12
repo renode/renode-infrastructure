@@ -1,4 +1,10 @@
-﻿using System;
+﻿//
+// Copyright (c) 2010-2022 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Microsoft.Scripting.Hosting;
@@ -14,7 +20,7 @@ namespace Antmicro.Renode.UserInterface
         public static void ExecutePythonEvery(this Machine machine, string name, int milliseconds, string script)
         {
             var engine = new ExecutorPythonEngine(machine, script);
-            var clockEntry = new ClockEntry((ulong)milliseconds, ClockEntry.FrequencyToRatio(machine, 1000), engine.Action, machine, name);
+            var clockEntry = new ClockEntry((ulong)milliseconds, 1000, engine.Action, machine, name);
             machine.ClockSource.AddClockEntry(clockEntry);
 
             events.Add(machine, name, engine.Action);

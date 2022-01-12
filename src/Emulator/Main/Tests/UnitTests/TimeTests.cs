@@ -22,13 +22,13 @@ namespace Antmicro.Renode.UnitTests
             var counter = 0;
 
             clocksource.AddClockEntry(new ClockEntry(2, 1, () => counter++, null, String.Empty) { Value = 0 });
-            clocksource.Advance(TimeInterval.FromTicks(1));
+            clocksource.Advance(TimeInterval.FromSeconds(1));
             Assert.AreEqual(0, counter);
-            clocksource.Advance(TimeInterval.FromTicks(1));
+            clocksource.Advance(TimeInterval.FromSeconds(1));
             Assert.AreEqual(1, counter);
-            clocksource.Advance(TimeInterval.FromTicks(1));
+            clocksource.Advance(TimeInterval.FromSeconds(1));
             Assert.AreEqual(1, counter);
-            clocksource.Advance(TimeInterval.FromTicks(2));
+            clocksource.Advance(TimeInterval.FromSeconds(2));
             Assert.AreEqual(2, counter);
         }
 
@@ -41,13 +41,13 @@ namespace Antmicro.Renode.UnitTests
 
             clocksource.AddClockEntry(new ClockEntry(2, 1, () => counterA++, null, String.Empty) { Value = 0 });
             clocksource.AddClockEntry(new ClockEntry(5, 1, () => counterB++, null, String.Empty) { Value = 0 });
-            clocksource.Advance(TimeInterval.FromTicks(2));
+            clocksource.Advance(TimeInterval.FromSeconds(2));
             Assert.AreEqual(1, counterA);
             Assert.AreEqual(0, counterB);
-            clocksource.Advance(TimeInterval.FromTicks(2));
+            clocksource.Advance(TimeInterval.FromSeconds(2));
             Assert.AreEqual(2, counterA);
             Assert.AreEqual(0, counterB);
-            clocksource.Advance(TimeInterval.FromTicks(1));
+            clocksource.Advance(TimeInterval.FromSeconds(1));
             Assert.AreEqual(2, counterA);
             Assert.AreEqual(1, counterB);
         }
@@ -65,15 +65,14 @@ namespace Antmicro.Renode.UnitTests
 
             var values = new List<ulong>();
 
-            // clock entry with ratio -10 is 10 times slower than the one with 1
-            clockSource.AddClockEntry(new ClockEntry(10000, 1, firstHandler, null, String.Empty));
-            clockSource.AddClockEntry(new ClockEntry(1, -10, () => values.Add(clockSource.GetClockEntry(firstHandler).Value), null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(10000, 10, firstHandler, null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(10, 1, () => values.Add(clockSource.GetClockEntry(firstHandler).Value), null, String.Empty));
 
-            clockSource.Advance(TimeInterval.FromTicks(9), true);
-            clockSource.Advance(TimeInterval.FromTicks(8), true);
-            clockSource.Advance(TimeInterval.FromTicks(20), true);
+            clockSource.Advance(TimeInterval.FromSeconds(9), true);
+            clockSource.Advance(TimeInterval.FromSeconds(8), true);
+            clockSource.Advance(TimeInterval.FromSeconds(20), true);
 
-            CollectionAssert.AreEqual(new [] { 10, 20, 30 }, values);
+            CollectionAssert.AreEqual(new [] { 100, 200, 300 }, values);
         }
 
         [Test]
@@ -84,11 +83,11 @@ namespace Antmicro.Renode.UnitTests
             var counterB = 0;
             Action handlerA = () => counterA++;
             Action handlerB = () => counterB++;
-            ClockEntry entryA = new ClockEntry(1000, -1, handlerA, null, String.Empty) { Value = 0 };
-            ClockEntry entryB = new ClockEntry(100, -1, handlerB, null, String.Empty) { Value = 0 };
+            ClockEntry entryA = new ClockEntry(1000, 1, handlerA, null, String.Empty) { Value = 0 };
+            ClockEntry entryB = new ClockEntry(100, 1, handlerB, null, String.Empty) { Value = 0 };
 
             clockSource.AddClockEntry(entryA);
-            clockSource.Advance(TimeInterval.FromTicks(500));
+            clockSource.Advance(TimeInterval.FromSeconds(500));
             clockSource.AddClockEntry(entryB);
             entryA = clockSource.GetClockEntry(handlerA);
             entryB = clockSource.GetClockEntry(handlerB);
@@ -97,7 +96,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(entryB.Value, 0);
             Assert.AreEqual(entryB.Period, 100);
 
-            clockSource.Advance(TimeInterval.FromTicks(50));
+            clockSource.Advance(TimeInterval.FromSeconds(50));
             entryA = clockSource.GetClockEntry(handlerA);
             entryB = clockSource.GetClockEntry(handlerB);
             Assert.AreEqual(counterA, 0);
@@ -107,7 +106,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(entryB.Value, 50);
             Assert.AreEqual(entryB.Period, 100);
 
-            clockSource.Advance(TimeInterval.FromTicks(50));
+            clockSource.Advance(TimeInterval.FromSeconds(50));
             entryA = clockSource.GetClockEntry(handlerA);
             entryB = clockSource.GetClockEntry(handlerB);
             Assert.AreEqual(counterA, 0);

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             initialEndianess = endianness;
             irqSync = new object();
             machine.ClockSource.AddClockEntry(
-                new ClockEntry(long.MaxValue / 2, ClockEntry.FrequencyToRatio(this, 128000000), DecrementerHandler, this, String.Empty, false, Direction.Descending));
+                new ClockEntry(long.MaxValue / 2, 128000000, DecrementerHandler, this, String.Empty, false, Direction.Descending));
             TlibSetLittleEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
         }
 

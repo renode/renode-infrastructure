@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 divider = value;
                 var effectiveFrequency = initialFrequency / divider;
-                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(ratio: ClockEntry.FrequencyToRatio(this, effectiveFrequency)));
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(frequency: effectiveFrequency));
             }
         }
 
@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             divider = initialDivider;
 
-            var clockEntry = new ClockEntry(initialCompare, ClockEntry.FrequencyToRatio(this, initialFrequency / divider), CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode)
+            var clockEntry = new ClockEntry(initialCompare, initialFrequency / divider, CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
             clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
             valueAccumulatedSoFar = 0;
