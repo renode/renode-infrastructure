@@ -505,6 +505,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Tx = 11,
             TxDisable = 12,
         }
+        
         private enum Events
         {
             Ready = 0,
@@ -531,6 +532,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Sync = 26,
             PHYEnd = 27
         }
+        
         private enum CCAMode
         {
             EdMode,
@@ -539,6 +541,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             CarrierOrEdMode,
             EdMoteTest1
         }
+        
         private enum Registers
         {
             TxEnable = 0x000,
