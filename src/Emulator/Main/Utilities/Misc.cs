@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1038,6 +1038,12 @@ namespace Antmicro.Renode.Utilities
         {
             var ind = 0;
             return value.GroupBy(x => ind++ / size).Select(x => string.Join("", x)).ToArray();
+        }
+
+        public static IEnumerable<T[]> Split<T>(this IEnumerable<T> values, int size)
+        {
+            var i = 0;
+            return values.GroupBy(_ => i++ / size).Select(chunk => chunk.ToArray());
         }
 
         public static void SetBit(this IValueRegisterField field, byte index, bool value)
