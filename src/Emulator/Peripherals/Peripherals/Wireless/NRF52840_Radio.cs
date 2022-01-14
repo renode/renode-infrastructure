@@ -5,11 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
@@ -19,10 +22,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public NRF52840_Radio(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
-            interruptManager = new InterruptManager<Events>(this, IRQ);
+            interruptManager = new InterruptManager<Events>(this, IRQ, "RadioIrq");
             shorts = new Shorts();
             events = new IFlagRegisterField[(int)Events.PHYEnd + 1];
-            rxBuffer = new Queue<byte[]>();
+            rxBuffer = new ConcurrentQueue<byte[]>();
             DefineRegisters();
             Reset();
         }
@@ -33,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             interruptManager.Reset();
             base.Reset();
             addressPrefixes = new byte[8];
-            rxBuffer.Clear();
+            while (rxBuffer.TryDequeue(out var _)) { }
         }
 
         public void FakePacket()
@@ -49,27 +52,88 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return;
             }
 
-            var dataAddress = packetPointer.Value;
-            machine.SystemBus.WriteBytes(frame, dataAddress);
+            var addressLength = (int)baseAddressLength.Value + 1;
+            var headerLengthInAir = HeaderLengthInAir();
+            var headerLengthInRAM = HeaderLengthInRAM();
 
-            SetEvent(Events.Address);
-            SetEvent(Events.Payload);
-            SetEvent(Events.End);
-            if(shorts.EndDisable.Value)
-            {
-                Disable();
-            }
+            this.Log(LogLevel.Noisy, "ReceiveFrame {0}", Misc.PrettyPrintCollectionHex(frame));
+
+            var dataAddress = packetPointer.Value;
+            machine.SystemBus.WriteBytes(frame, dataAddress, addressLength, headerLengthInAir);
+            var payloadLength = Math.Min(frame[addressLength + s0Length.Value], maxPacketLength.Value);
+            machine.SystemBus.WriteBytes(frame, (ulong)(dataAddress + headerLengthInRAM), addressLength + headerLengthInAir, payloadLength);
+
+            var crcLen = 4;
+            ScheduleRadioEvents(true, (uint)(headerLengthInAir + payloadLength + crcLen));
+        }
+
+        private uint GetCurrentFrequencyMHz()
+        {
+           return (uint)(((frequencyMap.Value) ? 2360 : 2400) + frequency.Value);
+        }
+
+        readonly Dictionary<uint, uint> bluetoothLEChannelMap = new Dictionary<uint, uint>() {
+           { 2402, 37 },
+           { 2404, 0 },
+           { 2406, 1 },
+           { 2408, 2 },
+           { 2410, 3 },
+           { 2412, 4 },
+           { 2414, 5 },
+           { 2416, 6 },
+           { 2418, 7 },
+           { 2420, 8 },
+           { 2422, 9 },
+           { 2424, 10 },
+           { 2426, 38 },
+           { 2428, 11 },
+           { 2430, 12 },
+           { 2432, 13 },
+           { 2434, 14 },
+           { 2436, 15 },
+           { 2438, 16 },
+           { 2440, 17 },
+           { 2442, 18 },
+           { 2444, 19 },
+           { 2446, 20 },
+           { 2448, 21 },
+           { 2450, 22 },
+           { 2452, 23 },
+           { 2454, 24 },
+           { 2456, 25 },
+           { 2458, 26 },
+           { 2460, 27 },
+           { 2462, 28 },
+           { 2464, 29 },
+           { 2466, 30 },
+           { 2468, 31 },
+           { 2470, 32 },
+           { 2472, 33 },
+           { 2474, 34 },
+           { 2476, 35 },
+           { 2478, 36 },
+           { 2480, 39 },
+        };
+
+        private int GetBluetoothLEChannel()
+        {
+           var mhz = GetCurrentFrequencyMHz();
+           if (bluetoothLEChannelMap.ContainsKey(mhz))
+           {
+              return (int)bluetoothLEChannelMap[mhz];
+           }
+           return -1;
         }
 
         public event Action<IRadio, byte[]> FrameSent;
 
         public event Action<uint> EventTriggered;
 
-        public int Channel { get; set; }
+        public int Channel { get => GetBluetoothLEChannel(); set { } }
 
         public long Size => 0x1000;
 
-        public uint Frequency => 2400 + frequency.Value;
+        public uint Frequency => GetCurrentFrequencyMHz();
 
         public GPIO IRQ { get; }
 
@@ -113,6 +177,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             DefineEvent(Registers.AddressSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger ADDRESS event, not supported"), Events.Address, "EVENTS_ADDRESS");
             DefineEvent(Registers.PayloadSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger PAYLOAD event, not supported"), Events.Payload, "EVENTS_PAYLOAD");
             DefineEvent(Registers.PacketSentOrReceived, () => this.Log(LogLevel.Error, "Trying to trigger END event, not supported"), Events.End, "EVENTS_END");
+            DefineEvent(Registers.BitCounterMatch, () => this.Log(LogLevel.Error, "Trying to trigger BCMATCH event, not supported"), Events.BitCountMatch, "EVENTS_BCMATCH");
+            DefineEvent(Registers.RSSIEnd, () => this.Log(LogLevel.Error, "Trying to trigger RSSIEnd event, not supported"), Events.RSSIEnd, "EVENTS_RSSIEND");
+            DefineEvent(Registers.CRCOk, () => this.Log(LogLevel.Error, "Trying to trigger CRCOk event, not supported"), Events.CRCOk, "EVENTS_CRCOK");
 
             DefineEvent(Registers.RadioDisabled, Disable, Events.Disabled, "EVENTS_DISABLED");
 
@@ -151,6 +218,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RegistersCollection.AddRegister((long)Registers.InterruptDisable,
                 interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
 
+            Registers.CRCStatus.Define(this)
+               .WithFlag(0, valueProviderCallback: (_) => true);
+
             Registers.PacketPointer.Define(this)
                 .WithValueField(0, 32, out packetPointer, name: "PACKETPTR")
             ;
@@ -158,7 +228,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Registers.Frequency.Define(this, name: "FREQUENCY")
                 .WithValueField(0, 7, out frequency, name: "FREQUENCY")
                 .WithReservedBits(7, 1)
-                .WithTaggedFlag("MAP", 8)
+                .WithFlag(8, out frequencyMap, name: "MAP")
                 .WithReservedBits(9, 23)
             ;
 
@@ -240,9 +310,17 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 .WithReservedBits(24, 8)
             ;
 
+            Registers.RSSISample.Define(this, name: "RSSISAMPLE")
+                .WithValueField(0, 32, valueProviderCallback: (_) => 10, name: "RSSISAMPLE");
+            ;
+
             Registers.State.Define(this, name: "STATE")
                 .WithEnumField<DoubleWordRegister, State>(0, 4, FieldMode.Read, valueProviderCallback: _ => radioState, name: "STATE")
                 .WithReservedBits(4, 28)
+            ;
+
+            Registers.BitCounterCompare.Define(this, name: "BCC")
+                .WithValueField(0, 32, out bitCountCompare)
 
             ;
             Registers.ModeConfiguration0.Define(this, 0x200)
@@ -357,7 +435,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             else if(radioState == State.RxIdle)
             {
-                while(rxBuffer.TryDequeue(out var packet))
+                // Can only receive one packet per enable
+                if (rxBuffer.TryDequeue(out var packet))
                 {
                     ReceiveFrame(packet);
                 }
@@ -368,20 +447,30 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
+        private int HeaderLengthInAir()
+        {
+           return (int)Math.Ceiling((s0Length.Value * 8 + lengthFieldLength.Value + s1Length.Value) / 8.0);
+        }
+
+        private int HeaderLengthInRAM()
+        {
+           int ret = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
+           if(s1Length.Value == 0 && s1Include.Value)
+           {
+              ret += 1;
+           }
+           return ret;
+        }
+
         private void SendPacket()
         {
             var dataAddress = packetPointer.Value;
-            var headerLength = (int)Math.Ceiling((s0Length.Value * 8 + lengthFieldLength.Value + s1Length.Value) / 8.0);
+            var headerLengthInAir = HeaderLengthInAir();
             var addressLength = (int)baseAddressLength.Value + 1;
-            if(s1Length.Value == 0 && s1Include.Value)
+            var headerLengthInRAM = HeaderLengthInRAM();
+            if(headerLengthInAir != headerLengthInRAM)
             {
-                // based on https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.nrf52832.ps.v1.1/radio.html?cp=4_2_0_22_0#concept_dxt_xfj_4r
-                headerLength++;
-            }
-            var headerLengthInRAM = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
-            if(headerLength != headerLengthInRAM)
-            {
-                this.Log(LogLevel.Error, "Length mismatch {0} vs {1}, but continuing anyway", headerLength, headerLengthInRAM);
+                this.Log(LogLevel.Info, "Header length difference between onAir={0} and inRam={1}", headerLengthInAir, headerLengthInRAM);
             }
 
             var data = new byte[addressLength + headerLengthInRAM + maxPacketLength.Value];
@@ -395,23 +484,86 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length ({1}), trimming...", payloadLength, maxPacketLength.Value);
                 payloadLength = (byte)maxPacketLength.Value;
             }
-            machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLength);
+            machine.SystemBus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLengthInAir);
             this.Log(LogLevel.Noisy, "Data: {0} Maxlen {1} statlen {2}", Misc.PrettyPrintCollectionHex(data), maxPacketLength.Value, staticLength.Value);
 
             FrameSent?.Invoke(this, data);
 
-            SetEvent(Events.Address);
-            SetEvent(Events.Payload);
-            SetEvent(Events.End);
+            var crcLen = 4;
+            ScheduleRadioEvents(false, (uint)(headerLengthInAir + payloadLength + crcLen));
 
-            if(shorts.EndDisable.Value)
-            {
-                Disable();
-            }
-
-            LogUnhandledShort(shorts.AddressBitCountStart, nameof(shorts.AddressBitCountStart));
-            LogUnhandledShort(shorts.AddressRSSIStart, nameof(shorts.AddressRSSIStart));
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
+        }
+
+        private void ScheduleRadioEvents(bool isReceive, uint packetLen)
+        {
+           var timeSource = machine.LocalTimeSource;
+           var now = timeSource.ElapsedVirtualTime;
+
+           // @note  Transmit times assume 1M PHY. Low level BLE firmware
+           //        usually takes into account the active phy when calculating
+           //        timing delays, so we might need to do that.
+
+           // Bit-counter
+           var bcMatchTime = now + TimeInterval.FromMicroseconds(bitCountCompare.Value);
+           var bcMatchTimeStamp = new TimeStamp(bcMatchTime, timeSource.Domain);
+
+           // End event
+           var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
+           var endTimeStamp = new TimeStamp(endTime, timeSource.Domain);
+
+           // Radio doesn't take any time to disable for receive, only transmit.
+           var disableTime = (isReceive) ? endTime : endTime + TimeInterval.FromMicroseconds(10);
+           var disableTimeStamp = new TimeStamp(disableTime, timeSource.Domain);
+
+           // Address modelled as happening immediatley and serves as anchor
+           // point for other events. RIOT triggers IRQ from it.
+           SetEvent(Events.Address);
+
+           // RSSI sample period is 0.25 us. Acceptable to model as happening
+           // immediatley upon start
+           if (shorts.AddressRSSIStart.Value) {
+              SetEvent(Events.RSSIEnd);
+           }
+
+           // @todo  Fixed PPI channel triggers Timer0 capture. PPI events are
+           //        scheduled through a sync delay, but on hardware that delay
+           //        is sub-microsecond, which is important for timer capture
+           //        behavior in RIOT stack. However, this hard-coding here
+           //        will yield a double capture that might cause incorrect
+           //        behavior. And removing sync delay from PPI implementation
+           //        didn't seem to result in correct behavior.
+           machine.SystemBus.WriteDoubleWord(0x40008044, 0x1);
+
+           // Schedule a single bit-counter compare event. This is sufficient
+           // for BLE with RIOT stack, however it is possible to use bit
+           // counter to generate successive events, which this model will not
+           // support.
+           if (shorts.AddressBitCountStart.Value) {
+              timeSource.ExecuteInSyncedState((_) => {
+                 SetEvent(Events.BitCountMatch);
+              }, bcMatchTimeStamp);
+           }
+
+           // Trigger "end" events all at once. Timing distinction here doesn't
+           // seem important
+           timeSource.ExecuteInSyncedState((_) => {
+              SetEvent(Events.Payload);
+              SetEvent(Events.End);
+              SetEvent(Events.CRCOk);
+              // @todo Fixed PPI event for Timer0 capture needs to be fast
+              machine.SystemBus.WriteDoubleWord(0x40008048, 0x1);
+           }, endTimeStamp);
+
+           // BLE stacks use disabled event as common processing trigger. On transmit,
+           // it takes some time to disable, but for receive, should occur at same time
+           // as end events.
+           timeSource.ExecuteInSyncedState((_) => {
+              if(shorts.EndDisable.Value)
+              {
+                 Disable();
+              }
+           }, disableTimeStamp);
         }
 
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
@@ -432,7 +584,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             data[startIndex + i] = addressPrefixes[logicalAddress];
         }
 
-        private readonly Queue<byte[]> rxBuffer;
+        private readonly ConcurrentQueue<byte[]> rxBuffer;
         private Shorts shorts;
         private byte[] addressPrefixes;
         private State radioState;
@@ -441,6 +593,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IFlagRegisterField[] events;
         private IValueRegisterField packetPointer;
         private IValueRegisterField frequency;
+        private IFlagRegisterField frequencyMap;
         private IValueRegisterField lengthFieldLength;
         private IValueRegisterField s0Length;
         private IValueRegisterField s1Length;
@@ -455,6 +608,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IValueRegisterField baseAddress1;
         private IValueRegisterField txAddress;
         private IFlagRegisterField[] rxAddressEnabled;
+
+        private IValueRegisterField bitCountCompare;
 
         private IValueRegisterField crcLength;
         private IEnumRegisterField<CRCAddressHandling> crcSkipAddress;
