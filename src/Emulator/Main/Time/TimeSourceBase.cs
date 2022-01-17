@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -51,7 +51,15 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public virtual void Dispose()
         {
+            delayedActions.Clear();
+
             stopwatch.Stop();
+            BlockHook     = null;
+            StopRequested = null;
+            SyncHook      = null;
+            TimePassed    = null;
+            handles.LatchAllAndCollectGarbage();
+            handles.UnlatchAll();
             using(sync.HighPriority)
             {
                 foreach(var slave in handles.All)
