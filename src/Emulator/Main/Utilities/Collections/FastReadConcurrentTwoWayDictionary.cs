@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
-    public class FastReadConcurrentTwoWayDictionary<TLeft, TRight>
+    public class FastReadConcurrentTwoWayDictionary<TLeft, TRight>: IDisposable
     {
         public FastReadConcurrentTwoWayDictionary()
         {
@@ -22,6 +22,13 @@ namespace Antmicro.Renode.Utilities.Collections
 
             Lefts = new TLeft[0];
             Rights = new TRight[0];
+        }
+        
+        public void Dispose()
+        {
+            Clear();
+            ItemAdded = null;
+            ItemRemoved = null;
         }
 
         public void Clear()

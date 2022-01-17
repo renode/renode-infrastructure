@@ -479,8 +479,8 @@ namespace Antmicro.Renode.Core
                 ExternalsManager.Clear();
                 BackendManager.Dispose();
                 Array.ForEach(machs.Rights, x => x.Dispose());
-                machs.Clear();
                 MasterTimeSource.Dispose();
+                machs.Dispose();
                 HostMachine.Dispose();
                 CurrentLogger.Dispose();
             }
