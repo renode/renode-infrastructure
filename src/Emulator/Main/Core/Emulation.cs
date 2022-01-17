@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -477,11 +477,11 @@ namespace Antmicro.Renode.Core
                 // some externals, e.g. execution tracer,
                 // require access to peripherals when operating
                 ExternalsManager.Clear();
+                BackendManager.Dispose();
                 Array.ForEach(machs.Rights, x => x.Dispose());
                 machs.Clear();
                 MasterTimeSource.Dispose();
                 HostMachine.Dispose();
-                BackendManager.Dispose();
                 CurrentLogger.Dispose();
             }
         }

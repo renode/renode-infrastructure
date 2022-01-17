@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -28,9 +28,9 @@ namespace Antmicro.Renode.Peripherals
 
         public void Dispose()
         {
-            foreach(var analyzer in activeAnalyzers)
+            foreach(var analyzer in activeAnalyzers.OfType<IDisposable>())
             {
-                analyzer.Hide();
+                analyzer.Dispose();
             }
         }
 

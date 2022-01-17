@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,7 +17,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.UI
 {
-    public class ConsoleWindowBackendAnalyzer : IAnalyzableBackendAnalyzer<UARTBackend>
+    public class ConsoleWindowBackendAnalyzer : IAnalyzableBackendAnalyzer<UARTBackend>, IDisposable
     {
         // Default constructor is required for the showAnalyzer command.
         public ConsoleWindowBackendAnalyzer() : this(false)
@@ -28,6 +28,14 @@ namespace Antmicro.Renode.UI
         {
             IO = new IOProvider();
             this.isMonitorWindow = isMonitorWindow;
+        }
+
+        public void Dispose()
+        {
+            if(provider is IDisposable disposableProvider)
+            {
+                disposableProvider.Dispose();
+            }
         }
 
         public void AttachTo(UARTBackend backend)
