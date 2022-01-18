@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -29,30 +29,33 @@ namespace Antmicro.Renode.Time
         public ClockEntry With(ulong? period = null, long? ratio = null, Action handler = null, bool? enabled = null,
             ulong? value = null, Direction? direction = null, WorkMode? workMode = null)
         {
-            var result = this;
-            result.Period = period ?? Period;
-            result.Ratio = ratio ?? Ratio;
-            result.Handler = handler ?? Handler;
-            result.Enabled = enabled ?? Enabled;
+            var result = new ClockEntry(
+                period ?? Period,
+                ratio ?? Ratio,
+                handler ?? Handler,
+                Owner,
+                LocalName,
+                enabled ?? Enabled,
+                direction ?? Direction,
+                workMode ?? WorkMode);
+            
             result.Value = value ?? Value;
-            result.Direction = direction ?? Direction;
-            result.WorkMode = workMode ?? WorkMode;
             return result;
         }
 
         public ulong Value;
         public ulong ValueResiduum;
-        public ulong Period { get; private set; }
-        public Action Handler { get; private set; }
-        public bool Enabled { get; private set; }
-        public Direction Direction { get; private set; }
-        public WorkMode WorkMode { get; private set; }
-        public IEmulationElement Owner { get; private set; }
-        public string LocalName { get; private set; }
-
+        
+        public ulong Period { get; }
+        public Action Handler { get; }
+        public bool Enabled { get; }
+        public Direction Direction { get; }
+        public WorkMode WorkMode { get; }
+        public IEmulationElement Owner { get; }
+        public string LocalName { get; }
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick (when ratio is positive)
         // or how many clock entry tick are needed for emulator tick (when ratio is negative)
-        public long Ratio { get; private set; } 
+        public long Ratio { get; }
 
         public double Frequency
         {
