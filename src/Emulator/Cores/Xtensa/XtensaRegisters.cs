@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             if(r.IsReadonly)
             {
-                throw new RecoverableException($"Register: {register} value is not writable.");
+                throw new RecoverableException($"The '{(XtensaRegisters)register}' register is read-only.");
             }
 
             SetRegisterValue32(r.Index, checked((UInt32)value));

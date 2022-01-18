@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             if(r.IsReadonly)
             {
-                throw new RecoverableException($"Register: {register} value is not writable.");
+                throw new RecoverableException($"The '{(RiscV64Registers)register}' register is read-only.");
             }
 
             SetRegisterValue64(r.Index, checked((UInt64)value));
