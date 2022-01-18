@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -183,7 +183,28 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
                 else
                 {
-                    var packetData = Command.Execute(command, result.Packet);
+                    PacketData packetData;
+                    try
+                    {
+                        packetData = Command.Execute(command, result.Packet);
+                    }
+                    catch(Exception e)
+                    {
+                        if(LogsEnabled)
+                        {
+                            commandsManager.Cpu.Log(LogLevel.Debug, "{0}", e);
+                            // Get to the inner-most exception. The outer-most exception here is often
+                            // 'Reflection.TargetInvocationException' which doesn't have any useful message.
+                            while(e.InnerException != null)
+                            {
+                                e = e.InnerException;
+                            }
+                            var commandString = result.Packet.Data.GetDataAsStringLimited();
+                            commandsManager.Cpu.Log(LogLevel.Error, "GDB '{0}' command failed: {1}", commandString, e.Message);
+                        }
+                        ctx.Send(new Packet(PacketData.ErrorReply(Error.Unknown)));
+                        return;
+                    }
                     // null means that we will respond later with Stop Reply Response
                     if(packetData != null)
                     {
