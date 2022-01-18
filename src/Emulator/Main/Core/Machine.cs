@@ -543,7 +543,7 @@ namespace Antmicro.Renode.Core
         {
             var entries = ClockSource.GetAllClockEntries();
 
-            var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Value", "Event frequency", "Event period");
+            var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Value", "Step", "Event frequency", "Event period");
             table.AddRows(entries,
                 x =>
                 {
@@ -564,8 +564,9 @@ namespace Antmicro.Renode.Core
                 x => Misc.NormalizeDecimal(x.Frequency) + "Hz",
                 x => x.Period.ToString(),
                 x => x.Value.ToString(),
-                x => x.Period == 0 ? "---" : Misc.NormalizeDecimal(x.Frequency / x.Period) + "Hz",
-                x => (x.Frequency == 0 || x.Period == 0) ? "---" :  Misc.NormalizeDecimal(1.0 / (x.Frequency / x.Period)) + "s"
+                x => x.Step.ToString(),
+                x => x.Period == 0 ? "---" : Misc.NormalizeDecimal((ulong)(x.Frequency * x.Step) / x.Period) + "Hz",
+                x => (x.Frequency == 0 || x.Period == 0) ? "---" :  Misc.NormalizeDecimal(1.0 / ((ulong)(x.Frequency * x.Step) / x.Period)) + "s"
             );
             return table.ToArray();
         }

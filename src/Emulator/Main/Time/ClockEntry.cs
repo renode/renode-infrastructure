@@ -13,10 +13,11 @@ namespace Antmicro.Renode.Time
 {
     public struct ClockEntry
     {
-        public ClockEntry(ulong period, long frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic) : this()
+        public ClockEntry(ulong period, long frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic, long step = 1) : this()
         {
             this.Value = direction == Direction.Ascending ? 0 : period;
             this.Frequency = frequency;
+            this.Step = step;
             this.Period = period;
             this.Handler = handler;
             this.Enabled = enabled;
@@ -24,11 +25,11 @@ namespace Antmicro.Renode.Time
             this.WorkMode = workMode;
             this.Owner = owner;
             this.LocalName = localName;
-            this.Ratio = FrequencyToRatio(owner, Frequency);
+            this.Ratio = Step * FrequencyToRatio(owner, Frequency);
         }
 
         public ClockEntry With(ulong? period = null, long? frequency = null, Action handler = null, bool? enabled = null,
-            ulong? value = null, Direction? direction = null, WorkMode? workMode = null)
+            ulong? value = null, Direction? direction = null, WorkMode? workMode = null, long? step = null)
         {
             var result = new ClockEntry(
                 period ?? Period,
@@ -38,7 +39,8 @@ namespace Antmicro.Renode.Time
                 LocalName,
                 enabled ?? Enabled,
                 direction ?? Direction,
-                workMode ?? WorkMode);
+                workMode ?? WorkMode,
+                step ?? Step);
             
             result.Value = value ?? Value;
             return result;
@@ -54,6 +56,7 @@ namespace Antmicro.Renode.Time
         public WorkMode WorkMode { get; }
         public IEmulationElement Owner { get; }
         public string LocalName { get; }
+        public long Step { get; } 
         public long Frequency { get; }
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick (when ratio is positive)
         // or how many clock entry tick are needed for emulator tick (when ratio is negative)
