@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             uint op = A[2];
 
             switch((XtensaSimcallOperation)op){
-            case XtensaSimcallOperation.WRITE:
+            case XtensaSimcallOperation.Write:
                 uint fd = A[3];
                 uint vaddr = A[4];
                 uint len = A[5];
@@ -245,17 +245,17 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private enum XtensaSimcallOperation : uint
         {
-            EXIT = 1,
-            READ = 3,
-            WRITE = 4,
-            OPEN = 5,
-            CLOSE = 6,
-            LSEEK = 19,
-            SELECT_ONE = 29,
-            ARGC = 1000,
-            ARGV_SZ = 1001,
-            ARGV = 1002,
-            MEMSET = 1004,
+            Exit = 1,
+            Read = 3,
+            Write = 4,
+            Open = 5,
+            Close = 6,
+            Lseek = 19,
+            SelectOne = 29,
+            ReadArgc = 1000,
+            ReadArgvSize = 1001,
+            ReadArgv = 1002,
+            Memset = 1004,
         }
     }
 }
