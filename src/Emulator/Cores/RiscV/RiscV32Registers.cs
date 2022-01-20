@@ -409,10 +409,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VSTART);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VSTART, value);
             }
         }
@@ -421,10 +423,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VXSAT);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VXSAT, value);
             }
         }
@@ -433,10 +437,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VXRM);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VXRM, value);
             }
         }
@@ -445,10 +451,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VCSR);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VCSR, value);
             }
         }
@@ -457,10 +465,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VL);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VL, value);
             }
         }
@@ -469,10 +479,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VTYPE);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VTYPE, value);
             }
         }
@@ -481,10 +493,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+                BeforeVectorExtensionRegisterRead();
                 return GetRegisterValue32((int)RiscV32Registers.VLENB);
             }
             set
             {
+                value = BeforeVectorExtensionRegisterWrite(value);
                 SetRegisterValue32((int)RiscV32Registers.VLENB, value);
             }
         }
