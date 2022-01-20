@@ -276,8 +276,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             Registers.BitCounterCompare.Define(this, name: "BCC")
                 .WithValueField(0, 32, out bitCountCompare)
-
             ;
+
             Registers.ModeConfiguration0.Define(this, 0x200)
                 .WithTaggedFlag("RU", 0)
                 .WithReservedBits(1, 7)
