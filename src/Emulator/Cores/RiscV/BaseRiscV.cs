@@ -379,46 +379,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TryGetCustomCSR(register, out value);
         }
 
-        protected bool TrySetVectorRegister(uint registerNumber, RegisterValue value)
-        {
-            var vlenb = VLEN / 8;
-            var valueArray = value.GetBytes(Endianess.BigEndian);
-
-            if(valueArray.Length != vlenb)
-            {
-                return false;
-            }
-
-            var valuePointer = Marshal.AllocHGlobal(vlenb);
-            Marshal.Copy(valueArray, 0, valuePointer, vlenb);
-            
-            var result = true;
-            if(TlibSetWholeVector(registerNumber, valuePointer) != 0)
-            {
-                result = false;
-            }
-
-            Marshal.FreeHGlobal(valuePointer);
-            return result;
-        }
-
-        protected bool TryGetVectorRegister(uint registerNumber, out RegisterValue value)
-        {
-            var vlenb = VLEN / 8;
-            var valuePointer = Marshal.AllocHGlobal(vlenb);
-            if(TlibGetWholeVector(registerNumber, valuePointer) != 0)
-            {
-                Marshal.FreeHGlobal(valuePointer);
-                value = default(RegisterValue);
-                return false;
-            }
-            var bytes = new byte[vlenb];
-            Marshal.Copy(valuePointer, bytes, 0, vlenb);
-            value = bytes;
-            Marshal.FreeHGlobal(valuePointer);
-            return true;
-        }
-
         protected bool TrySetCustomCSR(int register, RegisterValue value)
         {
             if(!nonstandardCSR.ContainsKey((ulong)register))
@@ -493,6 +453,46 @@ namespace Antmicro.Renode.Peripherals.CPU
             //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
             return architecture.Skip(2).SkipWhile(x => Char.IsDigit(x))
                                .Select(x => (InstructionSet)(Char.ToUpper(x) - 'A'));
+        }
+
+        private bool TrySetVectorRegister(uint registerNumber, RegisterValue value)
+        {
+            var vlenb = VLEN / 8;
+            var valueArray = value.GetBytes(Endianess.BigEndian);
+
+            if(valueArray.Length != vlenb)
+            {
+                return false;
+            }
+
+            var valuePointer = Marshal.AllocHGlobal(vlenb);
+            Marshal.Copy(valueArray, 0, valuePointer, vlenb);
+            
+            var result = true;
+            if(TlibSetWholeVector(registerNumber, valuePointer) != 0)
+            {
+                result = false;
+            }
+
+            Marshal.FreeHGlobal(valuePointer);
+            return result;
+        }
+
+        private bool TryGetVectorRegister(uint registerNumber, out RegisterValue value)
+        {
+            var vlenb = VLEN / 8;
+            var valuePointer = Marshal.AllocHGlobal(vlenb);
+            if(TlibGetWholeVector(registerNumber, valuePointer) != 0)
+            {
+                Marshal.FreeHGlobal(valuePointer);
+                value = default(RegisterValue);
+                return false;
+            }
+            var bytes = new byte[vlenb];
+            Marshal.Copy(valuePointer, bytes, 0, vlenb);
+            value = bytes;
+            Marshal.FreeHGlobal(valuePointer);
+            return true;
         }
 
         private bool IsVectorRegisterNumber(int register)
