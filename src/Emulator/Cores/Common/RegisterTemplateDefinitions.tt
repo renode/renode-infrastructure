@@ -17,6 +17,7 @@
     string FALLBACK_REGISTERS = null;
 
     var DEFINES = new List<string>();
+    var BEFORE_READ_HOOKS = new Dictionary<string, string>();
     var BEFORE_WRITE_HOOKS = new Dictionary<string, string>();
     var AFTER_WRITE_HOOKS = new Dictionary<string, string>();
     var REGISTERS_FROM_BASE_CLASS = new List<string>();

@@ -203,6 +203,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
+<#
+        if(BEFORE_READ_HOOKS.ContainsKey(register.Name))
+        {
+#>
+                <#=BEFORE_READ_HOOKS[register.Name]#>();
+<#
+        }
+#>
                 return GetRegisterValue<#=register.Width#>((int)<#=CLASS_NAME#>Registers.<#=register.Name#>);
             }
             set
