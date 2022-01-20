@@ -611,7 +611,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
            { 2478, 36 },
            { 2480, 39 },
         };
-
+        
         private struct Shorts
         {
             public IFlagRegisterField ReadyStart;
