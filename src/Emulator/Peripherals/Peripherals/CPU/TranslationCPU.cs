@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -227,12 +227,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             var table = new Table().AddRow("Name", "Value");
             table.AddRows(result, x => x.Key, x => "0x{0:X}".FormatWith(x.Value));
-            AddNonMappedRegistersValues(ref table);
             return table.ToArray();
-        }
-
-        protected virtual void AddNonMappedRegistersValues(ref Table table)
-        {
         }
 
         public void UpdateContext()

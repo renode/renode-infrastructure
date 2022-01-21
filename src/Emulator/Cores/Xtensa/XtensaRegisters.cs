@@ -21,10 +21,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((XtensaRegisters)register, out var r))
             {
-                if(TrySetNonMappedRegister(register, value))
-                {
-                    return;
-                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
             if(r.IsReadonly)
@@ -39,10 +35,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((XtensaRegisters)register, out var r))
             {
-                if(TryGetNonMappedRegister(register, out var value))
-                {
-                    return value;
-                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
             return GetRegisterValue32(r.Index);
@@ -50,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return mapping.Values.Concat(GetNonMappedRegisters()).OrderBy(x => x.Index);
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]
@@ -327,6 +319,78 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.EXCVADDR, value);
+            }
+        }
+        [Register]
+        public RegisterValue PSINTLEVEL
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.PSINTLEVEL);
+            }
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.PSINTLEVEL, value);
+            }
+        }
+        [Register]
+        public RegisterValue PSUM
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.PSUM);
+            }
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.PSUM, value);
+            }
+        }
+        [Register]
+        public RegisterValue PSWOE
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.PSWOE);
+            }
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.PSWOE, value);
+            }
+        }
+        [Register]
+        public RegisterValue PSEXCM
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.PSEXCM);
+            }
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.PSEXCM, value);
+            }
+        }
+        [Register]
+        public RegisterValue PSCALLINC
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.PSCALLINC);
+            }
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.PSCALLINC, value);
+            }
+        }
+        [Register]
+        public RegisterValue PSOWB
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.PSOWB);
+            }
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.PSOWB, value);
             }
         }
         public RegistersGroup AR { get; private set; }
@@ -641,6 +705,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             { XtensaRegisters.A13,  new CPURegister(102, 32, isGeneral: false, isReadonly: false) },
             { XtensaRegisters.A14,  new CPURegister(103, 32, isGeneral: false, isReadonly: false) },
             { XtensaRegisters.A15,  new CPURegister(104, 32, isGeneral: false, isReadonly: false) },
+            { XtensaRegisters.PSINTLEVEL,  new CPURegister(105, 32, isGeneral: false, isReadonly: false) },
+            { XtensaRegisters.PSUM,  new CPURegister(106, 32, isGeneral: false, isReadonly: false) },
+            { XtensaRegisters.PSWOE,  new CPURegister(107, 32, isGeneral: false, isReadonly: false) },
+            { XtensaRegisters.PSEXCM,  new CPURegister(108, 32, isGeneral: false, isReadonly: false) },
+            { XtensaRegisters.PSCALLINC,  new CPURegister(109, 32, isGeneral: false, isReadonly: false) },
+            { XtensaRegisters.PSOWB,  new CPURegister(110, 32, isGeneral: false, isReadonly: false) },
         };
     }
 
@@ -669,6 +739,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         ICOUNT = 81,
         ICOUNTLEVEL = 82,
         EXCVADDR = 83,
+        PSINTLEVEL = 105,
+        PSUM = 106,
+        PSWOE = 107,
+        PSEXCM = 108,
+        PSCALLINC = 109,
+        PSOWB = 110,
         AR0 = 1,
         AR1 = 2,
         AR2 = 3,

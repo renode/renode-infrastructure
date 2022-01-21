@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,14 +12,9 @@
     CLASS_NAME = "Xtensa";
     HEADER_FILE = "Emulator/Cores/tlib/arch/xtensa/cpu_registers.h";
 
-    FALLBACK_SET_REGISTER = "TrySetNonMappedRegister";
-    FALLBACK_GET_REGISTER = "TryGetNonMappedRegister";
-    FALLBACK_REGISTERS = "GetNonMappedRegisters";
-
     GENERAL_REGISTERS.AddRange(new[] { "AR0", "AR1", "AR2", "AR3", "AR4", "AR5" , "AR6" , "AR7" , "AR8" , "AR9",
                                        "AR10", "AR11", "AR12", "AR13", "AR14", "AR15", "PC" });
 
-    // TODO: Check if there are more read-only registers.
     UNSETTABLE_REGISTERS.AddRange(new[] { "INTERRUPT" });
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>
