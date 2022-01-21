@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,6 +10,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using System.Collections.Generic;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -81,6 +82,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public GPIO IRQ { get; } = new GPIO();
 
+        [field: Transient]
         public event Action<byte> CharReceived;
 
         private void DefineRegisters()
