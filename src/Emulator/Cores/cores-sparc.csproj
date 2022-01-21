@@ -32,6 +32,7 @@
     <PropertyGroup>
       <Architecture>sparc</Architecture>
       <EmulatedTarget>sparc</EmulatedTarget>
+      <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
     </PropertyGroup>
     <ItemGroup>
       <Endianess Include="le" />

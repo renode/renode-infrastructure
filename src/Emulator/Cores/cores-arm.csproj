@@ -32,6 +32,7 @@
     <PropertyGroup>
       <Architecture>arm</Architecture>
       <EmulatedTarget>arm</EmulatedTarget>
+      <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
     </PropertyGroup>
     <ItemGroup>
       <Endianess Include="le" />

@@ -32,6 +32,7 @@
     <PropertyGroup>
       <Architecture>i386</Architecture>
       <EmulatedTarget>i386</EmulatedTarget>
+      <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
     </PropertyGroup>
     <ItemGroup>
       <Endianess Include="le" />

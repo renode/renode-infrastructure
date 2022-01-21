@@ -19,15 +19,16 @@
     </Target>
 
     <Target Name="CompileTranslationLib" DependsOnTargets="_PrepareProperties" BeforeTargets="PrepareEmbeddedResources">
-        <!-- Due to a bug in some versions of xbuild we set default value of $(TargetWordSize) before passing it to 'translate.cproj' as it is impossible to
-             overwrite it later. -->
+        <!-- Due to a bug in some versions of xbuild we set default value of $(TargetWordSize) and $(TargetInsnStartExtraWords)
+             before passing it to 'translate.cproj' as it is impossible to overwrite them later. -->
         <PropertyGroup>
             <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
+            <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
         </PropertyGroup>
         <MSBuild
             Projects="./translate.cproj"
             Targets="VerifyProperties;GenerateFlags;Compile;Link;Build"
-            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
+            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
     </Target>
 
     <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">

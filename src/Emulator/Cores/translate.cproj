@@ -14,10 +14,12 @@
     <Error Text="Host architecture not provided!" Condition=" $(HostArchitecture) == '' " />
 
     <Message Text="Target word size not provided. Using default: 32" Condition=" $(TargetWordSize) == '' " />
+    <Message Text="Number of extra insn_start words not provided. Using default: 0" Condition=" $(TargetInsnStartExtraWords) == '' " />
     <Message Text="Emulated target not provided. Using default: $(TargetArchitecture.ToLower())" Condition=" $(EmulatedTarget) == '' " />
 
     <PropertyGroup>
         <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
+        <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
 
         <ProtoTarget>$(TargetArchitecture.ToLower())</ProtoTarget>
         <HostUpper>$(HostArchitecture.ToUpper())</HostUpper>
@@ -29,7 +31,7 @@
         <ObjectFilesDirectory>obj/$(Configuration)/obj-$(ConfigName)</ObjectFilesDirectory>
         <TlibDirectory>tlib</TlibDirectory>
         <TcgLibraryDirectory>$(MSBuildProjectDirectory)/tlib/tcg/bin/$(Configuration)</TcgLibraryDirectory>
-        <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(TargetWordSize)_$(TargetEndianess).a</TcgLibraryFilename>
+        <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(TargetEndianess).a</TcgLibraryFilename>
     </PropertyGroup>
 
     <Message Text="Configuring translation library" />
@@ -85,13 +87,14 @@
           <CompilationFlags Include="-DCONFIG_$(EmulatedTargetUpper)_DIS=1" />
           <CompilationFlags Include="-DTARGET_WORDS_BIGENDIAN=1" Condition=" $(TargetEndianess) == 'be' " />
           <CompilationFlags Include="-DTARGET_LONG_BITS=$(TargetWordSize)" />
+          <CompilationFlags Include="-DTARGET_INSN_START_EXTRA_WORDS=$(TargetInsnStartExtraWords)" />
 
           <CompilationFlags Include="-DDEBUG=1" Condition=" $(Configuration) == 'Debug'" />
 
           <CompilationFlags Include="$(AdditionalCompilationFlags)" />
 
           <!-- This define is a little hack: It is necessary for CLinkerTask to create separate entry in hashes cache -->
-          <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)" />
+          <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)_$(TargetInsnStartExtraWords)" />
           <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(CurrentPlatform) == 'Linux' " />
           <!-- On Windows: link MinGW's pthread library statically -->
           <LinkFlags Include="-static -lwinpthread -dynamic" Condition="$(CurrentPlatform) == 'Windows'" />
@@ -118,7 +121,7 @@
     <MSBuild
         Projects="tcg.cproj"
         Targets="_VerifyProperties;Compile;Build"
-        Properties="Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
+        Properties="Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
   </Target>
 
   <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" >
