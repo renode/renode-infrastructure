@@ -1238,6 +1238,9 @@ namespace Antmicro.Renode.Core
                 }
             }
 
+            // As this mechanism is used to pause the emulation before the serialization - we have to drop value of this field to avoid starting with a non-zero value.
+            // Otherwise, after the deserialization we won't be able to ever reach the currentLevel == 0 and restart the machine when needed.
+            [Transient]
             private int currentLevel;
             private bool wasPaused;
             private readonly Machine machine;

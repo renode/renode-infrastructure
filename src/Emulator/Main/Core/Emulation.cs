@@ -600,9 +600,9 @@ namespace Antmicro.Renode.Core
 
                 if(wasStarted)
                 {
-                    emulation.MasterTimeSource.Stop();
                     machineStates = emulation.Machines.Select(x => x.ObtainPausedState()).ToArray();
                     emulation.ExternalsManager.Pause();
+                    emulation.MasterTimeSource.Stop();
                 }
             }
 
