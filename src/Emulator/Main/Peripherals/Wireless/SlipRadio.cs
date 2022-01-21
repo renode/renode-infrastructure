@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,6 +13,8 @@ using System.IO;
 using System.Linq;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using AntShell.Terminal;
 using Mono.Unix;
 #endif
@@ -36,9 +38,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
     {
         public SlipRadio(string linkName)
         {
+            this.linkName = linkName;
+            buffer = new List<byte>();
+            Initialize();
+        }
+
+        [PostDeserialization]
+        private void Initialize()
+        {
             ptyStream = new PtyUnixStream();
             io = new IOProvider { Backend = new StreamIOSource(ptyStream) };
-            buffer = new List<byte>();
             io.ByteRead += CharReceived;
             CreateSymlink(linkName);
         }
@@ -202,12 +211,14 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Logger.Log(LogLevel.Info, "Created a Slip Radio pty connection to {0}", linkName);
         }
 
-
-        protected readonly PtyUnixStream ptyStream;
+        [Transient]
+        protected PtyUnixStream ptyStream;
+        [Transient]
+        private IOProvider io;
 
         private readonly List<byte> buffer;
+        private readonly string linkName;
         private UnixSymbolicLinkInfo symlink;
-        private readonly IOProvider io;
 
         private const byte END = 0xC0;
         private const byte ESC = 0xDB;
