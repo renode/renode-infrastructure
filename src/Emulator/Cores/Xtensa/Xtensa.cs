@@ -62,6 +62,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture { get { return "xtensa"; } }
 
+        public override ExecutionMode ExecutionMode
+        {
+            get
+            {
+                return base.ExecutionMode;
+            }
+
+            set
+            {
+                base.ExecutionMode = value;
+                TlibUpdateExecutionMode((uint)value);
+            }
+        }
+
         public override string GDBArchitecture { get { return "xtensa"; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
@@ -149,6 +163,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
         [Import]
         private ActionUInt32UInt32 TlibSetIrqPendingBit;
+
+        [Import]
+        private ActionUInt32 TlibUpdateExecutionMode;
 #pragma warning restore 649
 
         private enum XtensaSimcallOperation : uint

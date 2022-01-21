@@ -289,7 +289,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool IsSingleStepMode => executionMode == ExecutionMode.SingleStepNonBlocking || executionMode == ExecutionMode.SingleStepBlocking;
 
-        public ExecutionMode ExecutionMode
+        public virtual ExecutionMode ExecutionMode
         {
             get
             {
@@ -306,8 +306,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
 
                     executionMode = value;
-                    
-                    TlibUpdateExecutionMode((uint)value);
 
                     singleStepSynchronizer.Enabled = IsSingleStepMode;
                     UpdateBlockBeginHookPresent();
@@ -1838,9 +1836,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibCleanWfiProcState;
-
-        [Import]
-        private ActionUInt32 TlibUpdateExecutionMode;
 
         #pragma warning restore 649
 
