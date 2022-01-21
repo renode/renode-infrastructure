@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ComparingTimer : ITimer, IPeripheral
     {
-        public ComparingTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1)
+        public ComparingTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1, uint step = 1)
         {
             if(compare > limit)
             {
@@ -44,13 +44,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             initialWorkMode = workMode;
             initialEventEnabled = eventEnabled;
             initialDivider = divider;
+            initialStep = step;
             this.owner = this is IPeripheral && owner == null ? this : owner;
             this.localName = localName;
             InternalReset();
         }
 
-        protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1) 
-            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider)
+        protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1, uint step = 1) 
+            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider, step)
         {
         }
 
@@ -137,6 +138,23 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        public uint Step
+        {
+            get
+            {
+                return step;
+            }
+            set
+            {
+                if(value == step)
+                {
+                    return;
+                }
+                step = value;
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(step: step));
+            }
+        }
+
         public virtual void Reset()
         {
             InternalReset();
@@ -185,8 +203,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void InternalReset()
         {
             divider = initialDivider;
+            step = initialStep;
 
-            var clockEntry = new ClockEntry(initialCompare, initialFrequency / divider, CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode)
+            var clockEntry = new ClockEntry(initialCompare, initialFrequency / divider, CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode, step)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
             clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
             valueAccumulatedSoFar = 0;
@@ -197,7 +216,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         private ulong valueAccumulatedSoFar;
         private ulong compareValue;
         private uint divider;
+        private uint step;
 
+        private readonly uint initialStep;
         private readonly uint initialDivider;
         private readonly Direction initialDirection;
         private readonly long initialFrequency;
