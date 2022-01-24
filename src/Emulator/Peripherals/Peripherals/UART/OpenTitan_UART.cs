@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -13,7 +14,7 @@ using Antmicro.Renode.Peripherals.Bus;
 namespace Antmicro.Renode.Peripherals.UART
 {
     // This model currently does not support timeout feature, rx break detection and software tx pin override
-    public class OpenTitan_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_UART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_UART(Machine machine) : base(machine)
         {
@@ -70,6 +71,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 rxOverflowPending.Value = true;
                 this.Log(LogLevel.Warning, "RX FIFO overflowed, incoming byte not queued.");
             }
+            UpdateBufferState();
             UpdateInterrupts();
         }
 
@@ -85,6 +87,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public long Size => 0x30;
+        public BufferState BufferState => bufferState;
 
         public GPIO TxWatermarkIRQ { get; }
         public GPIO RxWatermarkIRQ { get; }
@@ -94,6 +97,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO RxBreakErrorIRQ { get; }
         public GPIO RxTimeoutIRQ { get; }
         public GPIO RxParityErrorIRQ { get; }
+
+        public event Action<BufferState> BufferStateChanged;
 
         public override Bits StopBits => Bits.One;
 
@@ -199,6 +204,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
                         }
+                        UpdateBufferState();
                         return character;
                     })
                     .WithReservedBits(8, 24)
@@ -210,6 +216,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(systemLoopbackEnabled.Value)
                         {
                             base.WriteChar((byte)val);
+                            UpdateBufferState();
                             return;
                         }
 
@@ -302,6 +309,29 @@ namespace Antmicro.Renode.Peripherals.UART
             RxParityErrorIRQ.Set(rxParityErrorPending.Value && rxParityErrorEnabled.Value);
         }
 
+        private void UpdateBufferState()
+        {
+            if((Count < rxFIFOCapacity && bufferState == BufferState.Full) ||
+               (Count != 0 && bufferState == BufferState.Empty) ||
+               ((Count == 0 || Count >= rxFIFOCapacity) && bufferState == BufferState.Ready))
+            {
+                if(Count == 0)
+                {
+                    bufferState = BufferState.Empty;
+                }
+                else if(Count >= rxFIFOCapacity)
+                {
+                    bufferState = BufferState.Full;
+                }
+                else
+                {
+                    bufferState = BufferState.Ready;
+                }
+
+                BufferStateChanged?.Invoke(bufferState);
+            }
+        }
+
         private int RxWatermarkValue
         {
             get
@@ -381,6 +411,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private bool txOngoing;
         private bool txWatermarkCrossed;
+        private BufferState bufferState;
 
         private const int rxFIFOCapacity = 32;
         private const int txFIFOCapacity = 32;

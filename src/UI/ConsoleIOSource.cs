@@ -40,6 +40,16 @@ namespace Antmicro.Renode.UI
         {
         }
 
+        public void Pause()
+        {
+            // Required by IActiveIOSource interface
+        }
+
+        public void Resume()
+        {
+            // Required by IActiveIOSource interface
+        }
+
         public void Write(byte b)
         {
             if(checker.TryDecode(b, out var c))

@@ -536,6 +536,7 @@
     <Compile Include="Utilities\Crypto\AesProvider.cs" />
     <Compile Include="Utilities\VmemReader.cs" />
     <Compile Include="Peripherals\I2C\DummyI2CSlave.cs" />
+    <Compile Include="Peripherals\UART\IUARTWithBufferState.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
