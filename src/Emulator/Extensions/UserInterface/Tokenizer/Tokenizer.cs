@@ -120,6 +120,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
                     {
                         producedTokens.Add(producedToken);
                     }
+                    break;
                 }
                 if(!success)
                 {
