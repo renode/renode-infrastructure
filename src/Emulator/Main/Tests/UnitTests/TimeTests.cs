@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -115,6 +115,36 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(entryA.Period, 1000);
             Assert.AreEqual(entryB.Value, 0);
             Assert.AreEqual(entryB.Period, 100);
+        }
+    }
+
+    [TestFixture]
+    public class TimeIntervalTests
+    {
+        [Test]
+        public void ShouldReturnCorrectResultFromSubstraction()
+        {
+            TimeInterval lower = TimeInterval.FromMicroseconds(1242);
+            TimeInterval higher = TimeInterval.FromMicroseconds(1243);
+
+            Assert.AreEqual(TimeInterval.FromMicroseconds(1), higher - lower);
+        }
+
+        [Test]
+        public void ShouldNotAllowOverflowOnSubstraction()
+        {
+            TimeInterval lower = TimeInterval.FromMicroseconds(1242);
+            TimeInterval higher = TimeInterval.FromMicroseconds(1243);
+
+            Assert.Throws<OverflowException>(() => {var dummy = lower - higher; });
+        }
+
+        [Test]
+        public void ShouldNotAllowOverflowOnAddition()
+        {
+            TimeInterval value = TimeInterval.FromMicroseconds(1);
+
+            Assert.Throws<OverflowException>(() => {var dummy = TimeInterval.Maximal + value; });
         }
     }
 }
