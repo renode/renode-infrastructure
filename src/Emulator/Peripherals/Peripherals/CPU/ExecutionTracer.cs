@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,6 +16,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.CPU.Disassembler;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -99,9 +100,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleBlock(Block block, StringBuilder sb)
         {
-            var pc = block.StartingPC;
+            var pc = block.LastInstructionPC;
             var counter = 0;
 
+            var stack = new Stack<DisassemblyResult>();
+
+            // PC points to the last instruction in the block
+            // - we need to go back and disassemble previous
+            // instructions
             while(counter < (int)block.InstructionsCount)
             {
                 // here we read only 4-bytes as it should cover most cases
@@ -130,17 +136,32 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(!cachedItem.HasValue)
                 {
-                    sb.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
+                    stack.Push(new DisassemblyResult() { PC = pc });
                     break;
                 }
                 else
                 {
                     var result = cachedItem.Value;
+                    result.PC = pc;
                     
+                    stack.Push(result);
+                    pc -= (ulong)result.OpcodeSize;
+                    counter++;
+                }
+            }
+
+            foreach(var result in stack)
+            {
+                if(result.OpcodeString == null)
+                {
+                    sb.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", result.PC);
+                }
+                else
+                {
                     switch(format)
                     {
                         case Format.PC:
-                            sb.AppendFormat("0x{0:X}\n", pc);
+                            sb.AppendFormat("0x{0:X}\n", result.PC);
                             break;
 
                         case Format.Opcode:
@@ -148,16 +169,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                             break;
                             
                         case Format.PCAndOpcode:
-                            sb.AppendFormat("0x{0:X}: 0x{1}\n", pc, result.OpcodeString.ToUpper());
+                            sb.AppendFormat("0x{0:X}: 0x{1}\n", result.PC, result.OpcodeString.ToUpper());
                             break;
 
                         default:
                             AttachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
                             break;
                     }
-                    
-                    pc += (ulong)result.OpcodeSize;
-                    counter++;
                 }
             }
         }
@@ -207,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             try
             {
-                blocks.Add(new Block { StartingPC = pc, InstructionsCount = instructionsInBlock });
+                blocks.Add(new Block { LastInstructionPC = pc, InstructionsCount = instructionsInBlock });
             }
             catch(InvalidOperationException)
             {
@@ -235,12 +253,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private struct Block
         {
-            public ulong StartingPC;
+            public ulong LastInstructionPC;
             public ulong InstructionsCount;
 
             public override string ToString()
             {
-                return $"[Block: starting at 0x{StartingPC:X} with {InstructionsCount} instructions]";
+                return $"[Block: ending at 0x{LastInstructionPC:X} with {InstructionsCount} instructions]";
             }
         }
     }
