@@ -6,6 +6,7 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -23,7 +24,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(number != 0)
             {
-                throw new ArgumentOutOfRangeException();
+                this.Log(LogLevel.Error, "Tried to set pin {0} to value {1}, but only pin 0 is supported in this model", number, value);
+                return;
             }
 
             State = inverted ? !value : value;
