@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) | val)); },
                         name: "GPIOx_BS")
                     .WithValueField(16, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) ^ val)); },
+                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) & ~val)); },
                         name: "GPIOx_BR")
                 },
                 { (long)Registers.ConfigurationLock, new DoubleWordRegister(this)
