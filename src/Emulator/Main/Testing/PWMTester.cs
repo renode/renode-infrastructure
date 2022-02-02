@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -36,7 +36,20 @@ namespace Antmicro.Renode.Peripherals
             {
                 if(previousEvent != null)
                 {
-                    var dt = vts.TimeElapsed - previousEvent.Value.TimeElapsed;
+                    TimeInterval dt;
+                    // TODO: Below `if` block is a way to avoid TimeInterval underflow and the resulting exception
+                    // that occurs when the OnGPIO comes from a different thread(core) than expected.
+                    // This should be fixed by making sure we always get the Timestamp from the correct thread.
+                    // Until then the results will be radomly less accurate.
+                    if(vts.TimeElapsed > previousEvent.Value.TimeElapsed)
+                    {
+                        dt = vts.TimeElapsed - previousEvent.Value.TimeElapsed;
+                    }
+                    else
+                    {
+                        dt = TimeInterval.Empty;
+                    }
+
                     if(value)
                     {
                         // we switch to high, so up to this point it was low
