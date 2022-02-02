@@ -2418,7 +2418,9 @@ restart:
 
             public void ExecuteCallbacks()
             {
-                foreach(var callback in callbacks)
+                // As hooks can be removed inside the callback, .ToList()
+                // is required to avoid _Collection was modified_ exception.
+                foreach(var callback in callbacks.ToList())
                 {
                     callback(cpu, address);
                 }
