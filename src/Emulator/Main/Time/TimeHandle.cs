@@ -283,8 +283,10 @@ namespace Antmicro.Renode.Time
                 }
                 else
                 {
-                    interval = intervalGranted + timeResiduum;
-                    timeResiduum = TimeInterval.Empty;
+                    interval = intervalGranted + slaveTimeResiduum;
+                    DebugHelper.Assert(reportedTimeResiduum == TimeInterval.Empty, "Reported time residuum should be empty at this point");
+                    reportedTimeResiduum = slaveTimeResiduum;
+                    slaveTimeResiduum = TimeInterval.Empty;
 
                     sinkSideInProgress = true;
                     grantPending = false;
@@ -304,6 +306,20 @@ namespace Antmicro.Renode.Time
 
             lock(innerLock)
             {
+                // reportedTimeResiduum represents time that
+                // has been reported, but not yet used;
+                // we cannot report it again
+                if(reportedTimeResiduum >= progress)
+                {
+                    reportedTimeResiduum -= progress;
+                    return;
+                }
+                if(reportedTimeResiduum != TimeInterval.Empty)
+                {
+                    progress -= reportedTimeResiduum;
+                    reportedTimeResiduum = TimeInterval.Empty;
+                }
+                
                 this.Trace($"Reporting progress: {progress}");
                 TotalElapsedTime += progress;
                 reportedSoFar += progress;
@@ -331,9 +347,9 @@ namespace Antmicro.Renode.Time
 
                 DebugHelper.Assert(sinkSideInProgress, "Reporting a used time, but it seems that no grant has recently been requested.");
                 sinkSideInProgress = false;
-
-                DebugHelper.Assert(timeResiduum == TimeInterval.Empty, "Time residuum should be empty here.");
-                timeResiduum = timeLeft;
+                
+                DebugHelper.Assert(slaveTimeResiduum == TimeInterval.Empty, "Time residuum should be empty here.");
+                slaveTimeResiduum = timeLeft;
                 intervalToReport = intervalGranted;
 
                 reportPending = true;
@@ -472,6 +488,7 @@ namespace Antmicro.Renode.Time
 
                 Debugging.DebugHelper.Assert(reportedSoFar <= intervalUsed);
                 // here we report the remaining part of granted time
+                reportedTimeResiduum = TimeInterval.Empty;
                 ReportProgress(intervalUsed - reportedSoFar);
                 reportedSoFar = TimeInterval.Empty;
 
@@ -595,10 +612,11 @@ namespace Antmicro.Renode.Time
                     {
                         Monitor.PulseAll(innerLock);
 
-                        // we have just disabled the handle - it needs to be reset it to a state like after `ReportBackAndContinue`
+                        // we have just disabled the handle - it needs to be reset it to a state like after `ReportBackAndContinue` with not time left
                         if(isBlocking)
                         {
-                            timeResiduum = TimeInterval.Empty;
+                            slaveTimeResiduum = TimeInterval.Empty;
+                            reportedTimeResiduum = TimeInterval.Empty;
                             intervalToReport = intervalGranted;
                             reportPending = true;
                             isBlocking = false;
@@ -806,7 +824,11 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// The amount of time left from previous grant that was not used but reported back in <see cref="WaitUntilDone"/>.
         /// </summary>
-        private TimeInterval timeResiduum;
+        private TimeInterval slaveTimeResiduum;
+        /// <summary>
+        /// The amount of time left from previous grant that was reported in <see cref="ReportProgress"/>.
+        /// </summary>
+        private TimeInterval reportedTimeResiduum;
         /// <summary>
         /// Flag is set when the handle is actively waiting to be unblocked
         /// </summary>
