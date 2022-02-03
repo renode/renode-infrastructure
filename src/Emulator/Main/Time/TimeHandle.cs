@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -310,8 +310,6 @@ namespace Antmicro.Renode.Time
                 TimeSource.ReportTimeProgress();
             }
         }
-
-        private TimeInterval reportedSoFar;
 
         /// <summary>
         /// Informs a time source that the time interval is used, i.e., no more work can be done without exceeding it, and the sink is ready for the next one.
@@ -813,6 +811,10 @@ namespace Antmicro.Renode.Time
         /// Flag is set when the handle is actively waiting to be unblocked
         /// </summary>
         private bool waitsToBeUnblocked;
+        ///<summary>
+        /// The amount of time already reported since last WaitUntilDone.
+        ///</summary>
+        private TimeInterval reportedSoFar;
 
         private bool enabled;
         private bool sinkSideActive;
