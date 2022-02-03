@@ -473,7 +473,7 @@ namespace Antmicro.Renode.Time
                 Debugging.DebugHelper.Assert(reportedSoFar <= intervalUsed);
                 // here we report the remaining part of granted time
                 ReportProgress(intervalUsed - reportedSoFar);
-                reportedSoFar  = TimeInterval.Empty;
+                reportedSoFar = TimeInterval.Empty;
 
                 reportPending = false;
 
