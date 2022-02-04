@@ -120,8 +120,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     // here we are prepared for longer opcodes
                     var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes, context: AttachedCPU);
-                    // TODO: what about flags?
-                    if(!tryDisassembleInstruction(pc, mem, 0, out var result))
+                    if(!tryDisassembleInstruction(pc, mem, block.DisassemblyFlags, out var result))
                     {
                         cachedItem = null;
                         // mark this as an invalid opcode
@@ -245,7 +244,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             try
             {
-                blocks.Add(new Block { FirstInstructionPC = pc, InstructionsCount = instructionsInBlock });
+                blocks.Add(new Block
+                {
+                    FirstInstructionPC = pc,
+                    InstructionsCount = instructionsInBlock,
+                    DisassemblyFlags = AttachedCPU.CurrentBlockDisassemblyFlags,
+                });
             }
             catch(InvalidOperationException)
             {
@@ -313,10 +317,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             public ulong FirstInstructionPC;
             public ulong InstructionsCount;
+            public uint DisassemblyFlags;
 
             public override string ToString()
             {
-                return $"[Block: starting at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions]";
+                return $"[Block: starting at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions, flags: 0x{DisassemblyFlags:X}]";
             }
         }
     }
