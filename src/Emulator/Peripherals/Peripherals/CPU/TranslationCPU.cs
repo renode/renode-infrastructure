@@ -176,6 +176,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        // This value should only be read in CPU hooks (during execution of translated code).
+        public uint CurrentBlockDisassemblyFlags => TlibGetCurrentTbDisasFlags();
+
         public bool ThreadSentinelEnabled { get; set; }
 
         private bool logTranslationBlockFetchEnabled;
@@ -1857,6 +1860,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibCleanWfiProcState;
+
+        [Import]
+        private FuncUInt32 TlibGetCurrentTbDisasFlags;
 
         #pragma warning restore 649
 
