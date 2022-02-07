@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public long Size => 0x10000;
 
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
