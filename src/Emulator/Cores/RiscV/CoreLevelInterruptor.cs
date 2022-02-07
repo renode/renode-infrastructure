@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public CoreLevelInterruptor(Machine machine, long frequency, int numberOfTargets = 1)
         {
+            this.machine = machine;
             this.timerFrequency = frequency;
             if(numberOfTargets < 1)
             {
@@ -41,10 +42,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 {
                     (long)Registers.MTimeLo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read,
-                                 valueProviderCallback: _ => (uint)mTimers[0].Value,
+                                 valueProviderCallback: _ => (uint)TimerValue,
                                  writeCallback: (_, value) =>
                     {
-                        var timerValue = mTimers[0].Value;
+                        var timerValue = TimerValue;
                         timerValue &= ~0xffffffffUL;
                         timerValue |= value;
                         foreach(var timer in mTimers)
@@ -56,10 +57,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 },
                 {
                     (long)Registers.MTimeHi, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read,
-                             valueProviderCallback: _ => (uint)(mTimers[0].Value >> 32),
+                             valueProviderCallback: _ => (uint)(TimerValue >> 32),
                              writeCallback: (_, value) =>
                     {
-                        var timerValue = mTimers[0].Value;
+                        var timerValue = TimerValue;
                         timerValue &= 0xffffffffUL;
                         timerValue |= (ulong)value << 32;
                         foreach(var timer in mTimers) 
@@ -123,7 +124,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registers.Write(offset, value);
         }
 
-        public ulong TimerValue => mTimers[0]?.Value ?? 0; // "?." returns "(ulong?)null" instead of "default(ulong)", thus "?? 0"
+        public ulong TimerValue
+        {
+            get
+            {
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+                
+                return mTimers[0].Value;
+            }
+        }
 
         public long Size => 0x10000;
 
@@ -133,6 +145,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
         private readonly long timerFrequency;
+        private readonly Machine machine;
 
         private enum Registers : long
         {
