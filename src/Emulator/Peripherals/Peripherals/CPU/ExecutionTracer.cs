@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"There was an error when preparing the execution trace output file {file}: {e.Message}");
             }
             
-            AttachedCPU.SetHookAtBlockEnd(HandleBlock);
+            AttachedCPU.SetHookAtBlockEnd(HandleBlockEndHook);
         }
 
         public void Dispose()
@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             DumpBuffer(sb);
         }
 
-        private void HandleBlock(ulong pc, uint instructionsInBlock)
+        private void HandleBlockEndHook(ulong pc, uint instructionsInBlock)
         {
             if(instructionsInBlock == 0)
             {
