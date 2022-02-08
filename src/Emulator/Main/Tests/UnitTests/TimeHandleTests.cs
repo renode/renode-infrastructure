@@ -42,6 +42,26 @@ namespace UnitTests
         }
 
         [Test]
+        public void ShouldHandleProgressIncludingResiduum()
+        {
+            GrantOnSource();
+            
+            RequestOnSink().ShouldFinish();
+            ContinueOnSink(TimeInterval.FromTicks(100));
+
+            WaitOnSource().ShouldFinish();
+            GrantOnSource();
+
+            RequestOnSink().ShouldFinish();
+            // report progress: a granted quantum + residuum from the previous run
+            ReportProgressOnSink(TimeInterval.FromTicks(1100));
+            ContinueOnSink();
+
+            WaitOnSource().ShouldFinish();
+            Finish();
+        }
+
+        [Test]
         public void WaitShouldNotBlockIfThereWasNoRequest()
         {
             GrantOnSource();
@@ -599,6 +619,11 @@ namespace UnitTests
             // it may block or not
             requestResult = tester.Execute(sinkThread, () => { var r = handle.RequestTimeInterval(out var i); return Tuple.Create(r, i);}, "Request");
             return requestResult;
+        }
+        
+        private ThreadSyncTester.ExecutionResult ReportProgressOnSink(TimeInterval p)
+        {
+            return tester.Execute(sinkThread, () => { handle.ReportProgress(p); return null;}, "ReportProgress").ShouldFinish();
         }
 
         private ThreadSyncTester.ExecutionResult DisposeOnExternal()
