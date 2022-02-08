@@ -51,7 +51,7 @@
           <SourceFiles Include="renode/arch/$(EmulatedTarget)/*.c" />
       </ItemGroup>
       <ItemGroup>
-          <CompilationFlags Include="-fomit-frame-pointer" />
+          <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release'" />
           <CompilationFlags Include="-shared" Condition=" $(CurrentPlatform) != 'OSX' " />
           <CompilationFlags Include="-fPIC" Condition=" $(CurrentPlatform) != 'Windows'" />
           <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug'" />

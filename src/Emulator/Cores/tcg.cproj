@@ -24,7 +24,7 @@
       <CompilationFlags Include="-DTARGET_LONG_BITS=$(TargetWordSize)" />
       <CompilationFlags Include="-I $(TcgDirectory)/$(Architecture)" />
       <CompilationFlags Include="-I $(TcgDirectory) " />
-      <CompilationFlags Include="-fomit-frame-pointer" />
+      <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release'" />
       <CompilationFlags Include="-fPIC " Condition=" $(CurrentPlatform) != 'Windows'" />
       <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug'" />
 
