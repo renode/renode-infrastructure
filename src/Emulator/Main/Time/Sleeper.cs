@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Time
     {
         public Sleeper()
         {
+            locker = new object();
             stopwatch = new Stopwatch();
             cancellationToken = new CancellationTokenSource();
         }
@@ -31,11 +32,12 @@ namespace Antmicro.Renode.Time
         {
             stopwatch.Restart();
             var timeLeft = time;
+            var tokenSource = cancellationToken;
             this.Trace($"Asked to sleep for {timeLeft}");
-            while(timeLeft.Ticks > 0 && !cancellationToken.IsCancellationRequested)
+            while(timeLeft.Ticks > 0 && !tokenSource.IsCancellationRequested)
             {
                 this.Trace($"Sleeping for {timeLeft}");
-                cancellationToken.Token.WaitHandle.WaitOne(timeLeft);
+                tokenSource.Token.WaitHandle.WaitOne(timeLeft);
                 timeLeft = time - stopwatch.Elapsed;
             }
             stopwatch.Stop();
@@ -50,16 +52,24 @@ namespace Antmicro.Renode.Time
         /// </remarks>
         public void Disable()
         {
-            cancellationToken.Cancel();
+            lock(locker)
+            {
+                cancellationToken.Cancel();
+            }
         }
 
         public void Enable()
         {
-            cancellationToken = new CancellationTokenSource();
+            lock(locker)
+            {
+                cancellationToken?.Cancel();
+                cancellationToken = new CancellationTokenSource();
+            }
         }
 
         [Constructor]
         private CancellationTokenSource cancellationToken;
         private readonly Stopwatch stopwatch;
+        private readonly object locker;
     }
 }
