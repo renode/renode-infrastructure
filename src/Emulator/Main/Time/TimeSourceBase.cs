@@ -58,10 +58,11 @@ namespace Antmicro.Renode.Time
             StopRequested = null;
             SyncHook      = null;
             TimePassed    = null;
-            handles.LatchAllAndCollectGarbage();
-            handles.UnlatchAll();
             using(sync.HighPriority)
             {
+                handles.LatchAllAndCollectGarbage();
+                handles.UnlatchAll();
+                
                 foreach(var slave in handles.All)
                 {
                     slave.Dispose();
@@ -574,7 +575,10 @@ namespace Antmicro.Renode.Time
                 EnterBlockedState();
             }
 
-            handles.UpdateHandle(handle);
+            using(sync.HighPriority)
+            {
+                handles.UpdateHandle(handle);
+            }
         }
 
         /// <summary>
