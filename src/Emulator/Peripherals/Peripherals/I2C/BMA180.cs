@@ -89,6 +89,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 // Must always have mode and register address in list
                 this.Log(LogLevel.Noisy, "Write - too few elements in list ({0}) - must be at least two", data.Length);
+                return;
             }
             this.NoisyLog("Write {0}", data.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
             // First byte sets the device state
