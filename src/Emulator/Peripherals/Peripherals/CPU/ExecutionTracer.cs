@@ -100,14 +100,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleBlock(Block block, StringBuilder sb)
         {
-            var pc = block.LastInstructionPC;
+            var pc = block.FirstInstructionPC;
             var counter = 0;
 
-            var stack = new Stack<DisassemblyResult>();
-
-            // PC points to the last instruction in the block
-            // - we need to go back and disassemble previous
-            // instructions
             while(counter < (int)block.InstructionsCount)
             {
                 // here we read only 4-bytes as it should cover most cases
@@ -136,28 +131,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(!cachedItem.HasValue)
                 {
-                    stack.Push(new DisassemblyResult() { PC = pc });
+                    sb.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
                     break;
                 }
                 else
                 {
                     var result = cachedItem.Value;
                     result.PC = pc;
-                    
-                    stack.Push(result);
-                    pc -= (ulong)result.OpcodeSize;
-                    counter++;
-                }
-            }
-
-            foreach(var result in stack)
-            {
-                if(result.OpcodeString == null)
-                {
-                    sb.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", result.PC);
-                }
-                else
-                {
+                   
                     switch(format)
                     {
                         case Format.PC:
@@ -176,6 +157,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                             AttachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
                             break;
                     }
+                    
+                    pc += (ulong)result.OpcodeSize;
+                    counter++;
                 }
             }
         }
@@ -225,7 +209,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             try
             {
-                blocks.Add(new Block { LastInstructionPC = pc, InstructionsCount = instructionsInBlock });
+                blocks.Add(new Block { FirstInstructionPC = pc, InstructionsCount = instructionsInBlock });
             }
             catch(InvalidOperationException)
             {
@@ -253,12 +237,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private struct Block
         {
-            public ulong LastInstructionPC;
+            public ulong FirstInstructionPC;
             public ulong InstructionsCount;
 
             public override string ToString()
             {
-                return $"[Block: ending at 0x{LastInstructionPC:X} with {InstructionsCount} instructions]";
+                return $"[Block: ending at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions]";
             }
         }
     }
