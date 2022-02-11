@@ -237,7 +237,7 @@ namespace Antmicro.Renode.Time
         {
             lock(reportTimeProgressLock)
             {
-                var currentCommonElapsedTime = handles.CommonElapsedTime;
+                handles.TryGetCommonElapsedTime(out var currentCommonElapsedTime);
                 if(currentCommonElapsedTime > previousElapsedVirtualTime)
                 {
                     var timeDiff = currentCommonElapsedTime - previousElapsedVirtualTime;
@@ -418,7 +418,7 @@ namespace Antmicro.Renode.Time
                         executor.ExecuteInParallel(handles.WithLinkedListNode);
                     }
 
-                    var commonElapsedTime = handles.CommonElapsedTime;
+                    handles.TryGetCommonElapsedTime(out var commonElapsedTime);
                     DebugHelper.Assert(commonElapsedTime >= ElapsedVirtualTime, $"A slave reports time from the past! The current virtual time is {ElapsedVirtualTime}, but {commonElapsedTime} has been reported");
                     virtualTimeElapsed = commonElapsedTime - ElapsedVirtualTime;
                 }

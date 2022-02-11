@@ -114,6 +114,24 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Calculates a base elapsed virtual time (minimal) for all handles.
+        /// Returns `false` if the handles collection is empty.
+        /// </summary>
+        public bool TryGetCommonElapsedTime(out TimeInterval commonElapsedTime)
+        {
+            lock(locker)
+            {
+                if(notReady.Count == 0 && ready.Count == 0)
+                {
+                    commonElapsedTime = TimeInterval.Empty;
+                    return false;
+                }
+                commonElapsedTime = All.Min(x => x.TotalElapsedTime);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Gets an enumerator over the part of handles collection - either not-ready-for-a-new-time-grant handles (if any) or ready ones (otherwise) returning objects of <see cref="LinkedListNode{TimeHandle}"/>.
         /// </summary>
         public IEnumerable<LinkedListNode<TimeHandle>> WithLinkedListNode
@@ -144,21 +162,6 @@ namespace Antmicro.Renode.Time
         /// Returns an enumeration of all handles in the collection - not-ready queue concatenated with ready one.
         /// </summary>
         public IEnumerable<TimeHandle> All { get { return notReady.Concat(ready); } }
-
-        public TimeInterval CommonElapsedTime
-        {
-            get
-            {
-                lock(locker)
-                {
-                    if(notReady.Count == 0 && ready.Count == 0)
-                    {
-                        return TimeInterval.Empty;
-                    }
-                    return All.Min(x => x.TotalElapsedTime);
-                }
-            }
-        }
 
         /// <see cref="GetEnumerator">
         IEnumerator IEnumerable.GetEnumerator()
