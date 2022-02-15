@@ -168,6 +168,18 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("kernel32.dll", EntryPoint="GetLastError")]
         public static extern UInt32 WindowsGetLastError();
+#elif PLATFORM_LINUX
+        [DllImport("libdl.so.2")]
+        private static extern IntPtr dlopen(string file, int mode);
+
+        [DllImport("libdl.so.2")]
+        private static extern IntPtr dlerror();
+
+        [DllImport("libdl.so.2")]
+        private static extern IntPtr dlsym(IntPtr handle, string name);
+
+        [DllImport("libdl.so.2")]
+        private static extern int dlclose(IntPtr handle);
 #else
         [DllImport("dl")]
         private static extern IntPtr dlopen(string file, int mode);
