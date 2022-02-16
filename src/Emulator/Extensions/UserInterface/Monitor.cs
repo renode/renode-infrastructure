@@ -548,16 +548,20 @@ namespace Antmicro.Renode.UserInterface
                     if(scannedFilesCache.Contains(sha))
                     {
                         writer.WriteLine($"Code from file {filename} has already been compiled. Ignoring...");
-
                         return true;
                     }
                 }
             }
 
-            var compiler = new AdHocCompiler();
             try
             {
-                var compiledCode = compiler.Compile(filename);
+                if(!compiledFileCache.TryGetEntryWithSha(sha, out var compiledCode))
+                {
+                    var compiler = new AdHocCompiler();
+                    compiledCode = compiler.Compile(filename);
+                    compiledFileCache.StoreEntryWithSha(sha, compiledCode);
+                }
+                
                 cache.ClearCache();
                 var result = TypeManager.Instance.ScanFile(compiledCode);
                 if(result)
@@ -575,6 +579,7 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
+        private SimpleFileCache compiledFileCache = new SimpleFileCache("compiler-cache");
         private List<string> scannedFilesCache = new List<string>();
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
