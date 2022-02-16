@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -531,13 +531,21 @@ namespace Antmicro.Renode.UserInterface
 
         private bool TryCompilePlugin(string filename, ICommandInteraction writer)
         {
-            byte[] sha = null;
+            string sha; 
             using(var shaComputer = SHA256.Create())
             {
                 using(var f = File.OpenRead(filename))
                 {
-                    sha = shaComputer.ComputeHash(f);
-                    if(compiledFilesCache.Any(x => Enumerable.SequenceEqual(x, sha)))
+                    var bytesSha = shaComputer.ComputeHash(f);
+
+                    var strBldr = new StringBuilder(32 * 2);
+                    foreach(var b in bytesSha)
+                    {
+                        strBldr.AppendFormat("{0:X2}", b);
+                    }
+                    sha = strBldr.ToString();
+
+                    if(scannedFilesCache.Contains(sha))
                     {
                         writer.WriteLine($"Code from file {filename} has already been compiled. Ignoring...");
 
@@ -554,7 +562,7 @@ namespace Antmicro.Renode.UserInterface
                 var result = TypeManager.Instance.ScanFile(compiledCode);
                 if(result)
                 {
-                    compiledFilesCache.Add(sha);
+                    scannedFilesCache.Add(sha);
                 }
                 return result;
             }
@@ -567,7 +575,7 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private List<byte[]> compiledFilesCache = new List<byte[]>();
+        private List<string> scannedFilesCache = new List<string>();
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
         {
