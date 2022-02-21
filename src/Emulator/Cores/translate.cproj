@@ -93,7 +93,6 @@
           <!-- This define is a little hack: It is necessary for CLinkerTask to create separate entry in hashes cache -->
           <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)" />
           <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(CurrentPlatform) == 'Linux' " />
-          <LinkFlags Include="-fomit-frame-pointer" />
           <!-- On Windows: link MinGW's pthread library statically -->
           <LinkFlags Include="-static -lwinpthread -dynamic" Condition="$(CurrentPlatform) == 'Windows'" />
           <LinkFlags Include="-lpthread" Condition="$(CurrentPlatform) != 'Windows'" />
