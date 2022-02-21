@@ -55,7 +55,7 @@
           <CompilationFlags Include="-shared" Condition=" $(CurrentPlatform) != 'OSX' " />
           <CompilationFlags Include="-fPIC" Condition=" $(CurrentPlatform) != 'Windows'" />
           <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug'" />
-          <CompilationFlags Include="-O3" Condition=" $(Configuration) == 'Release' or $(Configuration) == ''" />
+          <CompilationFlags Include="-O3" Condition=" $(Configuration) == 'Release'" />
           <CompilationFlags Include="-Wall" />
           <CompilationFlags Include="-Wextra" />
           <CompilationFlags Include="-Wno-unused-parameter" />
