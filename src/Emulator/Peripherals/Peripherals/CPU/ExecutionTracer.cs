@@ -316,7 +316,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public override string ToString()
             {
-                return $"[Block: ending at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions]";
+                return $"[Block: starting at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions]";
             }
         }
     }
