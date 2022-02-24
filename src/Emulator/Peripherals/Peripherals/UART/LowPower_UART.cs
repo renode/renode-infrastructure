@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -14,6 +14,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.UART
 {
     // This model doesn't implement idling, matching, anything that requires more than 8 bit wide data and irDA
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LowPower_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
         public LowPower_UART(Machine machine, long frequency = 8000000) : base(machine)
