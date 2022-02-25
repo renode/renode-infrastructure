@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,6 +17,11 @@
     
     PC_REGISTER = "NIP";
 
-    GENERAL_REGISTERS.AddRange(new[] { "PC" });
+    GENERAL_REGISTERS.AddRange(new[] { "R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
+                                       "R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R18", "R19",
+                                       "R20", "R21", "R22", "R23", "R24", "R25", "R26", "R27", "R28", "R29",
+                                       "R30", "R31",
+
+                                       "PC" });
 #>
 <#@ include file="../Common/RegisterTemplate.tt" #>
