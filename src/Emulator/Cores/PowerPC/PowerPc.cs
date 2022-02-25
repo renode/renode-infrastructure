@@ -74,7 +74,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string GDBArchitecture { get { return "powerpc:common"; } }
 
-        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
+        public override List<GDBFeatureDescriptor> GDBFeatures
+        {
+            get
+            {
+                var powerCore = new GDBFeatureDescriptor("org.gnu.gdb.power.core");
+                for(var index = 0u; index < 32; index++)
+                {
+                    powerCore.Registers.Add(new GDBRegisterDescriptor(index, 32, $"r{index}", "uint32", "general"));
+                }
+
+                powerCore.Registers.Add(new GDBRegisterDescriptor(64, 32, "pc", "code_ptr", "general"));
+                powerCore.Registers.Add(new GDBRegisterDescriptor(65, 32, "msr", "uint32", "general"));
+                powerCore.Registers.Add(new GDBRegisterDescriptor(66, 32, "cr", "uint32", "general"));
+                powerCore.Registers.Add(new GDBRegisterDescriptor(67, 32, "lr", "code_ptr", "general"));
+                powerCore.Registers.Add(new GDBRegisterDescriptor(68, 32, "ctr", "uint32", "general"));
+                powerCore.Registers.Add(new GDBRegisterDescriptor(69, 32, "xer", "uint32", "general"));
+
+                return new List<GDBFeatureDescriptor>(new GDBFeatureDescriptor[] { powerCore });
+            }
+        }
 
         public bool WaitAsNop 
         { 
