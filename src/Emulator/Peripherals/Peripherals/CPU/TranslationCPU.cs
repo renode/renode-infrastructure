@@ -323,7 +323,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
 
-            lock(haltedLock)
+            lock(pauseLock)
             {
                 this.Trace();
                 currentHaltedState = shouldBeHalted;
@@ -982,7 +982,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ulong Step(int count = 1, bool? blocking = null)
         {
-            lock(haltedLock)
+            lock(pauseLock)
             {
                 if(IsHalted)
                 {
@@ -1174,7 +1174,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
             singleStepSynchronizer = new Synchronizer();
-            haltedLock = new object();
 
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
@@ -1259,8 +1258,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Transient]
         private SimpleMemoryManager memoryManager;
-
-        private object haltedLock;
 
         public uint IRQ{ get { return TlibIsIrqSet(); } }
 
@@ -1663,7 +1660,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
 
-                lock(haltedLock)
+                lock(pauseLock)
                 {
                     this.Trace();
                     isHaltedRequested = value;
@@ -2031,7 +2028,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace("Setting a new time handle");
                 timeHandle?.Dispose();
-                lock(haltedLock)
+                lock(pauseLock)
                 {
                     timeHandle = value;
                     timeHandle.Enabled = !currentHaltedState;
