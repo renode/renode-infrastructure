@@ -237,6 +237,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
 
+            var translatedAddress = AttachedCPU.TranslateAddress(pc, MpuAccess.InstructionFetch);
+            if(translatedAddress != ulong.MaxValue)
+            {
+                pc = translatedAddress;
+            }
+
             try
             {
                 blocks.Add(new Block { FirstInstructionPC = pc, InstructionsCount = instructionsInBlock });
