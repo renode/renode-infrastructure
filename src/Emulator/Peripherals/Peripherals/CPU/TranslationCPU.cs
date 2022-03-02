@@ -403,7 +403,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Pause()
         {
-            InnerPause(new HaltArguments(HaltReason.Pause, Id));
+            InnerPause(new HaltArguments(HaltReason.Pause, Id), checkPauseGuard: true);
         }
 
         private void RequestPause()
@@ -417,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void InnerPause(HaltArguments haltArgs)
+        private void InnerPause(HaltArguments haltArgs, bool checkPauseGuard)
         {
             if(isAborted || isPaused)
             {
@@ -439,7 +439,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.NoisyLog("Paused.");
                 }
                 // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
-                else if(!insideBlockHook)
+                else if(!insideBlockHook && checkPauseGuard)
                 {
                     pauseGuard.OrderPause();
                 }
@@ -1139,7 +1139,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.NoisyLog("About to dispose CPU.");
             }
-            InnerPause(new HaltArguments(HaltReason.Abort, Id));
+            InnerPause(new HaltArguments(HaltReason.Abort, Id), checkPauseGuard: false);
             TimeHandle.Dispose();
             started = false;
             if(!silent)
@@ -1685,9 +1685,27 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Trace();
                     isHaltedRequested = value;
                     UpdateHaltedState();
+
+                    if(value)
+                    {
+                        if(started && !isPaused)
+                        {
+                            wasRunningWhenHalted = true;
+                            InnerPause(new HaltArguments(HaltReason.Pause, Id), checkPauseGuard: false);
+                        }
+                    }
+                    else
+                    {
+                        if(wasRunningWhenHalted)
+                        {
+                            Resume();
+                        }
+                    }
                 }
             }
         }
+
+        private bool wasRunningWhenHalted;
 
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
