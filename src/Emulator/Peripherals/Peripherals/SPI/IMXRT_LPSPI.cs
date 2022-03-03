@@ -244,8 +244,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                 sizeLeft = GetFrameSize();
             }
 
-            var result = new List<byte>();
-
             // we can read up to 4 bytes at a time
             var ctr = 0;
             while(sizeLeft != 0 && ctr < 4)
