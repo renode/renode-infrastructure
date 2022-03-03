@@ -535,11 +535,6 @@ namespace Antmicro.Renode.UserInterface
 
         private void PrintMonitorInfo(string name, MonitorInfo info, ICommandInteraction writer, string lookup = null)
         {
-            var ColorDefault = string.Format("\x1B[{0};{1}m", 0, 0);
-            var ColorRed = string.Format("\x1B[{0};{1}m", 1, 31);
-            var ColorGreen = string.Format("\x1B[{0};{1}m", 0, 32);
-            var ColorYellow = string.Format("\x1B[{0};{1}m", 0, 33);
-
             if(info == null)
             {
                 return;
@@ -547,11 +542,12 @@ namespace Antmicro.Renode.UserInterface
             if(info.Methods != null && info.Methods.Any(x => lookup == null || x.Name == lookup))
             {
                 writer.WriteLine("\nThe following methods are available:");
-                var methodsOutput = new StringBuilder();
 
                 foreach(var method in info.Methods.Where(x=> lookup == null || x.Name==lookup))
                 {
-                    methodsOutput.Append(" - " + ColorGreen + TypePrettyName(method.ReturnType) + ColorDefault + " " + method.Name);
+                    writer.Write(" - ");
+                    writer.Write(TypePrettyName(method.ReturnType), ConsoleColor.Green);
+                    writer.Write($" {method.Name} (");
 
                     IEnumerable<ParameterInfo> parameters;
 
@@ -565,45 +561,42 @@ namespace Antmicro.Renode.UserInterface
                     }
                     parameters = parameters.Where(x => !Attribute.IsDefined(x, typeof(AutoParameterAttribute)));
 
-                    methodsOutput.Append(" (");
-
                     var lastParameter = parameters.LastOrDefault();
                     foreach(var param in parameters.Where(x=> !x.IsRetval))
                     {
                         if(param.IsOut)
                         {
-                            methodsOutput.Append(ColorYellow + "out ");
+                            writer.Write("out ", ConsoleColor.Yellow);
                         }
-                        methodsOutput.Append(ColorGreen + TypePrettyName(param.ParameterType) + ColorDefault + " " + param.Name);
+                        writer.Write(TypePrettyName(param.ParameterType), ConsoleColor.Green);
+                        writer.Write($" {param.Name}");
+
                         if(param.IsOptional)
                         {
-                            methodsOutput.Append(" = " + ColorRed);
+                            writer.Write(" = ");
                             if(param.DefaultValue == null)
                             {
-                                methodsOutput.Append("null");
+                                writer.Write("null", ConsoleColor.DarkRed);
                             }
                             else
                             {
                                 if(param.ParameterType.Name == "String")
                                 {
-                                    methodsOutput.Append('"');
+                                    writer.Write("\"", ConsoleColor.DarkRed);
                                 }
-                                methodsOutput.Append(param.DefaultValue);
+                                writer.Write(param.DefaultValue.ToString(), ConsoleColor.DarkRed);
                                 if(param.ParameterType.Name == "String")
                                 {
-                                    methodsOutput.Append('"');
+                                    writer.Write("\"", ConsoleColor.DarkRed);
                                 }
                             }
-                            methodsOutput.Append(ColorDefault);
                         }
                         if(lastParameter != param)
                         {
-                            methodsOutput.Append(", ");
+                            writer.Write(", ");
                         }
                     }
-                    methodsOutput.Append(")");
-                    writer.WriteLine(methodsOutput.ToString());
-                    methodsOutput.Clear();
+                    writer.WriteLine(")");
                 }
                 writer.WriteLine(string.Format("\n\rUsage:\n\r {0} MethodName param1 param2 ...\n\r", name));
             }
@@ -614,15 +607,13 @@ namespace Antmicro.Renode.UserInterface
 
                 foreach(var property in info.Properties.Where(x=> lookup==null || x.Name==lookup))
                 {
-                    writer.Write(string.Format(
-                        " - " + ColorGreen + "{1} " + ColorDefault + "{0}\n\r",
-                        property.Name,
-                        TypePrettyName(property.PropertyType)
-                    ));
+                    writer.Write(" - ");
+                    writer.Write(TypePrettyName(property.PropertyType), ConsoleColor.Green);
+                    writer.WriteLine($" {property.Name}");
                     writer.Write("     available for ");
                     if(property.IsCurrentlyGettable(CurrentBindingFlags))
                     {
-                        writer.Write(ColorYellow + "'get'" + ColorDefault);
+                        writer.Write("'get'", ConsoleColor.Yellow);
                     }
                     if(property.IsCurrentlyGettable(CurrentBindingFlags) && property.IsCurrentlySettable(CurrentBindingFlags))
                     {
@@ -630,14 +621,15 @@ namespace Antmicro.Renode.UserInterface
                     }
                     if(property.IsCurrentlySettable(CurrentBindingFlags))
                     {
-                        writer.Write(ColorYellow + "'set'" + ColorDefault);
+                        writer.Write("'set'", ConsoleColor.Yellow);
                     }
                     writer.WriteLine();
                 }
-                writer.WriteLine(string.Format(
-                    "\n\rUsage: \n\r - " + ColorYellow + "get" + ColorDefault + ": {0} PropertyName\n\r - " + ColorYellow + "set" + ColorDefault + ": {0} PropertyName Value\n\r",
-                    name
-                ));
+                writer.Write("\n\rUsage:\n\r - ");
+                writer.Write("get", ConsoleColor.Yellow);
+                writer.Write($": {name} PropertyName\n\r - ");
+                writer.Write("set", ConsoleColor.Yellow);
+                writer.WriteLine($": {name} PropertyName Value\n\r");
             }
 
             if(info.Indexers != null && info.Indexers.Any(x => lookup == null || x.Name == lookup))
@@ -645,50 +637,44 @@ namespace Antmicro.Renode.UserInterface
                 writer.WriteLine("\nThe following indexers are available:");
                 foreach(var indexer in info.Indexers.Where(x=> lookup==null || x.Name==lookup))
                 {
-                    var parameterFormat = new StringBuilder();
-                    parameterFormat.Append(string.Format(
-                        " - " + ColorGreen + "{1} " + ColorDefault + "{0}[",
-                        indexer.Name,
-                        TypePrettyName(indexer.PropertyType)
-                    ));
+                    writer.Write(" - ");
+                    writer.Write(TypePrettyName(indexer.PropertyType), ConsoleColor.Green);
+                    writer.Write($" {indexer.Name}[");
                     var parameters = indexer.GetIndexParameters();
                     var lastParameter = parameters.LastOrDefault();
                     foreach(var param in parameters)
                     {
-
-                        parameterFormat.Append(ColorGreen + TypePrettyName(param.ParameterType) + ColorDefault + " " + param.Name);
+                        writer.Write(TypePrettyName(param.ParameterType), ConsoleColor.Green);
+                        writer.Write($" {param.Name}");
                         if(param.IsOptional)
                         {
-                            parameterFormat.Append(" = " + ColorRed);
+                            writer.Write(" = ");
                             if(param.DefaultValue == null)
                             {
-                                parameterFormat.Append("null");
+                                writer.Write("null", ConsoleColor.DarkRed);
                             }
                             else
                             {
                                 if(param.ParameterType.Name == "String")
                                 {
-                                    parameterFormat.Append('"');
+                                    writer.Write("\"", ConsoleColor.DarkRed);
                                 }
-                                parameterFormat.Append(param.DefaultValue);
+                                writer.Write(param.DefaultValue.ToString(), ConsoleColor.DarkRed);
                                 if(param.ParameterType.Name == "String")
                                 {
-                                    parameterFormat.Append('"');
+                                    writer.Write("\"", ConsoleColor.DarkRed);
                                 }
                             }
-                            parameterFormat.Append(ColorDefault);
                         }
                         if(lastParameter != param)
                         {
-                            parameterFormat.Append(", ");
+                            writer.Write(", ");
                         }
                     }
-                    parameterFormat.Append(']');
-                    writer.Write(parameterFormat.ToString());
-                    writer.Write("     available for ");
+                    writer.Write("]     available for ");
                     if(indexer.IsCurrentlyGettable(CurrentBindingFlags))
                     {
-                        writer.Write(ColorYellow + "'get'" + ColorDefault);
+                        writer.Write("'get'", ConsoleColor.Yellow);
                     }
                     if(indexer.IsCurrentlyGettable(CurrentBindingFlags) && indexer.IsCurrentlySettable(CurrentBindingFlags))
                     {
@@ -696,15 +682,15 @@ namespace Antmicro.Renode.UserInterface
                     }
                     if(indexer.IsCurrentlySettable(CurrentBindingFlags))
                     {
-                        writer.Write(ColorYellow + "'set'" + ColorDefault);
+                        writer.Write("'set'", ConsoleColor.Yellow);
                     }
                     writer.WriteLine();
                 }
-                writer.WriteLine(string.Format(
-                    "\n\rUsage: \n\r - " + ColorYellow + "get" + ColorDefault + ": {0} IndexerName [param1 param2 ...]\n\r - "
-                    + ColorYellow + "set" + ColorDefault + ": {0} IndexerName [param1 param2 ... ] Value\n\r   IndexerName is optional if every indexer has the same name.",
-                    name
-                ));
+                writer.Write("\n\rUsage:\n\r - ");
+                writer.Write("get", ConsoleColor.Yellow);
+                writer.Write($": {name} IndexerName [param1 param2 ...]\n\r - ");
+                writer.Write("set", ConsoleColor.Yellow);
+                writer.WriteLine($": {name} IndexerName [param1 param2 ...] Value\n\r   IndexerName is optional if every indexer has the same name.");
             }
 
             if(info.Fields != null && info.Fields.Any(x => lookup == null || x.Name == lookup))
@@ -713,17 +699,20 @@ namespace Antmicro.Renode.UserInterface
 
                 foreach(var field in info.Fields.Where(x=> lookup==null || x.Name==lookup))
                 {
-                    writer.Write(string.Format(" - " + ColorGreen + "{1} " + ColorDefault + "{0}", field.Name, TypePrettyName(field.FieldType)));
+                    writer.Write(" - ");
+                    writer.Write(TypePrettyName(field.FieldType), ConsoleColor.Green);
+                    writer.Write($" {field.Name}");
                     if(field.IsLiteral || field.IsInitOnly)
                     {
                         writer.Write(" (read only)");
                     }
                     writer.WriteLine("");
                 }
-                writer.WriteLine(string.Format(
-                    "\n\rUsage: \n\r - " + ColorYellow + "get" + ColorDefault + ": {0} fieldName\n\r - " + ColorYellow + "set" + ColorDefault + ": {0} fieldName Value\n\r",
-                    name
-                ));
+                writer.Write("\n\rUsage:\n\r - ");
+                writer.Write("get", ConsoleColor.Yellow);
+                writer.Write($": {name} fieldName\n\r - ");
+                writer.Write("set", ConsoleColor.Yellow);
+                writer.WriteLine($": {name} fieldName Value\n\r"); 
             }
         }
 
