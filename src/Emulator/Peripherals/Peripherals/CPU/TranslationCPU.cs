@@ -60,7 +60,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.bitness = bitness;
             started = false;
             translationCacheSync = new object();
-            pagesAccessedByIo = new HashSet<ulong>();
             pauseGuard = new CpuThreadPauseGuard(this);
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new Dictionary<ulong, HookDescriptor>();
@@ -552,14 +551,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetPageAccessViaIo(ulong address)
         {
-            pagesAccessedByIo.Add(address & ~(TlibGetPageSize() - 1));
-            TlibFlushPage(address);
+            TlibSetPageIoAccessed(address);
         }
 
         public void ClearPageAccessViaIo(ulong address)
         {
-            pagesAccessedByIo.Remove(address & ~(TlibGetPageSize() - 1));
-            TlibFlushPage(address);
+            TlibClearPageIoAccessed(address);
         }
 
         public bool DisableInterruptsWhileStepping { get; set; }
@@ -1152,12 +1149,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}.", PC.RawValue, message);
             throw new CpuAbortException(message);
-        }
-
-        [Export]
-        private int IsIoAccessed(ulong address)
-        {
-            return pagesAccessedByIo.Contains(address & ~(TlibGetPageSize() - 1)) ? 1 : 0;
         }
 
         public abstract string Architecture { get; }
@@ -1823,9 +1814,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 TlibSetBlockBeginHookPresent;
 
         [Import]
-        private ActionUInt64 TlibFlushPage;
-
-        [Import]
         protected ActionUInt64 TlibResetExecutedInstructions;
         [Import]
         private ActionUInt32 TlibSetInterruptBeginHookPresent;
@@ -1841,13 +1829,17 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibCleanWfiProcState;
+        
+        [Import]
+        private ActionUInt64 TlibSetPageIoAccessed;
+        
+        [Import]
+        private ActionUInt64 TlibClearPageIoAccessed;
 
         [Import]
         private FuncUInt32 TlibGetCurrentTbDisasFlags;
 
         #pragma warning restore 649
-
-        private readonly HashSet<ulong> pagesAccessedByIo;
 
         protected const int DefaultTranslationCacheSize = 32 * 1024 * 1024;
 
