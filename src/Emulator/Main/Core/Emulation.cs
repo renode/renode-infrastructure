@@ -211,7 +211,16 @@ namespace Antmicro.Renode.Core
                 }
 
                 machs.Add(name, machine);
-                MasterTimeSource.RegisterSink(machine.LocalTimeSource);
+
+                if(machine.LocalTimeSource is ITimeSink machineTimeSink)
+                {
+                    MasterTimeSource.RegisterSink(machineTimeSink);
+                }
+                else
+                {
+                    machine.LocalTimeSource = MasterTimeSource;
+                }
+
                 return true;
             }
         }
@@ -275,9 +284,9 @@ namespace Antmicro.Renode.Core
         {
             lock(machLock)
             {
+                MasterTimeSource.Stop();
                 Array.ForEach(machs.Rights, x => x.Pause());
                 ExternalsManager.Pause();
-                MasterTimeSource.Stop();
                 IsStarted = false;
             }
         }
@@ -628,9 +637,9 @@ namespace Antmicro.Renode.Core
 
                 if(wasStarted)
                 {
+                    emulation.MasterTimeSource.Stop();
                     machineStates = emulation.Machines.Select(x => x.ObtainPausedState()).ToArray();
                     emulation.ExternalsManager.Pause();
-                    emulation.MasterTimeSource.Stop();
                 }
             }
 

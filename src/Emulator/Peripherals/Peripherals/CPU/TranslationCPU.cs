@@ -435,6 +435,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     singleStepSynchronizer.Enabled = false;
                     this.NoisyLog("Waiting for thread to pause.");
+                    TimeHandle.Interrupt();
                     cpuThreadCopy?.Join();
                     this.NoisyLog("Paused.");
                 }

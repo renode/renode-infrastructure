@@ -36,6 +36,11 @@ namespace Antmicro.Renode.Time
             this.Trace("Disposing...");
             lock(locker)
             {
+                if(isDisposed)
+                {
+                    this.Trace("Already disposed");
+                    return;
+                }
                 isDisposed = true;
                 // `Dispose` must be called before `Stop` as the latter waits for all `slaves` to finish (naturally or as a result of `Dispose`)
                 base.Dispose();
