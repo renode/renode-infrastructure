@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -15,14 +15,12 @@ typedef struct {
   uint64_t start;
   uint64_t size;
   void *host_pointer;
-  uint32_t hb_start;
 } __attribute__((packed)) host_memory_block_packed_t;
 
 typedef struct {
   uint64_t start;
   uint64_t size;
   void *host_pointer;
-  uint32_t hb_start;
   uint32_t last_used;
 } host_memory_block_t;
 
@@ -39,7 +37,6 @@ try_find_block:
   for(i = 0; i < count_cached; i++) {
     if(offset <= (host_blocks_cached[i].start + host_blocks_cached[i].size - 1) && offset >= host_blocks_cached[i].start) {
       // marking last used
-      host_blocks_cached[host_blocks_cached[i].hb_start].last_used = i;
       return host_blocks_cached[i].host_pointer + (offset - host_blocks_cached[i].start);
     }
   }
@@ -75,7 +72,6 @@ void renode_set_host_blocks(host_memory_block_packed_t *blocks, int count)
     host_blocks[i].start = blocks[i].start;
     host_blocks[i].size = blocks[i].size;
     host_blocks[i].host_pointer = blocks[i].host_pointer;
-    host_blocks[i].hb_start = blocks[i].hb_start;
     // guarding value, gives accessing via this offset will end in SIGSEGV almost for sure
   host_blocks[i].last_used = UINT32_MAX;
   }
@@ -93,7 +89,6 @@ void renode_set_host_blocks(host_memory_block_packed_t *blocks, int count)
       i++;
     }
     // fine, let's upgrade last_used accordingly
-    host_blocks[host_blocks[i].hb_start].last_used = i + old_mappings[j].last_used - j;
     last_pointer = host_blocks[i].host_pointer;
     j++;
   }

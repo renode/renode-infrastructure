@@ -1276,11 +1276,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var hostBlocks = currentMappings.Where(x => x.Touched).Select(x => x.Segment)
                     .Select(x => new HostMemoryBlock { Start = x.StartingOffset, Size = x.Size, HostPointer = x.Pointer })
                     .OrderBy(x => x.HostPointer.ToInt64()).ToArray();
-                for(var i = 0; i < hostBlocks.Length; i++)
-                {
-                    var j = i;
-                    hostBlocks[i].HostBlockStart = Array.FindIndex(hostBlocks, x => x.HostPointer == hostBlocks[j].HostPointer);
-                }
                 var blockBuffer = memoryManager.Allocate(Marshal.SizeOf(typeof(HostMemoryBlock))*hostBlocks.Length);
                 BlitArray(blockBuffer, hostBlocks.OrderBy(x => x.HostPointer.ToInt64()).Cast<dynamic>().ToArray());
                 RenodeSetHostBlocks(blockBuffer, hostBlocks.Length);
@@ -1580,7 +1575,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             public ulong Start;
             public ulong Size;
             public IntPtr HostPointer;
-            public int HostBlockStart;
         }
 
         #region IDisassemblable implementation
