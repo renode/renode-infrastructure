@@ -21,7 +21,6 @@ typedef struct {
   uint64_t start;
   uint64_t size;
   void *host_pointer;
-  uint32_t last_used;
 } host_memory_block_t;
 
 static host_memory_block_t *host_blocks;
@@ -52,7 +51,7 @@ uint64_t tlib_host_ptr_to_guest_offset(void *ptr)
   host_blocks_cached = (host_memory_block_t*)host_blocks;
   for(i = 0; i < count_cached; i++) {
     if(ptr <= (host_blocks_cached[i].host_pointer + host_blocks_cached[i].size - 1) && ptr >= host_blocks_cached[i].host_pointer) {
-      index = host_blocks_cached[i].last_used;
+      index = i;
       return host_blocks_cached[index].start + (ptr - host_blocks_cached[index].host_pointer);
     }
   }
@@ -72,25 +71,6 @@ void renode_set_host_blocks(host_memory_block_packed_t *blocks, int count)
     host_blocks[i].start = blocks[i].start;
     host_blocks[i].size = blocks[i].size;
     host_blocks[i].host_pointer = blocks[i].host_pointer;
-    // guarding value, gives accessing via this offset will end in SIGSEGV almost for sure
-  host_blocks[i].last_used = UINT32_MAX;
-  }
-
-  // every old mapping has to be in a new mappings as well
-  i = 0;
-  j = 0;
-  void *last_pointer = 0;
-  while(j < old_count) {
-    if(last_pointer == old_mappings[j].host_pointer) {
-      j++;
-      continue;
-    }
-    while(host_blocks[i].host_pointer != old_mappings[j].host_pointer || host_blocks[i].start != old_mappings[j].start) {
-      i++;
-    }
-    // fine, let's upgrade last_used accordingly
-    last_pointer = host_blocks[i].host_pointer;
-    j++;
   }
 
   if(old_mappings != NULL) {
