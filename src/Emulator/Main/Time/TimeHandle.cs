@@ -208,7 +208,7 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(!sinkSideInProgress, "Requested a new time interval, but the previous one is still processed.");
 
                 var result = true;
-                if(!Enabled)
+                if(!Enabled || interrupt)
                 {
                     result = false;
                 }
@@ -232,8 +232,8 @@ namespace Antmicro.Renode.Time
                         DebugHelper.Assert(!waitsToBeUnblocked, "Should not wait to be unblocked");
 
                         // we cannot latch again when deferredUnlatch is still on as we could overwrite it and never unlatch again
-                        innerLock.WaitWhile(() => deferredUnlatch && SourceSideActive, "Waiting for previous unlatch");
-                        if(!SourceSideActive)
+                        innerLock.WaitWhile(() => deferredUnlatch && SourceSideActive && !interrupt, "Waiting for previous unlatch");
+                        if(!SourceSideActive || interrupt)
                         {
                             result = false;
                         }
@@ -244,8 +244,8 @@ namespace Antmicro.Renode.Time
                             Latch();
 
                             waitsToBeUnblocked = true;
-                            innerLock.WaitWhile(() => waitsToBeUnblocked && SourceSideActive, "Waiting to be unblocked");
-                            if(!SourceSideActive)
+                            innerLock.WaitWhile(() => waitsToBeUnblocked && SourceSideActive && !interrupt, "Waiting to be unblocked");
+                            if(!SourceSideActive || interrupt)
                             {
                                 DebugHelper.Assert(waitsToBeUnblocked, "Expected only one condition to change");
 
@@ -272,8 +272,8 @@ namespace Antmicro.Renode.Time
                 else if(!grantPending)
                 {
                     // wait until a new time interval is granted or this handle is disabled/deactivated
-                    innerLock.WaitWhile(() => !grantPending && Enabled && SourceSideActive, "Waiting for a time grant");
-                    result = grantPending && !delayGrant;
+                    innerLock.WaitWhile(() => !grantPending && Enabled && SourceSideActive && !interrupt, "Waiting for a time grant");
+                    result = grantPending && !delayGrant && !interrupt;
                     delayGrant = false;
                 }
 
@@ -293,6 +293,7 @@ namespace Antmicro.Renode.Time
                 }
 
                 this.Trace($"{result}, {interval.Ticks}");
+                interrupt = false;
                 return result;
             }
         }
@@ -576,6 +577,18 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// Interrupts the current or next call to <see cref="RequestTimeInterval"/> causing it to return 'false' immediately.
+        /// </summary>
+        public void Interrupt()
+        {
+            lock(innerLock)
+            {
+                interrupt = true;
+                Monitor.PulseAll(innerLock);
+            }
+        }
+
+        /// <summary>
         /// Sets the value indicating if the handle is enabled, i.e., is sink interested in the time information.
         /// </summary>
         /// <remarks>
@@ -847,6 +860,7 @@ namespace Antmicro.Renode.Time
         private bool deferredUnlatch;
         private bool recentlyUnblocked;
         private bool delayGrant;
+        private bool interrupt;
         private volatile bool isDone;
 
         private readonly object innerLock;
