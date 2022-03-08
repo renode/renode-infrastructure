@@ -10,26 +10,36 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class IMXRT_LPSPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class IMXRT_LPSPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public IMXRT_LPSPI(Machine machine) : base(machine)
+        public IMXRT_LPSPI(Machine machine, uint fifoSize = 4) : base(machine)
         {
+            if(fifoSize == 0 || (fifoSize & (fifoSize - 1)) != 0)
+            {
+                throw new ConstructionException($"Invalid fifoSize! It has to be a power of 2 but the fifoSize provided was: {fifoSize}");
+            }
+            fifoSizeLog2 = (uint)Math.Log(fifoSize, 2);
+
             IRQ = new GPIO();
             outputFifo = new Queue<byte>();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
+
+            Reset();
         }
 
         public override void Reset()
         {
-            sizeLeft = 0;
             continuousTransferInProgress = false;
+            selectedDevice = null;
+            sizeLeft = 0;
 
             outputFifo.Clear();
             RegistersCollection.Reset();
@@ -58,12 +68,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(0, FieldMode.Read, name: "TDF - Transmit Data Flag", valueProviderCallback: _ => true) // TX fifo is always empty, so this bit is always active
                 .WithFlag(1, FieldMode.Read, name: "RDF - Receive Data Flag", valueProviderCallback: _ => GetWordsCount() > rxWatermark.Value)
                 .WithReservedBits(2, 6)
-                .WithTaggedFlag("WCF - Word Complete Flag", 8)
-                .WithTaggedFlag("FCF - Frame Complete Flag", 9)
+                // b8-9, b11-13: Unused but don't warn if they're cleared.
+                .WithFlag(8, FieldMode.WriteOneToClear, name: "WCF - Word Complete Flag")
+                .WithFlag(9, FieldMode.WriteOneToClear, name: "FCF - Frame Complete Flag")
                 .WithFlag(10, out transferComplete, FieldMode.Read | FieldMode.WriteOneToClear, name: "TCF - Transfer Complete Flag")
-                .WithTaggedFlag("TEF - Transmit Error Flag", 11)
-                .WithTaggedFlag("REF - Receive Error Flag", 12)
-                .WithTaggedFlag("DMF - Data Match Flag", 13)
+                .WithFlag(11, FieldMode.WriteOneToClear, name: "TEF - Transmit Error Flag")
+                .WithFlag(12, FieldMode.WriteOneToClear, name: "REF - Receive Error Flag")
+                .WithFlag(13, FieldMode.WriteOneToClear, name: "DMF - Data Match Flag")
                 .WithReservedBits(14, 10)
                 .WithTaggedFlag("MBF - Module Busy Flag", 24)
                 .WithReservedBits(25, 7);
@@ -78,10 +89,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(21, out continuousTransfer, name: "CONT - Continuous Command")
                 .WithTaggedFlag("BYSW - Byte Swap", 22)
                 .WithTaggedFlag("LSBF - LSB First", 23)
-                .WithTag("PCS - Peripheral Chip Select", 24, 2) // enum
+                .WithValueField(24, 2, name: "PCS - Peripheral Chip Select", writeCallback: (_, value) =>
+                {
+                    if(!TryGetByAddress((int)value, out selectedDevice))
+                    {
+                        this.Log(LogLevel.Error, "No device is connected to LPSPI_PCS[{0}]!", value);
+                    }
+                })
                 .WithReservedBits(26, 1)
                 .WithTag("PRESCALE - Prescaler Value", 27, 3) // enum
-                .WithTaggedFlag("CPHA - Clock Phase", 30)
+                // Unused but don't warn when it's set.
+                .WithFlag(30, name: "CPHA - Clock Phase")
                 .WithTaggedFlag("CPOL - Clock Polarity", 31)
                 .WithWriteCallback((_, __) =>
                 {
@@ -106,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 });
 
             Registers.TransmitData.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) => 
+                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) =>
                 {
                     if(!TrySendData(val))
                     {
@@ -121,10 +139,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(21, 11);
 
             Registers.FIFOControl.Define(this)
-                .WithTag("TXWATER - Transmit FIFO Watermark", 0, 4)
-                .WithReservedBits(5, 11)
-                .WithValueField(16, 5, out rxWatermark, name: "RXWATER - Receive FIFO Watermark")
-                .WithReservedBits(21, 11);
+                .WithTag("TXWATER - Transmit FIFO Watermark", 0, 2)
+                .WithReservedBits(2, 14)
+                .WithValueField(16, 2, out rxWatermark, name: "RXWATER - Receive FIFO Watermark")
+                .WithReservedBits(18, 14);
 
             Registers.ReceiveData.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
@@ -140,6 +158,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                         if(outputFifo.TryDequeue(out var val))
                         {
                             result += val;
+                            if(receiveDataInterruptEnable.Value && GetWordsCount() > rxWatermark.Value)
+                            {
+                                UpdateInterrupts();
+                            }
                         }
                         else
                         {
@@ -157,26 +179,72 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.Control.Define(this)
                 .WithFlag(0, out moduleEnable, name: "MEN - Module Enable")
-                .WithTaggedFlag("RST - Software Reset", 1)
+                .WithFlag(1, name: "RST - Software Reset", changeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        this.DebugLog("Software Reset requested by writing RST to the Control Register.");
+                        // TODO: The Control Register shouldn't be cleared. RST should remain set until cleared by software.
+                        Reset();
+                    }
+                })
                 .WithTaggedFlag("DOZEN - Doze mode enable", 2)
                 .WithTaggedFlag("DBGEN - Debug Enable", 3)
                 .WithReservedBits(4, 4)
                 .WithFlag(8, FieldMode.Write, name: "RTF - Reset Transmit FIFO") // since TX fifo is always empty, there is nothing to do here
                 .WithFlag(9, FieldMode.Write, name: "RRF - Reset Receive FIFO", writeCallback: (_, val) => { if(val) outputFifo.Clear(); })
-                .WithReservedBits(10, 22);
+                .WithReservedBits(10, 22)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.InterruptEnable.Define(this)
-                .WithTaggedFlag("TDIE - Transmit Data Interrupt Enable", 0)
-                .WithTaggedFlag("RDIE - Receive Data Interrupt Enable", 1)
+                // Transmit Data Flag is always set so the Transmit Interrupt is never triggered.
+                .WithFlag(0, name: "TDIE - Transmit Data Interrupt Enable")
+                .WithFlag(1, out receiveDataInterruptEnable, name: "RDIE - Receive Data Interrupt Enable")
                 .WithReservedBits(2, 6)
                 .WithTaggedFlag("WCIE - Word Complete Interrupt Enable", 8)
                 .WithTaggedFlag("FCIE - Frame Complete Interrupt Enable", 9)
                 .WithFlag(10, out transferCompleteInterruptEnable, name: "TCIE - Transfer Complete Interrupt Enable")
-                .WithTaggedFlag("TEIE - Transmit Error Interrupt Enable", 11)
-                .WithTaggedFlag("REIE - Receive Error Interrupt Enable", 12)
+                // b11-12: These interrupts are never used but allow them to be enabled.
+                .WithFlag(11, name: "TEIE - Transmit Error Interrupt Enable")
+                .WithFlag(12, name: "REIE - Receive Error Interrupt Enable")
                 .WithTaggedFlag("DMIE - Data Match Interrupt Enable", 13)
                 .WithReservedBits(14, 18)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
+
+            Registers.Parameter.Define(this)
+                .WithValueField(0, 8, FieldMode.Read, name: "TXFIFO - Transmit FIFO Size (in words; size = 2^TXFIFO)", valueProviderCallback: _ => fifoSizeLog2)
+                .WithValueField(8, 8, FieldMode.Read, name: "RXFIFO - Receive FIFO Size (in words; size = 2^RXFIFO)", valueProviderCallback: _ => fifoSizeLog2)
+                .WithReservedBits(16, 16);
+
+            Registers.Configuration1.Define(this)
+                .WithFlag(0, out masterMode, name: "MASTER - Master Mode", changeCallback: (_, value) =>
+                {
+                    this.DebugLog("Switching to the {0} Mode", value ? "Master" : "Slave");
+                    if(moduleEnable.Value)
+                    {
+                        this.Log(LogLevel.Warning, "The LPSPI module should be disabled when changing the Configuration Mode!");
+                    }
+                })
+                // Unused but don't warn when it's set.
+                .WithFlag(1, name: "SAMPLE - Sample Point")
+                .WithTaggedFlag("AUTOPCS - Automatic PCS", 2)
+                .WithTaggedFlag("NOSTALL - No Stall", 3)
+                .WithReservedBits(4, 4)
+                .WithTag("PCSPOL - Peripheral Chip Select Polarity", 8, 4)
+                .WithReservedBits(12, 4)
+                .WithTag("MATCFG - Match Configuration", 16, 3)
+                .WithReservedBits(19, 5)
+                .WithTag("PINCFG - Pin Configuration", 24, 2)
+                .WithTaggedFlag("OUTCFG - Output Config", 26)
+                .WithTaggedFlag("PCSCFG - Peripheral Chip Select Configuration", 27)
+                .WithReservedBits(28, 4);
+
+            // Unused but don't warn when it's read from or written to.
+            Registers.ClockConfiguration.Define(this)
+                .WithValueField(0, 8, name: "SCKDIV - SCK Divider")
+                .WithValueField(8, 8, name: "DBT - Delay Between Transfers")
+                .WithValueField(16, 8, name: "PCSSCK - PCS-to-SCK Delay")
+                .WithValueField(24, 8, name: "SCKPCS - SCK-to-PCS Delay");
         }
 
         private uint GetWordSizeInBits()
@@ -205,10 +273,16 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private bool CanTransfer(out ISPIPeripheral device)
         {
+            device = null;
             if(!moduleEnable.Value)
             {
                 this.Log(LogLevel.Warning, "Trying to send data, but the LPSPI module is disabled");
-                device = null;
+                return false;
+            }
+
+            if(!masterMode.Value)
+            {
+                this.Log(LogLevel.Error, "The Slave Mode is not supported!");
                 return false;
             }
 
@@ -284,13 +358,12 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private bool TryGetDevice(out ISPIPeripheral device)
         {
-            device = RegisteredPeripheral;
+            device = selectedDevice;
             if(device == null)
             {
-                this.Log(LogLevel.Warning, "No device connected");
+                this.Log(LogLevel.Warning, "No device connected!");
                 return false;
             }
-
             return true;
         }
 
@@ -298,12 +371,14 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             var flag = false;
 
+            flag |= receiveDataInterruptEnable.Value && GetWordsCount() > rxWatermark.Value;
             flag |= transferComplete.Value && transferCompleteInterruptEnable.Value;
 
             this.Log(LogLevel.Debug, "Setting IRQ flag to {0}", flag);
             IRQ.Set(flag);
         }
 
+        private IFlagRegisterField masterMode;
         private IFlagRegisterField moduleEnable;
         private IValueRegisterField frameSize;
         private IFlagRegisterField receiveDataMask;
@@ -313,12 +388,14 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField continuingCommand;
         private IFlagRegisterField continuousTransfer;
 
+        private IFlagRegisterField receiveDataInterruptEnable;
         private IFlagRegisterField transferCompleteInterruptEnable;
 
-        private uint sizeLeft;
         private bool continuousTransferInProgress;
-
+        private readonly uint fifoSizeLog2;
         private readonly Queue<byte> outputFifo;
+        private ISPIPeripheral selectedDevice;
+        private uint sizeLeft;
 
         private enum Registers : long
         {
