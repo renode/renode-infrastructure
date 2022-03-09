@@ -469,7 +469,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             isAborted = false;
             isInterruptLoggingEnabled = false;
-            wasRunningWhenHalted = false;
             Pause();
             HandleRamSetup();
             TlibReset();
@@ -1669,27 +1668,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Trace();
                     isHaltedRequested = value;
                     UpdateHaltedState();
-
-                    if(value)
-                    {
-                        if(started && !isPaused)
-                        {
-                            wasRunningWhenHalted = true;
-                            Pause();
-                        }
-                    }
-                    else
-                    {
-                        if(wasRunningWhenHalted)
-                        {
-                            Resume();
-                        }
-                    }
                 }
             }
         }
-
-        private bool wasRunningWhenHalted;
 
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
