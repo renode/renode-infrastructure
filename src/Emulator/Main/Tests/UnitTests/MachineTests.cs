@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,6 +15,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure;
 using System.Threading;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -79,13 +80,10 @@ namespace Antmicro.Renode.UnitTests
             using(var emulation = new Emulation())
             {
                 var machine = new Machine();
-
-                emulation.MasterTimeSource.Quantum = Time.TimeInterval.FromMilliseconds(1000);
-                emulation.MasterTimeSource.AdvanceImmediately = true;
-                machine.LocalTimeSource.Quantum = Time.TimeInterval.FromMilliseconds(1000);
-                machine.LocalTimeSource.AdvanceImmediately = true;
-
                 emulation.AddMachine(machine);
+
+                emulation.SetGlobalQuantum(Time.TimeInterval.FromMilliseconds(1000));
+                emulation.SetGlobalAdvanceImmediately(true);
 
                 var mt = machine.ObtainManagedThread(a, 1);
 
