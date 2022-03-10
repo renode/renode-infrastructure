@@ -149,6 +149,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.CPACR, value);
             }
         }
+        [Register]
+        public RegisterValue PRIMASK
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.PRIMASK);
+            }
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.PRIMASK, value);
+            }
+        }
 
         protected override void InitializeRegisters()
         {
@@ -183,6 +195,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { CortexMRegisters.CPSR,  new CPURegister(25, 32, isGeneral: false, isReadonly: false) },
             { CortexMRegisters.FPDSCR,  new CPURegister(26, 32, isGeneral: false, isReadonly: false) },
             { CortexMRegisters.CPACR,  new CPURegister(27, 32, isGeneral: false, isReadonly: false) },
+            { CortexMRegisters.PRIMASK,  new CPURegister(28, 32, isGeneral: false, isReadonly: false) },
         };
     }
 
@@ -201,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         FPCAR = 24,
         FPDSCR = 26,
         CPACR = 27,
+        PRIMASK = 28,
         R0 = 0,
         R1 = 1,
         R2 = 2,

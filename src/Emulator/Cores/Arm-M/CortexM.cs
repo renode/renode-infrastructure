@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -202,12 +202,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnPRIMASKWrite(int value)
+        private int FindPendingIRQ()
         {
-            if (nvic != null)
-            {
-                nvic.PRIMASK = (value != 0);
-            }
+            return nvic != null ? nvic.FindPendingInterrupt() : -1;
         }
 
         [Export]

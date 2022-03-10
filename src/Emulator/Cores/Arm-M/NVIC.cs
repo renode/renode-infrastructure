@@ -619,7 +619,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private int FindPendingInterrupt()
+        public int FindPendingInterrupt()
         {
             lock(irqs)
             {
@@ -652,7 +652,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(result != SpuriousInterrupt)
                 {
                     maskedInterruptPresent = true;
-                    if(!PRIMASK)
+                    if(cpu.PRIMASK == 0)
                     {
                         IRQ.Set(true);
                     }
@@ -690,24 +690,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             // Is in handler mode or is privileged
             return (cpu.XProgramStatusRegister & InterruptProgramStatusRegisterMask) != 0 || (cpu.Control & 1) == 0;
-        }
-
-        private bool primask;
-        public bool PRIMASK
-        {
-            get { return primask; }
-            set
-            {
-                if(value == primask)
-                {
-                    return;
-                }
-                primask = value;
-                if(!primask)
-                {
-                    FindPendingInterrupt();
-                }
-            }
         }
 
         private byte basepri;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -13,7 +13,7 @@
 EXTERNAL_AS(func_int32, AcknowledgeIRQ, tlib_nvic_acknowledge_irq)
 EXTERNAL_AS(action_int32, CompleteIRQ, tlib_nvic_complete_irq)
 EXTERNAL_AS(action_int32, SetPendingIRQ, tlib_nvic_set_pending_irq)
-EXTERNAL_AS(action_int32, OnPRIMASKWrite, tlib_nvic_write_primask)
+EXTERNAL_AS(func_int32, FindPendingIRQ, tlib_nvic_find_pending_irq)
 EXTERNAL_AS(action_int32, OnBASEPRIWrite, tlib_nvic_write_basepri)
 EXTERNAL_AS(func_int32, PendingMaskedIRQ, tlib_nvic_get_pending_masked_irq)
 #endif
