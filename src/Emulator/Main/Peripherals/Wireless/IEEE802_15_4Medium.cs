@@ -15,16 +15,16 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
-    public static class BLEExtensions
+    public static class IEEE802_15_4Extensions
     {
-        public static void CreateBLEMedium(this Emulation emulation, string name)
+        public static void CreateIEEE802_15_4Medium(this Emulation emulation, string name)
         {
-            emulation.ExternalsManager.AddExternal(new BLEMedium(), name);
+            emulation.ExternalsManager.AddExternal(new IEEE802_15_4Medium(), name);
         }
     }
 
-    public sealed class BLEMedium : WirelessMedium 
+    public sealed class IEEE802_15_4Medium : WirelessMedium 
     {
-        public BLEMedium() {}
+        public IEEE802_15_4Medium() {}
     }
 }

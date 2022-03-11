@@ -324,6 +324,7 @@
     <Compile Include="Peripherals\Timers\SimpleTicker.cs" />
     <Compile Include="Peripherals\Wireless\IRadio.cs" />
     <Compile Include="Peripherals\Wireless\WirelessMedium.cs" />
+    <Compile Include="Peripherals\Wireless\IEEE802_15_4Medium.cs" />
     <Compile Include="Peripherals\Wireless\BLEMedium.cs" />
     <Compile Include="Utilities\ProgressMonitor.cs" />
     <Compile Include="Utilities\IProgressMonitorHandler.cs" />

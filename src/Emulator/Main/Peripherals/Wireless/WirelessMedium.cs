@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,21 +15,13 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
-    public static class WirelessExtensions
+    public abstract class WirelessMedium : IHasChildren<IMediumFunction>, IExternal, IConnectable<IRadio>, INetworkLogWireless
     {
-        public static void CreateWirelessMedium(this Emulation emulation, string name)
+        protected WirelessMedium()
         {
-            emulation.ExternalsManager.AddExternal(new WirelessMedium(), name);
-        }
-    }
-
-    public sealed class WirelessMedium : IHasChildren<IMediumFunction>, IExternal, IConnectable<IRadio>, INetworkLogWireless
-    {
-        public WirelessMedium()
-        {
-            radios = new Dictionary<IRadio, Position>();
             radioHooks = new Dictionary<IRadio, Action<byte[]>>();
             mediumFunction = SimpleMediumFunction.Instance;
+            radios = new Dictionary<IRadio, Position>();
         }
 
         public void AttachTo(IRadio radio)
