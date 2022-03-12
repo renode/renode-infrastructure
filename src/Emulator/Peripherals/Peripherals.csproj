@@ -422,6 +422,7 @@
     <Compile Include="Peripherals\UART\SAMD5_UART.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_MMCM_CSR32.cs" />
     <Compile Include="Peripherals\UART\SAMD20_UART.cs" />
+    <Compile Include="Peripherals\CRC\STM32F0_CRC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
