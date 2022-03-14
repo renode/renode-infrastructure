@@ -43,22 +43,36 @@ namespace Antmicro.Renode.Utilities
             {
                 return;
             }
-               
-            FileCopier.Copy(filename, Path.Combine(cacheLocation, sha), true);
-            internalCache.Add(sha);
+
+            EnsureCacheDirectory();
+            using(var locker = new FileLocker(Path.Combine(cacheLocation, lockFileName)))
+            {
+                FileCopier.Copy(filename, Path.Combine(cacheLocation, sha), true);
+                internalCache.Add(sha);
+            }
         }
 
         private void Populate()
         {
-            var dinfo = new DirectoryInfo(cacheLocation);
-            dinfo.Create();
-            foreach(var file in dinfo.EnumerateFiles())
+            EnsureCacheDirectory();
+            using(var locker = new FileLocker(Path.Combine(cacheLocation, lockFileName)))
             {
-                internalCache.Add(file.Name);
+                var dinfo = new DirectoryInfo(cacheLocation);
+                foreach(var file in dinfo.EnumerateFiles())
+                {
+                    internalCache.Add(file.Name);
+                }
             }
+        }
+
+        private void EnsureCacheDirectory()
+        {
+            Directory.CreateDirectory(cacheLocation);
         }
 
         private readonly HashSet<string> internalCache;
         private readonly string cacheLocation;
+
+        private const string lockFileName = ".lock";
     }
 }
