@@ -184,7 +184,14 @@ namespace Antmicro.Renode.UserInterface
                 var parametersWithWriter = candidateWriter == null ? preparedParameters : new object[] { candidateWriter }.Concat(preparedParameters);
                 try
                 {
-                    foundCandidate.Invoke(command, parametersWithWriter.ToArray());
+                    if(foundCandidate.ReturnType == typeof(bool))
+                    {
+                        return (bool)foundCandidate.Invoke(command, parametersWithWriter.ToArray());
+                    }
+                    else
+                    {
+                        foundCandidate.Invoke(command, parametersWithWriter.ToArray());
+                    }
                 }
                 catch(TargetInvocationException e)
                 {
