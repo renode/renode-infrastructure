@@ -84,70 +84,70 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public byte ReadByte(long offset)
         {
-            var localOffset = GetLocalOffset((uint)offset);
-            var segment = segments[GetSegmentNo((uint)offset)];
-            return Marshal.ReadByte(segment + localOffset);
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
+            return Marshal.ReadByte(new IntPtr(segment.ToInt64() + localOffset));
         }
 
         public void WriteByte(long offset, byte value)
         {
-            var localOffset = GetLocalOffset((uint)offset);
-            var segment = segments[GetSegmentNo((uint)offset)];
-            Marshal.WriteByte(segment + localOffset, value);
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
+            Marshal.WriteByte(new IntPtr(segment.ToInt64() + localOffset), value);
             InvalidateMemoryFragment(offset, 1);
         }
 
         public ushort ReadWord(long offset)
         {
-            var localOffset = GetLocalOffset((uint)offset);
-            var segment = segments[GetSegmentNo((uint)offset)];
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
             if(localOffset == SegmentSize - 1) // cross segment read
             {
                 var bytes = new byte[2];
-                bytes[0] = Marshal.ReadByte(segment + localOffset);
-                var secondSegment = segments[GetSegmentNo((uint)offset + 1)];
+                bytes[0] = Marshal.ReadByte(new IntPtr(segment.ToInt64() + localOffset));
+                var secondSegment = segments[GetSegmentNo(offset + 1)];
                 bytes[1] = Marshal.ReadByte(secondSegment);
                 return BitConverter.ToUInt16(bytes, 0);
             }
-            return unchecked((ushort)Marshal.ReadInt16(segment + localOffset));
+            return unchecked((ushort)Marshal.ReadInt16(new IntPtr(segment.ToInt64() + localOffset)));
         }
 
         public void WriteWord(long offset, ushort value)
         {
-            var localOffset = GetLocalOffset((uint)offset);
-            var segment = segments[GetSegmentNo((uint)offset)];
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
             if(localOffset == SegmentSize - 1) // cross segment write
             {
                 var bytes = BitConverter.GetBytes(value);
-                Marshal.WriteByte(segment + localOffset, bytes[0]);
-                var secondSegment = segments[GetSegmentNo((uint)(offset + 1))];
+                Marshal.WriteByte(new IntPtr(segment.ToInt64() + localOffset), bytes[0]);
+                var secondSegment = segments[GetSegmentNo(offset + 1)];
                 Marshal.WriteByte(secondSegment, bytes[1]);
                 InvalidateMemoryFragment(offset, 1);
                 InvalidateMemoryFragment(offset + 1, 1);
             }
             else
             {
-                Marshal.WriteInt16(segment + localOffset, unchecked((short)value));
+                Marshal.WriteInt16(new IntPtr(segment.ToInt64() + localOffset), unchecked((short)value));
                 InvalidateMemoryFragment(offset, 2);
             }
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            var localOffset = GetLocalOffset((uint)offset);
-            var segment = segments[GetSegmentNo((uint)offset)];
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
             if(localOffset >= SegmentSize - 3) // cross segment read
             {
                 var bytes = ReadBytes(offset, 4);
                 return BitConverter.ToUInt32(bytes, 0);
             }
-            return unchecked((uint)Marshal.ReadInt32(segment + localOffset));
+            return unchecked((uint)Marshal.ReadInt32(new IntPtr(segment.ToInt64() + localOffset)));
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            var localOffset = GetLocalOffset((uint)offset);
-            var segment = segments[GetSegmentNo((uint)offset)];
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
             if(localOffset >= SegmentSize - 3) // cross segment write
             {
                 var bytes = BitConverter.GetBytes(value);
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             else
             {
-                Marshal.WriteInt32(segment + localOffset, unchecked((int)value));
+                Marshal.WriteInt32(new IntPtr(segment.ToInt64() + localOffset), unchecked((int)value));
                 InvalidateMemoryFragment(offset, 4);
             }
         }
@@ -167,10 +167,10 @@ namespace Antmicro.Renode.Peripherals.Memory
             while(read < count)
             {
                 var currentOffset = offset + read;
-                var localOffset = GetLocalOffset((uint)currentOffset);
-                var segment = segments[GetSegmentNo((uint)currentOffset)];
-                var length = Math.Min(count - read, SegmentSize - localOffset);
-                Marshal.Copy(segment + localOffset, destination, read + startIndex, length);
+                var localOffset = GetLocalOffset(currentOffset);
+                var segment = segments[GetSegmentNo(currentOffset)];
+                var length = Math.Min(count - read, (int)(SegmentSize - localOffset));
+                Marshal.Copy(new IntPtr(segment.ToInt64() + localOffset), destination, read + startIndex, length);
                 read += length;
             }
         }
@@ -198,10 +198,10 @@ namespace Antmicro.Renode.Peripherals.Memory
             while(written < count)
             {
                 var currentOffset = offset + written;
-                var localOffset = GetLocalOffset((uint)currentOffset);
-                var segment = segments[GetSegmentNo((uint)currentOffset)];
-                var length = Math.Min(count - written, SegmentSize - localOffset);
-                Marshal.Copy(array, startingIndex + written, segment + localOffset, length);
+                var localOffset = GetLocalOffset(currentOffset);
+                var segment = segments[GetSegmentNo(currentOffset)];
+                var length = Math.Min(count - written, (int)(SegmentSize - localOffset));
+                Marshal.Copy(array, startingIndex + written, new IntPtr(segment.ToInt64() + localOffset), length);
                 written += length;
                 
                 InvalidateMemoryFragment(currentOffset, length);
@@ -411,9 +411,9 @@ namespace Antmicro.Renode.Peripherals.Memory
             disposed = true;
         }
 
-        private int GetLocalOffset(uint offset)
+        private long GetLocalOffset(long offset)
         {
-            return (int)(offset % (uint)SegmentSize);
+            return (offset % SegmentSize);
         }
 
         void CheckSegmentNo(int segmentNo)
@@ -446,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 describedSegments[i] = new MappedSegment(this, i, (uint)SegmentSize);
             }
             var last = describedSegments.Length - 1;
-            var sizeOfLast = (uint)(size % (uint)SegmentSize);
+            var sizeOfLast = (uint)(size % SegmentSize);
             if(sizeOfLast == 0)
             {
                 sizeOfLast = (uint)SegmentSize;
@@ -454,9 +454,9 @@ namespace Antmicro.Renode.Peripherals.Memory
             describedSegments[last] = new MappedSegment(this, last, sizeOfLast);
         }
 
-        private int GetSegmentNo(uint offset)
+        private int GetSegmentNo(long offset)
         {
-            var segmentNo = (int)(offset / (uint)SegmentSize);
+            var segmentNo = (int)(offset / SegmentSize);
 #if DEBUG
             // check bounds
             if(segmentNo >= segments.Length || segmentNo < 0)
