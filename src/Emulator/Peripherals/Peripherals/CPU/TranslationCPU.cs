@@ -1897,12 +1897,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Slot;
         }
 
-        public string DisassembleBlock(ulong addr, uint blockSize = 40, uint flags = 0)
+        public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, uint flags = 0)
         {
             if(Disassembler == null)
             {
                 throw new RecoverableException("Disassembly engine not available");
             }
+            if(addr == ulong.MaxValue)
+            {
+                addr = PC;
+            }
+
+            var translatedAddr = TranslateAddress(addr, MpuAccess.InstructionFetch);
+            if(translatedAddr != ulong.MaxValue)
+            {
+                addr = translatedAddr;
+            }
+            
             var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
             return result;
