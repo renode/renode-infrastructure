@@ -461,14 +461,7 @@ namespace Antmicro.Renode.Peripherals.CRC
                 UInt32 value = dividend << 24;
                 for (var bit = 0; bit < 8; ++bit)
                 {
-                    value = (value << 1) ^ ((UInt32)(-(Int32)((value & 0x80000000) >> 31)) & shiftedPoly);
-
-                    if ((value & 0x80000000) != 0) {
-                        value <<= 1;
-                        value ^= shiftedPoly;
-                    } else {
-                        value <<= 1;
-                    }
+                    value = (value << 1) ^ (unchecked((UInt32)(-((value & 0x80000000) >> 31))) & shiftedPoly);
                 }
                 result[dividend] = value;
             }
