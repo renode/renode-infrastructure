@@ -413,6 +413,7 @@
     <Compile Include="Peripherals\SPI\GigaDevice_GD25LQ.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32_PWR.cs" />
     <Compile Include="Peripherals\Timers\S32K_LPIT.cs" />
+    <Compile Include="Peripherals\Timers\S32K_LPTMR.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
