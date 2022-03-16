@@ -52,10 +52,11 @@ namespace Antmicro.Renode.Time
             delayedActions.Clear();
 
             stopwatch.Stop();
-            BlockHook     = null;
-            StopRequested = null;
-            SyncHook      = null;
-            TimePassed    = null;
+            BlockHook          = null;
+            StopRequested      = null;
+            SyncHook           = null;
+            TimePassed         = null;
+            SinksReportedkHook = null;
             using(sync.HighPriority)
             {
                 handles.LatchAllAndCollectGarbage();
@@ -352,6 +353,11 @@ namespace Antmicro.Renode.Time
         public event Action BlockHook;
 
         /// <summary>
+        /// An event called when no sink is in progress.
+        /// </summary>
+        public event Action SinksReportedkHook;
+
+        /// <summary>
         /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
         /// </summary>
         public event Action<TimeInterval> TimePassed;
@@ -439,6 +445,7 @@ namespace Antmicro.Renode.Time
                 handles.UnlatchAll();
             }
 
+            SinksReportedkHook?.Invoke();
             if(!isBlocked)
             {
                 ExecuteSyncPhase();
