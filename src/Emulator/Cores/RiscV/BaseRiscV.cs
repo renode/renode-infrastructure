@@ -756,7 +756,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!SupportsInstructionSet(InstructionSet.V))
             {
-                throw new RecoverableException("Vector extention is not supported by this CPU");
+                throw new RegisterValueUnavailableException("Vector extention is not supported by this CPU");
             }
         }
 

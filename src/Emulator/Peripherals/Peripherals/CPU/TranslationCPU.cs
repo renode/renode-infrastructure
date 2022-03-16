@@ -12,6 +12,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.ExceptionServices;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using Antmicro.Migrant;
@@ -217,7 +219,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             var registerInfos = properties.Where(x => x.CanRead && x.GetCustomAttributes(false).Any(y => y is RegisterAttribute));
             foreach(var registerInfo in registerInfos)
             {
-                result.Add(registerInfo.Name, (ulong)((dynamic)registerInfo.GetGetMethod().Invoke(this, null)));
+                try
+                {
+                    result.Add(registerInfo.Name, (ulong)((dynamic)registerInfo.GetGetMethod().Invoke(this, null)));
+                }
+                catch(TargetInvocationException ex)
+                {
+                    if(!(ex.InnerException is RegisterValueUnavailableException))
+                    {
+                        // Something actually went wrong, unwrap exception
+                        ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                    }
+                    // Otherwise value is not available, ignore
+                }
             }
 
             //every field that is IRegister, contains properties interpreted as registers.
