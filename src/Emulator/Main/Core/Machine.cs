@@ -449,6 +449,24 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null)
+        {
+            Action softwareRequestedReset = null;
+            softwareRequestedReset = () =>
+            {
+                LocalTimeSource.SinksReportedkHook -= softwareRequestedReset;
+                using(ObtainPausedState())
+                {
+                    foreach(var peripheral in registeredPeripherals.Distinct().Where(p => p != this && !(unresetable?.Contains(p) ?? false)))
+                    {
+                        peripheral.Reset();
+                    }
+                }
+                postReset?.Invoke();
+            };
+            LocalTimeSource.SinksReportedkHook += softwareRequestedReset;
+        }
+
         public void RequestReset()
         {
             LocalTimeSource.ExecuteInNearestSyncedState(_ => Reset());
