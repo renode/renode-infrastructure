@@ -474,6 +474,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             ResetOpcodesCounters();
         }
 
+        public bool RequestTranslationBlockRestart()
+        {
+            if(!OnPossessedThread)
+            {
+                this.Log(LogLevel.Error, "Translation block restart should be requested from CPU thread only. Ignoring the operation.");
+                return false;
+            }
+            return pauseGuard.RequestTranslationBlockRestart();
+        }
+
         public virtual void OnGPIO(int number, bool value)
         {
             lock(lck)
@@ -1539,8 +1549,29 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
+            public bool RequestTranslationBlockRestart()
+            {
+                if(guard.Value == null)
+                {
+                    parent.Log(LogLevel.Error, "Trying to request translation block restart without prior guard initialization on this thread.");
+                    return false;
+                }
+                restartTranslationBlock = true;
+                return true;
+            }
+
             void IDisposable.Dispose()
             {
+                if(restartTranslationBlock)
+                {
+                    restartTranslationBlock = false;
+                    if(parent.UpdateContextOnLoadAndStore)
+                    {
+                        parent.UpdateContext();
+                    }
+                    parent.TlibRestartTranslationBlock();
+                    // Note that any code after RestartTranslationBlock won't be executed
+                }
                 guard.Value = null;
             }
 
@@ -1549,6 +1580,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private readonly TranslationCPU parent;
             private bool active;
+            private bool restartTranslationBlock;
         }
 
         protected enum Interrupt
