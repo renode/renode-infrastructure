@@ -43,6 +43,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             transferOutgoing = false;
             EventInterrupt.Unset();
             ErrorInterrupt.Unset();
+            masterMode = false;
         }
 
         public void Write(byte[] data)
@@ -135,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithFlag(11, out use10BitAddressing, name: "ADD10")
                         .WithTag("HEAD10R", 12, 1)
                         .WithFlag(13, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: StartWrite, name: "START")
-                        .WithTag("STOP", 14, 1)
+                        .WithFlag(14, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: StopWrite, name: "STOP")
                         .WithTag("NACK", 15, 1)
                         .WithValueField(16, 8, out bytesToTransfer, name: "NBYTES")
                         .WithFlag(24, out reload, name: "RELOAD")
@@ -273,6 +274,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 return;
             }
+            masterMode = true;
             transmitInterruptStatus = true;
             transferComplete.Value = false;
 
@@ -298,6 +300,16 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
+        private void StopWrite(bool oldValue, bool newValue)
+        {
+            if(!newValue)
+            {
+                return;
+            }
+            masterMode = false;
+            stopDetection.Value = true;
+        }
+
         private uint ReceiveDataRead(uint oldValue)
         {
             if(rxData.Count > 0)
@@ -312,7 +324,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleTransmitDataWrite(uint oldValue, uint newValue)
         {
-            if(!ownAddress1Enabled.Value && !ownAddress2Enabled.Value)
+            if(masterMode)
             {
                 MasterTransmitDataWrite(oldValue, newValue);
             }
@@ -353,6 +365,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             if(autoEnd.Value)
             {
                 stopDetection.Value = true;
+                masterMode = false;
             }
             if(reload.Value)
             {
@@ -407,6 +420,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private int currentSlaveAddress;
         private bool transferOutgoing;
         private bool transmitInterruptStatus;
+        private bool masterMode;
 
         private enum Registers
         {
