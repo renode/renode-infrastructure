@@ -187,6 +187,7 @@
     <Compile Include="Peripherals\GPIOPort\STM32_GPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\STM32F1GPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\VybridGPIOPort.cs" />
+    <Compile Include="Peripherals\GPIOPort\NXPGPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\XilinxGPIOPS.cs" />
     <Compile Include="Peripherals\USBDeprecated\USBTablet.cs" />
     <Compile Include="Peripherals\GPIOPort\Emios.cs" />
