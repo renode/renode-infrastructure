@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -41,8 +41,10 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldGuardPeripheralReads([Range(1, 4)] int cpuCount)
         {
+            using(var emulation = new Emulation())
             using(var machine = new Machine())
             {
+                emulation.AddMachine(machine);
                 var sysbus = machine.SystemBus;
                 cpuCount.Times(() => sysbus.Register(new ActivelyAskingCPU(machine, 0), new CPURegistrationPoint()));
                 var peripheral = new ActivelyAskedPeripheral();
