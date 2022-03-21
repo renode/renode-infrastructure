@@ -540,6 +540,7 @@
     <Compile Include="Utilities\SimpleFileCache.cs" />
     <Compile Include="Utilities\FileLocker.cs" />
     <Compile Include="Utilities\Binding\INativeUnwindable.cs" />
+    <Compile Include="Utilities\Binding\ExceptionKeeper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
