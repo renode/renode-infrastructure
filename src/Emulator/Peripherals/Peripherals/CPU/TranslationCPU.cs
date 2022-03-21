@@ -34,7 +34,7 @@ using Antmicro.Renode.Disassembler.LLVM;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, IDisposable, IDisassemblable, ITimeSink
+    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, INativeUnwindable, IDisposable, IDisassemblable, ITimeSink
     {
         public Endianess Endianness { get; protected set; }
 
@@ -1636,6 +1636,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accessType);
         }
 
+        public void NativeUnwind()
+        {
+            TlibUnwind();
+        }
+
         [PostDeserialization]
         protected void InitDisas()
         {
@@ -1883,6 +1888,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetCurrentTbDisasFlags;
+
+        [Import(UseExceptionWrapper = false)]
+        private Action TlibUnwind;
 
         #pragma warning restore 649
 

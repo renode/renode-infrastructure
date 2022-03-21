@@ -539,6 +539,7 @@
     <Compile Include="Peripherals\UART\IUARTWithBufferState.cs" />
     <Compile Include="Utilities\SimpleFileCache.cs" />
     <Compile Include="Utilities\FileLocker.cs" />
+    <Compile Include="Utilities\Binding\INativeUnwindable.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
