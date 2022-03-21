@@ -9,15 +9,19 @@
 #include <stdlib.h>
 #include "cpu.h"
 #include "renode_imports.h"
+#include "../tlib/unwind.h"
 
 extern CPUState *cpu;
 
-void (*on_translation_block_find_slow)(uint64_t pc);
+typedef void (*translation_block_find_slow_handler)(uint64_t pc);
+translation_block_find_slow_handler on_translation_block_find_slow;
 
 void renode_attach_log_translation_block_fetch(void (handler)(uint64_t))
 {
     on_translation_block_find_slow = handler;
 }
+
+EXC_VOID_1(renode_attach_log_translation_block_fetch, translation_block_find_slow_handler, handler);
 
 void tlib_on_translation_block_find_slow(uint64_t pc)
 {

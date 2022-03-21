@@ -8,6 +8,7 @@
 
 #include <callbacks.h>
 #include "renode_imports.h"
+#include "../tlib/unwind.h"
 
 EXTERNAL(action_uint64, touch_host_block)
 
@@ -186,7 +187,11 @@ void renode_set_host_blocks(host_memory_block_packed_t *blocks, int count)
   free_list(&old_mappings);
 }
 
+EXC_VOID_2(renode_set_host_blocks, host_memory_block_packed_t *, blocks, int, count)
+
 void renode_free_host_blocks()
 {
     free_list(&lists);
 }
+
+EXC_VOID_0(renode_free_host_blocks)
