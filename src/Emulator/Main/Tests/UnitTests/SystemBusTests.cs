@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -115,8 +115,10 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldPauseAndResumeOnlyOnce()
         {
+            using(var emulation = new Emulation())
             using(var machine = new Machine())
             {
+                emulation.AddMachine(machine);
                 var sb = machine.SystemBus;
                 var mock = new Mock<IHasOwnLife>();
                 sb.Register(mock.As<IDoubleWordPeripheral>().Object, 0.To(100));
