@@ -41,7 +41,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                         parent.Log(LogLevel.Info, "Successfully ungzipped.");
                     }
                 }
-                document = XDocument.Load(path);
+                using(var stream = File.OpenRead(path))
+                {
+                    document = XDocument.Load(stream);
+                }
             }
             catch(Exception ex)
             {
