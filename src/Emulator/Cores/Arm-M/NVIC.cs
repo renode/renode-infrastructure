@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
             pendingIRQs = new SortedSet<int>();
-            systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, autoUpdate: true);
+            systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, eventEnabled: true, autoUpdate: true);
             this.machine = machine;
             this.priorityMask = priorityMask;
             irqs = new IRQState[IRQCount];
@@ -42,7 +42,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             };
             Reset();
-            systick.EventEnabled = true;
         }
 
         public void AttachCPU(CortexM cpu)
