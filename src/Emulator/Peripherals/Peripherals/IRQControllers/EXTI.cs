@@ -26,7 +26,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public EXTI(int numberOfOutputLines = 14)
         {
-            this.numberOfOutputLines = numberOfOutputLines;
+            var innerConnections = new Dictionary<int, IGPIO>();
+            for(var i = 0; i < numberOfOutputLines; ++i)
+            {
+                innerConnections[i] = new GPIO();
+            }
+            Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
             Reset();
         }
 
@@ -154,14 +159,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             fallingTrigger = 0;
             pending = 0;
             softwareInterrupt = 0;
-
-
-            var innerConnections = new Dictionary<int, IGPIO>();
-            for(var i = 0; i < numberOfOutputLines; ++i)
+            foreach(var gpio in Connections)
             {
-                innerConnections[i] = new GPIO();
+                gpio.Value.Unset();
             }
-            Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
         }
 
         public long Size
@@ -175,7 +176,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
         private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 23 };
-        private readonly int numberOfOutputLines;
 
         private uint interruptMask;
         private uint eventMask;
