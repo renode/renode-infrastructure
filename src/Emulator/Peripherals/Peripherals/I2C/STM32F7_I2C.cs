@@ -86,7 +86,10 @@ namespace Antmicro.Renode.Peripherals.I2C
             var result = new byte[count];
             for(var i = 0; i < count; i++)
             {
-                result[i] = txData.Dequeue();
+                if(!txData.TryDequeue(out result[i]))
+                {
+                    return new byte[0];
+                }
             }
             return result;
         }
