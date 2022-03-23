@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             table.AddRow((data[0] & 0x8) >> 3 == 1 ? "1" : "0", "11", "SPINOTVER", "FPGA SPI flash has failed verification");
             table.AddRow((data[0] & 0x4) >> 2 == 1 ? "1" : "0", "10", "SPIVERIFY", "FPGA SPI flash is verified");
             table.AddRow((data[0] & 0x2) >> 1 == 1 ? "1" : "0", "9", "APPLREADY", "Application is running, and features may be enabled");
-            table.AddRow((data[0] & 0x1) == 1 ? "1" : "0", "8", "APPLRUN", "Stage 0 has been launched, and is now running");
+            table.AddRow((data[0] & 0x1) == 1 ? "1" : "0", "8", "APPLRUN", "Stage 1 has been launched, and is now running");
             table.AddRow(string.Empty, "7", string.Empty, string.Empty);
             table.AddRow(string.Empty, "6", string.Empty, string.Empty);
             table.AddRow((data[1] & 0x20) >> 5 == 1 ? "1" : "0", "5", "WPOFF", "Write protect pin off");
