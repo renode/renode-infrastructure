@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -84,6 +84,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public byte ReadByte(long offset)
         {
+            if(offset < 0 || offset >= size)
+            {
+                this.Log(LogLevel.Error, "Tried to read byte at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, size);
+                return 0;
+            }
+
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
             return Marshal.ReadByte(new IntPtr(segment.ToInt64() + localOffset));
@@ -91,6 +97,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteByte(long offset, byte value)
         {
+            if(offset < 0 || offset >= size)
+            {
+                this.Log(LogLevel.Error, "Tried to write byte value 0x{0:X} to offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", value, offset, size);
+                return;
+            }
+
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
             Marshal.WriteByte(new IntPtr(segment.ToInt64() + localOffset), value);
@@ -99,6 +111,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public ushort ReadWord(long offset)
         {
+            if(offset < 0 || offset >= size)
+            {
+                this.Log(LogLevel.Error, "Tried to read word at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, size);
+                return 0;
+            }
+
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
             if(localOffset == SegmentSize - 1) // cross segment read
@@ -114,6 +132,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteWord(long offset, ushort value)
         {
+            if(offset < 0 || offset >= size)
+            {
+                this.Log(LogLevel.Error, "Tried to write word value 0x{0:X} to offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", value, offset, size);
+                return;
+            }
+
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
             if(localOffset == SegmentSize - 1) // cross segment write
@@ -134,6 +158,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public uint ReadDoubleWord(long offset)
         {
+            if(offset < 0 || offset >= size)
+            {
+                this.Log(LogLevel.Error, "Tried to read double word at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, size);
+                return 0;
+            }
+
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
             if(localOffset >= SegmentSize - 3) // cross segment read
@@ -146,6 +176,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteDoubleWord(long offset, uint value)
         {
+            if(offset < 0 || offset >= size)
+            {
+                this.Log(LogLevel.Error, "Tried to write double word value 0x{0:X} to offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", value, offset, size);
+                return;
+            }
+
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
             if(localOffset >= SegmentSize - 3) // cross segment write
