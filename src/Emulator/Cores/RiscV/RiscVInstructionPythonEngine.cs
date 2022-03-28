@@ -38,8 +38,11 @@ namespace Antmicro.Renode.Hooks
             Hook = (instr) =>
             {
                 Scope.SetVariable("instruction", instr);
-
-                source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    this.cpu.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                    throw new CpuAbortException($"Python runtime error: {error}");
+                });
             };
         }
 
@@ -50,9 +53,10 @@ namespace Antmicro.Renode.Hooks
             Scope.SetVariable("machine", cpu.GetMachine());
             Scope.SetVariable("state", cpu.UserState);
 
+            ScriptSource source;
             if(script != null)
             {
-                source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(script));
+                source = Engine.CreateScriptSourceFromString(script);
             }
             else
             {
@@ -60,14 +64,16 @@ namespace Antmicro.Renode.Hooks
                 {
                     throw new RecoverableException($"Couldn't find the script file: {path}");
                 }
-                source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromFile(path));
+                source = Engine.CreateScriptSourceFromFile(path);
             }
+
+            code = Compile(source);
         }
 
         public Action<ulong> Hook { get; }
 
         [Transient]
-        private Lazy<ScriptSource> source;
+        private CompiledCode code;
 
         private readonly string script;
         private readonly string path;

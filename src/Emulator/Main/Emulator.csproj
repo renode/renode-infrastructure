@@ -546,6 +546,7 @@
     <Compile Include="Utilities\Binding\INativeUnwindable.cs" />
     <Compile Include="Utilities\Binding\ExceptionKeeper.cs" />
     <Compile Include="Utilities\FilePath.cs" />
+    <Compile Include="Peripherals\CPU\CpuAbortException.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

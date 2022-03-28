@@ -50,13 +50,14 @@ namespace Antmicro.Renode.UserInterface
                 Scope.SetVariable(Machine.MachineKeyword, machine);
                 Scope.SetVariable("self", machine);
 
-                source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(script));
-                Action = () => source.Value.Execute(Scope);
+                var source = Engine.CreateScriptSourceFromString(script);
+                code = Compile(source);
+                Action = () => Execute(code);
             }
 
             public Action Action { get; private set; }
 
-            private Lazy<ScriptSource> source;
+            private CompiledCode code;
         }
 
         private sealed class PeriodicEventsRegister

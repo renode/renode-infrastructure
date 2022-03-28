@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,7 +7,10 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Migrant.Hooks;
 using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant;
@@ -27,7 +30,10 @@ namespace Antmicro.Renode.Hooks
             Hook = line =>
             {
                 Scope.SetVariable("line", line);
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    Uart.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                });
             };
         }
 
@@ -37,13 +43,14 @@ namespace Antmicro.Renode.Hooks
             Scope.SetVariable(Machine.MachineKeyword, Machine);
             Scope.SetVariable("uart", Uart);
             Scope.SetVariable("self", Uart);
-            Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(Script));
+            var source = Engine.CreateScriptSourceFromString(Script);
+            code = Compile(source);
         }
 
         public Action<string> Hook { get; private set; }
 
         [Transient]
-        private Lazy<ScriptSource> Source;
+        private CompiledCode code;
         private readonly string Script;
         private readonly IUART Uart;
         private readonly Machine Machine;

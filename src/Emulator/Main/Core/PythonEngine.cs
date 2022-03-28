@@ -1,14 +1,16 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using Microsoft.Scripting;
 using Microsoft.Scripting.Hosting;
 using IronPython.Hosting;
 using IronPython.Modules;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Exceptions;
 using System.Collections.Generic;
 using System.Linq;
 using IronPython.Runtime;
@@ -137,7 +139,57 @@ namespace Antmicro.Renode.Core
             return array.Aggregate((prev, curr) => string.Format("{0}{1}{2}", prev, Environment.NewLine, curr));
         }
 
+        protected CompiledCode Compile(ScriptSource source)
+        {
+            return Compile(source, error => throw new RecoverableException(error));
+        }
+
+        protected CompiledCode Compile(ScriptSource source, Action<string> errorCallback)
+        {
+            return source.Compile(new ErrorHandler(errorCallback));
+        }
+
+        protected void Execute(CompiledCode code)
+        {
+            Execute(code, error => throw new RecoverableException($"Python runtime error: {error}"));
+        }
+
+        protected void Execute(CompiledCode code, Action<string> errorCallback)
+        {
+            try
+            {
+                // code can be null when compiled SourceScript had syntax errors
+                code?.Execute(Scope);
+            }
+            catch(Exception e)
+            {
+                if(e is UnboundNameException || e is MissingMemberException || e is ArithmeticException)
+                {
+                    errorCallback?.Invoke(e.Message);
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
         #endregion
+
+        public class ErrorHandler : ErrorListener
+        {
+            public ErrorHandler(Action<string> errorCallback)
+            {
+                this.errorCallback = errorCallback;
+            }
+
+            public override void ErrorReported(ScriptSource source, string message, SourceSpan span, int errorCode, Severity severity)
+            {
+                errorCallback?.Invoke($"[{severity}] {message} (Line {span.Start.Line}, Column {span.Start.Column})");
+            }
+
+            private readonly Action<string> errorCallback;
+        }
     }
 }
 

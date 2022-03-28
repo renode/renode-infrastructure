@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,6 +7,9 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Migrant.Hooks;
 using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant;
@@ -25,7 +28,10 @@ namespace Antmicro.Renode.Hooks
             Hook = state =>
             {
                 Scope.SetVariable("state", state);
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    Logger.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                });
             };
         }
 
@@ -34,13 +40,14 @@ namespace Antmicro.Renode.Hooks
         {
             Scope.SetVariable(Machine.MachineKeyword, Machine);
             Scope.SetVariable("self", Machine);
-            Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(Script));
+            var source = Engine.CreateScriptSourceFromString(Script);
+            code = Compile(source);
         }
 
         public Action<string> Hook { get; private set; }
 
         [Transient]
-        private Lazy<ScriptSource> Source;
+        private CompiledCode code;
         private readonly string Script;
         private readonly Machine Machine;
     }
