@@ -44,7 +44,11 @@ namespace Antmicro.Renode.Hooks
                 request.value = value;
                 request.type = CsrRequest.RequestType.WRITE;
 
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    this.cpu.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                    throw new CpuAbortException($"Python runtime error: {error}");
+                });
             };
 
             CsrReadHook = () =>
@@ -52,7 +56,11 @@ namespace Antmicro.Renode.Hooks
                 TryInit();
 
                 request.type = CsrRequest.RequestType.READ;
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    this.cpu.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                    throw new CpuAbortException($"Python runtime error: {error}");
+                });
 
                 return request.value;
             };
@@ -68,9 +76,11 @@ namespace Antmicro.Renode.Hooks
             Scope.SetVariable("machine", cpu.GetMachine());
             Scope.SetVariable("request", request);
 
+            ScriptSource source;
+
             if(script != null)
             {
-                Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(script));
+                source = Engine.CreateScriptSourceFromString(script);
             }
             else
             {
@@ -78,8 +88,10 @@ namespace Antmicro.Renode.Hooks
                 {
                     throw new RecoverableException($"Couldn't find the script file: {path}");
                 }
-                Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromFile(path));
+                source = Engine.CreateScriptSourceFromFile(path);
             }
+
+            code = Compile(source);
         }
 
         private void TryInit()
@@ -90,7 +102,7 @@ namespace Antmicro.Renode.Hooks
             }
 
             request.type = CsrRequest.RequestType.INIT;
-            Source.Value.Execute(Scope);
+            Execute(code);
             isInitialized = true;
         }
 
@@ -99,7 +111,7 @@ namespace Antmicro.Renode.Hooks
         public Func<ulong> CsrReadHook { get; }
 
         [Transient]
-        private Lazy<ScriptSource> Source;
+        private CompiledCode code;
 
         private bool isInitialized;
 

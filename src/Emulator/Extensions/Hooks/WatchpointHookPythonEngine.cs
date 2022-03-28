@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,8 +9,10 @@ using Antmicro.Renode.Core;
 using Antmicro.Migrant.Hooks;
 using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -28,7 +30,10 @@ namespace Antmicro.Renode.Hooks
                 Scope.SetVariable("address", address);
                 Scope.SetVariable("width", width);
                 Scope.SetVariable("value", value);
-                source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    this.sysbus.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                });
             };
         }
 
@@ -39,11 +44,12 @@ namespace Antmicro.Renode.Hooks
         {
             Scope.SetVariable("self", sysbus);
 
-            source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(script));
+            var source = Engine.CreateScriptSourceFromString(script);
+            code = Compile(source);
         }
 
         [Transient]
-        private Lazy<ScriptSource> source;
+        private CompiledCode code;
 
         private readonly string script;
         private readonly SystemBus sysbus;

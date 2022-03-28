@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,9 @@ using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -24,7 +27,10 @@ namespace Antmicro.Renode.Hooks
             Hook = new Action<long>(syncCount =>
             {   
                 Scope.SetVariable("syncCount", syncCount);
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    Logger.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                });
             });
         }
 
@@ -32,7 +38,8 @@ namespace Antmicro.Renode.Hooks
         private void InnerInit()
         {
             Scope.SetVariable("self", emulation);
-            Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(script));
+            var source = Engine.CreateScriptSourceFromString(script);
+            code = Compile(source);
         }
 
         public Action<long> Hook { get; private set; }
@@ -41,7 +48,7 @@ namespace Antmicro.Renode.Hooks
         private readonly Emulation emulation;
 
         [Transient]
-        private Lazy<ScriptSource> Source;
+        private CompiledCode code;
     }
 }
 

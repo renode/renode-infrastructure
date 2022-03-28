@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,6 +11,8 @@ using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -31,7 +33,10 @@ namespace Antmicro.Renode.Hooks
                     {
                         Scope.SetVariable("value", valueToWrite);
                         Scope.SetVariable("offset", offset);
-                        WriteSource.Value.Execute(Scope);
+                        Execute(writeCode, error =>
+                        {
+                            Sysbus.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                        });
                         return (uint)Scope.GetVariable("value");
                     });
             }
@@ -42,7 +47,10 @@ namespace Antmicro.Renode.Hooks
                     {
                         Scope.SetVariable("value", readValue);
                         Scope.SetVariable("offset", offset);
-                        ReadSource.Value.Execute(Scope);
+                        Execute(readCode, error =>
+                        {
+                            Sysbus.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                        });
                         return (uint)Scope.GetVariable("value");
                     });
             }
@@ -55,22 +63,30 @@ namespace Antmicro.Renode.Hooks
             Scope.SetVariable("sysbus", Sysbus);
             Scope.SetVariable(Machine.MachineKeyword, Sysbus.Machine);
 
-            ReadSource = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(ReadScript));
-            WriteSource = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(WriteScript));
+            if(ReadScript != null)
+            {
+                var source = Engine.CreateScriptSourceFromString(ReadScript);
+                readCode = Compile(source);
+            }
+            if(WriteScript != null)
+            {
+                var source = Engine.CreateScriptSourceFromString(WriteScript);
+                writeCode = Compile(source);
+            }
         }
 
         public Func<uint, long, uint> WriteHook { get; private set; }
         public Func<uint, long, uint> ReadHook { get; private set; }
 
+        [Transient]
+        private CompiledCode readCode;
+        [Transient]
+        private CompiledCode writeCode;
+
         private readonly string ReadScript;
         private readonly string WriteScript;
         private readonly IBusPeripheral Peripheral;
         private readonly SystemBus Sysbus;
-
-        [Transient]
-        private Lazy<ScriptSource> ReadSource;
-        [Transient]
-        private Lazy<ScriptSource> WriteSource;
     }
 }
 

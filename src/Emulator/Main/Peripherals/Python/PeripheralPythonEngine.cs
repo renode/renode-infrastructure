@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,11 +7,13 @@
 //
 using System;
 using Microsoft.Scripting.Hosting;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Python
 {
@@ -47,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.Python
             Scope.SetVariable("size", peripheral.Size);
 
             source = script;
+            code = Compile(source, error => throw new RecoverableException(error));
         }
 
         public PeripheralPythonEngine(PythonPeripheral peripheral)
@@ -71,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Python
 
         public void ExecuteCode()
         {
-            source.Execute(Scope);
+            code?.Execute(Scope);
         }
 
         public void SetSysbusAndMachine(SystemBus bus)
@@ -82,6 +85,9 @@ namespace Antmicro.Renode.Peripherals.Python
 
         [Transient]
         private ScriptSource source;
+
+        [Transient]
+        private CompiledCode code;
 
         protected override void Init()
         {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,7 +7,9 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Exceptions;
 using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
@@ -27,14 +29,20 @@ namespace Antmicro.Renode.Hooks
             Hook = (_, pc) =>
             {
                 Scope.SetVariable("pc", pc);
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    CPU.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                });
             };
 
             HookWithSize = (pc, size) =>
             {
                 Scope.SetVariable("pc", pc);
                 Scope.SetVariable("size", size);
-                Source.Value.Execute(Scope);
+                Execute(code, error =>
+                {
+                    CPU.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                });
             };
         }
 
@@ -44,7 +52,8 @@ namespace Antmicro.Renode.Hooks
             Scope.SetVariable(Machine.MachineKeyword, Machine);
             Scope.SetVariable("cpu", CPU);
             Scope.SetVariable("self", CPU);
-            Source = new Lazy<ScriptSource>(() => Engine.CreateScriptSourceFromString(Script));
+            var source = Engine.CreateScriptSourceFromString(Script);
+            code = Compile(source);
         }
 
         public Action<ICpuSupportingGdb, ulong> Hook { get; private set; }
@@ -52,7 +61,8 @@ namespace Antmicro.Renode.Hooks
         public Action<ulong, uint> HookWithSize { get; private set; }
 
         [Transient]
-        private Lazy<ScriptSource> Source;
+        private CompiledCode code;
+
         private readonly string Script;
         private readonly ICPUWithHooks CPU;
         private readonly Machine Machine;
