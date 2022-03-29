@@ -66,6 +66,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             lock(locker)
             {
+                if(number >= inputDisabled.Length)
+                {
+                    this.Log(LogLevel.Error, "Trying to signal GPIO {0:X}, which is out of range (should be lower than {1:X})", number, inputDisabled.Length);
+                    return;
+                }
                 if(inputDisabled[number].Value)
                 {
                     return;
@@ -86,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         [UiAccessible]
         public string[,] PrintCurrentConfiguration()
         {
-            const string na = "---";
+            const string notApplicable = "---";
             const string disabled = "Disabled";
             var result = new Table();
             result.AddRow("Pin", "Direction", "State", "Input enabled", "Trigger mode", "Active interrupt");
@@ -97,13 +102,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     i.ToString(),
                     interruptManager.PinDirection[i].ToString(),
                     isInput ? State[i].ToString() : Connections[i].IsSet.ToString(),
-                    isInput ? (!inputDisabled[i].Value).ToString() : na,
+                    isInput ? (!inputDisabled[i].Value).ToString() : notApplicable,
                     isInput
                         ? (interruptManager.InterruptEnable[i]
                             ? interruptManager.InterruptType[i].ToString()
                             : disabled)
-                        : na,
-                    isInput ? interruptManager.ActiveInterrupts.ElementAt(i).ToString() : na
+                        : notApplicable,
+                    isInput ? interruptManager.ActiveInterrupts.ElementAt(i).ToString() : notApplicable
                 );
             }
             return result.ToArray();
@@ -268,8 +273,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithWriteCallback((_, __) => interruptManager.RefreshInterrupts())
                 },
                 {(long)GPIORegisters.InputDisable, new DoubleWordRegister(this)
-                    .WithFlags(0, NumberOfConnections, out inputDisabled,
-                        name: "PIDR")
+                    .WithFlags(0, NumberOfConnections, out inputDisabled, name: "PIDR")
                     .WithWriteCallback((_, __) => interruptManager.RefreshInterrupts())
                 },
             };

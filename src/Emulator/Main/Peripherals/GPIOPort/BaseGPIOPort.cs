@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 connection.Unset();
             }
-            for(int i = 0; i < NumberOfConnections; ++i)
+            for(int i = 0; i < State.Length; ++i)
             {
                 State[i] = false;
             }
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             State[number] = value;
         }
 
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         protected readonly int NumberOfConnections;
         protected bool[] State;

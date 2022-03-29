@@ -173,7 +173,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 23 };
 
