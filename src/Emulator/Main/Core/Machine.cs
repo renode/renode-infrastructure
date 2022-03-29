@@ -583,8 +583,8 @@ namespace Antmicro.Renode.Core
                 x => x.Period.ToString(),
                 x => x.Value.ToString(),
                 x => x.Step.ToString(),
-                x => x.Period == 0 ? "---" : Misc.NormalizeDecimal((ulong)(x.Frequency * x.Step) / x.Period) + "Hz",
-                x => (x.Frequency == 0 || x.Period == 0) ? "---" :  Misc.NormalizeDecimal(1.0 / ((ulong)(x.Frequency * x.Step) / x.Period)) + "s"
+                x => x.Period == 0 ? "---" : Misc.NormalizeDecimal((ulong)(x.Frequency * x.Step) / (double)x.Period) + "Hz",
+                x => (x.Frequency == 0 || x.Period == 0) ? "---" :  Misc.NormalizeDecimal((ulong)x.Period / (x.Frequency * (double)x.Step))  + "s"
             );
             return table.ToArray();
         }
