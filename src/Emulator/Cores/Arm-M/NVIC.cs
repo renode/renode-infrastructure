@@ -446,7 +446,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if(value)
                 {
-                    systick.Enabled = true;
                     this.NoisyLog("Waking up from deep sleep");
                     irqs[number] |= IRQState.Running;
                     // let's latch it if not active
@@ -462,6 +461,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 FindPendingInterrupt();
             }
+            systick.Enabled |= value;
         }
 
         public void SetSevOnPendingOnAllCPUs(bool value)
