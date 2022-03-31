@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Hooks
         private Lazy<ScriptSource> source;
 
         private readonly string script;
-        private readonly object sysbus;
+        private readonly SystemBus sysbus;
     }
 }
 
