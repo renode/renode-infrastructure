@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@ using System.IO;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Hooks;
 using Antmicro.Renode.Peripherals.Wireless;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Extensions.Hooks
 {
@@ -23,16 +24,8 @@ namespace Antmicro.Renode.Extensions.Hooks
             medium.AttachHookToRadio(radio, runner.Hook);
         }
 
-        public static void SetPacketHookFromFile(this WirelessMedium medium, IRadio radio, string filename)
+        public static void SetPacketHookFromFile(this WirelessMedium medium, IRadio radio, ReadFilePath filename)
         {
-            if(string.IsNullOrEmpty(filename))
-            {
-                throw new RecoverableException("Cannot initialize packet interception hook because no file was provided");
-            }
-            if(!File.Exists(filename))
-            {
-                throw new RecoverableException($"Cannot create the hook because file {filename} does not exist");
-            }
             var runner = new PacketInterceptionPythonEngine(radio, filename: filename);
             medium.AttachHookToRadio(radio, runner.Hook);
         }

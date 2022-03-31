@@ -89,6 +89,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         private static Type[] convertibleTypes = {
+            typeof(FilePath),
             typeof(IConnectable),
             typeof(IConvertible),
             typeof(IPeripheral),

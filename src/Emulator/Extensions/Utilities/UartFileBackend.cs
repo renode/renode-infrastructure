@@ -52,13 +52,8 @@ namespace Antmicro.Renode.Extensions.Utilities
 
     public class UartFileBackend : IExternal, IDisposable
     {
-        public UartFileBackend(string path, IUART uart, bool immediateFlush = false)
+        public UartFileBackend(SequencedFilePath path, IUART uart, bool immediateFlush = false)
         {
-            if(Misc.AllocateFile(path, out var id))
-            {
-                Logger.LogAs(uart, LogLevel.Warning, "Previous UART output file renamed to: {0}.{1}", path, id);
-            }
-
             this.uart = uart;
             this.immediateFlush = immediateFlush;
 

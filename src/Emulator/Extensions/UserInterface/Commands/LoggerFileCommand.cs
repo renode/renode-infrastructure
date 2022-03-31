@@ -37,10 +37,6 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private void InnerRun(string path, bool flushAfterEveryWrite)
         {
-            if(Misc.AllocateFile(path, out var counter))
-            {
-                Logger.LogAs(null, LogLevel.Warning, "Previous log file detected and renamed to: {0}.{1}", path, counter);
-            }
             Logger.AddBackend(new FileBackend(path, flushAfterEveryWrite), "file", true);
         }
 

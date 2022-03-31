@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Utilities
     {
         // Implementation based on section 17.2.9 of
         // http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf
-        public VmemReader(string file)
+        public VmemReader(ReadFilePath file)
         {
             this.file = file;
         }

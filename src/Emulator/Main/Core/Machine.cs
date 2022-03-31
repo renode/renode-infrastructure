@@ -753,7 +753,7 @@ namespace Antmicro.Renode.Core
         
         public bool HasPlayer => player != null;
 
-        public void PlayFrom(string fileName)
+        public void PlayFrom(ReadFilePath fileName)
         {
             lock(recorderPlayerLock)
             {
