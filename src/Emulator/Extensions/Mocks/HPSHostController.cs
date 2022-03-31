@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             currentSlave = null;
         }
 
-        public void FlashMCU(string path)
+        public void FlashMCU(ReadFilePath path)
         {
             var address = 0;
             var data = new byte[256 + 5];

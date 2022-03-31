@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Logging
 {
     public class FileBackend : TextBackend 
     {
-        public FileBackend(string filePath, bool flushAfterEachWrite = false)
+        public FileBackend(SequencedFilePath filePath, bool flushAfterEachWrite = false)
         {
             var stream = File.Open(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
             output = new StreamWriter(stream);

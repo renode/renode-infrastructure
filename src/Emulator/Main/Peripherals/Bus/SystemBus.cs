@@ -470,7 +470,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             ZeroRange(from.By(size), context);
         }
 
-        public void LoadSymbolsFrom(string fileName, bool useVirtualAddress = false)
+        public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false)
         {
             using (var elf = GetELFFromFile(fileName))
             {
@@ -488,7 +488,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             pcCache.Invalidate();
         }
 
-        public void LoadELF(string fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IControllableCPU cpu = null)
+        public void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IControllableCPU cpu = null)
         {
             if(!Machine.IsPaused)
             {
@@ -534,7 +534,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void LoadUImage(string fileName, IControllableCPU cpu = null)
+        public void LoadUImage(ReadFilePath fileName, IControllableCPU cpu = null)
         {
             if(!Machine.IsPaused)
             {
@@ -592,7 +592,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             UpdateLowestLoadedAddress(uImage.LoadAddress);
         }
 
-        public void LoadBinary(string fileName, ulong loadPoint, ICPU cpu = null)
+        public void LoadBinary(ReadFilePath fileName, ulong loadPoint, ICPU cpu = null)
         {
             const int bufferSize = 100 * 1024;
             this.DebugLog("Loading binary {0} at 0x{1:X}.", fileName, loadPoint);
@@ -619,7 +619,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.DebugLog("Binary loaded.");
         }
 
-        public void LoadHEX(string fileName, IControllableCPU cpu = null)
+        public void LoadHEX(ReadFilePath fileName, IControllableCPU cpu = null)
         {
             string line;
             int lineNum = 1;
@@ -712,7 +712,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return binaryFingerprints.ToArray();
         }
 
-        public BinaryFingerprint GetFingerprint(string fileName)
+        public BinaryFingerprint GetFingerprint(ReadFilePath fileName)
         {
             return new BinaryFingerprint(fileName);
         }
@@ -1473,7 +1473,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private static IELF GetELFFromFile(string fileName)
+        private static IELF GetELFFromFile(ReadFilePath fileName)
         {
             try
             {

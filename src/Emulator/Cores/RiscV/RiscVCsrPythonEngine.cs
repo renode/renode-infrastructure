@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,12 +14,13 @@ using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Hooks
 {
     public sealed class RiscVCsrPythonEngine : PythonEngine
     {
-        public RiscVCsrPythonEngine(BaseRiscV cpu, ulong csr, bool initable, string script = null, string path = null)
+        public RiscVCsrPythonEngine(BaseRiscV cpu, ulong csr, bool initable, string script = null, OptionalReadFilePath path = null)
         {
             if((script == null && path == null) || (script != null && path != null))
             {

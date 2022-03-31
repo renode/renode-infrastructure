@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -11,13 +11,14 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Wireless;
+using Antmicro.Renode.Utilities;
 using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
 {
     public class PacketInterceptionPythonEngine : PythonEngine
     {
-        public PacketInterceptionPythonEngine(IRadio radio, string script = null, string filename = null)
+        public PacketInterceptionPythonEngine(IRadio radio, string script = null, OptionalReadFilePath filename = null)
         {
             if((script == null && filename == null) || (script != null && filename != null))
             {

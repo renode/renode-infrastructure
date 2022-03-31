@@ -14,6 +14,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Storage
 {
@@ -32,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             storage?.Dispose();
         }
 
-        public void LoadImage(string file, bool persistent = false)
+        public void LoadImage(WriteFilePath file, bool persistent = false)
         {
             storage?.Dispose();
             storage = DataStorage.Create(file, persistent: persistent);

@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Core
             TypeManager.Instance.GetTypeByName(name);
         }
 
-        public void Load(string path)
+        public void Load(ReadFilePath path)
         {
             using(var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
