@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             DefineRegisters();
             storage = DataStorage.Create(size: 0);
         }
-        
+
         public void Dispose()
         {
             storage?.Dispose();
@@ -63,25 +63,25 @@ namespace Antmicro.Renode.Peripherals.Storage
             var toSet = hasUsedBuffer.Value || configHasChanged.Value;
             IRQ.Set(toSet);
         }
-    
+
         private void DefineRegisters()
         {
             // General initialisation
             Registers.MagicValue.Define(this, MagicNumber)
                 .WithValueField(0, 32, FieldMode.Read, name: "magic_value");
-            
+
             Registers.DeviceVersion.Define(this, Version)
                 .WithValueField(0, 2, FieldMode.Read, name: "dev_version")
                 .WithReservedBits(2, 30);
-            
+
             Registers.DeviceID.Define(this, DeviceID)
                 .WithValueField(0, 2, FieldMode.Read, name: "dev_id")
                 .WithReservedBits(2, 30);
-            
+
             Registers.VendorID.Define(this, VendorID)
                 .WithValueField(0, 16, FieldMode.Read, name: "vendor_id")
                 .WithReservedBits(16, 16);
-            
+
             Registers.Status.Define(this)
                 .WithValueField(0, 32, out deviceStatus, writeCallback: (_, val) =>
                 {
@@ -89,35 +89,35 @@ namespace Antmicro.Renode.Peripherals.Storage
                     if(val == 0)
                     {
                         Reset();
-                    }   
+                    }
                 }, name: "status");
-            
+
             // Feature bits
             Registers.DeviceFeatures.Define(this)
                .WithValueField(0, 32, FieldMode.Read, name: "features", valueProviderCallback: _ =>
                                 (uint)(DeviceFeatureBits >> (32 * (int)deviceFeatureBitsIndex.Value)));
-            
+
             Registers.DeviceFeaturesSelected.Define(this)
                 .WithValueField(0, 1, out deviceFeatureBitsIndex, FieldMode.Write, name: "features_sel")
                 .WithReservedBits(1, 31);
-    
+
             Registers.DriverFeatures.Define(this)
                .WithValueField(0, 32, FieldMode.Write, name: "guestbits", writeCallback: (_, val) =>
                                 driverFeatureBits |= ((ulong)val << 32 * (int)driverFeatureBitsIndex.Value));
-            
+
             Registers.DriverFeaturesSelected.Define(this)
                 .WithValueField(0, 1, out driverFeatureBitsIndex, FieldMode.Write, name: "guest_sel")
                 .WithReservedBits(1, 31);
-            
+
             // Because it is a block device there is only one virtqueue with index 0.
             Registers.VirtqueueSel.Define(this)
                 .WithTag("queue_num_select", 0, 32);
-            
+
             Registers.VirtqueueSizeMax.Define(this, VirtqueueMaxSize)
                 .WithValueField(0, 32, FieldMode.Read, name: "queue_size_max");
-            
+
             Registers.VirtqueueSize.Define(this)
-                .WithValueField(0, 16, out virtqueueSize, FieldMode.Write, name: "queue_size", writeCallback: (_, val) => 
+                .WithValueField(0, 16, out virtqueueSize, FieldMode.Write, name: "queue_size", writeCallback: (_, val) =>
                 {
                     if(virtqueueSize.Value > VirtqueueMaxSize)
                     {
@@ -126,14 +126,14 @@ namespace Antmicro.Renode.Peripherals.Storage
                     }
                 })
                 .WithReservedBits(16, 16);
-            
+
             Registers.VirtqueueReady.Define(this)
                 .WithFlag(0, out isVirtqueueReady, FieldMode.Write, name: "queue_ready")
                 .WithReservedBits(1, 31);
-    
+
             Registers.VirtqueueNotify.Define(this)
                 .WithValueField(0, 32, out virtqueueNotify, FieldMode.WriteOneToClear, writeCallback: (_, val) =>
-                { 
+                {
                     if(!isVirtqueueReady.Value)
                     {
                         this.Log(LogLevel.Error, "VirtIO driver started a block operation, but current virtqueue isn't marked as ready.");
@@ -147,42 +147,42 @@ namespace Antmicro.Renode.Peripherals.Storage
                         VirtqueueHandle();
                     }
                 }, name: "queue_notifications");
-            
+
             // Virtqueue addresses
             Registers.VirtqueueDescLow.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, val) => virtqueueDescTableAddress = virtqueueDescTableAddress & 0xFFFFFFFF00000000 | (ulong)val);
-            
+
             Registers.VirtqueueDescHigh.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, val) => virtqueueDescTableAddress = virtqueueDescTableAddress & 0x00000000FFFFFFFF | ((ulong)val << 32));
-            
+
             Registers.VirtqueueDriverLow.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, val) => virtqueueAvailableAddress = virtqueueAvailableAddress & 0xFFFFFFFF00000000 | (ulong)val);
-            
+
             Registers.VirtqueueDriverHigh.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, val) => virtqueueAvailableAddress = virtqueueAvailableAddress & 0x00000000FFFFFFFF | ((ulong)val << 32));
-            
+
             Registers.VirtqueueDeviceLow.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, val) => virtqueueUsedAddress = virtqueueUsedAddress & 0xFFFFFFFF00000000 | (ulong)val);
-            
+
             Registers.VirtqueueDeviceHigh.Define(this)
                 .WithValueField(0, 32, writeCallback: (_, val) => virtqueueUsedAddress = virtqueueUsedAddress & 0x00000000FFFFFFFF | ((ulong)val << 32));
-            
+
             // Interrupts registers
             Registers.InterruptStatus.Define(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => hasUsedBuffer.Value)
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => configHasChanged.Value)
                 .WithReservedBits(2, 30);
-            
+
             Registers.InterruptACK.Define(this)
                 .WithFlag(0, out hasUsedBuffer, FieldMode.WriteOneToClear)
                 .WithFlag(1, out configHasChanged, FieldMode.WriteOneToClear)
                 .WithWriteCallback((_,__) => UpdateInterrupts())
                 .WithReservedBits(2, 30);
-            
+
             // Config Register
             Registers.CapacityHigh.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)(capacity >> 32), name: "capacity_high");
-            
+
             Registers.CapacityLow.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)capacity, name: "capacity_low");
 
@@ -191,13 +191,13 @@ namespace Antmicro.Renode.Peripherals.Storage
             Registers.Writeback.Define(this, 0)
                 .WithValueField(0, 8, FieldMode.Read, name: "writeback");
         }
-        
+
         // Virtqueue handling methods
         private void VirtqueueHandle()
         {
             var idx = (ushort)base.machine.SystemBus.ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Index);
             // Processing all available requests
-            // We're using 2 variables: availableIndex, availableIndexFromDriver because we have to compare this value to index field in driver's struct for available descriptors. 
+            // We're using 2 variables: availableIndex, availableIndexFromDriver because we have to compare this value to index field in driver's struct for available descriptors.
             // This field is meant to start at 0, then only increase and wrap around 65535. That's why we have one variable for comparing and the other one for accessing tables.
             // Source: https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-5300013
             while(availableIndexFromDriver < idx)
@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             }
         }
 
-        // Read next available desctriptor chain. 
+        // Read next available desctriptor chain.
         private Tuple<int, bool> ReadVirtqueueAvailable()
         {
             var flag = base.machine.SystemBus.ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Flags);
@@ -257,7 +257,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             request.WriteStatus();
             return request.BytesProcessed;
         }
-        
+
         // Write processed chain to used descriptors table. usedIndex and usedIndexForDriver work analogically to availableIndex and availableIndexFromDevice.
         private void WriteVirtqueueUsed(int descriptorIndex, bool noInterruptOnUsed, int bytesProcessed)
         {
@@ -275,7 +275,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 UpdateInterrupts();
             }
         }
-    
+
         private bool IsFeatureEnabled(FeatureBits feature)
         {
             return (driverFeatureBits & (ulong)feature) != 0;
@@ -292,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         private ulong virtqueueUsedAddress;
         private Stream storage;
         private IValueRegisterField deviceFeatureBitsIndex;
-        private IValueRegisterField driverFeatureBitsIndex; 
+        private IValueRegisterField driverFeatureBitsIndex;
         private IFlagRegisterField hasUsedBuffer;
         private IFlagRegisterField configHasChanged;
         private IValueRegisterField virtqueueNotify;
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         private const uint UsedRingEntrySize = 0x8;
         private const uint DescriptorSize = 0x10;
         // Constant taken from https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-5300013
-        private const uint VirtqueueMaxSize = 1 << 15; 
+        private const uint VirtqueueMaxSize = 1 << 15;
 
         private sealed class Request
         {
@@ -319,7 +319,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 index = startingIndex;
                 parent = v;
             }
-            
+
             public bool ReadHeader()
             {
                 ReadDescriptorMetadata();
@@ -363,7 +363,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 }
                 return true;
             }
-    
+
             public bool Write()
             {
                 ReadDescriptorMetadata();
@@ -389,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 return true;
             }
 
-            //Flush command doesn't use any buffer, so there is no need to read metadata or set new index. 
+            //Flush command doesn't use any buffer, so there is no need to read metadata or set new index.
             public void Flush()
             {
                 parent.storage.Flush();
@@ -399,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             {
                 status = (byte)VirtioBlockRequestStatus.Unsupported;
                 parent.Log(LogLevel.Warning, "Block operation unsupported.");
-            }           
+            }
 
             public int BytesProcessed { get; private set; }
             public int Type { get; private set; }
@@ -421,9 +421,9 @@ namespace Antmicro.Renode.Peripherals.Storage
                     (ulong)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressLow);
                 next = (int)parent.machine.SystemBus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Next);
                 length = (int)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.Length);
-                flags = (ushort)parent.machine.SystemBus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Flags);      
+                flags = (ushort)parent.machine.SystemBus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Flags);
             }
-            
+
             private bool SetNextIndex()
             {
                 if((flags & (ushort)VirtqueueDescriptorFlags.Next) != 0)
@@ -431,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                     index = next;
                     return true;
                 }
-                return false; 
+                return false;
             }
 
             private int index;
@@ -453,7 +453,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             Flags = 0xc,
             Next = 0xe,
         }
-    
+
         // Used and Available have the same structure. The main difference is type of elemnts used in ring arrays.
         // In Available it's only a 16bit number. In Used it's a structure described in UsedRing enum.
         private enum VirtqueueUsedAndAvailable
@@ -462,20 +462,20 @@ namespace Antmicro.Renode.Peripherals.Storage
             Index = 0x2,
             Ring  = 0x4,
         }
-    
+
         private enum UsedRing
         {
             Index = 0x0,
             Length = 0x4,
         }
-    
+
         private enum BlockRequestHeader
         {
             Type = 0x0,
             SectorLow = 0x8,
             SectorHigh = 0xc,
         }
-    
+
         private enum BlockOperations
         {
             In = 0,
@@ -491,7 +491,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             IoError = 1,
             Unsupported = 2,
         }
-    
+
         [Flags]
         private enum VirtqueueDescriptorFlags : uint
         {
@@ -499,7 +499,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             Write = 1 << 1,
             Indirect = 1 << 2,
         }
-    
+
         [Flags]
         private enum Status : uint
         {
@@ -525,7 +525,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             BlockFlagConfigWCE = 1UL << 11,
             BlockFlagDiscard = 1UL << 13,
             BlockFlagWriteZeroes = 1UL << 14,
-    
+
             // VirtIO MMIO device specific flags
             RingIndirectDescriptors = 1UL << 28,
             RingEventIndex = 1UL << 29,
@@ -537,7 +537,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             SingleRootIOVirtualization = 1UL << 37,
             NotificationData = 1UL << 38,
         }
-    
+
         private enum Registers : long
         {
             MagicValue = 0x00,
@@ -550,7 +550,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             DriverFeaturesSelected = 0x24,
             VirtqueueSel = 0x30,
             VirtqueueSizeMax = 0x34,
-            VirtqueueSize = 0x38, 
+            VirtqueueSize = 0x38,
             VirtqueueReady = 0x44,
             VirtqueueNotify = 0x50,
             InterruptStatus = 0x60,
@@ -563,7 +563,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             VirtqueueDeviceLow = 0xa0,
             VirtqueueDeviceHigh = 0xa4,
             ConfigGeneration = 0xfc,
-    
+
             //Configuration space for block device
             CapacityLow = 0x100,
             CapacityHigh = 0x104,
