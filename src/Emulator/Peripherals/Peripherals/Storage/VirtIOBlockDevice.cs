@@ -324,7 +324,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             {
                 ReadDescriptorMetadata();
                 Type = (int)parent.machine.SystemBus.ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.Type);
-                sector = (long)parent.machine.SystemBus.ReadDoubleWord(bufferAddress + ((ulong)BlockRequestHeader.SectorHigh) << 32) |
+                sector = (long)(((ulong)parent.machine.SystemBus.ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.SectorHigh)) << 32) |
                             (long)parent.machine.SystemBus.ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.SectorLow);
                 if(!SetNextIndex())
                 {
@@ -417,8 +417,8 @@ namespace Antmicro.Renode.Peripherals.Storage
             private void ReadDescriptorMetadata()
             {
                 ulong descriptorAddress = parent.virtqueueDescTableAddress + DescriptorSize * (ulong)index;
-                bufferAddress = (ulong)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + ((ulong)VirtqueueDescriptor.AddressHigh) << 32) |
-                                      (ulong)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressLow);
+                bufferAddress = (((ulong)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressHigh)) << 32) |
+                    (ulong)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressLow);
                 next = (int)parent.machine.SystemBus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Next);
                 length = (int)parent.machine.SystemBus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.Length);
                 flags = (ushort)parent.machine.SystemBus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Flags);      
