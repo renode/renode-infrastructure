@@ -413,16 +413,15 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupt()
         {
-            var irqState = false;
+            var rxUnderflow = receiveFifoUnderflowEnabled.Value && receiveFifoUnderflowInterrupt.Value;
+            var txOverflow = transmitFifoOverflowEnabled.Value && transmitFifoOverflowInterrupt.Value;
+            var tx = transmitterInterruptEnabled.Value && transmitDataRegisterEmpty.Value;
+            var rx = receiverInterruptEnabled.Value && (Count > 0);
+            var txComplete = transmissionCompleteInterruptEnabled.Value && (txQueue.Count == 0);
 
-            irqState |= receiveFifoUnderflowEnabled.Value && receiveFifoUnderflowInterrupt.Value;
-            irqState |= transmitFifoOverflowEnabled.Value && transmitFifoOverflowInterrupt.Value;
-            irqState |= transmitterInterruptEnabled.Value && transmitDataRegisterEmpty.Value;
-            irqState |= receiverInterruptEnabled.Value && (Count > 0);
-            irqState |= transmissionCompleteInterruptEnabled.Value && (txQueue.Count == 0);
-
+            var irqState = rxUnderflow || txOverflow || tx || rx || txComplete;
             IRQ.Set(irqState);
-            this.Log(LogLevel.Noisy, "Setting IRQ to {0}", irqState);
+            this.Log(LogLevel.Noisy, "Setting IRQ to {0}, rxUnderflow {1}, txOverflow {2}, tx {3}, rx {4}, txComplete {5}", irqState, rxUnderflow, txOverflow, tx, rx, txComplete);
         }
 
         private void UpdateDMA()
