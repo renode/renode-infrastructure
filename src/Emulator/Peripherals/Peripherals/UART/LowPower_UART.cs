@@ -14,8 +14,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.UART
 {
     // This model doesn't implement idling, matching, anything that requires more than 8 bit wide data and irDA
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class LowPower_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class LowPower_UART : UARTBase, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
         public LowPower_UART(Machine machine, long frequency = 8000000) : base(machine)
         {
@@ -276,6 +275,37 @@ namespace Antmicro.Renode.Peripherals.UART
                 txQueue.Clear();
                 UpdateGPIOOutputs();
                 reset.Value = true;
+            }
+        }
+
+        public byte ReadByte(long offset)
+        {
+            lock(locker)
+            {
+                if((Registers)offset == Registers.Data)
+                {
+                    return (byte)registers.Read(offset);
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Trying to read byte from {0} (0x{0:X}), not supported", (Registers)offset);
+                    return 0;
+                }
+            }
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            lock(locker)
+            {
+                if((Registers)offset == Registers.Data)
+                {
+                    registers.Write(offset, value);
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Trying to read byte from {0} (0x{0:X}), not supported", (Registers)offset);
+                }
             }
         }
 
