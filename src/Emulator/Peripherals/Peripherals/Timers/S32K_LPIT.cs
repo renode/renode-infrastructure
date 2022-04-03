@@ -254,8 +254,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 DebugLog("Setting Timer Enabled: {0}", value);
                 if(value && TriggerMode == TriggerModes.External)
                 {
-                    Log(LogLevel.Error, "External trigger sources aren't currently supported!");
-                    return;
+                    Log(LogLevel.Error, "External trigger sources aren't currently supported, treating as internal!");
                 }
 
                 Enabled = value;
