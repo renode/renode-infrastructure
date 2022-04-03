@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -14,7 +15,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class Micron_MT25Q : ISPIPeripheral
+    public class Micron_MT25Q : ISPIPeripheral, IGPIOReceiver
     {
         public Micron_MT25Q(MappedMemory underlyingMemory)
         {
@@ -47,6 +48,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             underlyingMemory.ResetByte = EmptySegment;
 
             deviceData = GetDeviceData();
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+            if(number == 0 && value)
+            {
+                this.Log(LogLevel.Noisy, "Chip Select is deasserted.");
+                FinishTransmission();
+            }
         }
 
         public void FinishTransmission()
