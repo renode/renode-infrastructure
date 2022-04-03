@@ -97,6 +97,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(26, 6)
             ;
 
+            Registers.SlowIRCDivide.Define(this, 0x101)
+                .WithValueField(0, 3, name: "SIRCDIV1")
+                .WithReservedBits(3, 5)
+                .WithValueField(8, 3, name: "SIRCDIV2")
+                .WithReservedBits(11, 21)
+            ;
+
             Registers.SlowIRCConfiguration.Define(this)
                 .WithFlag(0, name: "RANGE")
                 .WithReservedBits(1, 30)
