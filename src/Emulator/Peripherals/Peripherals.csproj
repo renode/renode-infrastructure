@@ -418,6 +418,7 @@
     <Compile Include="Peripherals\Miscellaneous\AthenaX5200.cs" />
     <Compile Include="Peripherals\UART\PL011.cs" />
     <Compile Include="Peripherals\Miscellaneous\ExternalWindowMMU.cs" />
+    <Compile Include="Peripherals\Video\MusteinGenericGPU.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
