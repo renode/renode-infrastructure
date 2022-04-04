@@ -68,4 +68,3 @@ namespace Antmicro.Renode.Hooks
         private readonly Machine Machine;
     }
 }
-

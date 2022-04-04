@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Python
             Scope.SetVariable("size", peripheral.Size);
 
             source = script;
-            code = Compile(source, error => throw new RecoverableException(error));
+            code = Compile(source);
         }
 
         public PeripheralPythonEngine(PythonPeripheral peripheral)
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Python
 
         public void ExecuteCode()
         {
-            code?.Execute(Scope);
+            Execute(code);
         }
 
         public void SetSysbusAndMachine(SystemBus bus)
