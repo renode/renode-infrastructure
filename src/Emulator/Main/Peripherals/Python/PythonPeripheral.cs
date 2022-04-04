@@ -198,21 +198,7 @@ namespace Antmicro.Renode.Peripherals.Python
 
         private void Execute()
         {
-            try
-            {
-                pythonRunner.ExecuteCode();
-            }
-            catch(Exception e)
-            {
-                if(e is SyntaxErrorException || e is UnboundNameException || e is MissingMemberException)
-                {
-                    this.Log(LogLevel.Error, "Python peripheral error: " + e.Message);
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            pythonRunner.ExecuteCode();
         }
 
         private bool inited;
