@@ -12,8 +12,9 @@ namespace Antmicro.Renode.Utilities
 {
     public class SimpleFileCache
     {
-        public SimpleFileCache(string location)
+        public SimpleFileCache(string location, bool enabled = true)
         {
+            Enabled = enabled;
             cacheLocation = Path.Combine(Emulator.UserDirectoryPath, location);
 
             internalCache = new HashSet<string>();
@@ -22,12 +23,12 @@ namespace Antmicro.Renode.Utilities
         
         public bool ContainsEntryWithSha(string sha)
         {
-            return !Emulator.InCIMode && internalCache.Contains(sha);
+            return Enabled && internalCache.Contains(sha);
         }
 
         public bool TryGetEntryWithSha(string sha, out string filename)
         {
-            if(Emulator.InCIMode || !ContainsEntryWithSha(sha))
+            if(!Enabled || !ContainsEntryWithSha(sha))
             {
                 filename = null;
                 return false;
@@ -39,7 +40,7 @@ namespace Antmicro.Renode.Utilities
 
         public void StoreEntryWithSha(string sha, string filename)
         {
-            if(Emulator.InCIMode || ContainsEntryWithSha(sha))
+            if(!Enabled || ContainsEntryWithSha(sha))
             {
                 return;
             }
@@ -51,6 +52,8 @@ namespace Antmicro.Renode.Utilities
                 internalCache.Add(sha);
             }
         }
+
+        public bool Enabled { get; set; }
 
         private void Populate()
         {

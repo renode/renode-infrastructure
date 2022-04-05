@@ -579,7 +579,7 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private SimpleFileCache compiledFileCache = new SimpleFileCache("compiler-cache");
+        private SimpleFileCache compiledFileCache = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
         private List<string> scannedFilesCache = new List<string>();
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
