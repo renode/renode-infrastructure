@@ -63,17 +63,9 @@ namespace Antmicro.Renode.Logging
 
         public override void Flush()
         {
-            if(!Monitor.TryEnter(sync))
-            {
-                return;
-            }
-            try
+            lock(sync)
             {
                 output.Flush();
-            }
-            finally
-            {
-                Monitor.Exit(sync);
             }
         }
             
