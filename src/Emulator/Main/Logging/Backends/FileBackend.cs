@@ -65,6 +65,11 @@ namespace Antmicro.Renode.Logging
         {
             lock(sync)
             {
+                if(isDisposed)
+                {
+                    return;
+                }
+                
                 output.Flush();
             }
         }
