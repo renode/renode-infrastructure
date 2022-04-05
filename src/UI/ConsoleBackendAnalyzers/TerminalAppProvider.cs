@@ -19,7 +19,7 @@ namespace Antmicro.Renode.UI
         {
             var script = TemporaryFilesManager.Instance.GetTemporaryFile();
             File.WriteAllLines(script, new [] {
-                "#!/bin/bash",
+                "#!/usr/bin/env bash",
                 command
             });
 
