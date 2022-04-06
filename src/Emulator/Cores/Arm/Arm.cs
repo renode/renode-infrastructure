@@ -182,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual UInt32 BeforePCWrite(UInt32 value)
         {
-            SetThumb((int)(value & 0x1));
+            TlibSetThumb((int)(value & 0x1));
             return value & ~(uint)0x1;
         }
 
@@ -314,7 +314,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetCpuId;
 
         [Import]
-        private ActionInt32 SetThumb;
+        private ActionInt32 TlibSetThumb;
 
         [Import]
         private ActionInt32 TlibSetEventFlag;

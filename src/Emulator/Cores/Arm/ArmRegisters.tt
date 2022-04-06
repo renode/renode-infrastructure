@@ -12,6 +12,7 @@
 <#
     CLASS_NAME = "Arm";
     HEADER_FILE = "Emulator/Cores/tlib/arch/arm/cpu_registers.h";
+    DEFINES.Add("TARGET_ARM32");
 
     BEFORE_WRITE_HOOKS.Add("PC", "BeforePCWrite");
 
