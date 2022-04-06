@@ -227,7 +227,11 @@ namespace Antmicro.Renode.Utilities
         [DllImport("libc", EntryPoint = "tcsetattr")]
         private extern static void Tcsetattr(int fd, int attr, IntPtr termios);
 
+#if PLATFORM_LINUX
+        [DllImport("libutil.so.1", EntryPoint = "openpty")]
+#else
         [DllImport("util", EntryPoint = "openpty")]
+#endif
         private extern static int Openpty(IntPtr amaster, IntPtr aslave, IntPtr name, IntPtr termp, IntPtr winp);
 
         [Transient]
