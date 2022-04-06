@@ -414,6 +414,7 @@
     <Compile Include="Peripherals\Miscellaneous\STM32_PWR.cs" />
     <Compile Include="Peripherals\Timers\S32K_LPIT.cs" />
     <Compile Include="Peripherals\Timers\S32K_LPTMR.cs" />
+    <Compile Include="Peripherals\UART\TrivialUart.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
