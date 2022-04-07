@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             memoryManager = new InternalMemoryManager();
             RegistersCollection = new DoubleWordRegisterCollection(this);
+            rsaServiceProvider = new RSAServiceProvider(memoryManager);
 
             Registers.CSR.Define(this)
                 .WithFlag(0,
@@ -69,9 +70,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             commands = new Dictionary<JumpTable, Action>
             {
                 { JumpTable.DetectFirmwareVersion, EmptyHandler },
+                { JumpTable.PrecomputeValueRSA, EmptyHandler },
                 { JumpTable.InstantiateDRBG, InstantiateDRBG },
                 { JumpTable.GenerateBlocksFromDRBG, GenerateBlocksWithDRBG },
                 { JumpTable.UninstantiateDRBG, UninstantiateDRBG },
+                { JumpTable.ModularExponentationRSA, rsaServiceProvider.ModularExponentation },
+                { JumpTable.ModularReductionRSA, rsaServiceProvider.ModularReduction },
+                { JumpTable.DecryptCipherRSA, rsaServiceProvider.DecryptData },
             };
 
             Reset();
@@ -148,6 +153,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Dictionary<JumpTable, Action> commands;
         private readonly IEnumRegisterField<JumpTable> operation;
         private readonly IFlagRegisterField coreExecuteCommand;
+        private readonly RSAServiceProvider rsaServiceProvider;
 
         private class InternalMemoryManager
         {
@@ -400,12 +406,132 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        private class RSAServiceProvider
+        {
+            public RSAServiceProvider(InternalMemoryManager manager)
+            {
+                this.manager = manager;
+            }
+
+            public void ModularExponentation()
+            {
+                manager.TryReadDoubleWord((long)RSARegisters.ExponentationModulusLength, out var modulusLength);
+                manager.TryReadDoubleWord((long)RSARegisters.ExponentLength, out var exponentLength);
+                var baseAddress = (long)RSARegisters.BaseAddress + exponentLength * 4;
+
+                var n = CreateBigInteger(RSARegisters.Modulus, modulusLength);
+                var e = CreateBigInteger(RSARegisters.Exponent, exponentLength);
+
+                var operand = CreateBigInteger((RSARegisters)baseAddress, modulusLength);
+                var result = BigInteger.ModPow(operand, e, n);
+
+                manager.TryWriteBytes(baseAddress, result.ToByteArray());
+            }
+
+            public void ModularReduction()
+            {
+                manager.TryReadDoubleWord((long)RSARegisters.ReductionModulusLength, out var modulusLength);
+                manager.TryReadDoubleWord((long)RSARegisters.ReductionOperandLength, out var operandLength);
+
+                var n = CreateBigInteger(RSARegisters.Modulus, modulusLength);
+                var a = CreateBigInteger(RSARegisters.Operand, operandLength);
+                var result = a % n;
+
+                manager.TryWriteBytes((long)RSARegisters.Operand, result.ToByteArray());
+            }
+
+            public void DecryptData()
+            {
+                manager.TryReadDoubleWord((long)RSARegisters.DecryptionModulusLength, out var modulusLength);
+
+                var n = CreateBigInteger(RSARegisters.N, modulusLength * 2);
+
+                // Step 1:
+                // m1 = c^dp mod p
+                var c = CreateBigInteger(RSARegisters.Cipher, modulusLength * 2);
+                var dp = CreateBigInteger(RSARegisters.DP, modulusLength);
+                var p = CreateBigInteger(RSARegisters.P, modulusLength);
+                var m1 = BigInteger.ModPow(c, dp, p);
+
+                // Step 2:
+                // m2 = c^dq mod q
+                var dq = CreateBigInteger(RSARegisters.DQ, modulusLength);
+                var q = CreateBigInteger(RSARegisters.Q, modulusLength);
+                var m2 = BigInteger.ModPow(c, dq, q);
+
+                // Step 3:
+                // h = (qInv * (m1 - m2)) mod p
+                var qInv = CreateBigInteger(RSARegisters.QInverted, modulusLength);
+                var x = m1 - m2;
+                // We add in an extra p here to keep x positive
+                // example: https://www.di-mgt.com.au/crt_rsa.html
+                while(x < 0)
+                {
+                    x += p;
+                }
+                var h = (qInv * x) % p;
+
+                // Step 4:
+                // m = m2 + h * q
+                var m = m2 + h * q;
+
+                manager.TryWriteBytes((long)RSARegisters.BaseAddress, m.ToByteArray());
+            }
+
+            private BigInteger CreateBigInteger(RSARegisters register, uint wordCount)
+            {
+                var j = wordCount - 1;
+                manager.TryReadBytes((long)register + ((wordCount - 1) * 4), 1, out var b);
+                // All calculations require positive values, so we are verifying the sign here:
+                // if the highest bit of the first byte is set, we effectively add a zero at
+                // the beginning of the array, so the data can be interpreted as a positive value.
+                var wordBytesLength = b[0] >= 0x80 ? wordCount * 4 + 1 : wordCount * 4;
+                var wordBytes = new byte[wordBytesLength];
+                for(var i = (int)wordCount - 1; i >= 0; --i)
+                {
+                    manager.TryReadBytes((long)register + (i * 4), 4, out var bytes);
+                    wordBytes[j * 4 + 3] = bytes[0];
+                    wordBytes[j * 4 + 2] = bytes[1];
+                    wordBytes[j * 4 + 1] = bytes[2];
+                    wordBytes[j * 4] = bytes[3];
+                    --j;
+                }
+                return new BigInteger(wordBytes);
+            }            
+
+            private readonly InternalMemoryManager manager;
+
+            private enum RSARegisters
+            {
+                ReductionOperandLength = 0x8,
+                ReductionModulusLength = 0xC,
+                ExponentationModulusLength = 0x10,
+                Operand = 0x10,
+                ExponentLength = 0x14,
+                Exponent = 0x18,
+                BaseAddress = 0x18,
+                DecryptionModulusLength = 0x30,
+                Cipher = 0x1e4,
+                DP = 0x4f0,
+                DQ = 0x5b0,
+                QInverted = 0x670,
+                Modulus = 0x1000,
+                P = 0x1348,
+                Q = 0x14cc,
+                N = 0x1650,
+            }
+        }
+
         private enum JumpTable
         {
             // gaps in addressing - only a few commands are implemented
+            PrecomputeValueRSA = 0x0,
+            ModularExponentationRSA = 0x2,
+            ModularReductionRSA = 0x12,
             InstantiateDRBG = 0x2C,
             GenerateBlocksFromDRBG = 0x30,
             UninstantiateDRBG = 0x32,
+            DecryptCipherRSA = 0x4E,
             DetectFirmwareVersion = 0x5A
         }
 
