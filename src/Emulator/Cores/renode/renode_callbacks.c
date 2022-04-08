@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -71,3 +71,4 @@ EXTERNAL_AS(action_uint64, OnInterruptBegin, tlib_on_interrupt_begin)
 EXTERNAL_AS(action_uint64, OnInterruptEnd, tlib_on_interrupt_end)
 EXTERNAL_AS(action_uint32_uint64, OnMemoryAccess, tlib_on_memory_access)
 EXTERNAL_AS(func_uint32, IsInDebugMode, tlib_is_in_debug_mode)
+EXTERNAL_AS(action_uint64_int32_int32, MmuFaultExternalHandler, tlib_mmu_fault_external_handler)

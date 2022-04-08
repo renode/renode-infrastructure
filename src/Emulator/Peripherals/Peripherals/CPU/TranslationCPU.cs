@@ -24,6 +24,7 @@ using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Peripherals.CPU.Registers;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
@@ -34,7 +35,7 @@ using Antmicro.Renode.Disassembler.LLVM;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, INativeUnwindable, IDisposable, IDisassemblable, ITimeSink
+    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, INativeUnwindable, IDisposable, IDisassemblable, ITimeSink
     {
         public Endianess Endianness { get; protected set; }
 
@@ -68,6 +69,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitializeRegisters();
             Init();
             InitDisas();
+            externalMmuWindowsCount = TlibGetMmuWindowsCount();
         }
 
         public bool TbCacheEnabled
@@ -177,6 +179,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         // This value should only be read in CPU hooks (during execution of translated code).
         public uint CurrentBlockDisassemblyFlags => TlibGetCurrentTbDisasFlags();
+
+        public uint ExternalMmuWindowsCount => externalMmuWindowsCount;
 
         public bool ThreadSentinelEnabled { get; set; }
 
@@ -665,6 +669,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             interruptBeginHook += hook;
         }
 
+        public void AddHookOnMmuFault(Action<ulong, AccessType, int> hook)
+        {
+            mmuFaultHook += hook;
+        }
+
         public void AddHookAtInterruptEnd(Action<ulong> hook)
         {
             if(Architecture != "riscv")
@@ -810,6 +819,96 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private bool AssertMmuEnabled()
+        {
+            if(!externalMmuEnabled)
+            {
+                throw new RecoverableException("External MMU not enabled");
+            }
+            return externalMmuEnabled;
+        }
+
+        private bool AssertMmuEnabledAndWindowInRange(uint index)
+        {
+            var windowInRange = index < externalMmuWindowsCount;
+            if(!windowInRange)
+            {
+                throw new RecoverableException($"Window index to high, maximum number: {externalMmuWindowsCount - 1}, got {index}");
+            }
+            return AssertMmuEnabled() && windowInRange;
+        }
+
+        public void EnableExternalWindowMmu(bool value)
+        {
+            TlibEnableExternalWindowMmu(value ? 1u : 0u);
+            externalMmuEnabled = value;
+        }
+
+        public int AcquireExternalMmuWindow()
+        {
+            return AssertMmuEnabled() ? TlibAcquireMmuWindow() : -1;
+        }
+
+        public void ResetMmuWindow(uint index)
+        {
+            if(AssertMmuEnabledAndWindowInRange(index))
+            {
+                TlibResetMmuWindow(index);
+            }
+        }
+
+        public void SetMmuWindowAddend(uint index, ulong addend)
+        {
+            if(AssertMmuEnabledAndWindowInRange(index))
+            {
+                TlibSetMmuWindowAddend(index, addend);
+            }
+        }
+
+        public void SetMmuWindowStart(uint index, ulong startAddress)
+        {
+            if(AssertMmuEnabledAndWindowInRange(index))
+            {
+                TlibSetMmuWindowStart(index, startAddress);
+            }
+        }
+
+        public void SetMmuWindowEnd(uint index, ulong end_addr)
+        {
+            if(AssertMmuEnabledAndWindowInRange(index))
+            {
+                TlibSetMmuWindowEnd(index, end_addr);
+            }
+        }
+
+        public void SetMmuWindowPrivileges(uint index, uint permissions)
+        {
+            if(AssertMmuEnabledAndWindowInRange(index))
+            {
+                TlibSetWindowPrivileges(index, permissions);
+            }
+        }
+
+        public ulong GetMmuWindowAddend(uint index)
+        {
+            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowAddend(index) : 0;
+        }
+
+        public ulong GetMmuWindowStart(uint index)
+        {
+            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowStart(index) : 0;
+        }
+
+        public ulong GetMmuWindowEnd(uint index)
+        {
+            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowEnd(index) : 0;
+        }
+
+        public uint GetMmuWindowPrivileges(uint index)
+        {
+            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetWindowPrivileges(index) : 0;
+        }
+
         private void CheckIfOnSynchronizedThread()
         {
             if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
@@ -935,6 +1034,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void OnInterruptBegin(ulong interruptIndex)
         {
             interruptBeginHook?.Invoke(interruptIndex);
+        }
+
+        [Export]
+        private void MmuFaultExternalHandler(ulong address, int accessType, int windowIndex)
+        {
+            this.Log(LogLevel.Noisy, "External MMU fault at 0x{0:X} when trying to access as {1}", address, (AccessType)accessType);
+
+            if(windowIndex == -1)
+            {
+                this.Log(LogLevel.Error, "MMU fault - the address 0x{0:X} is not specified in any of the existing ranges", address);
+            }
+            mmuFaultHook?.Invoke(address, (AccessType)accessType, windowIndex);
         }
 
         [Export]
@@ -1359,6 +1470,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong, uint> blockFinishedHook;
         private Action<ulong> interruptBeginHook;
         private Action<ulong> interruptEndHook;
+        private Action<ulong, AccessType, int> mmuFaultHook;
         private Action<uint, ulong> memoryAccessHook;
 
         private List<SegmentMapping> currentMappings;
@@ -1750,7 +1862,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
+#pragma warning disable 649
 
         [Import]
         private ActionUInt32 TlibSetChainingEnabled;
@@ -1892,7 +2004,43 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import(UseExceptionWrapper = false)]
         private Action TlibUnwind;
 
-        #pragma warning restore 649
+        [Import]
+        private FuncUInt32 TlibGetMmuWindowsCount;
+
+        [Import]
+        private ActionUInt32 TlibEnableExternalWindowMmu;
+
+        [Import]
+        private FuncInt32 TlibAcquireMmuWindow;
+
+        [Import]
+        private ActionUInt32 TlibResetMmuWindow;
+
+        [Import]
+        private ActionUInt32UInt64 TlibSetMmuWindowStart;
+
+        [Import]
+        private ActionUInt32UInt64 TlibSetMmuWindowEnd;
+
+        [Import]
+        private ActionUInt32UInt32 TlibSetWindowPrivileges;
+
+        [Import]
+        private ActionUInt32UInt64 TlibSetMmuWindowAddend;
+
+        [Import]
+        private FuncUInt64UInt32 TlibGetMmuWindowStart;
+
+        [Import]
+        private FuncUInt64UInt32 TlibGetMmuWindowEnd;
+
+        [Import]
+        private FuncUInt32UInt32 TlibGetWindowPrivileges;
+
+        [Import]
+        private FuncUInt64UInt32 TlibGetMmuWindowAddend;
+
+#pragma warning restore 649
 
         protected const int DefaultTranslationCacheSize = 32 * 1024 * 1024;
 
@@ -1986,6 +2134,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected static readonly Exception InvalidInterruptNumberException = new InvalidOperationException("Invalid interrupt number.");
 
         private const int DefaultMaximumBlockSize = 0x7FF;
+        private bool externalMmuEnabled;
+        private readonly uint externalMmuWindowsCount;
 
         private void ExecuteHooks(ulong address)
         {
@@ -2105,15 +2255,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ulong instructionsExecutedThisRound;
         protected bool neverWaitForInterrupt;
 
-        private bool CpuThreadBodyInner(bool singleStep)
+        private CpuResult CpuThreadBodyInner(bool singleStep)
         {
             if(!TimeHandle.RequestTimeInterval(out var interval))
             {
                 this.Trace();
-                return false;
+                return CpuResult.NothingExecuted;
             }
 
             this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
+            var mmuFaultThrown = false;
             var initialExecutedResiduum = executedResiduum;
             var initialTotalElapsedTime = TimeHandle.TotalElapsedTime;
 
@@ -2122,7 +2273,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Trace("not enough time granted, reporting continue");
                 TimeHandle.ReportBackAndContinue(interval);
-                return false;
+                return CpuResult.NothingExecuted;
             }
             instructionsLeftThisRound = Math.Min(instructionsToExecuteThisRound - executedResiduum, singleStep ? 1 : ulong.MaxValue);
             instructionsExecutedThisRound = executedResiduum;
@@ -2191,6 +2342,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                         TlibCleanWfiProcState(); // Clean WFI state in the emulated core
                     }
                 }
+                else if(result == ExecutionResult.ExternalMmuFault)
+                {
+                    mmuFaultThrown = true;
+                    break;
+                }
                 else if(result == ExecutionResult.Aborted || result == ExecutionResult.ReturnRequested || result == ExecutionResult.StoppedAtWatchpoint)
                 {
                     this.Trace(result.ToString());
@@ -2205,7 +2361,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Trace("aborted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                 executedResiduum = 0;
-                return false;
+                return CpuResult.Aborted;
             }
             else if(currentHaltedState)
             {
@@ -2236,7 +2392,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            return executedResiduum != initialExecutedResiduum || TimeHandle.TotalElapsedTime != initialTotalElapsedTime;
+            if(mmuFaultThrown)
+            {
+                return CpuResult.MmuFault;
+            }
+            else if(executedResiduum == initialExecutedResiduum && TimeHandle.TotalElapsedTime == initialTotalElapsedTime)
+            {
+                return CpuResult.NothingExecuted;
+            }
+            return CpuResult.ExecutedInstructions;
         }
 
         private readonly Sleeper sleeper = new Sleeper();
@@ -2316,12 +2480,24 @@ restart:
                                 }
                             }
 
-                            var anythingExecuted = CpuThreadBodyInner(singleStep);
+                            var cpuResult = CpuThreadBodyInner(singleStep);
 
-                            if(singleStep && anythingExecuted)
+                            if(singleStep)
                             {
-                                this.Trace();
-                                singleStepSynchronizer.StepFinished();
+                                switch(cpuResult)
+                                {
+                                    case CpuResult.NothingExecuted:
+                                        break;
+                                    case CpuResult.MmuFault:
+                                        this.Trace("Interrupting stepping due to the external MMU fault");
+                                        singleStepSynchronizer.StepInterrupted();
+                                        break;
+                                    default:
+                                        this.Trace();
+                                        var mmuFaulted = (cpuResult == CpuResult.MmuFault);
+                                        singleStepSynchronizer.StepFinished();
+                                        break;
+                                }
                             }
                         }
 
@@ -2432,8 +2608,17 @@ restart:
             StoppedAtBreakpoint = 0x10002,
             StoppedAtWatchpoint = 0x10004,
             ReturnRequested = 0x10005,
+            ExternalMmuFault = 0x10006,
             // tlib returns int32, so this value won't overlap with an actual result
             Aborted = ulong.MaxValue
+        }
+
+        protected enum CpuResult
+        {
+            ExecutedInstructions = 0,
+            NothingExecuted = 1,
+            MmuFault = 2,
+            Aborted = 3,
         }
 
         private ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
@@ -2590,6 +2775,16 @@ restart:
                     {
                         Monitor.Pulse(guard);
                     }
+                }
+            }
+
+            public void StepInterrupted()
+            {
+                lock(guard)
+                {
+                    counter = 0;
+                    Logger.Log(LogLevel.Warning, "Stepping interrupted");
+                    Monitor.Pulse(guard);
                 }
             }
 
