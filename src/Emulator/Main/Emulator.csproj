@@ -198,6 +198,7 @@
     <Compile Include="Peripherals\PCI\BAR\MemoryBaseAddressRegister.cs" />
     <Compile Include="Peripherals\PCI\BAR\IOBaseAddressRegister.cs" />
     <Compile Include="Peripherals\CPU\CPURegistrationPoint.cs" />
+    <Compile Include="Peripherals\CPU\ExternalMmuBase.cs" />
     <Compile Include="Core\Structure\Registered.cs" />
     <Compile Include="Peripherals\IEmulationElement.cs" />
     <Compile Include="Utilities\Collections\BidirectionalTreeNode.cs" />
