@@ -555,11 +555,11 @@ namespace Antmicro.Renode.UserInterface
 
             try
             {
-                if(!compiledFileCache.TryGetEntryWithSha(sha, out var compiledCode))
+                if(!EmulationManager.Instance.CompiledFilesCache.TryGetEntryWithSha(sha, out var compiledCode))
                 {
                     var compiler = new AdHocCompiler();
                     compiledCode = compiler.Compile(filename);
-                    compiledFileCache.StoreEntryWithSha(sha, compiledCode);
+                    EmulationManager.Instance.CompiledFilesCache.StoreEntryWithSha(sha, compiledCode);
                 }
                 
                 cache.ClearCache();
@@ -579,7 +579,6 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private SimpleFileCache compiledFileCache = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
         private List<string> scannedFilesCache = new List<string>();
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)

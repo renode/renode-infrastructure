@@ -182,6 +182,8 @@ namespace Antmicro.Renode.Core
                 );
             }
         }
+        
+        public SimpleFileCache CompiledFilesCache { get; } = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
 
         public event Action EmulationChanged;
 
