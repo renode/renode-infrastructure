@@ -396,6 +396,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             //set TransmitBufferUnavailable
             dmaStatus |= TransmitBufferUnavailableStatus;
+            dmaStatus |= TransmitStatus;
             if((dmaInterruptEnable & (StartStopTransmission)) == 0)
             {
                 IRQ.Set();
@@ -442,6 +443,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private const uint StartStopTransmission = 1 << 13;
         private const uint TransmitBufferUnavailableStatus = 1 << 2;
         private const uint ReceiveStatus = 1 << 6;
+        private const uint TransmitStatus = 1 << 0;
 
         private class Descriptor
         {
