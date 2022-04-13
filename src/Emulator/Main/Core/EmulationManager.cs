@@ -164,6 +164,11 @@ namespace Antmicro.Renode.Core
             return timerResult;
         }
 
+        public void EnableCompiledFilesCache(bool value)
+        {
+            CompiledFilesCache.Enabled = value;
+        }
+
         public string VersionString
         {
             get
