@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -70,44 +70,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 }
             }
             catch(Exception e)
-            {
-                throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
-            }
-            CalculateDigest(digestData);
-        }
-
-        public void LoadBinary(string fileName)
-        {
-            var digestData = new ulong[romLengthInWords - 8];
-            try
-            {
-                using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
-                {
-                    var buffer = new byte[8];
-                    var read = 0;
-                    for(var scrambledIndex = 0UL; scrambledIndex < romLengthInWords; ++scrambledIndex)
-                    {
-                        read = reader.Read(buffer, 0, WordSizeWithECC);
-                        if(read == 0)
-                        {
-                            throw new RecoverableException($"Error while loading file {fileName}: file is too small");
-                        }
-                        if(read != WordSizeWithECC)
-                        {
-                            throw new RecoverableException($"Error while loading file {fileName}: the number of bytes in a file must be a multiple of {WordSizeWithECC}");
-                        }
-
-                        var data = BitConverter.ToUInt64(buffer, 0);
-                        LoadWord(scrambledIndex, data, digestData);
-                    }
-                    read = reader.Read(buffer, 0, buffer.Length);
-                    if(read != 0)
-                    {
-                        throw new RecoverableException($"Error while loading file {fileName}: file is too big");
-                    }
-                }
-            }
-            catch(IOException e)
             {
                 throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
             }
@@ -217,7 +179,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private const int NumberOfDigestRegisters = 8;
         private const int NumberOfScramblingRounds = 2;
-        private const int WordSizeWithECC = 5;
 
         private class ECCHsiao
         {
