@@ -16,6 +16,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
@@ -28,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var tracer = new ExecutionTracer(@this, file, format);
             // we keep it as external to dispose/flush on quit
-            EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, "executionTracer");
+            EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, $"executionTracer-{@this.GetName()}");
 
             tracer.Start();
         }
