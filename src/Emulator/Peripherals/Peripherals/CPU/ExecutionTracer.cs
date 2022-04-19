@@ -17,6 +17,8 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
+using Antmicro.Migrant.Hooks;
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -106,6 +108,27 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public TranslationCPU AttachedCPU { get; }
+
+        [PreSerialization]
+        private void PreSerializationHook()
+        {
+            if(underlyingThread == null)
+            {
+                return;
+            }
+            
+            wasStarted = true;
+            Stop();
+        }
+
+        [PostDeserialization]
+        private void PostDeserializationHook()
+        {
+            if(wasStarted)
+            {
+                Start();
+            }
+        }
 
         private void HandleBlock(Block block, StringBuilder sb)
         {
@@ -288,8 +311,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        [Transient]
         private Thread underlyingThread;
         private BlockingCollection<Block> blocks;
+        private bool wasStarted;
 
         private readonly string file;
         private readonly Format format;
