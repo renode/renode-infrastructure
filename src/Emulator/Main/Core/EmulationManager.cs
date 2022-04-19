@@ -194,7 +194,9 @@ namespace Antmicro.Renode.Core
 
         private EmulationManager()
         {
-            var settings = new Antmicro.Migrant.Customization.Settings(Antmicro.Migrant.Customization.Method.Generated, Antmicro.Migrant.Customization.Method.Generated,
+            var serializerMode = ConfigurationManager.Instance.Get("general", "serialization-mode", Antmicro.Migrant.Customization.Method.Generated);
+            
+            var settings = new Antmicro.Migrant.Customization.Settings(serializerMode, serializerMode,
                 Antmicro.Migrant.Customization.VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true);
             serializer = new Serializer(settings);
             serializer.ForObject<PythonDictionary>().SetSurrogate(x => new PythonDictionarySurrogate(x));
