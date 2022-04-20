@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -79,6 +79,13 @@ namespace Antmicro.Renode.Peripherals
         public static bool IsHostEndian(this IPeripheral @this)
         {
             return (@this.GetEndianness() == Endianess.LittleEndian) == BitConverter.IsLittleEndian;
+        }
+
+        public static string GetName(this IPeripheral @this)
+        {
+            var machine = @this.GetMachine();
+            var machineName = EmulationManager.Instance.CurrentEmulation[machine];
+            return $"{machineName}.{machine.GetLocalName(@this)}";
         }
     }
 }
