@@ -16,9 +16,9 @@ namespace Antmicro.Renode.Peripherals
 {
     [Icon("box")]
     public interface IPeripheral : IEmulationElement, IAnalyzable
-	{
-		void Reset();
-	}
+    {
+        void Reset();
+    }
 
     public static class IPeripheralExtensions
     {
