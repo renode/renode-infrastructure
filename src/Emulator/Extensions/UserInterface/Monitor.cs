@@ -261,23 +261,23 @@ namespace Antmicro.Renode.UserInterface
             string machineName;
             if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machineName))
             {
+                var activeMachine = _currentMachine;
+                _currentMachine = machine;
                 var macroName = GetVariableName("reset");
                 Token resetMacro;
                 if(macros.TryGetValue(macroName, out resetMacro))
                 {
-                    var activeMachine = _currentMachine;
-                    _currentMachine = machine;
                     var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
                     foreach(var line in macroLines)
                     {
                         Parse(line, Interaction);
                     }
-                    _currentMachine = activeMachine;
                 }
                 else
                 {
                     Logger.LogAs(this, LogLevel.Warning, "No action for reset - macro {0} is not registered.", macroName);
                 }
+                _currentMachine = activeMachine;
             }
         }
 
