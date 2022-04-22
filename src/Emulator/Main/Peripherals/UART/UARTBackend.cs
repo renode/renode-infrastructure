@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Text;
 using Antmicro.Renode.Utilities.Collections;
 using System.Collections.Generic;
 using AntShell.Terminal;
@@ -81,6 +82,29 @@ namespace Antmicro.Renode.Peripherals.UART
                 UART.CharReceived -= actionsDictionary[io];
                 actionsDictionary.Remove(io);
             }
+        }
+
+        public string DumpHistoryBuffer(int limit = 0)
+        {
+            var result = new StringBuilder();
+            var hasLimit = limit > 0;
+            lock(lockObject)
+            {
+                foreach(var b in history)
+                {
+                    if(hasLimit)
+                    {
+                        if(limit == 0)
+                        {
+                            break;
+                        }
+                        limit--;
+                    }
+                    
+                    result.Append((char)b);
+                }
+            }
+            return result.ToString();
         }
 
         public IUART UART { get; private set; }

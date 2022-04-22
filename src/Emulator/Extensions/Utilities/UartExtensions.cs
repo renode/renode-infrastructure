@@ -1,16 +1,34 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Utilities
 {
     public static class UartExtensions
     {
+        public static string DumpHistoryBuffer(this IUART uart, int limit = 0)
+        {
+            var emu = EmulationManager.Instance.CurrentEmulation;
+            if(!emu.BackendManager.TryGetBackendFor(uart, out var backend))
+            {
+                throw new RecoverableException($"No backend found for {uart}");
+            }
+
+            if(backend is UARTBackend uartBackend)
+            {
+                return uartBackend.DumpHistoryBuffer(limit);
+            }
+            
+            throw new RecoverableException($"Unsupported type of backend for {uart}: {backend.GetType()}");
+        }
+        
         public static void WriteLine(this IUART uart, string text, bool appendCarriageReturn = true)
         {
             uart.WriteLine(text, appendCarriageReturn ? LineEnding.CR : LineEnding.None);
