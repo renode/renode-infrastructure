@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -20,11 +20,12 @@ namespace Antmicro.Renode.Utilities
 {
     public class SocketServerProvider : IDisposable
     {
-        public SocketServerProvider(bool emitConfigBytes = true)
+        public SocketServerProvider(bool emitConfigBytes = true, bool flushOnConnect = false)
         {
             queue = new ConcurrentQueue<byte>();
             enqueuedEvent = new AutoResetEvent(false);
             this.emitConfigBytes = emitConfigBytes;
+            this.flushOnConnect = flushOnConnect;
         }
 
         public void Start(int port)
@@ -196,6 +197,12 @@ namespace Antmicro.Renode.Utilities
                     connectionAccepted(stream);
                 }
 
+                if(flushOnConnect)
+                {
+                    // creating a new queue not to have to lock accesses to it.
+                    queue = new ConcurrentQueue<byte>();
+                }
+
                 writerCancellationToken = new CancellationTokenSource();
                 writerThread = new Thread(() => WriterThreadBody(stream))
                 {
@@ -227,11 +234,12 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private readonly ConcurrentQueue<byte> queue;
+        private ConcurrentQueue<byte> queue;
 
         private CancellationTokenSource writerCancellationToken;
         private AutoResetEvent enqueuedEvent;
         private bool emitConfigBytes;
+        private bool flushOnConnect;
         private bool stopRequested;
         private Thread listenerThread;
         private Thread readerThread;
