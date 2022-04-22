@@ -57,6 +57,10 @@ namespace Antmicro.Renode.Utilities
 
         private void Populate()
         {
+            if(!Enabled)
+            {
+                return;
+            }
             EnsureCacheDirectory();
             using(var locker = new FileLocker(Path.Combine(cacheLocation, lockFileName)))
             {
