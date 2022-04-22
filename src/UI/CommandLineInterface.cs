@@ -218,13 +218,13 @@ namespace Antmicro.Renode.UI
             monitor.Interaction = shell.Writer;
             monitor.MachineChanged += emu => shell.SetPrompt(emu != null ? new Prompt(string.Format("({0}) ", emu), ConsoleColor.DarkYellow) : null);
 
+            if(!string.IsNullOrEmpty(options.ScriptPath))
+            {
+                shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n", Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/", options.ScriptPath));
+            }
             if(options.Execute != null)
             {
                 shell.Started += s => s.InjectInput(string.Format("{0}\n", string.Join("; ", options.Execute)));
-            }
-            else if(!string.IsNullOrEmpty(options.ScriptPath))
-            {
-                shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n", Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/", options.ScriptPath));
             }
 
             shell.Terminal.PlainMode = options.Plain;
