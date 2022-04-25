@@ -175,7 +175,6 @@
     <Compile Include="Peripherals\IRQControllers\MSCM.cs" />
     <Compile Include="Peripherals\Miscellaneous\SEMA4.cs" />
     <Compile Include="Peripherals\MTD\FSLNAND.cs" />
-    <Compile Include="Peripherals\UART\PL011_deprecated.cs" />
     <Compile Include="Peripherals\UART\PULP_STDOUT.cs" />
     <Compile Include="Peripherals\Input\FusionF0710A.cs" />
     <Compile Include="Peripherals\Input\AR1021.cs" />
