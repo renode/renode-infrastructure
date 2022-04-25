@@ -16,9 +16,9 @@ using Antmicro.Migrant;
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class PL011 : IDoubleWordPeripheral, IUART, IKnownSize
+    public class PL011_deprecated : IDoubleWordPeripheral, IUART, IKnownSize
     {
-        public PL011(int size = 0x1000)
+        public PL011_deprecated(int size = 0x1000)
         {
             this.size = size;
             IRQ = new GPIO();
