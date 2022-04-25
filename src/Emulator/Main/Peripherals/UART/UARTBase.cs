@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -25,6 +26,12 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(innerLock)
             {
+                if(!IsReceiveEnabled)
+                {
+                    this.Log(LogLevel.Debug, "UART or receive disabled; dropping the character written: '{0}'", (char)value);
+                    return;
+                }
+
                 queue.Enqueue(value);
                 CharWritten();
             }
@@ -93,6 +100,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public abstract Parity ParityBit { get; }
 
         public abstract uint BaudRate { get; }
+
+        protected virtual bool IsReceiveEnabled => true;
     }
 }
 
