@@ -10,9 +10,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
