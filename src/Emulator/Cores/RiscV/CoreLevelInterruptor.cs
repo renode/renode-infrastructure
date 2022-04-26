@@ -141,6 +141,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
+        protected void AddRegister(long offset, DoubleWordRegister register)
+        {
+            registers.AddRegister(offset, register);
+        }
+
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
