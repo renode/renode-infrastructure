@@ -46,6 +46,7 @@
       <DependentUpon>RiscV32Registers.tt</DependentUpon>
     </Compile>
     <Compile Include="RiscV\CoreLevelInterruptor.cs" />
+    <Compile Include="RiscV\MiV_CoreLevelInterruptor.cs" />
     <Compile Include="RiscV\BaseRiscV.cs" />
     <Compile Include="RiscV\PlatformLevelInterruptController.cs" />
     <Compile Include="RiscV\PrivilegeLevel.cs" />
