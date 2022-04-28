@@ -512,7 +512,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         s.GetSegmentSize(),
                         loadAddress
                     );
-                    this.WriteBytes(contents, loadAddress, allowLoadsOnlyToMemory);
+                    this.WriteBytes(contents, loadAddress, allowLoadsOnlyToMemory, cpu);
                     UpdateLowestLoadedAddress(loadAddress);
                     this.DebugLog("Segment loaded.");
                 }
