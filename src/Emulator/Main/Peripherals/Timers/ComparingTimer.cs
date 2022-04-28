@@ -69,6 +69,24 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public bool EventEnabled { get; set; }
 
+        public long Frequency
+        {
+            get
+            {
+                return frequency;
+            }
+            set
+            {
+                if(value == 0)
+                {
+                    throw new ArgumentException("Frequency cannot be zero.");
+                }
+                frequency = value;
+                var effectiveFrequency = frequency / Divider;
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(frequency: effectiveFrequency));
+            }
+        }
+
         public ulong Value
         {
             get
@@ -203,9 +221,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void InternalReset()
         {
             divider = initialDivider;
+            frequency = initialFrequency;
             step = initialStep;
 
-            var clockEntry = new ClockEntry(initialCompare, initialFrequency / divider, CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode, step)
+            var clockEntry = new ClockEntry(initialCompare, frequency / divider, CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode, step)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
             clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
             valueAccumulatedSoFar = 0;
@@ -216,6 +235,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private ulong valueAccumulatedSoFar;
         private ulong compareValue;
         private uint divider;
+        private long frequency;
         private uint step;
 
         private readonly uint initialStep;
