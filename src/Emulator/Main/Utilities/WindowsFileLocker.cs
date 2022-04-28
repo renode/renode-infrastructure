@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -43,7 +43,14 @@ namespace Antmicro.Renode.Utilities
         public void Dispose()
         {
             file.Close();
-            File.Delete(path);
+            try
+            {
+                File.Delete(path);
+            }
+            catch(IOException)
+            {
+                // ignore exception
+            }
         }
 
         private readonly FileStream file;
