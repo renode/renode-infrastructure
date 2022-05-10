@@ -267,8 +267,8 @@ namespace Antmicro.Renode.Peripherals.Analog
          var scanModeActive = scanMode.Value && currentChannelIdx < regularSequenceLen - 1;
          var scanModeFinished = scanMode.Value && currentChannelIdx == regularSequenceLen - 1;
 
-         // Signal EOC if EOCS set or we finished scanning regular group
-         endOfConversion.Value = endOfConversionSelect.Value || scanModeFinished;
+         // Signal EOC if EOCS set with scan mode enabled and finished or we finished scanning regular group
+         endOfConversion.Value = scanModeActive ? (endOfConversionSelect.Value || scanModeFinished) : true;
 
          // Iterate to next channel
          currentChannelIdx = (currentChannelIdx + 1) % regularSequenceLen;
