@@ -161,14 +161,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 coreMemories = new Dictionary<long, InternalMemoryAccessor>
                 {
-                    { 0x0, new InternalMemoryAccessor(BERLength, "BER_BE", isLittleEndian: false) },
-                    { 0x1, new InternalMemoryAccessor(MMRLength, "MMR_BE", isLittleEndian: false) },
-                    { 0x2, new InternalMemoryAccessor(TSRLength, "TSR_BE", isLittleEndian: false) },
-                    { 0x3, new InternalMemoryAccessor(FPRLength, "FPR_BE", isLittleEndian: false) },
-                    { 0x8, new InternalMemoryAccessor(BERLength, "BER_LE") },
-                    { 0x9, new InternalMemoryAccessor(MMRLength, "MMR_LE") },
-                    { 0xA, new InternalMemoryAccessor(TSRLength, "TSR_LE") },
-                    { 0xB, new InternalMemoryAccessor(FPRLength, "FPR_LE") }
+                    { 0x0, new InternalMemoryAccessor(BERLength, "BER_BE", Endianness.BigEndian) },
+                    { 0x1, new InternalMemoryAccessor(MMRLength, "MMR_BE", Endianness.BigEndian) },
+                    { 0x2, new InternalMemoryAccessor(TSRLength, "TSR_BE", Endianness.BigEndian) },
+                    { 0x3, new InternalMemoryAccessor(FPRLength, "FPR_BE", Endianness.BigEndian) },
+                    { 0x8, new InternalMemoryAccessor(BERLength, "BER_LE", Endianness.LittleEndian) },
+                    { 0x9, new InternalMemoryAccessor(MMRLength, "MMR_LE", Endianness.LittleEndian) },
+                    { 0xA, new InternalMemoryAccessor(TSRLength, "TSR_LE", Endianness.LittleEndian) },
+                    { 0xB, new InternalMemoryAccessor(FPRLength, "FPR_LE", Endianness.LittleEndian) }
                 };
             }
 
@@ -246,9 +246,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class InternalMemoryAccessor
         {
-            public InternalMemoryAccessor(uint size, string name, bool isLittleEndian = true)
+            public InternalMemoryAccessor(uint size, string name, Endianness endianness)
             {
-                this.isLittleEndian = isLittleEndian;
+                this.endianness = endianness;
                 internalMemory = new byte[size];
                 Name = name;
             }
@@ -260,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     Logger.Log(LogLevel.Error, "Trying to read outside of {0} internal memory, at offset 0x{1:X}", Name, offset);
                     return 0;
                 }
-                var result = BitHelper.ToUInt32(internalMemory, (int)offset, 4, false);
+                var result = BitHelper.ToUInt32(internalMemory, (int)offset, 4, endianness == Endianness.LittleEndian ? false : true);
                 Logger.Log(LogLevel.Debug, "Read value 0x{0:X} from memory {1} at offset 0x{2:X}", result, Name, offset);
                 return result;
             }
@@ -286,7 +286,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return;
                 }
                 Logger.Log(LogLevel.Debug, "Writing value 0x{0:X} to memory {1} at offset 0x{2:X}", value, Name, offset);
-                foreach(var b in BitHelper.GetBytesFromValue(value, sizeof(uint), isLittleEndian))
+
+                // The host (x86) is little-endian, so if the selected internal memory is also little-endian we don't reverse the bytes.
+                foreach(var b in BitHelper.GetBytesFromValue(value, sizeof(uint), endianness == Endianness.LittleEndian ? false : true))
                 {
                     internalMemory[offset] = b;
                     ++offset;
@@ -336,7 +338,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return bytes;
             }
 
-            private readonly bool isLittleEndian;
+            private readonly Endianness endianness;
             private readonly byte[] internalMemory;
         }
 
@@ -522,6 +524,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        private enum Endianness
+        {
+            BigEndian,
+            LittleEndian
+        }
+        
         private enum JumpTable
         {
             // gaps in addressing - only a few commands are implemented
