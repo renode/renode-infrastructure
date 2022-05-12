@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -323,21 +324,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public string Name { get; }
 
-            private byte[] ChangeEndianness(byte[] bytes)
-            {
-                for(var i = 0; i < bytes.Length / 4; ++i)
-                {
-                    var temp = bytes[(i * 4) + 3];
-                    bytes[(i * 4) + 3] = bytes[(i * 4) + 0];
-                    bytes[(i * 4) + 0] = temp;
-
-                    temp = bytes[(i * 4) + 2];
-                    bytes[(i * 4) + 2] = bytes[(i * 4) + 1];
-                    bytes[(i * 4) + 1] = temp;
-                }
-                return bytes;
-            }
-
             private readonly Endianness endianness;
             private readonly byte[] internalMemory;
         }
@@ -521,6 +507,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 P = 0x1348,
                 Q = 0x14cc,
                 N = 0x1650,
+            }
+        }
+
+        private static class Helpers
+        {
+            public static byte[] ChangeEndianness(byte[] bytes)
+            {
+                DebugHelper.Assert(bytes.Length % 4 == 0);
+
+                for(var i = 0; i < bytes.Length / 4; ++i)
+                {
+                    var temp = bytes[(i * 4) + 3];
+                    bytes[(i * 4) + 3] = bytes[(i * 4) + 0];
+                    bytes[(i * 4) + 0] = temp;
+
+                    temp = bytes[(i * 4) + 2];
+                    bytes[(i * 4) + 2] = bytes[(i * 4) + 1];
+                    bytes[(i * 4) + 1] = temp;
+                }
+                return bytes;
             }
         }
 
