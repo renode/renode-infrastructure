@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     Logger.Log(LogLevel.Error, "Trying to read outside of {0} internal memory, at offset 0x{1:X}", Name, offset);
                     return 0;
                 }
-                var result = BitHelper.ToUInt32(internalMemory, (int)offset, 4, endianness == Endianness.LittleEndian ? false : true);
+                var result = BitHelper.ToUInt32(internalMemory, (int)offset, 4, endianness == Endianness.LittleEndian);
                 Logger.Log(LogLevel.Debug, "Read value 0x{0:X} from memory {1} at offset 0x{2:X}", result, Name, offset);
                 return result;
             }
@@ -288,8 +288,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
                 Logger.Log(LogLevel.Debug, "Writing value 0x{0:X} to memory {1} at offset 0x{2:X}", value, Name, offset);
 
-                // The host (x86) is little-endian, so if the selected internal memory is also little-endian we don't reverse the bytes.
-                foreach(var b in BitHelper.GetBytesFromValue(value, sizeof(uint), endianness == Endianness.LittleEndian ? false : true))
+                foreach(var b in BitHelper.GetBytesFromValue(value, sizeof(uint), false))
                 {
                     internalMemory[offset] = b;
                     ++offset;
@@ -302,10 +301,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     Logger.Log(LogLevel.Error, "Trying to write {0] bytes outside of {1} internal memory, at offset 0x{2:X}", bytes.Length, Name, offset);
                     return;
-                }
-                if(!isLittleEndian)
-                {
-                    bytes = ChangeEndianness(bytes);
                 }
                 foreach(var b in bytes)
                 {
@@ -413,7 +408,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var operand = CreateBigInteger((RSARegisters)baseAddress, modulusLength);
                 var result = BigInteger.ModPow(operand, e, n);
 
-                manager.TryWriteBytes(baseAddress, result.ToByteArray());
+                var resultBytes = Helpers.ChangeEndianness(result.ToByteArray());
+                manager.TryWriteBytes(baseAddress, resultBytes);
             }
 
             public void ModularReduction()
@@ -425,7 +421,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var a = CreateBigInteger(RSARegisters.Operand, operandLength);
                 var result = a % n;
 
-                manager.TryWriteBytes((long)RSARegisters.Operand, result.ToByteArray());
+                var resultBytes = Helpers.ChangeEndianness(result.ToByteArray());
+                manager.TryWriteBytes((long)RSARegisters.Operand, resultBytes);
             }
 
             public void DecryptData()
@@ -463,7 +460,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // m = m2 + h * q
                 var m = m2 + h * q;
 
-                manager.TryWriteBytes((long)RSARegisters.BaseAddress, m.ToByteArray());
+                var mBytes = Helpers.ChangeEndianness(m.ToByteArray());
+                manager.TryWriteBytes((long)RSARegisters.BaseAddress, mBytes);
             }
 
             private BigInteger CreateBigInteger(RSARegisters register, uint wordCount)
