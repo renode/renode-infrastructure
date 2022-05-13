@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -119,6 +119,15 @@ namespace Antmicro.Renode.Logging
             if(emulationManager != null)
             {
                 ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).ObjectInnerLog(o, type, message, args);
+            }
+        }
+
+        public static void Flush()
+        {
+            var emulationManager = EmulationManager.Instance;
+            if(emulationManager != null)
+            {
+                ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).Flush();
             }
         }
 
