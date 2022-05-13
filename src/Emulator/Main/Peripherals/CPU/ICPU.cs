@@ -14,7 +14,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPU : IPeripheral, IHasOwnLife
-    {       
+    {
         void MapMemory(IMappedSegment segment);
         void UnmapMemory(Range range);
         void SetPageAccessViaIo(ulong address);

@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public Endianess Endianness { get; protected set; }
 
         protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
-		: this(0, cpuType, machine, endianness, bitness)
+        : this(0, cpuType, machine, endianness, bitness)
         {
         }
 
@@ -1854,7 +1854,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
         public virtual bool ShouldEnterDebugMode
-        { 
+        {
             get => shouldEnterDebugMode;
             set
             {
@@ -2017,10 +2017,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibCleanWfiProcState;
-        
+
         [Import]
         private ActionUInt64 TlibSetPageIoAccessed;
-        
+
         [Import]
         private ActionUInt64 TlibClearPageIoAccessed;
 
@@ -2146,7 +2146,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 addr = translatedAddr;
             }
-            
+
             var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
             return result;
@@ -2154,7 +2154,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Transient]
         private LLVMDisassembler disassembler;
-        
+
         public LLVMDisassembler Disassembler => disassembler;
 
         protected static readonly Exception InvalidInterruptNumberException = new InvalidOperationException("Invalid interrupt number.");
@@ -2347,7 +2347,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         this.Trace();
                         var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
-                        
+
                         if(!machine.LocalTimeSource.AdvanceImmediately)
                         {
                             var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var unused).ToTimeSpan();
@@ -2358,7 +2358,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                                 instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept).ToCPUCycles(PerformanceInMips, out var _);
                             }
                         }
-                        
+
                         ReportProgress(instructionsToSkip);
                     }
                     else
