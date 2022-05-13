@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool logTranslationBlockFetchEnabled;
 
-        public ulong ExecutedInstructions { get; private set; }
+        public ulong ExecutedInstructions { get {return TlibGetTotalExecutedInstructions(); } }
 
         public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUId(this); return slot.Value;} private set {slot = value;} }
         private int? slot;
@@ -491,6 +491,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             HandleRamSetup();
             TlibReset();
             ResetOpcodesCounters();
+            profiler?.Dispose();
         }
 
         public bool RequestTranslationBlockRestart()
@@ -595,6 +596,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void LogFunctionNames(bool value, bool removeDuplicates = false)
         {
             LogFunctionNames(value, string.Empty, removeDuplicates);
+        }
+
+        public ulong GetCurrentInstructionsCount()
+        {
+            return TlibGetTotalExecutedInstructions();
         }
 
         public void LogFunctionNames(bool value, string spaceSeparatedPrefixes = "", bool removeDuplicates = false)
@@ -1256,6 +1262,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public virtual void Dispose()
         {
             DisposeInner();
+            profiler?.Dispose();
         }
 
         void DisposeInner(bool silent = false)
@@ -2318,7 +2325,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Trace($"Asking CPU to execute {toExecute} instructions");
                 var result = ExecuteInstructions(toExecute, out var executed);
                 this.Trace($"CPU executed {executed} instructions and returned {result}");
-                ExecutedInstructions = TlibGetTotalExecutedInstructions();
                 machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
 
                 ReportProgress(executed);

@@ -64,6 +64,14 @@ namespace Antmicro.Renode.UnitTests.Mocks
         {
         }
 
+        public virtual ulong ExecutedInstructions
+        {
+            get
+            {
+                return 0;
+            }
+        }
+
         public virtual RegisterValue PC
         {
             get
