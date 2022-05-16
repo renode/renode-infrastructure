@@ -51,6 +51,7 @@ namespace Antmicro.Renode.Logging
         public static void RemoveBackend(ILoggerBackend backend)
         {
             backends.Remove(backend);
+            backend.Dispose();
         }
 
         public static IDictionary<string, ILoggerBackend> GetBackends()
