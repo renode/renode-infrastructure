@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             inverted = invert;
             this.machine = machine;
-            state = invert;
+            state = false;
             sync = new object();
         }
 
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
-            state = inverted;
+            state = false;
         }
 
         public bool State
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                     state = value;
 
-                    if(state != inverted)
+                    if(state)
                     {
                         machine.RequestReset();
                     }
