@@ -7,6 +7,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 
 namespace Antmicro.Renode.Utilities.Binding
 {
@@ -14,7 +15,11 @@ namespace Antmicro.Renode.Utilities.Binding
     {
         public void AddException(Exception e)
         {
-            exceptions.Add(e);
+            // ExceptionKeeper holds the raised exception and throws it at a later time
+            // so we use ExceptionDispatchInfo to preserve the original stacktrace.
+            // Otherwise exception's stacktrace changes when it's rethrown.
+            var dispatchInfo = ExceptionDispatchInfo.Capture(e);
+            exceptions.Add(dispatchInfo);
         }
 
         public void ThrowExceptions()
@@ -28,13 +33,13 @@ namespace Antmicro.Renode.Utilities.Binding
             {
                 if(exceptions.Count == 1)
                 {
-                    throw exceptions[0];
+                    exceptions[0].Throw();
                 }
 
                 throw new Exception
                 (
                     "Multiple errors occured within tlib managed->native->managed boundary since the last ThrowExceptions call.",
-                    new AggregateException(exceptions)
+                    new AggregateException(exceptions.Select(x => x.SourceException))
                 );
             }
             finally
@@ -43,6 +48,6 @@ namespace Antmicro.Renode.Utilities.Binding
             }
         }
 
-        private readonly List<Exception> exceptions = new List<Exception>();
+        private readonly List<ExceptionDispatchInfo> exceptions = new List<ExceptionDispatchInfo>();
     }
 }
