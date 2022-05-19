@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -57,7 +57,8 @@ namespace Antmicro.Renode.Extensions.Utilities
             this.uart = uart;
             this.immediateFlush = immediateFlush;
 
-            writer = new BinaryWriter(File.Open(path, FileMode.Open));
+            // SequencedFilePath asserts that file in given path doesn't exist
+            writer = new BinaryWriter(File.Open(path, FileMode.CreateNew));
             uart.CharReceived += WriteChar;
         }
 
