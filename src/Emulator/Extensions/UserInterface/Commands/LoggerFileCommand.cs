@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -37,12 +37,22 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private void InnerRun(string path, bool flushAfterEveryWrite)
         {
-            Logger.AddBackend(new FileBackend(path, flushAfterEveryWrite), "file", true);
+            if(Logger.GetBackends().TryGetValue(BackendName, out var backend))
+            {
+                // We are explicitly removing existing backend to close
+                // file opened by it. When using the same path twice,
+                // this allows for the previous file to be moved by
+                // SequencedFilePath.
+                Logger.RemoveBackend(backend);
+            }
+            Logger.AddBackend(new FileBackend(path, flushAfterEveryWrite), BackendName, true);
         }
 
         public LoggerFileCommand(Monitor monitor) : base(monitor, "logFile", "sets the output file for logger.", "logF")
         {
         }
+
+        private readonly string BackendName = "file";
     }
 }
 
