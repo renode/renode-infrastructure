@@ -16,9 +16,12 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class LiteX_Framebuffer_CSR32 : AutoRepaintingVideo, IBusPeripheral
     {
-        public LiteX_Framebuffer_CSR32(Machine machine, PixelFormat format, IBusPeripheral memory) : base(machine)
+        public LiteX_Framebuffer_CSR32(Machine machine, PixelFormat format, IBusPeripheral memory, uint offset = 0, ushort hres = 0, ushort vres = 0) : base(machine)
         {
             this.memory = memory;
+            this.resetOffset = offset;
+            this.resetHres = hres;
+            this.resetVres = vres;
             this.machine = machine;
             this.format = format;
 
@@ -66,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             dmaRegisters = new DoubleWordRegisterCollection(this);
 
-            DMARegisters.Base.Define(dmaRegisters)
+            DMARegisters.Base.Define(dmaRegisters, resetOffset)
                 .WithValueField(0, 32, out bufferRegister, name: "base");
 
             DMARegisters.Enable.Define(dmaRegisters)
@@ -97,10 +100,10 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             vtgRegisters = new DoubleWordRegisterCollection(this);
 
-            VTGRegisters.Hres.Define(vtgRegisters)
+            VTGRegisters.Hres.Define(vtgRegisters, resetHres)
                 .WithValueField(0, 16, out hres, name: "h_res").WithReservedBits(16, 16);
 
-            VTGRegisters.Vres.Define(vtgRegisters)
+            VTGRegisters.Vres.Define(vtgRegisters, resetVres)
                 .WithValueField(0, 16, out vres, name: "v_res").WithReservedBits(16, 16);
         }
 
@@ -116,6 +119,9 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly IBusPeripheral memory;
         private readonly Machine machine;
         private readonly PixelFormat format;
+        private readonly uint resetOffset;
+        private readonly uint resetHres;
+        private readonly uint resetVres;
 
         private enum DMARegisters
         {
