@@ -46,6 +46,11 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public override string ToString()
+        {
+            return path;
+        }
+
         public static implicit operator string(FilePath fp)
         {
             return fp.path;
