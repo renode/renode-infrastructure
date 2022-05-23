@@ -419,6 +419,7 @@
     <Compile Include="Peripherals\UART\PL011.cs" />
     <Compile Include="Peripherals\Miscellaneous\ExternalWindowMMU.cs" />
     <Compile Include="Peripherals\Video\MusteinGenericGPU.cs" />
+    <Compile Include="Peripherals\UART\SAMD5_UART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
