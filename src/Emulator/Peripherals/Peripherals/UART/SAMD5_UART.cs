@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public SAMD5_UART(Machine machine) : base(machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
+            IRQ = new GPIO();
             DefineRegisters();
             
             Reset();
@@ -39,6 +40,8 @@ namespace Antmicro.Renode.Peripherals.UART
             RegistersCollection.Reset();
         }
 
+        public GPIO IRQ { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public long Size => 0x100;
@@ -53,11 +56,13 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             receiveStart.Value = true;
             receiveComplete.Value = true;
+            UpdateInterrupt();
         }
 
         protected override void QueueEmptied()
         {
             receiveComplete.Value = false;
+            UpdateInterrupt();
         }
 
         private void DefineRegisters()
@@ -78,6 +83,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         TransmitCharacter((byte)val);
                         transmitComplete.Value = true;
+                        UpdateInterrupt();
                     })
                 .WithReservedBits(8, 24)
             ;
@@ -91,12 +97,53 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("RXBRK - Receive Break", 5)
                 .WithReservedBits(6, 1)
                 .WithTaggedFlag("ERROR", 7)
+                .WithWriteCallback((_, __) => UpdateInterrupt())
             ;
+            
+            Registers.InterruptEnableClear.Define(this)
+                .WithFlag(0, out dataRegisterEmptyInterruptEnable, FieldMode.Read | FieldMode.WriteOneToClear, name: "DRE - Data Register Empty Interrupt Enable")
+                .WithFlag(1, out transmitCompleteInterruptEnable, FieldMode.Read | FieldMode.WriteOneToClear, name: "TXC - Transmit Complete Interrupt Enable")
+                .WithFlag(2, out receiveCompleteInterruptEnable, FieldMode.Read | FieldMode.WriteOneToClear, name: "RXC - Receive Complete Interrupt Enable")
+                .WithFlag(3, out receiveStartInterruptEnable, FieldMode.Read | FieldMode.WriteOneToClear, name: "RXS - Receive Start Interrupt Enable")
+                .WithTaggedFlag("CTSIC - Clear To Send Input Change Interrupt Enable", 4)
+                .WithTaggedFlag("RXBRK - Receive Break Interrupt Enable", 5)
+                .WithReservedBits(6, 1)
+                .WithTaggedFlag("ERROR Interrupt Enable", 7)
+                .WithWriteCallback((_, __) => UpdateInterrupt())
+            ;
+            
+            Registers.InterruptEnableSet.Define(this)
+                .WithFlag(0, name: "DRE - Data Register Empty Interrupt Enable", valueProviderCallback: _ => dataRegisterEmptyInterruptEnable.Value, writeCallback: (_, val) => { dataRegisterEmptyInterruptEnable.Value |= val; })
+                .WithFlag(1, name: "TXC - Transmit Complete Interrupt Enable", valueProviderCallback: _ => transmitCompleteInterruptEnable.Value, writeCallback: (_, val) => { transmitCompleteInterruptEnable.Value |= val; })
+                .WithFlag(2, name: "RXC - Receive Complete Interrupt Enable", valueProviderCallback: _ => receiveCompleteInterruptEnable.Value, writeCallback: (_, val) => { receiveCompleteInterruptEnable.Value |= val; })
+                .WithFlag(3, name: "RXS - Receive Start Interrupt Enable", valueProviderCallback: _ => receiveStartInterruptEnable.Value, writeCallback: (_, val) => { receiveStartInterruptEnable.Value |= val; })
+                .WithTaggedFlag("CTSIC - Clear To Send Input Change Interrupt Enable", 4)
+                .WithTaggedFlag("RXBRK - Receive Break Interrupt Enable", 5)
+                .WithReservedBits(6, 1)
+                .WithTaggedFlag("ERROR Interrupt Enable", 7)
+                .WithWriteCallback((_, __) => UpdateInterrupt())
+            ;
+        }
+
+        private void UpdateInterrupt()
+        {
+            var flag = (dataRegisterEmptyInterruptEnable.Value && Count > 0)
+                || (transmitCompleteInterruptEnable.Value && transmitComplete.Value)
+                || (receiveCompleteInterruptEnable.Value && receiveComplete.Value)
+                || (receiveStartInterruptEnable.Value && receiveStart.Value);
+
+            this.Log(LogLevel.Warning, "IRQ set to: {0}", flag);
+            IRQ.Set(flag);
         }
 
         private IFlagRegisterField transmitComplete;
         private IFlagRegisterField receiveComplete;
         private IFlagRegisterField receiveStart;
+        
+        private IFlagRegisterField dataRegisterEmptyInterruptEnable;
+        private IFlagRegisterField transmitCompleteInterruptEnable;
+        private IFlagRegisterField receiveCompleteInterruptEnable;
+        private IFlagRegisterField receiveStartInterruptEnable;
 
         private enum Registers : long
         {
