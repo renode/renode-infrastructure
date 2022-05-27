@@ -46,8 +46,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         RegistersCollection.Reset();
                     }
                 })
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24)
+                .WithIgnoredBits(1, 31)
             ;
 
             Registers.Locked.Define(this)
@@ -64,8 +63,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         HandleRead();
                     }
                 })
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24)
+                .WithIgnoredBits(1, 31)
             ;
 
             Registers.Write.Define(this)
@@ -76,8 +74,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         HandleWrite();
                     }
                 })
-                .WithReservedBits(1, 7)
-                .WithIgnoredBits(8, 24)
+                .WithIgnoredBits(1, 31)
             ;
 
             Registers.DataReady.Define(this)
