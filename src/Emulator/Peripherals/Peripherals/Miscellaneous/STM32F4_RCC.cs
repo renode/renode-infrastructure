@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // peripherals or their clocks.
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.ClockControl, new DoubleWordRegister(this, 0x83)
+                {(long)Registers.ClockControl, new DoubleWordRegister(this, 0x483)
                     .WithFlag(0, out var hsion, name: "HSION")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => hsion.Value, name: "HSIRDY")
                     .WithReservedBits(2, 1)
