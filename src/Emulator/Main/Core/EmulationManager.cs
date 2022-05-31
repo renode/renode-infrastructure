@@ -54,7 +54,25 @@ namespace Antmicro.Renode.Core
                     currentEmulation.Dispose();
                     currentEmulation = value;
                     InvokeEmulationChanged();
+
+                    if(profilerPathPrefix != null)
+                    {
+                        currentEmulation.MachineAdded += EnableProfilerInMachine;
+                    }
                 }
+            }
+        }
+
+        public void EnableProfilerGlobally(WriteFilePath pathPrefix)
+        {
+            profilerPathPrefix = pathPrefix;
+
+            CurrentEmulation.MachineAdded -= EnableProfilerInMachine;
+            CurrentEmulation.MachineAdded += EnableProfilerInMachine;
+
+            foreach(var machine in CurrentEmulation.Machines)
+            {
+                EnableProfilerInMachine(machine);
             }
         }
 
@@ -218,11 +236,18 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        private void EnableProfilerInMachine(Machine machine)
+        {
+            var profilerPath = new SequencedFilePath($"{profilerPathPrefix}-{CurrentEmulation[machine]}");
+            machine.EnableProfiler(profilerPath);
+        }
+
         private int stopwatchCounter;
         private Stopwatch stopwatch;
         private readonly Serializer serializer;
         private Emulation currentEmulation;
         private readonly object currentEmulationLock;
+        private string profilerPathPrefix;
 
         /// <summary>
         /// Represents external world time domain.
