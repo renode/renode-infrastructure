@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -23,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             innerLock = new object();
             IRQ = new GPIO();
+            hasPinFixedConfig = new bool[NumberOfConnections];
 
             irqManager = new GPIOInterruptManager(IRQ, State);
 
@@ -72,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     })}
             };
 
-            var intTypeToVal = new TwoWayDictionary<GPIOInterruptManager.InterruptTrigger, uint>();
+            intTypeToVal = new TwoWayDictionary<GPIOInterruptManager.InterruptTrigger, uint>();
             intTypeToVal.Add(GPIOInterruptManager.InterruptTrigger.ActiveHigh, 0);
             intTypeToVal.Add(GPIOInterruptManager.InterruptTrigger.ActiveLow, 1);
             intTypeToVal.Add(GPIOInterruptManager.InterruptTrigger.RisingEdge, 2);
@@ -86,6 +88,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(0,
                         writeCallback: (_, v) =>
                         {
+                            if(hasPinFixedConfig[j])
+                            {
+                                this.Log(LogLevel.Warning, "Cannot change pin #{0} configuration because it is fixed");
+                                return;
+                            }
+
                             if(v)
                             {
                                 irqManager.PinDirection[j] |= GPIOInterruptManager.Direction.Output;
@@ -102,6 +110,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(1,
                         writeCallback: (_, value) =>
                         {
+                            if(hasPinFixedConfig[j])
+                            {
+                                this.Log(LogLevel.Warning, "Cannot change pin #{0} configuration because it is fixed");
+                                return;
+                            }
+                            
                             if(value)
                             {
                                 irqManager.PinDirection[j] |= GPIOInterruptManager.Direction.Input;
@@ -120,6 +134,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(4, 1)
                     .WithValueField(5, 3, writeCallback: (_, value) =>
                     {
+                        if(hasPinFixedConfig[j])
+                        {
+                            this.Log(LogLevel.Warning, "Cannot change pin #{0} configuration because it is fixed");
+                            return;
+                        }
+
                         if(!intTypeToVal.TryGetValue(value, out var type))
                         {
                             this.Log(LogLevel.Warning, "Invalid interrupt type for pin #{0}: {1}", j, value);
@@ -170,12 +190,53 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 base.Reset();
                 irqManager.Reset();
                 registers.Reset();
+                for(var i = 0; i < NumberOfConnections; ++i)
+                {
+                    hasPinFixedConfig[i] = false;
+                }
             }
+        }
+
+        public void ConfigureFixedPinTriggerMode(int number, GPIOInterruptManager.InterruptTrigger triggerType)
+        {
+            if(!intTypeToVal.TryGetValue(triggerType, out var value))
+            {
+                throw new RecoverableException("Invalid interrupt type for pin #{number}: {type}");
+            }
+            irqManager.InterruptType[number] = triggerType;
+            hasPinFixedConfig[number] = true;
+        }
+
+        public void ConfigureFixedPinDirection(int number, PinDirection direction)
+        {
+            switch(direction)
+            {
+                case PinDirection.Input:
+                    irqManager.PinDirection[number] = GPIOInterruptManager.Direction.Input;
+                    break;
+                case PinDirection.Output:
+                    irqManager.PinDirection[number] = GPIOInterruptManager.Direction.Output;
+                    break;
+                case PinDirection.Bidirectional:
+                    irqManager.PinDirection[number] =
+                        GPIOInterruptManager.Direction.Input | GPIOInterruptManager.Direction.Output;
+                    break;
+                default:
+                    throw new RecoverableException("Invalid option of GPIO direction: {direction}");
+            }
+            hasPinFixedConfig[number] = true;
         }
 
         public GPIO IRQ { get; private set; }
 
         public long Size => 0xA4;
+
+        public enum PinDirection : int
+        {
+            Input = 0,
+            Output = 1,
+            Bidirectional = 2
+        }
 
         private uint GetConnectedInputPinsState()
         {
@@ -193,6 +254,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private readonly GPIOInterruptManager irqManager;
         private readonly DoubleWordRegisterCollection registers;
+        private readonly TwoWayDictionary<GPIOInterruptManager.InterruptTrigger, uint> intTypeToVal;
+        private readonly bool[] hasPinFixedConfig;
         private readonly object innerLock;
 
         private const int NumberOfInterrupts = 32;
