@@ -10,6 +10,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
+using Antmicro.Migrant;
 namespace Antmicro.Renode.Backends.Terminals
 {
     public static class ServerSocketTerminalExtensions
@@ -20,6 +21,7 @@ namespace Antmicro.Renode.Backends.Terminals
         }
     }
 
+    [Transient]
     public class ServerSocketTerminal : BackendTerminal, IDisposable
     {
         public ServerSocketTerminal(int port, bool emitConfigBytes = true, bool flushOnConnect = false)
