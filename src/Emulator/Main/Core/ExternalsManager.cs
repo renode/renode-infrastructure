@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,9 +9,11 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core
@@ -253,7 +255,44 @@ namespace Antmicro.Renode.Core
 
         private bool alreadyStarted;
         private bool paused;
+
+        [Constructor]
         private readonly Dictionary<string, IExternal> externals;
+
+        // those fields are used to serialize externals (and skip the transient ones)
+        private List<string> externalsKeys;
+        private List<IExternal> externalsValues;
+
+        [PreSerialization]
+        private void SerializeExternals()
+        {
+            externalsKeys = new List<string>();
+            externalsValues = new List<IExternal>();
+
+            foreach(var item in externals)
+            {
+                if(item.Value.GetType().GetCustomAttributes(typeof(TransientAttribute), true).Any())
+                {
+                    Logger.Log(LogLevel.Info, "Skipping serialization of the '{0}' external as it's marked as transient", item.Key);
+                    continue;
+                }
+                
+                externalsKeys.Add(item.Key);
+                externalsValues.Add(item.Value);
+            }
+        }
+
+        [PostDeserialization]
+        private void RestoreExternals()
+        {
+            for(var i = 0; i < externalsKeys.Count; i++)
+            {
+                externals.Add(externalsKeys[i], externalsValues[i]);
+            }
+
+            externalsKeys = null;
+            externalsValues = null;
+        }
 
         public void RegisterIHasOwnLife(IHasOwnLife own)
         {
