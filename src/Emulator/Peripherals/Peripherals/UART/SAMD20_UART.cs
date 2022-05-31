@@ -1,84 +1,164 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 using System;
-using Antmicro.Migrant;
-
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
-    public class SAMD20_UART : IDoubleWordPeripheral,  IUART, IKnownSize, IWordPeripheral, IBytePeripheral
+    // Due to unusual register offsets we cannot use address translations
+    public class SAMD20_UART : IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IUART, IKnownSize
     {
-
-        public event Action<byte> CharReceived;
-
         public SAMD20_UART(Machine machine) 
         {
             IRQ = new GPIO();
-            dwordregisters = new DoubleWordRegisterCollection(this);
 
-            DefineRegisters();
-        }
-
-
-
-
-        public long Size => 0x100;
-
-        public GPIO IRQ { get; private set; }
-
-        public Bits StopBits
-        {
-            get
+            var registersMap = new Dictionary<long, DoubleWordRegister>
             {
-                if (bStopBit.Value == true)
-                    return Bits.Two;
-                else
-                    return Bits.One;
-            }
+                {(long)Registers.ControlA, new DoubleWordRegister(this)
+                    .WithFlag(0,
+                        writeCallback: (_, val) =>
+                        {
+                            if(!val)
+                            {
+                                return;
+                            }
+                            // According to the docs writing '1' to this bit should reset all registers except Debug Control,
+                            // but since that register is a stub, we don't bother.
+                            Reset();
+                            enabled.Value = false;
+                        },
+                        valueProviderCallback: _ => false,
+                        name: "Software reset (SWRST)")
+                    .WithFlag(1, out enabled, name: "Enable (ENABLE)")
+                    .WithTag("Operating mode (MODE)", 2, 3)
+                    .WithReservedBits(5, 2)
+                    .WithTag("Run in standby (RUNSTDBY)", 7, 1)
+                    .WithTag("Immediate buffer overflow notification (IBON)", 8, 1)
+                    .WithReservedBits(9, 7)
+                    .WithTag("Transmit data pinout (TXPO)", 16, 1)
+                    .WithReservedBits(17, 3)
+                    .WithTag("Receive data pinout (RXPO)", 20, 2)
+                    .WithReservedBits(22, 2)
+                    .WithEnumField(24, 4, out frameFormat, name: "Frame format (FORM)")
+                    .WithTag("Communication mode (CMODE)", 28, 1)
+                    .WithTag("Clock polarity (CPOL)", 29, 1)
+                    .WithTag("Data order (DORD)", 30, 1)
+                    .WithReservedBits(31, 1)
+                },
+
+                {(long)Registers.ControlB, new DoubleWordRegister(this)                    
+                    .WithTag("Character Size (CHSIZE)", 0, 3)
+                    .WithReservedBits(3, 3)
+                    .WithFlag(6, out stopBitMode, name: "Stop bit mode (SBMODE)")
+                    .WithReservedBits(7, 6)
+                    .WithFlag(13, out parityMode, name: "Parity mode (PMODE)")
+                    .WithReservedBits(14, 2)
+                    .WithFlag(16, out transmitterEnabled, name: "Transmitter enable (TXEN)")
+                    .WithFlag(17, out receiverEnabled, name: "Receiver enable (RXEN)")
+                    .WithReservedBits(18, 14)
+                },
+
+                {(long)Registers.DebugControl, new DoubleWordRegister(this)
+                    .WithTag("Debug stop mode (DGBSTOP)", 0, 1)
+                    .WithReservedBits(1, 7)
+                    .WithIgnoredBits(8, 24)
+                },
+
+                {(long)Registers.Baudrate, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out baudrate, name: "Baudrate (BAUD)")
+                    .WithIgnoredBits(16, 16)
+                },
+
+                {(long)Registers.InterruptEnableClear, new DoubleWordRegister(this)
+                    .WithFlag(0, out dataRegisterEmptyInterruptEnabled, FieldMode.Read | FieldMode.WriteOneToClear, name: "Data register empty interrupt disabled (DRE)")
+                    .WithFlag(1, out transmitCompleteInterruptEnabled, FieldMode.Read | FieldMode.WriteOneToClear, name: "Transmit complete interrupt disabled (TXC)")
+                    .WithFlag(2, out receiveCompleteInterruptEnabled, FieldMode.Read | FieldMode.WriteOneToClear, name: "Receive complete interrupt disabled (RXC)")
+                    .WithFlag(3, out receiveStartedInterruptEnabled, FieldMode.Read | FieldMode.WriteOneToClear, name: "Receive start interrupt disabled (RXS)")
+                    .WithReservedBits(4, 4)
+                    .WithIgnoredBits(8, 24)
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
+                },
+
+                {(long)Registers.InterruptEnableSet, new DoubleWordRegister(this)
+                    .WithFlag(0,
+                        writeCallback: (_, val) => dataRegisterEmptyInterruptEnabled.Value |= val,
+                        valueProviderCallback: _ => dataRegisterEmptyInterruptEnabled.Value,
+                        name: "Data register empty interrupt enabled (DRE)")
+                    .WithFlag(1,
+                        writeCallback: (_, val) => transmitCompleteInterruptEnabled.Value |= val,
+                        valueProviderCallback: _ => transmitCompleteInterruptEnabled.Value,
+                        name: "Transmit complete interrupt enabled (TXC)")
+                    .WithFlag(2,
+                        writeCallback: (_, val) => receiveCompleteInterruptEnabled.Value |= val,
+                        valueProviderCallback: _ => receiveCompleteInterruptEnabled.Value,
+                        name: "Receive complete interrupt enabled (RXC)")
+                    .WithFlag(3,
+                        writeCallback: (_, val) => receiveStartedInterruptEnabled.Value |= val,
+                        valueProviderCallback: _ => receiveStartedInterruptEnabled.Value,
+                        name: "Receive start interrupt enabled (RXS)")
+                    .WithReservedBits(4, 4)
+                    .WithIgnoredBits(8, 24)
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
+                },
+
+                {(long)Registers.InterruptFlagStatusAndClear, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Read,
+                        valueProviderCallback: _ => receiveQueue.Count == 0, name: "Data register empty (DRE)")
+                    .WithFlag(1, out transmitComplete, FieldMode.WriteOneToClear | FieldMode.Read, name: "Transmit complete (TXC)")
+                    .WithFlag(2, FieldMode.Read,
+                        valueProviderCallback: _ => receiveQueue.Count > 0, name: "Receive complete (RXC)")
+                    .WithTag("Receive start (RXS)", 3, 1)
+                    .WithReservedBits(4, 4)
+                    .WithIgnoredBits(8, 24)
+                },
+
+                {(long)Registers.Status, new DoubleWordRegister(this)
+                    .WithTag("Parity error (PERR)", 0, 1)
+                    .WithTag("Frame error (FERR)", 1, 1)
+                    .WithTag("Buffer overflow (BUFOVF)", 2, 1)
+                    .WithReservedBits(3, 12)
+                    .WithTag("Synchronization busy (SYNCBUSY))", 15, 1)
+                    .WithIgnoredBits(16, 16)
+                },
+
+                {(long)Registers.Data, new DoubleWordRegister(this)
+                    .WithValueField(0, 9,
+                        writeCallback: (_, val) => HandleTransmitData(val),
+                        valueProviderCallback: _ => HandleReceiveData(),
+                        name: "DATA")
+                    .WithReservedBits(9, 7)
+                    .WithIgnoredBits(16, 16)
+                }
+            };
+
+            registers = new DoubleWordRegisterCollection(this, registersMap);
+            Reset();
         }
-
-        public Parity ParityBit
-        {
-            get
-            {
-                if (bParity.Value==true)
-                   return Parity.Odd;
-                else
-                    return Parity.Even;
-            }
-        }
-
-        public uint BaudRate
-        {
-            get
-            {
-                return baudrate.Value;
-            }
-        }
-
-
 
         public void Reset()
         {
-            dwordregisters.Reset();
+            registers.Reset();
+            receiveQueue.Clear();
             UpdateInterrupts();
         }
 
-        public void WriteChar(byte value)
+        public uint ReadDoubleWord(long offset)
         {
-            receiveFifo.Enqueue(value);
-            bRXC.Value = true;
-            UpdateInterrupts();
+            return registers.Read(offset);
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            registers.Write(offset, value);
         }
 
         public ushort ReadWord(long offset)
@@ -101,251 +181,106 @@ namespace Antmicro.Renode.Peripherals.UART
             WriteDoubleWord(offset, value);
         }
 
-        public uint ReadDoubleWord(long offset)
+        public void WriteChar(byte value)
         {
-            return (dwordregisters.Read(offset));
-        }
-
-        public void WriteDoubleWord(long offset, uint value)
-        {
-            dwordregisters.Write(offset, value);
+            if(!enabled.Value || !receiverEnabled.Value)
+            {
+                this.Log(LogLevel.Warning, "Char was received, but the receiver (or the whole USART) is not enabled. Ignoring.");
+                return;
+            }
+            receiveQueue.Enqueue(value);
             UpdateInterrupts();
         }
 
-        private readonly Queue<byte> receiveFifo = new Queue<byte>();
+        public uint BaudRate => baudrate.Value;
 
+        public Bits StopBits => stopBitMode.Value ? Bits.Two : Bits.One;
 
-        private IFlagRegisterField bDRE;
-        private IFlagRegisterField bDRE_Clear;
-        private IFlagRegisterField bDRE_Set;
-        private IFlagRegisterField bTXC;
-        private IFlagRegisterField bTXC_Clear;
-        private IFlagRegisterField bTXC_Set;
-        private IFlagRegisterField bRXC;
-        private IFlagRegisterField bRXC_Clear;
-        private IFlagRegisterField bRXC_Set;
-        private IFlagRegisterField bRXS;
-        private IFlagRegisterField bRXS_Clear;
-        private IFlagRegisterField bRXS_Set;
-        private IFlagRegisterField bParity;
-        private IFlagRegisterField bStopBit;
-        private IValueRegisterField baudrate;
-        private DoubleWordRegisterCollection dwordregisters;
-
-        private void DefineRegisters()
+        public Parity ParityBit
         {
-
-            Register.ControlA.Define(dwordregisters, 0x00, "ControlA")
-            .WithFlag(0, name: "Software Reset")
-            .WithFlag(1, name: "Enable")
-            .WithValueField(2, 3, name: "Mode")
-            .WithTag("Reserved", 5, 2)
-            .WithFlag(7, name: "Run In Standby")
-            .WithFlag(8, name: "Immediate Buffer Overflow Notification")
-            .WithTag("Reserved", 9, 7)
-            .WithFlag(16, name: "Transmit Data Pinout")
-            .WithTag("Reserved", 17, 2)
-            .WithValueField(20, 2, name: "Receive Data Pinout")
-            .WithTag("Reserved", 22, 2)
-            .WithValueField(24, 4, name: "Frame Format")
-            .WithFlag(28, name: "Communication Mode")
-            .WithFlag(29, name: "Clock Polarity")
-            .WithFlag(30, name: "Data Order")
-            .WithTag("Reserved", 31, 1);
-
-            Register.ControlB.Define(dwordregisters, 0x00, "ControlB")
-                .WithValueField(0, 3, name: "Character Size")
-                .WithTag("Reserved", 3, 3)
-                .WithFlag(6, out bStopBit, FieldMode.Read | FieldMode.Write, name: "Stop Bit Mode")
-                .WithTag("Reserved", 7, 2)
-                .WithFlag(9, name: "SFDE")
-                .WithTag("Reserved", 10, 3)
-                .WithFlag(13, out bParity, FieldMode.Read | FieldMode.Write, name: "PMODE")
-                .WithTag("RESERVED", 14, 2)
-                .WithFlag(16, name: "TXEN")
-                .WithFlag(17, name: "RXEN")
-                .WithTag("RESERVED", 18, 14);
-
-            Register.DebugControl.Define(dwordregisters, 0x00, "DebugControl")
-                .WithTag("RESERVED", 0, 1);
-
-
-            Register.Baudrate.Define(dwordregisters, 0x00, "Baudrate")
-                .WithValueField(0, 16, out baudrate, FieldMode.Read | FieldMode.Write, name: "Baudraute");
-
-            Register.IntenClr.Define(dwordregisters, 0x00, "IntenClr")
-            .WithFlag(0, out bDRE_Clear, FieldMode.Read | FieldMode.Set,
-            writeCallback: (_, value) =>
+            get
             {
-                if (value == true)
+                if(frameFormat.Value == FrameFormat.WithParity)
                 {
-                    bDRE_Set.Value = false;
+                    return parityMode.Value ? Parity.Odd : Parity.Even;
                 }
-            }, name: "Data Register Empty Interrupt Enable")
-            .WithFlag(1, out bTXC_Clear, FieldMode.Read | FieldMode.Set,
-            writeCallback: (_, value) =>
+                return Parity.None;
+            }
+        }
+
+        public GPIO IRQ { get; }
+
+        public event Action<byte> CharReceived;
+
+        public long Size => 0x100;
+
+        private void HandleTransmitData(uint value)
+        {
+            if(!enabled.Value || !transmitterEnabled.Value)
             {
-                if (value == true)
-                {
-                    bTXC_Set.Value = false;
-                }
-            }, name: "Transmit Complete interrupt is disabled.")
-            .WithFlag(2, out bRXC_Clear, FieldMode.Read | FieldMode.Set,
-            writeCallback: (_, value) =>
+                this.Log(LogLevel.Warning, "Char was to be sent, but the transmitter (or the whole USART) is not enabled. Ignoring.");
+                return;
+            }
+            CharReceived?.Invoke((byte)value);
+            transmitComplete.Value = true;
+            UpdateInterrupts();
+        }
+
+        private uint HandleReceiveData()
+        {
+            if(receiveQueue.TryDequeue(out var result))
             {
-                if (value == true)
-                {
-                    bRXC_Set.Value = false;
-                }
-            }, name: "Receive Complete Interrupt Enable")
-            .WithFlag(3, out bRXS_Clear, FieldMode.Read | FieldMode.Set,
-            writeCallback: (_, value) =>
-            {
-                if (value == true)
-                {
-                    bRXS_Set.Value = false;
-                }
-            }, name: "Receive Start Interrupt Enable")
-            .WithTag("RESERVED", 4, 4);
-
-            Register.IntenSet.Define(dwordregisters, 0x00, "IntenSet")
-            .WithFlag(0, out bDRE_Set, FieldMode.Read | FieldMode.Set,
-            writeCallback: (_, value) =>
-            {
-                if (value == true)
-                {
-                    bDRE_Clear.Value = false;
-                }
-            }, name: "Data Register Empty Interrupt Enable")
-            .WithFlag(1, out bTXC_Set, FieldMode.Read | FieldMode.Set,
-             writeCallback: (_, value) =>
-             {
-                 if (value == true)
-                 {
-                     bTXC_Clear.Value = false;
-                 }
-             }, name: "Transmit Complete interrupt is disabled.")
-            .WithFlag(2, out bRXC_Set, FieldMode.Read | FieldMode.Set,
-             writeCallback: (_, value) =>
-             {
-                 if (value == true)
-                 {
-                     bRXC_Clear.Value = false;
-                 }
-             }, name: "Receive Complete Interrupt Enable")
-            .WithFlag(3, out bRXS_Set, FieldMode.Read | FieldMode.Set,
-             writeCallback: (_, value) =>
-             {
-                 if (value == true)
-                 {
-                     bRXS_Clear.Value = false;
-                 }
-             }, name: "Receive Start Interrupt Enable")
-            .WithTag("RESERVED", 4, 4);
-
-
-            Register.IntFlag.Define(dwordregisters, 0x01, "IntFlag")
-            .WithFlag(0, out bDRE, FieldMode.Read, name: "Data Register Empty")
-            .WithFlag(1, out bTXC, FieldMode.WriteOneToClear | FieldMode.Read, name: "Transmit Complete.")
-            .WithFlag(2, out bRXC, FieldMode.Read, name: "Receive Complete")
-            .WithFlag(3, out bRXS, FieldMode.WriteOneToClear | FieldMode.Read, name: "Receive Start")
-            .WithTag("RESERVED", 4, 4);
-
-            Register.Status.Define(dwordregisters, 0x00, "Status")
-            .WithFlag(0, name: "Parity Error")
-            .WithFlag(1, name: "Frame Error")
-            .WithFlag(2, name: "Buffer Overflow")
-            .WithTag("RESERVED", 3, 12)
-            .WithFlag(15, name: "Synchronization Busy");
-
-            Register.Data.Define(dwordregisters, 0x00, "Data")
-            .WithValueField(0, 9,
-                                writeCallback: (_, value) =>
-                                {
-                                    this.Log(LogLevel.Noisy, "SAMD2x_UART: Data Send");
-                                    bDRE.Value = false;
-                                    CharReceived?.Invoke((byte)value);
-                                    bTXC.Value = true;
-                                    bDRE.Value = true;
-                                },
-                                valueProviderCallback: _ =>
-                                {
-                                    uint value = 0;
-                                    if (receiveFifo.Count > 0)
-                                    {
-                                        value = receiveFifo.Dequeue();
-                                        this.Log(LogLevel.Noisy, "SAMD2x_UART: Data Receive");
-                                    }
-                                    if (receiveFifo.Count == 0)
-                                    {
-                                        bRXC.Value = false;
-                                        this.Log(LogLevel.Noisy, "SAMD2x_UART: RXC = false");
-                                    }
-                                    return value;
-                                }, name: "data")
-            .WithTag("RESERVED", 9, 7);
-
-
+                UpdateInterrupts();
+            }
+            return result;
         }
 
         private void UpdateInterrupts()
         {
-            bool bDRE_IntActive = false;
-            bool bTXC_IntActive = false;
-            bool bRXC_IntActive = false;
-            bool bRXS_IntActive = false;
-
-            if (bDRE_Set.Value & bDRE.Value)
-            {
-                bDRE_IntActive = true;
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: DRE Int Active");
-            }
-            else
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: DRE Int Off");
-
-
-            if (bTXC_Set.Value & bTXC.Value)
-            {
-                bTXC_IntActive = true;
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: TXC Int Active");
-            }
-            else
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: TXC Int Off");
-
-            if (bRXC_Set.Value & bRXC.Value)
-            {
-                bRXC_IntActive = true;
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: RXC Int Active");
-            }
-            else
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: RXC Int Off");
-
-            if (bRXS_Set.Value & bRXS.Value)
-            {
-                bRXS_IntActive = true;
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: RXS Int Active");
-            }
-            else
-                this.Log(LogLevel.Noisy, "SAMD2x_UART: RXS Int Off");
-
-            // Set or Clear Interrupt
-            IRQ.Set(bRXS_IntActive | bRXC_IntActive | bTXC_IntActive | bDRE_IntActive);
-
+            var value = (transmitComplete.Value && transmitCompleteInterruptEnabled.Value)
+                || (receiveQueue.Count == 0 && dataRegisterEmptyInterruptEnabled.Value)
+                || (receiveQueue.Count > 0 && receiveCompleteInterruptEnabled.Value);
+            IRQ.Set(value);
         }
 
+        private readonly IFlagRegisterField dataRegisterEmptyInterruptEnabled;
+        private readonly IFlagRegisterField transmitCompleteInterruptEnabled;
+        private readonly IFlagRegisterField receiveCompleteInterruptEnabled;
+        private readonly IFlagRegisterField receiveStartedInterruptEnabled;
+        private readonly IFlagRegisterField enabled;
+        private readonly IFlagRegisterField transmitterEnabled;
+        private readonly IFlagRegisterField receiverEnabled;
+        private readonly IFlagRegisterField transmitComplete;
+        private readonly IFlagRegisterField parityMode;
+        private readonly IEnumRegisterField<FrameFormat> frameFormat;
+        private readonly IFlagRegisterField stopBitMode;
 
-        private enum Register : long
+        private readonly IValueRegisterField baudrate;
+
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly Queue<byte> receiveQueue = new Queue<byte>();
+
+        private enum FrameFormat : int
         {
-            ControlA= 0x00,
-            ControlB= 0x04,
+            NoParity = 0x0,
+            WithParity = 0x1
+            // 0x2-0xF Reserved
+        }
+
+        private enum Registers : long
+        {
+            ControlA = 0x00,
+            ControlB = 0x04,
             DebugControl = 0x08,
-            Baudrate =0x0A,
-            IntenClr = 0x0C,
-            IntenSet = 0x0D,
-            IntFlag = 0x0E,
+            // 0x9 - reserved
+            Baudrate = 0x0A,
+            InterruptEnableClear = 0x0C,
+            InterruptEnableSet = 0x0D,
+            InterruptFlagStatusAndClear = 0x0E,
+            // 0xF - reserved
             Status = 0x10,
+            // 0x11:0x17 - reserved
             Data = 0x18
         }
-
     }
 }
