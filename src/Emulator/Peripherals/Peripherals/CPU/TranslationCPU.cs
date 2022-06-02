@@ -696,7 +696,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void AddHookAtInterruptEnd(Action<ulong> hook)
         {
-            if(Architecture != "riscv")
+            if(!Architecture.Contains("riscv"))
             {
                 throw new RecoverableException("Hooks at the end of interrupt are supported only in the RISC-V architecture");
             }
