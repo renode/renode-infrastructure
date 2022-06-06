@@ -81,7 +81,14 @@ namespace Antmicro.Renode.Core
             // this is a bit hacky - calling `GetTypeByName` forces
             // TypeManager to load the type into memory making
             // it accessible for dynamically compiled C# code
-            TypeManager.Instance.GetTypeByName(name);
+            try
+            {
+                TypeManager.Instance.GetTypeByName(name);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException($"Unable to load the type `{name}`: {e.Message}");
+            }
         }
 
         public void Load(ReadFilePath path)
