@@ -390,6 +390,11 @@ namespace Antmicro.Renode.Utilities
             return String.Empty;
         }
 
+        public static byte[] HexStringToByteArray(string hexString)
+        {
+            return Enumerable.Range(0, hexString.Length).Where(x => x%2 == 0).Select(x => Convert.ToByte(hexString.Substring(x, 2), 16)).ToArray();
+        }
+
         // MoreLINQ - Extensions to LINQ to Objects
         // Copyright (c) 2008 Jonathan Skeet. All rights reserved.
         public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector,
