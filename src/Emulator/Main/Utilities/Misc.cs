@@ -505,7 +505,7 @@ namespace Antmicro.Renode.Utilities
             else
             {
                 libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile(resourceName);
-                
+
                 if(String.IsNullOrEmpty(libraryFile))
                 {
                     outputFileFullPath = null;
@@ -1214,7 +1214,7 @@ namespace Antmicro.Renode.Utilities
 
         // allocate file of a given name
         // if it already exists - rename it using pattern path.III (III being an integer)
-        // returns information if there was a rename and III of the last renamed file 
+        // returns information if there was a rename and III of the last renamed file
         public static bool AllocateFile(string path, out int counter)
         {
             counter = 0;
@@ -1260,12 +1260,12 @@ namespace Antmicro.Renode.Utilities
         {
             value = 0uL;
             mask = 0uL;
-            
+
             if(pattern.Length > 64)
             {
                 return false;
             }
-            
+
             var currentBit = pattern.Length - 1;
 
             foreach(var p in pattern)
@@ -1298,6 +1298,63 @@ namespace Antmicro.Renode.Utilities
             {
                 array[startIndex++] = b;
             }
+        }
+
+        public static bool TryFindPreceedingEnumItem<T>(uint value, out T bestCandidate, out int offset) where T: IConvertible
+        {
+            var allValues = Enum.GetValues(typeof(T));
+            var maxIndex = allValues.Length - 1;
+
+            bestCandidate = default(T);
+            offset = 0;
+
+            if((int)allValues.GetValue(0) > value)
+            {
+                // there are no values preceeding given value
+                return false;
+            }
+
+            int currentValue = 0;
+            int lowBorder = 0;
+            int highBorder = maxIndex;
+
+            // binary search
+            while(highBorder != lowBorder)
+            {
+                var currentIndex = lowBorder + ((highBorder - lowBorder) / 2);
+                currentValue = (int)allValues.GetValue(currentIndex);
+
+                if(currentValue == value)
+                {
+                    break;
+                }
+                else if(currentValue < value)
+                {
+                    lowBorder = currentIndex + 1;
+                }
+                else
+                {
+                    highBorder = currentIndex;
+                }
+            }
+            bestCandidate = (T)Enum.ToObject(typeof(T), currentValue);
+            offset = (int)(value - currentValue);
+            return true;
+        }
+
+        public static int CountTrailingZeroes(uint value)
+        {
+            int count = 0;
+            while((value & 0x1) == 0)
+            {
+                count += 1;
+                value >>= 1;
+                if(count == sizeof(uint) * 8)
+                {
+                    break;
+                }
+            }
+            return count;
         }
     }
 }
