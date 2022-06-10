@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -143,6 +143,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     switch(responseTypeField.Value)
                     {
                         case ResponseType.Short:
+                        case ResponseType.ShortBusy:
                             expectedResponseLength = 4;
                             break;
 
@@ -318,7 +319,8 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             None,
             Short,
-            Long
+            Long,
+            ShortBusy,
         }
 
         private enum PhyRegisters
