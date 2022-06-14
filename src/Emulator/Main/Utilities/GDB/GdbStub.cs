@@ -9,9 +9,11 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
+    [Transient]
     public class GdbStub : IDisposable, IExternal
     {
         public GdbStub(Machine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation, bool blockOnStep)
