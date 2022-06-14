@@ -52,6 +52,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        public void LifeCycleReset()
+        {
+            ExecuteResetWithSkipped(skippedOnLifeCycleReset);
+        }
+
         public void RegisterModuleSpecificReset(IPeripheral peripheral, uint id)
         {
             if(id >= modules.Length)
@@ -147,11 +152,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 cpu.PC = resetPC;
                 this.Log(LogLevel.Info, "Software reset complete.");
             }, unresetable: toSkip);
-        }
-
-        private void LifeCycleReset()
-        {
-            ExecuteResetWithSkipped(skippedOnLifeCycleReset);
         }
 
         private void SystemReset()
