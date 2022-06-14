@@ -40,8 +40,16 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         public void Dispose()
         {
-            // inform the device that it is disconnected
-            ChangeDeviceStatus(false);
+            if(isInDummyMode)
+            {
+                return;
+            }
+
+            if(handle != null)
+            {
+                // inform the device that it is disconnected
+                ChangeDeviceStatus(false);
+            }
             stream?.Close();
             handle?.Close();
         }
@@ -124,7 +132,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
                             //check for the interface's name
                             if((string)connection.GetValue("Name") == name)
                             {
-                                return new Guid(connectionGuid);
                             }
                         }
                     }
@@ -143,12 +150,14 @@ namespace Antmicro.Renode.HostInterfaces.Network
         {
             this.Log(LogLevel.Debug, "Initializing Windows TAP device");
             var tapctlPath = (string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\OpenVPN", "", "");
-            if(tapctlPath == "")
+            if(String.IsNullOrEmpty(tapctlPath))
             {
+                isInDummyMode = true;
                 this.Log(LogLevel.Warning, "tapctl.exe utility not found - running in the dummy mode!");
             }
             else
             {
+                isInDummyMode = false;
                 tapctlPath += @"\bin\tapctl.exe";
                 //check whether the interface with such name exists
                 var deviceGuid = GetDeviceGuid(InterfaceName);
@@ -286,6 +295,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private const int MTU = 1514;
         private const string AdapterType = @"root\tap0901";
 
+        private bool isInDummyMode;
         [Transient]
         private CancellationTokenSource cancellationTokenSource;
         private readonly object lockObject = new object();
