@@ -101,7 +101,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             Resume();
         }
 
-        public string InterfaceName { get; private set; }
+        public string InterfaceName { get; }
 
         public MACAddress MAC { get; set; }
         public event Action<EthernetFrame> FrameReady;
@@ -109,37 +109,39 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private Guid? GetDeviceGuid(string name)
         {
             var adapters = Registry.LocalMachine.OpenSubKey(AdapterRegistryBranch);
-            if(adapters != null)
+            if(adapters == null)
             {
-                var connections = Registry.LocalMachine.OpenSubKey(ConnectionRegistryBranch);
-                foreach(string subkey in adapters.GetSubKeyNames())
+                return null;
+            }
+            var connections = Registry.LocalMachine.OpenSubKey(ConnectionRegistryBranch);
+            foreach(string subkey in adapters.GetSubKeyNames())
+            {
+                try
                 {
-                    try
-                    {
-                        var adapter = adapters.OpenSubKey(subkey);
+                    var adapter = adapters.OpenSubKey(subkey);
 
-                        if(adapter == null)
-                        {
-                            return null;
-                        }
-                        var adapterType = (string)adapter.GetValue("ComponentId", "");
-                        //make sure whether the adapter listed in the registry is a tap interface
-                        //the tap-Windows6 driver lists its adapter type as "root\tap0901"
-                        if(adapterType == AdapterType)
-                        {
-                            string connectionGuid = (string)adapter.GetValue("NetCfgInstanceId");
-                            var connection = connections.OpenSubKey($"{connectionGuid}\\Connection");
-                            //check for the interface's name
-                            if((string)connection.GetValue("Name") == name)
-                            {
-                            }
-                        }
-                    }
-                    catch(SecurityException)
+                    if(adapter == null)
                     {
-                        //There is a registry branch ({AdapterRegistryBranch}\Properties) that by default even the Administrator account doesn't have permissions to read.
-                        //Branches like these should be skipped.
+                        return null;
                     }
+                    var adapterType = (string)adapter.GetValue("ComponentId", "");
+                    //make sure whether the adapter listed in the registry is a tap interface
+                    //the tap-Windows6 driver lists its adapter type as "root\tap0901"
+                    if(adapterType == AdapterType)
+                    {
+                        string connectionGuid = (string)adapter.GetValue("NetCfgInstanceId");
+                        var connection = connections.OpenSubKey($"{connectionGuid}\\Connection");
+                        //check for the interface's name
+                        if((string)connection.GetValue("Name") == name)
+                        {
+                            return new Guid(connectionGuid);
+                        }
+                    }
+                }
+                catch(SecurityException)
+                {
+                    //There is a registry branch ({AdapterRegistryBranch}\Properties) that by default even the Administrator account doesn't have permissions to read.
+                    //Branches like these should be skipped.
                 }
             }
             return null;
@@ -154,60 +156,56 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 isInDummyMode = true;
                 this.Log(LogLevel.Warning, "tapctl.exe utility not found - running in the dummy mode!");
+                return;
             }
-            else
+            isInDummyMode = false;
+            tapctlPath += @"\bin\tapctl.exe";
+            //check whether the interface with such name exists
+            var deviceGuid = GetDeviceGuid(InterfaceName);
+            //create interface if it doesn't exist
+            if(deviceGuid == null)
             {
-                isInDummyMode = false;
-                tapctlPath += @"\bin\tapctl.exe";
-                //check whether the interface with such name exists
-                var deviceGuid = GetDeviceGuid(InterfaceName);
-                //create interface if it doesn't exist
-                if(deviceGuid == null)
+                using(var tapctlProcess = new Process())
                 {
-                    using(var tapctlProcess = new Process())
-                    {
-                        tapctlProcess.StartInfo.Verb = "runas";
-                        tapctlProcess.StartInfo.FileName = tapctlPath;
-                        tapctlProcess.StartInfo.Arguments = $"create --name {InterfaceName}";
-                        tapctlProcess.StartInfo.UseShellExecute = true;
-                        tapctlProcess.Start();
-                        tapctlProcess.WaitForExit();
-                    }
+                    tapctlProcess.StartInfo.Verb = "runas";
+                    tapctlProcess.StartInfo.FileName = tapctlPath;
+                    tapctlProcess.StartInfo.Arguments = $"create --name {InterfaceName}";
+                    tapctlProcess.StartInfo.UseShellExecute = true;
+                    tapctlProcess.Start();
+                    tapctlProcess.WaitForExit();
                 }
-                deviceGuid = GetDeviceGuid(InterfaceName);
-                if(deviceGuid == null)
-                {
-                    throw new RecoverableException("Failed to retrieve the GUID of the TAP device. Please use the tapctl.exe tool manually to create the TAP device.");
-                }
-                this.Log(LogLevel.Debug, "device GUID: {0}", deviceGuid.ToString().ToUpper());
-                string deviceFilePath = $"\\\\.\\Global\\{{{deviceGuid.ToString().ToUpper()}}}.tap";
-                handle = new SafeFileHandle(
-                    CreateFile(
-                        deviceFilePath,
-                        0x2000000, //MAXIMUM_ALLOWED constant 
-                        0,
-                        IntPtr.Zero,
-                        FileMode.Open,
-                        (int)(FileAttributes.System) | 0x40000000, //FILE_FLAG_OVERLAPPED constant
-                        IntPtr.Zero),
-                    true);
-                int error = Marshal.GetLastWin32Error();
-                if(error != 0)
-                {
-                    throw new RecoverableException($"Win32 error when opening the handle to the device file at path: {deviceFilePath} \n error id: {error}");
-                }
-                stream = new FileStream(handle, FileAccess.ReadWrite, MTU, true);
-                // inform the device that it is connected
-                ChangeDeviceStatus(true);
             }
+            deviceGuid = GetDeviceGuid(InterfaceName);
+            if(deviceGuid == null)
+            {
+                throw new RecoverableException("Failed to retrieve the GUID of the TAP device. Please use the tapctl.exe tool manually to create the TAP device.");
+            }
+            this.Log(LogLevel.Debug, "device GUID: {0}", deviceGuid.ToString().ToUpper());
+            string deviceFilePath = $"\\\\.\\Global\\{{{deviceGuid.ToString().ToUpper()}}}.tap";
+            handle = new SafeFileHandle(
+                CreateFile(
+                    deviceFilePath,
+                    0x2000000, //MAXIMUM_ALLOWED constant 
+                    0,
+                    IntPtr.Zero,
+                    FileMode.Open,
+                    (int)(FileAttributes.System) | 0x40000000, //FILE_FLAG_OVERLAPPED constant
+                    IntPtr.Zero),
+                true);
+            int error = Marshal.GetLastWin32Error();
+            if(error != 0)
+            {
+                throw new RecoverableException($"Win32 error when opening the handle to the device file at path: {deviceFilePath} \n error id: {error}");
+            }
+            stream = new FileStream(handle, FileAccess.ReadWrite, MTU, true);
+            // inform the device that it is connected
+            ChangeDeviceStatus(true);
         }
 
         private void TransmitLoop(CancellationToken token)
         {
             while(true)
             {
-                byte[] packet = null;
-
                 if(token.IsCancellationRequested)
                 {
                     this.Log(LogLevel.Noisy, "Requested thread cancellation - stopping reading from the TAP device file.");
@@ -221,11 +219,11 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 }
                 try
                 {
-                    byte[] buffer = new byte[MTU];
+                    var buffer = new byte[MTU];
                     int bytesRead = stream.Read(buffer, 0, MTU);
                     if(bytesRead > 0)
                     {
-                        packet = new byte[bytesRead];
+                        var packet = new byte[bytesRead];
                         Array.Copy(buffer, packet, bytesRead);
                         this.Log(LogLevel.Noisy, "Received {0} bytes frame", bytesRead);
                         if(Misc.TryCreateFrameOrLogWarning(this, packet, out var frame, addCrc: true))
@@ -292,13 +290,14 @@ namespace Antmicro.Renode.HostInterfaces.Network
         //Microsoft docs link: https://docs.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
         private const string AdapterRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
         private const string ConnectionRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}";
-        private const int MTU = 1514;
+        private const int MTU = 1500;
         private const string AdapterType = @"root\tap0901";
 
         private bool isInDummyMode;
+        private readonly object lockObject = new object();
+
         [Transient]
         private CancellationTokenSource cancellationTokenSource;
-        private readonly object lockObject = new object();
         [Transient]
         private FileStream stream;
         [Transient]
