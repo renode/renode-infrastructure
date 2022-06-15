@@ -720,6 +720,7 @@
     <Compile Include="Peripherals\Mocks\MockDoubleWordPeripheralWithOnlyRegionReadMethod.cs" />
     <Compile Include="Peripherals\Miscellaneous\LPC_Clock0.cs" />
     <Compile Include="Peripherals\CPU\LLVMArchitectureMapping.cs" />
+    <Compile Include="Peripherals\CPU\Assembler\IAssembler.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
