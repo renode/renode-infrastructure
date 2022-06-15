@@ -22,6 +22,7 @@ using Antmicro.Renode.Hooks;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU.Assembler;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -1763,6 +1764,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
             }
+            try
+            {
+                assembler = new LLVMAssembler(this);
+            }
+            catch(ArgumentOutOfRangeException)
+            {
+                this.Log(LogLevel.Warning, "Could not initialize assembly engine");
+            }
             dirtyAddressesPtr = IntPtr.Zero;
         }
 
@@ -2075,6 +2084,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 addr = PC;
             }
 
+            // Instruction fetch access used as we want to be able to read even pages mapped for execution only
             // We don't care if translation fails here (the address is unchanged in this case)
             TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
 
@@ -2083,10 +2093,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             return result;
         }
 
+        public uint AssembleBlock(ulong addr, string instructions, uint flags = 0)
+        {
+            if(Assembler == null)
+            {
+                throw new RecoverableException("Assembler not available");
+            }
+
+            // Instruction fetch access used as we want to be able to write even pages mapped for execution only
+            // We don't care if translation fails here (the address is unchanged in this case)
+            TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
+
+            var result = Assembler.AssembleBlock(addr, instructions, flags);
+            Bus.WriteBytes(result, addr, true, context: this);
+            return (uint)result.Length;
+        }
+
         [Transient]
         private LLVMDisassembler disassembler;
+        [Transient]
+        private LLVMAssembler assembler;
 
         public LLVMDisassembler Disassembler => disassembler;
+        public LLVMAssembler Assembler => assembler;
 
         protected static readonly Exception InvalidInterruptNumberException = new InvalidOperationException("Invalid interrupt number.");
 
