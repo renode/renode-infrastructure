@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
             }
         }
         
-        private IDisassembler GetDisassembler(uint flags) 
+        private IDisassembler GetDisassembler(uint flags)
         {
             GetTripleAndModelKey(flags, out var triple, out var model);
             var key = $"{triple} {model}";
@@ -413,7 +413,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 opcode = Misc.HexStringToByteArray(result.OpcodeString, true);
                 return true;
             }
-            
+
             private readonly IDisassembler underlyingDisassembler;
         }
 
