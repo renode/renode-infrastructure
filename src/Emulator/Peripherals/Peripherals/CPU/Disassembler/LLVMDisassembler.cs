@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             var key = $"{triple} {model}";
             if(!cache.ContainsKey(key))
             {
-                IDisassembler disas = new LLVMDisasWrapper(model, triple);
+                IDisassembler disas = new LLVMDisasWrapper(model, triple, flags);
                 if(cpu.Architecture == "arm-m")
                 {
                     disas = new CortexMDisassemblerWrapper(disas);
@@ -157,11 +157,11 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         
         private class LLVMDisasWrapper : IDisposable, IDisassembler
         {
-            public LLVMDisasWrapper(string cpu, string triple)
+            public LLVMDisasWrapper(string cpu, string triple, uint flags)
             {
                 try
                 {
-                    context = llvm_create_disasm_cpu(triple, cpu);
+                    context = llvm_create_disasm_cpu_with_flags(triple, cpu, flags);
                 }
                 catch(DllNotFoundException)
                 {
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             private static extern int llvm_disasm_instruction(IntPtr dc, IntPtr bytes, UInt64 bytesSize, IntPtr outString, UInt32 outStringSize);
 
             [DllImport("libllvm-disas")]
-            private static extern IntPtr llvm_create_disasm_cpu(string tripleName, string cpu);
+            private static extern IntPtr llvm_create_disasm_cpu_with_flags(string tripleName, string cpu, uint flags);
 
             [DllImport("libllvm-disas")]
             private static extern void llvm_disasm_dispose(IntPtr disasm);
