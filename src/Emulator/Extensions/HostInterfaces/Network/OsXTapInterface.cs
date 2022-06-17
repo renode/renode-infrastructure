@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -159,7 +159,9 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private void Init()
         {
             var interfaceNameOrPath = originalInterfaceNameOrPath;
-            if(!Directory.Exists("/Library/Extensions/tap.kext/"))
+            // (1) check if there is an installed kernel extension
+            // (2) there can still be an extension but loaded on demand - Tunnelblick does that, but we won't see anything in the Extensions folder
+            if(!Directory.Exists("/Library/Extensions/tap.kext/") && !File.Exists("/dev/tap0"))
             {
                 this.Log(LogLevel.Warning, "No TUNTAP kernel extension found, running in dummy mode.");
                 MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
@@ -188,7 +190,14 @@ namespace Antmicro.Renode.HostInterfaces.Network
             var majorNumber = deviceType >> 24;
             var minorNumber = deviceType & 0xFFFFFF;
             this.DebugLog($"Opening TAP device with major number: {majorNumber} and minor number: {minorNumber}");
-            networkInterface = NetworkInterface.GetAllNetworkInterfaces().Single(x => x.Name == "tap" + minorNumber);
+            try
+            {
+                networkInterface = NetworkInterface.GetAllNetworkInterfaces().Single(x => x.Name == "tap" + minorNumber);
+            }
+            catch(InvalidOperationException)
+            {
+                throw new RecoverableException($"TAP device {interfaceNameOrPath} was not found among network devices.");
+            }
             MAC = (MACAddress)networkInterface.GetPhysicalAddress();
         }
 
