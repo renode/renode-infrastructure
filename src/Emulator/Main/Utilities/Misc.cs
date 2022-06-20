@@ -1347,6 +1347,27 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public static void FillByteArrayWithArray(byte[] destinationArray, byte[] sourceArray)
+        {
+            var srcLength = sourceArray.Length;
+            var dstLength = destinationArray.Length;
+            if(srcLength >= dstLength)
+            {
+                Buffer.BlockCopy(sourceArray, 0, destinationArray, 0, dstLength);
+            }
+            else
+            {
+                var currentIndex = 0;
+                while((currentIndex + srcLength) < dstLength)
+                {
+                    Buffer.BlockCopy(sourceArray, 0, destinationArray, currentIndex, srcLength);
+                    currentIndex += srcLength;
+                }
+                var remindingElements = dstLength % srcLength;
+                Buffer.BlockCopy(sourceArray, 0, destinationArray, currentIndex, remindingElements);
+            }
+        }
+
         public static int CountTrailingZeroes(uint value)
         {
             int count = 0;

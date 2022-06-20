@@ -393,6 +393,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_LifeCycleState.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_OneTimeProgrammableMemoryController.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_LifeCycleController.cs" />
+    <Compile Include="Peripherals\Miscellaneous\OpenTitan_CSRNG.cs" />
     <Compile Include="Peripherals\GPIOPort\IMXRT_GPIO.cs" />
     <Compile Include="Peripherals\UART\OpenTitan_UART.cs" />
     <Compile Include="Peripherals\Timers\OpenTitan_Timer.cs" />
