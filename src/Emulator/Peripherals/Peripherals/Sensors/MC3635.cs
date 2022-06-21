@@ -545,7 +545,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithEnumField(4, 3, out sniffPowerMode, writeCallback: (_ , __) => SetSamplingFrequency(), name: "SPM")
                 .WithTaggedFlag("SPI_HS_EN", 7);
             Registers.DriveMotionX.Define(this)
-                .WithReservedBits(0, 2, 0b10)
+                .WithReservedBits(0, 2, 0b01)
                 .WithTaggedFlag("DPX", 2)
                 .WithTaggedFlag("DNX", 3)
                 .WithReservedBits(4, 4, 0b0000);
