@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -9,6 +9,7 @@
 using System;
 using System.Linq.Expressions;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Backends.Display
@@ -18,10 +19,8 @@ namespace Antmicro.Renode.Backends.Display
         public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, PixelFormat? clutInputFormat = null, Pixel inputFixedColor = null /* fixed color for A4 and A8 mode */)
         {
             var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess, clutInputFormat, inputFixedColor);
-            if(!convertersCache.ContainsKey(converterConfiguration))
-            {
-                convertersCache[converterConfiguration] =
-                    new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(
+            return convertersCache.GetOrAdd(converterConfiguration, (_) => 
+                new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(
                     new BufferDescriptor
                     {
                         ColorFormat = inputFormat,
@@ -33,39 +32,33 @@ namespace Antmicro.Renode.Backends.Display
                     {
                         ColorFormat = outputFormat,
                         DataEndianness = outputEndianess
-                    }));
-            }
-            return convertersCache[converterConfiguration];
+                    })));
         }
 
         public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat frontBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel bgFixedColor = null, Pixel fgFixedColor = null)
         {
             var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, frontBuffer, frontBufferEndianes, output, outputEndianess, bgFixedColor, fgFixedColor);
-            if(!blendersCache.ContainsKey(blenderConfiguration))
-            {
-                blendersCache[blenderConfiguration] = new PixelBlender(backBuffer, frontBuffer, output,
-                    GenerateBlendMethod(
-                        new BufferDescriptor
-                        {
-                            ColorFormat = backBuffer,
-                            ClutColorFormat = clutBackgroundFormat,
-                            FixedColor = bgFixedColor,
-                            DataEndianness = backBufferEndianess
-                        },
-                        new BufferDescriptor
-                        {
-                            ColorFormat = frontBuffer,
-                            FixedColor = fgFixedColor,
-                            ClutColorFormat = clutForegroundFormat,
-                            DataEndianness = frontBufferEndianes
-                        },
-                        new BufferDescriptor
-                        {
-                            ColorFormat = output,
-                            DataEndianness = outputEndianess
-                        }));
-            }
-            return blendersCache[blenderConfiguration];
+            return blendersCache.GetOrAdd(blenderConfiguration, (_) =>
+                new PixelBlender(backBuffer, frontBuffer, output, GenerateBlendMethod(
+                    new BufferDescriptor
+                    {
+                        ColorFormat = backBuffer,
+                        ClutColorFormat = clutBackgroundFormat,
+                        FixedColor = bgFixedColor,
+                        DataEndianness = backBufferEndianess
+                    },
+                    new BufferDescriptor
+                    {
+                        ColorFormat = frontBuffer,
+                        FixedColor = fgFixedColor,
+                        ClutColorFormat = clutForegroundFormat,
+                        DataEndianness = frontBufferEndianes
+                    },
+                    new BufferDescriptor
+                    {
+                        ColorFormat = output,
+                        DataEndianness = outputEndianess
+                    })));
         }
 
         private static BlendDelegate GenerateBlendMethod(BufferDescriptor backgroudBufferDescriptor, BufferDescriptor foregroundBufferDescriptor, BufferDescriptor outputBufferDescriptor)
@@ -703,8 +696,8 @@ namespace Antmicro.Renode.Backends.Display
             private readonly BlendDelegate blender;
         }
 
-        private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
-        private static Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new Dictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
+        private static ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
+        private static ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
         private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
         private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
