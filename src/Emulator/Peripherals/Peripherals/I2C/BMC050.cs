@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -106,7 +106,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             if(data.Length < 2)
             {
                 // Must always have mode and register address in list
-                this.Log(LogLevel.Noisy, "Write - too few elements in list ({0}) - must be at least two", data.Length);
+                this.Log(LogLevel.Warning, "Write - too few elements in list ({0}) - must be at least two", data.Length);
+                return;
             }
             this.NoisyLog("Write {0}", data.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
             // First byte sets the device state
@@ -603,8 +604,16 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public byte[] Read(int count = 0)
         {
-            this.NoisyLog("Read {0}", sendData.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
-            return sendData;
+            if(sendData == null || sendData.Length < count)
+            {
+                this.Log(LogLevel.Warning, "Attemped to read {0} bytes, while {1} is available", count, sendData == null ? 0 : sendData.Length);
+                return new byte[count];
+            }
+            else
+            {
+                this.NoisyLog("Read {0}", sendData.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
+                return sendData;
+            }
         }
 
         public void FinishTransmission()
