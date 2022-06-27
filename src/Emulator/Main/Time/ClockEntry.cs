@@ -43,6 +43,7 @@ namespace Antmicro.Renode.Time
                 step ?? Step);
             
             result.Value = value ?? Value;
+            result.ValueResiduum = ValueResiduum;
             return result;
         }
 
