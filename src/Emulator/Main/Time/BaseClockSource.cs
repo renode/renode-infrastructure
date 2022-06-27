@@ -145,6 +145,7 @@ namespace Antmicro.Renode.Time
         {
             lock(sync)
             {
+                UpdateLimits();
                 return clockEntries.ToList();
             }
         }
