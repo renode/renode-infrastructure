@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -253,7 +253,7 @@ namespace Antmicro.Renode.Time
                 entry.Value -= ticksByRatio;
             }
 
-            nearestTickIn = nearestTickIn.WithTicksMin(entry.Value * ratio + entry.ValueResiduum);
+            nearestTickIn = nearestTickIn.WithTicksMin(entry.Value * ratio - entry.ValueResiduum);
             return isReached;
         }
 
