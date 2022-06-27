@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Plugins.AdvancedLoggerViewer
             label.Font = label.Font.WithSize(15).WithWeight(Xwt.Drawing.FontWeight.Bold);
 
             var markdown = new MarkdownView();
-            using(var stream = typeof(LogViewerHelpDialog).Assembly.GetManifestResourceStream("Antmicro.Renode.Extensions.AdvancedLoggerViewer.LogViewerHelpFile.txt"))
+            using(var stream = typeof(LogViewerHelpDialog).Assembly.GetManifestResourceStream("Antmicro.Renode.Plugins.AdvancedLoggerViewer.LogViewerHelpFile.txt"))
             {
                 using(var reader = new StreamReader(stream))
                 {
