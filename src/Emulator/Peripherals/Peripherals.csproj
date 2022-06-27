@@ -428,6 +428,7 @@
     <Compile Include="Peripherals\UART\SAMD20_UART.cs" />
     <Compile Include="Peripherals\Video\LiteX_Framebuffer_CSR32.cs" />
     <Compile Include="Peripherals\UART\USBSerialPort_S3B.cs" />
+    <Compile Include="Peripherals\Miscellaneous\MAX32650_GCR.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
