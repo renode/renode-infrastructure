@@ -5,6 +5,7 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
@@ -15,6 +16,11 @@ using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Modes;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Crypto.Macs;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -26,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             RegistersCollection = new DoubleWordRegisterCollection(this);
             rsaServiceProvider = new RSAServiceProvider(memoryManager);
             aesServiceProvider = new AESServiceProvider(memoryManager, machine.SystemBus);
+            msgAuthServiceProvider = new MessageAuthenticationServiceProvider(memoryManager, machine.SystemBus);
 
             Registers.CSR.Define(this)
                 .WithFlag(0,
@@ -72,7 +79,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             commands = new Dictionary<JumpTable, Action>
             {
-                { JumpTable.DetectFirmwareVersion, EmptyHandler },
                 { JumpTable.PrecomputeValueRSA, EmptyHandler },
                 { JumpTable.InstantiateDRBG, InstantiateDRBG },
                 { JumpTable.GenerateBlocksFromDRBG, GenerateBlocksWithDRBG },
@@ -82,6 +88,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 { JumpTable.DecryptCipherRSA, rsaServiceProvider.DecryptData },
                 { JumpTable.RunAES, aesServiceProvider.PerformAESOperation },
                 { JumpTable.RunAES_DMA, aesServiceProvider.PerformAESOperationDMA },
+                { JumpTable.RunGCM, msgAuthServiceProvider.PerformGCMMessageAuthentication },
+                { JumpTable.RunGCMNew, msgAuthServiceProvider.PerformGCMMessageAuthentication },
             };
 
             Reset();
@@ -160,6 +168,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IFlagRegisterField coreExecuteCommand;
         private readonly RSAServiceProvider rsaServiceProvider;
         private readonly AESServiceProvider aesServiceProvider;
+        private readonly MessageAuthenticationServiceProvider msgAuthServiceProvider;
 
         private class InternalMemoryManager
         {
@@ -650,6 +659,149 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        private class MessageAuthenticationServiceProvider
+        {
+            public MessageAuthenticationServiceProvider(InternalMemoryManager manager, SystemBus bus)
+            {
+                this.manager = manager;
+                this.bus = bus;
+            }
+
+            public void PerformGCMMessageAuthentication()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.DMAChannelConfig, out var dmaConfig);
+                switch((GCMType)dmaConfig)
+                {
+                    case GCMType.Direct:
+                        NonDMAGCM();
+                        break;
+                    case GCMType.DMA:
+                        DMAGCM();
+                        break;
+                    default:
+                        Logger.Log(LogLevel.Warning, "Encountered unexpected DMA configuration: 0x{0:X}", dmaConfig);
+                        break;
+                }
+            }
+
+            private void NonDMAGCM()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.AuthDataByteCount, out var authBytesLength);
+                manager.TryReadBytes((long)MsgAuthRegisters.AuthData, (int)authBytesLength, out var authBytes, WordSize);
+                
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.InputDataByteCount, out var msgBytesLength);
+                var msgBytesAddend = (msgBytesLength % 4);
+                if(msgBytesAddend != 0)
+                {
+                    msgBytesAddend = 4 - msgBytesAddend;
+                    msgBytesLength += msgBytesAddend;
+                }
+                
+                manager.TryReadBytes((long)MsgAuthRegisters.Message, (int)msgBytesLength, out var msgBytes, WordSize);
+                
+                if(msgBytesAddend != 0)
+                {
+                    msgBytes = msgBytes.Take((int)(msgBytesLength - msgBytesAddend)).ToArray();
+                }
+
+                CalculateGCM(msgBytes, authBytes, MsgAuthRegisters.InitVector, out var ciphertext, out var tag);
+
+                var cleanBytes = new byte[msgBytes.Length + 4];
+                manager.TryWriteBytes((long)MsgAuthRegisters.Message, cleanBytes);
+                manager.TryWriteBytes((long)MsgAuthRegisters.Message, ciphertext);
+                manager.TryWriteBytes((long)MsgAuthRegisters.Tag, tag);
+            }
+
+            private void DMAGCM()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.KeyWordCount, out var msgByteCount);
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.PointerToExternalData, out var inputDataAddr);
+                var msgBytes = bus.ReadBytes(inputDataAddr, (int)msgByteCount);
+
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.AuthDataByteCount, out var authByteCount);
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.PointerToExternalAuthData, out var authDataAddr);
+                var authBytes = bus.ReadBytes(authDataAddr, (int)authByteCount);
+
+                CalculateGCM(msgBytes, authBytes, MsgAuthRegisters.InitVectorDMA, out var ciphertext, out var tag);
+
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.PointerToExternalResultLocation, out var resultAddr);
+                bus.WriteBytes(ciphertext, resultAddr);
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.PointerToExternalMACLocation, out var macAddr);
+                bus.WriteBytes(tag, macAddr);
+            }
+            
+            private void CalculateGCM(byte[] msgBytesSwapped, byte[] authBytesSwapped, MsgAuthRegisters initVector, out byte[] ciphertext, out byte[] tag)
+            {
+                var initVectorSize = GCMInitVectorSize128;
+
+                manager.TryReadBytes((long)MsgAuthRegisters.Key, 32, out var keyBytesSwapped, WordSize);
+                
+                manager.TryReadBytes((long)initVector, initVectorSize, out var ivBytesSwapped, WordSize);
+                // If the user has entered an initialization vector ending with [0x0, 0x0, 0x0, 0x1] (1 being the youngest byte)
+                // it means that it is in fact a 96bit key that was padded with these special bytes, to be 128bit.
+                // Unfortunately, we have to manually trim the padding here because BouncyCastle is expecting an unpadded
+                // initialization vector.
+                // See: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf, p.15 for further details.
+                if((ivBytesSwapped[12] == 0) && (ivBytesSwapped[13] == 0) && (ivBytesSwapped[14] == 0) && (ivBytesSwapped[15] == 1))
+                {
+                    ivBytesSwapped = ivBytesSwapped.Take(12).ToArray();
+                    initVectorSize = GCMInitVectorSize96;
+                }
+
+                var cipher = new GcmBlockCipher(new AesEngine());
+                var parameters = new AeadParameters(new KeyParameter(keyBytesSwapped), (initVectorSize * 8), ivBytesSwapped, authBytesSwapped);
+                cipher.Init(true, parameters);
+
+                var encryptedBytes = new byte[msgBytesSwapped.Length + initVectorSize];
+
+                var retLen = cipher.ProcessBytes(msgBytesSwapped, 0, msgBytesSwapped.Length, encryptedBytes, 0);
+                cipher.DoFinal(encryptedBytes, retLen);
+
+                ciphertext = new byte[msgBytesSwapped.Length];
+                tag = new byte[initVectorSize];
+                
+                Buffer.BlockCopy(encryptedBytes, 0, ciphertext, 0, msgBytesSwapped.Length);
+                Buffer.BlockCopy(encryptedBytes, msgBytesSwapped.Length, tag, 0, initVectorSize);
+            }
+
+            private const int GCMInitVectorSize128 = 16;
+            private const int GCMInitVectorSize96 = 12;
+            private const int WordSize = 4; // in bytes
+            
+            private readonly SystemBus bus;
+            private readonly InternalMemoryManager manager;
+            
+            private enum GCMType
+            {
+                Direct = 0x0,
+                DMA = 0x8
+            }
+
+            private enum MsgAuthRegisters
+            {
+                KeyWordCount = 0x8,
+                InputDataByteCount = 0x8,
+                AuthDataByteCount = 0x30,
+                DMAChannelConfig = 0x58,
+                PointerToExternalData = 0x60,
+                PointerToExternalAuthData = 0x64,
+                PointerToExternalResultLocation = 0x68,
+                PointerToExternalMACLocation = 0x6C,
+                OperationAuthBlock = 0x7C,
+                TagWordCount = 0x1054,
+                HashResult = 0x8064,
+                InitVector = 0x807C,
+                InitVectorDMA = 0x8080,
+                HashMACKey = 0x80A4,
+                HashInput = 0x80A8,
+                AuthData = 0x80CC,
+                Message = 0x80DC,
+                Tag = 0x811C,
+                HashMACInput = 0x81A4,
+                Key = 0x9000
+            }
+        }
+
         private enum Endianness
         {
             BigEndian,
@@ -663,12 +815,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ModularExponentationRSA = 0x2,
             ModularReductionRSA = 0x12,
             RunAES = 0x20,
+            RunAESK = 0x22,
+            RunGCM = 0x24,
             InstantiateDRBG = 0x2C,
             GenerateBlocksFromDRBG = 0x30,
             RunAES_DMA = 0x38,
             UninstantiateDRBG = 0x32,
             DecryptCipherRSA = 0x4E,
-            DetectFirmwareVersion = 0x5A
+            RunGCMNew = 0x5A
         }
 
         private enum Registers : uint
