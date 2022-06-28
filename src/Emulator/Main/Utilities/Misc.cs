@@ -385,7 +385,7 @@ namespace Antmicro.Renode.Utilities
             int idx = 0;
             if(source.Any())
             {
-                return source.Aggregate((x, y) => x + separator + y + (limitPerLine != 0 && (++idx % limitPerLine == 0) ? "\n" : string.Empty));
+                return source.Aggregate((x, y) => x + separator + (limitPerLine != 0 && (++idx % limitPerLine == 0) ? "\n" : string.Empty) + y);
             }
             return String.Empty;
         }
