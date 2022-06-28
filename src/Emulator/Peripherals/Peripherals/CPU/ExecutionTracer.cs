@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.format = format;
             AttachedCPU = cpu;
 
-            if(AttachedCPU.Architecture == "riscv" || AttachedCPU.Architecture == "riscv64")
+            if((AttachedCPU.Architecture == "riscv" || AttachedCPU.Architecture == "riscv64") && format != Format.Disassembly)
             {
                 tryDisassembleInstruction = TryDisassembleRiscVInstruction;
             }
@@ -183,6 +183,24 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                         case Format.PCAndOpcode:
                             sb.AppendFormat("0x{0:X}: 0x{1}\n", result.PC, result.OpcodeString.ToUpper());
+                            break;
+                            
+                        case Format.Disassembly:
+                            var symbol = AttachedCPU.Bus.FindSymbolAt(pc);
+                            var disassembly = result.ToString().Replace("\t", " ");
+                            var curLen = disassembly.Length;
+                            sb.AppendFormat("{0}", disassembly);
+                            
+                            if(symbol != null)
+                            {
+                                while(curLen < 60)
+                                {
+                                    sb.AppendFormat(" ");
+                                    curLen++;
+                                }
+                                sb.AppendFormat(" [{0}]", symbol);
+                            }
+                            sb.AppendFormat("\n");
                             break;
 
                         default:
@@ -336,7 +354,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             PC,
             Opcode,
-            PCAndOpcode
+            PCAndOpcode,
+            Disassembly,
         }
 
         private struct Block
