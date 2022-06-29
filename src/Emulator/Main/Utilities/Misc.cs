@@ -1382,6 +1382,14 @@ namespace Antmicro.Renode.Utilities
             }
             return count;
         }
+
+        public static byte[] AsBytes(uint[] data)
+        {
+            var outLength = data.Length * sizeof(uint);
+            var dataAsBytes = new byte[outLength];
+            Buffer.BlockCopy(data, 0, dataAsBytes, 0, outLength);
+            return dataAsBytes;
+        }
     }
 }
 
