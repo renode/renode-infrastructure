@@ -904,6 +904,14 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public static uint EndiannessSwap(uint value)
+        {
+            var temp = new byte[sizeof(uint)];
+            Misc.ByteArrayWrite(0, value, temp);
+            Misc.EndiannessSwapInPlace(temp, sizeof(uint));
+            return Misc.ByteArrayRead(0, temp);
+        }
+
         public static bool CalculateUnitSuffix(double value, out double newValue, out string unit)
         {
             var units = new [] { "B", "KB", "MB", "GB", "TB" };
