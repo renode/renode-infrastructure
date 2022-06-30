@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     break;
                 case Commands.ReadID:
                     currentOperation.Operation = DecodedOperation.OperationType.ReadID;
-                    currentOperation.State = DecodedOperation.OperationState.HandleCommand;
+                    currentOperation.State = DecodedOperation.OperationState.HandleImmediateCommand;
                     break;
                 default:
                     this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
@@ -138,6 +138,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {
                     case DecodedOperation.OperationType.WriteEnable:
                         writeEnableLatch = true;
+                        break;
+                    case DecodedOperation.OperationType.ReadID:
+                        currentOperation.State = DecodedOperation.OperationState.HandleCommand;
                         break;
                     default:
                         this.Log(LogLevel.Error, "Encountered invalid immediate command: {0}", currentOperation.Operation);
