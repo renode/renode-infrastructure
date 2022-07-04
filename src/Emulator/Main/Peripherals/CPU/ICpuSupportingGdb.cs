@@ -12,17 +12,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICpuSupportingGdb : ICPUWithHooks, IControllableCPU, ICPUWithRegisters
     {
-        ulong Step(int count = 1, bool? blocking = null);
-        ExecutionMode ExecutionMode { get; set; }
         uint PageSize { get; }
-        event Action<HaltArguments> Halted;
         void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null);
 
-        TimeHandle TimeHandle { get; }
         string GDBArchitecture { get; }
         List<GDBFeatureDescriptor> GDBFeatures { get; }
         bool DebuggerConnected { get; set; }
-        uint Id { get; }
     }
 }
 

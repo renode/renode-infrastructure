@@ -10,6 +10,7 @@ using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
@@ -40,11 +41,13 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         }
 
-
+        public uint Id => 0;
 
         public virtual void SyncTime()
         {
         }
+        
+        public TimeHandle TimeHandle => null;
 
         public virtual ulong ExecutedInstructions
         {
@@ -94,16 +97,29 @@ namespace Antmicro.Renode.UnitTests.Mocks
             }
             set
             {
+                if(value)
+                {
+                    // just to make the compilation warning about unused event disappear
+                    Halted?.Invoke(null);
+                }
             }
         }
 
         public bool OnPossessedThread { get { return true; } }
+
+        public event Action<HaltArguments> Halted;
 
         public virtual void Save(PrimitiveWriter writer)
         {
 
         }
 
+        public ulong Step(int count = 1, bool? blocking = null)
+        {
+            return 0;
+        }
+
+        public ExecutionMode ExecutionMode { get; set; }
 
 
         protected readonly Machine machine;

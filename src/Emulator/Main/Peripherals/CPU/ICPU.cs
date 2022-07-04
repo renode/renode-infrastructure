@@ -9,6 +9,7 @@
 using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using System.Collections.Generic;
 
@@ -16,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPU : IPeripheral, IHasOwnLife
     {
+        uint Id { get; }
         string Model { get; }
         RegisterValue PC { get; set; }
         bool IsHalted { get; set; }
@@ -27,6 +29,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         bool OnPossessedThread { get; }
         ulong ExecutedInstructions {get;}
         void SyncTime();
+        event Action<HaltArguments> Halted;
+        TimeHandle TimeHandle { get; }
+
+        ulong Step(int count = 1, bool? blocking = null);
+        ExecutionMode ExecutionMode { get; set; }
     }
 
     public static class ICPUExtensions
