@@ -256,6 +256,8 @@
     <Compile Include="Peripherals\CPU\TranslationCPU_OpcodesCounting.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_Profiler.cs" />
     <Compile Include="Peripherals\CPU\CpuBitness.cs" />
+    <Compile Include="Peripherals\CPU\BaseCPU.cs" />
+    <Compile Include="Peripherals\CPU\CPUCore.cs" />
     <Compile Include="Peripherals\CPU\Synchronizer.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\IDisassembler.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\IDisassemblable.cs" />

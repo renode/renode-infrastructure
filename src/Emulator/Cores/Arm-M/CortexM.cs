@@ -34,12 +34,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             nvic.AttachCPU(this);
         }
 
-        public override void Start()
-        {
-            InitPCAndSP();
-            base.Start();
-        }
-
         public override void Reset()
         {
             pcNotInitialized = true;
@@ -47,10 +41,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Reset();
         }
 
-        public override void Resume()
+        protected override void OnResume()
         {
             InitPCAndSP();
-            base.Resume();
+            base.OnResume();
         }
 
         public override string Architecture { get { return "arm-m"; } }
