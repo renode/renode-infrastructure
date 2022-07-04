@@ -40,21 +40,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         }
 
-        public virtual void MapMemory(IMappedSegment segment)
-        {
-        }
 
-        public virtual void UnmapMemory(Range range)
-        {
-        }
-
-        public void SetPageAccessViaIo(ulong address)
-        {
-        }
-
-        public void ClearPageAccessViaIo(ulong address)
-        {
-        }
 
         public virtual void SyncTime()
         {

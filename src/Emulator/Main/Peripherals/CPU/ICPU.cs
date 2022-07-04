@@ -15,10 +15,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPU : IPeripheral, IHasOwnLife
     {
-        void MapMemory(IMappedSegment segment);
-        void UnmapMemory(Range range);
-        void SetPageAccessViaIo(ulong address);
-        void ClearPageAccessViaIo(ulong address);
         string Model { get; }
         RegisterValue PC { get; set; }
         bool IsHalted { get; set; }
