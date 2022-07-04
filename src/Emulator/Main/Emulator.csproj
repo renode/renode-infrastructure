@@ -509,6 +509,12 @@
     <Compile Include="Utilities\GDB\PacketData.cs" />
     <Compile Include="Utilities\GDB\GdbStub.cs" />
     <Compile Include="Peripherals\CPU\ICpuSupportingGdb.cs" />
+    <Compile Include="Peripherals\CPU\GDB\GDBTypeBitField.cs" />
+    <Compile Include="Peripherals\CPU\GDB\GDBCustomType.cs" />
+    <Compile Include="Peripherals\CPU\GDB\GDBFeatureDescriptor.cs" />
+    <Compile Include="Peripherals\CPU\GDB\GDBRegisterDescriptor.cs" />
+    <Compile Include="Peripherals\CPU\GDB\GDBTypeEnumValue.cs" />
+    <Compile Include="Peripherals\CPU\GDB\GDBTypeField.cs" />
     <Compile Include="Utilities\GDB\IMultithreadCommand.cs" />
     <Compile Include="Utilities\BitPatternDetector.cs" />
     <Compile Include="Testing\SysbusTester.cs" />
