@@ -1018,10 +1018,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .Append("[")
                 .Append(cpuName);
 
-            if(TryGetPCForCPU(cpu, out var pc))
-            {
-                builder.AppendFormat(": 0x{0:X}", pc.RawValue);
-            }
+            builder.AppendFormat(": 0x{0:X}", cpu.PC.RawValue);
 
             builder
                 .Append("] ")
@@ -1546,19 +1543,6 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             return allPeripherals.SelectMany(x => x.Peripherals).Where(x => x.Peripheral is MappedMemory).OrderBy(x => x.RegistrationPoint.Range.StartAddress).
                 Select(x => x.Peripheral).Cast<MappedMemory>().Distinct().ToList();
-        }
-
-        private bool TryGetPCForCPU(ICPU cpu, out RegisterValue pc)
-        {
-            var controllableCpu = cpu as IControllableCPU;
-            if(controllableCpu == null)
-            {
-                pc = default(RegisterValue);
-                return false;
-            }
-            pc = controllableCpu.PC;
-            return true;
-
         }
 
         private void AddMappings(IEnumerable<MappedSegmentWrapper> newMappings, IBusPeripheral owner)
