@@ -2468,9 +2468,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected virtual void ExecutionFinished(ExecutionResult result)
+        protected virtual bool ExecutionFinished(ExecutionResult result)
         {
-            // the default implementation intentionally does nothing
+            return false;
         }
 
         private void CpuThreadBody()

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public new RegisterValue MTVAL => 0;
         public new RegisterValue MIP => 0;
 
-        protected override void ExecutionFinished(TranslationCPU.ExecutionResult result)
+        protected override bool ExecutionFinished(TranslationCPU.ExecutionResult result)
         {
             this.Log(LogLevel.Noisy, "PC@0x{1:X}: Execution finished with result: {0}", result, PC.RawValue);
 
@@ -149,6 +149,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Log(LogLevel.Noisy, "Entering interrupt, return address: 0x{0:X}, interrupts: 0x{1:X}", qRegisters[0], qRegisters[1]);
                 }
             }
+
+            return base.ExecutionFinished(result);
         }
 
         private bool IrqIsPending(out uint interruptsToHandle)
