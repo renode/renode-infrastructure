@@ -13,18 +13,8 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class MockCPU : EmptyCPU
     {
-
-        public MockCPU(Machine machine) : base(machine)
+        public MockCPU(Machine machine) : base(machine, "mock")
         {
-
-        }
-
-        public override string Model
-        {
-            get
-            {
-                return "mock";
-            }
         }
 
         public string Placeholder { get; set; }

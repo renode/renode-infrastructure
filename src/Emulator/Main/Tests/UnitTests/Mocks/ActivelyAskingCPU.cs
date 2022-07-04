@@ -20,12 +20,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
             finished = new ManualResetEventSlim();
         }
 
-        public override void Start()
-        {
-            Resume();
-        }
-
-        public override void Resume()
+        protected override void OnResume()
         {
             finished.Reset();
             new Thread(() => AskingThread(tokenSource.Token))
@@ -35,7 +30,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
             }.Start();
         }
 
-        public override void Pause()
+        protected override void OnPause()
         {
             tokenSource.Cancel();
             finished.Wait();

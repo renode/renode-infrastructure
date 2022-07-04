@@ -14,116 +14,41 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
-    public class EmptyCPU : ICPU
+    public class EmptyCPU : BaseCPU
     {
-
-        public EmptyCPU(Machine machine)
-        {
-            this.machine = machine;
-        }
-
-        public virtual void Start()
-        {
-
-        }
-
-        public virtual void Pause()
-        {
-        }
-
-        public virtual void Resume()
-        {
-
-        }
-
-        public virtual void Reset()
-        {
-
-        }
-
-        public uint Id => 0;
-
-        public virtual void SyncTime()
+        public EmptyCPU(Machine machine, string model = "emptyCPU") : base(0, model, machine, ELFSharp.ELF.Endianess.LittleEndian)
         {
         }
         
-        public TimeHandle TimeHandle => null;
-
-        public virtual ulong ExecutedInstructions
-        {
-            get
-            {
-                return 0;
-            }
-        }
-
-        public virtual RegisterValue PC
-        {
-            get
-            {
-                return 0;
-            }
-            set
-            {
-            }
-        }
-
-        public SystemBus Bus
-        {
-            get
-            {
-                return machine.SystemBus;
-            }
-        }
-
-        public virtual string Model
-        {
-            get
-            {
-                return "empty";
-            }
-        }
-
         public virtual void Load(PrimitiveReader reader)
         {
-
         }
-
-        public bool IsHalted
-        {
-            get
-            {
-                return false;
-            }
-            set
-            {
-                if(value)
-                {
-                    // just to make the compilation warning about unused event disappear
-                    Halted?.Invoke(null);
-                }
-            }
-        }
-
-        public bool OnPossessedThread { get { return true; } }
-
-        public event Action<HaltArguments> Halted;
 
         public virtual void Save(PrimitiveWriter writer)
         {
-
         }
 
-        public ulong Step(int count = 1, bool? blocking = null)
+        public override ulong ExecutedInstructions => 0;
+        
+
+        public override RegisterValue PC
         {
-            return 0;
+            get
+            {
+                return 0;
+            }
+            set
+            {
+            }
         }
 
-        public ExecutionMode ExecutionMode { get; set; }
-
-        public ELFSharp.ELF.Endianess Endianness => ELFSharp.ELF.Endianess.LittleEndian;
-
-        protected readonly Machine machine;
+        public override ExecutionMode ExecutionMode { get; set; }
+        
+        protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
+        {
+            numberOfExecutedInstructions = 0;
+            return ExecutionResult.Interrupted;
+        }
     }
 }
 
