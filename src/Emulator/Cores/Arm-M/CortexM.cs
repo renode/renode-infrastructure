@@ -21,7 +21,7 @@ using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class CortexM : Arm, IControllableCPU
+    public partial class CortexM : Arm
     {
         public CortexM(string cpuType, Machine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, id, endianness)
         {
