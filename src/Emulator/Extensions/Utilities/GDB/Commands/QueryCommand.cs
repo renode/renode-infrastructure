@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@ using System;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
@@ -52,7 +53,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 xmlFile.Append("<?xml version=\"1.0\"?>\n<threads>\n");
                 foreach(var cpu in manager.ManagedCpus)
                 {
-                    xmlFile.Append($"<thread id=\"{cpu.Key}\" core=\"{cpu.Key - 1}\" name=\"{cpu.Value.Name}\"></thread>\n");
+                    xmlFile.Append($"<thread id=\"{cpu.Key}\" core=\"{cpu.Key - 1}\" name=\"{cpu.Value.GetName()}\"></thread>\n");
                 }
                 xmlFile.Append("</threads>\n");
             }

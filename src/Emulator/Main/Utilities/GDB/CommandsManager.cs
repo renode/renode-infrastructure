@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using System.Reflection;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB
@@ -32,7 +33,7 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 if(!TryAddManagedCPU(cpu))
                 {
-                    throw new RecoverableException(string.Format("Could not create GDB server with CPU: {0}", cpu.Name));
+                    throw new RecoverableException($"Could not create GDB server for CPU: {cpu.GetName()}");
                 }
             }
             selectedCpuNumber = ManagedCpus.OrderBy(x => x.Key).First().Key;
