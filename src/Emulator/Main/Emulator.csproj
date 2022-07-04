@@ -288,6 +288,7 @@
     </Compile>
     <Compile Include="Utilities\IInterestingType.cs" />
     <Compile Include="Peripherals\CPU\ICPU.cs" />
+    <Compile Include="Peripherals\CPU\ICPUWithMetrics.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithExternalMmu.cs" />
     <Compile Include="Peripherals\CPU\CPURegister.cs" />
     <Compile Include="Peripherals\CPU\IControllableCPU.cs" />

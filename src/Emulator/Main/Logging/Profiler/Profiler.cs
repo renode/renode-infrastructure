@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Logging.Profiling
 
         private void EnableProfiling()
         {
-            var cpus = machine.GetPeripheralsOfType<ICPU>();
+            var cpus = machine.GetPeripheralsOfType<ICPUWithMetrics>();
             foreach(var cpu in cpus)
             {
                 cpu.EnableProfiling();
