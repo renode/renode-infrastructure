@@ -15,10 +15,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IControllableCPU : ICPU
     {
-        void InitFromElf(IELF elf);
-
-        void InitFromUImage(UImage uImage);
-
         Endianess Endianness { get; }
     }
 }

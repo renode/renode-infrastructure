@@ -491,7 +491,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             pcCache.Invalidate();
         }
 
-        public void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IControllableCPU cpu = null)
+        public void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IInitableCPU cpu = null)
         {
             if(!Machine.IsPaused)
             {
@@ -528,7 +528,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 else
                 {
-                    foreach(var c in GetCPUs().OfType<IControllableCPU>())
+                    foreach(var c in GetCPUs().OfType<IInitableCPU>())
                     {
                         c.InitFromElf(elf);
                     }
@@ -537,7 +537,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void LoadUImage(ReadFilePath fileName, IControllableCPU cpu = null)
+        public void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null)
         {
             if(!Machine.IsPaused)
             {
@@ -570,7 +570,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             else
             {
-                foreach(var c in GetCPUs().Cast<IControllableCPU>())
+                foreach(var c in GetCPUs().OfType<IInitableCPU>())
                 {
                     c.InitFromUImage(uImage);
                 }
@@ -622,7 +622,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.DebugLog("Binary loaded.");
         }
 
-        public void LoadHEX(ReadFilePath fileName, IControllableCPU cpu = null)
+        public void LoadHEX(ReadFilePath fileName, IInitableCPU cpu = null)
         {
             string line;
             int lineNum = 1;

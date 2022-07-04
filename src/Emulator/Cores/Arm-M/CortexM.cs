@@ -120,12 +120,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        void IControllableCPU.InitFromElf(IELF elf)
+        public override void InitFromElf(IELF elf)
         {
             // do nothing
         }
 
-        void IControllableCPU.InitFromUImage(UImage uImage)
+        public override void InitFromUImage(UImage uImage)
         {
             // do nothing
         }
