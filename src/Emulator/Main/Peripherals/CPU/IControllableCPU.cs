@@ -15,7 +15,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IControllableCPU : ICPU
     {
-        Endianess Endianness { get; }
     }
 }
 

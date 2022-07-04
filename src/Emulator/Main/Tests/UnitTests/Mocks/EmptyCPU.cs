@@ -121,6 +121,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         public ExecutionMode ExecutionMode { get; set; }
 
+        public ELFSharp.ELF.Endianess Endianness => ELFSharp.ELF.Endianess.LittleEndian;
 
         protected readonly Machine machine;
     }

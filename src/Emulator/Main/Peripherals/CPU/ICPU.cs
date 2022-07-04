@@ -34,6 +34,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         ulong Step(int count = 1, bool? blocking = null);
         ExecutionMode ExecutionMode { get; set; }
+
+        ELFSharp.ELF.Endianess Endianness { get; }
     }
 
     public static class ICPUExtensions
