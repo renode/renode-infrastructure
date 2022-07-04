@@ -17,20 +17,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         uint PageSize { get; }
         event Action<HaltArguments> Halted;
         void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null);
-        ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType);
 
         TimeHandle TimeHandle { get; }
         string GDBArchitecture { get; }
         List<GDBFeatureDescriptor> GDBFeatures { get; }
         bool DebuggerConnected { get; set; }
         uint Id { get; }
-    }
-
-    public enum MpuAccess
-    {
-        Read = 0,
-        Write = 1,
-        InstructionFetch = 2
     }
 }
 

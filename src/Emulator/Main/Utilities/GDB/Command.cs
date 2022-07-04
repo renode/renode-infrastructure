@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -48,12 +48,19 @@ namespace Antmicro.Renode.Utilities.GDB
 
         protected bool TryTranslateAddress(ulong address, out ulong translatedAddress, bool write)
         {
+            var cpu = manager.Cpu as ICPUWithMMU;
+            if(cpu == null)
+            {
+                translatedAddress = address;
+                return true;
+            }
+            
             var errorValue = ulong.MaxValue;
             translatedAddress = errorValue;
 
             if(write)
             {
-                translatedAddress = manager.Cpu.TranslateAddress(address, MpuAccess.Write);
+                translatedAddress = cpu.TranslateAddress(address, MpuAccess.Write);
 
                 if(translatedAddress == errorValue)
                 {
@@ -62,8 +69,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
             else
             {
-                var fetchAddress = manager.Cpu.TranslateAddress(address, MpuAccess.InstructionFetch);
-                var readAddress = manager.Cpu.TranslateAddress(address, MpuAccess.Read);
+                var fetchAddress = cpu.TranslateAddress(address, MpuAccess.InstructionFetch);
+                var readAddress = cpu.TranslateAddress(address, MpuAccess.Read);
 
                 if(fetchAddress == errorValue && readAddress == errorValue)
                 {
