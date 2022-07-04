@@ -37,7 +37,7 @@ using Antmicro.Renode.Disassembler.LLVM;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisposable, IDisassemblable, ITimeSink, ICPUWithMetrics, ICPUWithMappedMemory
+    public abstract partial class TranslationCPU : IdentifiableObject, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisposable, IDisassemblable, ITimeSink, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters
     {
         public Endianess Endianness { get; protected set; }
 

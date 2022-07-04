@@ -15,28 +15,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IControllableCPU : ICPU
     {
-        void SetRegisterUnsafe(int register, RegisterValue value);
-
-        RegisterValue GetRegisterUnsafe(int register);
-
-        IEnumerable<CPURegister> GetRegisters();
-
-        string[,] GetRegistersValues();
-
         void InitFromElf(IELF elf);
 
         void InitFromUImage(UImage uImage);
 
         Endianess Endianness { get; }
-    }
-
-    public static class ControllableCPUExtension
-    {
-        // this is to support Python integration
-        public static void SetRegisterUnsafeUlong(this IControllableCPU cpu, int register, ulong value)
-        {
-            cpu.SetRegisterUnsafe(register, value);
-        }
     }
 }
 

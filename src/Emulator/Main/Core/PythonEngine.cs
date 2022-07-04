@@ -43,8 +43,8 @@ namespace Antmicro.Renode.Core
             "import sys",
             "import Antmicro.Renode.Logging.Logger",
             "clr.ImportExtensions(Antmicro.Renode.Logging.Logger)",
-            "import Antmicro.Renode.Peripherals.CPU.ControllableCPUExtension",
-            "clr.ImportExtensions(Antmicro.Renode.Peripherals.CPU.ControllableCPUExtension)",
+            "import Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions",
+            "clr.ImportExtensions(Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions)",
             "import Antmicro.Renode.Logging.LogLevel as LogLevel"
         };
 

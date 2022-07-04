@@ -10,7 +10,7 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface ICpuSupportingGdb : ICPUWithHooks, IControllableCPU
+    public interface ICpuSupportingGdb : ICPUWithHooks, IControllableCPU, ICPUWithRegisters
     {
         ulong Step(int count = 1, bool? blocking = null);
         ExecutionMode ExecutionMode { get; set; }
