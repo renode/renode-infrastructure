@@ -115,28 +115,44 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.MemoryBreakpoint), manager.BlockOnStep);
         }
 
-        private void AccessWatchpointHook(ICpuSupportingGdb cpu, ulong physicalAddress, SysbusAccessWidth width, ulong value)
+        private BusHookDelegate AccessWatchpointHook(ulong virtualAddress)
         {
             //? I See a possible problem here.
             //? Here we call `Halt` event with T05 argument, but in a second we will call it once again with S05 in HandleStepping@TranlationCPU.
             //? It seems to work fine with GDB, but... I don't know if it is fully correct.
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, physicalAddress, BreakpointType.AccessWatchpoint), manager.BlockOnStep);
+            return (ICpuSupportingGdb cpu, ulong physicalAddress, SysbusAccessWidth width, ulong value) =>
+            {
+                // GDB uses virtual addresses for watchpoints so we ignore the physical address here
+                // and send the virtual one to GDB
+                cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, virtualAddress, BreakpointType.AccessWatchpoint), manager.BlockOnStep);
+            };
         }
 
-        private void WriteWatchpointHook(ICpuSupportingGdb cpu, ulong physicalAddress, SysbusAccessWidth width, ulong value)
+        private BusHookDelegate WriteWatchpointHook(ulong virtualAddress)
         {
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, physicalAddress, BreakpointType.WriteWatchpoint), manager.BlockOnStep);
+            return (ICpuSupportingGdb cpu, ulong physicalAddress, SysbusAccessWidth width, ulong value) =>
+            {
+                // GDB uses virtual addresses for watchpoints so we ignore the physical address here
+                // and send the virtual one to GDB
+                cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, virtualAddress, BreakpointType.WriteWatchpoint), manager.BlockOnStep);
+            };
         }
 
-        private void ReadWatchpointHook(ICpuSupportingGdb cpu, ulong physicalAddress, SysbusAccessWidth width, ulong value)
+        private BusHookDelegate ReadWatchpointHook(ulong virtualAddress)
         {
-            cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, physicalAddress, BreakpointType.ReadWatchpoint), manager.BlockOnStep);
+            return (ICpuSupportingGdb cpu, ulong physicalAddress, SysbusAccessWidth width, ulong value) =>
+            {
+                // GDB uses virtual addresses for watchpoints so we ignore the physical address here
+                // and send the virtual one to GDB
+                cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, virtualAddress, BreakpointType.ReadWatchpoint), manager.BlockOnStep);
+            };
         }
 
-        private void AddWatchpointsCoveringMemoryArea(ulong virtualAddress, uint kind, Access access, BusHookDelegate hook)
+        private void AddWatchpointsCoveringMemoryArea(ulong virtualAddress, uint kind, Access access, Func<ulong, BusHookDelegate> hookFactory)
         {
             // we need to register hooks for all possible access widths covering memory fragment
             // [virtualAddress, virtualAddress + kind) referred by GDB
+            var hook = hookFactory(virtualAddress);
             foreach(var descriptor in CalculateAllCoveringAddressess(virtualAddress, kind, access, hook))
             {
                 lock(watchpoints)
@@ -148,17 +164,19 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     else
                     {
                         watchpoints.Add(descriptor, 1);
-                        manager.Machine.SystemBus.AddWatchpointHook(descriptor.VirtualAddress, descriptor.Width, access, hook);
+                        manager.Machine.SystemBus.AddWatchpointHook(descriptor.PhysicalAddress, descriptor.Width, access, descriptor.Hook);
                     }
                 }
             }
         }
 
-        private void RemoveWatchpointsCoveringMemoryArea(ulong virtualAddress, uint kind, Access access, BusHookDelegate hook)
+        private void RemoveWatchpointsCoveringMemoryArea(ulong virtualAddress, uint kind, Access access, Func<ulong, BusHookDelegate> hookFactory)
         {
             // we need to unregister hooks from all possible access widths convering memory fragment
             // [virtualAddress, virtualAddress + kind) referred by GDB
-            foreach(var descriptor in CalculateAllCoveringAddressess(virtualAddress, kind, access, hook))
+            // The hook (delegate) is not considered by Equals and GetHashCode which will let us get the
+            // delegate that's actually set as a sysbus hook from our descriptor and remove it.
+            foreach(var descriptor in CalculateAllCoveringAddressess(virtualAddress, kind, access, null))
             {
                 lock(watchpoints)
                 {
@@ -169,7 +187,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     else
                     {
                         watchpoints.Remove(descriptor);
-                        manager.Machine.SystemBus.RemoveWatchpointHook(descriptor.VirtualAddress, hook);
+                        manager.Machine.SystemBus.RemoveWatchpointHook(descriptor.PhysicalAddress, descriptor.Hook);
                     }
                 }
             }
@@ -219,16 +237,14 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
                 return objAsBreakpointDescriptor.VirtualAddress == VirtualAddress
                         && objAsBreakpointDescriptor.Width == Width
-                        && objAsBreakpointDescriptor.Access == Access
-                        && objAsBreakpointDescriptor.Hook == Hook;
+                        && objAsBreakpointDescriptor.Access == Access;
             }
 
             public override int GetHashCode()
             {
                 return 17 * (int)VirtualAddress
                     + 23 * (int)Width
-                    + 17 * (int)Access
-                    + 17 * Hook.GetHashCode();
+                    + 17 * (int)Access;
             }
 
             public readonly ulong VirtualAddress;
