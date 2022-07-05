@@ -181,7 +181,17 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             {
                 for(var offset = -(long)(virtualAddress % (ulong)width); offset < kind; offset += (long)width)
                 {
-                    yield return new WatchpointDescriptor(virtualAddress - (ulong)(-offset), width, access, hook);
+                    var offsetVirtualAddress = virtualAddress - (ulong)(-offset);
+                    // offsetPhysicalAddress is declared here instead of using `out var` in the next
+                    // line to avoid triggering an internal error in the Mono 6.8.0.105 compiler
+                    // shipped by Ubuntu 20.04
+                    ulong offsetPhysicalAddress;
+                    if(!TryTranslateAddress(offsetVirtualAddress, out offsetPhysicalAddress, write: access != Access.Read))
+                    {
+                        // Address not translated by the MMU, assume physical == virtual.
+                        offsetPhysicalAddress = offsetVirtualAddress;
+                    }
+                    yield return new WatchpointDescriptor(offsetVirtualAddress, offsetPhysicalAddress, width, access, hook);
                 }
             }
         }
@@ -190,9 +200,10 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         private class WatchpointDescriptor
         {
-            public WatchpointDescriptor(ulong virtualAddress, SysbusAccessWidth width, Access access, BusHookDelegate hook)
+            public WatchpointDescriptor(ulong virtualAddress, ulong physicalAddress, SysbusAccessWidth width, Access access, BusHookDelegate hook)
             {
                 VirtualAddress = virtualAddress;
+                PhysicalAddress = physicalAddress;
                 Width = width;
                 Access = access;
                 Hook = hook;
@@ -221,6 +232,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
 
             public readonly ulong VirtualAddress;
+            public readonly ulong PhysicalAddress;
             public readonly SysbusAccessWidth Width;
             public readonly Access Access;
             public readonly BusHookDelegate Hook;
