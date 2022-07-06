@@ -97,6 +97,7 @@
     <Compile Include="SimpleCacheTests.cs" />
     <Compile Include="Mocks\MachineTestPeripheral.cs" />
     <Compile Include="MiscTests.cs" />
+    <Compile Include="BitHelperTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

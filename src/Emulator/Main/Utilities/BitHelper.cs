@@ -481,24 +481,38 @@ namespace Antmicro.Renode.Utilities
             return (1u << width) - 1 << position;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]  
+        public static uint ReverseBitsByByte(uint i)
+        {
+            i = ((i >> 1) & 0x55555555) | ((i & 0x55555555) << 1);
+            i = ((i >> 2) & 0x33333333) | ((i & 0x33333333) << 2);
+            return ((i >> 4) & 0x0F0F0F0F) | ((i & 0x0F0F0F0F) << 4);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint ReverseBitsByWord(uint i)
+        {
+            i = ReverseBitsByByte(i);
+            return ((i >> 8) & 0x00FF00FF) | ((i & 0x00FF00FF) << 8);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte ReverseBits(byte b)
         {
-            return (byte)(((b << 7) & 0x80) | ((b << 5) & 0x40) | ((b << 3) & 0x20) | ((b << 1) & 0x10) |
-                          ((b >> 1) & 0x08) | ((b >> 3) & 0x04) | ((b >> 5) & 0x02) | ((b >> 7) & 0x01));
+            return (byte)ReverseBitsByByte(b);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort ReverseBits(ushort s)
         {
-            return (ushort)((ReverseBits((byte)s) << 8) | ReverseBits((byte)(s >> 8)));
+            return (ushort)ReverseBitsByWord(s);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ReverseBits(uint s)
+        public static uint ReverseBits(uint i)
         {
-            return (uint)((ReverseBits((byte)s) << 24) | (ReverseBits((byte)(s >> 8)) << 16) |
-                           (ReverseBits((byte)(s >> 16)) << 8) | ReverseBits((byte)(s >> 24)));
+            i = ReverseBitsByWord(i);
+            return (i >> 16) | (i << 16);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
