@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -48,11 +48,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 {(long)Registers.InputData, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) =>
                     {
-                        crc.Value = gpcrc.CalculateCrc32(BitConverter.GetBytes(value), crc.Value);
+                        gpcrc.Update(BitConverter.GetBytes(value));
                     }, name: "INPUTDATA")
                 },
                 {(long)Registers.Data, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out crc, FieldMode.Read, name: "DATA")
+                    .WithValueField(0, 32, FieldMode.Read, name: "DATA", valueProviderCallback: _ => gpcrc.Value)
                 },
             };
             registers = new DoubleWordRegisterCollection(this, registerMap);
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             if(isEnabled)
             {
-                crc.Value = initDataField.Value;
+                gpcrc.RawValue = initDataField.Value;
             }
         }
 
@@ -88,9 +88,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private readonly DoubleWordRegisterCollection registers;
         private bool isEnabled;
         private IValueRegisterField initDataField;
-        private IValueRegisterField crc;
 
-        private const CRCType DefaultPolynomial = CRCType.CRC32CCITTPolynomial;
+        private readonly CRCPolynomial DefaultPolynomial = CRCPolynomial.CRC32;
 
         private enum Registers
         {

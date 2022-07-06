@@ -126,8 +126,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                         break;
                 }
             }
-            var engine = new CRCEngine(CRCType.CRC32CCITTPolynomial);
-            var crc = engine.CalculateCrc32(result, 0);
+            var engine = new CRCEngine(CRCPolynomial.CRC32);
+            var crc = engine.Calculate(result);
             result.AddRange(new byte[] {(byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF), (byte)((crc >> 16) & 0xFF), (byte)((crc >> 24) & 0xFF)});
             result.Add(END);
             return result.ToArray();

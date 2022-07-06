@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -611,7 +611,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 else if(crcLength == 4)
                 {
                     // CRC32 is a special case when we do not use CRC configuration registers
-                    crc = Frame.CalculateCRC(mpduBytes, 0, CRCType.CRC32CCITTPolynomial);
+                    crc = Frame.CalculateCRC(mpduBytes, 0, CRCPolynomial.CRC32);
                 }
                 else
                 {
@@ -749,12 +749,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                     break;
                                 case 1:
                                     crcEnabled = true;
-                                    crcPolynomial = CRCType.CRC16Polynomial;
+                                    crcPolynomial = CRCPolynomial.CRC16;
                                     crcInitialValue = 0xFFFFFFFF;
                                     break;
                                 case 2:
                                     crcEnabled = true;
-                                    crcPolynomial = CRCType.CRC16CCITTPolynomial;
+                                    crcPolynomial = CRCPolynomial.CRC16_CCITT;
                                     crcInitialValue = 0x0;
                                     break;
                                 default:
@@ -958,7 +958,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private StateMachineMode txOffMode;
         private StateMachineMode rxOffMode;
-        private CRCType crcPolynomial;
+        private CRCPolynomial crcPolynomial;
         private uint crcInitialValue;
         private IValueRegisterField deviceAddress;
         private IValueRegisterField addressCheckConfig;

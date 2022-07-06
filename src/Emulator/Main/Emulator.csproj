@@ -506,7 +506,6 @@
     <Compile Include="Core\GPIOGate.cs" />
     <Compile Include="Peripherals\CAN\CANMessageFrame.cs" />
     <Compile Include="Utilities\CRCEngine.cs" />
-    <Compile Include="Utilities\CRCType.cs" />
     <Compile Include="Utilities\Collections\SimpleCache.cs" />
     <Compile Include="Utilities\BitBangHelper.cs" />
     <Compile Include="Utilities\GDB\ArgumentAttribute.cs" />
