@@ -440,8 +440,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     // to indicate the sign of resulting value; we need to get rid of it here
                     resultBytes = resultBytes.Take(modulusByteCount).ToArray();
                 }
-                
-                resultBytes = Helpers.ChangeEndianness(resultBytes);
+
+                Misc.EndiannessSwapInPlace(resultBytes, WordSize);
                 manager.TryWriteBytes(baseAddress, resultBytes);
             }
 
@@ -462,7 +462,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     resultBytes = resultBytes.Take(modulusByteCount).ToArray();
                 }
 
-                resultBytes = Helpers.ChangeEndianness(resultBytes);
+                Misc.EndiannessSwapInPlace(resultBytes, WordSize);
                 manager.TryWriteBytes((long)RSARegisters.Operand, resultBytes);
             }
 
@@ -499,9 +499,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 // Step 4:
                 // m = m2 + h * q
-                var m = m2 + h * q;
+                var mBytes = (m2 + h * q).ToByteArray();
 
-                var mBytes = Helpers.ChangeEndianness(m.ToByteArray());
+                Misc.EndiannessSwapInPlace(mBytes, WordSize);
                 manager.TryWriteBytes((long)RSARegisters.BaseAddress, mBytes);
             }
 
@@ -570,7 +570,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                        : Operation.Encryption;
 
                 // The memory in which Key bytes are stored is little-endian, but both Encryptor and Decryptor require big-endian data
-                keyBytes = Helpers.ChangeEndianness(keyBytes);
+                Misc.EndiannessSwapInPlace(keyBytes, WordSize);
                 var result = GetResultBytes(keyBytes, ivBytes, inputBytes, operation);
 
                 manager.TryWriteBytes((long)AESRegisters.Cipher, result);
@@ -588,7 +588,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                        : Operation.Encryption;
 
                 // The memory in which Key bytes are stored is little-endian, but both Encryptor and Decryptor require big-endian data
-                keyBytes = Helpers.ChangeEndianness(keyBytes);
+                Misc.EndiannessSwapInPlace(keyBytes, WordSize);
                 bus.WriteBytes(GetResultBytes(keyBytes, ivBytes, bus.ReadBytes(inputDataAddr, CipherByteCount), operation), resultDataAddr);
             }
 
@@ -628,6 +628,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private const int InitializationVectorByteCount = 16;
             private const int InputDataByteCount = 16;
             private const int CipherByteCount = 16;
+            private const int WordSize = 4; // in bytes
 
             private enum Operation
             {
@@ -646,26 +647,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 Cipher = 0x8048,
                 InputData = 0x8058,
                 Key = 0x9000,
-            }
-        }
-
-        private static class Helpers
-        {
-            public static byte[] ChangeEndianness(byte[] bytes)
-            {
-                DebugHelper.Assert(bytes.Length % 4 == 0);
-
-                for(var i = 0; i < bytes.Length / 4; ++i)
-                {
-                    var temp = bytes[(i * 4) + 3];
-                    bytes[(i * 4) + 3] = bytes[(i * 4) + 0];
-                    bytes[(i * 4) + 0] = temp;
-
-                    temp = bytes[(i * 4) + 2];
-                    bytes[(i * 4) + 2] = bytes[(i * 4) + 1];
-                    bytes[(i * 4) + 1] = temp;
-                }
-                return bytes;
             }
         }
 
