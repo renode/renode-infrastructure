@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Write, 
-                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) ^ val)); },
+                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) & ~val)); },
                         name: "GPIOx_BRR")
                     .WithReservedBits(16, 16)
                 },
