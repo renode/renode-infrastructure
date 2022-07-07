@@ -411,9 +411,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var e = CreateBigInteger(RSARegisters.Exponent, exponentLength);
 
                 var operand = CreateBigInteger((RSARegisters)baseAddress, modulusLength);
-                var result = BigInteger.ModPow(operand, e, n);
+                var resultBytes = BigInteger.ModPow(operand, e, n).ToByteArray();
 
-                var resultBytes = Helpers.ChangeEndianness(result.ToByteArray());
+                var modulusByteCount = (int)(modulusLength * WordSize);
+                if(resultBytes.Length > modulusByteCount)
+                {
+                    // BigInteger.ToByteArray might return an array with an extra element
+                    // to indicate the sign of resulting value; we need to get rid of it here
+                    resultBytes = resultBytes.Take(modulusByteCount).ToArray();
+                }
+                
+                resultBytes = Helpers.ChangeEndianness(resultBytes);
                 manager.TryWriteBytes(baseAddress, resultBytes);
             }
 
@@ -424,9 +432,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 var n = CreateBigInteger(RSARegisters.Modulus, modulusLength);
                 var a = CreateBigInteger(RSARegisters.Operand, operandLength);
-                var result = a % n;
+                var resultBytes = (a % n).ToByteArray();
 
-                var resultBytes = Helpers.ChangeEndianness(result.ToByteArray());
+                var modulusByteCount = (int)(modulusLength * WordSize);
+                if(resultBytes.Length > modulusByteCount)
+                {
+                    // BigInteger.ToByteArray might return an array with an extra element
+                    // to indicate the sign of resulting value; we need to get rid of it here
+                    resultBytes = resultBytes.Take(modulusByteCount).ToArray();
+                }
+
+                resultBytes = Helpers.ChangeEndianness(resultBytes);
                 manager.TryWriteBytes((long)RSARegisters.Operand, resultBytes);
             }
 
@@ -492,6 +508,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             private readonly InternalMemoryManager manager;
 
+            private const int WordSize = 4; // in bytes
+            
             private enum RSARegisters
             {
                 ReductionOperandLength = 0x8,
