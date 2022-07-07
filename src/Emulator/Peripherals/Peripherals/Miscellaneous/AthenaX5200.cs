@@ -197,14 +197,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return true;
             }
 
-            public bool TryReadBytes(long offset, int count, out byte[] result)
+            public bool TryReadBytes(long offset, int count, out byte[] result, int endiannessSwapSize = 0)
             {
                 if(!TryAddressInternalMemory(offset, out var mem, out var internalOffset))
                 {
                     result = new byte[0];
                     return false;
                 }
-                result = mem.ReadBytes(internalOffset, count).ToArray();
+
+                result = mem.ReadBytes(internalOffset, count, endiannessSwapSize).ToArray();
                 return true;
             }
 
@@ -271,16 +272,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return result;
             }
 
-            public IEnumerable<byte> ReadBytes(long offset, int count)
+            public IEnumerable<byte> ReadBytes(long offset, int count, int endiannessSwapSize = 0)
             {
                 if(offset < 0 || (offset + count) >= internalMemory.Length)
                 {
                     Logger.Log(LogLevel.Error, "Trying to read {0} bytes outside of {1} internal memory, at offset 0x{2:X}", count, Name, offset);
                     yield return 0;
                 }
-                for(var i = 0; i < count; ++i)
+                if(endiannessSwapSize != 0 && count % endiannessSwapSize != 0)
                 {
-                    yield return internalMemory[offset + i];
+                    Logger.Log(LogLevel.Error, "Trying to read {0} bytes with an unaligned endianess swap group size of {1}", count, endiannessSwapSize);
+                    yield return 0;
+                }
+                
+                if(endiannessSwapSize != 0)
+                {
+                    for(var i = 0; i < count; i += endiannessSwapSize)
+                    {
+                        for(var j = endiannessSwapSize - 1; j >= 0; j--)
+                        {
+                            yield return internalMemory[offset + i + j];
+                        }
+                    }
+                }
+                else
+                {
+                    for(var i = 0; i < count; ++i)
+                    {
+                        yield return internalMemory[offset + i];
+                    }
                 }
             }
 
