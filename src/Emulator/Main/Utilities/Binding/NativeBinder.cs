@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Utilities.Binding
     {
         static NativeBinder()
         {
-            var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
+            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(nameof(NativeBinder)), AssemblyBuilderAccess.Run);
             moduleBuilder = assemblyBuilder.DefineDynamicModule(nameof(NativeBinder));
         }
@@ -58,7 +58,10 @@ namespace Antmicro.Renode.Utilities.Binding
         public NativeBinder(IEmulationElement classToBind, string libraryFile)
         {
             delegateStore = new object[0];
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !NET
+            // According to https://github.com/dotnet/runtime/issues/26381#issuecomment-394765279,
+            // mono does not enforce the restrictions on pinned GCHandle objects.
+            // On .NET Core trying to pin unallowed object throws exception about non-primitive or non-blittable data.
             handles = new GCHandle[0];
 #endif
             this.classToBind = classToBind;
@@ -87,7 +90,7 @@ namespace Antmicro.Renode.Utilities.Binding
 
         private void DisposeInner()
         {
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !NET
             foreach(var handle in handles)
             {
                 handle.Free();
@@ -302,7 +305,7 @@ namespace Antmicro.Renode.Utilities.Binding
                     throw new InvalidOperationException($"Could not resolve call to managed: {e.Message}. Candidate is '{candidate}', desired method is '{desiredMethodInfo.ToString()}'");
                 }
 
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !NET
                 // according to https://blogs.msdn.microsoft.com/cbrumme/2003/05/06/asynchronous-operations-pinning/,
                 // pinning is wrong (and it does not work on windows too)...
                 // but both on linux & osx it seems to be essential to avoid delegates from being relocated
@@ -395,7 +398,7 @@ namespace Antmicro.Renode.Utilities.Binding
         // which would otherwise be garbage collected while native calls
         // can still use them
         private object[] delegateStore;
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !NET
         private GCHandle[] handles;
 #endif
     }
