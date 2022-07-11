@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -161,7 +161,11 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     var process = new Process();
                     var output = string.Empty;
+                #if NET
+                    process.StartInfo.FileName = "dotnet";
+                #else
                     process.StartInfo.FileName = "mono";
+                #endif
                     process.StartInfo.Arguments = string.Format("{0} {1} true", DynamicModuleSpawner.GetTAPHelper(), deviceName);
 
                     try
