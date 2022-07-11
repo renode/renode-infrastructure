@@ -442,16 +442,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var operand = CreateBigInteger((RSARegisters)baseAddress, modulusLength);
                 var resultBytes = BigInteger.ModPow(operand, e, n).ToByteArray();
 
-                var modulusByteCount = (int)(modulusLength * WordSize);
-                if(resultBytes.Length > modulusByteCount)
-                {
-                    // BigInteger.ToByteArray might return an array with an extra element
-                    // to indicate the sign of resulting value; we need to get rid of it here
-                    resultBytes = resultBytes.Take(modulusByteCount).ToArray();
-                }
-
-                Misc.EndiannessSwapInPlace(resultBytes, WordSize);
-                manager.TryWriteBytes(baseAddress, resultBytes);
+                StoreResultBytes(modulusLength, resultBytes, baseAddress);
             }
 
             public void ModularReduction()
@@ -463,16 +454,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var a = CreateBigInteger(RSARegisters.Operand, operandLength);
                 var resultBytes = (a % n).ToByteArray();
 
-                var modulusByteCount = (int)(modulusLength * WordSize);
-                if(resultBytes.Length > modulusByteCount)
-                {
-                    // BigInteger.ToByteArray might return an array with an extra element
-                    // to indicate the sign of resulting value; we need to get rid of it here
-                    resultBytes = resultBytes.Take(modulusByteCount).ToArray();
-                }
-
-                Misc.EndiannessSwapInPlace(resultBytes, WordSize);
-                manager.TryWriteBytes((long)RSARegisters.Operand, resultBytes);
+                StoreResultBytes(modulusLength, resultBytes, (long)RSARegisters.Operand);
             }
 
             public void DecryptData()
@@ -530,6 +512,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return new BigInteger(bytesReadPadded);
                 }
                 return new BigInteger(bytesRead);
+            }
+
+            private void StoreResultBytes(uint modulusLength, byte[] resultBytes, long baseAddress)
+            {
+                var modulusByteCount = (int)(modulusLength * WordSize);
+                if(resultBytes.Length > modulusByteCount)
+                {
+                    // BigInteger.ToByteArray might return an array with an extra element
+                    // to indicate the sign of resulting value; we need to get rid of it here
+                    resultBytes = resultBytes.Take(modulusByteCount).ToArray();
+                }
+
+                Misc.EndiannessSwapInPlace(resultBytes, WordSize);
+                manager.TryWriteBytes(baseAddress, resultBytes);
             }
 
             private readonly InternalMemoryManager manager;
