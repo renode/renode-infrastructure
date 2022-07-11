@@ -475,7 +475,7 @@ namespace Antmicro.Renode.Logging.Backends
                 return result;
             }
 
-            private static string CombineQuery(string queryString, ViewFilter view, Range forcedRange)
+            private static string CombineQuery(string queryString, ViewFilter view, Antmicro.Renode.Logging.Lucene.Range forcedRange)
             {
                 var values = new List<string>();
 
@@ -548,7 +548,7 @@ namespace Antmicro.Renode.Logging.Backends
                     this.direction = direction;
                     currentStep = (ulong)count;
 
-                    Range = new Range();
+                    Range = new Antmicro.Renode.Logging.Lucene.Range();
 
                     if (direction == Direction.Backward)
                     {
@@ -562,7 +562,7 @@ namespace Antmicro.Renode.Logging.Backends
                     }
                 }
 
-                public Range Range { get; private set; }
+                public Antmicro.Renode.Logging.Lucene.Range Range { get; private set; }
 
                 public int MaximalCount { get; private set; }
 
