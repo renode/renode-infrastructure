@@ -703,9 +703,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 CalculateGCM(msgBytes, authBytes, MsgAuthRegisters.InitVector, out var ciphertext, out var tag);
 
-                var cleanBytes = new byte[msgBytes.Length + 4];
-                manager.TryWriteBytes((long)MsgAuthRegisters.Message, cleanBytes);
                 manager.TryWriteBytes((long)MsgAuthRegisters.Message, ciphertext);
+                // We clear the next 4 bytes after the ciphertext to remove any unwanted data written by
+                // previous steps of the algorithm.
+                manager.TryWriteBytes((long)MsgAuthRegisters.Message + ciphertext.Length, new byte[] { 0, 0, 0, 0 });
                 manager.TryWriteBytes((long)MsgAuthRegisters.Tag, tag);
             }
 
