@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -88,7 +88,11 @@ namespace Antmicro.Renode.UnitTests.Utilities
 
             public void Dispose()
             {
+            #if NET
+                underlyingThread.Interrupt();
+            #else
                 underlyingThread.Abort();
+            #endif
                 underlyingThread.Join();
             }
 
