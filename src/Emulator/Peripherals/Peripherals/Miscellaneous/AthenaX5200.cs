@@ -516,24 +516,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             private BigInteger CreateBigInteger(RSARegisters register, uint wordCount)
             {
-                var j = wordCount - 1;
                 manager.TryReadBytes((long)register + ((wordCount - 1) * 4), 1, out var b);
                 // All calculations require positive values, so we are verifying the sign here:
                 // if the highest bit of the first byte is set, we effectively add a zero at
                 // the beginning of the array, so the data can be interpreted as a positive value.
-                var wordBytesLength = b[0] >= 0x80 ? wordCount * 4 + 1 : wordCount * 4;
-                var wordBytes = new byte[wordBytesLength];
-                for(var i = (int)wordCount - 1; i >= 0; --i)
+                var shouldHavePadding = b[0] >= 0x80;
+                var wordBytesLength = shouldHavePadding ? wordCount * 4 + 1 : wordCount * 4;
+                manager.TryReadBytes((long)register, (int)(wordCount * 4), out var bytesRead, 4);
+                if(shouldHavePadding)
                 {
-                    manager.TryReadBytes((long)register + (i * 4), 4, out var bytes);
-                    wordBytes[j * 4 + 3] = bytes[0];
-                    wordBytes[j * 4 + 2] = bytes[1];
-                    wordBytes[j * 4 + 1] = bytes[2];
-                    wordBytes[j * 4] = bytes[3];
-                    --j;
+                    var bytesReadPadded = new byte[wordBytesLength];
+                    Array.Copy(bytesRead, 0, bytesReadPadded, 0, (int)(wordCount * 4));
+                    return new BigInteger(bytesReadPadded);
                 }
-                return new BigInteger(wordBytes);
-            }            
+                return new BigInteger(bytesRead);
+            }
 
             private readonly InternalMemoryManager manager;
 
