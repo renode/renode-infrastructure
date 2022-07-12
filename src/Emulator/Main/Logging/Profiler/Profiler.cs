@@ -30,15 +30,19 @@ namespace Antmicro.Renode.Logging.Profiling
             {
                 throw new RecoverableException(ex);
             }
-            
-            WriteHeader();
+
             EnableProfiling();
+            machine.PeripheralsChanged += OnPeripheralsChanged;
         }
 
         public void Log(BaseEntry entry)
         {
             lock(locker)
             {
+                if(!headerWritten)
+                {
+                    WriteHeader();
+                }
                 var bytes = Serialize(entry);
                 output.Write(bytes, 0, bytes.Length);
             }
@@ -59,8 +63,23 @@ namespace Antmicro.Renode.Logging.Profiling
             }
         }
 
+        private void OnPeripheralsChanged(Machine machine, PeripheralsChangedEventArgs args)
+        {
+            if(args.Operation != PeripheralsChangedEventArgs.PeripheralChangeType.Addition)
+            {
+                return;
+            }
+
+            var cpu = args.Peripheral as ICPUWithMetrics;
+            if(cpu != null)
+            {
+                cpu.EnableProfiling();
+            }
+        }
+
         private void WriteHeader()
         {
+            headerWritten = true;
             var header = new ProfilerHeader();
             header.RegisterPeripherals(machine);
             output.Write(header.Bytes, 0, header.Bytes.Length);
@@ -87,6 +106,8 @@ namespace Antmicro.Renode.Logging.Profiling
 
             return result;
         }
+
+        private bool headerWritten;
 
         private readonly static object locker = new object();
         private readonly FileStream output;
