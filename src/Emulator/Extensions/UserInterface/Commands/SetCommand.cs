@@ -24,7 +24,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine();
             writer.WriteLine("You must provide the name of the {0}.".FormatWith(noun));
             writer.WriteLine();
-            writer.WriteLine(String.Format("Usage:\n\r\t{0} {1} \"value\"\n\r\n\r\t{0} {1}\n\r\t^^^\n\r\t[multiline value]\n\r\t^^^", Name, noun));
+            writer.WriteLine(String.Format("Usage:\n\r\t{0} {1} \"value\"\n\r\n\r\t{0} {1}\n\r\t\"\"\"\n\r\t[multiline value]\n\r\t\"\"\"", Name, noun));
         }
 
        
