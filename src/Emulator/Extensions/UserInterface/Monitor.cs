@@ -288,10 +288,11 @@ namespace Antmicro.Renode.UserInterface
             {
                 //Reevaluate the expression if the tokenization failed, but expanding the variables may help.
                 //E.g. i $ORIGIN/dir/script. This happens only if the variable is the last successful token.
-                if(result.Tokens.Any() && result.Tokens.Last() is VariableToken)
+                if(result.Tokens.Any() && result.Tokens.Last() is VariableToken lastVariableToken)
                 {
-                    var tokensAfter = ExpandVariables(result.Tokens);
-                    var newString = tokensAfter.Select(x => x.OriginalValue).Stringify() + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
+                    var lastExpandedToken = ExpandVariable(lastVariableToken, variables);
+                    // replace the last token with the expanded version
+                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
                     return Tokenize(newString, writer);
                 }
                 var messages = new StringBuilder();
