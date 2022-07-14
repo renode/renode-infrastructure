@@ -41,6 +41,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 destinations.Add(Destination.OTBN, otbn);
             }
             OperationDoneIRQ = new GPIO();
+            FatalAlert = new GPIO();
+            RecoverableAlert = new GPIO();
+
             random = new Random(randomSeed);
             sealingSoftwareBinding = new byte[MultiRegistersCount * 4];
             attestationSoftwareBinding = new byte[MultiRegistersCount * 4];
@@ -85,6 +88,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             base.Reset();
 
+            FatalAlert.Unset();
+            RecoverableAlert.Unset();
             Array.Clear(sealingSoftwareBinding, 0, sealingSoftwareBinding.Length);
             Array.Clear(attestationSoftwareBinding, 0, attestationSoftwareBinding.Length);
             Array.Clear(salt, 0, salt.Length);
@@ -94,6 +99,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size => 0x1000;
 
         public GPIO OperationDoneIRQ { get; }
+
+        public GPIO FatalAlert { get; }
+        public GPIO RecoverableAlert { get; }
 
         static private byte[] ConstructorParseHexstringArgument(string fieldName, string value, int expectedLength)
         {
@@ -302,8 +310,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("fatal_fault_err", 0) // FieldMode.Write
-                .WithTaggedFlag("recov_operation_err", 1) // FieldMode.Write
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault_err") // FieldMode.Write
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name: "recov_operation_err") // FieldMode.Write
                 .WithIgnoredBits(2, 30);
 
             Registers.ConfigurationWriteEnable.Define(this, 0x1)

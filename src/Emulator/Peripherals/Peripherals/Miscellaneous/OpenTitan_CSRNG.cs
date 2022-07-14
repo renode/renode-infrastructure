@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             EntropyeRequestedIRQ = new GPIO();
             HardwareInstanceIRQ = new GPIO();
             FatalErrorIRQ = new GPIO();
+            RecoverableAlert = new GPIO();
+            FatalAlert = new GPIO();
 
             WorkingMode = RandomType.HardwareCompliant;
             generatedBitsFifo = new Queue<uint>();
@@ -48,6 +50,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             generatedBitsFifo.Clear();
             internalStateReadFifo.Clear();
             base.Reset();
+            RecoverableAlert.Unset();
+            FatalAlert.Unset();
+
             InstantiateRandom();
 
             readyFlag.Value = true;
@@ -83,8 +88,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(4, 32 - 4)
                 .WithWriteCallback((_, val) => { if(val != 0) UpdateInterrupts(); });
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("recov_alert", 0)
-                .WithTaggedFlag("fatal_alert", 1)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name: "recov_alert")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_alert")
                 .WithReservedBits(2, 30);
             Registers.RegisterWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("REGWEN", 0)
@@ -191,6 +196,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public GPIO EntropyeRequestedIRQ { get; }
         public GPIO HardwareInstanceIRQ { get; }
         public GPIO FatalErrorIRQ { get; }
+
+        public GPIO RecoverableAlert { get; }
+        public GPIO FatalAlert { get; }
 
         public uint ReseedCount => (uint)(drbgEngine?.InternalReseedCount ?? 0u);
         public uint[] InternalV

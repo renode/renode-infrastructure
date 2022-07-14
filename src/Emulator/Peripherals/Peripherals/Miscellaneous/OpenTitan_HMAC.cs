@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             packer = new Packer(this);
             IRQ = new GPIO();
+            FatalAlert = new GPIO();
 
             DefineRegisters();
         }
@@ -37,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Array.Clear(digest, 0, digest.Length);
 
             UpdateInterrupts();
+            FatalAlert.Unset();
         }
         
         public override void WriteDoubleWord(long offset, uint value)
@@ -101,6 +103,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size =>  0x1000;
         
         public GPIO IRQ { get; }
+        public GPIO FatalAlert { get;  private set;}
 
         private void HashProcess()
         {
@@ -183,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("fatal_fault", 0)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
                 .WithIgnoredBits(1, 31);
 
             Registers.ConfigurationRegister.Define(this, 0x4)

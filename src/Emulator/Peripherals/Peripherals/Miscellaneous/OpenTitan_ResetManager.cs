@@ -29,7 +29,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LifeCycleState = new GPIO();    // Current state of rst_lc_n tree.
             SystemState = new GPIO();       // Current state of rst_sys_n tree.
             Resets = new GPIO();            // Resets used by the rest of the core domain.
-            // AstResets                    // Resets used by ast.
+
+            // Alerts
+            FatalAlert = new GPIO();            // Triggered when a fatal structural fault is detected
+            FatalConsistencyAlert = new GPIO(); // Triggered when a reset consistency fault is detected
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            FatalAlert.Unset();
+            FatalConsistencyAlert.Unset();
         }
 
         public void MarkAsSkippedOnLifeCycleReset(IPeripheral peripheral)
@@ -121,6 +131,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public GPIO SystemState { get; }
         public GPIO Resets { get; }
 
+        public GPIO FatalAlert { get; }
+        public GPIO FatalConsistencyAlert { get; }
+
         private void ExecuteResetWithSkipped(ICollection<IPeripheral> toSkip)
         {
             // This method is intended to run only as a result of memory access from translated code.
@@ -183,8 +196,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.AlertTest.Define(this, 0x0)
-                .WithTaggedFlag("fatal_fault", 0)
-                .WithTaggedFlag("fatal_cnsty_fault", 1)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalConsistencyAlert.Blink(); }, name: "fatal_cnsty_fault")
                 .WithReservedBits(2, 30);
             Registers.ResetRequested.Define(this, 0x5)
                 .WithValueField(0, 4, out resetRequest, name: "VAL")

@@ -27,6 +27,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             testUnlockToken = new byte[TokenRegistersCount * 4] ;
             token = new byte[TokenRegistersCount * 4];
 
+            FatalProgAlert = new GPIO();
+            FatalStateAlert = new GPIO();
+            FatalBusAlert = new GPIO();
+
             DefineRegisters();
             Reset();
         }
@@ -34,11 +38,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             base.Reset();
+            FatalProgAlert.Unset();
+            FatalStateAlert.Unset();
+            FatalBusAlert.Unset();
+
             Array.Clear(token, 0, token.Length);
             readyFlag.Value = true;
         }
 
         public long Size => 0x1000;
+
+        public GPIO FatalProgAlert { get; }
+        public GPIO FatalStateAlert { get; }
+        public GPIO FatalBusAlert { get; }
 
         public string TestExitToken
         {
@@ -86,9 +98,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("fatal_prog_error", 0)
-                .WithTaggedFlag("fatal_state_error", 1)
-                .WithTaggedFlag("fatal_bus_integ_error", 2)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalProgAlert.Blink(); }, name: "fatal_prog_error")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalStateAlert.Blink(); }, name: "fatal_state_error")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalBusAlert.Blink(); }, name: "fatal_bus_integ_error")
                 .WithIgnoredBits(3, 32 - 3);
 
             Registers.Status.Define(this)

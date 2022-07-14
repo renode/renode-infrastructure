@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public OpenTitan_Timer(Machine machine, long frequency = 24000000) : base(machine)
         {
             IRQ = new GPIO();            
+            FatalAlert = new GPIO();            
             underlyingTimer = new ComparingTimer(machine.ClockSource, frequency, this, "timer", workMode: Time.WorkMode.Periodic, eventEnabled: true);
 
             underlyingTimer.CompareReached += UpdateInterrupts;
@@ -30,6 +31,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         public override void Reset()
         {
             base.Reset();
+            FatalAlert.Unset();
+
             underlyingTimer.Reset();
             UpdateInterrupts();
         }
@@ -39,9 +42,14 @@ namespace Antmicro.Renode.Peripherals.Timers
         public ulong TimerValue => underlyingTimer.Value;
 
         public GPIO IRQ { get; }
+        public GPIO FatalAlert { get; }
 
         private void DefineRegisters()
         {
+            Registers.AlertTest.Define(this, 0x0)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
+                .WithReservedBits(1, 31);
+                
             Registers.Control0.Define(this)
                 .WithFlag(0, name: "CONTROL0", writeCallback: (_, val) =>
                 {

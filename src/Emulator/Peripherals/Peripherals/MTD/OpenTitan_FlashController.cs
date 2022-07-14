@@ -25,6 +25,10 @@ namespace Antmicro.Renode.Peripherals.MTD
             OperationDoneIRQ = new GPIO();
             CorrectableErrorIRQ = new GPIO();
 
+            RecoverableAlert = new GPIO();
+            FatalStandardAlert = new GPIO();
+            FatalAlert = new GPIO();
+
             mpRegionEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
             mpRegionBase = new IValueRegisterField[NumberOfMpRegions];
             mpRegionSize = new IValueRegisterField[NumberOfMpRegions];
@@ -86,9 +90,10 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("recov_err", 0)
-                .WithTaggedFlag("fatal_err", 1)
-                .WithReservedBits(2, 30);
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name:"recov_err")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalStandardAlert.Blink(); }, name:"fatal_std_err")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name:"fatal_err")
+                .WithReservedBits(3, 29);
 
             Registers.DisableFlashFunctionality.Define(this)
                 .WithTag("VAL", 0, 4)
@@ -398,6 +403,9 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             readOffset = 0;
             programOffset = 0;
+            RecoverableAlert.Unset();
+            FatalStandardAlert.Unset();
+            FatalAlert.Unset();
             UpdateInterrupts();
         }
 
@@ -409,6 +417,10 @@ namespace Antmicro.Renode.Peripherals.MTD
         public GPIO ReadLevelIRQ { get; }
         public GPIO OperationDoneIRQ { get; }
         public GPIO CorrectableErrorIRQ { get; }
+
+        public GPIO RecoverableAlert { get; }
+        public GPIO FatalStandardAlert { get; }
+        public GPIO FatalAlert { get; }
 
         private void StartOperation()
         {

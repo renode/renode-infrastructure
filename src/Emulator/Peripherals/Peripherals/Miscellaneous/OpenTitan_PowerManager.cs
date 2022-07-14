@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,12 +16,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public OpenTitan_PowerManager(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
+            FatalAlert = new GPIO();
             DefineRegisters();
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            FatalAlert.Unset();
         }
 
         public long Size => 0x100;
 
         public GPIO IRQ { get; }
+        public GPIO FatalAlert { get; }
 
         private void DefineRegisters()
         {
@@ -44,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithIgnoredBits(1, 31);
 
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("fatal_fault", 0)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
                 .WithIgnoredBits(1, 31);
             
             Registers.ControlConfigRegWriteEnable.Define(this, 0x1)

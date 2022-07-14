@@ -26,6 +26,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             KmacDoneIRQ = new GPIO();
             FifoEmptyIRQ = new GPIO();
             KmacErrorIRQ = new GPIO();
+            FatalAlert = new GPIO();
+            RecoverableAlert = new GPIO();
+
             keyShare = new byte[NumberOfSecretKeys][];
             for(var i = 0; i < NumberOfSecretKeys; ++i)
             {
@@ -118,6 +121,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Array.Clear(stateMask, 0, stateMask.Length);
             sideloadKey = new byte[ExpectedKeyLength];
             UpdateInterrupts();
+            FatalAlert.Unset();
+            RecoverableAlert.Unset();
+
             previousCommand = Command.Done;
             stateBuffer = null;
             ClearHasher();
@@ -130,6 +136,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public GPIO FifoEmptyIRQ { get; }
 
         public GPIO KmacErrorIRQ { get; }
+
+        public GPIO FatalAlert { get; }
+
+        public GPIO RecoverableAlert { get; }
 
         public IEnumerable<byte> SideloadKey
         {
@@ -293,8 +303,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.AlertTest, new DoubleWordRegister(this)
-                    .WithTaggedFlag("fatal_fault", 0)
-                    .WithReservedBits(1, 31)
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name: "recov_alert")
+                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
+                    .WithReservedBits(2, 30)
                 },
                 {(long)Registers.ConfigurationWriteEnable, new DoubleWordRegister(this)
                     .WithTaggedFlag("en", 0)

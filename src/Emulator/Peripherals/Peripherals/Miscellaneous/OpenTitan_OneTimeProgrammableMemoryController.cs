@@ -25,7 +25,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             memoryLock = new Object();
             transitionCountLock = new Object();
             DefineRegisters();
-            Reset();
+
+            FatalMacroAlert = new GPIO();
+            FatalCheckErrorAlert = new GPIO();
+            FatalBusAlert = new GPIO();
 
             aValues = new ushort[ABValuesWordsCount];
             bValues = new ushort[ABValuesWordsCount];
@@ -34,11 +37,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             InitPositionConsumedToLifeCycleMapping();
             underlyingMemory = new ArrayMemory(0x1000);
+
+            Reset();
         }
 
         public override void Reset()
         {
             base.Reset();
+            FatalMacroAlert.Unset();
+            FatalCheckErrorAlert.Unset();
+            FatalBusAlert.Unset();
+
             daiIdleFlag.Value = true;
             cachedLifeCycleState = null;
             cachedTransitionCount = null;
@@ -91,6 +100,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x1800;
+
+        public GPIO FatalMacroAlert { get; }
+        public GPIO FatalCheckErrorAlert { get; }
+        public GPIO FatalBusAlert { get; }
 
         public string AValuesChain
         {
@@ -174,9 +187,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("otp_error", 1)
                 .WithIgnoredBits(2, 30);
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("fatal_macro_error", 0)
-                .WithTaggedFlag("fatal_check_error", 1)
-                .WithTaggedFlag("fatal_bus_integ_error", 2)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalMacroAlert.Blink(); }, name: "fatal_macro_error")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalCheckErrorAlert.Blink(); }, name: "fatal_check_error")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalBusAlert.Blink(); }, name: "fatal_bus_integ_error")
                 .WithIgnoredBits(3, 29);
             Registers.Status.Define(this)
                 .WithFlag(0, out vendorPartitionErrorFlag, FieldMode.Read, name: "VENDOR_TEST_ERROR")

@@ -27,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.UART
             RxTimeoutIRQ = new GPIO();
             RxParityErrorIRQ = new GPIO();
 
+            FatalAlert = new GPIO();
+
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             txQueue = new Queue<byte>();
         }
@@ -81,6 +83,7 @@ namespace Antmicro.Renode.Peripherals.UART
             registers.Reset();
             txQueue.Clear();
             UpdateInterrupts();
+            FatalAlert.Unset();
 
             txOngoing = false;
             txWatermarkCrossed = false;
@@ -97,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO RxBreakErrorIRQ { get; }
         public GPIO RxTimeoutIRQ { get; }
         public GPIO RxParityErrorIRQ { get; }
+        public GPIO FatalAlert { get; }
 
         public event Action<BufferState> BufferStateChanged;
 
@@ -157,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.AlertTest, new DoubleWordRegister(this)
-                    .WithTaggedFlag("fatal_fault", 0)
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
                     .WithIgnoredBits(1, 31)
                 },
                 {(long)Registers.Control, new DoubleWordRegister(this)

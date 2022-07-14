@@ -10,10 +10,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -30,6 +28,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             inputData = new ByteArrayWithAccessTracking(this, DataLengthInBytes / sizeof(uint), sizeof(uint), "DATA_IN");
             outputData = new ByteArrayWithAccessTracking(this, DataLengthInBytes / sizeof(uint), sizeof(uint), "DATA_OUT");
 
+            FatalFaultAlert = new GPIO();
+            UpdateErrorAlert = new GPIO();
+
             key = new byte[InitialKeyShareLengthInBytes];
             aes = new AesManaged();
             random = new PseudorandomNumberGenerator();
@@ -39,6 +40,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             base.Reset();
+            FatalFaultAlert.Unset();
+            UpdateErrorAlert.Unset();
             readyForInputWrite = true;
             initializationVector.Reset();
             initialKeyShare_0.Reset();
@@ -47,6 +50,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             outputData.Reset();
             Array.Clear(key, 0, InitialKeyShareLengthInBytes);
         }
+
+        public GPIO FatalFaultAlert { get; }
+        public GPIO UpdateErrorAlert { get; }
 
         public long Size => 0x1000;
 
@@ -64,8 +70,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             // As the opentitan software often writes 1's to unused register fields they are defined as `IgnoredBits` to avoid flooding the logs
             Registers.AlertTest.Define(this)
-                .WithTaggedFlag("recov_ctrl_update_err", 0)
-                .WithTaggedFlag("fatal_fault", 1)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) UpdateErrorAlert.Blink(); }, name: "recov_ctrl_update_err")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalFaultAlert.Blink(); }, name: "fatal_fault")
                 .WithIgnoredBits(2, 30);
 
             Registers.InitialKeyShare0_0.DefineMany(this, InitialKeyShareLengthInBytes / sizeof(uint), (register, idx) =>
