@@ -253,6 +253,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     cpuThreadCopy?.Join();
                     this.NoisyLog("Paused.");
                 }
+
+                isPaused = true;
             }
 
             InvokeHalted(haltArgs);

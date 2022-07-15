@@ -49,7 +49,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             
             lock(pauseLock)
             {
-                isPaused = true;
                 OnPause();
             }
         }
