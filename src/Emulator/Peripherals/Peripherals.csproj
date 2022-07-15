@@ -67,6 +67,7 @@
     <Compile Include="Peripherals\Input\PS2Mouse.cs" />
     <Compile Include="Peripherals\MTD\ISPIFlash.cs" />
     <Compile Include="Peripherals\MTD\DummySPIFlash.cs" />
+    <Compile Include="Peripherals\Miscellaneous\EFR32_CMU.cs" />
     <Compile Include="Peripherals\Miscellaneous\LED.cs" />
     <Compile Include="Peripherals\Miscellaneous\MPFS_Sysreg.cs" />
     <Compile Include="Peripherals\Miscellaneous\MPFS_DDRMock.cs" />
