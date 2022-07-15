@@ -87,6 +87,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 { JumpTable.RunAES_DMA, aesServiceProvider.PerformAESOperationDMA },
                 { JumpTable.RunGCM, msgAuthServiceProvider.PerformGCMMessageAuthentication },
                 { JumpTable.RunGCMNew, msgAuthServiceProvider.PerformGCMMessageAuthentication },
+                { JumpTable.RunSHA, msgAuthServiceProvider.PerformSHA },
+                { JumpTable.RunSHADMA, msgAuthServiceProvider.PerformSHADMA },
+                { JumpTable.RunHMACSHA, msgAuthServiceProvider.PerformHMACSHA },
             };
 
             Reset();
@@ -657,6 +660,42 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.bus = bus;
             }
 
+            public void PerformSHA()
+            {
+                // Message length is taken directly from the driver because it is not written to the internal memories
+                manager.TryReadBytes((long)MsgAuthRegisters.HashInput, SHAMsgLeng, out var hashInput);
+                Misc.EndiannessSwapInPlace(hashInput, WordSize);
+
+                manager.TryWriteBytes((long)MsgAuthRegisters.HashResult, GetHashedBytes(SHAMsgLeng, hashInput));
+            }
+
+            public void PerformSHADMA()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHADataBytesToProcess, out var hashInputLength);
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataLocation, out var hashInputAddr);
+                var bytes = bus.ReadBytes(hashInputAddr, (int)hashInputLength);
+                
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataResultLocation, out var hashResultLocation);
+                bus.WriteBytes(GetHashedBytes((int)hashInputLength, bytes), hashResultLocation);
+            }
+
+            public void PerformHMACSHA()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHADMAChannelConfig, out var dmaConfig);
+                switch((WriteType)dmaConfig)
+                {
+                    case WriteType.Direct:
+                        NonDMAHMACSHA();
+                        break;
+                    case WriteType.DMA:
+                        DMAHMACSHA();
+                        break;
+                    default:
+                        Logger.Log(LogLevel.Warning, "Encountered unexpected DMA configuration: 0x{0:X}", dmaConfig);
+                        break;
+                }
+            }
+
             public void PerformGCMMessageAuthentication()
             {
                 manager.TryReadDoubleWord((long)MsgAuthRegisters.DMAChannelConfig, out var dmaConfig);
@@ -672,6 +711,61 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         Logger.Log(LogLevel.Warning, "Encountered unexpected DMA configuration: 0x{0:X}", dmaConfig);
                         break;
                 }
+            }
+
+            private byte[] GetHashedBytes(int count, byte[] input)
+            {
+                var result = new byte[count];
+                using (SHA256 sha256Hash = SHA256.Create())
+                {
+                    result = sha256Hash.ComputeHash(input);
+                }
+                return result;
+            }
+
+            private void NonDMAHMACSHA()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.HMACSHAKeyByteCount, out var keyLength);
+                manager.TryReadBytes((long)MsgAuthRegisters.HashMACKey, (int)keyLength, out var hashKey);
+                Misc.EndiannessSwapInPlace(hashKey, WordSize);
+
+                // Message length is taken directly from the driver because it is not written to the internal memories
+                var msgBytesLength = HMACSHAMsgLeng;
+
+                var msgBytesAddend = (msgBytesLength % 4);
+                if(msgBytesAddend != 0)
+                {
+                    msgBytesAddend = 4 - msgBytesAddend;
+                    msgBytesLength += msgBytesAddend;
+                }                
+                manager.TryReadBytes((long)MsgAuthRegisters.HashMACInput, (int)msgBytesLength, out var msgBytes, WordSize);
+                if(msgBytesAddend != 0)
+                {
+                    msgBytes = msgBytes.Take((int)(msgBytesLength - msgBytesAddend)).ToArray();
+                }
+
+                var myhmacsha256 = new HMACSHA256(hashKey);
+                var stream = new MemoryStream(msgBytes);
+                var result = myhmacsha256.ComputeHash(stream);
+                manager.TryWriteBytes((long)MsgAuthRegisters.HashResult, result);
+            }
+
+            private void DMAHMACSHA()
+            {
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.HMACSHAKeyByteCount, out var keyLength);
+                manager.TryReadBytes((long)MsgAuthRegisters.HashMACKey, (int)keyLength, out var hashKey);
+                Misc.EndiannessSwapInPlace(hashKey, WordSize);
+
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHADataBytesToProcess, out var hashInputLength);
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataLocation, out var hashInputAddr);
+                var inputBytes = bus.ReadBytes(hashInputAddr, (int)hashInputLength);
+
+                var myhmacsha256 = new HMACSHA256(hashKey);
+                var stream = new MemoryStream(inputBytes);
+                var result = myhmacsha256.ComputeHash(stream);
+                
+                manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataResultLocation, out var hashResultLocation);
+                bus.WriteBytes(result, hashResultLocation);
             }
 
             private void NonDMAGCM()
@@ -758,6 +852,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private const int GCMInitVectorSize128 = 16;
             private const int GCMInitVectorSize96 = 12;
             private const int WordSize = 4; // in bytes
+            private const int HMACSHAMsgLeng = 34;
+            private const int SHAMsgLeng = 32;
             
             private readonly SystemBus bus;
             private readonly InternalMemoryManager manager;
@@ -772,7 +868,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 KeyWordCount = 0x8,
                 InputDataByteCount = 0x8,
+                HMACSHAKeyByteCount = 0x18,
+                SHADMAChannelConfig = 0x2C,
                 AuthDataByteCount = 0x30,
+                SHADataBytesToProcess = 0x44,
+                SHAExternalDataLocation = 0x48,
+                SHAExternalDataResultLocation = 0x4C,
                 DMAChannelConfig = 0x58,
                 PointerToExternalData = 0x60,
                 PointerToExternalAuthData = 0x64,
@@ -805,12 +906,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             PrecomputeValueRSA = 0x0,
             ModularExponentationRSA = 0x2,
             ModularReductionRSA = 0x12,
+            RunSHA = 0x1E,
             RunAES = 0x20,
             RunGCM = 0x24,
             InstantiateDRBG = 0x2C,
             GenerateBlocksFromDRBG = 0x30,
             RunAES_DMA = 0x38,
             UninstantiateDRBG = 0x32,
+            RunHMACSHA = 0x36,
+            RunSHADMA = 0x3C,
             DecryptCipherRSA = 0x4E,
             RunGCMNew = 0x5A
         }
