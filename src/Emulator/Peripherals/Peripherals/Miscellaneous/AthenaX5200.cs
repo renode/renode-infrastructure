@@ -806,7 +806,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ModularExponentationRSA = 0x2,
             ModularReductionRSA = 0x12,
             RunAES = 0x20,
-            RunAESK = 0x22,
             RunGCM = 0x24,
             InstantiateDRBG = 0x2C,
             GenerateBlocksFromDRBG = 0x30,
