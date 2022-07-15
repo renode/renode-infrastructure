@@ -660,12 +660,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public void PerformGCMMessageAuthentication()
             {
                 manager.TryReadDoubleWord((long)MsgAuthRegisters.DMAChannelConfig, out var dmaConfig);
-                switch((GCMType)dmaConfig)
+                switch((WriteType)dmaConfig)
                 {
-                    case GCMType.Direct:
+                    case WriteType.Direct:
                         NonDMAGCM();
                         break;
-                    case GCMType.DMA:
+                    case WriteType.DMA:
                         DMAGCM();
                         break;
                     default:
@@ -762,7 +762,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private readonly SystemBus bus;
             private readonly InternalMemoryManager manager;
             
-            private enum GCMType
+            private enum WriteType
             {
                 Direct = 0x0,
                 DMA = 0x8
