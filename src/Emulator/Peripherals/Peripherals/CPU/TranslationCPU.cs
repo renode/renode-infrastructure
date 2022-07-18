@@ -216,6 +216,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return $"[CPU: {this.GetCPUThreadName(machine)}]";
         }
 
+        public void RequestReturn()
+        {
+            TlibSetReturnRequest();
+        }
+
         public void ClearTranslationCache()
         {
             using(machine.ObtainPausedState())
