@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -56,6 +56,7 @@ namespace Antmicro.Renode.Testing
 
         public void DetachFrom(IVideo obj)
         {
+            video.ConfigurationChanged -= HandleConfigurationChange;
             video.FrameRendered -= HandleNewFrame;
             video = null;
         }
@@ -111,14 +112,16 @@ namespace Antmicro.Renode.Testing
             throw new ArgumentException();
         }
 
-        private void HandleConfigurationChange(int width, int height, Backends.Display.PixelFormat format, ELFSharp.ELF.Endianess endianess)
+        private void HandleConfigurationChange(int width, int height, Backends.Display.PixelFormat newFormat, ELFSharp.ELF.Endianess newEndianess)
         {
             if(width == 0 || height == 0)
             {
                 return;
             }
-
-            converter = PixelManipulationTools.GetConverter(format, endianess, Backends.Display.PixelFormat.ARGB8888, ELFSharp.ELF.Endianess.LittleEndian);
+            
+            format = newFormat;
+            endianess = newEndianess;
+            InitConverter();
             frameSize = width * height * 4;
         }
 
@@ -130,10 +133,23 @@ namespace Antmicro.Renode.Testing
             newFrameEvent.Set();
         }
 
-        private IVideo video;
+        [PostDeserialization]
+        private void InitConverter()
+        {
+            if(format != null && endianess != null)
+            {
+                converter = PixelManipulationTools.GetConverter((Backends.Display.PixelFormat)format, (ELFSharp.ELF.Endianess)endianess, Backends.Display.PixelFormat.ARGB8888, ELFSharp.ELF.Endianess.LittleEndian);
+            }
+        }
+        
+        [Transient]
         private IPixelConverter converter;
-        private int frameSize;
 
+        private int frameSize;
+        private IVideo video;
+        private Backends.Display.PixelFormat? format;
+        private ELFSharp.ELF.Endianess? endianess;
+        
         // Even if newFrameEvent was set before saving the emulation it doesn't matter
         // as we ultimately would have to start the `WaitForFrame` loop from the beginning either way
         [Constructor(false)]
