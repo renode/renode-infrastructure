@@ -1,0 +1,81 @@
+<Project DefaultTargets="Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <UseWPF Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' ">true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Emulator</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <ItemGroup>
+    <Using Include="Antmicro.Renode.Core.Range" Alias="Range" />
+  </ItemGroup>
+  <PropertyGroup Condition=" $(GUI_DISABLED) == 'true' ">
+    <DefineConstants>$(DefineConstants);GUI_DISABLED</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\..\lib\resources\libraries\IronPython.StdLib.dll">
+      <!-- See the note near the IronPython.StdLib reference -->
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Dynamitey" Version="2.0.10.189" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.3" />
+    <PackageReference Include="IronPython" Version="2.7.11" />
+    <PackageReference Include="System.Drawing.Common" Version="5.0.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="3.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
+    <Reference Include="Mono.CSharp">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\mcs.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Dynamic">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Dynamic.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Linq.Expressions">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Mono.Linq.Expressions.dll</HintPath>
+    </Reference>
+    <Reference Include="Nini">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Nini.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Lucene.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="LZ4">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\LZ4.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition="$(OS) != 'Windows_NT'">
+    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
+  </ItemGroup>
+  <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
+    <PackageReference Include="GdkSharp" Version="3.24.24.34" />
+    <PackageReference Include="GLibSharp" Version="3.24.24.34" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Utilities\AdHocCompiler.cs" />
+    <Compile Remove="Tests\**\*"/>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <None Include="Peripherals\Bus\SystemBusGenerated.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>SystemBusGenerated.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\CxxDemangler\CxxDemangler\CxxDemangler_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp-working_copy_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt.Gtk\Xwt.Gtk3_NET.csproj" Condition=" $(OS) != 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt.WPF\Xwt.WPF_NET.csproj" Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="..\..\..\..\..\lib\BigGustave\src\BigGustave\BigGustave_NET.csproj"/>
+  </ItemGroup>
+</Project>

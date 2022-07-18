@@ -1,0 +1,59 @@
+<Project DefaultTargets="Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <AssemblyName>Renode-peripherals</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <ItemGroup>
+    <Using Include="Antmicro.Renode.Core.Range" Alias="Range" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" Condition=" $(OS) != 'Windows_NT'" />
+    <PackageReference Include="System.Drawing.Common" Version="5.0.2" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Test\**\*"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Cores\Common\RegisterEnumParser.cs">
+      <DependentUpon>RegisterEnumParser.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Peripherals\Miscellaneous\BitBanding.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>BitBanding.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Cores\Common\RegisterEnumParser.tt">
+      <Link>Peripherals\CPU\Registers\RegisterEnumParser.tt</Link>
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>RegisterEnumParser.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\Extensions\Extensions_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\bc-csharp\crypto\crypto_NET.csproj"/>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dll" />
+    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.so" />
+    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dylib" />
+  </ItemGroup>
+  <Target Name="CopySharedLibraries" AfterTargets="Build">
+    <PropertyGroup>
+        <Extension Condition=" '$(CurrentPlatform)' == 'Windows'">dll</Extension>
+        <Extension Condition=" '$(CurrentPlatform)' == 'Linux'"  >so</Extension>
+        <Extension Condition=" '$(CurrentPlatform)' == 'OSX'"    >dylib</Extension>
+    </PropertyGroup>
+    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)" DestinationFiles="$(OutputPath)\libllvm-disas.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)')" />
+  </Target>
+</Project>

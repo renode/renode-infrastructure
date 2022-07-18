@@ -1,0 +1,9 @@
+<Project DefaultTargets="Build">
+<PropertyGroup>
+  <CompilerPath>/usr/bin/gcc</CompilerPath>
+  <LinkerPath>/usr/bin/gcc</LinkerPath>
+  <ArPath>/usr/bin/ar</ArPath>
+  <CurrentPlatform>Linux</CurrentPlatform>
+  <DefineConstants>$(DefineConstants);PLATFORM_LINUX</DefineConstants>
+</PropertyGroup>
+</Project>

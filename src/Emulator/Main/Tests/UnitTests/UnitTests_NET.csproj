@@ -1,0 +1,38 @@
+<Project DefaultTargets="Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <AssemblyName>UnitTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Antmicro.Renode.Core.Range" Alias="Range" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Do not compile. It is included as an embedded resource to test AdHocCompiler. -->
+    <Compile Remove="Mocks\MockExtension.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Moq" Version="4.18.1" />
+    <Reference Include="IronPython">
+      <HintPath>..\..\..\..\..\..\..\lib\resources\libraries\IronPython.dll</HintPath>
+    </Reference>
+    <PackageReference Include="NUnit" Version="3.13.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" /> 
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Emulator_NET.csproj"/>
+    <!-- PythonEngine requires reference to Renode assembly. -->
+    <ProjectReference Include="..\..\..\..\..\..\Renode\Renode_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\..\..\Peripherals\Peripherals_NET.csproj"/>
+    <ProjectReference Include="..\..\..\Extensions\Extensions_NET.csproj"/>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Mocks\MockExtension.cs">
+      <LogicalName>MockExtension.cs</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
