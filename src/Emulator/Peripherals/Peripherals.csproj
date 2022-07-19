@@ -438,6 +438,7 @@
     <Compile Include="Peripherals\Miscellaneous\MAX32650_PWRSEQ.cs" />
     <Compile Include="Peripherals\DMA\STM32G0DMA.cs" />
     <Compile Include="Peripherals\Timers\MAX32650_Timer.cs" />
+    <Compile Include="Peripherals\GPIOPort\MAX32650_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
