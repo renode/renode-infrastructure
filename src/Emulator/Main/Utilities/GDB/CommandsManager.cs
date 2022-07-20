@@ -162,6 +162,10 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
         {
+            if(featureVariations.Count == 1)
+            {
+                return featureVariations[0];
+            }
             // This function unifies variations of a feature by taking the widest registers of matching name then adds taken register's type.
             var unifiedFeature = new GDBFeatureDescriptor(featureVariations.First().Name);
             var registers = new Dictionary<string, Tuple<GDBRegisterDescriptor, List<GDBCustomType>>>();
