@@ -4,7 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             this.Type = type;
             this.Attributes = attributes;
-            this.Fields = fields;
+            this.Fields = fields ?? Enumerable.Empty<Dictionary<string, string>>();
         }
 
         public static GDBCustomType Vector(string id, string type, uint count)
