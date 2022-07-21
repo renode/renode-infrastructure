@@ -31,13 +31,11 @@ namespace Antmicro.Renode.Extensions.Mocks
         public void AttachTo(II2CPeripheral obj)
         {
             currentSlave = obj;
-            currentDoubleSlave = (IDoubleWordPeripheral) obj;
         }
 
         public void DetachFrom(II2CPeripheral obj)
         {
             currentSlave = null;
-            currentDoubleSlave = null;
         }
 
         public void FlashMCU(ReadFilePath path)
@@ -186,11 +184,9 @@ namespace Antmicro.Renode.Extensions.Mocks
             return (currentDoubleSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
         }
         
-        private delegate bool RegisterBitAccessDelegate();
-
         private void PollForRegisterBit(RegisterBitName bitName){
             int i = 0;
-            RegisterBitAccessDelegate registerAccess;
+            Func<bool> registerAccess;
             switch(bitName){
                 case RegisterBitName.OA1EN:
                     registerAccess = OA1ENEnabled;
@@ -199,11 +195,10 @@ namespace Antmicro.Renode.Extensions.Mocks
                     registerAccess = RXNECleared;
                     break;
                 default:
-                    registerAccess = null;
-                    break;
+                    throw new RecoverableException("Register bit name does not exist.");
             }
             while(!registerAccess() && i < 8){
-                Thread.Sleep(500);
+                Thread.Sleep(100);
                 i ++;
             }
         }
@@ -270,7 +265,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         }
 
         private II2CPeripheral currentSlave;
-        private IDoubleWordPeripheral currentDoubleSlave;
+        private IDoubleWordPeripheral currentDoubleSlave => currentSlave as IDoubleWordPeripheral;
 
         private enum Commands
         {
