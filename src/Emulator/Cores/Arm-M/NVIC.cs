@@ -775,7 +775,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int ClearPendingEnd      = 0x2C0;
         private const int PriorityStart        = 0x400;
         private const int PriorityEnd          = 0x7F0;
-        private const int IRQCount             = 256 + 16;
+        private const int IRQCount             = 512 + 16;
         private const uint CPUID               = 0x412FC231;
         private const int VectKey              = 0x5FA;
         private const int VectKeyStat          = 0xFA05;
