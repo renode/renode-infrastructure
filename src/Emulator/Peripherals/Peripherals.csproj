@@ -42,6 +42,9 @@
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Numerics" />
+    <Reference Include="ProtobufNet">
+      <HintPath>Peripherals/CPU/GuestProfiling/ProtoBuf/protobuf-net.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Peripherals\Timers\EFR32_RTCC.cs" />
@@ -256,6 +259,11 @@
     <Compile Include="Peripherals\CPU\TranslationCPU.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_OpcodesCounting.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_Profiler.cs" />
+    <Compile Include="Peripherals\CPU\GuestProfiling\BaseProfiler.cs" />
+    <Compile Include="Peripherals\CPU\GuestProfiling\SpeedscopeProfiler.cs" />
+    <Compile Include="Peripherals\CPU\GuestProfiling\PerfettoProfiler.cs" />
+    <Compile Include="Peripherals\CPU\GuestProfiling\ProtoBuf/TracePacket.cs" />
+    <Compile Include="Peripherals\CPU\GuestProfiling\ProtoBuf/TraceWriter.cs" />
     <Compile Include="Peripherals\CPU\CpuBitness.cs" />
     <Compile Include="Peripherals\CPU\BaseCPU.cs" />
     <Compile Include="Peripherals\CPU\CPUCore.cs" />
