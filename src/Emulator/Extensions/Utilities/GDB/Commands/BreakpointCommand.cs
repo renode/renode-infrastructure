@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,6 +26,17 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
             [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint kind)
         {
+            // The kind is the size of the breakpoint in bytes.
+            // Currently, we only handle it for watchpoints, where it specifies the number of bytes to watch.
+            // Setting a 0-byte watchpoint, for example with `watch *&variable_of_unknown_type`, gives
+            // unexpected results: GDB says the watchpoint is set, but it can never be hit.
+            if(kind == 0 && (type == BreakpointType.AccessWatchpoint
+                          || type == BreakpointType.ReadWatchpoint
+                          || type == BreakpointType.WriteWatchpoint))
+            {
+                return PacketData.ErrorReply(Error.InvalidArgument);
+            }
+
             switch(type)
             {
                 case BreakpointType.MemoryBreakpoint:
