@@ -442,6 +442,7 @@
     <Compile Include="Peripherals\Analog\MAX32650_ADC.cs" />
     <Compile Include="Peripherals\Mocks\HPSHostController.cs" />
     <Compile Include="Peripherals\Miscellaneous\MAX32650_TPU.cs" />
+    <Compile Include="Peripherals\SPI\MAX32650_SPI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
