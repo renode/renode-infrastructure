@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -7,14 +7,10 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.IRQControllers.PLIC;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -35,12 +31,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {MaxNumberOfSources} sources");
             }
+
+            if(numberOfContexts > MaxNumberOfContexts)
+            {
+                throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {MaxNumberOfContexts} contexts");
+            }
+
             this.numberOfContexts = numberOfContexts;
 
             var registersMap = new Dictionary<long, DoubleWordRegister>();
 
             var interruptPendingRegisterCount = (int)Math.Ceiling(numberOfSources / 32.0);
-            var interruptSourceModeCount = (int)Math.Ceiling(numberOfSources / 32.0);
             for(var i = 0; i < interruptPendingRegisterCount; i++)
             {
                 var interruptPendingOffset = (long)Registers.InterruptPending0 + i * 4;
@@ -53,30 +54,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         }));
             }
 
-            var interruptSourceMode0 = (long)Registers.InterruptPending0 + (interruptPendingRegisterCount * 4);
-            for(var i = 0; i < interruptSourceModeCount; i++)
-            {
-                var interruptSourceModeOffset = interruptSourceMode0 + i * 4;
-                this.Log(LogLevel.Noisy, "Creating InterruptSourceMode{0}[0x{1:X}]", i, interruptSourceModeOffset);
-                registersMap.Add(interruptSourceModeOffset, new DoubleWordRegister(this)
-                    .WithValueField(0, 32,
-                        valueProviderCallback: _ =>
-                        {
-                            // TODO: implement
-                            return 0;
-                        },
-                        writeCallback: (_, value) =>
-                        {
-                            // TODO: implement
-                            this.Log(LogLevel.Noisy, $"Write InterruptSourceMode0 0x{value:X}");
-                        }));
-            }
-
-            var source0Priority = interruptSourceMode0 + (interruptSourceModeCount * 4);
-            for(var i = 0; i < numberOfSources; i++)
+            for(uint i = 0; i < numberOfSources; i++)
             {
                 var j = i;
-                var sourcePriorityOffset = source0Priority + (4 * i);
+                var sourcePriorityOffset = (uint)Registers.InterruptPriority0 + (4u * i);
                 this.Log(LogLevel.Noisy, "Creating SourcePriority{0}[0x{1:X}]", i, sourcePriorityOffset);
                 registersMap.Add(sourcePriorityOffset, new DoubleWordRegister(this)
                     .WithValueField(0, 3,
@@ -90,31 +71,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             var contextMachineEnableCount = (int)Math.Ceiling(numberOfSources / 32.0);
-            var maximumSourceDoubleWords = (int)Math.Ceiling(numberOfSources / 32.0) * 4;
             this.Log(LogLevel.Noisy, $"ContextMachineEnableCount 0x{contextMachineEnableCount:X}");
-            this.Log(LogLevel.Noisy, $"maximumSourceDoubleWords 0x{maximumSourceDoubleWords:X}");
 
-            for(var i = 0; i < numberOfContexts; i++)
+            for(uint i = 0; i < numberOfContexts; i++)
             {
-                // Algorithm for offset is pulled from the HJSON file within OpenTitan rv_plic
-                var contextMachineEnablesOffset = (long)(0x100 * (Math.Ceiling((numberOfSources * 4 + 8 * Math.Ceiling(numberOfSources / 32.0)) / 0x100)) + i * 0x100);
+                var contextMachineEnablesOffset = (long)Registers.InterruptEnable0 + (i * ContextRegistersOffset);
                 this.Log(LogLevel.Noisy, $"ContextMachineEnablesOffset for Context{i} 0x{contextMachineEnablesOffset:X}");
-                AddContextEnablesRegister(registersMap, contextMachineEnablesOffset, (uint)i, numberOfSources - 1);
+                AddContextEnablesRegister(registersMap, contextMachineEnablesOffset, i, numberOfSources - 1);
 
-                var contextPriorityThresholdOffset = contextMachineEnablesOffset + maximumSourceDoubleWords;
-                AddContextPriorityThresholdRegister(registersMap, contextPriorityThresholdOffset, (uint)i);
+                var contextPriorityThresholdOffset = (uint) Registers.Target0Threshold + (i * GeneralContextRegistersOffset);
+                AddContextPriorityThresholdRegister(registersMap, contextPriorityThresholdOffset, i);
 
-                var contextClaimCompleteOffset = contextPriorityThresholdOffset + 4;
-                AddContextClaimCompleteRegister(registersMap, contextClaimCompleteOffset, (uint)i);
+                var contextClaimCompleteOffset = contextPriorityThresholdOffset + 0x4;
+                AddContextClaimCompleteRegister(registersMap, contextClaimCompleteOffset, i);
 
-                var contextSoftwareOffset = contextClaimCompleteOffset + 4;
-                AddContextSoftwareInterruptRegister(registersMap, contextSoftwareOffset, (uint)i);
+                var contextSoftwareOffset = (uint)Registers.Target0SoftwareInterrupt + (i * 0x4);
+                AddContextSoftwareInterruptRegister(registersMap, contextSoftwareOffset, i);
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
-        public long Size => 0x4000;
+        public long Size => 0x8000000;
 
         protected void AddContextPriorityThresholdRegister(Dictionary<long, DoubleWordRegister> registersMap, long offset, uint hartId)
         {
@@ -154,11 +132,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private const int MaxNumberOfSources = 255;
 
+        private const int MaxNumberOfContexts = ((int)Registers.InterruptEnable0 - (int)Registers.InterruptPending0) / ContextRegistersOffset;
+
+        private const int ContextRegistersOffset = 0x100;
+
+        private const int GeneralContextRegistersOffset = 0x1000;
+
+#pragma warning disable format
         private enum Registers : long
         {
-            InterruptPending0 = 0x0,
-            // the rest of the layout is dynamic,
-            // as it depends on the number of sources
+            InterruptPriority0       = 0x0,
+            InterruptPending0        = 0x1000,
+            InterruptEnable0         = 0x2000,
+            Target0Threshold         = 0x200000,
+            Target0InterruptClaim    = 0x200004,
+            Target0SoftwareInterrupt = 0x4000000,
+            AlertTestRegister        = 0x4004000,
         }
+#pragma warning restore format
     }
 }
