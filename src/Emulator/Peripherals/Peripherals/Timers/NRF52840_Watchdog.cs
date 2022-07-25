@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -169,6 +169,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         if(value == ReloadRegisterResetValue)
                         {
                             requestRegisterStatus[j].Value = false;
+                            Reload();
                         }
                     })
                 );
@@ -205,13 +206,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return;
             }
 
-            var skipReload = false;
+            var reload = true;
             for(var i = 0; i < NumberOfRegisters; i++)
             {
-                skipReload |= !(requestRegisterEnabled[i] && !requestRegisterStatus[i].Value);
+                if(requestRegisterEnabled[i])
+                {
+                    reload &= !requestRegisterStatus[i].Value;
+                }
             }
 
-            if(!skipReload)
+            if(reload)
             {
                 for(var i = 0; i < NumberOfRegisters; i++)
                 {
