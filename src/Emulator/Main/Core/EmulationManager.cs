@@ -205,11 +205,19 @@ namespace Antmicro.Renode.Core
                     return string.Empty;
                 }
 
-                return string.Format("{0}, version {1} ({2})",
-                    entryAssembly.GetName().Name,
-                    entryAssembly.GetName().Version,
-                    ((AssemblyInformationalVersionAttribute)entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0]).InformationalVersion
-                );
+                try
+                {
+                    return string.Format("{0}, version {1} ({2})",
+                        entryAssembly.GetName().Name,
+                        entryAssembly.GetName().Version,
+                        ((AssemblyInformationalVersionAttribute)entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0]).InformationalVersion
+                    );
+                }
+                catch(System.Exception)
+                {
+                    return string.Empty;
+                }
+
             }
         }
         
