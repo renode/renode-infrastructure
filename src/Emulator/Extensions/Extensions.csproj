@@ -178,7 +178,6 @@
     <Compile Include="Hooks\InterruptPythonEngine.cs" />
     <Compile Include="UserInterface\InlineImage.cs" />
     <Compile Include="HostInterfaces\Camera\HostCamera.cs" />
-    <Compile Include="Mocks\HPSHostController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
