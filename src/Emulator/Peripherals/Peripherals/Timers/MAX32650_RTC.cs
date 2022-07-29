@@ -12,12 +12,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MAX32650_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_RTC(Machine machine) : base(machine)
+        public MAX32650_RTC(Machine machine, bool subSecondsMSBOverwrite = false) : base(machine)
         {
             DefineRegisters();
 
             internalClock = new LimitTimer(machine.ClockSource, 0x1000, this, "rtc_tick", limit: 1, enabled: false, eventEnabled: true);
             internalClock.LimitReached += SubsecondTick;
+
+            this.subSecondsMSBOverwrite = subSecondsMSBOverwrite;
 
             IRQ = new GPIO();
         }
@@ -72,10 +74,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.SubSeconds.Define(this)
                 .WithValueField(0, 8, name: "RTC_SSEC.ssec",
                     valueProviderCallback: _ => (byte)subSecondsCounter,
-                    writeCallback: (_, value) =>
-                    {
-                        subSecondsCounter = (subSecondsCounter & 0xF00) | value;
-                    })
+                    writeCallback: (_, value) => subSecondsCounter = (subSecondsMSBOverwrite ? 0xF00 : (subSecondsCounter & 0xF00)) | value)
                 .WithReservedBits(8, 24);
             Registers.TimeOfDayAlarm.Define(this)
                 .WithValueField(0, 20, out timeOfDayAlarm, name: "RTC_TODA.tod_alarm")
@@ -141,6 +140,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IValueRegisterField timeOfDayAlarm;
         private IValueRegisterField subSecondAlarm;
 
+        private readonly bool subSecondsMSBOverwrite;
         private readonly LimitTimer internalClock;
 
         private const ulong SubSecondTickLimit = 0xFFF;
