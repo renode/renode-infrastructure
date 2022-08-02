@@ -459,6 +459,7 @@
     <Compile Include="Peripherals\Miscellaneous\AmbiqApollo4_PowerController.cs" />
     <Compile Include="Peripherals\Miscellaneous\AmbiqApollo4_Security.cs" />
     <Compile Include="Peripherals\SPI\AmbiqApollo4_IOMaster.cs" />
+    <Compile Include="Peripherals\Timers\AmbiqApollo4_RTC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
