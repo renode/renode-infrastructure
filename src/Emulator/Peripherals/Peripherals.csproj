@@ -456,6 +456,7 @@
     <Compile Include="Peripherals\Analog\AmbiqApollo4_ADC.cs" />
     <Compile Include="Peripherals\GPIOPort\AmbiqApollo4_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\AmbiqApollo4_BootromLogger.cs" />
+    <Compile Include="Peripherals\Miscellaneous\AmbiqApollo4_PowerController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
