@@ -454,6 +454,7 @@
     <Compile Include="Peripherals\Miscellaneous\BitAccess.cs" />
     <Compile Include="Peripherals\Timers\MAX32650_WDT.cs" />
     <Compile Include="Peripherals\Analog\AmbiqApollo4_ADC.cs" />
+    <Compile Include="Peripherals\GPIOPort\AmbiqApollo4_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
