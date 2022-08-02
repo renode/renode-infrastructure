@@ -715,19 +715,19 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void SetPageAccessViaIo(ulong address)
+        public void SetPageAccessViaIo(ulong physicalAddress)
         {
             foreach(var cpu in cpuById.Values.OfType<ICPUWithMappedMemory>())
             {
-                cpu.SetPageAccessViaIo(address);
+                cpu.SetPageAccessViaIo(physicalAddress);
             }
         }
 
-        public void ClearPageAccessViaIo(ulong address)
+        public void ClearPageAccessViaIo(ulong physicalAddress)
         {
             foreach(var cpu in cpuById.Values.OfType<ICPUWithMappedMemory>())
             {
-                cpu.ClearPageAccessViaIo(address);
+                cpu.ClearPageAccessViaIo(physicalAddress);
             }
         }
 

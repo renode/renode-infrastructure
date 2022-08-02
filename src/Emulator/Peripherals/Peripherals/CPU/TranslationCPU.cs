@@ -424,14 +424,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void SetPageAccessViaIo(ulong address)
+        public void SetPageAccessViaIo(ulong physicalAddress)
         {
-            TlibSetPageIoAccessed(address);
+            TlibSetPageIoAccessed(physicalAddress);
         }
 
-        public void ClearPageAccessViaIo(ulong address)
+        public void ClearPageAccessViaIo(ulong physicalAddress)
         {
-            TlibClearPageIoAccessed(address);
+            TlibClearPageIoAccessed(physicalAddress);
         }
 
         public bool DisableInterruptsWhileStepping { get; set; }
