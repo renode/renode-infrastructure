@@ -20,24 +20,19 @@ namespace Antmicro.Renode.Extensions.Mocks
 {
     public static class HPSHostControllerExtensions
     {
-        public static void AddHPSHostController(this Emulation emulation, string name = "HPSHostController")
+        public static void AddHPSHostController(this Emulation emulation, STM32F7_I2C device, string name = "HPSHostController")
         {
-            emulation.HostMachine.AddHostMachineElement(new HPSHostController(), name);
+            emulation.HostMachine.AddHostMachineElement(new HPSHostController(device), name);
         }
     }
 
-    public class HPSHostController : IHostMachineElement, IConnectable<II2CPeripheral>
+    public class HPSHostController : IHostMachineElement
     {
-        public void AttachTo(II2CPeripheral obj)
+        public HPSHostController(STM32F7_I2C device)
         {
-            currentSlave = obj;
+              currentSlave = device;
         }
-
-        public void DetachFrom(II2CPeripheral obj)
-        {
-            currentSlave = null;
-        }
-
+        
         public void FlashMCU(ReadFilePath path)
         {
             var address = 0;
@@ -329,18 +324,20 @@ namespace Antmicro.Renode.Extensions.Mocks
         // This method is for getting OA1EN, 
         // returns true when OA1EN is enabled.
         private bool OA1ENEnabled(){
-            return currentDoubleSlave.ReadDoubleWord(0x08) >> 15 != 0x00;
+            return currentSlave.ReadDoubleWord(0x08) >> 15 != 0x00;
         }
 
         // This method is for getting RXEN,
-        // returns true when the buffer is empty.
+        // returns true when the buffer is empty,
         private bool RXNECleared(){
-            return (currentDoubleSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
+            return (currentSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
         }
         
+        private delegate bool RegisterBitAccessDeligate();
+
         private void PollForRegisterBit(RegisterBitName bitName){
             int i = 0;
-            Func<bool> registerAccess;
+            RegisterBitAccessDeligate registerAccess;
             switch(bitName){
                 case RegisterBitName.OA1EN:
                     registerAccess = OA1ENEnabled;
@@ -349,10 +346,11 @@ namespace Antmicro.Renode.Extensions.Mocks
                     registerAccess = RXNECleared;
                     break;
                 default:
-                    throw new RecoverableException("Register bit name does not exist.");
+                    registerAccess = null;
+                    break;
             }
             while(!registerAccess() && i < 8){
-                Thread.Sleep(100);
+                Thread.Sleep(500);
                 i ++;
             }
         }
@@ -365,7 +363,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             }
             currentSlave.Write(data);
         }
-
+ 
         private string[,] FormatSystemStatus(byte[] data)
         {
             if(data.Length != 2)
@@ -496,8 +494,8 @@ namespace Antmicro.Renode.Extensions.Mocks
             return table.ToArray();
         }
 
-        private II2CPeripheral currentSlave;
-        private IDoubleWordPeripheral currentDoubleSlave => currentSlave as IDoubleWordPeripheral;
+
+        private STM32F7_I2C currentSlave;
 
         private enum Commands
         {
@@ -546,7 +544,12 @@ namespace Antmicro.Renode.Extensions.Mocks
             LaunchApplication = 4,
             EraseStage1 = 8,
             EraseSPIFlash = 16,
-
+        }
+        
+        private enum RegisterBitName
+        {
+            OA1EN = 1,
+            RXNE = 2,
         }
 
         private enum RegisterBitName
