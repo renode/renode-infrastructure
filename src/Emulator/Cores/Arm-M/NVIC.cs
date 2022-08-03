@@ -20,7 +20,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class NVIC : IDoubleWordPeripheral, IKnownSize, IIRQController
+    public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
         public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF)
         {
@@ -59,6 +59,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public IEnumerable<int> GetEnabledInternalInterrupts()
         {
             return irqs.Take(16).Select((x,i) => new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
+        }
+
+        public long Frequency
+        {
+            get
+            {
+                return systick.Frequency;
+            }
+            set
+            {
+                systick.Frequency = value;
+            }
         }
 
         public int Divider

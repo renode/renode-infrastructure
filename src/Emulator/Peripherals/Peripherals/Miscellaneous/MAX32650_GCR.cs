@@ -13,9 +13,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class MAX32650_GCR : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_GCR(Machine machine) : base(machine)
+        public MAX32650_GCR(Machine machine, IHasFrequency nvic) : base(machine)
         {
             DefineRegisters();
+
+            nvic.Frequency = SysClk;
+            SysClkChanged += (frequency) =>
+            {
+                nvic.Frequency = frequency;
+            };
         }
 
         public Action<long> SysClkChanged;
@@ -34,7 +40,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             Registers.ClockControl.Define(this, 0x0C0C0010)
                 .WithReservedBits(0, 6)
-                .WithValueField(6, 3, out sysclkPrescaler, name: "SYSCLK_PRESCALE")
+                .WithValueField(6, 3, out sysclkPrescaler, name: "SYSCLK_PRESCALE",
+                    changeCallback: (_, __) =>
+                    {
+                        SysClkChanged?.Invoke(SysClk);
+                    })
                 .WithValueField(9, 3, out sysclkSelect, name: "SYSOSC_SEL",
                     changeCallback: (_, __) =>
                     {
