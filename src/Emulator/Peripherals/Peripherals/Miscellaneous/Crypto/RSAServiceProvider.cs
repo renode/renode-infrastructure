@@ -84,6 +84,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             manager.TryWriteBytes((long)RSARegisters.BaseAddress, mBytes);
         }
 
+        public void Reset()
+        {
+            manager.ResetMemories();
+        }
+
         private BigInteger CreateBigInteger(RSARegisters register, uint wordCount)
         {
             manager.TryReadBytes((long)register + ((wordCount - 1) * 4), 1, out var b);
@@ -91,10 +96,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             // if the highest bit of the first byte is set, we effectively add a zero at
             // the beginning of the array, so the data can be interpreted as a positive value.
             var shouldHavePadding = b[0] >= 0x80;
-            var wordBytesLength = shouldHavePadding ? wordCount * 4 + 1 : wordCount * 4;
             manager.TryReadBytes((long)register, (int)(wordCount * 4), out var bytesRead, 4);
             if(shouldHavePadding)
             {
+                var wordBytesLength = shouldHavePadding ? wordCount * 4 + 1 : wordCount * 4;
                 var bytesReadPadded = new byte[wordBytesLength];
                 Array.Copy(bytesRead, 0, bytesReadPadded, 0, (int)(wordCount * 4));
                 return new BigInteger(bytesReadPadded);
@@ -102,14 +107,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             return new BigInteger(bytesRead);
         }
 
-        private void StoreResultBytes(uint modulusLength, byte[] resultBytes, long baseAddress)
+        private void StoreResultBytes(uint length, byte[] resultBytes, long baseAddress)
         {
-            var modulusByteCount = (int)(modulusLength * WordSize);
-            if(resultBytes.Length > modulusByteCount)
+            var byteCount = (int)(length * WordSize);
+            if(resultBytes.Length > byteCount)
             {
                 // BigInteger.ToByteArray might return an array with an extra element
                 // to indicate the sign of resulting value; we need to get rid of it here
-                resultBytes = resultBytes.Take(modulusByteCount).ToArray();
+                resultBytes = resultBytes.Take(byteCount).ToArray();
             }
 
             Misc.EndiannessSwapInPlace(resultBytes, WordSize);
