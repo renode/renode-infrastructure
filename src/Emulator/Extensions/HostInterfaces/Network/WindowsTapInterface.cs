@@ -290,7 +290,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         //Microsoft docs link: https://docs.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
         private const string AdapterRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
         private const string ConnectionRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}";
-        private const int MTU = 1500;
+        private const int MTU = 1522;
         private const string AdapterType = @"root\tap0901";
 
         private bool isInDummyMode;

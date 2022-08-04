@@ -220,7 +220,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private readonly string originalInterfaceNameOrPath;
 
         private static readonly TimeSpan GracePeriod = TimeSpan.FromSeconds(1);
-        private const int Mtu = 1500;
+        private const int Mtu = 1522;
     }
 }
 #endif

@@ -249,7 +249,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         }
 
         private const int DeviceNameBufferSize = 8192;
-        private const int MTU = 1514;
+        private const int MTU = 1522;
 
         [Transient]
         private bool active;
