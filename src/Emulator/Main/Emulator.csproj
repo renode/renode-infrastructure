@@ -560,6 +560,7 @@
     <Compile Include="Utilities\FilePath.cs" />
     <Compile Include="Peripherals\CPU\CpuAbortException.cs" />
     <Compile Include="Peripherals\IHasFrequency.cs" />
+    <Compile Include="Peripherals\Sensor\SensorSamplesPacket.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
