@@ -46,6 +46,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        public virtual void Reset()
+        {
+            currentSample = null;
+            samplesFifo.Clear();
+        }
+
         public bool TryDequeueNewSample()
         {
             return samplesFifo.TryDequeue(out currentSample);
