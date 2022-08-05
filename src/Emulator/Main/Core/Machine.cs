@@ -892,6 +892,33 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void ScheduleAction(TimeInterval when, Action<TimeInterval> action, string name = null)
+        {
+            if(SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+            }
+            else
+            {
+                this.Log(LogLevel.Debug, "Couldn't synchronize time before scheduling action; a slight inaccuracy might occur.");
+            }
+
+            var currentTime = ElapsedVirtualTime.TimeElapsed;
+            if(when < currentTime)
+            {
+                throw new RecoverableException($"The Action can't be scheduled in the past (requested: {when}; current time: {currentTime})");
+            }
+
+            Action clockEntryHandler = () =>
+            {
+                this.Log(LogLevel.Noisy, "{0}: Executing action scheduled at {1} (current time: {2})", name ?? "unnamed", when, currentTime);
+                action(when);
+            };
+
+            var ticksToAction = (when - currentTime).Ticks;
+            ClockSource.AddClockEntry(new ClockEntry(ticksToAction, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
+        }
+
         public Profiler Profiler { get; private set; }
 
         public IPeripheral this[string name]
