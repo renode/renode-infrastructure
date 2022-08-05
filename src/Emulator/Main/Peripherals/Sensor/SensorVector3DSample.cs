@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Antmicro.Renode.Peripherals.Sensors
@@ -20,6 +21,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
             X = x;
             Y = y;
             Z = z;
+        }
+
+        public override void Load(IList<decimal> data)
+        {
+            if(data.Count != Dimensions)
+            {
+                throw new Exceptions.RecoverableException($"Tried to create a {Dimensions}-dimensional Vector3DSample using {data.Count} values");
+            }
+
+            X = data[0];
+            Y = data[1];
+            Z = data[2];
         }
 
         public override bool TryLoad(params string[] data)
@@ -48,5 +61,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public decimal X { get; set; }
         public decimal Y { get; set; }
         public decimal Z { get; set; }
+
+        public const int Dimensions = 3;
     }
 }
