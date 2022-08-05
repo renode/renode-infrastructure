@@ -1415,6 +1415,22 @@ namespace Antmicro.Renode.Utilities
             Buffer.BlockCopy(data, 0, dataAsBytes, 0, outLength);
             return dataAsBytes;
         }
+
+        public static T ReadStruct<T>(this Stream @this) where T : struct
+        {
+            var structSize = Marshal.SizeOf(typeof(T));
+            return @this.ReadBytes(structSize).ToStruct<T>();
+        }
+
+        public static T ToStruct<T>(this byte[] @this) where T : struct
+        {
+            var size = @this.Length;
+            var bufferPointer = Marshal.AllocHGlobal(size);
+            Marshal.Copy(@this, 0, bufferPointer, size);
+            var result = (T)Marshal.PtrToStructure(bufferPointer, typeof(T));
+            Marshal.FreeHGlobal(bufferPointer);
+            return result;
+        }
     }
 }
 
