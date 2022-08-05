@@ -470,7 +470,7 @@ namespace Antmicro.Renode.Time
                 var elapsedThisTime = currentTimestamp - elapsedAtLastUpdate;
                 elapsedAtLastUpdate = currentTimestamp;
                 
-                this.Trace($"Updating virtual time by {virtualTimeElapsed.InMicroseconds} us");
+                this.Trace($"Updating virtual time by {virtualTimeElapsed.TotalMicroseconds} us");
                 this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
                 this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
             }

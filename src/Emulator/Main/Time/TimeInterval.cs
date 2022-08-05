@@ -220,7 +220,7 @@ namespace Antmicro.Renode.Time
         public double TotalSeconds { get { return ticks / (double)TicksPerSecond; } }
         public double TotalMilliseconds { get { return ticks / (double)TicksPerMillisecond; }}
 
-        public ulong InMicroseconds { get { return ticks / TicksPerMicrosecond; } }
+        public ulong TotalMicroseconds { get { return ticks / TicksPerMicrosecond; } }
 
         public const ulong TicksPerSecond = TicksPerMicrosecond * 1000000;
         public const ulong TicksPerMillisecond = TicksPerMicrosecond * 1000;
