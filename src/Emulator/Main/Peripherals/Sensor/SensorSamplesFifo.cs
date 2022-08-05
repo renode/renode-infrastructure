@@ -9,8 +9,11 @@ using System;
 using System.Linq;
 using System.IO;
 using System.Collections.Generic;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -34,6 +37,33 @@ namespace Antmicro.Renode.Peripherals.Sensors
             lock(samplesFifo)
             {
                 samplesFifo.Enqueue(sample);
+            }
+        }
+
+        public void FeedSamplesFromBinaryFile(Machine machine, IPeripheral owner, string name, string path, string delayString, Func<List<decimal>, T> sampleConstructor = null)
+        {
+            if(sampleConstructor == null)
+            {
+                sampleConstructor = values =>
+                {
+                    var sample = new T();
+                    sample.Load(values);
+                    return sample;
+                };
+            }
+
+            if(!TimeInterval.TryParse(delayString, out var delay))
+            {
+                throw new RecoverableException($"Invalid delay: {delayString}");
+            }
+            TimeInterval? firstPacketStartTime = null;
+
+            var packets = SensorSamplesPacket<T>.ParseFile(path, sampleConstructor);
+            foreach(var packet in packets)
+            {
+                firstPacketStartTime = firstPacketStartTime ?? packet.StartTime;
+                var startTime = packet.StartTime - firstPacketStartTime.Value + delay;
+                FeedSamplesPeriodically(machine, owner, name, startTime, packet.Frequency, packet.Samples);
             }
         }
 
@@ -71,6 +101,31 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public T DefaultSample { get; } = new T();
 
         public uint SamplesCount => (uint)samplesFifo.Count;
+
+        private void FeedSamplesPeriodically(Machine machine, IPeripheral owner, string name, TimeInterval startTime, uint frequency, Queue<T> samples)
+        {
+            owner.Log(LogLevel.Noisy, "{0}: {1} samples will be fed at {2} Hz starting at {3:c}", name, samples.Count, frequency, startTime.ToTimeSpan());
+
+            Action feedSample = () =>
+            {
+                var sample = samples.Dequeue();
+                owner.Log(LogLevel.Noisy, "{0} {1}: Feeding sample: {2}; samples left: {3}", machine.ElapsedVirtualTime.TimeElapsed, name, sample, samples.Count);
+                FeedSample(sample);
+            };
+
+            Func<bool> stopCondition = () =>
+            {
+                if(samples.Count == 0)
+                {
+                    owner.Log(LogLevel.Noisy, "{0} {1}: All samples fed", machine.ElapsedVirtualTime.TimeElapsed, name);
+                    return true;
+                }
+                return false;
+            };
+
+            var thread = machine.ObtainManagedThread(feedSample, frequency, name + " sample loader", owner, stopCondition);
+            thread.StartAt(startTime);
+        }
 
         private IEnumerable<T> ParseSamplesFile(string path, Func<string[], T> sampleConstructor)
         {
