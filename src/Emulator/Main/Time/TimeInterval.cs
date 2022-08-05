@@ -81,6 +81,11 @@ namespace Antmicro.Renode.Time
             return FromTicks((ulong)(v * TimeInterval.TicksPerSecond));
         }
 
+        public static TimeInterval FromSeconds(double v)
+        {
+            return FromTicks((ulong)(v * TimeInterval.TicksPerSecond));
+        }
+
         public static TimeInterval FromMinutes(ulong v)
         {
             return FromSeconds(v * 60);
