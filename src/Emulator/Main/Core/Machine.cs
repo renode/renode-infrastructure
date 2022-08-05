@@ -523,36 +523,48 @@ namespace Antmicro.Renode.Core
 
         public IManagedThread ObtainManagedThread(Action action, int frequency, string name = "managed thread", IEmulationElement owner = null)
         {
-            var ce = new ClockEntry(1, frequency, action, owner ?? this, name, enabled: false);
-            ClockSource.AddClockEntry(ce);
-            return new ManagedThreadWrappingClockEntry(ClockSource, action);
+            return new ManagedThreadWrappingClockEntry(this, action, frequency, name, owner);
         }
 
         private class ManagedThreadWrappingClockEntry : IManagedThread
         {
-            public ManagedThreadWrappingClockEntry(IClockSource cs, Action action)
+            public ManagedThreadWrappingClockEntry(Machine machine, Action action, uint frequency, string name, IEmulationElement owner)
             {
-                clockSource = cs;
                 this.action = action;
+                this.frequency = frequency;
+                this.machine = machine;
+                this.name = name;
+                this.owner = owner ?? machine;
             }
 
             public void Dispose()
             {
-                clockSource.TryRemoveClockEntry(action);
+                machine.ClockSource.TryRemoveClockEntry(action);
             }
 
             public void Start()
             {
-                clockSource.ExchangeClockEntryWith(action, x => x.With(enabled: true));
+                machine.ClockSource.ExchangeClockEntryWith(
+                    action, x => x.With(enabled: true),
+                    factoryIfNonExistent: () => { clockEntryAdded = true; return new ClockEntry(1, frequency, action, owner, name, enabled: true); }
+                );
             }
 
             public void Stop()
             {
-                clockSource.ExchangeClockEntryWith(action, x => x.With(enabled: false));
+                if(clockEntryAdded)
+                {
+                    machine.ClockSource.ExchangeClockEntryWith(action, x => x.With(enabled: false));
+                }
             }
 
-            private readonly IClockSource clockSource;
+            private bool clockEntryAdded;
+
             private readonly Action action;
+            private readonly uint frequency;
+            private readonly Machine machine;
+            private readonly string name;
+            private readonly IEmulationElement owner;
         }
 
         private BaseClockSource clockSource;
