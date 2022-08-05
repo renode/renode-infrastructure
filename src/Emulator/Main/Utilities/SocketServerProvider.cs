@@ -61,6 +61,7 @@ namespace Antmicro.Renode.Utilities
             socket?.Close();
             stopRequested = true;
             listenerThread?.Join();
+            listenerThread = null;
         }
 
         public void Dispose()
@@ -224,7 +225,6 @@ namespace Antmicro.Renode.Utilities
 
                 writerThread = null;
                 readerThread = null;
-                listenerThread = null;
 
                 var connectionClosed = ConnectionClosed;
                 if(connectionClosed != null)
