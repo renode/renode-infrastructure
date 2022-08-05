@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             return (directionOutNotIn[id])
                                 ? data[id]
-                                : Connections[id].IsSet;
+                                : State[id];
                         })
                     .WithWriteCallback((_, __) => UpdateConnections())
                 },
@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
                 {(long)Registers.PadStatus, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, FieldMode.Read, name: "PSR / GPIO pad status register",
-                        valueProviderCallback: (id, _) => Connections[id].IsSet)
+                        valueProviderCallback: (id, _) => State[id])
                 },
                 {(long)Registers.Mask, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "IMR / GPIO interrupt mask register",
