@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public Vector3DSample()
         {
         }
-        
+
         public Vector3DSample(decimal x, decimal y, decimal z)
         {
             X = x;

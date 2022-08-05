@@ -7,7 +7,7 @@
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public abstract class SensorSample 
+    public abstract class SensorSample
     {
         public abstract bool TryLoad(params string[] data);
     }

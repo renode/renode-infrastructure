@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public ScalarSample()
         {
         }
-        
+
         public ScalarSample(decimal value)
         {
             Value = value;
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public override bool TryLoad(params string[] data)
         {
             var value = 0m;
-            
+
             var result = data.Length == 1
                     && decimal.TryParse(data[0], NumberStyles.Any, CultureInfo.InvariantCulture, out value);
 
