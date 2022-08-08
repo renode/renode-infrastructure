@@ -448,15 +448,9 @@
     <Compile Include="Peripherals\GPIOPort\MAX32650_GPIO.cs" />
     <Compile Include="Peripherals\Analog\MAX32650_ADC.cs" />
     <Compile Include="Peripherals\Mocks\HPSHostController.cs" />
-<<<<<<< HEAD
     <Compile Include="Peripherals\Miscellaneous\MAX32650_TPU.cs" />
     <Compile Include="Peripherals\SPI\MAX32650_SPI.cs" />
-<<<<<<< HEAD
     <Compile Include="Peripherals\Miscellaneous\BitAccess.cs" />
-=======
-=======
->>>>>>> a8d98510 ([DEV] Move HPSHostController to the Peripherals project)
->>>>>>> a792712f ([DEV] Move HPSHostController to the Peripherals project)
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

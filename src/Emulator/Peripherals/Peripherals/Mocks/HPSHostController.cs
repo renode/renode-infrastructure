@@ -326,11 +326,11 @@ namespace Antmicro.Renode.Extensions.Mocks
         private bool OA1ENEnabled(){
             return currentSlave.ReadDoubleWord(0x08) >> 15 != 0x00;
         }
-
+        
         // This method is for getting RXEN,
         // returns true when the buffer is empty.
         private bool RXNECleared(){
-            return (currentSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
+            return (currentDoubleSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
         }
         
         private void PollForRegisterBit(RegisterBitName bitName){
@@ -347,7 +347,7 @@ namespace Antmicro.Renode.Extensions.Mocks
                     throw new RecoverableException("Register bit name does not exist.");
             }
             while(!registerAccess() && i < 8){
-                Thread.Sleep(100);
+                Thread.Sleep(500);
                 i ++;
             }
         }
