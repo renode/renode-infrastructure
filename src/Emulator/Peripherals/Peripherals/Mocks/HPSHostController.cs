@@ -10,6 +10,7 @@ using System.IO;
 using System.Threading;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
@@ -57,8 +58,8 @@ namespace Antmicro.Renode.Extensions.Mocks
                 IssueCommand(data);
 
                 currentSlave.Read(0);
-                // The software needs time to handle the data
-                Thread.Sleep(200);
+                // Poll until all the bytes are written
+                PollForRegisterBit(RegisterBitName.RXNE);
 
                 address += 256;
                 left -= batchSize;
@@ -325,6 +326,37 @@ namespace Antmicro.Renode.Extensions.Mocks
             return result;
         }
 
+        // This method is for getting OA1EN, 
+        // returns true when OA1EN is enabled.
+        private bool OA1ENEnabled(){
+            return currentDoubleSlave.ReadDoubleWord(0x08) >> 15 != 0x00;
+        }
+
+        // This method is for getting RXEN,
+        // returns true when the buffer is empty.
+        private bool RXNECleared(){
+            return (currentDoubleSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
+        }
+        
+        private void PollForRegisterBit(RegisterBitName bitName){
+            int i = 0;
+            Func<bool> registerAccess;
+            switch(bitName){
+                case RegisterBitName.OA1EN:
+                    registerAccess = OA1ENEnabled;
+                    break;
+                case RegisterBitName.RXNE:
+                    registerAccess = RXNECleared;
+                    break;
+                default:
+                    throw new RecoverableException("Register bit name does not exist.");
+            }
+            while(!registerAccess() && i < 8){
+                Thread.Sleep(100);
+                i ++;
+            }
+        }
+
         private void IssueCommand(byte[] data)
         {
             if(currentSlave == null)
@@ -465,6 +497,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         }
 
         private II2CPeripheral currentSlave;
+        private IDoubleWordPeripheral currentDoubleSlave => currentSlave as IDoubleWordPeripheral;
 
         private enum Commands
         {
@@ -514,6 +547,12 @@ namespace Antmicro.Renode.Extensions.Mocks
             EraseStage1 = 8,
             EraseSPIFlash = 16,
 
+        }
+
+        private enum RegisterBitName
+        {
+            OA1EN = 1,
+            RXNE = 2,
         }
     }
 }
