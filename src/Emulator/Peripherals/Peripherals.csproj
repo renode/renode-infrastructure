@@ -451,6 +451,7 @@
     <Compile Include="Peripherals\Miscellaneous\MAX32650_TPU.cs" />
     <Compile Include="Peripherals\SPI\MAX32650_SPI.cs" />
     <Compile Include="Peripherals\Miscellaneous\BitAccess.cs" />
+    <Compile Include="Peripherals\Timers\MAX32650_WDT.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
