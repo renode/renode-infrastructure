@@ -328,16 +328,14 @@ namespace Antmicro.Renode.Extensions.Mocks
         }
 
         // This method is for getting RXEN,
-        // returns true when the buffer is empty,
+        // returns true when the buffer is empty.
         private bool RXNECleared(){
             return (currentSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
         }
         
-        private delegate bool RegisterBitAccessDeligate();
-
         private void PollForRegisterBit(RegisterBitName bitName){
             int i = 0;
-            RegisterBitAccessDeligate registerAccess;
+            Func<bool> registerAccess;
             switch(bitName){
                 case RegisterBitName.OA1EN:
                     registerAccess = OA1ENEnabled;
@@ -346,11 +344,10 @@ namespace Antmicro.Renode.Extensions.Mocks
                     registerAccess = RXNECleared;
                     break;
                 default:
-                    registerAccess = null;
-                    break;
+                    throw new RecoverableException("Register bit name does not exist.");
             }
             while(!registerAccess() && i < 8){
-                Thread.Sleep(500);
+                Thread.Sleep(100);
                 i ++;
             }
         }
@@ -494,7 +491,6 @@ namespace Antmicro.Renode.Extensions.Mocks
             return table.ToArray();
         }
 
-
         private STM32F7_I2C currentSlave;
 
         private enum Commands
@@ -544,12 +540,6 @@ namespace Antmicro.Renode.Extensions.Mocks
             LaunchApplication = 4,
             EraseStage1 = 8,
             EraseSPIFlash = 16,
-        }
-        
-        private enum RegisterBitName
-        {
-            OA1EN = 1,
-            RXNE = 2,
         }
 
         private enum RegisterBitName
