@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
     public class OpenTitan_ROMController : IDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_ROMController(MappedMemory rom, ulong nonce, ulong keyLow, ulong keyHigh)
+        public OpenTitan_ROMController(MappedMemory rom, string nonce, string key)
         {
             this.rom = rom;
             romLengthInWords = (ulong)rom.Size / 4;
@@ -36,8 +36,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 throw new ConstructionException("Provided rom's size has to be divisible by word size (4)");
             }
 
-            KeyLow = keyLow;
-            KeyHigh = keyHigh;
+            Key = key;
             Nonce = nonce;
             
             digest = new byte[NumberOfDigestRegisters * 4];
@@ -87,18 +86,39 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         public IEnumerable<byte> Digest => digest;
         
-        public ulong Nonce
+        public string Nonce
         {
             set
             {
-                addressKey = value >> (64 - romIndexWidth);
-                dataNonce = value << romIndexWidth;
+                ulong[] temp;
+                if(!Misc.TryParseHexString(value, out temp, sizeof(ulong), endiannessSwap: true))
+                {
+                    throw new RecoverableException("Unable to parse value. Incorrect Length");
+                }
+
+                addressKey = temp[0] >> (64 - romIndexWidth);
+                dataNonce = temp[0] << romIndexWidth;
+            }
+            get
+            {
+                return "{0:X16}".FormatWith((dataNonce >> romIndexWidth) | (addressKey << (64 - romIndexWidth)));
             }
         }
 
-        public ulong KeyLow { get; set; }
-        
-        public ulong KeyHigh { get; set; }
+        public string Key
+        {
+            set
+            {
+                if(!Misc.TryParseHexString(value, out key, sizeof(ulong), endiannessSwap: true))
+                {
+                    throw new RecoverableException("Unable to parse value. Incorrect Length");
+                }
+            }
+            get
+            {
+                return key.Select(x => "{0:X16}".FormatWith(x)).Stringify();
+            }
+        }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
@@ -149,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             // data's width is 32 bits of proper data and 7 bits of ECC
             var dataPresent = PRESENTCipher.Descramble(data, 0, 32 + 7, NumberOfScramblingRounds);
-            var dataPrince = PRINCECipher.Scramble(index | dataNonce, KeyLow, KeyHigh, rounds: 6);
+            var dataPrince = PRINCECipher.Scramble(index | dataNonce, key[1], key[0], rounds: 6);
             var descrabled = (uint)(dataPresent ^ dataPrince);
             if(index < romLengthInWords - 8 && !ECCHsiao.CheckECC(descrabled))
             {
@@ -184,6 +204,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private readonly byte[] digest;
         private readonly byte[] expectedDigest;
+        private ulong[] key;
 
         private IFlagRegisterField checkerError;
         private IFlagRegisterField integrityError;

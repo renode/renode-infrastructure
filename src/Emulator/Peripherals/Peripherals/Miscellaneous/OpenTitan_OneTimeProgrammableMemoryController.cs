@@ -404,28 +404,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private ushort[] SplitValueChainIntoWordsArray(string valueChain)
         {
-            var stringLength = valueChain.Length;
-            if(stringLength % 4 != 0)
+            ushort[] outputArray;
+            if(!Misc.TryParseHexString(valueChain, out outputArray, sizeof(ushort)))
             {
-                throw new ConstructionException($"Values chain string must consist of ordered 4 character hex values. Length {stringLength} uncorrect");
+                throw new ConstructionException($"Values chain string must consist of ordered 4 character hex values. Length incorrect");
             }
-            var chainElements = stringLength / 4;
-            var output = new ushort[chainElements];
-            int indexStart = 0;
-            try
-            {
-                for(int elementIndex = 0; elementIndex < chainElements; elementIndex++)
-                {
-                    indexStart = elementIndex * 4;
-                    output[elementIndex] = UInt16.Parse(valueChain.Substring(indexStart, 4), System.Globalization.NumberStyles.HexNumber);
-                }
-            }
-            catch(FormatException)
-            {
-                throw new ConstructionException(String.Concat("Values chain string must consist of ordered 4 character hex values. ",
-                                                $"Format incorrect between characters {indexStart} - {indexStart + 4} : \"{valueChain.Substring(indexStart, indexStart + 4)}\""));
-            }
-            return output;
+            return outputArray;
         }
 
         /*

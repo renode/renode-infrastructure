@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -99,31 +99,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public GPIO OperationDoneIRQ { get; }
 
-        private static IEnumerable<byte> ParseHexstring(string value)
-        {
-            var chars = value.AsEnumerable(); 
-            if(value.StartsWith("0x"))
-            {
-                chars = chars.Skip(2);
-            }
-            var i = value.Length % 2;
-            return chars.GroupBy(c => i++ / 2).Select(c => byte.Parse(string.Join("", c), NumberStyles.HexNumber));
-        }
-
         static private byte[] ConstructorParseHexstringArgument(string fieldName, string value, int expectedLength)
         {
             byte[] field;
+            var lengthInBytes = value.Length / 2;
+            if(lengthInBytes != expectedLength)
+            {
+                throw new ConstructionException($"Expected `{fieldName}`'s size is {expectedLength} bytes, got {lengthInBytes}");
+            }
             try
             {
-                field = ParseHexstring(value).ToArray();
+                field = Misc.HexStringToByteArray(value);
             }
-            catch(FormatException)
+            catch
             {
                 throw new ConstructionException($"Could not parse `{fieldName}`: Expected hexstring, got: \"{value}\"");
-            }
-            if(field.Length != expectedLength)
-            {
-                throw new ConstructionException($"Expected `{fieldName}`'s size is {expectedLength} bytes, got {field.Length}");
             }
             return field;
         }
