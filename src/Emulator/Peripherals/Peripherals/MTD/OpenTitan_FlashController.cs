@@ -174,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithValueField(9, 10, out mpRegionSize[i], name: $"SIZE_{i}")
                     .WithReservedBits(19, 13));
             }
-            
+
             Registers.DefaultRegionConfiguration.Define(this)
                 .WithEnumField<DoubleWordRegister, MultiBitBool4>(0, 4, out defaultMpRegionReadEnabled, name: "RD_EN")
                 .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out defaultMpRegionProgEnabled, name: "PROG_EN")
@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     }
                 }
             }
-            
+
             // TODO(julianmb): support register write enable. this isnt tested in the unittests currently
             Registers.BankConfigurationEnable.Define(this, 0x1)
                 .WithTaggedFlag("BANK", 0)
@@ -223,8 +223,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             Registers.BankConfiguration.Define(this)
                 .WithFlag(0, out eraseBank0, name: "ERASE_EN_0")
                 .WithFlag(1, out eraseBank1, name: "ERASE_EN_1")
-            
                 .WithReservedBits(2, 30);
+
             Registers.FlashOperationStatus.Define(this)
                 .WithFlag(0, out opStatusRegisterDoneFlag, name: "done")
                 .WithFlag(1, out opStatusRegisterErrorFlag, name: "err")
@@ -274,6 +274,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTaggedFlag("prog_normal_avail", 1)
                 .WithTaggedFlag("prog_repair_avail", 2)
                 .WithReservedBits(3, 29);
+
             Registers.Scratch.Define(this)
                 .WithTag("data", 0, 32);
 
@@ -490,7 +491,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             this.Log(
                 LogLevel.Noisy,
-                "OpenTitan_FlashController/StartEraseOperation: eraseing {0}",
+                "OpenTitan_FlashController/StartEraseOperation: erasing {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
             var offset = address.Value;
@@ -818,7 +819,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IFlagRegisterField flashSelectBankEraseMode;
         private readonly IFlagRegisterField flashSelectPartition;
         private readonly IValueRegisterField flashSelectInfo;
-        
+
         private readonly IFlagRegisterField eraseBank0;
         private readonly IFlagRegisterField eraseBank1;
 
