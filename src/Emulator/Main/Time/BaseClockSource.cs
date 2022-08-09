@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Time
             toNotify = new List<Action>();
             nearestLimitIn = TimeInterval.Maximal;
             sync = new object();
+            reupdateNeeded = new ThreadLocal<bool>();
             updateAlreadyInProgress = new ThreadLocal<bool>();
         }
 
@@ -313,7 +314,23 @@ namespace Antmicro.Renode.Time
                     nearestLimitIn -= time;
                     return;
                 }
-                Update(elapsed);
+
+                if(updateAlreadyInProgress.Value)
+                {
+                    reupdateNeeded.Value = true;
+                }
+                else
+                {
+                    var alreadyRunHandlers = new List<Action>();
+                    Update(elapsed, ref alreadyRunHandlers);
+                    // Check if another update was attempted in the meantime, e.g., a clock entry was updated within the handlers.
+                    while(reupdateNeeded.Value)
+                    {
+                        reupdateNeeded.Value = false;
+                        Update(TimeInterval.Empty, ref alreadyRunHandlers);
+                    }
+                }
+
                 elapsed = TimeInterval.Empty;
             }
         }
@@ -332,7 +349,7 @@ namespace Antmicro.Renode.Time
             AdvanceInner(TimeInterval.Empty, true);
         }
 
-        private void Update(TimeInterval time)
+        private void Update(TimeInterval time, ref List<Action> alreadyRunHandlers)
         {
             if(updateAlreadyInProgress.Value)
             {
@@ -352,7 +369,7 @@ namespace Antmicro.Renode.Time
                         {
                             continue;
                         }
-                        if(updateHandler(ref clockEntry, time, ref nearestLimitIn))
+                        if(updateHandler(ref clockEntry, time, ref nearestLimitIn) && !alreadyRunHandlers.Contains(clockEntry.Handler))
                         {
                             toNotify.Add(clockEntry.Handler);
                         }
@@ -364,6 +381,7 @@ namespace Antmicro.Renode.Time
                     foreach(var action in toNotify)
                     {
                         action();
+                        alreadyRunHandlers.Add(action);
                     }
                 }
                 finally
@@ -403,6 +421,8 @@ namespace Antmicro.Renode.Time
             }
         }
 
+        [Constructor]
+        private ThreadLocal<bool> reupdateNeeded;
         [Constructor]
         private ThreadLocal<bool> updateAlreadyInProgress;
 
