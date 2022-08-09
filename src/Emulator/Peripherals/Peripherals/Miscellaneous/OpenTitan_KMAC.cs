@@ -313,10 +313,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("entropy_mode", 16, 2)
                     .WithReservedBits(18, 1)
                     .WithTaggedFlag("entropy_fast_process", 19)
-                    .WithReservedBits(20, 4)
+                    .WithTaggedFlag("msg_mask", 20)
+                    .WithReservedBits(21, 3)
                     .WithTaggedFlag("entropy_ready", 24)
                     .WithTaggedFlag("err_processed", 25)
-                    .WithReservedBits(26, 6)
+                    .WithTaggedFlag("en_unsupported_modestrength", 26)
+                    .WithReservedBits(27, 5)
                 },
                 {(long)Registers.Command, new DoubleWordRegister(this)
                     .WithEnumField<DoubleWordRegister, Command>(0, 4, writeCallback: (_, val) => { RunCommand(val); }, valueProviderCallback: _ => 0x0, name: "cmd")
@@ -342,16 +344,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithReservedBits(10, 6)
                     .WithTag("wait_timer", 16, 16)
                 },
-                {(long)Registers.EntropyRefresh, new DoubleWordRegister(this)
-                    .WithTag("threshold", 0, 10)
-                    .WithReservedBits(10, 6)
-                    .WithTag("hash_cnt", 16, 10)
-                    .WithReservedBits(26, 6)
+                {(long)Registers.EntropyRefreshCounter, new DoubleWordRegister(this)
+                    .WithTag("hash_cnt", 0, 10)
+                    .WithReservedBits(10, 22)
                 },
-                {(long)Registers.EntropySeedLower, new DoubleWordRegister(this)
+                {(long)Registers.EntropyRefreshThreshold, new DoubleWordRegister(this)
+                    .WithTag("threshold", 0, 10)
+                    .WithReservedBits(10, 22)
+                },
+                {(long)Registers.EntropySeed0, new DoubleWordRegister(this)
                     .WithTag("seed", 0, 32)
                 },
-                {(long)Registers.EntropySeedUpper, new DoubleWordRegister(this)
+                {(long)Registers.EntropySeed1, new DoubleWordRegister(this)
+                    .WithTag("seed", 0, 32)
+                },
+                {(long)Registers.EntropySeed2, new DoubleWordRegister(this)
+                    .WithTag("seed", 0, 32)
+                },
+                {(long)Registers.EntropySeed3, new DoubleWordRegister(this)
+                    .WithTag("seed", 0, 32)
+                },
+                {(long)Registers.EntropySeed4, new DoubleWordRegister(this)
                     .WithTag("seed", 0, 32)
                 },
                 // KeyShareN_M Registers
@@ -845,54 +858,58 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Command                     = 0x18,
             Status                      = 0x1C,
             EntropyTimerPeriods         = 0x20,
-            EntropyRefresh              = 0x24,
-            EntropySeedLower            = 0x28,
-            EntropySeedUpper            = 0x2C,
-            KeyShare0_0                 = 0x30,
-            KeyShare0_1                 = 0x34,
-            KeyShare0_2                 = 0x38,
-            KeyShare0_3                 = 0x3C,
-            KeyShare0_4                 = 0x40,
-            KeyShare0_5                 = 0x44,
-            KeyShare0_6                 = 0x48,
-            KeyShare0_7                 = 0x4C,
-            KeyShare0_8                 = 0x50,
-            KeyShare0_9                 = 0x54,
-            KeyShare0_10                = 0x58,
-            KeyShare0_11                = 0x5C,
-            KeyShare0_12                = 0x60,
-            KeyShare0_13                = 0x64,
-            KeyShare0_14                = 0x68,
-            KeyShare0_15                = 0x6C,
-            KeyShare1_0                 = 0x70,
-            KeyShare1_1                 = 0x74,
-            KeyShare1_2                 = 0x78,
-            KeyShare1_3                 = 0x7C,
-            KeyShare1_4                 = 0x80,
-            KeyShare1_5                 = 0x84,
-            KeyShare1_6                 = 0x88,
-            KeyShare1_7                 = 0x8C,
-            KeyShare1_8                 = 0x90,
-            KeyShare1_9                 = 0x94,
-            KeyShare1_10                = 0x98,
-            KeyShare1_11                = 0x9C,
-            KeyShare1_12                = 0xA0,
-            KeyShare1_13                = 0xA4,
-            KeyShare1_14                = 0xA8,
-            KeyShare1_15                = 0xAC,
-            KeyLength                   = 0xB0,
-            Prefix0                     = 0xB4,
-            Prefix1                     = 0xB8,
-            Prefix2                     = 0xBC,
-            Prefix3                     = 0xC0,
-            Prefix4                     = 0xC4,
-            Prefix5                     = 0xC8,
-            Prefix6                     = 0xCC,
-            Prefix7                     = 0xD0,
-            Prefix8                     = 0xD4,
-            Prefix9                     = 0xD8,
-            Prefix10                    = 0xDC,
-            ErrorCode                   = 0xE0,
+            EntropyRefreshCounter       = 0x24,
+            EntropyRefreshThreshold     = 0x28,
+            EntropySeed0                = 0x2C,
+            EntropySeed1                = 0x30,
+            EntropySeed2                = 0x34,
+            EntropySeed3                = 0x38,
+            EntropySeed4                = 0x3C,
+            KeyShare0_0                 = 0x40,
+            KeyShare0_1                 = 0x44,
+            KeyShare0_2                 = 0x48,
+            KeyShare0_3                 = 0x4C,
+            KeyShare0_4                 = 0x50,
+            KeyShare0_5                 = 0x54,
+            KeyShare0_6                 = 0x58,
+            KeyShare0_7                 = 0x5C,
+            KeyShare0_8                 = 0x60,
+            KeyShare0_9                 = 0x64,
+            KeyShare0_10                = 0x68,
+            KeyShare0_11                = 0x6C,
+            KeyShare0_12                = 0x70,
+            KeyShare0_13                = 0x74,
+            KeyShare0_14                = 0x78,
+            KeyShare0_15                = 0x7C,
+            KeyShare1_0                 = 0x80,
+            KeyShare1_1                 = 0x84,
+            KeyShare1_2                 = 0x88,
+            KeyShare1_3                 = 0x8C,
+            KeyShare1_4                 = 0x90,
+            KeyShare1_5                 = 0x94,
+            KeyShare1_6                 = 0x98,
+            KeyShare1_7                 = 0x9C,
+            KeyShare1_8                 = 0xA0,
+            KeyShare1_9                 = 0xA4,
+            KeyShare1_10                = 0xA8,
+            KeyShare1_11                = 0xAC,
+            KeyShare1_12                = 0xB0,
+            KeyShare1_13                = 0xB4,
+            KeyShare1_14                = 0xB8,
+            KeyShare1_15                = 0xBC,
+            KeyLength                   = 0xC0,
+            Prefix0                     = 0xC4,
+            Prefix1                     = 0xC8,
+            Prefix2                     = 0xCC,
+            Prefix3                     = 0xD0,
+            Prefix4                     = 0xD4,
+            Prefix5                     = 0xD8,
+            Prefix6                     = 0xDC,
+            Prefix7                     = 0xE0,
+            Prefix8                     = 0xE4,
+            Prefix9                     = 0xE8,
+            Prefix10                    = 0xEC,
+            ErrorCode                   = 0xF0,
             State                       = 0x400,
             StateMask                   = 0x500,
             Fifo                        = 0x800
