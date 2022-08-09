@@ -90,8 +90,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("REGWEN", 0)
                 .WithReservedBits(1, 31);
             Registers.Control.Define(this, 0x999)
-                .WithEnumField<DoubleWordRegister, MultiBitBool>(0, 4, out enabled, name: "ENABLE")
-                .WithEnumField<DoubleWordRegister, MultiBitBool>(4, 4, out genbitsReadEnabled, name: "SW_APP_ENABLE")
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(0, 4, out enabled, name: "ENABLE")
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out genbitsReadEnabled, name: "SW_APP_ENABLE")
                 .WithTag("READ_INT_STATE", 8, 4)
                 .WithReservedBits(12, 20);
             Registers.CommandRequest.Define(this)
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.GenerateBits.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) =>
                 {
-                    if(genbitsReadEnabled.Value == MultiBitBool.False)
+                    if(genbitsReadEnabled.Value == MultiBitBool4.False)
                     {
                         this.Log(LogLevel.Error, "Trying to read the generatedBitsFifo when 'SW_APP_ENABLE' is not set to true");
                         return 0;
@@ -273,7 +273,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void HandleCommandRequestWrite(uint writeValue)
         {
-            if(enabled.Value == MultiBitBool.False)
+            if(enabled.Value == MultiBitBool4.False)
             {
                 this.Log(LogLevel.Error, "Peripheral disabled - will not execute command");
                 return;
@@ -598,8 +598,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField requestFailedFlag;
         private IValueRegisterField internalStateSelection;
 
-        private IEnumRegisterField<MultiBitBool> enabled;
-        private IEnumRegisterField<MultiBitBool> genbitsReadEnabled;
+        private IEnumRegisterField<MultiBitBool4> enabled;
+        private IEnumRegisterField<MultiBitBool4> genbitsReadEnabled;
         private uint appendedDataCount;
         private byte[] fixedData;
         private uint[] seed;
@@ -633,12 +633,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Generate      = 0x3,
             Update        = 0x4,
             Uninstantiate = 0x5,
-        }
-
-        private enum MultiBitBool : byte
-        {
-            True  = 0xA,
-            False = 0x5,
         }
 
         private enum Registers

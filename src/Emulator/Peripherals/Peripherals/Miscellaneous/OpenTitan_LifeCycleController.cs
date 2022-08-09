@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("OTP_PARTITION_ERROR", 8)
                 .WithIgnoredBits(9, 32 - 9);
 
-            Registers.ClaimTransitionIf.Define(this, 0x69)
+            Registers.ClaimTransitionIf.Define(this, (uint)MutexState.MultiBitFalse)
                 .WithEnumField<DoubleWordRegister, MutexState>(0, 8, out mutexState,
                     writeCallback: (_, val) =>
                     {
@@ -290,8 +290,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum MutexState
         {
-            MultiBitTrue  = 0x5A,
-            MultiBitFalse = 0xA5,
+            MultiBitTrue  = MultiBitBool8.True,
+            MultiBitFalse = MultiBitBool8.False,
             Taken         = 0x00,
         }
 

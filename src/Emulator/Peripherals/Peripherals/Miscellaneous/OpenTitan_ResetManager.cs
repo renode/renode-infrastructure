@@ -195,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(4, 28)
                 .WithChangeCallback((_, __) =>
                     {
-                        if(resetRequest.Value == KMULTIBITBOOL4TRUE)
+                        if(resetRequest.Value == (uint)MultiBitBool4.True)
                         {
                             resetRequest.Value = 0;
                             SoftwareRequestedReset();
@@ -256,7 +256,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IPeripheral[] modules;
 
         private const int numberOfModules = 8;
-        private const byte KMULTIBITBOOL4TRUE = 0xA;
 
         public enum GPIOInput
         {
