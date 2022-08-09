@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.OtpVendorTestStatus.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "OTP_VENDOR_TEST_STATUS");
 
-            Registers.OpenTitan_LifeCycleState.Define(this)
+            Registers.LifeCycleState.Define(this)
                 .WithEnumField<DoubleWordRegister, OpenTitan_LifeCycleState>(0, 30, FieldMode.Read, valueProviderCallback: _ => otpController.LifeCycleState, name: "STATE")
                 .WithIgnoredBits(30, 32 - 30);
 
@@ -336,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             TransitionTarget              = 0x28,
             OtpVendorTestControl          = 0x2C,
             OtpVendorTestStatus           = 0x30,
-            OpenTitan_LifeCycleState                = 0x34,
+            LifeCycleState                = 0x34,
             LifeCycleTransitionCounter    = 0x38,
             LifeCycleIdState              = 0x3C,
             DeviceId0                     = 0x40,
