@@ -16,14 +16,11 @@ using System.IO;
 using Dynamitey;
 using System.Text;
 using System.Runtime.InteropServices;
-using System.Linq.Expressions;
 using System.Drawing;
 using Antmicro.Renode.Network;
 using System.Diagnostics;
 using Antmicro.Renode.Core.Structure.Registers;
 using System.Threading;
-using Antmicro.Renode.Debugging;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -393,6 +390,26 @@ namespace Antmicro.Renode.Utilities
         public static byte[] HexStringToByteArray(string hexString)
         {
             return Enumerable.Range(0, hexString.Length).Where(x => x%2 == 0).Select(x => Convert.ToByte(hexString.Substring(x, 2), 16)).ToArray();
+        }
+
+        // Can't use the `sizeof` in the generic code unless it is restricted to unmanaged types, and that's possible only in C#7.0 and newer.
+        // Hence the `elementSize` argument - otherwise it would be replaced with a `sizeof(T)`
+        public static bool TryParseHexString<T>(string hexString, out T[] outArray, int elementSize, bool endiannessSwap=false)
+        {
+            var byteArray = HexStringToByteArray(hexString);
+            var byteLength = byteArray.Length;
+            if(byteLength % elementSize != 0)
+            {
+                outArray = new T[0];
+                return false;
+            }
+            outArray = new T[byteLength / elementSize];
+            if(endiannessSwap)
+            {
+                EndiannessSwapInPlace(byteArray, elementSize);
+            }
+            Buffer.BlockCopy(byteArray, 0, outArray, 0, byteLength);
+            return true;
         }
 
         // MoreLINQ - Extensions to LINQ to Objects
