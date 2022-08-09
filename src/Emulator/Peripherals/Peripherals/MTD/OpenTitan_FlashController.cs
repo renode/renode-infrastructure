@@ -1,21 +1,16 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
-using System.Collections.Generic;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -30,26 +25,26 @@ namespace Antmicro.Renode.Peripherals.MTD
             OperationDoneIRQ = new GPIO();
             CorrectableErrorIRQ = new GPIO();
 
-            mpRegionEnabled = new IFlagRegisterField[NumberOfMpRegions];
+            mpRegionEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
             mpRegionBase = new IValueRegisterField[NumberOfMpRegions];
             mpRegionSize = new IValueRegisterField[NumberOfMpRegions];
-            mpRegionReadEnabled = new IFlagRegisterField[NumberOfMpRegions];
-            mpRegionProgEnabled = new IFlagRegisterField[NumberOfMpRegions];
-            mpRegionEraseEnabled = new IFlagRegisterField[NumberOfMpRegions];
+            mpRegionReadEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
+            mpRegionProgEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
+            mpRegionEraseEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
 
-            bankInfoPageEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
-            bankInfoPageReadEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
-            bankInfoPageProgramEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
-            bankInfoPageEraseEnabled = new IFlagRegisterField[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageReadEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageProgramEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageEraseEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
 
             for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
             {
                 for(var infoType = 0; infoType < FlashNumberOfInfoTypes; ++infoType)
                 {
-                    bankInfoPageEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
-                    bankInfoPageReadEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
-                    bankInfoPageProgramEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
-                    bankInfoPageEraseEnabled[bankNumber, infoType] = new IFlagRegisterField[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageReadEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageProgramEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageEraseEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
                 }
             }
 
@@ -60,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(3, out interruptStatusReadLevel, FieldMode.Read | FieldMode.WriteOneToClear, name: "rd_lvl")
                 .WithFlag(4, out interruptStatusOperationDone, FieldMode.Read | FieldMode.WriteOneToClear, name: "op_done")
                 .WithFlag(5, out interruptStatusCorrectableError, FieldMode.Read | FieldMode.WriteOneToClear, name: "corr_err")
-                .WithReservedBits(6, 1 + 31 - 6)
+                .WithReservedBits(6, 26)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.InterruptEnable.Define(this)
@@ -70,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(3, out interruptEnableReadLevel, name: "rd_lvl")
                 .WithFlag(4, out interruptEnableOperationDone, name: "op_done")
                 .WithFlag(5, out interruptEnableCorrectableError, name: "corr_err")
-                .WithReservedBits(6, 1 + 31 - 6)
+                .WithReservedBits(6, 26)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.InterruptTest.Define(this)
@@ -80,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { interruptStatusReadLevel.Value |= val; }, name: "rd_lvl")
                 .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { interruptStatusOperationDone.Value |= val; }, name: "op_done")
                 .WithFlag(5, FieldMode.Write, writeCallback: (_, val) => { interruptStatusCorrectableError.Value |= val; }, name: "corr_err")
-                .WithReservedBits(6, 1 + 31 - 6)
+                .WithReservedBits(6, 26)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
@@ -115,12 +110,12 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(1, 3)
                 .WithEnumField<DoubleWordRegister, ControlOp>(4, 2, out operation, name: "OP")
                 .WithTaggedFlag("PROG_SEL", 6)
-                .WithFlag(7, out flashSelectEraseMode, name: "ERASE_SEL")
+                .WithFlag(7, out flashSelectBankEraseMode, name: "ERASE_SEL")
                 .WithFlag(8, out flashSelectPartition, name: "PARTITION_SEL")
                 .WithValueField(9, 2, out flashSelectInfo, name: "INFO_SEL")
-                .WithReservedBits(11, 1 + 15 - 11)
-                .WithValueField(16, 1 + 27 - 16, out controlNum, name: "NUM")
-                .WithReservedBits(28, 1 + 31 - 28);
+                .WithReservedBits(11, 5)
+                .WithValueField(16, 12, out controlNum, name: "NUM")
+                .WithReservedBits(28, 4);
 
             Registers.AddressForFlashOperation.Define(this)
                 .WithValueField(0, 32, out address, changeCallback: (_, address) => {
@@ -158,28 +153,30 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithReservedBits(1, 31));
 
                 RegistersCollection.AddRegister((long)(Registers.RegionConfiguration0 + 0x4 * i), new DoubleWordRegister(this)
-                    .WithFlag(0, out mpRegionEnabled[i], name: $"EN_{i}")
-                    .WithFlag(1, out mpRegionReadEnabled[i], name: $"RD_EN_{i}")
-                    .WithFlag(2, out mpRegionProgEnabled[i], name: $"PROG_EN_{i}")
-                    .WithFlag(3, out mpRegionEraseEnabled[i], name: $"ERASE_EN_{i}")
-                    .WithTaggedFlag($"SCRAMBLE_EN_{i}", 4)
-                    .WithTaggedFlag($"ECC_EN_{i}", 5)
-                    .WithTaggedFlag($"HE_EN_{i}", 6)
-                    .WithReservedBits(7, 1)
-                    .WithValueField(8, 1 + 16 - 8, out mpRegionBase[i], name: $"BASE_{i}")
-                    .WithValueField(17, 1 + 26 - 17, out mpRegionSize[i], name: $"SIZE_{i}")
-                    .WithReservedBits(27, 1 + 31 - 27));
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(0, 4, out mpRegionEnabled[i], name: $"EN_{i}")
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out mpRegionReadEnabled[i], name: $"RD_EN_{i}")
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(8, 4, out mpRegionProgEnabled[i], name: $"PROG_EN_{i}")
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(12, 4, out mpRegionEraseEnabled[i], name: $"ERASE_EN_{i}")
+                    .WithTag($"SCRAMBLE_EN_{i}", 16, 4)
+                    .WithTag($"ECC_EN_{i}", 20, 4)
+                    .WithTag($"HE_EN_{i}", 24, 4)
+                    .WithReservedBits(28, 4));
+
+                RegistersCollection.AddRegister((long)(Registers.RegionBaseAndSizeConfiguration0 + 0x4 * i), new DoubleWordRegister(this)
+                    .WithValueField(0, 9, out mpRegionBase[i], name: $"BASE_{i}")
+                    .WithValueField(9, 10, out mpRegionSize[i], name: $"SIZE_{i}")
+                    .WithReservedBits(19, 13));
             }
             
             Registers.DefaultRegionConfiguration.Define(this)
-                .WithFlag(0, out defaultMpRegionReadEnabled, name: "RD_EN")
-                .WithFlag(1, out defaultMpRegionProgEnabled, name: "PROG_EN")
-                .WithFlag(2, out defaultMpRegionEraseEnabled, name: "ERASE_EN")
-                .WithTaggedFlag("SCRAMBLE_EN", 3)
-                .WithTaggedFlag("ECC_EN", 4)
-                .WithTaggedFlag("HE_EN", 5)
-                .WithReservedBits(6, 1 + 31 - 6);
-            
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(0, 4, out defaultMpRegionReadEnabled, name: "RD_EN")
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out defaultMpRegionProgEnabled, name: "PROG_EN")
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(8, 4, out defaultMpRegionEraseEnabled, name: "ERASE_EN")
+                .WithTag("SCRAMBLE_EN", 12, 4)
+                .WithTag("ECC_EN", 16, 4)
+                .WithTag("HE_EN", 20, 4)
+                .WithReservedBits(24, 8);
+
             var registerOffset = Registers.Bank0Info0Enable0;
             for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
             {
@@ -199,14 +196,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                     for(var pageNumber = 0; pageNumber < FlashNumberOfPagesInInfo[infoType]; ++pageNumber)
                     {
                         registerOffset.Define(this)
-                            .WithFlag(0, out bankInfoPageEnabled[bankNumber, infoType][pageNumber], name: $"EN_{pageNumber}")
-                            .WithFlag(1, out bankInfoPageReadEnabled[bankNumber, infoType][pageNumber], name: $"RD_EN_{pageNumber}")
-                            .WithFlag(2, out bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber], name: $"PROG_EN_{pageNumber}")
-                            .WithFlag(3, out bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber], name: $"ERASE_EN_{pageNumber}")
-                            .WithTaggedFlag($"SCRAMBLE_EN_{pageNumber}", 4)
-                            .WithTaggedFlag($"ECC_EN_{pageNumber}", 5)
-                            .WithTaggedFlag($"HE_EN_{pageNumber}", 6)
-                            .WithReservedBits(7, 1 + 31 - 7);
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(0, 4, out bankInfoPageEnabled[bankNumber, infoType][pageNumber], name: $"EN_{pageNumber}")
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out bankInfoPageReadEnabled[bankNumber, infoType][pageNumber], name: $"RD_EN_{pageNumber}")
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(8, 4, out bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber], name: $"PROG_EN_{pageNumber}")
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(12, 4, out bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber], name: $"ERASE_EN_{pageNumber}")
+                            .WithTag($"SCRAMBLE_EN_{pageNumber}", 16, 4)
+                            .WithTag($"ECC_EN_{pageNumber}", 20, 4)
+                            .WithTag($"HE_EN_{pageNumber}", 24, 4)
+                            .WithReservedBits(28, 4);
                         registerOffset += 0x4;
                     }
                 }
@@ -219,12 +216,12 @@ namespace Antmicro.Renode.Peripherals.MTD
             Registers.BankConfiguration.Define(this)
                 .WithFlag(0, out eraseBank0, name: "ERASE_EN_0")
                 .WithFlag(1, out eraseBank1, name: "ERASE_EN_1")
-                .WithReservedBits(2, 1 + 31 - 2);
             
+                .WithReservedBits(2, 30);
             Registers.FlashOperationStatus.Define(this)
                 .WithFlag(0, out opStatusRegisterDoneFlag, name: "done")
                 .WithFlag(1, out opStatusRegisterErrorFlag, name: "err")
-                .WithReservedBits(2, 1 + 31 - 2);
+                .WithReservedBits(2, 30);
 
             Registers.Status.Define(this, 0xa)
                 .WithFlag(0, out statusReadFullFlag, FieldMode.Read, name: "rd_full")
@@ -232,7 +229,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "prog_full")
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => true, name: "prog_empty")
                 .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => false, name: "init_wip")
-                .WithReservedBits(5, 1 + 31 - 5);
+                .WithReservedBits(5, 27);
 
             Registers.ErrorCode.Define(this)
                 .WithFlag(0, out outOfBoundsError, FieldMode.Read | FieldMode.WriteOneToClear, name: "oob_err")
@@ -242,20 +239,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTaggedFlag("prog_type_err", 4)
                 .WithTaggedFlag("flash_phy_err", 5)
                 .WithTaggedFlag("update_err", 6)
-                .WithReservedBits(7, 1 + 31 - 7);
-
-            Registers.FaultStatus.Define(this)
-                .WithTaggedFlag("oob_err", 0)
-                .WithTaggedFlag("mp_err", 1)
-                .WithTaggedFlag("rd_err", 2)
-                .WithTaggedFlag("prog_win_err", 3)
-                .WithTaggedFlag("prog_type_err", 4)
-                .WithTaggedFlag("flash_phy_err", 5)
-                .WithTaggedFlag("reg_intg_err", 6)
-                .WithTaggedFlag("phy_intg_err", 7)
-                .WithTaggedFlag("lcmgr_err", 8)
-                .WithTaggedFlag("storage_err", 9)
-                .WithReservedBits(10, 1 + 31 - 10);
+                .WithReservedBits(7, 25);
 
             Registers.ErrorAddress.Define(this)
                 .WithValueField(0, 32, out errorAddress, FieldMode.Read, name: "ERR_ADDR");
@@ -273,14 +257,6 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTag("ECC_SINGLE_ERR_ADDR_1", 0, 20)
                 .WithReservedBits(20, 12);
 
-            Registers.PhyErrorConfigurationEnable.Define(this)
-                .WithTaggedFlag("EN", 0)
-                .WithReservedBits(1, 31);
-
-            Registers.PhyErrorConfiguration.Define(this)
-                .WithTaggedFlag("ECC_MULTI_ERR_DATA_EN", 0)
-                .WithReservedBits(1, 31);
-
             Registers.PhyAlertConfiguration.Define(this)
                 .WithTaggedFlag("alert_ack", 0)
                 .WithTaggedFlag("alert_trig", 1)
@@ -290,8 +266,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTaggedFlag("init_wip", 0)
                 .WithTaggedFlag("prog_normal_avail", 1)
                 .WithTaggedFlag("prog_repair_avail", 2)
-                .WithReservedBits(3, 1 + 31 - 3);
-            
+                .WithReservedBits(3, 29);
             Registers.Scratch.Define(this)
                 .WithTag("data", 0, 32);
 
@@ -299,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithValueField(0, 5, out programFifoLevel, name: "PROG")
                 .WithReservedBits(5, 1 + 7 - 5)
                 .WithValueField(8, 1 + 12 - 8, out readFifoLevel, name: "RD")
-                .WithReservedBits(13, 1 + 31 - 13);
+                .WithReservedBits(13, 19);
 
             // TODO(julianmb): implement fifo reset. There isnt any unittest for this currently.
             Registers.FifoReset.Define(this)
@@ -544,7 +519,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            var size = flashSelectEraseMode.Value ? BytesPerBank : BytesPerPage;
+            var size = flashSelectBankEraseMode.Value ? BytesPerBank : BytesPerPage;
             var truncatedOffset = offset & ~(size - 1);
             var bankNumber = truncatedOffset / BytesPerBank;
 
@@ -559,7 +534,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
 
             var notAllowed = false;
-            if(flashSelectEraseMode.Value)
+            if(flashSelectBankEraseMode.Value)
             {
                 switch(bankNumber)
                 {
@@ -647,7 +622,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             var infoType = flashSelectInfo.Value;
             var pageNumber = (operationOffset % BytesPerBank) / BytesPerPage;
 
-            if(!bankInfoPageEnabled[bankNumber, infoType][pageNumber].Value)
+            if(bankInfoPageEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.False)
             {
                 return false;
             }
@@ -656,13 +631,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             switch(opType)
             {
                 case OperationType.ReadData:
-                    ret = bankInfoPageReadEnabled[bankNumber, infoType][pageNumber].Value;
+                    ret = (bankInfoPageReadEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
                     break;
                 case OperationType.ProgramData:
-                    ret = bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber].Value;
+                    ret = (bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
                     break;
                 case OperationType.EraseDataPage:
-                    ret = bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber].Value;
+                    ret = (bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
                     break;
                 default:
                     break;
@@ -683,13 +658,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             switch(opType)
             {
                 case OperationType.ReadData:
-                    ret = defaultMpRegionReadEnabled.Value;
+                    ret = (defaultMpRegionReadEnabled.Value == MultiBitBool4.True);
                     break;
                 case OperationType.ProgramData:
-                    ret = defaultMpRegionProgEnabled.Value;
+                    ret = (defaultMpRegionProgEnabled.Value == MultiBitBool4.True);
                     break;
                 case OperationType.EraseDataPage:
-                    ret = defaultMpRegionEraseEnabled.Value;
+                    ret = (defaultMpRegionEraseEnabled.Value == MultiBitBool4.True);
                     break;
                 default:
                     break;
@@ -735,7 +710,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private bool IsOperationAllowedInMpRegion(OperationType opType, int regionId)
         {
-            if(!mpRegionEnabled[regionId].Value)
+            if(mpRegionEnabled[regionId].Value == MultiBitBool4.False)
             {
                 return false;
             }
@@ -744,13 +719,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             switch(opType)
             {
                 case OperationType.ReadData:
-                    ret = mpRegionReadEnabled[regionId].Value;
+                    ret = (mpRegionReadEnabled[regionId].Value == MultiBitBool4.True);
                     break;
                 case OperationType.ProgramData:
-                    ret = mpRegionProgEnabled[regionId].Value;
+                    ret = (mpRegionProgEnabled[regionId].Value == MultiBitBool4.True);
                     break;
                 case OperationType.EraseDataPage:
-                    ret = mpRegionEraseEnabled[regionId].Value;
+                    ret = (mpRegionEraseEnabled[regionId].Value == MultiBitBool4.True);
                     break;
                 default:
                     break;
@@ -767,7 +742,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private bool MpRegionRegisterAppliesToOperation(int regionId, long operationOffset)
         {
-            if(!mpRegionEnabled[regionId].Value)
+            if(mpRegionEnabled[regionId].Value == MultiBitBool4.False)
             {
                 return false;
             }
@@ -861,22 +836,22 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IFlagRegisterField outOfBoundsError;
         private readonly IFlagRegisterField memoryProtectionError;
 
-        private readonly IFlagRegisterField defaultMpRegionReadEnabled;
-        private readonly IFlagRegisterField defaultMpRegionProgEnabled;
-        private readonly IFlagRegisterField defaultMpRegionEraseEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionReadEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionProgEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionEraseEnabled;
 
-        private readonly IFlagRegisterField[] mpRegionEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionEnabled;
         private readonly IValueRegisterField[] mpRegionBase;
         private readonly IValueRegisterField[] mpRegionSize;
-        private readonly IFlagRegisterField[] mpRegionReadEnabled;
-        private readonly IFlagRegisterField[] mpRegionProgEnabled;
-        private readonly IFlagRegisterField[] mpRegionEraseEnabled;
-        private readonly IFlagRegisterField[,][] bankInfoPageEnabled;
-        private readonly IFlagRegisterField[,][] bankInfoPageReadEnabled;
-        private readonly IFlagRegisterField[,][] bankInfoPageProgramEnabled;
-        private readonly IFlagRegisterField[,][] bankInfoPageEraseEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionReadEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionProgEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionEraseEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageReadEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageProgramEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageEraseEnabled;
 
-        private readonly IFlagRegisterField flashSelectEraseMode;
+        private readonly IFlagRegisterField flashSelectBankEraseMode;
         private readonly IFlagRegisterField flashSelectPartition;
         private readonly IValueRegisterField flashSelectInfo;
         
@@ -908,108 +883,118 @@ namespace Antmicro.Renode.Peripherals.MTD
         private const uint BytesPerPage = FlashWordsPerPage * FlashWordSize;
         private const uint BytesPerBank = FlashPagesPerBank * BytesPerPage;
 
+        #pragma warning restore format
         private enum Registers : long
         {
-            InterruptState                  = 0x000, // Reset default = 0x0, mask 0x3f
-            InterruptEnable                 = 0x004, // Reset default = 0x0, mask 0x3f
-            InterruptTest                   = 0x008, // Reset default = 0x0, mask 0x3f
-            AlertTest                       = 0x00C, // Reset default = 0x0, mask 0x3
-            DisableFlashFunctionality       = 0x010, // Reset default = 0x0, mask 0x1
-            ExecutionFetchesEnabled         = 0x014, // Reset default = 0x5, mask 0xf
-            ControllerInit                  = 0x018, // Reset default = 0x0, mask 0x1
-            ControlEnable                   = 0x01C, // Reset default = 0x1, mask 0x1
-            Control                         = 0x020, // Reset default = 0x0, mask 0xfff07f1
-            AddressForFlashOperation        = 0x024, // Reset default = 0x0, mask 0xffffffff
-            EnableDifferentProgramTypes     = 0x028, // Reset default = 0x3, mask 0x3
-            SuspendErase                    = 0x02C, // Reset default = 0x0, mask 0x1
-            RegionConfigurationEnable0      = 0x030, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable1      = 0x034, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable2      = 0x038, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable3      = 0x03C, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable4      = 0x040, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable5      = 0x044, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable6      = 0x048, // Reset default = 0x1, mask 0x1
-            RegionConfigurationEnable7      = 0x04C, // Reset default = 0x1, mask 0x1
-            RegionConfiguration0            = 0x050, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration1            = 0x054, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration2            = 0x058, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration3            = 0x05C, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration4            = 0x060, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration5            = 0x064, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration6            = 0x068, // Reset default = 0x0, mask 0x7ffff7f
-            RegionConfiguration7            = 0x06C, // Reset default = 0x0, mask 0x7ffff7f
-            DefaultRegionConfiguration      = 0x070, // Reset default = 0x0, mask 0x3f
-            Bank0Info0Enable0               = 0x074, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable1               = 0x078, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable2               = 0x07C, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable3               = 0x080, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable4               = 0x084, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable5               = 0x088, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable6               = 0x08C, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable7               = 0x090, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable8               = 0x094, // Reset default = 0x1, mask 0x1
-            Bank0Info0Enable9               = 0x098, // Reset default = 0x1, mask 0x1
-            Bank0Info0PageConfiguration0    = 0x09C, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration1    = 0x0A0, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration2    = 0x0A4, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration3    = 0x0A8, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration4    = 0x0AC, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration5    = 0x0B0, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration6    = 0x0B4, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration7    = 0x0B8, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration8    = 0x0BC, // Reset default = 0x0, mask 0x7f
-            Bank0Info0PageConfiguration9    = 0x0C0, // Reset default = 0x0, mask 0x7f
-            Bank0Info1Enable                = 0x0C4, // Reset default = 0x1, mask 0x1
-            Bank0Info1PageConfiguration     = 0x0C8, // Reset default = 0x0, mask 0x7f
-            Bank0Info2Enable0               = 0x0CC, // Reset default = 0x1, mask 0x1
-            Bank0Info2Enable1               = 0x0D0, // Reset default = 0x1, mask 0x1
-            Bank0Info2PageConfiguration0    = 0x0D4, // Reset default = 0x0, mask 0x7f
-            Bank0Info2PageConfiguration1    = 0x0D8, // Reset default = 0x0, mask 0x7f
-            Bank1Info0Enable0               = 0x0DC, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable1               = 0x0E0, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable2               = 0x0E4, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable3               = 0x0E8, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable4               = 0x0EC, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable5               = 0x0F0, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable6               = 0x0F4, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable7               = 0x0F8, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable8               = 0x0FC, // Reset default = 0x1, mask 0x1
-            Bank1Info0Enable9               = 0x100, // Reset default = 0x1, mask 0x1
-            Bank1Info0PageConfiguration0    = 0x104, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration1    = 0x108, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration2    = 0x10C, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration3    = 0x110, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration4    = 0x114, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration5    = 0x118, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration6    = 0x11C, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration7    = 0x120, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration8    = 0x124, // Reset default = 0x0, mask 0x7f
-            Bank1Info0PageConfiguration9    = 0x128, // Reset default = 0x0, mask 0x7f
-            Bank1Info1Enable                = 0x12C, // Reset default = 0x1, mask 0x1
-            Bank1Info1PageConfiguration     = 0x130, // Reset default = 0x0, mask 0x7f
-            Bank1Info2Enable0               = 0x134, // Reset default = 0x1, mask 0x1
-            Bank1Info2Enable1               = 0x138, // Reset default = 0x1, mask 0x1
-            Bank1Info2PageConfiguration0    = 0x13C, // Reset default = 0x0, mask 0x7f
-            Bank1Info2PageConfiguration1    = 0x140, // Reset default = 0x0, mask 0x7f
-            BankConfigurationEnable         = 0x144, // Reset default = 0x1, mask 0x1
-            BankConfiguration               = 0x148, // Reset default = 0x1, mask 0x1
-            FlashOperationStatus            = 0x14C, // Reset default = 0x0, mask 0x3
-            Status                          = 0x150, // Reset default = 0xa, mask 0x1f
-            ErrorCode                       = 0x154, // Reset default = 0x0, mask 0x7f
-            FaultStatus                     = 0x158, // Reset default = 0x0, mask 0x3ff
-            ErrorAddress                    = 0x15C, // Reset default = 0x0, mask 0xffffffff
-            ECCSingleErrorCount             = 0x160, // Reset default = 0x0, mask 0xffff
-            ECCSingleErrorAddress0          = 0x164, // Reset default = 0x0, mask 0xfffff
-            ECCSingleErrorAddress1          = 0x168, // Reset default = 0x0, mask 0xfffff
-            PhyErrorConfigurationEnable     = 0x16C, // Reset default = 0x1, mask 0x1
-            PhyErrorConfiguration           = 0x170, // Reset default = 0x1, mask 0x1
-            PhyAlertConfiguration           = 0x174, // Reset default = 0x0, mask 0x3
-            PhyStatus                       = 0x178, // Reset default = 0x6, mask 0x7
-            Scratch                         = 0x17C, // Reset default = 0x0, mask 0xffffffff
-            FifoLevel                       = 0x180, // Reset default = 0xf0f, mask 0x1f1f
-            FifoReset                       = 0x184, // Reset default = 0x0, mask 0x1
-            ProgramFifo                     = 0x188, // 1 item wo window. Byte writes are not supported
-            ReadFifo                        = 0x18C, // 1 item ro window. Byte writes are not supported
+            InterruptState                  = 0x000,
+            InterruptEnable                 = 0x004,
+            InterruptTest                   = 0x008,
+            AlertTest                       = 0x00C,
+            DisableFlashFunctionality       = 0x010,
+            ExecutionFetchesEnabled         = 0x014,
+            ControllerInit                  = 0x018,
+            ControlEnable                   = 0x01C,
+            Control                         = 0x020,
+            AddressForFlashOperation        = 0x024,
+            EnableDifferentProgramTypes     = 0x028,
+            SuspendErase                    = 0x02C,
+            RegionConfigurationEnable0      = 0x030,
+            RegionConfigurationEnable1      = 0x034,
+            RegionConfigurationEnable2      = 0x038,
+            RegionConfigurationEnable3      = 0x03C,
+            RegionConfigurationEnable4      = 0x040,
+            RegionConfigurationEnable5      = 0x044,
+            RegionConfigurationEnable6      = 0x048,
+            RegionConfigurationEnable7      = 0x04C,
+            RegionConfiguration0            = 0x050,
+            RegionConfiguration1            = 0x054,
+            RegionConfiguration2            = 0x058,
+            RegionConfiguration3            = 0x05C,
+            RegionConfiguration4            = 0x060,
+            RegionConfiguration5            = 0x064,
+            RegionConfiguration6            = 0x068,
+            RegionConfiguration7            = 0x06C,
+            RegionBaseAndSizeConfiguration0 = 0x070,
+            RegionBaseAndSizeConfiguration1 = 0x074,
+            RegionBaseAndSizeConfiguration2 = 0x078,
+            RegionBaseAndSizeConfiguration3 = 0x07C,
+            RegionBaseAndSizeConfiguration4 = 0x080,
+            RegionBaseAndSizeConfiguration5 = 0x084,
+            RegionBaseAndSizeConfiguration6 = 0x088,
+            RegionBaseAndSizeConfiguration7 = 0x08C,
+            DefaultRegionConfiguration      = 0x090,
+            Bank0Info0Enable0               = 0x094,
+            Bank0Info0Enable1               = 0x098,
+            Bank0Info0Enable2               = 0x09C,
+            Bank0Info0Enable3               = 0x0A0,
+            Bank0Info0Enable4               = 0x0A4,
+            Bank0Info0Enable5               = 0x0A8,
+            Bank0Info0Enable6               = 0x0AC,
+            Bank0Info0Enable7               = 0x0B0,
+            Bank0Info0Enable8               = 0x0B4,
+            Bank0Info0Enable9               = 0x0B8,
+            Bank0Info0PageConfiguration0    = 0x0BC,
+            Bank0Info0PageConfiguration1    = 0x0C0,
+            Bank0Info0PageConfiguration2    = 0x0C4,
+            Bank0Info0PageConfiguration3    = 0x0C8,
+            Bank0Info0PageConfiguration4    = 0x0CC,
+            Bank0Info0PageConfiguration5    = 0x0D0,
+            Bank0Info0PageConfiguration6    = 0x0D4,
+            Bank0Info0PageConfiguration7    = 0x0D8,
+            Bank0Info0PageConfiguration8    = 0x0DC,
+            Bank0Info0PageConfiguration9    = 0x0E0,
+            Bank0Info1Enable                = 0x0E4,
+            Bank0Info1PageConfiguration     = 0x0E8,
+            Bank0Info2Enable0               = 0x0EC,
+            Bank0Info2Enable1               = 0x0F0,
+            Bank0Info2PageConfiguration0    = 0x0F4,
+            Bank0Info2PageConfiguration1    = 0x0F8,
+            Bank1Info0Enable0               = 0x0FC,
+            Bank1Info0Enable1               = 0x100,
+            Bank1Info0Enable2               = 0x104,
+            Bank1Info0Enable3               = 0x108,
+            Bank1Info0Enable4               = 0x10C,
+            Bank1Info0Enable5               = 0x110,
+            Bank1Info0Enable6               = 0x114,
+            Bank1Info0Enable7               = 0x118,
+            Bank1Info0Enable8               = 0x11C,
+            Bank1Info0Enable9               = 0x120,
+            Bank1Info0PageConfiguration0    = 0x124,
+            Bank1Info0PageConfiguration1    = 0x128,
+            Bank1Info0PageConfiguration2    = 0x12C,
+            Bank1Info0PageConfiguration3    = 0x130,
+            Bank1Info0PageConfiguration4    = 0x134,
+            Bank1Info0PageConfiguration5    = 0x138,
+            Bank1Info0PageConfiguration6    = 0x13C,
+            Bank1Info0PageConfiguration7    = 0x140,
+            Bank1Info0PageConfiguration8    = 0x144,
+            Bank1Info0PageConfiguration9    = 0x148,
+            Bank1Info1Enable                = 0x14C,
+            Bank1Info1PageConfiguration     = 0x150,
+            Bank1Info2Enable0               = 0x154,
+            Bank1Info2Enable1               = 0x158,
+            Bank1Info2PageConfiguration0    = 0x15C,
+            Bank1Info2PageConfiguration1    = 0x160,
+            BankConfigurationEnable         = 0x164,
+            BankConfiguration               = 0x168,
+            FlashOperationStatus            = 0x16C,
+            Status                          = 0x170,
+            ErrorCode                       = 0x174,
+            FaultStatus                     = 0x178,
+            ErrorAddress                    = 0x17C,
+            ECCSingleErrorCount             = 0x180,
+            ECCSingleErrorAddress0          = 0x184,
+            ECCSingleErrorAddress1          = 0x188,
+            PhyErrorConfigurationEnable     = 0x18C,
+            PhyErrorConfiguration           = 0x190,
+            PhyAlertConfiguration           = 0x194,
+            PhyStatus                       = 0x198,
+            Scratch                         = 0x19C,
+            FifoLevel                       = 0x1A0,
+            FifoReset                       = 0x1A4,
+            CurrengFifoLevel                = 0x1A8,
+            ProgramFifo                     = 0x1AC, // 1 item wo window. Byte writes are not supported
+            ReadFifo                        = 0x1B0, // 1 item ro window. Byte writes are not supported
         }
 
         private enum ControlOp : uint
@@ -1025,5 +1010,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             ProgramData,
             EraseDataPage
         }
+        #pragma warning restore format
     } // class
 } // namespace
