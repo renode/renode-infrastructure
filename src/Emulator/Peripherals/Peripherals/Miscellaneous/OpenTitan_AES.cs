@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -133,18 +133,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             });
 
             Registers.Control.Define(this, 0xc0)
-                .WithFlag(0, out decryptionMode, name: "OPERATION")
-                .WithEnumField<DoubleWordRegister, OperationMode>(1, 6, out operationMode, name: "MODE")
-                .WithEnumField<DoubleWordRegister, KeyLength>(7, 3, out keyLength, name: "KEY_LEN")
-                .WithFlag(10, out useSideloadedKey, name: "SIDELOAD")
-                .WithFlag(11, out manualOperation, name: "MANUAL_OPERATION")
-                .WithTaggedFlag("FORCE_ZERO_MASKS", 12)
-                .WithIgnoredBits(13, 19)
+                .WithEnumField<DoubleWordRegister, DecryptionMode>(0, 2, out decryptionMode, name: "OPERATION")
+                .WithEnumField<DoubleWordRegister, OperationMode>(2, 6, out operationMode, name: "MODE")
+                .WithEnumField<DoubleWordRegister, KeyLength>(8, 3, out keyLength, name: "KEY_LEN")
+                .WithFlag(11, out useSideloadedKey, name: "SIDELOAD")
+                .WithTag("PRNG_RESEED_RATE", 12, 3)
+                .WithFlag(15, out manualOperation, name: "MANUAL_OPERATION")
+                .WithTaggedFlag("FORCE_ZERO_MASKS", 16)
+                .WithIgnoredBits(17, 15)
                 .WithWriteCallback((_, val) =>
                 {
                     this.Log(LogLevel.Debug, "New configuration:\n\tOPERATION = {0}\n\tMODE = {1}\n\tKEY_LEN = {2}\n\tSIDELOAD = {3}\n\tMANUAL_OPERATION = {4}",
                              decryptionMode.Value, operationMode.Value, keyLength.Value, useSideloadedKey.Value, manualOperation.Value);
                 });
+
+            Registers.AuxiliaryControl.Define(this, 0x1)
+                .WithTaggedFlag("KEY_TOUCH_FORCES_RESEED", 0)
+                .WithReservedBits(1, 31);
+
+            Registers.AuxiliaryControlWriteEnable.Define(this, 0x1)
+                .WithTaggedFlag("CTRL_AUX_REGWEN", 0)
+                .WithReservedBits(1, 31);
 
             Registers.Trigger.Define(this, 0xe)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, val) =>
@@ -227,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     break;
                 default:
                     // This kind of misconfiguration is possible, behaviour is undefined
-                    this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{1:x}'. Undefined behavior ahead!", keyLength.Value);
+                    this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{0:x}'. Undefined behavior ahead!", keyLength.Value);
                     return false;
             }
             aes.Key = useSideloadedKey.Value ? sideloadKey : key;
@@ -249,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool TransformData()
         {
             var output = new byte[DataLengthInBytes];
-            var transformMethod = decryptionMode.Value ? aes.CreateDecryptor() : aes.CreateEncryptor();
+            var transformMethod = decryptionMode.Value == DecryptionMode.Decryption ? aes.CreateDecryptor() : aes.CreateEncryptor();
             var data = inputData.RetriveData(trackAccess: false);
             int bytesProcessed = 0;
 
@@ -293,11 +302,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ByteArrayWithAccessTracking inputData;
         private readonly ByteArrayWithAccessTracking outputData;
 
-        private IFlagRegisterField decryptionMode;
         private IFlagRegisterField manualOperation;
         private IFlagRegisterField statusIdle;
         private IFlagRegisterField outputValid;
         private IFlagRegisterField useSideloadedKey;
+        private IEnumRegisterField<DecryptionMode> decryptionMode;
         private IEnumRegisterField<OperationMode> operationMode;
         private IEnumRegisterField<KeyLength> keyLength;
 
@@ -315,6 +324,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             CipherFeedback = 0b000100,      // CFB mode
             OutputFeedback = 0b001000,      // OFB mode
             Counter = 0b010000,             // CTR mode
+        }
+
+        private enum DecryptionMode
+        {
+            Encryption = 0x1,
+            Decryption = 0x2,
         }
 
         private enum KeyLength
@@ -356,8 +371,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             OutputData_2 = 0x6c,
             OutputData_3 = 0x70,
             Control = 0x74,
-            Trigger = 0x78,
-            Status = 0x7c,
+            AuxiliaryControl = 0x78,
+            AuxiliaryControlWriteEnable = 0x7C,
+            Trigger = 0x80,
+            Status = 0x84,
         }
     }
 }

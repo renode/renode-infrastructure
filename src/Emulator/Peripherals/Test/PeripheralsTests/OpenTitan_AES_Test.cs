@@ -53,7 +53,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x202);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x205);
             WriteInputData(decrypted);
 
             for(int i = 0; i < 4; i++)
@@ -69,7 +69,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0xA02);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x8405);
             WriteInputData(decrypted);
 
             // Before trigger
@@ -96,7 +96,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x203);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x206);
 
             WriteInputData(encrypted);
 
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void ShouldRandomizeInputRegistersOnTrigger()
         {
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0xA02);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x1005);
 
             // We only test if the output is different after randomizing
             WriteInputData(decrypted);
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x203);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x206);
 
             WriteInputData(decrypted);
             WriteInputData(encrypted);
