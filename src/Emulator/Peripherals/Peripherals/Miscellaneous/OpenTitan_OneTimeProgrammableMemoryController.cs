@@ -39,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             base.Reset();
+            daiIdleFlag.Value = true;
             cachedLifeCycleState = null;
             cachedTransitionCount = null;
         }
