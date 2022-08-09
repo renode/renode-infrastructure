@@ -180,14 +180,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ErrorCodeTest.Define(this)
                 .WithTag("ERR_CODE_TEST", 0, 5)
                 .WithReservedBits(5, 32 - 5);
-            Registers.SelectTrackingStateRegister.Define(this)
-               .WithTaggedFlag("SEL_TRACKING_SM", 0)
-               .WithReservedBits(1, 31);
-            Registers.TrackingStateObservationRegister.Define(this)
-                .WithTag("TRACKING_SM_OBS0", 0, 8)
-                .WithTag("TRACKING_SM_OBS0", 8, 8)
-                .WithTag("TRACKING_SM_OBS0", 16, 8)
-                .WithTag("TRACKING_SM_OBS0", 24, 8);
+            Registers.StateMachineState.Define(this, 0x4e)
+               .WithTag("MAIN_SM_STATE", 0, 8)
+               .WithReservedBits(8, 24);
         }
 
         public long Size => 0x1000;
@@ -404,6 +399,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     };
                     // The CtrSP800Drbg returns bytes in reversed order
                     Array.Reverse(generatedBytes);
+                    // Peripheral expects the entropy units to be in a reversed order
+                    ReorderEntropyUnits(ref generatedBytes);
                     break;
                 default:
                     throw new ArgumentException("Unknown type of simulation mode");
@@ -416,6 +413,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             foreach(var doubleWord in generatedDoubleWords)
             {
                 generatedBitsFifo.Enqueue(doubleWord);
+            }
+        }
+
+        private void ReorderEntropyUnits(ref byte[] inputData)
+        {
+            if(inputData.Length % BytesPerEntropyUnit != 0)
+            {
+                throw new ArgumentException($"Input data must bu aligned to the size of entropy unit ({BytesPerEntropyUnit} bytes)");
+            }
+            var temp = new byte[BytesPerEntropyUnit];
+            var unitsCount = inputData.Length / BytesPerEntropyUnit;
+            int insertOffset = (unitsCount - 1) * BytesPerEntropyUnit;
+            for(var unit = 0; unit <= (unitsCount -1)/2; unit++)
+            {
+                var sourceOffset = unit * BytesPerEntropyUnit;
+                Buffer.BlockCopy(inputData, sourceOffset, temp, 0, BytesPerEntropyUnit);
+                Buffer.BlockCopy(inputData, insertOffset, inputData, sourceOffset, BytesPerEntropyUnit);
+                Buffer.BlockCopy(temp, 0, inputData, insertOffset, BytesPerEntropyUnit);
+                insertOffset -= BytesPerEntropyUnit;
             }
         }
 
@@ -637,24 +653,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum Registers
         {
-            InterruptState                   = 0x0,
-            InterruptEnable                  = 0x4,
-            InterruptTest                    = 0x8,
-            AlertTest                        = 0xC,
-            RegisterWriteEnable              = 0x10,
-            Control                          = 0x14,
-            CommandRequest                   = 0x18,
-            CommandStatus                    = 0x1C,
-            GenerateBitsValid                = 0x20,
-            GenerateBits                     = 0x24,
-            InternalStateNumber              = 0x28,
-            InternalStateReadAccess          = 0x2C,
-            HardwareExceptionStatus          = 0x30,
-            RecoverableAlertStatus           = 0x34,
-            ErrorCode                        = 0x38,
-            ErrorCodeTest                    = 0x3C,
-            SelectTrackingStateRegister      = 0x40,
-            TrackingStateObservationRegister = 0x44,
+            InterruptState          = 0x0,
+            InterruptEnable         = 0x4,
+            InterruptTest           = 0x8,
+            AlertTest               = 0xC,
+            RegisterWriteEnable     = 0x10,
+            Control                 = 0x14,
+            CommandRequest          = 0x18,
+            CommandStatus           = 0x1C,
+            GenerateBitsValid       = 0x20,
+            GenerateBits            = 0x24,
+            InternalStateNumber     = 0x28,
+            InternalStateReadAccess = 0x2C,
+            HardwareExceptionStatus = 0x30,
+            RecoverableAlertStatus  = 0x34,
+            ErrorCode               = 0x38,
+            ErrorCodeTest           = 0x3C,
+            StateMachineState       = 0x40,
         }
         #pragma warning restore format
 
