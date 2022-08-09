@@ -20,7 +20,7 @@ using Org.BouncyCastle.Crypto.Digests;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public class OpenTitan_ROMController : IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_ROMController: IDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_ROMController(MappedMemory rom, string nonce, string key)
         {
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             Key = key;
             Nonce = nonce;
-            
+
             digest = new byte[NumberOfDigestRegisters * 4];
             expectedDigest = new byte[NumberOfDigestRegisters * 4];
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         public long Size => 0x1000;
 
         public IEnumerable<byte> Digest => digest;
-        
+
         public string Nonce
         {
             set
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 }
                 return (ulong)word | (code << 32);
             }
-            
+
             public static bool CheckECC(ulong word)
             {
                 return word == AddECC((uint)word);
@@ -239,8 +239,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 0xc2c1323b, 0x2dcc624c, 0x98505586
             };
         }
-
-        private enum Registers : long
+        #pragma warning disable format
+        private enum Registers: long
         {
             AlertTest       = 0x00,
             FatalAlertCause = 0x04,
@@ -261,5 +261,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             ExpectedDigest6 = 0x40,
             ExpectedDigest7 = 0x44,
         }
+        #pragma warning restore format
     }
 }
