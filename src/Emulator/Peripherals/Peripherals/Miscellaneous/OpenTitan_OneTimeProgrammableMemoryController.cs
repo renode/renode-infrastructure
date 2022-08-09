@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             cachedTransitionCount = null;
         }
 
-        public void LoadVMem(ReadFilePath filename)
+        public void LoadVmem(ReadFilePath filename)
         {
             try
             {
