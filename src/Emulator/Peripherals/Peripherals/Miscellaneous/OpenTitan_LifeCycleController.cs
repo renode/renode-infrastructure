@@ -163,6 +163,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.LifeCycleIdState.Define(this)
                 .WithEnumField<DoubleWordRegister, IdState>(0, 32, FieldMode.Read, name: "STATE");
 
+            Registers.HardwareRevision.Define(this)
+                .WithTag("CHIP_REV", 0, 16)
+                .WithTag("CHIP_GEN", 16, 16);
+
             Registers.DeviceId0.DefineMany(this, DeviceIdRegistersCount, (register, idx) =>
             {
                 register.WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => Misc.ByteArrayRead(idx * 4, deviceId), name: $"DEVICE_ID_{idx}");
@@ -339,22 +343,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LifeCycleState                = 0x34,
             LifeCycleTransitionCounter    = 0x38,
             LifeCycleIdState              = 0x3C,
-            DeviceId0                     = 0x40,
-            DeviceId1                     = 0x44,
-            DeviceId2                     = 0x48,
-            DeviceId3                     = 0x4C,
-            DeviceId4                     = 0x50,
-            DeviceId5                     = 0x54,
-            DeviceId6                     = 0x58,
-            DeviceId7                     = 0x5C,
-            ManufacturingState0           = 0x60,
-            ManufacturingState1           = 0x64,
-            ManufacturingState2           = 0x68,
-            ManufacturingState3           = 0x6C,
-            ManufacturingState4           = 0x70,
-            ManufacturingState5           = 0x74,
-            ManufacturingState6           = 0x78,
-            ManufacturingState7           = 0x7C,
+            HardwareRevision              = 0x40,
+            DeviceId0                     = 0x44,
+            DeviceId1                     = 0x48,
+            DeviceId2                     = 0x4C,
+            DeviceId3                     = 0x50,
+            DeviceId4                     = 0x54,
+            DeviceId5                     = 0x58,
+            DeviceId6                     = 0x5C,
+            DeviceId7                     = 0x60,
+            ManufacturingState0           = 0x64,
+            ManufacturingState1           = 0x68,
+            ManufacturingState2           = 0x6C,
+            ManufacturingState3           = 0x70,
+            ManufacturingState4           = 0x74,
+            ManufacturingState5           = 0x78,
+            ManufacturingState6           = 0x7C,
+            ManufacturingState7           = 0x80,
         }
         #pragma warning restore format
     }
