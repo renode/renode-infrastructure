@@ -33,16 +33,23 @@ namespace Antmicro.Renode.Utilities
                 throw new RecoverableException($"File does not exist: {path}");
             }
 
-            using(var fs = File.Open(path, FileMode.Open))
+            try 
             {
-                if(!fs.CanRead && fileAccess == FileAccess.Read)
+                using(var fs = File.Open(path, FileMode.Open))
                 {
-                    throw new RecoverableException($"File is not readable: {path}");
+                    if(!fs.CanRead && fileAccess == FileAccess.Read)
+                    {
+                        throw new RecoverableException($"File is not readable: {path}");
+                    }
+                    if(!fs.CanWrite && fileAccess == FileAccess.Write)
+                    {
+                        throw new RecoverableException($"File is not writable: {path}");
+                    }
                 }
-                if(!fs.CanWrite && fileAccess == FileAccess.Write)
-                {
-                    throw new RecoverableException($"File is not writable: {path}");
-                }
+            } 
+            catch (UnauthorizedAccessException e)
+            {
+                throw new RecoverableException($"Error while accessing {path}: {e.Message}");
             }
         }
 
