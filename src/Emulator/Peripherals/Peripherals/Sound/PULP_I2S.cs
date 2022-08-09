@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                     this.Log(LogLevel.Error, "Sampling frequency not set. Aborting continuous reception");
                     return;
                 }
-                rxThread = machine.ObtainManagedThread(InputFrames, (int)RxSampleFrequency);
+                rxThread = machine.ObtainManagedThread(InputFrames, RxSampleFrequency);
                 rxThread.Start();
             }
             else
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                     this.Log(LogLevel.Error, "Sampling frequency not set. Aborting continuous transmission");
                     return;
                 }
-                txThread = machine.ObtainManagedThread(OutputFrames, (int)TxSampleFrequency);
+                txThread = machine.ObtainManagedThread(OutputFrames, TxSampleFrequency);
                 txThread.Start();
             }
             else

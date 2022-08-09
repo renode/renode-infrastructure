@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -231,7 +231,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             StopCollection();
             LoadNextSample();
 
-            samplingThread = machine.ObtainManagedThread(LoadNextSample, (int)samplingRate);
+            samplingThread = machine.ObtainManagedThread(LoadNextSample, samplingRate);
             samplingThread.Start();
             this.Log(LogLevel.Debug, "Sample acquisition thread started");
         }

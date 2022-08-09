@@ -521,7 +521,7 @@ namespace Antmicro.Renode.Core
             EmulationManager.Instance.CurrentEmulation.BackendManager.HideAnalyzersFor(this);
         }
 
-        public IManagedThread ObtainManagedThread(Action action, int frequency, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null)
+        public IManagedThread ObtainManagedThread(Action action, uint frequency, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null)
         {
             return new ManagedThreadWrappingClockEntry(this, action, frequency, name, owner, stopCondition);
         }

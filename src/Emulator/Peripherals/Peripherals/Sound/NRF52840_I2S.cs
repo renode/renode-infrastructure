@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 this.Log(LogLevel.Error, "Trying to start aquisition, when peripheral is disabled (ENABLE==0). Will not start");
                 return;
             }
-            rxTxThread = machine.ObtainManagedThread(ProcessFrames, (int)(sampleFrequency / (maxSamplesCount.Value * samplesPerDoubleWord)));
+            rxTxThread = machine.ObtainManagedThread(ProcessFrames, sampleFrequency / (maxSamplesCount.Value * samplesPerDoubleWord));
             rxTxThread.Start();
         }
 

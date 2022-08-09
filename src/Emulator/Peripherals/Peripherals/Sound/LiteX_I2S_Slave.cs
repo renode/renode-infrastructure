@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
         }
 
-        public int SamplesPushFrequency { get; set; }
+        public uint SamplesPushFrequency { get; set; }
 
         protected override bool IsReady()
         {

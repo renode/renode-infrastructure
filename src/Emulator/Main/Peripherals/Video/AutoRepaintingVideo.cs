@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Video
         [field: Transient]
         public event Action<byte[]> FrameRendered;
 
-        public int FramesPerVirtualSecond
+        public uint FramesPerVirtualSecond
         {
             get
             {
@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> configurationChanged;
         private readonly object innerLock;
         private readonly Machine machine;
-        private int framesPerVirtualSecond = 25;
+        private uint framesPerVirtualSecond = 25;
     }
 }
 

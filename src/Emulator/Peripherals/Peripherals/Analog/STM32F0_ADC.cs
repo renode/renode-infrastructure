@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class STM32F0_ADC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32F0_ADC(Machine machine, double referenceVoltage, int externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null) : base(machine)
+        public STM32F0_ADC(Machine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null) : base(machine)
         {
             if(dmaPeripheral == null)
             {
@@ -412,7 +412,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private readonly IDMA dma;
         private readonly int dmaChannel;
-        private readonly int externalEventFrequency;
+        private readonly uint externalEventFrequency;
         private readonly double referenceVoltage;
         private readonly IManagedThread samplingThread;
         private readonly SensorSamplesFifo<ScalarSample>[] sampleProvider;
