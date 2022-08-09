@@ -37,6 +37,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             bankInfoPageProgramEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
             bankInfoPageEraseEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
 
+            dataFlash = flash;
+            // This is required as part of the tests use full address, while the other use just flash offset
+            // Ex.
+            //    this one uses just offset: https://github.com/lowRISC/opentitan/blob/1e86ba2a238dc26c2111d325ee7645b0e65058e5/sw/device/tests/flash_ctrl_test.c#L70
+            //    this one - full address:   https://github.com/lowRISC/opentitan/blob/1e86ba2a238dc26c2111d325ee7645b0e65058e5/sw/device/tests/flash_ctrl_test.c#L224
+            flashAddressMask = (uint)(flash.Size - 1);
+
             for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
             {
                 for(var infoType = 0; infoType < FlashNumberOfInfoTypes; ++infoType)
@@ -119,11 +126,11 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             Registers.AddressForFlashOperation.Define(this)
                 .WithValueField(0, 32, out address, changeCallback: (_, address) => {
+                    // This is required as the tests use full address or just flash offset
+                    this.address.Value = address & flashAddressMask;
                     flashAddress = null;
                     var addresses = machine.SystemBus.GetRegistrationPoints(dataFlash)
-                        .Select(pint => pint.Range)
-                        .Where(range => range.Contains(address))
-                        .Select(range => range.StartAddress);
+                        .Select(pint => pint.Range.StartAddress);
 
                     if(!addresses.Any())
                     {
@@ -311,22 +318,16 @@ namespace Antmicro.Renode.Peripherals.MTD
                         return;
                     }
 
-                    if(TryGetOffset(out var offset))
+                    var offset = address.Value;
+                    if(programOffset > (offset + 4 * controlNum.Value))
                     {
-                        if(programOffset > (offset + 4 * controlNum.Value))
-                        {
-                            opStatusRegisterDoneFlag.Value = true;
-                            interruptStatusOperationDone.Value = true;
-                        }
-                        else
-                        {
-                            interruptStatusProgramLevel.Value = true;
-                            interruptStatusProgramEmpty.Value = true;
-                        }
+                        opStatusRegisterDoneFlag.Value = true;
+                        interruptStatusOperationDone.Value = true;
                     }
                     else
                     {
-                        outOfBoundsError.Value = true;
+                        interruptStatusProgramLevel.Value = true;
+                        interruptStatusProgramEmpty.Value = true;
                     }
                 })
                 .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -361,29 +362,22 @@ namespace Antmicro.Renode.Peripherals.MTD
                         return value;
                     }
 
-                    if(TryGetOffset(out var offset))
+                    var offset = address.Value;
+                    if(readOffset > (offset + 4 * controlNum.Value))
                     {
-                        if(readOffset > (offset + 4 * controlNum.Value))
-                        {
-                            opStatusRegisterDoneFlag.Value = true;
-                            interruptStatusOperationDone.Value = true;
-                            UpdateReadFifoSignals(false);
-                        }
-                        else
-                        {
-                            UpdateReadFifoSignals(true);
-                        }
+                        opStatusRegisterDoneFlag.Value = true;
+                        interruptStatusOperationDone.Value = true;
+                        UpdateReadFifoSignals(false);
                     }
                     else
                     {
-                        outOfBoundsError.Value = true;
+                        UpdateReadFifoSignals(true);
                     }
 
                     return value;
                 })
                 .WithWriteCallback((_, __) => UpdateInterrupts());
-            
-            dataFlash = flash;
+
             infoFlash = new ArrayMemory[FlashNumberOfBanks, FlashNumberOfInfoTypes];
             for(var bankNumber = 0; bankNumber < FlashNumberOfBanks; ++bankNumber)
             {
@@ -468,15 +462,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartReadOperation: reading {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            if(TryGetOffset(out var offset))
-            {
-                readOffset = offset;
-                UpdateReadFifoSignals(true);
-            }
-            else
-            {
-                outOfBoundsError.Value = true;
-            }
+            readOffset = address.Value;
+            UpdateReadFifoSignals(true);
         }
 
         private void StartProgramOperation()
@@ -491,14 +478,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartProgramOperation: programming {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            if(TryGetOffset(out var offset))
-            {
-                programOffset = offset;
-            }
-            else
-            {
-                outOfBoundsError.Value = true;
-            }
+            programOffset = address.Value;
         }
 
         private void StartEraseOperation()
@@ -512,13 +492,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 LogLevel.Noisy,
                 "OpenTitan_FlashController/StartEraseOperation: eraseing {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
-            
-            if(!TryGetOffset(out var offset))
-            {
-                outOfBoundsError.Value = true;
-                return;
-            }
 
+            var offset = address.Value;
             var size = flashSelectBankEraseMode.Value ? BytesPerBank : BytesPerPage;
             var truncatedOffset = offset & ~(size - 1);
             var bankNumber = truncatedOffset / BytesPerBank;
@@ -575,7 +550,8 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private void UpdateReadFifoSignals(bool readInProgress)
         {
-            if(readInProgress && TryGetOffset(out var flashOffset))
+            var flashOffset = address.Value;
+            if(readInProgress)
             {
                 var wordsLeft = (readOffset - flashOffset) / 4 + 1;
                 statusReadFullFlag.Value = wordsLeft >= 16;
@@ -794,20 +770,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             CorrectableErrorIRQ.Set(interruptStatusCorrectableError.Value && interruptEnableCorrectableError.Value);
         }
 
-        private bool TryGetOffset(out long offset)
-        {
-            if(flashAddress.HasValue)
-            {
-                offset = (address.Value & ~(FlashWordSize - 1)) - flashAddress.Value;
-                return true;
-            }
-            else
-            {
-                offset = default(long);
-                return false;
-            }
-        }
-
         private long readOffset;
         private long programOffset;
         private long? flashAddress;
@@ -828,6 +790,8 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private readonly MappedMemory dataFlash;
         private readonly ArrayMemory[,] infoFlash;
+        // This is required as the tests use full address or just flash offset
+        private readonly uint flashAddressMask;
         private readonly IFlagRegisterField opStatusRegisterDoneFlag;
         private readonly IFlagRegisterField opStatusRegisterErrorFlag;
         private readonly IFlagRegisterField statusReadFullFlag;
