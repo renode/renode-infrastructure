@@ -5,15 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Globalization;
 using System.Linq;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.MemoryControllers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -228,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void AdvanceState()
         {
             IEnumerable<byte> data;
-            
+
             switch(state.Value)
             {
                 case WorkingState.Reset:
