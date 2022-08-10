@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,11 +7,14 @@
 //
 using System;
 
+using Antmicro.Renode.Time;
+
 namespace Antmicro.Renode.Core
 {
     public interface IManagedThread : IDisposable
     {
         void Start();
+        void StartAt(TimeInterval when);
         void Stop();
     }
 }

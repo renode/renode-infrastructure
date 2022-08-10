@@ -560,6 +560,18 @@ namespace Antmicro.Renode.Core
                 );
             }
 
+            public void StartAt(TimeInterval when)
+            {
+                Action<TimeInterval> startThread = ts =>
+                {
+                    Start();
+
+                    // Let's have the first action run precisely at the specified time.
+                    action();
+                };
+                machine.ScheduleAction(when, startThread, name);
+            }
+
             public void Stop()
             {
                 if(clockEntryAdded)
