@@ -55,7 +55,14 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             EnsureAnalyserWidget();
 
             videoPeripheral.ConfigurationChanged += (w, h, f, e) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.SetDisplayParameters(w, h, f, e));
-            videoPeripheral.FrameRendered += (f) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.DrawFrame(f));
+            videoPeripheral.FrameRendered += (f) => 
+            {
+                ApplicationExtensions.InvokeInUIThread(() => 
+                {
+                    displayWidget.DrawFrame(f);
+                    snapshotButton.Sensitive = true; 
+                });
+            };
 
             displayWidget.InputAttached += i =>
             {
@@ -133,7 +140,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
                 }
                 pointersComboBox.SelectedIndex = 0;
 
-                var snapshotButton = new Button("Take screenshot!");
+                snapshotButton = new Button("Take screenshot!") { Sensitive = false };
                 snapshotButton.Clicked += (sender, e) =>
                 {
                     var screenshotDir = Path.Combine(Emulator.UserDirectoryPath, "screenshots");
@@ -236,6 +243,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 
         private FrameBufferDisplayWidget displayWidget;
         private Widget analyserWidget;
+        private Button snapshotButton;
         private ComboBox keyboardsComboBox;
         private ComboBox pointersComboBox;
         private IPeripheral element;
