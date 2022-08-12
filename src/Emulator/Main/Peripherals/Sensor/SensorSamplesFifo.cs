@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedSample(T sample)
+        public virtual void FeedSample(T sample)
         {
             lock(samplesFifo)
             {
@@ -52,12 +52,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
             samplesFifo.Clear();
         }
 
-        public bool TryDequeueNewSample()
+        public virtual bool TryDequeueNewSample()
         {
             return samplesFifo.TryDequeue(out currentSample);
         }
 
-        public T Sample => currentSample ?? DefaultSample;
+        public virtual T Sample => currentSample ?? DefaultSample;
 
         public T DefaultSample { get; } = new T();
 
