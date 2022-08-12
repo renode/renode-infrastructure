@@ -37,11 +37,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedSamplesFromFile(string path)
+        public void FeedSamplesFromFile(string path, Func<string[], T> sampleConstructor = null)
         {
+            if(sampleConstructor == null)
+            {
+                sampleConstructor = stringArray =>
+                {
+                    var sample = new T();
+                    return sample.TryLoad(stringArray) ? sample : null;
+                };
+            }
+
             lock(samplesFifo)
             {
-                var samples = ParseSamplesFile(path);
+                var samples = ParseSamplesFile(path, sampleConstructor);
                 samplesFifo.EnqueueRange(samples);
             }
         }
@@ -63,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public uint SamplesCount => (uint)samplesFifo.Count;
 
-        private IEnumerable<T> ParseSamplesFile(string path)
+        private IEnumerable<T> ParseSamplesFile(string path, Func<string[], T> sampleConstructor)
         {
             var localQueue = new Queue<T>();
             var lineNumber = 0;
@@ -85,8 +94,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
                         var numbers = line.Split(new [] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).ToArray();
 
-                        var sample = new T();
-                        if(!sample.TryLoad(numbers))
+                        var sample = sampleConstructor(numbers);
+                        if(sample == null)
                         {
                             throw new RecoverableException($"Wrong data file format at line {lineNumber}: {line}");
                         }
