@@ -104,6 +104,10 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public GPIO ErrorInterrupt { get; private set; }
 
+        public bool RxNotEmpty => rxData.Count > 0;
+        
+        public bool OwnAddress1Enabled => ownAddress1Enabled.Value;
+
         private DoubleWordRegisterCollection CreateRegisters()
         {
             var map = new Dictionary<long, DoubleWordRegister> { {
@@ -197,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                                 }
                                 transmitInterruptStatus = val && transferInterruptEnabled.Value;
                             } , name: "TXIS")
-                        .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => (rxData.Count > 0), name: "RXNE")
+                        .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => RxNotEmpty, name: "RXNE")
                         .WithFlag(3, out addressMatched, FieldMode.Read, name: "ADDR")
                         .WithTag("NACKF", 4, 1)
                         .WithFlag(5, out stopDetection, FieldMode.Read, name: "STOPF")
