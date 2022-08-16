@@ -324,13 +324,13 @@ namespace Antmicro.Renode.Extensions.Mocks
         // This method is for getting OA1EN, 
         // returns true when OA1EN is enabled.
         private bool OA1ENEnabled(){
-            return currentSlave.ReadDoubleWord(0x08) >> 15 != 0x00;
+            return currentSlave.OwnAddress1Enabled;
         }
-        
+
         // This method is for getting RXEN,
         // returns true when the buffer is empty.
         private bool RXNECleared(){
-            return (currentDoubleSlave.ReadDoubleWord(0x18) & (1 << 2)) == 0x00;
+            return !currentSlave.RxNotEmpty;
         }
         
         private void PollForRegisterBit(RegisterBitName bitName){
