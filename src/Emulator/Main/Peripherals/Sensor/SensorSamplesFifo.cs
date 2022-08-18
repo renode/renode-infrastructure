@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,6 +19,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public SensorSamplesFifo()
         {
             samplesFifo = new Queue<T>();
+        }
+
+        public void DumpOldestSample()
+        {
+            lock(samplesFifo)
+            {
+                samplesFifo.TryDequeue<T>(out _);
+            }
         }
 
         public void FeedSample(T sample)
