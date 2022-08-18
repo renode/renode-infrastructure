@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Utilities
         }
 
 
-        public static byte[] ReadBytes(this Stream stream, int count)
+        public static byte[] ReadBytes(this Stream stream, int count, bool throwIfEndOfStream = false)
         {
             var buffer = new byte[count];
             var read = 0;
@@ -135,6 +135,13 @@ namespace Antmicro.Renode.Utilities
                     );
                 }
                 read += readInThisIteration;
+            }
+
+            if(throwIfEndOfStream && read < count)
+            {
+                throw new EndOfStreamException(
+                    $"End of stream encountered. {count}B were requested but only {read}B could be read"
+                );
             }
             return buffer;
         }
