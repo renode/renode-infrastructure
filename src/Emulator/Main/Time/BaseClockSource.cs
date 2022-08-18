@@ -150,7 +150,7 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        public virtual bool RemoveClockEntry(Action handler)
+        public virtual bool TryRemoveClockEntry(Action handler)
         {
             int oldCount;
             lock(sync)

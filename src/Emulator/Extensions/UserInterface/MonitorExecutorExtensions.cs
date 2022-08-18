@@ -29,7 +29,7 @@ namespace Antmicro.Renode.UserInterface
 
         public static void StopPythonExecution(this Machine machine, string name)
         {
-            machine.ClockSource.RemoveClockEntry(events.WithdrawAction(machine, name));
+            machine.ClockSource.TryRemoveClockEntry(events.WithdrawAction(machine, name));
             events.Remove(machine, name);
         }
 

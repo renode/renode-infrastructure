@@ -538,7 +538,7 @@ namespace Antmicro.Renode.Core
 
             public void Dispose()
             {
-                clockSource.RemoveClockEntry(action);
+                clockSource.TryRemoveClockEntry(action);
             }
 
             public void Start()

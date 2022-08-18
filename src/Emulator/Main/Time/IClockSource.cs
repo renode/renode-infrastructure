@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Time
         void AddClockEntry(ClockEntry entry);
         void ExchangeClockEntryWith(Action handler, Func<ClockEntry, ClockEntry> visitor,
             Func<ClockEntry> factoryIfNonExistent = null);
-        bool RemoveClockEntry(Action handler);
+        bool TryRemoveClockEntry(Action handler);
         ClockEntry GetClockEntry(Action handler);
         void GetClockEntryInLockContext(Action handler, Action<ClockEntry> visitor);
         IEnumerable<ClockEntry> GetAllClockEntries();
