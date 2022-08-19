@@ -51,6 +51,7 @@
     <Compile Include="LPC43xx_GPIO_Test.cs" />
     <Compile Include="OpenTitan_AES_Test.cs" />
     <Compile Include="OpenTitan_KeyManagerTest.cs" />
+    <Compile Include="OpenTitan_I2C_Test.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
