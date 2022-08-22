@@ -7,13 +7,18 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
+#if !PLATFORM_WINDOWS
+using Mono.Unix;
+#endif
 
 namespace Antmicro.Renode.Extensions.Mocks
 {
@@ -176,8 +181,13 @@ namespace Antmicro.Renode.Extensions.Mocks
         // Register 6:
         public string[,] ReadError(TimeInterval timeInterval)
         {
+            return FormatCommonErrorStatus(ReadErrorBytes(timeInterval));
+        }
+
+        public byte[] ReadErrorBytes(TimeInterval timeInterval)
+        {
             IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.Error });
-            return FormatCommonErrorStatus(GetBytesFromSlave(2, timeInterval));
+            return GetBytesFromSlave(2, timeInterval);
         }
 
         // Register 7: should be RW
@@ -349,11 +359,146 @@ namespace Antmicro.Renode.Extensions.Mocks
                 default:
                     throw new RecoverableException("Register bit name does not exist.");
             }
-            
             while(!registerAccess() && i < 8)
             {
                 Thread.Sleep(500);
                 i++;
+            }
+        }
+
+        private void PollForError(TimeInterval timeInterval)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                var errors = ReadErrorBytes(timeInterval);
+                if(errors[0] + errors[1] != 0x00)
+                {
+                    break;
+                }
+                Thread.Sleep(1000);
+            }
+        }
+
+        // When we need to read for more than 255 bytes, we will need this method
+        private byte[] GetLongBytes(int count, TimeInterval timeInterval)
+        {
+            var result = new byte[count];
+            var rounds = count / ReadChunkSize;
+            var remainder = count % ReadChunkSize; 
+            for(int i = 0; i <= rounds; i++)
+            {
+                int toRead = i == rounds ? remainder : ReadChunkSize;
+                Array.Copy(GetBytesFromSlave(toRead, timeInterval), 0, result, i * ReadChunkSize, toRead);
+            }
+            return result;
+        }
+
+        public void StartSocketServer(TimeInterval timeInterval)
+        {  
+#if PLATFORM_WINDOWS
+            throw new RecoverableException("This method is not supported on Windows");
+#else
+            string path = "/tmp/i2c.sock";
+            if(File.Exists(path))
+            {
+                File.Delete(path);
+            }
+            var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            socket.Bind(new UnixEndPoint(path));
+            socket.Listen(0);
+            this.Log(LogLevel.Info, "Server started waiting for client to connect on {0}", path);
+
+            currentSlave.Read(0);
+            var connection = socket.Accept();
+            this.Log(LogLevel.Info, "Connection established");
+
+            var commandBuffer = new byte[(int)NumberOfBytes.MessageType];
+            var prevWrite = false;
+            var length = 0;
+
+            while(SocketConnected(connection))
+            {
+                PollForRegisterBit(RegisterBitName.OA1EN);
+                try
+                {
+                    PollForSocketData(connection, commandBuffer);
+                }
+                catch(Exception e)
+                {
+                    this.Log(LogLevel.Error, "{0} Exception caught.", e);
+                    return;
+                }
+                switch((SocketI2CMessageType)commandBuffer[0])
+                {
+                    case SocketI2CMessageType.Stop:
+                        currentSlave.FinishTransmission();
+                        break;
+                    // Parse read command
+                    case SocketI2CMessageType.Read:
+                        prevWrite = false;
+                        length = GetLength(connection);
+                    
+                        byte[] dataToSend = GetLongBytes(length, timeInterval);
+                        try
+                        {   
+                            PollForSocketData(connection, dataToSend, true);
+                        }
+                        catch(Exception e)
+                        {
+                            this.Log(LogLevel.Error, "{0} Exception caught.", e);
+                            return;
+                        }
+                        break;
+                    // Parse write command
+                    case SocketI2CMessageType.Write:
+                        // Seems that the slave needs a read operation
+                        // to flush out the bits written
+                        if(prevWrite)
+                        {
+                            currentSlave.Read(0);
+                            PollForRegisterBit(RegisterBitName.RXNE);
+                        }
+                        prevWrite = true;
+                        length = GetLength(connection);
+                        byte[] data = new byte[length];
+                        try 
+                        {   
+                            PollForSocketData(connection, data);
+                        }
+                        catch(Exception e)
+                        {
+                            this.Log(LogLevel.Error, "{0} Exception caught.", e);
+                            return;
+                        }
+                        if(data.Length == 1 && data[0] == 0x86)
+                        {
+                            PollForError(timeInterval);
+                        }
+                        IssueCommand(data);
+                        break;
+                }
+            }
+#endif
+        }
+
+        private int GetLength(Socket connection)
+        {
+            var lengthBytes = new byte[(int)NumberOfBytes.LengthBytes];
+            PollForSocketData(connection, lengthBytes);
+            var combined = (int)lengthBytes[0] << 8 | lengthBytes[1];
+            return combined;
+        }
+
+        private void PollForSocketData(Socket connection, byte[] data, bool send = false)
+        {
+            var tempLength = 0;
+            var sendReceive = (send == true)
+                ? connection.Send
+                : (Func<byte[], int, int, SocketFlags, int>)connection.Receive;
+        
+            while(tempLength < data.Length)
+            {
+                tempLength += sendReceive(data, tempLength, data.Length - tempLength, SocketFlags.None);
             }
         }
 
@@ -366,6 +511,13 @@ namespace Antmicro.Renode.Extensions.Mocks
             currentSlave.Write(data);
         }
 
+        private bool SocketConnected(Socket s)
+        {
+            bool dataAvailableForReading = s.Poll(1000, SelectMode.SelectRead);
+            bool availableBytesIsEmpty = (s.Available == 0);
+            return !(dataAvailableForReading && availableBytesIsEmpty);
+        }
+ 
         private string[,] FormatSystemStatus(byte[] data)
         {
             if(data.Length != 2)
@@ -498,6 +650,8 @@ namespace Antmicro.Renode.Extensions.Mocks
 
         private STM32F7_I2C currentSlave;
 
+        private const int ReadChunkSize = 255;
+
         private enum Commands
         {
             WriteMemory     = 0,
@@ -551,6 +705,19 @@ namespace Antmicro.Renode.Extensions.Mocks
         {
             OA1EN = 1,
             RXNE = 2,
+        }
+
+        private enum SocketI2CMessageType
+        {
+            Stop = 0,
+            Read = 1,
+            Write = 2,
+        }
+
+        private enum NumberOfBytes
+        {
+            MessageType = 1,
+            LengthBytes = 2,
         }
     }
 }
