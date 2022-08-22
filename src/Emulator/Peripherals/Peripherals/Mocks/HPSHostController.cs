@@ -7,13 +7,20 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging; 
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
+#if !PLATFORM_WINDOWS
+using Mono.Unix;
+#endif
 
 namespace Antmicro.Renode.Extensions.Mocks
 {
@@ -29,7 +36,7 @@ namespace Antmicro.Renode.Extensions.Mocks
     {
         public HPSHostController(STM32F7_I2C device)
         {
-            currentSlave = device;
+              currentSlave = device;
         }
         
         public void FlashMCU(ReadFilePath path)
@@ -178,6 +185,12 @@ namespace Antmicro.Renode.Extensions.Mocks
         {
             IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.Error });
             return FormatCommonErrorStatus(GetBytesFromSlave(2, timeInterval));
+        }
+
+        public byte[] ReadErrorBytes(TimeInterval timeInterval)
+        {
+            IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.Error });
+            return GetBytesFromSlave(2, timeInterval);
         }
 
         // Register 7: should be RW
@@ -331,15 +344,13 @@ namespace Antmicro.Renode.Extensions.Mocks
         // returns true when the buffer is empty.
         private bool RXNECleared()
         {
-            return !currentSlave.RxNotEmpty;
+            return currentSlave.RxNotEmpty;
         }
         
-        private void PollForRegisterBit(RegisterBitName bitName)
-        {
-            int i = 0;
+        private void PollForRegisterBit(RegisterBitName bitName){
             Func<bool> registerAccess;
-            switch(bitName)
-            {
+            int i = 0;
+            switch(bitName){
                 case RegisterBitName.OA1EN:
                     registerAccess = OA1ENEnabled;
                     break;
@@ -347,14 +358,143 @@ namespace Antmicro.Renode.Extensions.Mocks
                     registerAccess = RXNECleared;
                     break;
                 default:
-                    throw new RecoverableException("Register bit name does not exist.");
+                    registerAccess = null;
+                    break;
             }
-            
-            while(!registerAccess() && i < 8)
-            {
+            while(!registerAccess() && i < 8){
                 Thread.Sleep(500);
-                i++;
+                i ++;
             }
+        }
+
+        private void PollForError(TimeInterval timeInterval){
+            var errors = ReadErrorBytes(timeInterval);
+            for (int i = 0; i < 3; i ++){
+                Thread.Sleep(1000);
+                errors = ReadErrorBytes(timeInterval);
+                if ((errors[0] + errors[1] != 0x00)){
+                    break;
+                }
+            }
+        }
+
+        // When we need to read for more than 255 bytes, we will need this method
+        private byte[] GetLongBytes(int count, TimeInterval timeInterval) {
+            var result = new byte[count];
+            var rounds = count /255;
+            var remainder = count % 255; 
+            for (int i = 0; i <= rounds; i ++) {
+                int toRead = i == rounds ? remainder : 255;
+                Array.Copy(GetBytesFromSlave(toRead, timeInterval), 0, result, i * 255, toRead);
+            }
+            return result;
+        }
+
+        public void StartSocketServer(TimeInterval timeInterval)
+        {  
+            string path = "/tmp/i2c.sock";
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+            var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            socket.Bind(new UnixEndPoint(path));
+            socket.Listen(0);
+            this.Log(LogLevel.Info, "Server started waiting for client to connect...");
+            this.Log(LogLevel.Info, "Starting on: {0}", path);
+
+            currentSlave.Read(0);
+            var connection = socket.Accept();
+            this.Log(LogLevel.Info, "Connection established");
+            
+            var commandBuffer = new byte[(int)NumberOfBytes.MessageType];
+            var prevWrite = false;
+            var length = 0;
+
+            while(SocketConnected(connection)){
+                PollForRegisterBit(RegisterBitName.OA1EN);
+                try {
+                    PollForSocketData(connection, commandBuffer);
+                }
+                catch(Exception e)
+                {
+                    this.Log(LogLevel.Warning, "{0} Exception caught.", e);
+                    return;
+                }
+                switch((SocketI2CMessageType)commandBuffer[0])
+                {
+                    case SocketI2CMessageType.Stop:
+                        currentSlave.FinishTransmission();
+                        break;
+                    // Parse read command
+                    case SocketI2CMessageType.Read:
+                        prevWrite = false;
+                        length = GetLength(connection);
+                    
+                        byte [] dataToSend =  GetLongBytes(length, timeInterval);
+                        try 
+                        {   
+                            PollForSocketData(connection, dataToSend, true);
+                        }
+                        catch(Exception e)
+                        {
+                            this.Log(LogLevel.Warning, "{0} Exception caught.", e);
+                            return;
+                        }
+                        break;
+                    // Parse write command
+                    case SocketI2CMessageType.Write:
+                        // Seems that the slave needs a read operation
+                        // to flush out the bits written
+                        if (prevWrite) {
+                            currentSlave.Read(0);
+                            PollForRegisterBit(RegisterBitName.RXNE);
+                        }
+                        prevWrite = true;
+                        length = GetLength(connection);
+                        byte[] data = new byte[length];
+                        try 
+                        {   
+                            PollForSocketData(connection, data);
+                        }
+                        catch(Exception e)
+                        {
+                            this.Log(LogLevel.Warning, "{0} Exception caught.", e);
+                            return;
+                        }
+                        if(data.Length == 1 && data[0] == 0x86){
+                            PollForError(timeInterval);
+                        }
+                        IssueCommand(data);
+                        break;
+                }
+            }
+            if (prevWrite) 
+            {
+                currentSlave.Read(0);
+            }
+        }
+
+        private int GetLength(Socket connection){
+            var lengthBytes = new byte[(int)NumberOfBytes.LengthBytes];
+            PollForSocketData(connection, lengthBytes);
+            var combined = (int)lengthBytes[0] << 8 | lengthBytes[1];
+            return combined;
+        }
+
+        private void PollForSocketData(Socket connection, byte[]data, bool send = false) {
+            var tempLength = 0;
+            Func<byte[], int, int, SocketFlags, int> SendReceive;
+            if(send){
+                SendReceive = connection.Send;
+            }else{
+                SendReceive = connection.Receive;
+            }
+        
+            while(tempLength < data.Length){
+                tempLength += SendReceive(data, tempLength, data.Length - tempLength, SocketFlags.None);
+            }
+            return;
         }
 
         private void IssueCommand(byte[] data)
@@ -366,6 +506,13 @@ namespace Antmicro.Renode.Extensions.Mocks
             currentSlave.Write(data);
         }
 
+        private bool SocketConnected(Socket s)
+        {
+            bool dataAvailableForReading = s.Poll(1000, SelectMode.SelectRead);
+            bool availableBytesIsEmpty = (s.Available == 0);
+            return !(dataAvailableForReading && availableBytesIsEmpty);
+        }
+ 
         private string[,] FormatSystemStatus(byte[] data)
         {
             if(data.Length != 2)
@@ -496,6 +643,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             return table.ToArray();
         }
 
+
         private STM32F7_I2C currentSlave;
 
         private enum Commands
@@ -546,11 +694,24 @@ namespace Antmicro.Renode.Extensions.Mocks
             EraseStage1 = 8,
             EraseSPIFlash = 16,
         }
-
+        
         private enum RegisterBitName
         {
             OA1EN = 1,
             RXNE = 2,
+        }
+
+        private enum SocketI2CMessageType
+        {
+            Stop = 0,
+            Read = 1,
+            Write = 2,
+        }
+
+        private enum NumberOfBytes
+        {
+            MessageType = 1,
+            LengthBytes = 2,
         }
     }
 }
