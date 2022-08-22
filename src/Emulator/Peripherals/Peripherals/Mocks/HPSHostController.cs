@@ -344,7 +344,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         // returns true when the buffer is empty.
         private bool RXNECleared()
         {
-            return currentSlave.RxNotEmpty;
+            return !currentSlave.RxNotEmpty;
         }
         
         private void PollForRegisterBit(RegisterBitName bitName){
@@ -642,7 +642,6 @@ namespace Antmicro.Renode.Extensions.Mocks
             table.AddRow((data[1] & 0x1) == 1 ? "1" : "0", "0", "ROTATION", "Rotation bit 0");
             return table.ToArray();
         }
-
 
         private STM32F7_I2C currentSlave;
 
