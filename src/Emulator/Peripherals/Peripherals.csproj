@@ -523,6 +523,7 @@
     <Compile Include="Peripherals\UART\SiLabs\EFR32_GenericUSART.cs" />
     <Compile Include="Peripherals\UART\EFR32xG22_USART.cs" />
     <Compile Include="Peripherals\SPI\SPIMultiplexer.cs" />
+    <Compile Include="Peripherals\UART\MxcUart.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
