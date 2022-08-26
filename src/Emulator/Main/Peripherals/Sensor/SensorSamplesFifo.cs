@@ -62,8 +62,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             foreach(var packet in packets)
             {
                 firstPacketStartTime = firstPacketStartTime ?? packet.StartTime;
-                var startTime = packet.StartTime - firstPacketStartTime.Value + delay;
-                FeedSamplesPeriodically(machine, owner, name, startTime, packet.Frequency, packet.Samples);
+                var packetDelay = packet.StartTime - firstPacketStartTime.Value + delay;
+                FeedSamplesPeriodically(machine, owner, name, packetDelay, packet.Frequency, packet.Samples);
             }
         }
 
@@ -102,9 +102,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public uint SamplesCount => (uint)samplesFifo.Count;
 
-        private void FeedSamplesPeriodically(Machine machine, IPeripheral owner, string name, TimeInterval startTime, uint frequency, Queue<T> samples)
+        private void FeedSamplesPeriodically(Machine machine, IPeripheral owner, string name, TimeInterval startDelay, uint frequency, Queue<T> samples)
         {
-            owner.Log(LogLevel.Noisy, "{0}: {1} samples will be fed at {2} Hz starting at {3:c}", name, samples.Count, frequency, startTime.ToTimeSpan());
+            owner.Log(LogLevel.Noisy, "{0}: {1} samples will be fed at {2} Hz starting at {3:c}", name, samples.Count, frequency, startDelay.ToTimeSpan());
 
             Action feedSample = () =>
             {
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             };
 
             var thread = machine.ObtainManagedThread(feedSample, frequency, name + " sample loader", owner, stopCondition);
-            thread.StartAt(startTime);
+            thread.StartDelayed(startDelay);
         }
 
         private IEnumerable<T> ParseSamplesFile(string path, Func<string[], T> sampleConstructor)

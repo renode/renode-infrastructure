@@ -560,7 +560,7 @@ namespace Antmicro.Renode.Core
                 );
             }
 
-            public void StartAt(TimeInterval when)
+            public void StartDelayed(TimeInterval delay)
             {
                 Action<TimeInterval> startThread = ts =>
                 {
@@ -569,7 +569,7 @@ namespace Antmicro.Renode.Core
                     // Let's have the first action run precisely at the specified time.
                     action();
                 };
-                machine.ScheduleAction(when, startThread, name);
+                machine.ScheduleAction(delay, startThread, name);
             }
 
             public void Stop()
@@ -926,7 +926,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void ScheduleAction(TimeInterval when, Action<TimeInterval> action, string name = null)
+        public void ScheduleAction(TimeInterval delay, Action<TimeInterval> action, string name = null)
         {
             if(SystemBus.TryGetCurrentCPU(out var cpu))
             {
@@ -938,19 +938,15 @@ namespace Antmicro.Renode.Core
             }
 
             var currentTime = ElapsedVirtualTime.TimeElapsed;
-            if(when < currentTime)
-            {
-                throw new RecoverableException($"The Action can't be scheduled in the past (requested: {when}; current time: {currentTime})");
-            }
+            var startTime = currentTime + delay;
 
             Action clockEntryHandler = () =>
             {
-                this.Log(LogLevel.Noisy, "{0}: Executing action scheduled at {1} (current time: {2})", name ?? "unnamed", when, currentTime);
-                action(when);
+                this.Log(LogLevel.Noisy, "{0}: Executing action scheduled at {1} (current time: {2})", name ?? "unnamed", startTime, currentTime);
+                action(currentTime);
             };
 
-            var ticksToAction = (when - currentTime).Ticks;
-            ClockSource.AddClockEntry(new ClockEntry(ticksToAction, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
+            ClockSource.AddClockEntry(new ClockEntry(delay.Ticks, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
         }
 
         public Profiler Profiler { get; private set; }
