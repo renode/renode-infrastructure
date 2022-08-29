@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return;
             }
 
-            var oldState = Connections[number].IsSet;
+            var oldState = State[number];
             base.OnGPIO(number, value);
 
             if(oldState != value)
