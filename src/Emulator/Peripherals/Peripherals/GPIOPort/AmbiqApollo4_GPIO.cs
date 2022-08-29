@@ -36,16 +36,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return;
             }
 
-            if(!inputEnable[number].Value)
-            {
-                this.Log(LogLevel.Warning, "Tried to set value {0} of a pin #{0} not being configured as input", value, number);
-                return;
-            }
-
             var oldState = State[number];
             base.OnGPIO(number, value);
 
-            if(oldState != value)
+            if(inputEnable[number].Value && oldState != value)
             {
                 HandlePinStateChangeInterrupt(number, risingEdge: value);
             }
@@ -195,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     var pinIdx = regIdx * PinsPerBank + bitIdx;
 
-                    return readZero[pinIdx].Value
+                    return readZero[pinIdx].Value || !inputEnable[pinIdx].Value
                         ? false
                         : State[pinIdx];
                 });
