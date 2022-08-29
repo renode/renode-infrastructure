@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,6 +13,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class Button : IPeripheral, IGPIOSender
     {
+        // Registration address ('gpio 3' in the example below) has no influence on the button's logic.
+        // It's just a way to inform the peripherals tree ('peripherals' command) how the button is
+        // connected to the GPIO controller. The actual connection is done with '-> gpio@3'.
+        //
+        // button: Miscellaneous.Button @ gpio 3
+        //     -> gpio@3
         public Button(bool invert = false)
         {
             Inverted = invert;
