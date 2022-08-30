@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,18 +14,6 @@ namespace Antmicro.Renode.Hooks
 {
     public static class CpuHooksExtensions
     {
-        public static void SetHookAtBlockBegin(this ICPUWithHooks cpu, [AutoParameter]Machine m, string pythonScript)
-        {
-            var engine = new BlockPythonEngine(m, cpu, pythonScript);
-            cpu.SetHookAtBlockBegin(engine.HookWithSize);
-        }
-
-        public static void SetHookAtBlockEnd(this ICPUWithHooks cpu, [AutoParameter]Machine m, string pythonScript)
-        {
-            var engine = new BlockPythonEngine(m, cpu, pythonScript);
-            cpu.SetHookAtBlockEnd(engine.HookWithSize);
-        }
-
         public static void AddHook(this ICPUWithHooks cpu, [AutoParameter]Machine m, ulong addr, string pythonScript)
         {
             var engine = new BlockPythonEngine(m, cpu, pythonScript);

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,9 +11,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithHooks : ICPU
     {
-        void ClearHookAtBlockBegin();
-        void SetHookAtBlockBegin(Action<ulong, uint> hook);
-        void SetHookAtBlockEnd(Action<ulong, uint> hook);
         void AddHookAtInterruptBegin(Action<ulong> hook);
         void AddHookAtInterruptEnd(Action<ulong> hook);
 
