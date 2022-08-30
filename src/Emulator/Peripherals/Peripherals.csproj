@@ -497,6 +497,7 @@
     <Compile Include="Peripherals\I2C\LC709205F.cs" />
     <Compile Include="Peripherals\CRC\STM32F0_CRC.cs" />
     <Compile Include="Peripherals\MTD\STM32L0_FlashController.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NRF52840_EGU.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
