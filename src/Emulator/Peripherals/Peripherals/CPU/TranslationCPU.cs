@@ -21,6 +21,7 @@ using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Hooks;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
@@ -37,6 +38,21 @@ using Antmicro.Renode.Disassembler.LLVM;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
+    public static class TranslationCPUHooksExtensions
+    {
+        public static void SetHookAtBlockBegin(this TranslationCPU cpu, [AutoParameter]Machine m, string pythonScript)
+        {
+            var engine = new BlockPythonEngine(m, cpu, pythonScript);
+            cpu.SetHookAtBlockBegin(engine.HookWithSize);
+        }
+
+        public static void SetHookAtBlockEnd(this TranslationCPU cpu, [AutoParameter]Machine m, string pythonScript)
+        {
+            var engine = new BlockPythonEngine(m, cpu, pythonScript);
+            cpu.SetHookAtBlockEnd(engine.HookWithSize);
+        }
+    }
+
     public abstract partial class TranslationCPU : BaseCPU, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters
     {
         protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
