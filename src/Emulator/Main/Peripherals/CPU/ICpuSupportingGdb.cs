@@ -12,7 +12,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICpuSupportingGdb : ICPUWithHooks, ICPUWithRegisters
     {
-        uint PageSize { get; }
         void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null);
 
         string GDBArchitecture { get; }

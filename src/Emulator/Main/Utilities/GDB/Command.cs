@@ -100,7 +100,13 @@ namespace Antmicro.Renode.Utilities.GDB
 
         protected IEnumerable<MemoryFragment> GetTranslatedAccesses(ulong address, ulong length, bool write)
         {
-            var pageSize = (ulong)manager.Cpu.PageSize;
+            var cpu = manager.Cpu as ICPUWithMMU;
+            if(cpu == null)
+            {
+                return null;
+            }
+                
+            var pageSize = (ulong)cpu.PageSize;
             var accesses = new List<MemoryFragment>();
             var firstLength = Math.Min(length, pageSize - address % pageSize);
 

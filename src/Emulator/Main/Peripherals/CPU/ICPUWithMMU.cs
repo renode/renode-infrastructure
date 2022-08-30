@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ICPUWithMMU
     {
         ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType);
+        uint PageSize { get; }
     }
     
     public enum MpuAccess
