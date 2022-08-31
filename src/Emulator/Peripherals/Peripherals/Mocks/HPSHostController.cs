@@ -181,10 +181,9 @@ namespace Antmicro.Renode.Extensions.Mocks
         }
 
         // Register 6:
-        public string[,] ReadError(TimeInterval timeInterval)
-        {
-            IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.Error });
-            return FormatCommonErrorStatus(GetBytesFromSlave(2, timeInterval));
+        public string[,] ReadError(TimeInterval timeInterval) 
+        { 
+            return FormatCommonErrorStatus(ReadErrorBytes(timeInterval)); 
         }
 
         public byte[] ReadErrorBytes(TimeInterval timeInterval)
@@ -469,10 +468,6 @@ namespace Antmicro.Renode.Extensions.Mocks
                         break;
                 }
             }
-            if (prevWrite) 
-            {
-                currentSlave.Read(0);
-            }
         }
 
         private int GetLength(Socket connection){
@@ -508,9 +503,7 @@ namespace Antmicro.Renode.Extensions.Mocks
 
         private bool SocketConnected(Socket s)
         {
-            bool dataAvailableForReading = s.Poll(1000, SelectMode.SelectRead);
-            bool availableBytesIsEmpty = (s.Available == 0);
-            return !(dataAvailableForReading && availableBytesIsEmpty);
+            return !(s.Poll(100, SelectMode.SelectRead) && s.Available == 0);
         }
  
         private string[,] FormatSystemStatus(byte[] data)
