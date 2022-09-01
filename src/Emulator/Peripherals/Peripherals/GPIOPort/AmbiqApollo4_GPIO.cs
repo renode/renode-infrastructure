@@ -74,7 +74,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 register
                     .WithValueField(0, 4, name: $"FUNCSEL{regIdx} - Function select for GPIO pin {regIdx}")
-                    .WithFlag(4, out inputEnable[regIdx], name: $"INPEN{regIdx} - Input enable for GPIO {regIdx}")
+                    .WithFlag(4, out inputEnable[regIdx], name: $"INPEN{regIdx} - Input enable for GPIO {regIdx}",
+                        changeCallback: (_, newValue) => { if(State[regIdx]) HandlePinStateChangeInterrupt(regIdx, risingEdge: newValue); })
                     .WithFlag(5, out readZero[regIdx], name: $"RDZERO{regIdx} - Return 0 for read data on GPIO {regIdx}")
                     .WithEnumField<DoubleWordRegister, InterruptEnable>(6, 2, out interruptMode[regIdx], name: $"IRPTEN{regIdx} - Interrupt enable for GPIO {regIdx}")
                     .WithEnumField<DoubleWordRegister, IOMode>(8, 2, out ioMode[regIdx], name: $"OUTCFG{regIdx} - Pin IO mode selection for GPIO pin {regIdx}")
