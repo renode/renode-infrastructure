@@ -100,7 +100,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         subSecondAlarmCounter = subSecondAlarm.Value;
                     })
                 .WithFlag(3, name: "RTC_CTRL.busy", valueProviderCallback: _ => false)
-                .WithFlag(4, name: "RTC_CTRL.ready", valueProviderCallback: _ => true)
+                // It seems that on real HW, semantic of the READY bit is inverted, that is
+                // when RTC_CTRL.ready is set to false, then software is able to read
+                // correct data from RTC_SEC and RTC_SSEC registers.
+                .WithFlag(4, name: "RTC_CTRL.ready", valueProviderCallback: _ => false)
                 .WithFlag(5, out readyInterruptEnabled, name: "RTC_CTRL.ready_int_en")
                 .WithFlag(6, out timeOfDayAlarmFlag, name: "RTC_CTRL.tod_alarm_fl")
                 .WithFlag(7, out subSecondAlarmFlag, name: "RTC_CTRL.ssec_alarm_fl")
