@@ -503,7 +503,9 @@ namespace Antmicro.Renode.Extensions.Mocks
 
         private bool SocketConnected(Socket s)
         {
-            return !(s.Poll(100, SelectMode.SelectRead) && s.Available == 0);
+            bool dataAvailableForReading = s.Poll(1000, SelectMode.SelectRead);
+            bool availableBytesIsEmpty = (s.Available == 0);
+            return !(dataAvailableForReading && availableBytesIsEmpty);
         }
  
         private string[,] FormatSystemStatus(byte[] data)
