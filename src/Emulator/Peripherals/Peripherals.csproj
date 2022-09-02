@@ -462,6 +462,7 @@
     <Compile Include="Peripherals\SPI\AmbiqApollo4_IOMaster.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_RTC.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_SystemTimer.cs" />
+    <Compile Include="Peripherals\Miscellaneous\SiLabs\EFR32xG12DeviceInformation.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
