@@ -77,34 +77,37 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ulong Step(int count = 1, bool? blocking = null)
         {
-            lock(pauseLock)
+            if(IsHalted)
             {
-                if(IsHalted)
+                this.Log(LogLevel.Warning, "Ignoring stepping on a halted CPU");
+                return PC;
+            }
+
+            lock(singleStepSynchronizer.Guard)
+            {
+                ChangeExecutionModeToSingleStep(blocking);
+                Resume();
+
+                this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
+
+                var th = TimeHandle;
+                if(th != null)
                 {
-                    this.Log(LogLevel.Warning, "Ignoring stepping on a halted CPU");
-                    return PC;
+                    th.DeferredEnabled = true;
                 }
 
-                lock(singleStepSynchronizer.Guard)
+                // Invoking this to allow virtual time to be granted, without setting currentHaltedState to false
+                if(executionMode == ExecutionMode.SingleStepNonBlocking)
                 {
-                    ChangeExecutionModeToSingleStep(blocking);
-                    Resume();
-
-                    this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
-
-                    var th = TimeHandle;
-                    if(th != null)
-                    {
-                        th.DeferredEnabled = true;
-                    }
-
-                    singleStepSynchronizer.CommandStep(count);
-                    singleStepSynchronizer.WaitForStepFinished();
-
-                    UpdateHaltedState();
-
-                    return PC;
+                    UpdateHaltedState(ignoreExecutionMode: true);
                 }
+
+                singleStepSynchronizer.CommandStep(count);
+                singleStepSynchronizer.WaitForStepFinished();
+
+                UpdateHaltedState();
+
+                return PC;
             }
         }
         
@@ -615,7 +618,7 @@ restart:
             }
         }
         
-        protected virtual void UpdateHaltedState()
+        protected virtual void UpdateHaltedState(bool ignoreExecutionMode = false)
         {
             // empty by default
         }

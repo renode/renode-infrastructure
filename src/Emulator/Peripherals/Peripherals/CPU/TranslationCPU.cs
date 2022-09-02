@@ -1076,9 +1076,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         */
         private static int CpuCounter = 0;
         
-        protected override void UpdateHaltedState()
+        protected override void UpdateHaltedState(bool ignoreExecutionMode = false)
         {
-            var shouldBeHalted = (isHaltedRequested || executionMode == ExecutionMode.SingleStepNonBlocking);
+            var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
 
             if(shouldBeHalted == currentHaltedState)
             {
