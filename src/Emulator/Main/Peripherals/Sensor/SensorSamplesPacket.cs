@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     switch((DataType)type)
                     {
                         case DataType.Header:
-                            var header = stream.ReadStruct<Header>();
+                            var header = stream.ReadStruct<SensorSamplesPacketHeader>();
                             sensitivity = (decimal)header.Sensitivity;
                             valueDimensions = header.ValueDimensions;
                             valueSize = header.ValueSize;
@@ -102,29 +102,35 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return values;
         }
 
-        private struct Header
-        {
-            public override string ToString()
-            {
-                return $"time: {Time}; frequency: {Frequency}; sensitivity: {Sensitivity}; value: dimensions: {ValueDimensions}, size: {ValueSize}";
-            }
-
-// Suppress the "CS0649: Field is never assigned to, and will always have its default value 0" warning.
-#pragma warning disable 0649
-            public double Time;
-            public uint Frequency;
-            public byte ValueDimensions;
-            public byte ValueSize;
-            // 'Marshal.PtrToStructure' expects two empty bytes here as padding.
-            public double Sensitivity;
-#pragma warning restore 0649
-        }
-
         private enum DataType : byte
         {
             Header,
             Value,
         }
+    }
+
+    // It was supposed to be a private 'Header' struct inside the 'SensorSamplesPacket' class.
+    // However, a non-generic 'Marshal.PtrToStructure' throws an exception if the type passed is
+    // "a generic type definition". It applies to the structures defined in generic classes too.
+    //
+    // Generic Marshal methods aren't available in .NET Framework 4.5. It can be moved to the class
+    // after upgrading Renode's .NET version and 'ReadStruct' / 'ToStruct' extensions ('Misc.cs').
+    struct SensorSamplesPacketHeader
+    {
+        public override string ToString()
+        {
+            return $"time: {Time}; frequency: {Frequency}; sensitivity: {Sensitivity}; value: dimensions: {ValueDimensions}, size: {ValueSize}";
+        }
+
+// Suppress the "CS0649: Field is never assigned to, and will always have its default value 0" warning.
+#pragma warning disable 0649
+        public double Time;
+        public uint Frequency;
+        public byte ValueDimensions;
+        public byte ValueSize;
+        // 'Marshal.PtrToStructure' expects two empty bytes here as padding.
+        public double Sensitivity;
+#pragma warning restore 0649
     }
 }
 
