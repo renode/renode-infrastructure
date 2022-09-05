@@ -473,6 +473,7 @@ namespace Antmicro.Renode.Extensions.Mocks
                         if(data.Length == 1 && data[0] == 0x86)
                         {
                             PollForError(timeInterval);
+                            Thread.Sleep(10);
                         }
                         IssueCommand(data);
                         break;
