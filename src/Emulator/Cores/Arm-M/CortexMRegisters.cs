@@ -24,7 +24,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
-            SetRegisterValue32(r.Index, checked((uint)value));
+            switch(r.Width)
+            {
+            case 32:
+                SetRegisterValue32(r.Index, checked((uint)value));
+                break;
+            case 64:
+                SetRegisterValue64(r.Index, checked((ulong)value));
+                break;
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
         }
 
         public override RegisterValue GetRegister(int register)
@@ -33,7 +43,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-            return GetRegisterValue32(r.Index);
+            switch(r.Width)
+            {
+            case 32:
+                return GetRegisterValue32(r.Index);
+            case 64:
+                return GetRegisterValue64(r.Index);
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
@@ -173,11 +191,74 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)CortexMRegisters.FAULTMASK, value);
             }
         }
+        [Register]
+        public RegisterValue FPSCR
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.FPSCR);
+            }
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.FPSCR, value);
+            }
+        }
+        public RegistersGroup D { get; private set; }
 
         protected override void InitializeRegisters()
         {
             base.InitializeRegisters();
+            var indexValueMapD = new Dictionary<int, CortexMRegisters>
+            {
+                { 0, CortexMRegisters.D0 },
+                { 1, CortexMRegisters.D1 },
+                { 2, CortexMRegisters.D2 },
+                { 3, CortexMRegisters.D3 },
+                { 4, CortexMRegisters.D4 },
+                { 5, CortexMRegisters.D5 },
+                { 6, CortexMRegisters.D6 },
+                { 7, CortexMRegisters.D7 },
+                { 8, CortexMRegisters.D8 },
+                { 9, CortexMRegisters.D9 },
+                { 10, CortexMRegisters.D10 },
+                { 11, CortexMRegisters.D11 },
+                { 12, CortexMRegisters.D12 },
+                { 13, CortexMRegisters.D13 },
+                { 14, CortexMRegisters.D14 },
+                { 15, CortexMRegisters.D15 },
+                { 16, CortexMRegisters.D16 },
+                { 17, CortexMRegisters.D17 },
+                { 18, CortexMRegisters.D18 },
+                { 19, CortexMRegisters.D19 },
+                { 20, CortexMRegisters.D20 },
+                { 21, CortexMRegisters.D21 },
+                { 22, CortexMRegisters.D22 },
+                { 23, CortexMRegisters.D23 },
+                { 24, CortexMRegisters.D24 },
+                { 25, CortexMRegisters.D25 },
+                { 26, CortexMRegisters.D26 },
+                { 27, CortexMRegisters.D27 },
+                { 28, CortexMRegisters.D28 },
+                { 29, CortexMRegisters.D29 },
+                { 30, CortexMRegisters.D30 },
+                { 31, CortexMRegisters.D31 },
+            };
+            D = new RegistersGroup(
+                indexValueMapD.Keys,
+                i => GetRegister((int)indexValueMapD[i]),
+                (i, v) => SetRegister((int)indexValueMapD[i], v));
+
         }
+
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        #pragma warning disable 649
+
+        [Import(Name = "tlib_set_register_value_64")]
+        protected Action<int, ulong> SetRegisterValue64;
+        [Import(Name = "tlib_get_register_value_64")]
+        protected Func<int, ulong> GetRegisterValue64;
+
+        #pragma warning restore 649
 
         private static readonly Dictionary<CortexMRegisters, CPURegister> mapping = new Dictionary<CortexMRegisters, CPURegister>
         {
@@ -209,6 +290,39 @@ namespace Antmicro.Renode.Peripherals.CPU
             { CortexMRegisters.CPACR,  new CPURegister(27, 32, isGeneral: false, isReadonly: false, aliases: new [] { "CPACR" }) },
             { CortexMRegisters.PRIMASK,  new CPURegister(28, 32, isGeneral: false, isReadonly: false, aliases: new [] { "PRIMASK" }) },
             { CortexMRegisters.FAULTMASK,  new CPURegister(30, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FAULTMASK" }) },
+            { CortexMRegisters.D0,  new CPURegister(42, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D0" }) },
+            { CortexMRegisters.D1,  new CPURegister(43, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D1" }) },
+            { CortexMRegisters.D2,  new CPURegister(44, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D2" }) },
+            { CortexMRegisters.D3,  new CPURegister(45, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D3" }) },
+            { CortexMRegisters.D4,  new CPURegister(46, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D4" }) },
+            { CortexMRegisters.D5,  new CPURegister(47, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D5" }) },
+            { CortexMRegisters.D6,  new CPURegister(48, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D6" }) },
+            { CortexMRegisters.D7,  new CPURegister(49, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D7" }) },
+            { CortexMRegisters.D8,  new CPURegister(50, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D8" }) },
+            { CortexMRegisters.D9,  new CPURegister(51, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D9" }) },
+            { CortexMRegisters.D10,  new CPURegister(52, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D10" }) },
+            { CortexMRegisters.D11,  new CPURegister(53, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D11" }) },
+            { CortexMRegisters.D12,  new CPURegister(54, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D12" }) },
+            { CortexMRegisters.D13,  new CPURegister(55, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D13" }) },
+            { CortexMRegisters.D14,  new CPURegister(56, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D14" }) },
+            { CortexMRegisters.D15,  new CPURegister(57, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D15" }) },
+            { CortexMRegisters.D16,  new CPURegister(58, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D16" }) },
+            { CortexMRegisters.D17,  new CPURegister(59, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D17" }) },
+            { CortexMRegisters.D18,  new CPURegister(60, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D18" }) },
+            { CortexMRegisters.D19,  new CPURegister(61, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D19" }) },
+            { CortexMRegisters.D20,  new CPURegister(62, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D20" }) },
+            { CortexMRegisters.D21,  new CPURegister(63, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D21" }) },
+            { CortexMRegisters.D22,  new CPURegister(64, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D22" }) },
+            { CortexMRegisters.D23,  new CPURegister(65, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D23" }) },
+            { CortexMRegisters.D24,  new CPURegister(66, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D24" }) },
+            { CortexMRegisters.D25,  new CPURegister(67, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D25" }) },
+            { CortexMRegisters.D26,  new CPURegister(68, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D26" }) },
+            { CortexMRegisters.D27,  new CPURegister(69, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D27" }) },
+            { CortexMRegisters.D28,  new CPURegister(70, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D28" }) },
+            { CortexMRegisters.D29,  new CPURegister(71, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D29" }) },
+            { CortexMRegisters.D30,  new CPURegister(72, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D30" }) },
+            { CortexMRegisters.D31,  new CPURegister(73, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D31" }) },
+            { CortexMRegisters.FPSCR,  new CPURegister(74, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FPSCR" }) },
         };
     }
 
@@ -229,6 +343,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         CPACR = 27,
         PRIMASK = 28,
         FAULTMASK = 30,
+        FPSCR = 74,
         R0 = 0,
         R1 = 1,
         R2 = 2,
@@ -245,5 +360,37 @@ namespace Antmicro.Renode.Peripherals.CPU
         R13 = 13,
         R14 = 14,
         R15 = 15,
+        D0 = 42,
+        D1 = 43,
+        D2 = 44,
+        D3 = 45,
+        D4 = 46,
+        D5 = 47,
+        D6 = 48,
+        D7 = 49,
+        D8 = 50,
+        D9 = 51,
+        D10 = 52,
+        D11 = 53,
+        D12 = 54,
+        D13 = 55,
+        D14 = 56,
+        D15 = 57,
+        D16 = 58,
+        D17 = 59,
+        D18 = 60,
+        D19 = 61,
+        D20 = 62,
+        D21 = 63,
+        D22 = 64,
+        D23 = 65,
+        D24 = 66,
+        D25 = 67,
+        D26 = 68,
+        D27 = 69,
+        D28 = 70,
+        D29 = 71,
+        D30 = 72,
+        D31 = 73,
     }
 }
