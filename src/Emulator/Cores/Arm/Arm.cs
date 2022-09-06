@@ -75,6 +75,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public bool GetArmFeature(ArmFeatures feature)
+        {
+            return TlibGetArmFeature((int)feature) > 0;
+        }
+
         public override string Architecture { get { return "arm"; } }
 
         //gdb does not contain arm-m and armv7 as independent architecteures so we need to pass "arm" in every case.
@@ -544,6 +549,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         public Action<uint> TlibSetExceptionVectorAddress;
 
+        [Import]
+        private Func<int, uint> TlibGetArmFeature;
+
 #pragma warning restore 649
 
         private readonly string[] ExceptionDescriptions =
@@ -558,6 +566,34 @@ namespace Antmicro.Renode.Peripherals.CPU
             "Kernel Trap",
             "STREX instruction"
         };
+
+        public enum ArmFeatures
+        {
+            ARM_FEATURE_VFP,
+            ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
+            ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
+            ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
+            ARM_FEATURE_V6,
+            ARM_FEATURE_V6K,
+            ARM_FEATURE_V7,
+            ARM_FEATURE_THUMB2,
+            ARM_FEATURE_MPU,    /* Only has Memory Protection Unit, not full MMU.  */
+            ARM_FEATURE_VFP3,
+            ARM_FEATURE_VFP_FP16,
+            ARM_FEATURE_NEON,
+            ARM_FEATURE_THUMB_DIV, /* divide supported in Thumb encoding */
+            ARM_FEATURE_OMAPCP,    /* OMAP specific CP15 ops handling.  */
+            ARM_FEATURE_THUMB2EE,
+            ARM_FEATURE_V7MP,      /* v7 Multiprocessing Extensions */
+            ARM_FEATURE_V4T,
+            ARM_FEATURE_V5,
+            ARM_FEATURE_STRONGARM,
+            ARM_FEATURE_VAPA,    /* cp15 VA to PA lookups */
+            ARM_FEATURE_ARM_DIV, /* divide supported in ARM encoding */
+            ARM_FEATURE_VFP4,    /* VFPv4 (implies that NEON is v2) */
+            ARM_FEATURE_GENERIC_TIMER,
+            ARM_FEATURE_V8,
+        }
 
         protected struct Coprocessor32BitMoveInstruction
         {

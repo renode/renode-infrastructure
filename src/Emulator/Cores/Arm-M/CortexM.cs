@@ -135,6 +135,33 @@ namespace Antmicro.Renode.Peripherals.CPU
                 mSystemFeature.Registers.Add(new GDBRegisterDescriptor(31, 32, "control", "uint32", "general"));
                 features.Add(mSystemFeature);
 
+                // +++++ Important
+                // tlibs implement VFP using DOUBLE PRECISION FP (64 bit) registers.
+                // Each D (double) register holds two F (fp) registers! (arm/cpu.h)
+                // To keep consistency with tlibs, the code below uses D registers.
+
+                bool has32RegisterVfp = (GetArmFeature(ArmFeatures.ARM_FEATURE_VFP3)
+                        || GetArmFeature(ArmFeatures.ARM_FEATURE_NEON)
+                        || GetArmFeature(ArmFeatures.ARM_FEATURE_VFP4));
+
+                bool has16RegisterVfp = ((GetArmFeature(ArmFeatures.ARM_FEATURE_VFP_FP16)
+                        || GetArmFeature(ArmFeatures.ARM_FEATURE_VFP))
+                        && !has32RegisterVfp);
+
+                if(has32RegisterVfp || has16RegisterVfp)
+                {
+                    var mVfpFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.vfp");
+                    const int vfpRegisterOffset = 42;
+                    int vfpRegisterEnd = has32RegisterVfp ? 31 : 15;
+                    for(var reg = 0u; reg <= vfpRegisterEnd; reg++)
+                    {
+                        mVfpFeature.Registers.Add(new GDBRegisterDescriptor(reg + vfpRegisterOffset, 64, $"d{reg}", "ieee_double", "float"));
+                    }
+                    // The fpscr is always reg# = 74
+                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor(74, 64, "fpscr", "int", "float"));
+                    features.Add(mVfpFeature);
+                }
+
                 return features;
             }
         }
