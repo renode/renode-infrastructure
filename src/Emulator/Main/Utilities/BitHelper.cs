@@ -339,15 +339,26 @@ namespace Antmicro.Renode.Utilities
 
         }
 
+        public static void GetBytesFromValue(byte[] bytes, int offset, ulong val, int typeSize, bool reverse = false)
+        {
+            if(offset + typeSize > bytes.Length)
+            {
+                throw new ArgumentOutOfRangeException("The sum of offset and typeSize can't be greater that length of the bytes array.");
+            }
+
+            int valOffset = 0;
+            for(int i = typeSize - 1; i >= 0; --i)
+            {
+                int byteIndex = offset + (reverse ? typeSize - 1 - i : i);
+                bytes[byteIndex] = (byte)((val >> valOffset) & 0xFF);
+                valOffset += 8;
+            }
+        }
+
         public static byte[] GetBytesFromValue(ulong val, int typeSize, bool reverse = false)
         {
             var result = new byte[typeSize];
-            int offset = 0;
-            for(int i = typeSize - 1; i >= 0; --i)
-            {
-                result[reverse ? typeSize - 1 - i : i] = (byte)((val >> offset) & 0xFF);
-                offset += 8;
-            }
+            GetBytesFromValue(result, 0, val, typeSize, reverse);
             return result;
         }
 
