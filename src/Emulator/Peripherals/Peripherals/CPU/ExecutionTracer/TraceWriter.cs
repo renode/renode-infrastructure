@@ -71,6 +71,121 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool disposed;
     }
 
+    public class TraceBinaryWriter : TraceWriter
+    {
+        public static IReadOnlyList<TraceFormat> SupportedFormats = new List<TraceFormat>
+        {
+            TraceFormat.PC,
+            TraceFormat.Opcode,
+            TraceFormat.PCAndOpcode
+        }.AsReadOnly();
+
+        public TraceBinaryWriter(TranslationCPU cpu, string path, TraceFormat format, bool compress)
+            : base(cpu, path, format, compress)
+        {
+            this.pcWidth = this.format == TraceFormat.Opcode ? 0 : (int)(cpu.PC.Bits + 7) / 8;
+
+            cache = new LRUCache<uint, byte[]>(CacheSize);
+            buffer = new byte[BufferSize];
+        }
+
+        public override void WriteHeader()
+        {
+            stream.Write(Encoding.ASCII.GetBytes(FormatSignature), 0, Encoding.ASCII.GetByteCount(FormatSignature));
+            stream.WriteByte(FormatVersion);
+            stream.WriteByte((byte)pcWidth);
+            stream.WriteByte((byte)(format != TraceFormat.PC ? 1 : 0));
+        }
+
+        public override void Write(ExecutionTracer.Block block)
+        {
+            var pc = block.FirstInstructionPC;
+            var counter = 0;
+
+            while(counter < (int)block.InstructionsCount)
+            {
+                if(!TryReadAndDecodeInstruction(pc, block.DisassemblyFlags, out var opcode))
+                {
+                    break;
+                }
+
+                if(pcWidth > 0)
+                {
+                    BitHelper.GetBytesFromValue(buffer, bufferPosition, pc, pcWidth, true);
+                    bufferPosition += pcWidth;
+                }
+                if(format != TraceFormat.PC)
+                {
+                    buffer[bufferPosition] = (byte)opcode.Length;
+                    bufferPosition += 1;
+                    opcode.CopyTo(buffer, bufferPosition);
+                    bufferPosition += opcode.Length;
+                }
+
+                pc += (ulong)opcode.Length;
+                counter++;
+
+                if(bufferPosition + pcWidth + (format != TraceFormat.PC ? Byte.MaxValue + 1 : 0) >= buffer.Length)
+                {
+                    Flush();
+                }
+            }
+        }
+
+        public override void Flush()
+        {
+            stream.Write(buffer, 0, bufferPosition);
+            stream.Flush();
+            bufferPosition = 0;
+        }
+
+        private bool TryReadAndDecodeInstruction(ulong pc, uint flags, out byte[] opcode)
+        {
+            // here we read only 4-bytes as it should cover most cases
+            var key = AttachedCPU.Bus.ReadDoubleWord(pc);
+            if(!cache.TryGetValue(key, out opcode))
+            {
+                // here we are prepared for longer opcodes
+                var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes, context: AttachedCPU);
+                if(!AttachedCPU.Disassembler.TryDecodeInstruction(pc, mem, flags, out var decodedOpcode))
+                {
+                    opcode = new byte[0] { };
+                    // mark this as an invalid opcode
+                    cache.Add(key, opcode);
+                }
+                else
+                {
+                    opcode = decodedOpcode;
+                    if(opcode.Length <= 4)
+                    {
+                        cache.Add(key, opcode);
+                    }
+                }
+            }
+
+            if(opcode.Length == 0)
+            {
+                AttachedCPU.Log(LogLevel.Warning, "ExecutionTracer: Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
+                return false;
+            }
+
+            return true;
+        }
+
+        private int bufferPosition;
+
+        private readonly LRUCache<uint, byte[]> cache;
+
+        private readonly byte[] buffer;
+        private readonly int pcWidth;
+
+        private const string FormatSignature = "ReTrace";
+        private const byte FormatVersion = 1;
+
+        private const int CacheSize = 100000;
+        private const int BufferSize = 10000;
+    }
+
     public class TraceTextWriter : TraceWriter
     {
         public static IReadOnlyList<TraceFormat> SupportedFormats = new List<TraceFormat>

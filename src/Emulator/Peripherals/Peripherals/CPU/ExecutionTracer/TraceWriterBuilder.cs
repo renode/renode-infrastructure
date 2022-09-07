@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(isBinary)
             {
-                return null;
+                return new TraceBinaryWriter(cpu, path, format, compress);
             }
             else
             {
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(isBinary)
             {
-                return false;
+                return TraceBinaryWriter.SupportedFormats.Contains(this.format);
             }
             else
             {
