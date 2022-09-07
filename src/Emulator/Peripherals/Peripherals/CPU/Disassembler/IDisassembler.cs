@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
     public interface IDisassembler
     {
         bool TryDisassembleInstruction(ulong pc, byte[] memory, uint flags, out DisassemblyResult result, int memoryOffset = 0);
+        bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0);
     }
 
     public struct DisassemblyResult

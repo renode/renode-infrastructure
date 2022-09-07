@@ -35,6 +35,11 @@ namespace Antmicro.Renode.Disassembler.LLVM
             return GetDisassembler(flags).TryDisassembleInstruction(pc, data, flags, out result, memoryOffset);
         }
         
+        public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+        {
+            return GetDisassembler(flags).TryDecodeInstruction(pc, memory, flags, out opcode, memoryOffset);
+        }
+
         public int DisassembleBlock(ulong pc, byte[] memory, uint flags, out string text)
         {
             var sofar = 0;
@@ -86,6 +91,10 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 if(cpu.Architecture == "arm-m")
                 {
                     disas = new CortexMDisassemblerWrapper(disas);
+                }
+                else if(cpu.Architecture == "riscv" || cpu.Architecture == "riscv64")
+                {
+                    disas = new RiscVDisassemblerWrapper(disas);
                 }
 
                 cache.Add(key, disas);
@@ -196,6 +205,18 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 
                 Marshal.FreeHGlobal(strBuf);
                 Marshal.FreeHGlobal(marshalledData);
+                return true;
+            }
+
+            public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+            {
+                if(!TryDisassembleInstruction(pc, memory, flags, out var result, memoryOffset))
+                {
+                    opcode = new byte[0];
+                    return false;
+                }
+                
+                opcode = Misc.HexStringToByteArray(result.OpcodeString.Trim(), true);
                 return true;
             }
 
@@ -349,7 +370,76 @@ namespace Antmicro.Renode.Disassembler.LLVM
                     return underlyingDisassembler.TryDisassembleInstruction(pc, memory, flags, out result, memoryOffset);
                 }
             }
+
+            public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+            {
+                if(!TryDisassembleInstruction(pc, memory, flags, out var result, memoryOffset))
+                {
+                    opcode = new byte[0];
+                    return false;
+                }
+
+                opcode = Misc.HexStringToByteArray(result.OpcodeString, true);
+                return true;
+            }
             
+            private readonly IDisassembler underlyingDisassembler;
+        }
+
+        private class RiscVDisassemblerWrapper : IDisassembler
+        {
+            public RiscVDisassemblerWrapper(IDisassembler actualDisassembler)
+            {
+                underlyingDisassembler = actualDisassembler;
+            }
+
+            public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+            {
+                var opcodeLength = DecodeRiscVOpcodeLength(memory, memoryOffset);
+                if(opcodeLength == 0)
+                {
+                    opcode = new byte[0];
+                    return false;
+                }
+
+                opcode = new byte[opcodeLength];
+                Array.Copy(memory, memoryOffset, opcode, 0, opcodeLength);
+                return true;
+            }
+
+            public bool TryDisassembleInstruction(ulong pc, byte[] data, uint flags, out DisassemblyResult result, int memoryOffset = 0)
+            {
+                return underlyingDisassembler.TryDisassembleInstruction(pc, data, flags, out result, memoryOffset);
+            }
+
+            private int DecodeRiscVOpcodeLength(byte[] memory, int memoryOffset)
+            {
+                var lengthEncoder = memory[memoryOffset] & 0x7F;
+                if(lengthEncoder == 0x7F)
+                {
+                    // opcodes longer than 64-bits - currently not supported
+                    return 0;
+                }
+
+                lengthEncoder &= 0x3F;
+                if(lengthEncoder == 0x3F)
+                {
+                    return 8;
+                }
+                else if(lengthEncoder == 0x1F)
+                {
+                    return 3;
+                }
+                else if((lengthEncoder & 0x3) == 0x3)
+                {
+                    return 4;
+                }
+                else
+                {
+                    return 2;
+                }
+            }
+
             private readonly IDisassembler underlyingDisassembler;
         }
     }
