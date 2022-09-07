@@ -394,9 +394,20 @@ namespace Antmicro.Renode.Utilities
             return String.Empty;
         }
 
-        public static byte[] HexStringToByteArray(string hexString)
+        public static byte[] HexStringToByteArray(string hexString, bool reverse = false)
         {
-            return Enumerable.Range(0, hexString.Length).Where(x => x%2 == 0).Select(x => Convert.ToByte(hexString.Substring(x, 2), 16)).ToArray();
+            if(hexString.Length % 2 != 0)
+            {
+                throw new FormatException($"The length of hex string ({hexString.Length}) is not a multiple of 2.");
+            }
+
+            byte[] bytes = new byte[hexString.Length / 2];
+            for(int i = 0; i < bytes.Length; i++)
+            {
+                int byteIndex = reverse ? bytes.Length - 1 - i : i;
+                bytes[byteIndex] = Convert.ToByte(hexString.Substring(i * 2, 2), 16);
+            }
+            return bytes;
         }
 
         // Can't use the `sizeof` in the generic code unless it is restricted to unmanaged types, and that's possible only in C#7.0 and newer.
