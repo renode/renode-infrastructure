@@ -5,31 +5,34 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Text;
 using System.Linq;
-using System.Globalization;
 using System.Threading;
-using System.IO;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.CPU.Disassembler;
-using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class ExecutionTracerExtensions
     {
-        public static void EnableExecutionTracing(this TranslationCPU @this, string file, ExecutionTracer.Format format)
+        public static void EnableExecutionTracing(this TranslationCPU @this, string fileName, TraceFormat format, bool isBinary = false, bool compress = false)
         {
-            var tracer = new ExecutionTracer(@this, file, format);
-            // we keep it as external to dispose/flush on quit
-            EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, $"executionTracer-{@this.GetName()}");
+            var writerBuilder = new TraceWriterBuilder(@this, fileName, format, isBinary, compress);
+            var tracer = new ExecutionTracer(@this, writerBuilder);
+
+            try
+            {
+                // we keep it as external to dispose/flush on quit
+                EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, $"executionTracer-{@this.GetName()}");
+            }
+            catch(Exception)
+            {
+                tracer.Dispose();
+                throw new RecoverableException("ExecutionTracer is already running");
+            }
 
             tracer.Start();
         }
@@ -48,31 +51,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public class ExecutionTracer : IDisposable, IExternal
     {
-        public ExecutionTracer(TranslationCPU cpu, string file, Format format)
+        public ExecutionTracer(TranslationCPU cpu, TraceWriterBuilder traceWriterBuilder)
         {
-            cache = new LRUCache<uint, Antmicro.Renode.Peripherals.CPU.Disassembler.DisassemblyResult?>(CacheSize);
-            this.file = file;
-            this.format = format;
             AttachedCPU = cpu;
-
-            if((AttachedCPU.Architecture == "riscv" || AttachedCPU.Architecture == "riscv64") && format != Format.Disassembly)
-            {
-                tryDisassembleInstruction = TryDisassembleRiscVInstruction;
-            }
-            else
-            {
-                tryDisassembleInstruction = AttachedCPU.Disassembler.TryDisassembleInstruction;
-            }
-
-            try
-            {
-                // truncate the file
-                File.WriteAllText(file, string.Empty);
-            }
-            catch(Exception e)
-            {
-                throw new RecoverableException($"There was an error when preparing the execution trace output file {file}: {e.Message}");
-            }
+            writerBuilder = traceWriterBuilder;
 
             AttachedCPU.SetHookAtBlockEnd(HandleBlockEndHook);
         }
@@ -84,16 +66,28 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Start()
         {
+            if(underlyingThread != null)
+            {
+                throw new RecoverableException("ExecutionTracer is already running");
+            }
+
+            writer = writerBuilder.CreateWriter();
+            writer.WriteHeader();
+
             blocks = new BlockingCollection<Block>();
 
             underlyingThread = new Thread(WriterThreadBody);
             underlyingThread.IsBackground = true;
             underlyingThread.Name = "Execution tracer worker";
             underlyingThread.Start();
+
+            wasStarted = true;
+            wasStoped = false;
         }
 
         public void Stop()
         {
+            wasStoped = true;
             if(underlyingThread == null)
             {
                 return;
@@ -113,12 +107,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [PreSerialization]
         private void PreSerializationHook()
         {
-            if(underlyingThread == null)
-            {
-                return;
-            }
-            
-            wasStarted = true;
             Stop();
         }
 
@@ -131,120 +119,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void HandleBlock(Block block, StringBuilder sb)
-        {
-            var pc = block.FirstInstructionPC;
-            var counter = 0;
-
-            while(counter < (int)block.InstructionsCount)
-            {
-                // here we read only 4-bytes as it should cover most cases
-                var key = AttachedCPU.Bus.ReadDoubleWord(pc);
-                if(!cache.TryGetValue(key, out var cachedItem))
-                {
-                    // here we are prepared for longer opcodes
-                    var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes, context: AttachedCPU);
-                    if(!tryDisassembleInstruction(pc, mem, block.DisassemblyFlags, out var result))
-                    {
-                        cachedItem = null;
-                        // mark this as an invalid opcode
-                        cache.Add(key, null);
-                    }
-                    else
-                    {
-                        cachedItem = result;
-                        // we only cache opcodes up to 4-bytes
-                        if(result.OpcodeSize <= 4)
-                        {
-                            cache.Add(key, result);
-                        }
-                    }
-                }
-
-                if(!cachedItem.HasValue)
-                {
-                    sb.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
-                    break;
-                }
-                else
-                {
-                    var result = cachedItem.Value;
-                    result.PC = pc;
-
-                    switch(format)
-                    {
-                        case Format.PC:
-                            sb.AppendFormat("0x{0:X}\n", result.PC);
-                            break;
-
-                        case Format.Opcode:
-                            sb.AppendFormat("0x{0}\n", result.OpcodeString.ToUpper());
-                            break;
-
-                        case Format.PCAndOpcode:
-                            sb.AppendFormat("0x{0:X}: 0x{1}\n", result.PC, result.OpcodeString.ToUpper());
-                            break;
-                            
-                        case Format.Disassembly:
-                            var symbol = AttachedCPU.Bus.FindSymbolAt(pc);
-                            var disassembly = result.ToString().Replace("\t", " ");
-                            var curLen = disassembly.Length;
-                            sb.AppendFormat("{0}", disassembly);
-                            
-                            if(symbol != null)
-                            {
-                                while(curLen < 60)
-                                {
-                                    sb.AppendFormat(" ");
-                                    curLen++;
-                                }
-                                sb.AppendFormat(" [{0}]", symbol);
-                            }
-                            sb.AppendFormat("\n");
-                            break;
-
-                        default:
-                            AttachedCPU.Log(LogLevel.Error, "Unsupported format: {0}", format);
-                            break;
-                    }
-
-                    pc += (ulong)result.OpcodeSize;
-                    counter++;
-                }
-            }
-        }
-
-        private bool TryDisassembleRiscVInstruction(ulong pc, byte[] memory, uint flags, out DisassemblyResult result, int memoryOffset = 0)
-        {
-            var opcode = BitHelper.ToUInt32(memory, memoryOffset, Math.Min(4, memory.Length - memoryOffset), true);
-            if(!TryDecodeRiscVOpcodeLength(opcode, out var opcodeLength))
-            {
-                result = default(DisassemblyResult);
-                return false;
-            }
-
-            // trim opcode and keep only `opcodeLength` LSBytes
-            opcode &= uint.MaxValue >> (64 - (opcodeLength * 8));
-
-            result = new DisassemblyResult()
-            {
-                PC = pc,
-                OpcodeSize = opcodeLength,
-                OpcodeString = opcode.ToString("x").PadLeft(opcodeLength, '0')
-            };
-            return true;
-        }
-
-        private void DumpBuffer(StringBuilder sb)
-        {
-            File.AppendAllText(file, sb.ToString());
-            sb.Clear();
-        }
-
         private void WriterThreadBody()
         {
-            var sb = new StringBuilder();
-
             while(true)
             {
                 try
@@ -252,14 +128,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     var block = blocks.Take();
                     do
                     {
-                        HandleBlock(block, sb);
-                        if(sb.Length > BufferFlushLevel)
-                        {
-                            DumpBuffer(sb);
-                        }
+                        writer.Write(block);
                     }
                     while(blocks.TryTake(out block));
-                    DumpBuffer(sb);
+                    writer.Flush();
                 }
                 catch(InvalidOperationException)
                 {
@@ -267,12 +139,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     break;
                 }
             }
-            DumpBuffer(sb);
+            writer.Dispose();
         }
 
         private void HandleBlockEndHook(ulong pc, uint instructionsInBlock)
         {
-            if(instructionsInBlock == 0)
+            if(instructionsInBlock == 0 || wasStoped)
             {
                 // ignore
                 return;
@@ -293,72 +165,24 @@ namespace Antmicro.Renode.Peripherals.CPU
                     DisassemblyFlags = AttachedCPU.CurrentBlockDisassemblyFlags,
                 });
             }
-            catch(InvalidOperationException)
+            catch(Exception)
             {
-                // this might happen when disposing after `blocks` is marked as closed (not accepting new data)
+                this.Log(LogLevel.Warning, "The translation block that started at 0x{0:X} will not be traced and saved to file. The ExecutionTracer isn't ready yet.", pc);
             }
-        }
-
-        private bool TryDecodeRiscVOpcodeLength(uint opcode, out int length)
-        {
-            var lengthEncoder = opcode & 0x7F;
-            if(lengthEncoder == 0x7F)
-            {
-                // opcodes longer than 64-bits - currently not supported
-                length = 0;
-                return false;
-            }
-
-            lengthEncoder &= 0x3F;
-            if(lengthEncoder == 0x3F)
-            {
-                length = 8;
-            }
-            else if(lengthEncoder == 0x1F)
-            {
-                length = 3;
-            }
-            else if((lengthEncoder & 0x3) == 0x3)
-            {
-                length = 4;
-            }
-            else
-            {
-                length = 2;
-            }
-
-            return true;
         }
 
         [Transient]
+        private TraceWriter writer;
+        [Transient]
         private Thread underlyingThread;
+
         private BlockingCollection<Block> blocks;
         private bool wasStarted;
+        private bool wasStoped;
 
-        private readonly string file;
-        private readonly Format format;
-        private readonly LRUCache<uint, Antmicro.Renode.Peripherals.CPU.Disassembler.DisassemblyResult?> cache;
-        private readonly DisassemblyDelegate tryDisassembleInstruction;
+        private readonly TraceWriterBuilder writerBuilder;
 
-        private const int MaxOpcodeBytes = 16;
-        private const int BufferFlushLevel = 1000000;
-        private const int CacheSize = 100000;
-
-        // the signature of this delegate is to match
-        // the `CPU.Disassembler.TryDisassembleInstruction` method exactly
-        // - hence the last, not used, argument `memoryOffset` is also listed here;
-        // this simplifies assignement and handling of disassmblers
-        private delegate bool DisassemblyDelegate(ulong pc, byte[] memory, uint flags, out DisassemblyResult result, int memoryOffset = 0);
-
-        public enum Format
-        {
-            PC,
-            Opcode,
-            PCAndOpcode,
-            Disassembly,
-        }
-
-        private struct Block
+        public struct Block
         {
             public ulong FirstInstructionPC;
             public ulong InstructionsCount;
