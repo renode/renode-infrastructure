@@ -173,7 +173,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void RecognizeOperation(byte firstByte)
         {
             currentOperation.Operation = DecodedOperation.OperationType.None;
-            currentOperation.AddressLength = 0;
             currentOperation.State = DecodedOperation.OperationState.HandleCommand;
             switch(firstByte)
             {
