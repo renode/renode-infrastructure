@@ -271,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(20, 12)
                 },
                 {(long)Registers.DMAControl, new DoubleWordRegister(this)
-                    .WithValueField(0, 5, out rxFIFOThreshold, name: "DMA.tx_fifo_level")
+                    .WithValueField(0, 5, out txFIFOThreshold, name: "DMA.tx_fifo_level")
                     .WithReservedBits(5, 1)
                     .WithFlag(6, out txFIFOEnabled, name: "DMA.tx_fifo_en")
                     .WithFlag(7, FieldMode.WriteOneToClear, name: "DMA.tx_fifo_clear",
@@ -280,7 +280,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         valueProviderCallback: _ => (uint)txQueue.Count)
                     .WithReservedBits(14, 1)
                     .WithTaggedFlag("DMA.tx_dma_en", 15)
-                    .WithValueField(16, 5, out txFIFOThreshold, name: "DMA.rx_fifo_level")
+                    .WithValueField(16, 5, out rxFIFOThreshold, name: "DMA.rx_fifo_level")
                     .WithReservedBits(21, 1)
                     .WithFlag(22, out rxFIFOEnabled, name: "DMA.rx_fifo_en")
                     .WithFlag(23, FieldMode.WriteOneToClear, name: "DMA.rx_fifo_clear",
