@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 byte[] data;
                 data = machine.SystemBus.ReadBytes((ulong)dmaSourceAddress.Value, (int)dmaDataLength.Value, onlyMemory: true);
                 var polynomial = BitHelper.ReverseBits(crcPolynomial.Value);
-                var result = new CRCEngine((CRCType)polynomial).CalculateCrc32(data, crcValue.Value);
+                var result = new CRCEngine(polynomial, 32, init: crcValue.Value).Calculate(data);
                 crcValue.Value = result;
                 dmaFinished.Value = true;
                 crcFinished.Value = true;

@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     this.Log(LogLevel.Noisy, "Data for CRC32 calculation:\n{0}", data.Select(b => "0x" + b.ToString("X2")).Stringify(limitPerLine: 8));
                 }
 
-                var result = new CRCEngine((CRCType)0x04C11DB7).CalculateCrc32(data, crcSeedOrResult.Value);
+                var result = new CRCEngine(0x04C11DB7, 32, init: crcSeedOrResult.Value).Calculate(data);
 
                 // The most common CRC-32 algorithm (CRC-32/BZIP2) requires inverting the output (xoring with 0xffffffff).
                 // See the 'xorout' parameter: https://reveng.sourceforge.io/crc-catalogue/all.htm#crc.cat.crc-32-bzip2
