@@ -75,6 +75,7 @@ namespace Antmicro.Renode.Peripherals.SPI.NORFlash
             Read,
             ReadFast,
             ReadID,
+            ReadSerialFlashDiscoveryParameter,
             Program,
             Erase,
             ReadRegister,
