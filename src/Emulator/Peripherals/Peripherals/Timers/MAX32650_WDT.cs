@@ -75,17 +75,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithFlag(8, name: "CTRL.wdt_en",
                     writeCallback: (_, value) =>
                     {
-                        if(value && resetSequence == ResetSequence.Armed)
-                        {
-                            resetSequence = ResetSequence.Idle;
-                            interruptTimer.Enabled = true;
-                            resetTimer.Enabled = true;
-                        }
-                        else if(!value)
-                        {
-                            interruptTimer.Enabled = false;
-                            resetTimer.Enabled = false;
-                        }
+                        interruptTimer.Enabled = value;
+                        resetTimer.Enabled = value;
                     })
                 .WithFlag(9, out interruptPending, FieldMode.WriteOneToClear, name: "CTRL.int_flag",
                     writeCallback: (_, __) => UpdateInterrupts())
@@ -109,26 +100,26 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithValueField(0, 8, name: "RST.wdt_rst",
                     writeCallback: (_, value) =>
                     {
-                        if(resetSequence == ResetSequence.Idle && value == FirstResetByte)
+                        if(resetSequence == ResetSequence.WaitForFirstByte && value == FirstResetByte)
                         {
                             resetSequence = ResetSequence.WaitForSecondByte;
                         }
                         else if(resetSequence == ResetSequence.WaitForSecondByte && value == SecondResetByte)
                         {
-                            resetSequence = interruptTimer.Enabled ? ResetSequence.Idle : ResetSequence.Armed;
+                            resetSequence = ResetSequence.WaitForFirstByte;
                             interruptTimer.Value = interruptTimer.Limit;
                             resetTimer.Value = resetTimer.Limit;
                         }
                         else
                         {
-                            resetSequence = ResetSequence.Idle;
+                            resetSequence = ResetSequence.WaitForFirstByte;
                         }
                     })
                 .WithReservedBits(8, 24)
             ;
         }
 
-        private ResetSequence resetSequence = ResetSequence.Idle;
+        private ResetSequence resetSequence;
         private bool systemReset;
 
         private IFlagRegisterField interruptPending;
@@ -142,9 +133,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private enum ResetSequence
         {
-            Idle,
-            WaitForSecondByte,
-            Armed,
+            WaitForFirstByte,
+            WaitForSecondByte
         }
 
         private enum Registers
