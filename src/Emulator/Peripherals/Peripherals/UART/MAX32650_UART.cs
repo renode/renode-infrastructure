@@ -172,13 +172,17 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(25, 7)
                 },
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this, 0x00)
-                    .WithTaggedFlag("INT_EN.RX_FRAME_ERROR", 0)
-                    .WithTaggedFlag("INT_EN.RX_PARITY_ERROR", 1)
+                    // marked as a flag to limit the amount of log messages
+                    .WithFlag(0, name: "INT_EN.RX_FRAME_ERROR")
+                    // marked as a flag to limit the amount of log messages
+                    .WithFlag(1, name: "INT_EN.RX_PARITY_ERROR")
                     .WithTaggedFlag("INT_EN.CTS", 2)
                     .WithFlag(3, out interruptRxOverrunEnabled, name: "INT_EN.RX_OVERRUN")
                     .WithFlag(4, out interruptRxFIFOLevelEnabled, name: "INT_EN.RX_FIFO_LVL")
-                    .WithTaggedFlag("INT_EN.TX_FIFO_AE", 5)
-                    .WithTaggedFlag("INT_EN.TX_FIFO_LVL", 6)
+                    // marked as a flag to limit the amount of log messages
+                    .WithFlag(5, name: "INT_EN.TX_FIFO_AE")
+                    // marked as a flag to limit the amount of log messages
+                    .WithFlag(6, name: "INT_EN.TX_FIFO_LVL")
                     .WithTaggedFlag("INT_EN.BREAK", 7)
                     .WithTaggedFlag("INT_EN.RX_TIMEOUT", 8)
                     .WithTaggedFlag("INT_EN.LASTBREAK", 9)
