@@ -141,19 +141,32 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void StartTransaction()
         {
-            var multiplePeripherals = ActivePeripherals.Count() > 1;
-            foreach(var indexPeripheral in ActivePeripherals)
+            var activePeripherals = ActivePeripherals.ToList();
+            if(activePeripherals.Count == 0)
             {
-                var peripheral = indexPeripheral.Item2;
+                // if there is no target device we still need to populate the RX queue
+                // with dummy bytes
                 foreach(var value in txQueue)
                 {
-                    var output = peripheral.Transmit(value);
-                    // In case multiple SS lines are chosen, we are deliberately
-                    // ignoring output from all of them. Therefore, this configuration
-                    // can only be used to send data to multiple receivers at once.
-                    if(!multiplePeripherals)
+                    RxEnqueue(DummyResponseByte);
+                }
+            }
+            else
+            {
+                var multiplePeripherals = activePeripherals.Count > 1;
+                foreach(var indexPeripheral in activePeripherals)
+                {
+                    var peripheral = indexPeripheral.Item2;
+                    foreach(var value in txQueue)
                     {
-                        RxEnqueue(output);
+                        var output = peripheral.Transmit(value);
+                        // In case multiple SS lines are chosen, we are deliberately
+                        // ignoring output from all of them. Therefore, this configuration
+                        // can only be used to send data to multiple receivers at once.
+                        if(!multiplePeripherals)
+                        {
+                            RxEnqueue(output);
+                        }
                     }
                 }
             }
@@ -387,6 +400,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly Queue<byte> rxQueue;
         private readonly Queue<byte> txQueue;
         private readonly DoubleWordRegisterCollection registers;
+
+        private const byte DummyResponseByte = 0xFF;
 
         private enum Registers : long
         {
