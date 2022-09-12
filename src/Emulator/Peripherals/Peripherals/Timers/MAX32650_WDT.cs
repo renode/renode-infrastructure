@@ -46,6 +46,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             resetTimer.Reset();
             IRQ.Unset();
 
+            resetSequence = ResetSequence.WaitForFirstByte;
+
             // We are intentionally not clearing systemReset variable
             // as it should persist after watchdog-triggered reset.
         }
