@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.Unknown, new DoubleWordRegister(this, 0xffffffff)
+                {(long)Registers.ModuleInfo, new DoubleWordRegister(this, 0xffffffff)
                 },
                 {(long)Registers.SoftwareFix, new DoubleWordRegister(this, 0x1)
                     .WithTaggedFlag("PARANGE", 0)
@@ -111,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private enum Registers
         {
             CRCAndTemperatureCalibration                                                            = 0x000,
-            Unknown                                                                                 = 0x004,
+            ModuleInfo                                                                              = 0x004,
             IntermediateFrequencyProgrammableGainAmplifierCalibration0                              = 0x010,
             IntermediateFrequencyProgrammableGainAmplifierCalibration1                              = 0x014,
             IntermediateFrequencyProgrammableGainAmplifierCalibration2                              = 0x018,
