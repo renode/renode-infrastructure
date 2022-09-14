@@ -100,6 +100,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return GetPending((int)(offset - ClearPendingStart));
             }
+            if(offset >= ActiveBitStart && offset < ActiveBitEnd)
+            {
+                return GetActive((int)(offset - ActiveBitStart));
+            }
             switch((Registers)offset)
             {
             case Registers.SysTickCalibrationValue:
@@ -698,6 +702,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Pending) != 0));
         }
 
+        private uint GetActive(int offset)
+        {
+            return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Active) != 0));
+        }
+
         private bool IsPrivilegedMode()
         {
             // Is in handler mode or is privileged
@@ -786,6 +795,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int SetPendingEnd        = 0x240;
         private const int ClearPendingStart    = 0x280;
         private const int ClearPendingEnd      = 0x2C0;
+        private const int ActiveBitStart       = 0x300;
+        private const int ActiveBitEnd         = 0x320;
         private const int PriorityStart        = 0x400;
         private const int PriorityEnd          = 0x7F0;
         private const int IRQCount             = 512 + 16;
