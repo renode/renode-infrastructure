@@ -168,9 +168,10 @@ namespace Antmicro.Renode.Core
         // $a - marks ARM code segments
         // $d - marks data segments
         // $t - marks THUMB code segments
-        // Sources: https://simplemachines.it/doc/aaelf.pdf section 4.5.6
+        // $x - marks RISC-V code segments
+        // Sources: https://simplemachines.it/doc/aaelf.pdf section 4.5.6, https://www.mail-archive.com/bug-binutils@gnu.org/msg38960.html
         // All of those symbols can be used by the disassembler when reading the binary and are not needed during the execution
-        static private readonly string[] excludedSymbolNames = { "$a", "$d", "$t" };
+        static private readonly string[] excludedSymbolNames = { "$a", "$d", "$t", "$x" };
         static private readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
 
         private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress) where T : struct
