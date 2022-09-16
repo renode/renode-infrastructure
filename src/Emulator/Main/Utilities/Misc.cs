@@ -153,7 +153,17 @@ namespace Antmicro.Renode.Utilities
 
         public static int MB(this int value)
         {
-            return 1024 * 1024 * value;
+            return 1024 * value.KB();
+        }
+        
+        public static ulong GB(this int value)
+        {
+            return 1024 * (ulong)value.MB();
+        }
+        
+        public static ulong TB(this int value)
+        {
+            return 1024 * value.GB();
         }
 
         /// <summary>
