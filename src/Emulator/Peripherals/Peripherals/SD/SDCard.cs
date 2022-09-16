@@ -39,9 +39,8 @@ namespace Antmicro.Renode.Peripherals.SD
 
             dataBackend = DataStorage.Create(imageFile, capacity, persistent);
 
-            var sdCapacityParameters = SDCapacity.SeekForCapacityParametes(dataBackend.Length);
-
-            blockLengthInBytes = (uint)(1 << sdCapacityParameters.BlockSize);
+            var sdCapacityParameters = SDHelpers.SeekForCapacityParameters(capacity, blockSize);
+            blockLengthInBytes = SDHelpers.BlockLengthInBytes(sdCapacityParameters.BlockSize);
 
             cardStatusGenerator = new VariableLengthValue(32)
                 .DefineFragment(5, 1, () => (treatNextCommandAsAppCommand ? 1 : 0u), name: "APP_CMD bit")
@@ -122,8 +121,8 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             GoToIdle();
 
-            var sdCapacityParameters = SDCapacity.SeekForCapacityParametes(dataBackend.Length);
-            blockLengthInBytes = (uint)(1 << sdCapacityParameters.BlockSize);
+            var sdCapacityParameters = SDHelpers.SeekForCapacityParameters(capacity, blockSize);
+            blockLengthInBytes = SDHelpers.BlockLengthInBytes(sdCapacityParameters.BlockSize);
         }
 
         public void Dispose()
