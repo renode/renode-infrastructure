@@ -43,6 +43,9 @@ namespace Antmicro.Renode.Peripherals.SPI
             rxQueue.Clear();
             txQueue.Clear();
 
+            charactersToTransmit = 0;
+            transactionInProgress = false;
+
             for(var i = 0; i < NumberOfSlaves; ++i)
             {
                 shouldDeassert[i] = false;
@@ -66,8 +69,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Warning, "Tried to perform byte write to different register than FIFO; ignoring");
                 return;
             }
-            txQueue.Enqueue(value);
-            UpdateInterrupts();
+            TxEnqueue(value);
         }
 
         public ushort ReadWord(long address)
@@ -90,9 +92,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Warning, "Tried to perform word write to different register than FIFO; ignoring");
                 return;
             }
-            txQueue.Enqueue((byte)value);
-            txQueue.Enqueue((byte)(value >> 8));
-            UpdateInterrupts();
+            TxEnqueue((byte)value);
+            TxEnqueue((byte)(value >> 8));
         }
 
         public uint ReadDoubleWord(long address)
@@ -120,7 +121,9 @@ namespace Antmicro.Renode.Peripherals.SPI
             pending |= interruptTxLevelEnabled.Value && interruptTxLevelPending.Value;
             pending |= interruptTxEmptyEnabled.Value && interruptTxEmptyPending.Value;
             pending |= interruptRxLevelEnabled.Value && interruptRxLevelPending.Value;
+            pending |= interruptRxFullEnabled.Value && interruptRxFullPending.Value;
             pending |= interruptTransactionFinishedEnabled.Value && interruptTransactionFinishedPending.Value;
+            pending |= interruptRxOverrunEnabled.Value && interruptRxOverrunPending.Value;
             pending |= interruptRxUnderrunEnabled.Value && interruptRxUnderrunPending.Value;
             IRQ.Set(pending);
         }
@@ -141,43 +144,73 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void StartTransaction()
         {
-            var activePeripherals = ActivePeripherals.ToList();
-            if(activePeripherals.Count == 0)
+            foreach(var value in txQueue)
             {
-                // if there is no target device we still need to populate the RX queue
-                // with dummy bytes
-                foreach(var value in txQueue)
-                {
-                    RxEnqueue(DummyResponseByte);
-                }
-            }
-            else
-            {
-                var multiplePeripherals = activePeripherals.Count > 1;
-                foreach(var indexPeripheral in activePeripherals)
-                {
-                    var peripheral = indexPeripheral.Item2;
-                    foreach(var value in txQueue)
-                    {
-                        var output = peripheral.Transmit(value);
-                        // In case multiple SS lines are chosen, we are deliberately
-                        // ignoring output from all of them. Therefore, this configuration
-                        // can only be used to send data to multiple receivers at once.
-                        if(!multiplePeripherals)
-                        {
-                            RxEnqueue(output);
-                        }
-                    }
-                }
+                Transmit(value);
             }
 
             txQueue.Clear();
 
-            interruptTransactionFinishedPending.Value = true;
+            transactionInProgress = true;
             interruptTxEmptyPending.Value = true;
+
+            UpdateInterrupts();
+            TryFinishTransaction();
+        }
+
+        private void TryFinishTransaction()
+        {
+            if(charactersToTransmit > 0)
+            {
+                return;
+            }
+
+            transactionInProgress = false;
+            interruptTransactionFinishedPending.Value = true;
 
             TryDeassert();
             UpdateInterrupts();
+        }
+
+        private void Transmit(byte value)
+        {
+            var numberOfPeripherals = ActivePeripherals.Count();
+            foreach(var indexPeripheral in ActivePeripherals)
+            {
+                var peripheral = indexPeripheral.Item2;
+                var output = peripheral.Transmit(value);
+                // In case multiple SS lines are chosen, we are deliberately
+                // ignoring output from all of them. Therefore, this configuration
+                // can only be used to send data to multiple receivers at once.
+                if(numberOfPeripherals == 1)
+                {
+                    RxEnqueue(output);
+                }
+            }
+
+            if(numberOfPeripherals == 0)
+            {
+                // If there is no target device we still need to populate the RX queue
+                // with dummy bytes
+                RxEnqueue(DummyResponseByte);
+            }
+
+            charactersToTransmit -= 1;
+            TryFinishTransaction();
+        }
+
+        private void TryTransmit()
+        {
+            if(!transactionInProgress || rxQueue.Count == FIFOLength || txQueue.Count == 0)
+            {
+                return;
+            }
+
+            var bytesToTransmit = Math.Min(FIFOLength - rxQueue.Count, txQueue.Count);
+            for(var i = 0; i < bytesToTransmit; ++i)
+            {
+                Transmit(txQueue.Dequeue());
+            }
         }
 
         private void RxEnqueue(byte value)
@@ -186,7 +219,19 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 return;
             }
+
+            if(rxQueue.Count == FIFOLength)
+            {
+                interruptRxOverrunPending.Value = true;
+                UpdateInterrupts();
+                return;
+            }
             rxQueue.Enqueue(value);
+            if(rxQueue.Count == FIFOLength)
+            {
+                interruptRxFullPending.Value = true;
+                UpdateInterrupts();
+            }
         }
 
         private byte RxDequeue()
@@ -201,11 +246,41 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 interruptRxUnderrunPending.Value |= true;
             }
+            else
+            {
+                TryTransmit();
+            }
 
-            TryDeassert();
+            TryFinishTransaction();
             UpdateInterrupts();
 
             return result;
+        }
+
+        private void TxEnqueue(byte value)
+        {
+            if(transactionInProgress && rxQueue.Count < FIFOLength)
+            {
+                // If we have active transaction and we have room to receive data,
+                // send/receive it immediately
+                Transmit(value);
+            }
+            else
+            {
+                // Otherwise, we either generate TX overrun interrupt if internal
+                // TX buffer is full, or enqueue new data to it. This data will be
+                // send either after START condition, or when there is room in RX
+                // buffer when transaction is active
+                if(txQueue.Count == FIFOLength)
+                {
+                    interruptTxOverrunPending.Value = true;
+                }
+                else
+                {
+                    txQueue.Enqueue(value);
+                }
+            }
+            UpdateInterrupts();
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -215,11 +290,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.FIFOData, new DoubleWordRegister(this)
                     .WithValueFields(0, 8, FIFODataWidth, name: "DATA.data",
                         valueProviderCallback: (_, __) => RxDequeue(),
-                        writeCallback: (_, __, value) => txQueue.Enqueue((byte)value))
-                    .WithWriteCallback((_, __) =>
-                    {
-                        UpdateInterrupts();
-                    })
+                        writeCallback: (_, __, value) => TxEnqueue((byte)value))
                 },
                 {(long)Registers.MasterSignalsControl, new DoubleWordRegister(this)
                     .WithFlag(0, name: "CTRL0.spi_en",
@@ -262,7 +333,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(20, 12)
                 },
                 {(long)Registers.TrasmitPacketSize, new DoubleWordRegister(this)
-                    .WithTag("CTRL1.tx_num_char", 0, 16)
+                    .WithValueField(0, 16, name: "CTRL1.tx_num_char",
+                        writeCallback: (_, value) => charactersToTransmit = value)
                     .WithTag("CTRL1.rx_num_char", 16, 16)
                 },
                 {(long)Registers.StaticConfiguration, new DoubleWordRegister(this)
@@ -308,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(0, out interruptTxLevelPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.tx_level")
                     .WithFlag(1, out interruptTxEmptyPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.tx_empty")
                     .WithFlag(2, out interruptRxLevelPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.rx_level")
-                    .WithTaggedFlag("INT_FL.rx_full", 3)
+                    .WithFlag(3, out interruptRxFullPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.rx_full")
                     .WithTaggedFlag("INT_FL.ssa", 4)
                     .WithTaggedFlag("INT_FL.ssd", 5)
                     .WithReservedBits(6, 2)
@@ -316,9 +388,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTaggedFlag("INT_FL.abort", 9)
                     .WithReservedBits(10, 1)
                     .WithFlag(11, out interruptTransactionFinishedPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.m_done")
-                    .WithTaggedFlag("INT_FL.tx_ovr", 12)
+                    .WithFlag(12, out interruptTxOverrunPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.tx_ovr")
                     .WithTaggedFlag("INT_FL.tx_und", 13)
-                    .WithTaggedFlag("INT_FL.rx_ovr", 14)
+                    .WithFlag(14, out interruptRxOverrunPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.rx_ovr")
                     .WithFlag(15, out interruptRxUnderrunPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_EN.rx_und")
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
@@ -327,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(0, out interruptTxLevelEnabled, name: "INT_EN.tx_level")
                     .WithFlag(1, out interruptTxEmptyEnabled, name: "INT_EN.tx_empty")
                     .WithFlag(2, out interruptRxLevelEnabled, name: "INT_EN.rx_level")
-                    .WithTaggedFlag("INT_EN.rx_full", 3)
+                    .WithFlag(3, out interruptRxFullEnabled, name: "INT_EN.rx_full")
                     .WithTaggedFlag("INT_EN.ssa", 4)
                     .WithTaggedFlag("INT_EN.ssd", 5)
                     .WithReservedBits(6, 2)
@@ -335,9 +407,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTaggedFlag("INT_EN.abort", 9)
                     .WithReservedBits(10, 1)
                     .WithFlag(11, out interruptTransactionFinishedEnabled, name: "INT_EN.m_done")
-                    .WithTaggedFlag("INT_EN.tx_ovr", 12)
+                    .WithFlag(12, out interruptTxOverrunEnabled, name: "INT_EN.tx_ovr")
                     .WithTaggedFlag("INT_EN.tx_und", 13)
-                    .WithTaggedFlag("INT_EN.rx_ovr", 14)
+                    .WithFlag(14, out interruptRxOverrunEnabled, name: "INT_EN.rx_ovr")
                     .WithFlag(15, out interruptRxUnderrunEnabled, name: "INT_EN.rx_und")
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
@@ -373,6 +445,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private bool[] shouldDeassert;
+        private bool transactionInProgress;
+        private uint charactersToTransmit;
 
         private IValueRegisterField slaveSelect;
 
@@ -385,17 +459,24 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField interruptTxLevelPending;
         private IFlagRegisterField interruptTxEmptyPending;
         private IFlagRegisterField interruptRxLevelPending;
+        private IFlagRegisterField interruptRxFullPending;
         private IFlagRegisterField interruptTransactionFinishedPending;
+        private IFlagRegisterField interruptTxOverrunPending;
+        private IFlagRegisterField interruptRxOverrunPending;
         private IFlagRegisterField interruptRxUnderrunPending;
 
         private IFlagRegisterField interruptTxLevelEnabled;
         private IFlagRegisterField interruptTxEmptyEnabled;
         private IFlagRegisterField interruptRxLevelEnabled;
+        private IFlagRegisterField interruptRxFullEnabled;
         private IFlagRegisterField interruptTransactionFinishedEnabled;
+        private IFlagRegisterField interruptTxOverrunEnabled;
+        private IFlagRegisterField interruptRxOverrunEnabled;
         private IFlagRegisterField interruptRxUnderrunEnabled;
 
-        public const int FIFODataWidth = 0x04;
-        public const int MaximumNumberOfSlaves = 4;
+        private const int FIFODataWidth = 0x04;
+        private const int FIFOLength = 32;
+        private const int MaximumNumberOfSlaves = 4;
 
         private readonly Queue<byte> rxQueue;
         private readonly Queue<byte> txQueue;
