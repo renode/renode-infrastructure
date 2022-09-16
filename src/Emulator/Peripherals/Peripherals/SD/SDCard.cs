@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Storage;
@@ -22,11 +23,18 @@ namespace Antmicro.Renode.Peripherals.SD
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
     public class SDCard : ISPIPeripheral, IDisposable
     {
-        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, bool highCapacityMode = false)
+        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined, bool highCapacityMode = false)
         {
+            var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize); 
+            if((blockSize != BlockLength.Undefined) && (capacity % blockLenghtInBytes != 0))
+            {
+                throw new ConstructionException($"Size (0x{capacity:X}) is not aligned to selected block size(0x{blockLenghtInBytes:X})");
+            }
+            
             this.spiMode = spiMode;
             this.highCapacityMode = highCapacityMode;
             this.capacity = capacity;
+            this.blockSize = blockSize;
             spiContext = new SpiContext();
 
             dataBackend = DataStorage.Create(imageFile, capacity, persistent);
@@ -610,6 +618,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue switchFunctionStatusGenerator;
 
         private readonly long capacity;
+        private readonly BlockLength blockSize;
         private readonly bool spiMode;
         private readonly bool highCapacityMode;
         private readonly SpiContext spiContext;
