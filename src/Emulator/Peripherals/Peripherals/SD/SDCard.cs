@@ -22,16 +22,16 @@ namespace Antmicro.Renode.Peripherals.SD
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
     public class SDCard : ISPIPeripheral, IDisposable
     {
-        public SDCard(string imageFile, long? size = null, bool persistent = false, bool spiMode = false, bool highCapacityMode = false)
+        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, bool highCapacityMode = false)
         {
             this.spiMode = spiMode;
             this.highCapacityMode = highCapacityMode;
+            this.capacity = capacity;
             spiContext = new SpiContext();
 
-            dataBackend = DataStorage.Create(imageFile, size, persistent);
+            dataBackend = DataStorage.Create(imageFile, capacity, persistent);
 
             var sdCapacityParameters = SDCapacity.SeekForCapacityParametes(dataBackend.Length);
-            dataBackend.SetLength(sdCapacityParameters.MemoryCapacity);
 
             blockLengthInBytes = (uint)(1 << sdCapacityParameters.BlockSize);
 
@@ -609,6 +609,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue cardIdentificationGenerator;
         private readonly VariableLengthValue switchFunctionStatusGenerator;
 
+        private readonly long capacity;
         private readonly bool spiMode;
         private readonly bool highCapacityMode;
         private readonly SpiContext spiContext;
