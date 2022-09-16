@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -164,7 +164,13 @@ namespace Antmicro.Renode.Core
         /// All SymbolLookup objects.
         /// </summary>
         static private readonly HashSet<SymbolLookup> allSymbolSets = new HashSet<SymbolLookup>();
-        static private readonly string[] armSpecificSymbolNames = { "$a", "$d", "$t" };
+        // Those symbols have a special meaning
+        // $a - marks ARM code segments
+        // $d - marks data segments
+        // $t - marks THUMB code segments
+        // Sources: https://simplemachines.it/doc/aaelf.pdf section 4.5.6
+        // All of those symbols can be used by the disassembler when reading the binary and are not needed during the execution
+        static private readonly string[] excludedSymbolNames = { "$a", "$d", "$t" };
         static private readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
 
         private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress) where T : struct
@@ -177,7 +183,10 @@ namespace Antmicro.Renode.Core
             var thumb = elf.Machine == ELFSharp.ELF.Machine.ARM;
             var symtab = (SymbolTable<T>)symtabSection;
 
-            var elfSymbols = symtab.Entries.Where(x => !armSpecificSymbolNames.Contains(x.Name)).Where(x => !excludedSymbolTypes.Contains(x.Type))
+            // All names on the excluded list are valid C identifiers, so someone may name their function like that
+            // To guard against it we also check if the type of this symbol is not specified
+            var elfSymbols = symtab.Entries.Where(x => !(excludedSymbolNames.Contains(x.Name) && x.Type == SymbolType.NotSpecified))
+                                .Where(x => !excludedSymbolTypes.Contains(x.Type))
                                 .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined).Select(x => new Symbol(x, thumb));
             InsertSymbols(elfSymbols);
             EntryPoint = elf.GetEntryPoint();
