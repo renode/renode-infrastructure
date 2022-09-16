@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -488,22 +488,20 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.SetBlockLength_CMD16:
-                    blockLengthInBytes = highCapacityMode
-                        ? HighCapacityBlockLength
-                        : arg;
+                    blockLengthInBytes = arg;
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
                     readContext.Offset = highCapacityMode
-                        ? arg * blockLengthInBytes 
+                        ? arg * HighCapacityBlockLength 
                         : arg;
                     state = SDCardState.SendingData;
                     return spiMode
                         ? GenerateR1Response()
                             .Append(BlockBeginIndicator)
-                            .Append(ReadData(blockLengthInBytes)) // the actual data
+                            .Append(ReadData(highCapacityMode ? HighCapacityBlockLength : blockLengthInBytes)) // the actual data
                         : CardStatus;
 
                 case SdCardCommand.ReadMultipleBlocks_CMD18:
@@ -515,7 +513,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     }
                     state = SDCardState.SendingData;
                     readContext.Offset = highCapacityMode
-                        ? arg * blockLengthInBytes
+                        ? arg * HighCapacityBlockLength
                         : arg;
                     return CardStatus;
 
@@ -534,7 +532,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     }
                     state = SDCardState.ReceivingData;
                     writeContext.Offset = highCapacityMode
-                        ? arg * blockLengthInBytes
+                        ? arg * HighCapacityBlockLength
                         : arg;
                     return CardStatus;
 
@@ -569,10 +567,13 @@ namespace Antmicro.Renode.Peripherals.SD
                     return true;
 
                 case SdCardApplicationSpecificCommand.SendOperatingConditionRegister_ACMD41:
-                    // activate the card
-                    state = SDCardState.Ready;
-
-                    highCapacityMode = BitHelper.IsBitSet(arg, 30);
+                    // If HCS is set to 0, High Capacity SD Memory Card never returns ready state
+                    var hcs = BitHelper.IsBitSet(arg, 30);
+                    if(!highCapacityMode || hcs)
+                    {
+                        // activate the card
+                        state = SDCardState.Ready;
+                    }
 
                     result = spiMode
                         ? GenerateR1Response()
@@ -594,8 +595,6 @@ namespace Antmicro.Renode.Peripherals.SD
         }
 
         private bool spiMode;
-        private bool highCapacityMode;
-
         private SDCardState state;
 
         private bool treatNextCommandAsAppCommand;
@@ -611,6 +610,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue cardIdentificationGenerator;
         private readonly VariableLengthValue switchFunctionStatusGenerator;
 
+        private readonly bool highCapacityMode;
         private readonly SpiContext spiContext;
         private const byte DummyByte = 0xFF;
         private const byte BlockBeginIndicator = 0xFE;
