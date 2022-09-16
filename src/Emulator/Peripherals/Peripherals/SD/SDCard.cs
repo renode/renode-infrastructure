@@ -594,7 +594,6 @@ namespace Antmicro.Renode.Peripherals.SD
             }
         }
 
-        private bool spiMode;
         private SDCardState state;
 
         private bool treatNextCommandAsAppCommand;
@@ -610,6 +609,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue cardIdentificationGenerator;
         private readonly VariableLengthValue switchFunctionStatusGenerator;
 
+        private readonly bool spiMode;
         private readonly bool highCapacityMode;
         private readonly SpiContext spiContext;
         private const byte DummyByte = 0xFF;
