@@ -70,19 +70,37 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(31, 1, 1, name: "Card power up status bit (busy)")
             ;
 
-            cardSpecificDataGenerator = new VariableLengthValue(128)
-                .DefineFragment(47, 3, (uint)sdCapacityParameters.Multiplier, name: "device size multiplier")
-                .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
-                .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
-                .DefineFragment(84, 12, (uint)(
-                      CardCommandClass.Class0 
-                    | CardCommandClass.Class2
-                    | CardCommandClass.Class4
-
-                    ), name: "card command classes")
-                .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
-                .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
-            ;
+            if(!highCapacityMode)
+            {
+                cardSpecificDataGenerator = new VariableLengthValue(128)
+                    .DefineFragment(47, 3, (uint)sdCapacityParameters.Multiplier, name: "device size multiplier")
+                    .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
+                    .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
+                    .DefineFragment(84, 12, (uint)(
+                          CardCommandClass.Class0 
+                        | CardCommandClass.Class2
+                        | CardCommandClass.Class4
+                        ), name: "card command classes")
+                    .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
+                    .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
+                    .DefineFragment(126, 2, (uint)CSD.Version1, name: "CSD structure")
+                ;
+            }
+            else
+            {
+                cardSpecificDataGenerator = new VariableLengthValue(128)
+                    .DefineFragment(48, 22, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
+                    .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
+                    .DefineFragment(84, 12, (uint)(
+                          CardCommandClass.Class0 
+                        | CardCommandClass.Class2
+                        | CardCommandClass.Class4
+                        ), name: "card command classes")
+                    .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
+                    .DefineFragment(99, 5, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
+                    .DefineFragment(126, 2, (uint)CSD.Version2, name: "CSD structure")
+                ;
+            }
 
             extendedCardSpecificDataGenerator = new VariableLengthValue(4096)
                 .DefineFragment((120), 8, 1, name: "command queue enabled")
@@ -792,6 +810,12 @@ namespace Antmicro.Renode.Peripherals.SD
             Programming = 7,
             Disconnect = 8
             // the rest is reserved
+        }
+
+        private enum CSD
+        {
+            Version1 = 0,
+            Version2 = 1
         }
     }
 }
