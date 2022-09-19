@@ -78,8 +78,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Transient]
         protected volatile bool started;
         
-        protected bool isAborted;
-        protected bool isPaused;
+        protected volatile bool isAborted;
+        protected volatile bool isPaused;
         
         protected readonly object pauseLock = new object();
         protected readonly object haltedLock = new object();

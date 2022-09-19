@@ -651,7 +651,7 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        protected bool isStarted;
+        protected volatile bool isStarted;
         protected bool isPaused;
 
         protected readonly HandlesCollection handles;
@@ -747,13 +747,7 @@ namespace Antmicro.Renode.Time
             }
 
             private readonly object innerLock;
-#if PLATFORM_WINDOWS
-            // it seems the `volatile` modifier is necessary on .NET on Windows
             private volatile int highPriorityRequestPendingCounter;
-#else
-            // but generates a warning on Linux
-            private int highPriorityRequestPendingCounter;
-#endif
         }
 
         /// <summary>
