@@ -504,7 +504,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void SetHookAtMemoryAccess(Action<uint, ulong> hook)
+        public void SetHookAtMemoryAccess(Action<ulong, uint, ulong> hook)
         {
             TlibOnMemoryAccessEventEnabled(hook != null ? 1 : 0);
             memoryAccessHook = hook;
@@ -805,7 +805,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void RemoveHookAtMemoryAccess(Action<uint, ulong> hook)
+        private void RemoveHookAtMemoryAccess(Action<ulong, uint, ulong> hook)
         {
             memoryAccessHook -= hook;
             if(interruptBeginHook == null)
@@ -881,9 +881,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnMemoryAccess(uint operation, ulong address)
+        private void OnMemoryAccess(ulong pc, uint operation, ulong address)
         {
-            memoryAccessHook?.Invoke(operation, address);
+            memoryAccessHook?.Invoke(pc, operation, address);
         }
 
         protected virtual void InitializeRegisters()
@@ -1204,7 +1204,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong> interruptBeginHook;
         private Action<ulong> interruptEndHook;
         private Action<ulong, AccessType, int> mmuFaultHook;
-        private Action<uint, ulong> memoryAccessHook;
+        private Action<ulong, uint, ulong> memoryAccessHook;
 
         private List<SegmentMapping> currentMappings;
 
@@ -1874,7 +1874,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 machine.Profiler.Log(new ExceptionEntry(exceptionIndex));
             });
 
-            SetHookAtMemoryAccess((operation, address) =>
+            SetHookAtMemoryAccess((_, operation, address) =>
             {
                 switch((MemoryOperation)operation)
                 {
