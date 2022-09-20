@@ -43,6 +43,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case ProfilerType.CollapsedStack:
                     profiler = new CollapsedStackProfiler(this, filename, flushInstantly);
                     break;
+                case ProfilerType.Perfetto:
+                    profiler = new PerfettoProfiler(this, filename, flushInstantly);
+                    break;
                 default:
                     throw new RecoverableException($"{type} is not a valid profiler output type");
             }
@@ -76,7 +79,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public enum ProfilerType
         {
-            CollapsedStack
+            CollapsedStack,
+            Perfetto
         }
 
         [Export]

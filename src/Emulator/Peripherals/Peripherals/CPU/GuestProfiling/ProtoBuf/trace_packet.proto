@@ -1,0 +1,58 @@
+//
+// Copyright (c) 2010-2022 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+
+// Minimal version of the TracePacket used by Perfetto
+// Orginal definitions can be found here:
+// https://cs.android.com/android/platform/superproject/+/f5c4cacbe57e1ab7c5dfed53852ad67d9352b1ed:external/perfetto/protos/perfetto/trace/trace_packet.proto
+
+syntax = "proto2";
+option csharp_namespace = "Antmicro.Renode.Peripherals.CPU.GuestProfiling.ProtoBuf";
+
+// Special message used for describing a track
+message TrackDescriptor {
+    optional uint64 uuid = 1;
+    optional string name = 2;
+    message CounterDescriptor{}
+    optional CounterDescriptor counter = 8;
+}
+
+// Event that can be logged on the track
+message TrackEvent {
+    optional string name = 23;
+    enum Type {
+        TYPE_UNSPECIFIED = 0;
+        TYPE_SLICE_BEGIN = 1;
+        TYPE_SLICE_END = 2;
+        TYPE_INSTANT = 3;
+        TYPE_COUNTER = 4;
+    }
+    optional Type type = 9;
+    optional uint64 track_uuid = 11;
+
+    oneof counter_value_field {
+        int64 counter_value = 30;
+        double double_counter_value = 44;
+    }
+}
+
+// Main packet that describles a event on the track
+message TracePacket {
+    optional uint64 timestamp = 8;
+
+    oneof data {
+        TrackEvent track_event = 11;
+        TrackDescriptor track_descriptor = 60;
+        bytes synchronization_marker = 36;
+    }
+
+    optional uint32 trusted_packet_sequence_id = 10;
+}
+
+// Used for holding multiple trace packets
+message Trace {
+    repeated TracePacket packets = 1;
+}
