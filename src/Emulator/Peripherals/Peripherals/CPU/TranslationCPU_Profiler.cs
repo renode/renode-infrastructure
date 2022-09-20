@@ -54,6 +54,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibEnableGuestProfiler(1);
         }
 
+        public void EnableProfilerCollapsedStack(string filename, bool flushInstantly = false)
+        {
+            EnableProfiler(ProfilerType.CollapsedStack, filename, flushInstantly);
+        }
+
+        public void EnableProfilerPerfetto(string filename, bool flushInstantly = false)
+        {
+            EnableProfiler(ProfilerType.Perfetto, filename, flushInstantly);
+        }
+
         public void DisableProfiler()
         {
             if(profiler == null)
