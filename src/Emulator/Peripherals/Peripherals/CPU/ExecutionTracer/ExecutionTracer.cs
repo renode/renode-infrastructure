@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class ExecutionTracerExtensions
     {
-        public static void EnableExecutionTracing(this TranslationCPU @this, string fileName, TraceFormat format, bool isBinary = false, bool compress = false)
+        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false)
         {
             var writerBuilder = new TraceWriterBuilder(@this, fileName, format, isBinary, compress);
             var tracer = new ExecutionTracer(@this, writerBuilder);
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             try
             {
                 // we keep it as external to dispose/flush on quit
-                EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, $"executionTracer-{@this.GetName()}");
+                EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tracer, name);
             }
             catch(Exception)
             {
