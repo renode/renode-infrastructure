@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
+                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.GetSystemBus(this), (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
                         })
                 },
 
@@ -229,7 +229,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is started is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.GetSystemBus(this), (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
                         })
                 },
 
@@ -703,7 +703,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
         {
-            public DmaBufferDescriptorsQueue(SystemBus bus, uint baseAddress, Func<SystemBus, uint, T> creator)
+            public DmaBufferDescriptorsQueue(IBusController bus, uint baseAddress, Func<IBusController, uint, T> creator)
             {
                 this.bus = bus;
                 this.creator = creator;
@@ -755,13 +755,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
             private readonly List<T> descriptors;
             private readonly uint baseAddress;
-            private readonly SystemBus bus;
-            private readonly Func<SystemBus, uint, T> creator;
+            private readonly IBusController bus;
+            private readonly Func<IBusController, uint, T> creator;
         }
 
         private abstract class DmaBufferDescriptor
         {
-            protected DmaBufferDescriptor(SystemBus bus, uint address, DMAAddressWidth dmaAddressWidth, bool isExtendedModeEnabled)
+            protected DmaBufferDescriptor(IBusController bus, uint address, DMAAddressWidth dmaAddressWidth, bool isExtendedModeEnabled)
             {
                 this.dmaAddressWidth = dmaAddressWidth;
                 Bus = bus;
@@ -795,7 +795,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperBufferAddress << 32) | LowerBufferAddress) : LowerBufferAddress;
             }
 
-            public SystemBus Bus { get; }
+            public IBusController Bus { get; }
             public uint SizeInBytes { get; }
             public bool IsExtendedModeEnabled { get; }
             public uint LowerDescriptorAddress { get; set; }
@@ -903,7 +903,7 @@ namespace Antmicro.Renode.Peripherals.Network
         ///     * 4-31: Reserved
         private class DmaRxBufferDescriptor : DmaBufferDescriptor
         {
-            public DmaRxBufferDescriptor(SystemBus bus, uint address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, address, addressWidth, extendedModeEnabled)
+            public DmaRxBufferDescriptor(IBusController bus, uint address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, address, addressWidth, extendedModeEnabled)
             {
             }
 
@@ -1005,7 +1005,7 @@ namespace Antmicro.Renode.Peripherals.Network
         ///     * 4-31: Reserved
         private class DmaTxBufferDescriptor : DmaBufferDescriptor
         {
-            public DmaTxBufferDescriptor(SystemBus bus, uint address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, address, addressWidth, extendedModeEnabled)
+            public DmaTxBufferDescriptor(IBusController bus, uint address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, address, addressWidth, extendedModeEnabled)
             {
             }
 

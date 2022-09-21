@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             try
             {
                 byte[] data;
-                data = machine.SystemBus.ReadBytes((ulong)dmaSourceAddress.Value, (int)dmaDataLength.Value, onlyMemory: true);
+                data = machine.GetSystemBus(this).ReadBytes((ulong)dmaSourceAddress.Value, (int)dmaDataLength.Value, onlyMemory: true);
                 crcEngine.Update(data);
                 crcValue.Value = crcEngine.Value;
                 dmaFinished.Value = true;

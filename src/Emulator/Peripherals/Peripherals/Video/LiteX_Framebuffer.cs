@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected override void Repaint()
         {
-            machine.SystemBus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
+            machine.GetSystemBus(this).ReadBytes(bufferAddress, buffer.Length, buffer, 0);
         }
 
         private void DefineRegisters()

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,9 +14,9 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class DmaEngine
     {
-        public DmaEngine(Machine machine)
+        public DmaEngine(IBusController systemBus)
         {
-            this.machine = machine;
+            sysbus = systemBus;
         }
 
         public Response IssueCopy(Request request)
@@ -33,7 +33,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 throw new ArgumentException("Request size is not aligned properly to given read or write transfer type (or both).");
             }
 
-            var sysbus = machine.SystemBus;
             var buffer = new byte[request.Size];
             IBusRegistered<IBusPeripheral> whatIsAt;
             if(!request.Source.Address.HasValue)
@@ -142,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             return response;
         }
 
-        private readonly Machine machine;
+        private readonly IBusController sysbus;
     }
 }
 

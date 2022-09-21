@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public AmbiqApollo4_Security(Machine machine) : base(machine)
         {
-            systemBus = machine.SystemBus;
+            systemBus = machine.GetSystemBus(this);
             DefineRegisters();
         }
 
@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<Functions> functionSelect;
         private IValueRegisterField wordLength;
 
-        private readonly SystemBus systemBus;
+        private readonly IBusController systemBus;
 
         private const uint ValidCrcSeed = 0xFFFFFFFF;
 

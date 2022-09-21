@@ -270,14 +270,14 @@ namespace Antmicro.Renode.Peripherals.SD
             this.Log(LogLevel.Noisy, "Reading {0} bytes of data from device: {1}. Writing it to 0x{2:X}", data.Length, Misc.PrettyPrintCollectionHex(data), readerAddress);
 #endif
 
-            Machine.SystemBus.WriteBytes(data, readerAddress);
+            Machine.GetSystemBus(this).WriteBytes(data, readerAddress);
         }
 
         private void WriteData()
         {
             writerAddress &= 0xffffffff;
 
-            var data = Machine.SystemBus.ReadBytes(writerAddress, (int)writerLength.Value);
+            var data = Machine.GetSystemBus(this).ReadBytes(writerAddress, (int)writerLength.Value);
 #if DEBUG_PACKETS
             this.Log(LogLevel.Noisy, "Writing {0} bytes of data read from 0x{1:X} to the device: {2}", data.Length, writerAddress, Misc.PrettyPrintCollectionHex(data));
 #endif

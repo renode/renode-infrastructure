@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -20,9 +20,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             memoryManager = new InternalMemoryManager();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             rsaServiceProvider = new RSAServiceProvider(memoryManager);
-            aesServiceProvider = new AESServiceProvider(memoryManager, machine.SystemBus);
-            msgAuthServiceProvider = new MessageAuthenticationServiceProvider(memoryManager, machine.SystemBus);
-            dsaServiceProvider = new DSAServiceProvider(memoryManager, machine.SystemBus);
+            aesServiceProvider = new AESServiceProvider(memoryManager, machine.GetSystemBus(this));
+            msgAuthServiceProvider = new MessageAuthenticationServiceProvider(memoryManager, machine.GetSystemBus(this));
+            dsaServiceProvider = new DSAServiceProvider(memoryManager, machine.GetSystemBus(this));
 
             Registers.CSR.Define(this)
                 .WithFlag(0,

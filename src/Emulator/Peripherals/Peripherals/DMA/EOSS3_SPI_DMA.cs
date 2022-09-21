@@ -94,14 +94,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                         case 1:
                         {
                             this.Log(LogLevel.Noisy, "DMA transfer: writing byte 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                            machine.SystemBus.WriteByte(destinationAddress.Value, (byte)data);
+                            machine.GetSystemBus(this).WriteByte(destinationAddress.Value, (byte)data);
                             break;
                         }
 
                         case 2:
                         {
                             this.Log(LogLevel.Noisy, "DMA transfer: writing ushort 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                            machine.SystemBus.WriteWord(destinationAddress.Value, data);
+                            machine.GetSystemBus(this).WriteWord(destinationAddress.Value, data);
                             break;
                         }
                     }

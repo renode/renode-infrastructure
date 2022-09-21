@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
     public class AESServiceProvider
     {
-        public AESServiceProvider(InternalMemoryManager manager, SystemBus bus)
+        public AESServiceProvider(InternalMemoryManager manager, IBusController bus)
         {
             this.manager = manager;
             this.bus = bus;
@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         private byte[] segment;
 
-        private readonly SystemBus bus;
+        private readonly IBusController bus;
         private readonly InternalMemoryManager manager;
 
         // These values are taken directly from the driver because they are not written to the internal memories

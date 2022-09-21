@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,8 +16,8 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public TegraDmaHost1X(Machine machine)
         {
-            dmaEngine = new DmaEngine(machine);
-            sysbus = machine.SystemBus;
+            dmaEngine = new DmaEngine(machine.GetSystemBus(this));
+            sysbus = machine.GetSystemBus(this);
         }
 
         public long Size
@@ -232,7 +232,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private uint command_addr = 0x0;
         private readonly DmaEngine dmaEngine;
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
 
     }
 }

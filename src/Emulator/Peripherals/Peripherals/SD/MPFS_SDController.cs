@@ -366,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.SD
             var data = sdCard.ReadData(size);
             if(isDmaEnabled.Value)
             {
-                Machine.SystemBus.WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
+                Machine.GetSystemBus(this).WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
                 Machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
                 {
                     irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
@@ -395,7 +395,7 @@ namespace Antmicro.Renode.Peripherals.SD
             var bytes = new byte[size];
             if(isDmaEnabled.Value)
             {
-                bytes = Machine.SystemBus.ReadBytes(((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value, (int)size);
+                bytes = Machine.GetSystemBus(this).ReadBytes(((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value, (int)size);
             }
             else
             {

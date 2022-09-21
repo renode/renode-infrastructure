@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
     public class MessageAuthenticationServiceProvider
     {
-        public MessageAuthenticationServiceProvider(InternalMemoryManager manager, SystemBus bus)
+        public MessageAuthenticationServiceProvider(InternalMemoryManager manager, IBusController bus)
         {
             this.manager = manager;
             this.bus = bus;
@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private const int SHAMsgLen = 32;
         private const int KeyLen = 32;
         
-        private readonly SystemBus bus;
+        private readonly IBusController bus;
         private readonly InternalMemoryManager manager;
         
         private enum WriteType

@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             var data = new byte[preparedDoubleWords.Length * 4];
             System.Buffer.BlockCopy(preparedDoubleWords, 0, data, 0, preparedDoubleWords.Length * 4);
-            machine.SystemBus.WriteBytes(data, dmac0DestAddr.Value);
+            machine.GetSystemBus(this).WriteBytes(data, dmac0DestAddr.Value);
 
             IRQ.Blink();
         }

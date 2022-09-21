@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,8 +18,8 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public UDMA(Machine machine, int numberOfChannels = 32)
         {
-            engine = new DmaEngine(machine);
-            SystemBus = machine.SystemBus;
+            engine = new DmaEngine(machine.GetSystemBus(this));
+            SystemBus = machine.GetSystemBus(this);
             channels = new Channel[numberOfChannels];
             IRQ = new GPIO();
             Reset();
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private uint busErrorStatus;
         private readonly Channel[] channels;
         private readonly DmaEngine engine;
-        private readonly SystemBus SystemBus;
+        private readonly IBusController SystemBus;
 
         private readonly uint[] peripheralIdentification = new uint[]{ 0x30, 0xB2, 0xB, 0x0, 0x4 };
         private readonly uint[] primeCellIdentification = new uint[]{ 0xD, 0xF0, 0x5, 0xB1 };

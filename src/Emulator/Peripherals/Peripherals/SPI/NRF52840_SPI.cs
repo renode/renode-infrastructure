@@ -298,7 +298,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 this.Log(LogLevel.Debug, "Starting SPI transaction using easyDMA interface");
 
-                var bytesToSend = machine.SystemBus.ReadBytes(txDataPointer.Value, (int)txMaxDataCount.Value);
+                var bytesToSend = machine.GetSystemBus(this).ReadBytes(txDataPointer.Value, (int)txMaxDataCount.Value);
                 if(rxMaxDataCount.Value > txMaxDataCount.Value)
                 {
                     // fill the rest of bytes to transmit with the ORC byte
@@ -317,7 +317,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }
             }
 
-            machine.SystemBus.WriteBytes(receivedBytes, rxDataPointer.Value);
+            machine.GetSystemBus(this).WriteBytes(receivedBytes, rxDataPointer.Value);
 
             endTxPending.Value = true;
             endRxPending.Value = true;

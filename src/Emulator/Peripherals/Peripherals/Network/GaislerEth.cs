@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            var rd = new receiveDescriptor(machine.SystemBus);
+            var rd = new receiveDescriptor(machine.GetSystemBus(this));
 
             if(!EthernetFrame.CheckCRC(frame.Bytes))
             {
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            machine.SystemBus.WriteBytes(frame.Bytes, rd.PacketAddress);
+            machine.GetSystemBus(this).WriteBytes(frame.Bytes, rd.PacketAddress);
             registers.Status = 1u << 2;
             if(rd.Wrap)
             {
@@ -257,7 +257,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void transmitFrame()
         {
-            var td = new transmitDescriptor(machine.SystemBus);
+            var td = new transmitDescriptor(machine.GetSystemBus(this));
             td.Fetch(transmitDescriptorBase | transmitDescriptorOffset);
 
             if(!td.Enable)
@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return; //if decriptor is disabled there is nothing to send (just return)
             }
 
-            var packetBytes = machine.SystemBus.ReadBytes(td.PacketAddress, (int)td.Length);
+            var packetBytes = machine.GetSystemBus(this).ReadBytes(td.PacketAddress, (int)td.Length);
             if(!Misc.TryCreateFrameOrLogWarning(this, packetBytes, out var packet, addCrc: true))
             {
                 return;
@@ -361,12 +361,12 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class transmitDescriptor
         {
-            public transmitDescriptor(SystemBus sysbus)
+            public transmitDescriptor(IBusController sysbus)
             {
                 sbus = sysbus;
             }
 
-            private SystemBus sbus;
+            private IBusController sbus;
 
             private uint word0;
             private uint word1;
@@ -417,13 +417,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class receiveDescriptor
         {
-            public receiveDescriptor(SystemBus sysbus)
+            public receiveDescriptor(IBusController sysbus)
             {
                 sbus = sysbus;
             }
 
-            private SystemBus sbus;
-
+            private IBusController sbus;
+            
             private uint word0;
             private uint word1;
             private uint ramAddress;

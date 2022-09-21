@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var nBytes = mailbox.ReadDoubleWord(offset + 12);
 
             var bytes = flashMemory.ReadBytes(srcAddr, (int)nBytes);
-            machine.SystemBus.WriteBytes(bytes, (((ulong)destAddrUpper) << 32) | destAddrLower);
+            machine.GetSystemBus(this).WriteBytes(bytes, (((ulong)destAddrUpper) << 32) | destAddrLower);
         }
 
         private RequestResult status;

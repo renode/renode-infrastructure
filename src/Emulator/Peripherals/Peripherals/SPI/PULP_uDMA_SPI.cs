@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 receiveQueue.Enqueue(RegisteredPeripheral.Transmit(0));
             }
             RegisteredPeripheral.FinishTransmission();
-            Machine.SystemBus.WriteBytes(receiveQueue.ToArray(), rxTransferAddress.Value);
+            Machine.GetSystemBus(this).WriteBytes(receiveQueue.ToArray(), rxTransferAddress.Value);
             receiveQueue.Clear();
             command = Commands.None;
             RxIRQ.Blink();
@@ -174,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Warning, "Trying to issue a transaction to a slave peripheral, but nothing is connected");
                 return;
             }
-            foreach(var b in Machine.SystemBus.ReadBytes(txTransferAddress.Value, (int)txTransferBufferSize.Value))
+            foreach(var b in Machine.GetSystemBus(this).ReadBytes(txTransferAddress.Value, (int)txTransferBufferSize.Value))
             {
                 RegisteredPeripheral.Transmit(b);
             }
@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private Commands ReadCommand()
         {
             // The command is the third element of an array stored in memory, hence the addition
-            var cmd = (Commands)(Machine.SystemBus.ReadDoubleWord(commandTransferAddress.Value + 8) >> 28);
+            var cmd = (Commands)(Machine.GetSystemBus(this).ReadDoubleWord(commandTransferAddress.Value + 8) >> 28);
             if(!Enum.IsDefined(typeof(Commands), cmd))
             {
                 this.Log(LogLevel.Warning, "Invalid command has been issued: {0}", cmd);

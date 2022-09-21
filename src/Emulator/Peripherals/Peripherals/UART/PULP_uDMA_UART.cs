@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                       return;
                                   }
 
-                                  var data = machine.SystemBus.ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
+                                  var data = machine.GetSystemBus(this).ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
                                   foreach(var c in data)
                                   {
                                       TransmitCharacter(c);
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            this.Machine.SystemBus.WriteByte(rxBufferAddress.Value + rxIdx, c);
+            this.Machine.GetSystemBus(this).WriteByte(rxBufferAddress.Value + rxIdx, c);
             rxIdx++;
 
             if(rxIdx == rxBufferSize.Value)

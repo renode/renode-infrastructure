@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         this.Log(LogLevel.Warning, "Received {0} bytes from the device, but RX DMA stream is configured for {1} bytes. This might indicate problems in the driver", data.Length, rxBufferSize.Value);
                     }
 
-                    Machine.SystemBus.WriteBytes(data, rxBufferAddress.Value);
+                    Machine.GetSystemBus(this).WriteBytes(data, rxBufferAddress.Value);
                     rxStreamEnabled.Value = false;
                     IRQ.Blink();
                 })

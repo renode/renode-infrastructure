@@ -183,10 +183,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void ProcessDataInMemory(uint inputAddress, uint? outputAddress, int length, Action<Block> processor, Block data = null)
         {
             SysbusWriter writer = null;
-            var reader = new SysbusReader(machine.SystemBus, inputAddress, length);
+            var reader = new SysbusReader(machine.GetSystemBus(this), inputAddress, length);
             if(outputAddress.HasValue)
             {
-                writer = new SysbusWriter(machine.SystemBus, outputAddress.Value, length);
+                writer = new SysbusWriter(machine.GetSystemBus(this), outputAddress.Value, length);
             }
 
             if(data == null)
@@ -372,7 +372,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             for(var i = keyWriteSlotIndex; i < numberOfConsecutiveSlots; i++)
             {
-                keys[i] = machine.SystemBus.ReadBytes(dmaInputAddress.Value, KeyEntrySizeInBytes);
+                keys[i] = machine.GetSystemBus(this).ReadBytes(dmaInputAddress.Value, KeyEntrySizeInBytes);
                 dmaInputAddress.Value += KeyEntrySizeInBytes;
             }
         }
@@ -725,7 +725,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private abstract class SysbusReaderWriterBase
         {
-            protected SysbusReaderWriterBase(SystemBus bus, ulong startAddress, int length)
+            protected SysbusReaderWriterBase(IBusController bus, ulong startAddress, int length)
             {
                 this.bus = bus;
                 currentAddress = startAddress;
@@ -736,12 +736,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             protected ulong currentAddress;
             protected int bytesLeft;
-            protected readonly SystemBus bus;
+            protected readonly IBusController bus;
         }
 
         private class SysbusReader : SysbusReaderWriterBase
         {
-            public SysbusReader(SystemBus bus, ulong startAddress, int length) : base(bus, startAddress, length)
+            public SysbusReader(IBusController bus, ulong startAddress, int length) : base(bus, startAddress, length)
             {
             }
 
@@ -758,7 +758,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class SysbusWriter : SysbusReaderWriterBase
         {
-            public SysbusWriter(SystemBus bus, ulong startAddress, int length) : base(bus, startAddress, length)
+            public SysbusWriter(IBusController bus, ulong startAddress, int length) : base(bus, startAddress, length)
             {
             }
 

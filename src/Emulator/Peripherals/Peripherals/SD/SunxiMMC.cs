@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             SetupRegisters();
             IRQ = new GPIO();
-            dmaEngine = new DmaEngine(machine);
+            dmaEngine = new DmaEngine(machine.GetSystemBus(this));
         }
 
         public uint ReadDoubleWord(long offset)

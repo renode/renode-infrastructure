@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -47,8 +47,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             SoftReset(); //soft reset must be done before attaching devices
 
-            periodic_qh = new QueueHead(machine.SystemBus);
-            async_qh = new QueueHead(machine.SystemBus);
+            periodic_qh = new QueueHead(machine.GetSystemBus(this));
+            async_qh = new QueueHead(machine.GetSystemBus(this));
         }
 
         public void Dispose()
@@ -440,8 +440,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             mode = ControllerMode.Idle;
             interruptEnableRegister.Clear();
-            periodic_qh = new QueueHead(machine.SystemBus);
-            async_qh = new QueueHead(machine.SystemBus);
+            periodic_qh = new QueueHead(machine.GetSystemBus(this));
+            async_qh = new QueueHead(machine.GetSystemBus(this));
         }
 
         private uint GetFrs()
@@ -595,7 +595,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             Array.Copy(inData, inputSourceArray, dataToSend, 0, dataAmount);
                             bytesToTransfer -= dataAmount;
                             inputSourceArray += dataAmount;
-                            machine.SystemBus.WriteBytes(dataToSend, qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, (int)dataAmount);
+                            machine.GetSystemBus(this).WriteBytes(dataToSend, qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, (int)dataAmount);
                             qh.UpdateTotalBytesToTransfer(Math.Min(dataAmount, qh.Overlay.TotalBytesToTransfer));
                         }
                     }
@@ -605,11 +605,11 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     this.NoisyLog("[async] Device {0:d} [{1}]", qh.DeviceAddress, targetDevice);
 
                     setupData = new USBSetupPacket();
-                    setupData.requestType = machine.SystemBus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
-                    setupData.request = machine.SystemBus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
-                    setupData.value = machine.SystemBus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
-                    setupData.index = machine.SystemBus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
-                    setupData.length = machine.SystemBus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
+                    setupData.requestType = machine.GetSystemBus(this).ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
+                    setupData.request = machine.GetSystemBus(this).ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
+                    setupData.value = machine.GetSystemBus(this).ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
+                    setupData.index = machine.GetSystemBus(this).ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
+                    setupData.length = machine.GetSystemBus(this).ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
 
                     if(((setupData.requestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
                     {
@@ -703,7 +703,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             var transferredThisTurn = Math.Min(4096, (int)qh.Overlay.TotalBytesToTransfer);
 
                             //get data
-                            machine.SystemBus.ReadBytes(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, transferredThisTurn, data, bytesTransferred);
+                            machine.GetSystemBus(this).ReadBytes(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, transferredThisTurn, data, bytesTransferred);
                             bytesTransferred += transferredThisTurn;
                             qh.UpdateTotalBytesToTransfer((uint)transferredThisTurn);
                         }
@@ -930,7 +930,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         private class QueueTransferDescriptor
         {
-            public QueueTransferDescriptor(SystemBus bus)
+            public QueueTransferDescriptor(IBusController bus)
             {
                 systemBus = bus;
                 Buffer = new uint[5];
@@ -1046,7 +1046,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             public uint TotalBytesToTransfer { get; set; }
 
-            private SystemBus systemBus;
+            private IBusController systemBus;
             private ulong memoryAddress;
         }
 
@@ -1090,7 +1090,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         //
         private class QueueHead
         {
-            public QueueHead(SystemBus bus)
+            public QueueHead(IBusController bus)
             {
                 Overlay = new QueueHeadOverlay(bus);
                 TransferDescriptor = new QueueTransferDescriptor(bus);
@@ -1194,7 +1194,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             public uint CurrentTransferDescriptor { get; private set; }
 
-            private readonly SystemBus systemBus;
+            private readonly IBusController systemBus;
             private uint linkPointer;
             private byte type;
             private bool terminate;
@@ -1205,7 +1205,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         private class QueueHeadOverlay
         {
-            public QueueHeadOverlay(SystemBus bus)
+            public QueueHeadOverlay(IBusController bus)
             {
                 systemBus = bus;
                 BufferPointer = new uint[5];
@@ -1278,7 +1278,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             public uint[] BufferPointer { get; private set; }
             public uint CurrentOffset { get; private set; }
 
-            private readonly SystemBus systemBus;
+            private readonly IBusController systemBus;
             private ulong memoryAddress;
             private bool dataToggle;
             private byte errorCount;

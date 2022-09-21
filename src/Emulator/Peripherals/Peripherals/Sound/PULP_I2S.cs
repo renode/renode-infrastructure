@@ -171,13 +171,13 @@ namespace Antmicro.Renode.Peripherals.Sound
                 switch(txSampleWidth)
                 {
                     case 8:
-                        sample = machine.SystemBus.ReadByte(txBufferPointer.Value);
+                        sample = machine.GetSystemBus(this).ReadByte(txBufferPointer.Value);
                         break;
                     case 16:
-                        sample = machine.SystemBus.ReadWord(txBufferPointer.Value);
+                        sample = machine.GetSystemBus(this).ReadWord(txBufferPointer.Value);
                         break;
                     case 32:
-                        sample = machine.SystemBus.ReadDoubleWord(txBufferPointer.Value);
+                        sample = machine.GetSystemBus(this).ReadDoubleWord(txBufferPointer.Value);
                         break;
                     default:
                         throw new ArgumentException(String.Format("Invalid TX sample width: {}", txSampleWidth));
@@ -217,9 +217,9 @@ namespace Antmicro.Renode.Peripherals.Sound
                 {
                     // Handle buffer unaligned to double word
                     var bitsLeft = (int)(8 * rxBufferSize.Value);
-                    BitHelper.ReplaceBits(ref temp, machine.SystemBus.ReadDoubleWord(rxBufferPointer.Value), 32 - bitsLeft, bitsLeft, bitsLeft);
+                    BitHelper.ReplaceBits(ref temp, machine.GetSystemBus(this).ReadDoubleWord(rxBufferPointer.Value), 32 - bitsLeft, bitsLeft, bitsLeft);
                 }
-                machine.SystemBus.WriteDoubleWord(rxBufferPointer.Value, temp);
+                machine.GetSystemBus(this).WriteDoubleWord(rxBufferPointer.Value, temp);
                 // In case of some interrupt with higher priority we make sure we have buffer pointer and remaining buffer size updated
                 rxBufferPointer.Value += 4;
                 rxBufferSize.Value -= 4;

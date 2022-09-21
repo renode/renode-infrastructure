@@ -243,7 +243,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                 }
 
-                var receiveDescriptor = new RxDescriptor(machine.SystemBus);
+                var receiveDescriptor = new RxDescriptor(machine.GetSystemBus(this));
                 receiveDescriptor.Fetch(dmaReceiveDescriptorListAddress);
                 if(receiveDescriptor.IsUsed)
                 {
@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     var toWriteArray = new byte[howManyBytes];
 
                     Array.Copy(bytes, written, toWriteArray, 0, howManyBytes);
-                    machine.SystemBus.WriteBytes(toWriteArray, receiveDescriptor.Address1);
+                    machine.GetSystemBus(this).WriteBytes(toWriteArray, receiveDescriptor.Address1);
                     written += howManyBytes;
                     //write second buffer
                     if(frame.Bytes.Length - written > 0 && !receiveDescriptor.IsNextDescriptorChained)
@@ -273,7 +273,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         howManyBytes = Math.Min(receiveDescriptor.Buffer2Length, frame.Bytes.Length - written);
                         toWriteArray = new byte[howManyBytes];
                         Array.Copy(bytes, written, toWriteArray, 0, howManyBytes);
-                        machine.SystemBus.WriteBytes(toWriteArray, receiveDescriptor.Address2);
+                        machine.GetSystemBus(this).WriteBytes(toWriteArray, receiveDescriptor.Address2);
                         written += howManyBytes;
                     }
                     if(frame.Bytes.Length - written <= 0)
@@ -336,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendFrames()
         {
             this.Log(LogLevel.Noisy, "Sending frame");
-            var transmitDescriptor = new TxDescriptor(machine.SystemBus);
+            var transmitDescriptor = new TxDescriptor(machine.GetSystemBus(this));
             var packetData = new List<byte>();
 
             transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);
@@ -344,10 +344,10 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 transmitDescriptor.IsUsed = true;
                 this.Log(LogLevel.Noisy, "GOING TO READ FROM {0:X}, len={1}", transmitDescriptor.Address1, transmitDescriptor.Buffer1Length);
-                packetData.AddRange(machine.SystemBus.ReadBytes(transmitDescriptor.Address1, transmitDescriptor.Buffer1Length));
+                packetData.AddRange(machine.GetSystemBus(this).ReadBytes(transmitDescriptor.Address1, transmitDescriptor.Buffer1Length));
                 if(!transmitDescriptor.IsNextDescriptorChained)
                 {
-                    packetData.AddRange(machine.SystemBus.ReadBytes(transmitDescriptor.Address2, transmitDescriptor.Buffer2Length));
+                    packetData.AddRange(machine.GetSystemBus(this).ReadBytes(transmitDescriptor.Address2, transmitDescriptor.Buffer2Length));
                 }
 
                 transmitDescriptor.WriteBack();
@@ -447,7 +447,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class Descriptor
         {
-            public Descriptor(SystemBus sysbus)
+            public Descriptor(IBusController sysbus)
             {
                 this.sysbus = sysbus;
             }
@@ -508,12 +508,12 @@ namespace Antmicro.Renode.Peripherals.Network
             protected uint word1;
             protected uint word2;
             protected uint word3;
-            private readonly SystemBus sysbus;
+            private readonly IBusController sysbus;
         }
 
         private class TxDescriptor : Descriptor
         {
-            public TxDescriptor(SystemBus sysbus) : base(sysbus)
+            public TxDescriptor(IBusController sysbus) : base(sysbus)
             {
             }
 
@@ -556,7 +556,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class RxDescriptor : Descriptor
         {
-            public RxDescriptor(SystemBus sysbus) : base(sysbus)
+            public RxDescriptor(IBusController sysbus) : base(sysbus)
             {
             }
 

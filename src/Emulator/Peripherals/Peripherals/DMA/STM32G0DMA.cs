@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         public STM32G0DMA(Machine machine, int numberOfChannels)
         {
             this.machine = machine;
-            engine = new DmaEngine(machine);
+            engine = new DmaEngine(machine.GetSystemBus(this));
             this.numberOfChannels = numberOfChannels;
             channels = new Channel[numberOfChannels];
             var innerConnections = new Dictionary<int, IGPIO>();

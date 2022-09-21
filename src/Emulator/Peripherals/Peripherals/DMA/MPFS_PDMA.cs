@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         public MPFS_PDMA(Machine machine)
         {
             this.machine = machine;
-            dmaEngine = new DmaEngine(this.machine);
+            dmaEngine = new DmaEngine(this.machine.GetSystemBus(this));
             channels = new Channel[ChannelCount];
 
             var irqCounter = 0;

@@ -263,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 data = data.Take((int)rxBufferSize.Value).ToArray();
             }
             
-            Machine.SystemBus.WriteBytes(data, (ulong)rxBufferAddress.Value);
+            Machine.GetSystemBus(this).WriteBytes(data, (ulong)rxBufferAddress.Value);
             this.Log(LogLevel.Noisy, "Copied {0} bytes from the device to 0x{1:X}", data.Length, rxBufferAddress.Value);
         }
 
@@ -275,7 +275,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 this.Log(LogLevel.Warning, "There seems to be an inconsistency between the number of bytes to write to the device ({0}) and the number of bytes to copy from the memory ({1})", bytesToWriteToDevice, txBufferSize.Value);
             }
 
-            var data = Machine.SystemBus.ReadBytes((ulong)txBufferAddress.Value, (int)txBufferSize.Value);
+            var data = Machine.GetSystemBus(this).ReadBytes((ulong)txBufferAddress.Value, (int)txBufferSize.Value);
             if((int)bytesToWriteToDevice < data.Length)
             {
                 data = data.Take((int)txBufferSize.Value).ToArray();

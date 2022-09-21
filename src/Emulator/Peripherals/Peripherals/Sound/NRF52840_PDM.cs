@@ -224,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             foreach(uint i in preparedDoubleWords)
             {
-                machine.SystemBus.WriteDoubleWord(currentPointer, i);
+                machine.GetSystemBus(this).WriteDoubleWord(currentPointer, i);
                 currentPointer += 4;
             }
 

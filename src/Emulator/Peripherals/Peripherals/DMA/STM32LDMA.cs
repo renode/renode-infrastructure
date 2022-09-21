@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public STM32LDMA(Machine machine)
         {
-            engine = new DmaEngine(machine);
+            engine = new DmaEngine(machine.GetSystemBus(this));
             channels = new Channel[8];
             for(var i = 0; i < channels.Length; i++)
             {

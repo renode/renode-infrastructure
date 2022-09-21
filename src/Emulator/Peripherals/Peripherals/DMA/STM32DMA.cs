@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 streams[i] = new Stream(this, i);
             }
             this.machine = machine;
-            engine = new DmaEngine(machine);
+            engine = new DmaEngine(machine.GetSystemBus(this));
             Reset();
         }
 

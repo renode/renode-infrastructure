@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
     public class DSAServiceProvider
     {
-        public DSAServiceProvider(InternalMemoryManager manager, SystemBus bus)
+        public DSAServiceProvider(InternalMemoryManager manager, IBusController bus)
         {
             this.manager = manager;
             this.bus = bus;
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             AthenaX5200_BigIntegerHelper.StoreBigIntegerBytes(manager, (uint)sBytes.Length, sBytes, (long)DSARegisters.S);
         }
 
-        private readonly SystemBus bus;
+        private readonly IBusController bus;
         private readonly InternalMemoryManager manager;
 
         private enum DSARegisters

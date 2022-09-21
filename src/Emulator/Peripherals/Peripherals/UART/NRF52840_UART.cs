@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         this.Log(LogLevel.Warning, "Trying to do a DMA transfer from an empty Rx FIFO.");
                     }
                     this.Log(LogLevel.Noisy, "Transfering 0x{0:X} to 0x{1:X}", character, currentRxPointer);
-                    this.Machine.SystemBus.WriteByte(currentRxPointer, character);
+                    this.Machine.GetSystemBus(this).WriteByte(currentRxPointer, character);
                     rxAmount.Value++;
                     currentRxPointer++;
                     if(rxAmount.Value == rxMaximumCount.Value)
@@ -346,7 +346,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
                 // Should we preallocate? MAXCNT can reach 0xFFFF, which is quite a lot. We could split, but
                 // it's complicated
-                var bytesRead = this.Machine.SystemBus.ReadBytes(txPointer.Value, (int)txMaximumCount.Value);
+                var bytesRead = this.Machine.GetSystemBus(this).ReadBytes(txPointer.Value, (int)txMaximumCount.Value);
                 foreach(var character in bytesRead)
                 {
                     TransmitCharacter(character);
