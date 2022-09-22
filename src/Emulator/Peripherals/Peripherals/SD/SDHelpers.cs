@@ -180,6 +180,11 @@ namespace Antmicro.Renode.Peripherals.SD
             this.DeviceSize = deviceSize;
         }
 
+        public override string ToString()
+        {
+            return $"[BlockSize={BlockSize}, Multiplier={Multiplier}, DeviceSize={DeviceSize}, MemoryCapacity={MemoryCapacity}]";
+        }
+
         public BlockLength BlockSize { get; }
         public SizeMultiplier Multiplier { get; }
         public long DeviceSize { get; }
