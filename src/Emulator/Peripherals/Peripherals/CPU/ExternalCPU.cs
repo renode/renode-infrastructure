@@ -88,30 +88,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public override ExecutionMode ExecutionMode
-        {
-            get
-            {
-                return executionMode;
-            }
-
-            set
-            {
-                lock(singleStepSynchronizer.Guard)
-                {
-                    if(executionMode == value)
-                    {
-                        return;
-                    }
-
-                    executionMode = value;
-
-                    singleStepSynchronizer.Enabled = IsSingleStepMode;
-                    UpdateHaltedState();
-                }
-            }
-        }
-        
         protected virtual void InitializeRegisters()
         {
         }

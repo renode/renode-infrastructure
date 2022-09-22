@@ -257,24 +257,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return executionMode;
+                return base.ExecutionMode;
             }
 
             set
             {
-                lock(singleStepSynchronizer.Guard)
-                {
-                    if(executionMode == value)
-                    {
-                        return;
-                    }
-
-                    executionMode = value;
-
-                    singleStepSynchronizer.Enabled = IsSingleStepMode;
-                    UpdateBlockBeginHookPresent();
-                    UpdateHaltedState();
-                }
+                base.ExecutionMode = value;
+                UpdateBlockBeginHookPresent();
             }
         }
 

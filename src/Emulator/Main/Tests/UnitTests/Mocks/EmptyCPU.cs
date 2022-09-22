@@ -42,8 +42,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
             }
         }
 
-        public override ExecutionMode ExecutionMode { get; set; }
-        
         protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         {
             numberOfExecutedInstructions = 0;

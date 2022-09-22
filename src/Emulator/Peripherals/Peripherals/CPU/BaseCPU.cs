@@ -262,10 +262,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         
+        public virtual ExecutionMode ExecutionMode
+        {
+            get
+            {
+                return executionMode;
+            }
+
+            set
+            {
+                lock(singleStepSynchronizer.Guard)
+                {
+                    if(executionMode == value)
+                    {
+                        return;
+                    }
+
+                    executionMode = value;
+
+                    singleStepSynchronizer.Enabled = IsSingleStepMode;
+                    UpdateHaltedState();
+                }
+            }
+        }
+        
         public event Action<HaltArguments> Halted;
 
         public abstract ulong ExecutedInstructions { get; }
-        public abstract ExecutionMode ExecutionMode  { get; set; }
         public abstract RegisterValue PC { get; set; }
 
         protected virtual void InnerPause(bool onCpuThread, bool checkPauseGuard)
