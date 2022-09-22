@@ -1037,31 +1037,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         */
         private static int CpuCounter = 0;
         
-        protected override void UpdateHaltedState(bool ignoreExecutionMode = false)
+        protected override bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
-            var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
-
-            if(shouldBeHalted == currentHaltedState)
+            if(!base.UpdateHaltedState(ignoreExecutionMode))
             {
-                return;
+                return false;
             }
 
-            lock(pauseLock)
-            {
-                this.Trace();
-                currentHaltedState = shouldBeHalted;
-                if(TimeHandle != null)
-                {
-                    this.Trace();
-                    // defer disabling to the moment of unlatch, otherwise we could deadlock (e.g., in block begin hook)
-                    TimeHandle.DeferredEnabled = !shouldBeHalted;
-                }
-            }
-
-            if(shouldBeHalted)
+            if(currentHaltedState)
             {
                 TlibSetReturnRequest();
             }
+
+            return true;
         }
 
         private void Init()

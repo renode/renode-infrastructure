@@ -88,27 +88,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected override void UpdateHaltedState(bool ignoreExecutionMode = false)
-        {
-            var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
-
-            if(shouldBeHalted == currentHaltedState)
-            {
-                return;
-            }
-
-            lock(pauseLock)
-            {
-                this.Trace();
-                currentHaltedState = shouldBeHalted;
-                if(TimeHandle != null)
-                {
-                    this.Trace();
-                    TimeHandle.DeferredEnabled = !shouldBeHalted;
-                }
-            }
-        }
-
         public override ulong ExecutedInstructions => totalExecutedInstructions;
 
         protected override void RequestPause()

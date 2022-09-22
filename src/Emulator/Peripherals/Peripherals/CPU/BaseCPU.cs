@@ -681,9 +681,27 @@ restart:
             }
         }
         
-        protected virtual void UpdateHaltedState(bool ignoreExecutionMode = false)
+        protected virtual bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
-            // empty by default
+            var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
+
+            if(shouldBeHalted == currentHaltedState)
+            {
+                return false;
+            }
+
+            lock(pauseLock)
+            {
+                this.Trace();
+                currentHaltedState = shouldBeHalted;
+                if(TimeHandle != null)
+                {
+                    this.Trace();
+                    TimeHandle.DeferredEnabled = !shouldBeHalted;
+                }
+            }
+
+            return true;
         }
 
         protected abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
