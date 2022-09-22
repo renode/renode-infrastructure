@@ -1,0 +1,51 @@
+<Project DefaultTargets="CompileTranslationLib;Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <AssemblyName>cores-arm</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <Target Name="SetEndianess" BeforeTargets="Build">
+    <!-- Endianess cannot be set directly in Project tag, as it would be visible in Monodevelop then -->
+    <PropertyGroup>
+      <Architecture>arm</Architecture>
+      <EmulatedTarget>arm</EmulatedTarget>
+      <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
+    </PropertyGroup>
+    <ItemGroup>
+      <Endianess Include="le" />
+      <Endianess Include="be" />
+    </ItemGroup>
+  </Target>
+  <Import Project="./cores.template_NET.csproj" />
+  <ItemGroup>
+    <Compile Include="Arm\Arm.cs" />
+    <Compile Include="Arm\ArmRegisters.cs">
+      <DependentUpon>ArmRegisters.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Arm\CortexA7.cs" />
+    <Compile Include="Arm\Timers\CortexAGenericTimer.cs" />
+    <Compile Include="Arm\Timers\CortexAGlobalTimer.cs" />
+    <Compile Include="Arm\Timers\CortexAPrivateTimer.cs" />
+    <Compile Include="Arm\GIC.cs" />
+    <Compile Include="Arm\SnoopControlUnit.cs" />
+    <Compile Include="Debug\CPUTracer.cs" />
+    <Compile Include="Debug\FunctionCallParameter.cs" />
+    <Compile Include="Debug\FunctionCallParameterType.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Arm\ArmRegisters.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ArmRegisters.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Peripherals\Peripherals_NET.csproj"/>
+    <ProjectReference Include="..\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\Extensions\Extensions_NET.csproj"/>
+  </ItemGroup>
+</Project>

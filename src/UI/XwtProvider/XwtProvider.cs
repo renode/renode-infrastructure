@@ -9,6 +9,9 @@ using System;
 using Xwt;
 #if !PLATFORM_WINDOWS && !GUI_DISABLED
 using Xwt.GtkBackend;
+// for DllMap replacement
+using System.Reflection;
+using System.IO;
 #endif
 using System.Threading;
 using Antmicro.Renode.UserInterface;
@@ -48,6 +51,12 @@ namespace Antmicro.Renode.UI
 #if !GUI_DISABLED
 #if PLATFORM_WINDOWS
                 Application.Initialize(ToolkitType.Wpf);
+#elif NET
+                var assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                var assembly = Assembly.LoadFrom(Path.Combine(assemblyLocation, "Xwt.Gtk3.dll"));
+                DllMap.Register(assembly);
+
+                Application.Initialize(ToolkitType.Gtk3);
 #else
                 Application.Initialize(ToolkitType.Gtk);
 #endif

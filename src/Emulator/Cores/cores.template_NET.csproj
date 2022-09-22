@@ -1,0 +1,40 @@
+<Project DefaultTargets="Build">
+    <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="EnvironmentTask" />
+
+    <Target Name="_PrepareProperties" DependsOnTargets="SetEndianess">
+        <Error Text="Configuration not provided" Condition=" $(Configuration) == '' " />
+    </Target>
+
+    <Target Name="PrepareEmbeddedResources" BeforeTargets="PrepareForBuild" DependsOnTargets="_PrepareProperties">
+        <ItemGroup>
+            <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-le.so" Condition=" '%(Endianess.Identity)' == 'le' ">
+                <LogicalName>Antmicro.Renode.translate-$(Architecture)-le.so</LogicalName>
+            </EmbeddedResource>
+            <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-be.so" Condition=" '%(Endianess.Identity)' == 'be' ">
+                <LogicalName>Antmicro.Renode.translate-$(Architecture)-be.so</LogicalName>
+            </EmbeddedResource>
+        </ItemGroup>
+    </Target>
+
+    <Target Name="CompileTranslationLib" DependsOnTargets="_PrepareProperties" BeforeTargets="PrepareEmbeddedResources">
+        <!-- Due to a bug in some versions of xbuild we set default value of $(TargetWordSize) and $(TargetInsnStartExtraWords)
+             before passing it to 'translate.cproj' as it is impossible to overwrite them later. -->
+        <PropertyGroup>
+            <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
+            <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
+        </PropertyGroup>
+        <MSBuild
+            Projects="./translate_NET.cproj"
+            Targets="VerifyProperties;GenerateFlags;Compile;Link;Build"
+            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
+    </Target>
+
+    <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">
+        <MSBuild Projects="translate_NET.cproj" Targets="Clean" />
+    </Target>
+
+    <!-- It is intended to have 'Clean' and 'ActualClean' targets separated.
+         Thanks to this multiple calling of 'Clean' from MSBuild task will not cause
+         'ActualClean' to run more than once. -->
+    <Target Name="Clean" DependsOnTargets="ActualClean" />
+</Project>

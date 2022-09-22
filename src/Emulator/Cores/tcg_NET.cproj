@@ -1,0 +1,66 @@
+<Project DefaultTargets="Build">
+  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask"/>
+
+  <PropertyGroup>
+    <Architecture Condition=" $(Architecture) == '' ">i386</Architecture>
+    <TcgDirectory>tlib/tcg</TcgDirectory>
+    <OutputDirectory>$(TcgDirectory)/bin/$(Configuration)</OutputDirectory>
+  </PropertyGroup>
+
+  <Target Name="_VerifyProperties">
+    <Error Text="Target word size not provided" Condition=" $(TargetWordSize) == '' " />
+    <Error Text="No configuration provided" Condition=" $(Configuration) == '' "/>
+    <Error Text="Endianess not provided" Condition=" $(Endianess) == '' "/>
+    <Error Text="Number of extra insn_start words not provided" Condition=" $(TargetInsnStartExtraWords) == '' "/>
+    <Error Text="Wrong endianess value: provide 'le' or 'be'" Condition=" $(Endianess) != 'le' and $(Endianess) != 'be' "/>
+    <PropertyGroup>
+      <TcgOutput>$(OutputDirectory)/libtcg_$(Architecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess).a</TcgOutput>
+      <ObjectFilesDirectory>$(TcgDirectory)/obj/$(Configuration)/obj-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess)</ObjectFilesDirectory>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <CompilationFlags Include="-DTARGET_WORDS_BIGENDIAN" Condition=" $(Endianess) == 'be'" />
+      <CompilationFlags Include="-DHOST_LONG_BITS=64" />
+      <CompilationFlags Include="-DTARGET_LONG_BITS=$(TargetWordSize)" />
+      <CompilationFlags Include="-DTARGET_INSN_START_EXTRA_WORDS=$(TargetInsnStartExtraWords)" />
+      <CompilationFlags Include="-I $(TcgDirectory)/$(Architecture)" />
+      <CompilationFlags Include="-I $(TcgDirectory) " />
+      <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release'" />
+      <CompilationFlags Include="-O3" Condition="$(Configuration) == 'Release'" />
+      <CompilationFlags Include="-fPIC " Condition=" $(CurrentPlatform) != 'Windows'" />
+      <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug'" />
+
+      <CSources Include="$(TcgDirectory)/tcg.c" />
+      <CSources Include="$(TcgDirectory)/tcg-runtime.c" />
+      <CSources Include="$(TcgDirectory)/optimize.c" />
+      <CSources Include="$(TcgDirectory)/additional.c" />
+
+      <InputFiles Include="$(TcgDirectory)/**" Exclude="$(TcgDirectory)/bin/**;$(TcgDirectory)/obj/**;$(TcgDirectory)/**/.*;$(TcgDirectory)/*.a" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ObjectFiles Include="@(CSources -> '$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="_VerifyProperties">
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)"/>
+  </Target>
+
+  <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(TcgOutput)" DependsOnTargets="Compile">
+    <Message Text="Calling ar"/>
+    <PropertyGroup>
+      <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
+    </PropertyGroup>
+    <MakeDir Directories="$(OutputDirectory)"/>
+    <Exec Command="$(ArPath) rcs $(TcgOutput) $(ObjectFilesString)" Condition=" !Exists('$(TcgOutput)') Or '$(ObjectFilesString)' != '' "/>
+  </Target>
+
+  <Target Name="Clean">
+    <ItemGroup>
+      <FilesToDelete Include="$(TcgDirectory)/*.a"/>
+    </ItemGroup>
+    <Delete Files="@(FilesToDelete)"/>
+    <RemoveDir Directories="$(TcgDirectory)/obj;$(TcgDirectory)/bin"/>
+  </Target>
+</Project>

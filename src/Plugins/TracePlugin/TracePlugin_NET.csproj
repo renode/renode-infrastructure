@@ -1,0 +1,20 @@
+<Project DefaultTargets="Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <AssemblyName>TracePlugin</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <ItemGroup>
+    <PackageReference Include="Dynamitey" Version="2.0.10.189" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
+    <ProjectReference Include="..\..\Emulator\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\Emulator\Extensions\Extensions_NET.csproj"/>
+    <ProjectReference Include="..\..\Emulator\Peripherals\Peripherals_NET.csproj"/>
+    <ProjectReference Include="..\..\Emulator\Cores\cores-arm_NET.csproj"/>
+  </ItemGroup>
+</Project>

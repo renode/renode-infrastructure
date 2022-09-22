@@ -1,0 +1,39 @@
+<Project DefaultTargets="Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <AssemblyName>Extensions</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <ItemGroup>
+    <Using Include="Antmicro.Renode.Core.Range" Alias="Range" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" Condition=" $(OS) != 'Windows_NT'" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="System.Drawing.Common" Version="5.0.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="3.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
+    <PackageReference Include="Dynamitey" Version="2.0.10.189" />
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
+    </Reference>
+    <Reference Include="BitMiracle.LibJpeg.NET.dll">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\BitMiracle.LibJpeg.NET.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="MonitorTests\**\*" />
+    <Compile Remove="TAPHelper\DynamicModuleSpawner.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\FdtSharp\FdtSharp\FdtSharp_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp-working_copy_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt_NET.csproj"/>
+  </ItemGroup>
+</Project>

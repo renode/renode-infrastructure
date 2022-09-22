@@ -1,0 +1,31 @@
+<Project DefaultTargets="Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <RootNamespace>Antmicro.Renode.Plugins.AdvancedLoggerViewer</RootNamespace>
+    <AssemblyName>AdvancedLoggerViewerPlugin</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <ItemGroup>
+    <Reference Include="Lucene.Net">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Lucene.Net.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition=" $(OS) != 'Windows_NT'">
+    <PackageReference Include="GtkSharp" Version="3.24.24.34" />
+    <PackageReference Include="GLibSharp" Version="3.24.24.34" />
+    <PackageReference Include="AtkSharp" Version="3.24.24.34" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="LogViewerHelpFile.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Emulator\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\Emulator\Extensions\Extensions_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\UI\UI_NET.csproj"/>
+  </ItemGroup>
+</Project>

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,7 @@ using Mono.Cecil;
 
 namespace Antmicro.Renode.Utilities
 {
-    class AssemblyHelper
+    public class AssemblyHelper
     {
         public static bool TryInitializeBundledAssemblies()
         {

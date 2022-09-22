@@ -240,7 +240,7 @@ namespace Antmicro.Renode.Utilities
         private AutoResetEvent enqueuedEvent;
         private bool emitConfigBytes;
         private bool flushOnConnect;
-        private bool stopRequested;
+        private volatile bool stopRequested;
         private Thread listenerThread;
         private Thread readerThread;
         private Thread writerThread;

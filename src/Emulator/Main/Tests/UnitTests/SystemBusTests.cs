@@ -14,7 +14,6 @@ using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 using NUnit.Framework;
 using Moq;
-using Range = Antmicro.Renode.Core.Range;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Memory;
@@ -391,7 +390,7 @@ namespace Antmicro.Renode.UnitTests
 
     public static class SysbusExtensions
     {
-        public static void Register(this SystemBus sysbus, IBusPeripheral peripheral, Range range)
+        public static void Register(this SystemBus sysbus, IBusPeripheral peripheral, Antmicro.Renode.Core.Range range)
         {
             sysbus.Register(peripheral, new BusRangeRegistration(range));
         }

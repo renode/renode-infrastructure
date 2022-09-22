@@ -1,0 +1,45 @@
+<Project DefaultTargets="CompileTranslationLib;Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <AssemblyName>cores-xtensa</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <Target Name="SetEndianess" BeforeTargets="Build">
+    <!-- Endianess cannot be set directly in Project tag, as it would be visible in Monodevelop then -->
+    <PropertyGroup>
+      <Architecture>xtensa</Architecture>
+      <EmulatedTarget>xtensa</EmulatedTarget>
+    </PropertyGroup>
+    <ItemGroup>
+      <Endianess Include="le" />
+    </ItemGroup>
+  </Target>
+  <Import Project="./cores.template_NET.csproj" />
+  <ItemGroup>
+    <Compile Include="Xtensa\Xtensa.cs" />
+    <Compile Include="Xtensa\XtensaRegisters.cs">
+      <DependentUpon>XtensaRegisters.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Xtensa\XtensaRegisters.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>XtensaRegisters.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\Extensions\Extensions_NET.csproj"/>
+    <ProjectReference Include="..\Peripherals\Peripherals_NET.csproj"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

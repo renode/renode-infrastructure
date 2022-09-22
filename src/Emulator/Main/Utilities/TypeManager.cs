@@ -217,7 +217,11 @@ namespace Antmicro.Renode.Utilities
                 return true;
             }
 
+        #if NET
+            return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i.InterfaceType), @interface));
+        #else
             return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i), @interface));
+        #endif    
         }
 
         private TypeManager(bool isBundled)
@@ -554,7 +558,11 @@ namespace Antmicro.Renode.Utilities
 
             foreach(var type in types)
             {
+            #if NET
+                if(type.Interfaces.Any(i => ResolveInner(i.InterfaceType)?.GetFullNameOfMember() == typeof(IPeripheral).FullName))
+            #else
                 if(type.Interfaces.Any(i => ResolveInner(i)?.GetFullNameOfMember() == typeof(IPeripheral).FullName))
+            #endif    
                 {
                     Logger.LogAs(this, LogLevel.Noisy, "Peripheral type {0} found.", type.Resolve().GetFullNameOfMember());
                     foundPeripherals.Add(type);
@@ -636,7 +644,11 @@ namespace Antmicro.Renode.Utilities
 
         private bool IsAutoLoadType(TypeDefinition type)
         {
+        #if NET
+            var isAutoLoad = type.Interfaces.Select(x => x.InterfaceType.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
+        #else
             var isAutoLoad = type.Interfaces.Select(x => x.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
+        #endif
             if(isAutoLoad)
             {
                 return true;
@@ -658,7 +670,11 @@ namespace Antmicro.Renode.Utilities
 
         private bool IsInterestingType(TypeDefinition type)
         {
+        #if NET
+            if (type.CustomAttributes.Any(x => ResolveInner(x.AttributeType)?.Interfaces.Select(y => y.InterfaceType.GetFullNameOfMember()).Contains(typeof(IInterestingType).FullName) == true))
+        #else
             if(type.CustomAttributes.Any(x => ResolveInner(x.AttributeType)?.Interfaces.Select(y => y.GetFullNameOfMember()).Contains(typeof(IInterestingType).FullName) == true))
+        #endif
             {
                 return true;
             }
@@ -668,7 +684,11 @@ namespace Antmicro.Renode.Utilities
             }
             foreach(var iface in type.Interfaces)
             {
+            #if NET
+                if (iface.InterfaceType.GetFullNameOfMember() == typeof(IInterestingType).FullName)
+            #else
                 if(iface.GetFullNameOfMember() == typeof(IInterestingType).FullName)
+            #endif
                 {
                     return true;
                 }

@@ -29,11 +29,11 @@ namespace Antmicro.Renode.Utilities
     {
         public CachingFileFetcher()
         {
-            fetchedFiles = new Dictionary<string, Uri>();
+            fetchedFiles = new Dictionary<string, string>();
             progressUpdateThreshold = TimeSpan.FromSeconds(0.25);
         }
 
-        public IDictionary<string, Uri> GetFetchedFiles()
+        public IDictionary<string, string> GetFetchedFiles()
         {
             return fetchedFiles.ToDictionary(x => x.Key, x => x.Value);
         }
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Utilities
             {
                 if(TryGetFromCache(uri, out fileName))
                 {
-                    fetchedFiles.Add(fileName, uri);
+                    fetchedFiles.Add(fileName, uri.ToString());
                     return true;
                 }
 
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Utilities
                 fileName = Decompress(fileName);
             }
 
-            fetchedFiles.Add(fileName, uri);
+            fetchedFiles.Add(fileName, uri.ToString());
 
             return true;
         }
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Utilities
                 fileName = null;
                 var index = ReadBinariesIndex();
                 BinaryEntry entry;
-                if(!index.TryGetValue(uri, out entry))
+                if(!index.TryGetValue(uri.ToString(), out entry))
                 {
                     return false;
                 }
@@ -382,7 +382,7 @@ namespace Antmicro.Renode.Utilities
                     var index = ReadBinariesIndex();
                     BinaryEntry entry;
                     var fileId = 0;
-                    if(!index.TryGetValue(uri, out entry))
+                    if(!index.TryGetValue(uri.ToString(), out entry))
                     {
                         foreach(var element in index)
                         {
@@ -398,13 +398,13 @@ namespace Antmicro.Renode.Utilities
                     // checksum will be 'null' if the uri pattern does not contain
                     // checksum/size information
                     TryGetChecksumAndSizeFromUri(uri, out var checksum, out var size);
-                    index[uri] = new BinaryEntry(fileId, size, checksum);
+                    index[uri.ToString()] = new BinaryEntry(fileId, size, checksum);
                     WriteBinariesIndex(index);
                 }
             }
         }
 
-        private Dictionary<Uri, BinaryEntry> ReadBinariesIndex()
+        private Dictionary<string, BinaryEntry> ReadBinariesIndex()
         {
             using(var progressHandler = EmulationManager.Instance.ProgressMonitor.Start("Reading cache"))
             {
@@ -412,22 +412,22 @@ namespace Antmicro.Renode.Utilities
                 {
                     if(fStream.Length == 0)
                     {
-                        return new Dictionary<Uri, BinaryEntry>();
+                        return new Dictionary<string, BinaryEntry>();
                     }
-                    Dictionary<Uri, BinaryEntry> result;
-                    if(Serializer.TryDeserialize<Dictionary<Uri, BinaryEntry>>(fStream, out result) != DeserializationResult.OK)
+                    Dictionary<string, BinaryEntry> result;
+                    if(Serializer.TryDeserialize<Dictionary<string, BinaryEntry>>(fStream, out result) != DeserializationResult.OK)
                     {
                         Logger.LogAs(this, LogLevel.Warning, "There was an error while loading index file. Cache will be rebuilt.");
                         fStream.Close();
                         ResetIndex();
-                        return new Dictionary<Uri, BinaryEntry>();
+                        return new Dictionary<string, BinaryEntry>();
                     }
                     return result;
                 }
             }
         }
 
-        private void WriteBinariesIndex(Dictionary<Uri, BinaryEntry> index)
+        private void WriteBinariesIndex(Dictionary<string, BinaryEntry> index)
         {
             using(var progressHandler = EmulationManager.Instance.ProgressMonitor.Start("Writing binaries index"))
             {
@@ -531,7 +531,7 @@ namespace Antmicro.Renode.Utilities
         private const string CacheDirectory = "cached_binaries";
         private const string CacheIndex = "binaries_index";
         private const string CacheLock = "cache_lock";
-        private readonly Dictionary<string, Uri> fetchedFiles;
+        private readonly Dictionary<string, string> fetchedFiles;
 
         private static readonly Serializer Serializer = new Serializer(new Settings(versionTolerance: VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true));
         private static readonly Regex ChecksumRegex = new Regex(@"-s_(\d+)-([a-f,0-9]{40})$");

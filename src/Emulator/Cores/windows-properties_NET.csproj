@@ -1,0 +1,9 @@
+<Project DefaultTargets="Build">
+<PropertyGroup>
+  <CompilerPath>gcc</CompilerPath>
+  <LinkerPath>gcc</LinkerPath>
+  <ArPath>ar</ArPath>
+  <CurrentPlatform>Windows</CurrentPlatform>
+  <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
+</PropertyGroup>
+</Project>

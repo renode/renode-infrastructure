@@ -415,7 +415,7 @@ namespace Antmicro.Renode.Logging
             private CancellationTokenSource cancellationToken;
 
             [Transient]
-            private bool stopThread = false;
+            private volatile bool stopThread = false;
 
             [Transient]
             private BlockingCollection<LogEntry> entries;

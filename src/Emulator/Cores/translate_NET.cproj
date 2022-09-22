@@ -1,0 +1,142 @@
+<Project DefaultTargets="Build">
+    <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask" />
+    <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CLinkerTask" />
+
+  <Target Name="VerifyProperties">
+    <Error Text="The compiler must be explicitly provided when compiling on macOS." Condition="$(CompilerPath) == '' and $(CurrentPlatform) == 'OSX'"/>
+    <Error Text="No configuration provided" Condition=" $(Configuration) == '' " />
+    <Error Text="Host endianess not provided" Condition=" $(HostEndianess) == '' " />
+    <Error Text="Wrong host endianess value: provide 'le' or 'be'" Condition=" $(HostEndianess) != 'le' and $(HostEndianess) != 'be' " />
+    <Error Text="Target endianess not provided" Condition=" $(TargetEndianess) == '' " />
+    <Error Text="Wrong target endianess value: provide 'le' or 'be'" Condition=" $(TargetEndianess) != 'le' and $(TargetEndianess) != 'be' " />
+    <Error Text="Target architecture not provided" Condition=" $(TargetArchitecture) == '' " />
+    <Error Text="Host architecture not provided!" Condition=" $(HostArchitecture) == '' " />
+
+    <Message Text="Target word size not provided. Using default: 32" Condition=" $(TargetWordSize) == '' " />
+    <Message Text="Number of extra insn_start words not provided. Using default: 0" Condition=" $(TargetInsnStartExtraWords) == '' " />
+    <Message Text="Emulated target not provided. Using default: $(TargetArchitecture.ToLower())" Condition=" $(EmulatedTarget) == '' " />
+
+    <PropertyGroup>
+        <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
+        <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
+
+        <ProtoTarget>$(TargetArchitecture.ToLower())</ProtoTarget>
+        <HostUpper>$(HostArchitecture.ToUpper())</HostUpper>
+        <EmulatedTarget Condition=" '$(EmulatedTarget)' == '' ">$(TargetArchitecture.ToLower())</EmulatedTarget>
+
+        <ConfigName>$(ProtoTarget)-$(TargetWordSize)_$(TargetEndianess)</ConfigName>
+        <SoFileLocation>bin/$(Configuration)/lib</SoFileLocation>
+        <LibraryPath>translate-$(ProtoTarget)-$(TargetEndianess).so</LibraryPath>
+        <ObjectFilesDirectory>obj/$(Configuration)/obj-$(ConfigName)</ObjectFilesDirectory>
+        <TlibDirectory>tlib</TlibDirectory>
+        <TcgLibraryDirectory>$(MSBuildProjectDirectory)/tlib/tcg/bin/$(Configuration)</TcgLibraryDirectory>
+        <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(TargetEndianess).a</TcgLibraryFilename>
+    </PropertyGroup>
+
+    <Message Text="Configuring translation library" />
+    <Message Text="Host : $(HostArchitecture), 64-bit, $(HostEndianess)" />
+    <Message Text="Target : $(TargetArchitecture), $(TargetWordSize)-bit, $(TargetEndianess)" />
+  </Target>
+
+  <Target Name="GenerateFlags" DependsOnTargets="VerifyProperties">
+      <PropertyGroup>
+          <EmulatedTargetUpper>$(EmulatedTarget.ToUpper())</EmulatedTargetUpper>
+      </PropertyGroup>
+      <ItemGroup>
+          <SourceFiles Include="$(TlibDirectory)/*.c" />
+          <SourceFiles Include="$(TlibDirectory)/arch/*.c" />
+          <SourceFiles Include="$(TlibDirectory)/external/*.c" />
+          <SourceFiles Include="$(TlibDirectory)/fpu/*.c" />
+          <SourceFiles Include="$(TlibDirectory)/arch/$(EmulatedTarget)/*.c" />
+          <SourceFiles Include="renode/*.c" />
+          <SourceFiles Include="renode/arch/$(EmulatedTarget)/*.c" />
+      </ItemGroup>
+      <ItemGroup>
+          <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release'" />
+          <CompilationFlags Include="-shared" Condition=" $(CurrentPlatform) != 'OSX' " />
+          <CompilationFlags Include="-fPIC" Condition=" $(OS) != 'Windows_NT'" />
+          <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug'" />
+          <CompilationFlags Include="-O3" Condition=" $(Configuration) == 'Release'" />
+          <CompilationFlags Include="-Wall" />
+          <CompilationFlags Include="-Wextra" />
+          <CompilationFlags Include="-Wno-unused-parameter" />
+          <CompilationFlags Include="-Wno-sign-compare" />
+          <CompilationFlags Include="-Werror" />
+          <CompilationFlags Include="-DCONFIG_NEED_MMU" />
+          <CompilationFlags Include="-DTCG_TARGET_$(HostUpper)" />
+          <CompilationFlags Include="-DHOST_BITS_64" />
+          <CompilationFlags Include="-I $(TlibDirectory)/arch/$(EmulatedTarget)" />
+          <CompilationFlags Include="-I $(TlibDirectory)/tcg/$(HostArchitecture)" />
+          <CompilationFlags Include="-I $(TlibDirectory)/include" />
+          <CompilationFlags Include="-I $(TlibDirectory)/fpu" />
+          <CompilationFlags Include="-I $(TlibDirectory)/tcg" />
+          <CompilationFlags Include="-I renode/include" />
+
+          <CompilationFlags Include="-DTARGET_SHORT_ALIGNMENT=2" />
+          <CompilationFlags Include="-DTARGET_INT_ALIGNMENT=4" />
+          <CompilationFlags Include="-DTARGET_LONG_ALIGNMENT=4" />
+          <CompilationFlags Include="-DTARGET_LLONG_ALIGNMENT=4" />
+
+          <CompilationFlags Include="-DHOST_$(HostUpper)=1" />
+          <CompilationFlags Include="-DHOST_LONG_BITS=64" />
+
+          <CompilationFlags Include="-DTARGET_ARCH=&quot;$(EmulatedTarget)&quot;" />
+          <CompilationFlags Include="-DTARGET_$(EmulatedTargetUpper)=1" />
+          <CompilationFlags Include="-DCONFIG_$(HostUpper)_DIS=1" />
+          <CompilationFlags Include="-DCONFIG_$(EmulatedTargetUpper)_DIS=1" />
+          <CompilationFlags Include="-DTARGET_WORDS_BIGENDIAN=1" Condition=" $(TargetEndianess) == 'be' " />
+          <CompilationFlags Include="-DTARGET_LONG_BITS=$(TargetWordSize)" />
+          <CompilationFlags Include="-DTARGET_INSN_START_EXTRA_WORDS=$(TargetInsnStartExtraWords)" />
+
+          <CompilationFlags Include="-DDEBUG=1" Condition=" $(Configuration) == 'Debug'" />
+
+          <CompilationFlags Include="$(AdditionalCompilationFlags)" />
+
+          <!-- This define is a little hack: It is necessary for CLinkerTask to create separate entry in hashes cache -->
+          <LinkFlags Include="-DFAKE_$(EmulatedTargetUpper)_$(TargetEndianess)_$(TargetWordSize)_$(TargetInsnStartExtraWords)" />
+          <LinkFlags Include="-Wl,--wrap=memcpy" Condition=" $(CurrentPlatform) == 'Linux' " />
+          <!-- On Windows: link MinGW's pthread library statically -->
+          <LinkFlags Include="-static -lwinpthread -dynamic" Condition="$(OS) == 'Windows_NT'" />
+          <LinkFlags Include="-lpthread" Condition="$(OS) != 'Windows_NT'" />
+          <LinkFlags Include="$(MSBuildProjectDirectory)/../../../../../lib/resources/libraries/libopenlibm-Linux.a"
+                  Condition="$(TargetArchitecture) == 'i386' and $(CurrentPlatform) == 'Linux'" />
+          <LinkFlags Include="-shared" />
+          <LinkFlags Include="-z defs" Condition="$(CurrentPlatform) == 'Linux'" />
+          <LinkFlags Include="-Wl,-undefined,error" Condition="$(CurrentPlatform) != 'Linux'" />
+          <LinkFlags Include="$(AdditionalLinkFlags)" />
+      </ItemGroup>
+  </Target>
+
+  <Target Name="_PrepareInputsAndOutputsForCompilation" DependsOnTargets="GenerateFlags">
+      <ItemGroup>
+          <InputFiles Include="**" Exclude="config/**;tcg/**;bin/**;obj/**;lib/**;**/.*" />
+          <ObjectFiles Include="@(SourceFiles->'$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
+          <ObjectFiles Include="$(TcgLibraryDirectory)/$(TcgLibraryFilename)" />
+      </ItemGroup>
+  </Target>
+
+  <Target Name="CompileTcg" DependsOnTargets="GenerateFlags">
+    <Message Text="Compiling tcg" />
+    <MSBuild
+        Projects="tcg_NET.cproj"
+        Targets="_VerifyProperties;Compile;Build"
+        Properties="Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
+  </Target>
+
+  <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" >
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
+  </Target>
+
+  <Target Name="Link" DependsOnTargets="Compile" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
+      <MakeDir Directories="$(SoFileLocation)" />
+      <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(SoFileLocation)/$(LibraryPath)" />
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="Link">
+  </Target>
+
+  <Target Name="Clean">
+      <MSBuild Projects="tcg_NET.cproj" Targets="Clean" />
+      <RemoveDir Directories="config;obj;bin" />
+  </Target>
+</Project>

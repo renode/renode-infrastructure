@@ -1,0 +1,58 @@
+<Project DefaultTargets="CompileTranslationLib;Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <AssemblyName>cores-arm-m</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <Target Name="SetEndianess" BeforeTargets="Build">
+    <!-- Endianess cannot be set directly in Project tag, as it would be visible in Monodevelop then -->
+    <PropertyGroup>
+      <Architecture>arm-m</Architecture>
+      <EmulatedTarget>arm</EmulatedTarget>
+      <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
+    </PropertyGroup>
+    <ItemGroup>
+      <Endianess Include="le" />
+      <Endianess Include="be" />
+    </ItemGroup>
+    <PropertyGroup>
+      <AdditionalCompilationFlags>-DTARGET_PROTO_ARM_M=1</AdditionalCompilationFlags>
+    </PropertyGroup>
+  </Target>
+  <Target Name="PrepareEmbeddedResources" BeforeTargets="PrepareForBuild" DependsOnTargets="_PrepareProperties">
+    <ItemGroup>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-arm-m-le.so">
+        <LogicalName>Antmicro.Renode.translate-arm-m-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-arm-m-be.so">
+        <LogicalName>Antmicro.Renode.translate-arm-m-be.so</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+  <Import Project="./cores.template_NET.csproj" />
+  <ItemGroup>
+    <Compile Include="Arm-M\CortexM.cs" />
+    <Compile Include="Arm-M\CortexMRegisters.cs">
+      <DependentUpon>CortexMRegisters.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Arm-M\NVIC.cs" />
+    <Compile Include="Arm-M\DWT.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Arm-M\CortexMRegisters.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>CortexMRegisters.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="cores-arm_NET.csproj"/>
+    <ProjectReference Include="..\Peripherals\Peripherals_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\Extensions\Extensions_NET.csproj"/>
+  </ItemGroup>
+</Project>
