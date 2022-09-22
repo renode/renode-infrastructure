@@ -88,10 +88,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected virtual void InitializeRegisters()
-        {
-        }
-
         protected override void UpdateHaltedState(bool ignoreExecutionMode = false)
         {
             var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
