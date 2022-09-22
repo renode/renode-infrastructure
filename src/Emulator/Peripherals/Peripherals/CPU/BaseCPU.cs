@@ -51,6 +51,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.machine = machine;
             this.bitness = bitness;
             isPaused = true;
+
+            singleStepSynchronizer = new Synchronizer();
         }
         
         public string[,] GetRegistersValues()
@@ -721,8 +723,8 @@ restart:
         [Transient]
         protected bool disposing;
 
-        [Transient]
-        protected Synchronizer singleStepSynchronizer;
+        [Constructor]
+        protected readonly Synchronizer singleStepSynchronizer;
         
         protected readonly Sleeper sleeper = new Sleeper();
         protected readonly CpuBitness bitness;

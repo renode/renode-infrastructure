@@ -22,8 +22,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             : base(0, cpuType, machine, endianness, bitness)
         {
             CyclesPerInstruction = 1;
-            singleStepSynchronizer = new Synchronizer();
-
             throw new Exception("This is only a stub class that should not be directly used in a platform");
         }
 

@@ -1056,7 +1056,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
-            singleStepSynchronizer = new Synchronizer();
 
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
