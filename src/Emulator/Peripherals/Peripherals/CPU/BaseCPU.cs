@@ -349,12 +349,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             Pause(new HaltArguments(HaltReason.Pause, Id), checkPauseGuard: true);
         }
-        
+
         protected virtual void RequestPause()
         {
             // by default do nothing
         }
-        
+
         protected bool ChangeExecutionModeToSingleStep(bool? blocking = null)
         {
             var mode = ExecutionMode;
@@ -685,18 +685,18 @@ restart:
         {
             // empty by default
         }
-        
+
         protected abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
-        
+
         protected bool InDebugMode => DebuggerConnected && ShouldEnterDebugMode && IsSingleStepMode;
         protected bool IsSingleStepMode => executionMode == ExecutionMode.SingleStepNonBlocking || executionMode == ExecutionMode.SingleStepBlocking;
-        
+
         protected bool shouldEnterDebugMode;
         protected bool neverWaitForInterrupt;
         protected bool dispatcherRestartRequested;
         protected bool isHaltedRequested;
         protected bool currentHaltedState;
-        
+
         [Transient]
         protected ExecutionMode executionMode;
 
