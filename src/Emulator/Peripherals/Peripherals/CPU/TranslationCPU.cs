@@ -302,25 +302,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void RequestPause()
         {
-            lock(pauseLock)
-            {
-                isPaused = true;
-                this.Trace("Requesting pause");
-                TlibSetReturnRequest();
-                sleeper.Interrupt();
-            }
+            base.RequestPause();
+            TlibSetReturnRequest();
         }
 
         protected override void InnerPause(bool onCpuThread, bool checkPauseGuard)
         {
-            RequestPause();
+            base.InnerPause(onCpuThread, checkPauseGuard);
 
-            if(onCpuThread)
-            {
-                TimeHandle.Interrupt();
-            }
             // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
-            else if(!insideBlockHook && checkPauseGuard)
+            if(!onCpuThread && !insideBlockHook && checkPauseGuard)
             {
                 pauseGuard.OrderPause();
             }

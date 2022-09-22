@@ -295,7 +295,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual void InnerPause(bool onCpuThread, bool checkPauseGuard)
         {
-            // do nothing by default
+            RequestPause();
+
+            if(onCpuThread)
+            {
+                TimeHandle.Interrupt();
+            }
         }
         
         protected virtual void Pause(HaltArguments haltArgs, bool checkPauseGuard)
@@ -354,7 +359,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual void RequestPause()
         {
-            // by default do nothing
+            lock(pauseLock)
+            {
+                isPaused = true;
+                this.Trace("Requesting pause");
+                sleeper.Interrupt();
+            }
         }
 
         protected bool ChangeExecutionModeToSingleStep(bool? blocking = null)

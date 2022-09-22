@@ -88,26 +88,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override ulong ExecutedInstructions => totalExecutedInstructions;
 
-        protected override void RequestPause()
-        {
-            lock(pauseLock)
-            {
-                isPaused = true;
-                this.Trace("Requesting pause");
-                sleeper.Interrupt();
-            }
-        }
-
-        protected override void InnerPause(bool onCpuThread, bool checkPauseGuard)
-        {
-            RequestPause();
-
-            if(onCpuThread)
-            {
-                TimeHandle.Interrupt();
-            }
-        }
-
         protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         { 
             instructionsExecutedThisRound = 0UL;
