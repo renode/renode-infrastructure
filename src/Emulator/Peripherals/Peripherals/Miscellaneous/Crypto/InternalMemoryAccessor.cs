@@ -31,35 +31,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             return result;
         }
 
-        public IEnumerable<byte> ReadBytes(long offset, int count, int endiannessSwapSize = 0)
+        public IEnumerable<byte> ReadBytes(long offset, int count)
         {
             if(offset < 0 || (offset + count) >= internalMemory.Length)
             {
                 Logger.Log(LogLevel.Error, "Trying to read {0} bytes outside of {1} internal memory, at offset 0x{2:X}", count, Name, offset);
                 yield return 0;
             }
-            if(endiannessSwapSize != 0 && count % endiannessSwapSize != 0)
+            for(var i = 0; i < count; ++i)
             {
-                Logger.Log(LogLevel.Error, "Trying to read {0} bytes with an unaligned endianess swap group size of {1}", count, endiannessSwapSize);
-                yield return 0;
-            }
-            
-            if(endiannessSwapSize != 0)
-            {
-                for(var i = 0; i < count; i += endiannessSwapSize)
-                {
-                    for(var j = endiannessSwapSize - 1; j >= 0; j--)
-                    {
-                        yield return internalMemory[offset + i + j];
-                    }
-                }
-            }
-            else
-            {
-                for(var i = 0; i < count; ++i)
-                {
-                    yield return internalMemory[offset + i];
-                }
+                yield return internalMemory[offset + i];
             }
         }
 
