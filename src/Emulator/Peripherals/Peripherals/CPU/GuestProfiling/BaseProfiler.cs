@@ -26,19 +26,21 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
             isFirstFrame = true;
             bufferLock = new Object();
-            currentStack = new Stack<string>();
-            wholeExecution = new Stack<Stack<string>>();
+            wholeExecution = new Dictionary<ulong, ProfilerContext>();
+            wholeExecution.Add(currentContextId, new ProfilerContext());
         }
 
         public virtual void Dispose()
         {
             FlushBuffer();
             currentStack.Clear();
+            currentContext.Clear();
             wholeExecution.Clear();
         }
 
         public abstract void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
         public abstract void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
+        public abstract void OnContextChange(ulong newContextId);
         public abstract void InterruptEnter(ulong interruptIndex);
         public abstract void InterruptExit(ulong interruptIndex);
         public abstract void FlushBuffer();
@@ -56,10 +58,51 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         protected readonly TranslationCPU cpu;
         protected readonly bool flushInstantly;
         protected readonly Object bufferLock;
-        // Keeps track of the stacks prior to the current exception
-        protected readonly Stack<Stack<string>> wholeExecution;
+        // Keeps track of all of the created contexts. Key is the id of the thread
+        protected readonly Dictionary<ulong, ProfilerContext> wholeExecution;
 
-        protected Stack<string> currentStack;
+        protected ProfilerContext currentContext => wholeExecution[currentContextId];
+        protected Stack<string> currentStack => currentContext.CurrentStack;
         protected bool isFirstFrame;
+        protected ulong currentContextId;
+
+        protected class ProfilerContext
+        {
+            public ProfilerContext()
+            {
+                context = new Stack<Stack<string>>();
+                currentStack = new Stack<string>();
+            }
+
+            public void PopCurrentStack()
+            {
+                if(context.Count == 0)
+                {
+                    currentStack = new Stack<string>();
+                }
+                else
+                {
+                    currentStack = context.Pop();
+                }
+            }
+
+            public void PushCurrentStack()
+            {
+                context.Push(currentStack);
+                currentStack = new Stack<string>();
+            }
+
+            public void Clear()
+            {
+                context.Clear();
+            }
+
+            public int Count => context.Count;
+            public Stack<string> CurrentStack => currentStack;
+
+            // We need to keep a stack of stacks as each context has its main execution and (potentially nested) interrupts
+            private readonly Stack<Stack<string>> context;
+            private Stack<string> currentStack;
+        }
     }
 }

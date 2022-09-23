@@ -67,13 +67,17 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             currentStack.Pop();
         }
 
+        public override void OnContextChange(ulong newContextId)
+        {
+            // Not implemented yet
+        }
+
         public override void InterruptEnter(ulong interruptIndex)
         {
             var instructionsElapsed = GetInstructionsDelta(cpu.ExecutedInstructions);
             AddStackToBufferWithDelta(instructionsElapsed);
 
-            wholeExecution.Push(currentStack);
-            currentStack = new Stack<string>();
+            currentContext.PushCurrentStack();
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
         }
 
@@ -83,14 +87,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             AddStackToBufferWithDelta(instructionsElapsed);
 
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt exit - restoring the stack");
-            if(wholeExecution.Count > 0)
-            {
-                currentStack = wholeExecution.Pop();
-            }
-            else
-            {
-                currentStack = new Stack<string>();
-            }
+            currentContext.PopCurrentStack();
         }
 
         public override void FlushBuffer()

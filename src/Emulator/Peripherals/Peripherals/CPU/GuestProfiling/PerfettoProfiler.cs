@@ -20,13 +20,15 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     public class PerfettoProfiler : BaseProfiler
     {
-        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly)
+        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks)
             : base(cpu, filename, flushInstantly)
         {
+            this.enableMultipleTracks = enableMultipleTracks;
             lastInterruptExitTime = ulong.MaxValue;
             fileStream = File.Open(filename, FileMode.OpenOrCreate);
             writer = new PerfettoTraceWriter();
-            writer.CreateTrack(cpu.GetName(), ExecutionTrack);
+            currentTrack = MainTrack;
+            writer.CreateTrack(cpu.GetName(), currentTrack);
         }
 
         public override void Dispose()
@@ -47,12 +49,12 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 // To infer this frame we use the current PC value, which should point to the jump instruction that triggered this event
                 var prevSymbol = GetSymbolName(cpu.PC.RawValue);
                 currentStack.Push(prevSymbol);
-                writer.CreateEventBegin(0, prevSymbol, ExecutionTrack);
+                writer.CreateEventBegin(0, prevSymbol, currentTrack);
             }
 
             currentStack.Push(currentSymbol);
             ulong time = InstructionCountToNs(instructionsCount);
-            writer.CreateEventBegin(time, currentSymbol, ExecutionTrack);
+            writer.CreateEventBegin(time, currentSymbol, currentTrack);
             CheckAndFlush(time);
         }
 
@@ -66,9 +68,14 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
 
             ulong time = InstructionCountToNs(instructionsCount);
-            writer.CreateEventEnd(time, ExecutionTrack);
+            writer.CreateEventEnd(time, currentTrack);
             currentStack.Pop();
             CheckAndFlush(time);
+        }
+
+        public override void OnContextChange(ulong newContextId)
+        {
+            // Not implemented yet
         }
 
         public override void InterruptEnter(ulong interruptIndex)
@@ -85,11 +92,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             {
                 // If there is no need to remove the events then we want to finish
                 // the current stack before creating a new one for the interrupt
-                FinishCurrentStack(time, ExecutionTrack);
+                FinishCurrentStack(time, currentTrack);
             }
 
-            wholeExecution.Push(currentStack);
-            currentStack = new Stack<string>();
+            currentContext.PushCurrentStack();
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
             CheckAndFlush(time);
         }
@@ -97,24 +103,24 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         public override void InterruptExit(ulong interruptIndex)
         {
             ulong time = InstructionCountToNs(cpu.ExecutedInstructions);
-            FinishCurrentStack(time, ExecutionTrack);
+            FinishCurrentStack(time, currentTrack);
             lastInterruptExitTime = time;
             // We have to temporarily disable flushing to a file, since the next few packets can be removed
             blockFlush = true;
 
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt exit - restoring the stack");
-            if(wholeExecution.Count > 0)
+            if(currentContext.Count > 0)
             {
-                currentStack = wholeExecution.Pop();
+                currentContext.PopCurrentStack();
                 // Restart functions on the current stack
                 foreach(var frame in currentStack.Reverse())
                 {
-                    writer.CreateEventBegin(time, frame, ExecutionTrack);
+                    writer.CreateEventBegin(time, frame, currentTrack);
                 }
             }
             else
             {
-                currentStack = new Stack<string>();
+                currentContext.PopCurrentStack();
             }
             CheckAndFlush(time);
         }
@@ -163,10 +169,13 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         private readonly PerfettoTraceWriter writer;
         private readonly FileStream fileStream;
+        private readonly bool enableMultipleTracks;
+
         private bool blockFlush;
         private ulong lastInterruptExitTime;
+        private ulong currentTrack;
         
-        private const ulong ExecutionTrack = 0;
+        private const ulong MainTrack = 0;
         private const int BufferFlushLevel = 10000;
     }
 }

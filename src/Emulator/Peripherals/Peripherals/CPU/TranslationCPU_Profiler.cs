@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract partial class TranslationCPU
     {
-        public void EnableProfiler(ProfilerType type, string filename, bool flushInstantly = false)
+        public void EnableProfiler(ProfilerType type, string filename, bool flushInstantly = false, bool enableMultipleTracks = true)
         {
             // Remove the old profiler if it was enabled
             if(profiler != null)
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     profiler = new CollapsedStackProfiler(this, filename, flushInstantly);
                     break;
                 case ProfilerType.Perfetto:
-                    profiler = new PerfettoProfiler(this, filename, flushInstantly);
+                    profiler = new PerfettoProfiler(this, filename, flushInstantly, enableMultipleTracks);
                     break;
                 default:
                     throw new RecoverableException($"{type} is not a valid profiler output type");
@@ -56,12 +56,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void EnableProfilerCollapsedStack(string filename, bool flushInstantly = false)
         {
-            EnableProfiler(ProfilerType.CollapsedStack, filename, flushInstantly);
+            // CollapsedStack format doesn't support multiple tracks
+            EnableProfiler(ProfilerType.CollapsedStack, filename, flushInstantly, false);
         }
 
-        public void EnableProfilerPerfetto(string filename, bool flushInstantly = false)
+        public void EnableProfilerPerfetto(string filename, bool flushInstantly = false, bool enableMultipleTracks = true)
         {
-            EnableProfiler(ProfilerType.Perfetto, filename, flushInstantly);
+            EnableProfiler(ProfilerType.Perfetto, filename, flushInstantly, enableMultipleTracks);
         }
 
         public void DisableProfiler()
@@ -104,6 +105,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 profiler.StackFramePop(currentAddress, returnAddress, instructionsCount);
             }
+        }
+
+        [Export]
+        protected void OnContextChange(ulong threadId)
+        {
+            profiler.OnContextChange(threadId);
         }
 
         private void ConfigureProfilerInterruptHooks(bool enabled)
