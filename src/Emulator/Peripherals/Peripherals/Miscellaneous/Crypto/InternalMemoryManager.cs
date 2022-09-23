@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             return true;
         }
 
-        public bool TryReadBytes(long offset, int count, out byte[] result, int endiannessSwapSize = 0)
+        public bool TryReadBytes(long offset, int count, out byte[] result)
         {
             if(!TryAddressInternalMemory(offset, out var mem, out var internalOffset))
             {
@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 return false;
             }
 
-            result = mem.ReadBytes(internalOffset, count, endiannessSwapSize).ToArray();
+            result = mem.ReadBytes(internalOffset, count).ToArray();
             return true;
         }
 
