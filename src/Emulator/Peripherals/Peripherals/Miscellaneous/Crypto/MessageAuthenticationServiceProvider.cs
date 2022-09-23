@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         public void PerformSHA()
         {
             // Message length is hardcoded to the same value as in the software because it is not written to the internal memories
-            manager.TryReadBytes((long)MsgAuthRegisters.HashInput, SHAMsgLen, out var hashInput, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.HashInput, SHAMsgLen, out var hashInput);
             manager.TryWriteBytes((long)MsgAuthRegisters.HashResult, GetHashedBytes(SHAMsgLen, hashInput));
         }
 
@@ -85,11 +85,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private void NonDMAHMACSHA()
         {
             manager.TryReadDoubleWord((long)MsgAuthRegisters.HMACSHAKeyByteCount, out var keyLength);
-            manager.TryReadBytes((long)MsgAuthRegisters.HashMACKey, (int)keyLength, out var hashKey, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.HashMACKey, (int)keyLength, out var hashKey);
 
             // Message length is hardcoded to the same value as in the software because it is not written to the internal memories
             // Additionally we add 2 padding bytes to be able to reverse bytes in doublewords
-            manager.TryReadBytes((long)MsgAuthRegisters.HashMACInput, HMACSHAMsgLen + 2, out var msgBytes, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.HashMACInput, HMACSHAMsgLen + 2, out var msgBytes);
 
             var myhmacsha256 = new HMACSHA256(hashKey);
             using(var stream = new MemoryStream(msgBytes, 0, HMACSHAMsgLen))
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private void DMAHMACSHA()
         {
             manager.TryReadDoubleWord((long)MsgAuthRegisters.HMACSHAKeyByteCount, out var keyLength);
-            manager.TryReadBytes((long)MsgAuthRegisters.HashMACKey, (int)keyLength, out var hashKey, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.HashMACKey, (int)keyLength, out var hashKey);
 
             manager.TryReadDoubleWord((long)MsgAuthRegisters.SHADataBytesToProcess, out var hashInputLength);
             manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataLocation, out var hashInputAddr);
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private void NonDMAGCM()
         {
             manager.TryReadDoubleWord((long)MsgAuthRegisters.AuthDataByteCount, out var authBytesLength);
-            manager.TryReadBytes((long)MsgAuthRegisters.AuthData, (int)authBytesLength, out var authBytes, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.AuthData, (int)authBytesLength, out var authBytes);
             
             manager.TryReadDoubleWord((long)MsgAuthRegisters.InputDataByteCount, out var msgBytesLength);
             var msgBytesAddend = (msgBytesLength % 4);
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 msgBytesLength += msgBytesAddend;
             }
             
-            manager.TryReadBytes((long)MsgAuthRegisters.Message, (int)msgBytesLength, out var msgBytes, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.Message, (int)msgBytesLength, out var msgBytes);
             
             if(msgBytesAddend != 0)
             {
@@ -168,9 +168,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         {
             var initVectorSize = GCMInitVectorSize128;
 
-            manager.TryReadBytes((long)MsgAuthRegisters.Key, KeyLen, out var keyBytesSwapped, WordSize);
+            manager.TryReadBytes((long)MsgAuthRegisters.Key, KeyLen, out var keyBytesSwapped);
             
-            manager.TryReadBytes((long)initVector, initVectorSize, out var ivBytesSwapped, WordSize);
+            manager.TryReadBytes((long)initVector, initVectorSize, out var ivBytesSwapped);
             // If the user has entered an initialization vector ending with [0x0, 0x0, 0x0, 0x1] (1 being the youngest byte)
             // it means that it is in fact a 96bit key that was padded with these special bytes, to be 128bit.
             // Unfortunately, we have to manually trim the padding here because BouncyCastle is expecting an unpadded
@@ -200,7 +200,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         private const int GCMInitVectorSize128 = 16;
         private const int GCMInitVectorSize96 = 12;
-        private const int WordSize = 4; // in bytes
         private const int HMACSHAMsgLen = 34;
         private const int SHAMsgLen = 32;
         private const int KeyLen = 32;
