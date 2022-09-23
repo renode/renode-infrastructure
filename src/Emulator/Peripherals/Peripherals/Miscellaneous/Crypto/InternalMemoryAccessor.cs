@@ -71,8 +71,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 return;
             }
             Logger.Log(LogLevel.Debug, "Writing value 0x{0:X} to memory {1} at offset 0x{2:X}", value, Name, offset);
-
-            foreach(var b in BitHelper.GetBytesFromValue(value, sizeof(uint), false))
+            foreach(var b in BitHelper.GetBytesFromValue(value, sizeof(uint), endianness == Endianness.LittleEndian))
             {
                 internalMemory[offset] = b;
                 ++offset;
