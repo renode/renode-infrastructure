@@ -96,7 +96,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             // if the highest bit of the first byte is set, we effectively add a zero at
             // the beginning of the array, so the data can be interpreted as a positive value.
             var shouldHavePadding = b[0] >= 0x80;
-            manager.TryReadBytes((long)register, (int)(wordCount * 4), out var bytesRead, 4);
+            manager.TryReadBytes((long)register, (int)(wordCount * 4), out var bytesRead);
+            Misc.EndiannessSwapInPlace(bytesRead, WordSize);
             if(shouldHavePadding)
             {
                 var wordBytesLength = shouldHavePadding ? wordCount * 4 + 1 : wordCount * 4;
