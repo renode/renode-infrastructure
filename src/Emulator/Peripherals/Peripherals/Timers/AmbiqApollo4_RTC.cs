@@ -78,16 +78,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             centuryPassed.Value = year >= 2100;
 
-            // Set the CountersUpper and CountersLower registers accordingly.
-            yearsSince2X00.SetFromInteger(year % 100, throwException: true);
-            this.month.SetFromInteger(month, throwException: true);
-            this.day.SetFromInteger(day, throwException: true);
-            this.hours.SetFromInteger(hours, throwException: true);
-            this.minutes.SetFromInteger(minutes, throwException: true);
-            this.seconds.SetFromInteger(seconds, throwException: true);
-            this.secondHundredths.SetFromInteger(secondHundredths, throwException: true);
-
-            SetDateTimeInternal(new DateTime(year, month, day, hours, minutes, seconds, secondHundredths * 10));
+            try
+            {
+                SetDateTimeInternal(new DateTime(year, month, day, hours, minutes, seconds, secondHundredths * 10));
+            }
+            catch(ArgumentOutOfRangeException)
+            {
+                throw new RecoverableException("Provided date or time is invalid.");
+            }
         }
 
         public GPIO IRQ { get; }
@@ -322,12 +320,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return value;
             }
 
-            public void BCDSet(byte bcdValue, bool throwException = false)
+            public void BCDSet(byte bcdValue)
             {
                 if(bcdValue > maxValueBCD || (!zeroAllowed && bcdValue == 0x0))
                 {
-                    HandleInvalidValue(bcdValue.ToString("X"), throwException);
+                    owner.Log(LogLevel.Warning, "Invalid value for {0}: {1:X}", fieldTypeName, bcdValue);
+                    return;
                 }
+
                 value = bcdValue;
             }
 
@@ -338,34 +338,23 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return (tens * 10) + units;
             }
 
-            public void SetFromInteger(int value, bool throwException = false)
+            public void SetFromInteger(int value)
             {
                 if(value > 99 || value < 0)
                 {
-                    HandleInvalidValue(value.ToString(), throwException);
+                    owner.Log(LogLevel.Warning, "Invalid value for {0}: {1}", fieldTypeName, value);
+                    return;
                 }
+
                 var nibbleLow = value % 10;
                 var nibbleHigh = value / 10;
-                BCDSet((byte)((nibbleHigh << 4) | nibbleLow), throwException);
+                BCDSet((byte)((nibbleHigh << 4) | nibbleLow));
             }
 
             public override string ToString()
             {
                 // BCD value printed in hex is always equal to its decimal value.
                 return $"{value:X}";
-            }
-
-            protected void HandleInvalidValue(string value, bool throwException)
-            {
-                string message = $"Invalid value for {fieldTypeName}: {value}";
-                if(throwException)
-                {
-                    throw new RecoverableException(message);
-                }
-                else
-                {
-                    owner.Log(LogLevel.Warning, message);
-                }
             }
 
             private readonly string fieldTypeName;
