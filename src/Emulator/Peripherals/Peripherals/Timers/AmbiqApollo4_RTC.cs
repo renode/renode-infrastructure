@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public AmbiqApollo4_RTC(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
+            machine.RealTimeClockModeChanged += _ => SetDateTimeFromMachine();
 
             var baseDateTime = new DateTime(1970, 1, 1);
             internalTimer = new RTCTimer(machine, this, baseDateTime, alarmAction: () => InterruptStatus = true);
@@ -51,6 +52,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             internalTimer.Reset();
 
             base.Reset();
+
+            SetDateTimeFromMachine();
         }
 
         public override void WriteDoubleWord(long offset, uint value)
@@ -107,6 +110,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 throw new RecoverableException("Provided date or time is invalid.");
             }
+        }
+
+        public void SetDateTimeFromMachine()
+        {
+            // Normally the warning is logged if the millisecond value isn't a multiple of 10 since that's an RTC
+            // precision. It doesn't make sense to log such a warning for the value taken from the machine.
+            SetDateTimeInternal(machine.RealTimeClockDateTime, hushPrecisionWarning: true);
         }
 
         public GPIO IRQ { get; }
@@ -251,9 +261,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             yearsOfCentury = new BCDValueField(this, "years of a century");
         }
 
-        private void SetDateTimeInternal(DateTime dateTime)
+        private void SetDateTimeInternal(DateTime dateTime, bool hushPrecisionWarning = false)
         {
-            internalTimer.SetDateTime(dateTime);
+            internalTimer.SetDateTime(dateTime, hushPrecisionWarning);
 
             // All the other registers will be updated before reading any of the Counters registers
             // but the century bit might not get updated if the centuryChangeEnabled is false.
@@ -447,11 +457,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                 base.Reset();
             }
 
-            public void SetDateTime(DateTime newDateTime)
+            public void SetDateTime(DateTime newDateTime, bool hushPrecisionWarning = false)
             {
                 ResetAlarm();
-                Value = ValueFromDateTime(newDateTime);
-                owner.Log(LogLevel.Info, "New date time set: {0:o}", newDateTime);
+                Value = ValueFromDateTime(newDateTime, hushPrecisionWarning);
+
+                // The format is the same as 'o' but with only first two millisecond digits.
+                // Further digits, if nonzero, were ignored setting RTC's value so let's not print them.
+                owner.Log(LogLevel.Info, "New date time set: {0:yyyy-MM-ddTHH:mm:ss.ffK}", newDateTime);
             }
 
             public void UpdateAlarm(AlarmRepeatIntervals interval, int month, int weekday, int day, int hour, int minute, int second, int millisecond)
@@ -575,10 +588,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 nextAlarmValue = 0;
             }
 
-            private ulong ValueFromDateTime(DateTime dateTime)
+            private ulong ValueFromDateTime(DateTime dateTime, bool hushPrecisionWarning = false)
             {
                 var newDateTimeTicks = (ulong)(dateTime.Ticks - baseDateTimeTicks);
-                if(newDateTimeTicks % TimerTickToDateTimeTicks != 0)
+                if(!hushPrecisionWarning && (newDateTimeTicks % TimerTickToDateTimeTicks != 0))
                 {
                     owner.Log(LogLevel.Warning, "Requested time for RTC is more precise than it supports (0.01s): {0:o}", dateTime);
                 }
