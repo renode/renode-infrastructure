@@ -1012,7 +1012,19 @@ namespace Antmicro.Renode.Core
 
         public DateTime RealTimeClockDateTime => RealTimeClockStart + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
 
-        public RealTimeClockMode RealTimeClockMode { get; set; }
+        public RealTimeClockMode RealTimeClockMode
+        {
+            get => realTimeClockMode;
+            set
+            {
+                realTimeClockMode = value;
+                var realTimeClockModeChanged = RealTimeClockModeChanged;
+                if(realTimeClockModeChanged != null)
+                {
+                    realTimeClockModeChanged(this);
+                }
+            }
+        }
 
         public DateTime RealTimeClockStart
         {
@@ -1033,11 +1045,13 @@ namespace Antmicro.Renode.Core
         }
 
         [field: Transient]
-        public event Action<Machine, MachineStateChangedEventArgs> StateChanged;
+        public event Action<Machine> MachineReset;
         [field: Transient]
         public event Action<Machine, PeripheralsChangedEventArgs> PeripheralsChanged;
         [field: Transient]
-        public event Action<Machine> MachineReset;
+        public event Action<Machine> RealTimeClockModeChanged;
+        [field: Transient]
+        public event Action<Machine, MachineStateChangedEventArgs> StateChanged;
 
         public const char PathSeparator = '.';
         public const string SystemBusName = "sysbus";
@@ -1376,6 +1390,8 @@ namespace Antmicro.Renode.Core
         private Recorder recorder;
         private Player player;
         private TimeSourceBase localTimeSource;
+        private RealTimeClockMode realTimeClockMode;
+
         private readonly MultiTree<IPeripheral, IRegistrationPoint> registeredPeripherals;
         private readonly Dictionary<IPeripheral, string> localNames;
         private readonly HashSet<IHasOwnLife> ownLifes;
