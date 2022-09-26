@@ -59,6 +59,8 @@ namespace Antmicro.Renode.Core
             {
                 LocalTimeSource = new SlaveTimeSource();
             }
+
+            machineCreatedAt = new DateTime(CustomDateTime.Now.Ticks, DateTimeKind.Local);
         }
 
         [PreSerialization]
@@ -377,7 +379,6 @@ namespace Antmicro.Renode.Core
                     Resume();
                     return;
                 }
-                machineStartedAt = CustomDateTime.Now;
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 1 : 0))
                 {
                     this.NoisyLog("Starting {0}.", GetNameForOwnLife(ownLife));
@@ -623,19 +624,6 @@ namespace Antmicro.Renode.Core
                 x => (x.Frequency == 0 || x.Period == 0) ? "---" :  Misc.NormalizeDecimal((ulong)x.Period / (x.Frequency * (double)x.Step))  + "s"
             );
             return table.ToArray();
-        }
-
-        public DateTime GetRealTimeClockBase()
-        {
-            switch(RealTimeClockMode)
-            {
-            case RealTimeClockMode.VirtualTime:
-                return new DateTime(1970, 1, 1) + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
-            case RealTimeClockMode.VirtualTimeWithHostBeginning:
-                return machineStartedAt + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
-            default:
-                throw new ArgumentOutOfRangeException();
-            }
         }
 
         public void AttachGPIO(IPeripheral source, int sourceNumber, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null)
@@ -1022,7 +1010,27 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public DateTime RealTimeClockDateTime => RealTimeClockStart + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
+
         public RealTimeClockMode RealTimeClockMode { get; set; }
+
+        public DateTime RealTimeClockStart
+        {
+            get
+            {
+                switch(RealTimeClockMode)
+                {
+                case RealTimeClockMode.Epoch:
+                    return new DateTime(1970, 1, 1);
+                case RealTimeClockMode.HostTimeLocal:
+                    return machineCreatedAt;
+                case RealTimeClockMode.HostTimeUTC:
+                    return TimeZoneInfo.ConvertTimeToUtc(machineCreatedAt, sourceTimeZone: TimeZoneInfo.Local);
+                default:
+                    throw new ArgumentOutOfRangeException();
+                }
+            }
+        }
 
         [field: Transient]
         public event Action<Machine, MachineStateChangedEventArgs> StateChanged;
@@ -1367,7 +1375,6 @@ namespace Antmicro.Renode.Core
         private int currentStampLevel;
         private Recorder recorder;
         private Player player;
-        private DateTime machineStartedAt;
         private TimeSourceBase localTimeSource;
         private readonly MultiTree<IPeripheral, IRegistrationPoint> registeredPeripherals;
         private readonly Dictionary<IPeripheral, string> localNames;
@@ -1375,6 +1382,7 @@ namespace Antmicro.Renode.Core
         private readonly object collectionSync;
         private readonly object pausingSync;
         private readonly object disposedSync;
+        private readonly DateTime machineCreatedAt;
 
         private enum State
         {

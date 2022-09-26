@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -234,7 +234,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void HandleDate()
         {
-            SetCurrentStringRegister(string.Format("{0:yyyy.MM.dd-HH:mm:ss}", machine.GetRealTimeClockBase()));
+            SetCurrentStringRegister(string.Format("{0:yyyy.MM.dd-HH:mm:ss}", machine.RealTimeClockDateTime));
         }
 
         private void HandleTimeMeasure(TimeMeasurementOperation operation)

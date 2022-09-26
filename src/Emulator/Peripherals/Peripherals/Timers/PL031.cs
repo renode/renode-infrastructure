@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             switch((Offset)offset)
             {
             case Offset.Data:
-                return (uint)((machine.GetRealTimeClockBase() - epoch).TotalSeconds + tickOffset);
+                return (uint)((machine.RealTimeClockDateTime - epoch).TotalSeconds + tickOffset);
             case Offset.Match:
                 return matchRegister;
             case Offset.InterruptMaskSetOrClear:
@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 break;
             case Offset.Load:
-                tickOffset += (value - ((uint)(machine.GetRealTimeClockBase() - epoch).TotalSeconds + tickOffset));
+                tickOffset += value - ((uint)(machine.RealTimeClockDateTime - epoch).TotalSeconds + tickOffset);
                 break;
             case Offset.Control:
                 rawInterruptStatusRegister = 0x0000;
