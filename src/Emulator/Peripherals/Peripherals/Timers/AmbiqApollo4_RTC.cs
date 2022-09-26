@@ -27,51 +27,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             Reset();
         }
 
-        public override void Reset()
-        {
-            interruptStatus = false;
-            InitializeBCDValueFields();
-            IRQ.Unset();
-            since2000Timer.Reset();
-            valueReadWithCountersLower = 0;
-            base.Reset();
-        }
-
-        public string PrintCurrentDateTime()
-        {
-            return since2000Timer.GetCurrentDateTime().ToString("o");
-        }
-
-        public string PrintNextAlarmDateTime()
-        {
-            return since2000Timer.IsAlarmSet() ? since2000Timer.GetNextAlarmDateTime().ToString("o") : "Alarm not set.";
-        }
-
-        private void UpdateCounterFields()
-        {
-            if(lastUpdateTimerValue == since2000Timer.Value)
-            {
-                return;
-            }
-
-            var dateTime = since2000Timer.GetCurrentDateTime();
-
-            secondHundredths.SetFromInteger((int)Math.Round(dateTime.Millisecond / 10.0, 0));
-            seconds.SetFromInteger(dateTime.Second);
-            minutes.SetFromInteger(dateTime.Minute);
-            hours.SetFromInteger(dateTime.Hour);
-            day.SetFromInteger(dateTime.Day);
-            month.SetFromInteger(dateTime.Month);
-            yearsSince2X00.SetFromInteger(dateTime.Year % 100);
-            weekday.SetFromInteger((int)dateTime.DayOfWeek);
-            if(centuryChangeEnabled.Value)
-            {
-                centuryPassed.Value = dateTime.Year <= 2000 || dateTime.Year >= 2100;
-            }
-
-            lastUpdateTimerValue = since2000Timer.Value;
-        }
-
         public override uint ReadDoubleWord(long offset)
         {
             if(offset == (long)Registers.CountersLower || offset == (long)Registers.CountersUpper)
@@ -82,6 +37,17 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             return base.ReadDoubleWord(offset);
         }
+
+        public override void Reset()
+        {
+            interruptStatus = false;
+            InitializeBCDValueFields();
+            IRQ.Unset();
+            since2000Timer.Reset();
+            valueReadWithCountersLower = 0;
+            base.Reset();
+        }
+
         public override void WriteDoubleWord(long offset, uint value)
         {
             if(!counterWritesEnabled.Value &&
@@ -92,6 +58,16 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             base.WriteDoubleWord(offset, value);
+        }
+
+        public string PrintCurrentDateTime()
+        {
+            return since2000Timer.GetCurrentDateTime().ToString("o");
+        }
+
+        public string PrintNextAlarmDateTime()
+        {
+            return since2000Timer.IsAlarmSet() ? since2000Timer.GetNextAlarmDateTime().ToString("o") : "Alarm not set.";
         }
 
         public void SetDateTime(int year, int month = 1, int day = 1, int hours = 0, int minutes = 0, int seconds = 0, int secondHundredths = 0)
@@ -249,6 +225,31 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void UpdateAlarm()
         {
             since2000Timer.UpdateAlarm(alarmRepeatInterval.Value, alarmMonth, alarmWeekday, alarmDay, alarmHours, alarmMinutes, alarmSeconds, alarmSecondHundredths * 10);
+        }
+
+        private void UpdateCounterFields()
+        {
+            if(lastUpdateTimerValue == since2000Timer.Value)
+            {
+                return;
+            }
+
+            var dateTime = since2000Timer.GetCurrentDateTime();
+
+            secondHundredths.SetFromInteger((int)Math.Round(dateTime.Millisecond / 10.0, 0));
+            seconds.SetFromInteger(dateTime.Second);
+            minutes.SetFromInteger(dateTime.Minute);
+            hours.SetFromInteger(dateTime.Hour);
+            day.SetFromInteger(dateTime.Day);
+            month.SetFromInteger(dateTime.Month);
+            yearsSince2X00.SetFromInteger(dateTime.Year % 100);
+            weekday.SetFromInteger((int)dateTime.DayOfWeek);
+            if(centuryChangeEnabled.Value)
+            {
+                centuryPassed.Value = dateTime.Year <= 2000 || dateTime.Year >= 2100;
+            }
+
+            lastUpdateTimerValue = since2000Timer.Value;
         }
 
         private void UpdateInterrupt()
