@@ -20,8 +20,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         public AmbiqApollo4_RTC(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
-            var baseDateTime = new DateTime(2000, 1, 1);
-            since2000Timer = new RTCTimer(machine, this, baseDateTime, alarmAction: () => InterruptStatus = true);
+
+            var baseDateTime = new DateTime(1970, 1, 1);
+            internalTimer = new RTCTimer(machine, this, baseDateTime, alarmAction: () => InterruptStatus = true);
 
             DefineRegisters();
             Reset();
@@ -43,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             interruptStatus = false;
             InitializeBCDValueFields();
             IRQ.Unset();
-            since2000Timer.Reset();
+            internalTimer.Reset();
             valueReadWithCountersLower = 0;
             base.Reset();
         }
@@ -62,21 +63,22 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public string PrintCurrentDateTime()
         {
-            return since2000Timer.GetCurrentDateTime().ToString("o");
+            return internalTimer.GetCurrentDateTime().ToString("o");
         }
 
         public string PrintNextAlarmDateTime()
         {
-            return since2000Timer.IsAlarmSet() ? since2000Timer.GetNextAlarmDateTime().ToString("o") : "Alarm not set.";
+            return internalTimer.IsAlarmSet() ? internalTimer.GetNextAlarmDateTime().ToString("o") : "Alarm not set.";
         }
 
         public void SetDateTime(int year, int month = 1, int day = 1, int hours = 0, int minutes = 0, int seconds = 0, int secondHundredths = 0)
         {
-            if(year < 2000 || year > 2199)
+            // The 200 years range simply makes it possible to tell a specific year from the century bit and a two-digit year.
+            if(year < 1970 || year > 2169)
             {
-                throw new RecoverableException("Year has to be in range: 2000 .. 2199.");
+                throw new RecoverableException("Year has to be in range: 1970 .. 2169.");
             }
-            centuryPassed.Value = year >= 2100;
+            centuryBit.Value = year < 2000 || year >= 2100;
 
             try
             {
@@ -91,6 +93,22 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO IRQ { get; }
 
         public long Size => 0x210;
+
+        static private int CalculateYear(bool centuryBit, int yearsOfCentury)
+        {
+            // The century bit set indicates "1900s/2100s" according to the documentation.
+            // To make it specific, the range supported has to be 200 years. The arbitrarily chosen range is 1970-2169
+            // because of the default Machine's RTC Mode, 'Epoch', which starts in 1970. Hence the century bit set
+            // translates to 1900 only if a two-digit year number ('yearsOfCentury') is >= 70 and to 2100 otherwise.
+            if(centuryBit)
+            {
+                return (yearsOfCentury < 70 ? 2100 : 1900) + yearsOfCentury;
+            }
+            else
+            {
+                return 2000 + yearsOfCentury;
+            }
+        }
 
         private void DefineRegisters()
         {
@@ -118,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.Control.Define(this)
                 .WithFlag(0, out counterWritesEnabled, name: "WRTC")
                 .WithEnumField(1, 3, out alarmRepeatInterval, name: "RPT", changeCallback: (_, __) => UpdateAlarm())
-                .WithFlag(4, name: "RSTOP", writeCallback: (_, newValue) => { since2000Timer.Enabled = !newValue; }, valueProviderCallback: _ => !since2000Timer.Enabled)
+                .WithFlag(4, name: "RSTOP", writeCallback: (_, newValue) => { internalTimer.Enabled = !newValue; }, valueProviderCallback: _ => !internalTimer.Enabled)
                 .WithReservedBits(5, 27)
                 ;
 
@@ -130,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(23, 1)
                 .WithValueField(24, 6, name: "CTRHR", writeCallback: (_, newValue) => hours.BCDSet((byte)newValue), valueProviderCallback: _ => hours.BCDGet())
                 .WithReservedBits(30, 2)
-                .WithReadCallback((_, __) => { valueReadWithCountersLower = since2000Timer.Value; readError.Value = false; })
+                .WithReadCallback((_, __) => { valueReadWithCountersLower = internalTimer.Value; readError.Value = false; })
                 .WithWriteCallback((_, __) => writeBusy = true)
                 ;
 
@@ -139,24 +157,24 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(6, 2)
                 .WithValueField(8, 5, name: "CTRMO", writeCallback: (_, newValue) => month.BCDSet((byte)newValue), valueProviderCallback: _ => month.BCDGet())
                 .WithReservedBits(13, 3)
-                .WithValueField(16, 8, name: "CTRYR", writeCallback: (_, newValue) => yearsSince2X00.BCDSet((byte)newValue), valueProviderCallback: _ => yearsSince2X00.BCDGet())
+                .WithValueField(16, 8, name: "CTRYR", writeCallback: (_, newValue) => yearsOfCentury.BCDSet((byte)newValue), valueProviderCallback: _ => yearsOfCentury.BCDGet())
                 .WithValueField(24, 3, name: "CTRWKDY", writeCallback: (_, newValue) => weekday.BCDSet((byte)newValue), valueProviderCallback: _ => weekday.BCDGet())
                 .WithReservedBits(27, 1)
-                // Documentation on Century Bit set: "Century is 1900s/2100s" so let's assume it means 2100s.
-                .WithFlag(28, out centuryPassed, name: "CB")
+                // Documentation on Century Bit set: "Century is 1900s/2100s". In this model the century bit is set for years 1970-1999 and 2100-2169.
+                .WithFlag(28, out centuryBit, name: "CB")
                 .WithFlag(29, out centuryChangeEnabled, name: "CEB")
                 .WithReservedBits(30, 1)
                 .WithFlag(31, out readError, name: "CTERR")
                 .WithWriteCallback((_, __) =>
                 {
-                    readError.Value = valueReadWithCountersLower == since2000Timer.Value;
+                    readError.Value = valueReadWithCountersLower == internalTimer.Value;
                     if(!writeBusy)
                     {
                         this.Log(LogLevel.Warning, "The Counters Upper register written without prior write to the Counters Lower register!", Registers.CountersLower);
                     }
                     writeBusy = false;
 
-                    var year = 2000 + (centuryPassed.Value ? 100 : 0) + yearsSince2X00;
+                    var year = CalculateYear(centuryBit.Value, yearsOfCentury);
                     var newDateTime = new DateTime(year, month, day, hours, minutes, seconds, secondHundredths * 10);
 
                     // Check if weekday matches (Sunday is 0 for both).
@@ -211,28 +229,28 @@ namespace Antmicro.Renode.Peripherals.Timers
             secondHundredths = new BCDValueField(this, "hundredths of a second");
             seconds = new BCDValueField(this, "seconds", 0x59);
             weekday = new BCDValueField(this, "weekdays", 0x6);
-            yearsSince2X00 = new BCDValueField(this, "years since 2X00");
+            yearsOfCentury = new BCDValueField(this, "years of a century");
         }
 
         private void SetDateTimeInternal(DateTime dateTime)
         {
-            since2000Timer.SetDateTime(dateTime);
+            internalTimer.SetDateTime(dateTime);
             UpdateAlarm();
         }
 
         private void UpdateAlarm()
         {
-            since2000Timer.UpdateAlarm(alarmRepeatInterval.Value, alarmMonth, alarmWeekday, alarmDay, alarmHours, alarmMinutes, alarmSeconds, alarmSecondHundredths * 10);
+            internalTimer.UpdateAlarm(alarmRepeatInterval.Value, alarmMonth, alarmWeekday, alarmDay, alarmHours, alarmMinutes, alarmSeconds, alarmSecondHundredths * 10);
         }
 
         private void UpdateCounterFields()
         {
-            if(lastUpdateTimerValue == since2000Timer.Value)
+            if(lastUpdateTimerValue == internalTimer.Value)
             {
                 return;
             }
 
-            var dateTime = since2000Timer.GetCurrentDateTime();
+            var dateTime = internalTimer.GetCurrentDateTime();
 
             secondHundredths.SetFromInteger((int)Math.Round(dateTime.Millisecond / 10.0, 0));
             seconds.SetFromInteger(dateTime.Second);
@@ -240,14 +258,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             hours.SetFromInteger(dateTime.Hour);
             day.SetFromInteger(dateTime.Day);
             month.SetFromInteger(dateTime.Month);
-            yearsSince2X00.SetFromInteger(dateTime.Year % 100);
+            yearsOfCentury.SetFromInteger(dateTime.Year % 100);
             weekday.SetFromInteger((int)dateTime.DayOfWeek);
             if(centuryChangeEnabled.Value)
             {
-                centuryPassed.Value = dateTime.Year <= 2000 || dateTime.Year >= 2100;
+                centuryBit.Value = dateTime.Year < 2000 || dateTime.Year >= 2100;
             }
 
-            lastUpdateTimerValue = since2000Timer.Value;
+            lastUpdateTimerValue = internalTimer.Value;
         }
 
         private void UpdateInterrupt()
@@ -270,7 +288,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private readonly RTCTimer since2000Timer;
+        private readonly RTCTimer internalTimer;
 
         private bool interruptStatus;
         private ulong lastUpdateTimerValue;
@@ -291,11 +309,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private BCDValueField secondHundredths;  // 0.01s
         private BCDValueField seconds;
         private BCDValueField weekday;
-        private BCDValueField yearsSince2X00;
+        private BCDValueField yearsOfCentury;
 
         private IEnumRegisterField<AlarmRepeatIntervals> alarmRepeatInterval;
+        private IFlagRegisterField centuryBit;
         private IFlagRegisterField centuryChangeEnabled;
-        private IFlagRegisterField centuryPassed;
         private IFlagRegisterField counterWritesEnabled;
         private IFlagRegisterField interruptEnable;
         private IFlagRegisterField readError;
