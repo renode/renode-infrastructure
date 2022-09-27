@@ -1467,6 +1467,17 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public static bool TryGetNext<T>(this IEnumerator<T> @this, out T element)
+        {
+            element = default(T);
+            if(@this.MoveNext())
+            {
+                element = @this.Current;
+                return true;
+            }
+            return false;
+        }
+
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 }
