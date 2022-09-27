@@ -71,18 +71,33 @@ namespace Antmicro.Renode.Peripherals.Timers
             return internalTimer.IsAlarmSet() ? internalTimer.GetNextAlarmDateTime().ToString("o") : "Alarm not set.";
         }
 
-        public void SetDateTime(int year, int month = 1, int day = 1, int hours = 0, int minutes = 0, int seconds = 0, int secondHundredths = 0)
+        public void SetDateTime(int? year = null, int? month = null, int? day = null, int? hours = null, int? minutes = null, int? seconds = null, int? secondHundredths = null)
         {
-            // The 200 years range simply makes it possible to tell a specific year from the century bit and a two-digit year.
-            if(year < 1970 || year > 2169)
+            UpdateCounterFields();
+
+            if(year == null)
             {
-                throw new RecoverableException("Year has to be in range: 1970 .. 2169.");
+                year = CalculateYear(centuryBit.Value, yearsOfCentury);
             }
-            centuryBit.Value = year < 2000 || year >= 2100;
+            else
+            {
+                // The 200 years range simply makes it possible to tell a specific year from the century bit and a two-digit year.
+                if(year < 1970 || year > 2169)
+                {
+                    throw new RecoverableException("Year has to be in range: 1970 .. 2169.");
+                }
+            }
 
             try
             {
-                SetDateTimeInternal(new DateTime(year, month, day, hours, minutes, seconds, secondHundredths * 10));
+                SetDateTimeInternal(new DateTime(
+                    year.Value,
+                    month ?? this.month,
+                    day ?? this.day,
+                    hours ?? this.hours,
+                    minutes ?? this.minutes,
+                    seconds ?? this.seconds,
+                    (secondHundredths ?? this.secondHundredths) * 10));
             }
             catch(ArgumentOutOfRangeException)
             {
@@ -235,12 +250,22 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void SetDateTimeInternal(DateTime dateTime)
         {
             internalTimer.SetDateTime(dateTime);
+
+            // All the other registers will be updated before reading any of the Counters registers
+            // but the century bit might not get updated if the centuryChangeEnabled is false.
+            UpdateCenturyBit(dateTime.Year);
+
             UpdateAlarm();
         }
 
         private void UpdateAlarm()
         {
             internalTimer.UpdateAlarm(alarmRepeatInterval.Value, alarmMonth, alarmWeekday, alarmDay, alarmHours, alarmMinutes, alarmSeconds, alarmSecondHundredths * 10);
+        }
+
+        private void UpdateCenturyBit(int year)
+        {
+            centuryBit.Value = year < 2000 || year >= 2100;
         }
 
         private void UpdateCounterFields()
@@ -262,7 +287,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             weekday.SetFromInteger((int)dateTime.DayOfWeek);
             if(centuryChangeEnabled.Value)
             {
-                centuryBit.Value = dateTime.Year < 2000 || dateTime.Year >= 2100;
+                UpdateCenturyBit(dateTime.Year);
             }
 
             lastUpdateTimerValue = internalTimer.Value;
