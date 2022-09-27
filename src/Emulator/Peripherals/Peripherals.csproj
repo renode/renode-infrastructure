@@ -484,6 +484,7 @@
     <Compile Include="Peripherals\Sensors\TMP103.cs" />
     <Compile Include="Peripherals\I2C\MAX32650_I2C.cs" />
     <Compile Include="Peripherals\Sensors\MAX30208.cs" />
+    <Compile Include="Peripherals\Miscellaneous\STM32L0_PWR.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
