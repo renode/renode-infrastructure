@@ -17,8 +17,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class STM32F4_RTC : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_RTC(Machine machine)
+        public STM32F4_RTC(Machine machine, long wakeupTimerFrequency = DefaultWakeupTimerFrequency)
         {
+            this.wakeupTimerFrequency = wakeupTimerFrequency;
             mainTimer = new TimerConfig(this);
             alarmA = new AlarmConfig(this, mainTimer);
             alarmB = new AlarmConfig(this, mainTimer);
@@ -27,6 +28,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             WakeupIRQ = new GPIO();
             ticker = new LimitTimer(machine.ClockSource, 1, this, nameof(ticker), 1, direction: Direction.Ascending, eventEnabled: true);
             ticker.LimitReached += UpdateState;
+
+            wakeupTimer = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(wakeupTimer), direction: Direction.Ascending);
+            wakeupTimer.LimitReached += delegate
+            {
+                wakeupTimerFlag.Value = true; // reset by software
+                UpdateInterrupts();
+            };
             ResetInnerTimers();
 
             IFlagRegisterField syncFlag = null;
@@ -102,7 +110,28 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(24, 8)
                 },
                 {(long)Registers.ControlRegister, new DoubleWordRegister(this)
-                    .WithTag("WUCKSEL", 0, 3)
+                    .WithValueField(0, 3, out wakeupClockSelection, name: "WUCKSEL",
+                        writeCallback: (_, value) =>
+                        {
+                            if(!CheckIfUnlocked(Registers.ControlRegister))
+                            {
+                                return;
+                            }
+                            if((value & 0b100) == 0)
+                            {
+                                // 0xx: RTC / 2^(4 - xx) clock is selected
+                                // 000: RTC / 2^4 = RTC / 16
+                                // 011: RTC / 2^1 = RTC / 2
+                                wakeupTimer.Frequency = wakeupTimerFrequency;
+                                wakeupTimer.Divider = (int)Math.Pow(2, 4 - value);
+                            }
+                            else
+                            {
+                                // 1xx: ck_spre (usually 1 Hz) clock is selected
+                                wakeupTimer.Frequency = 1;
+                                wakeupTimer.Divider = 1;
+                            }
+                        })
                     .WithTag("TSEDGE", 3, 1)
                     .WithTag("REFCKON", 4, 1)
                     .WithTag("BYPSHAD", 5, 1)
@@ -138,7 +167,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         },
                         valueProviderCallback: _ => alarmB.Enable)
-                    .WithTag("WUTE", 10, 1) // Wakeup Timer not supported
+                    .WithFlag(10, name: "WUTE",
+                        writeCallback: (_, value) =>
+                        {
+                            if(!CheckIfUnlocked(Registers.ControlRegister))
+                            {
+                                return;
+                            }
+                            wakeupTimer.Enabled = value;
+                            wakeupTimer.Value = 0;
+                        },
+                        valueProviderCallback: _ => wakeupTimer.Enabled)
                     .WithTag("TSE", 11, 1) // Timestamp not supported
                     .WithFlag(12, name: "ALRAIE",
                         writeCallback: (_, value) =>
@@ -158,7 +197,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         },
                         valueProviderCallback: _ => alarmB.InterruptEnable)
-                    .WithTag("WUTIE", 14, 1) // Wakeup Timer not supported
+                    .WithFlag(14, name: "WUTIE",
+                        writeCallback: (_, value) =>
+                        {
+                            if(!CheckIfUnlocked(Registers.ControlRegister))
+                            {
+                                return;
+                            }
+                            wakeupTimer.EventEnabled = value;
+                        },
+                        valueProviderCallback: _ => wakeupTimer.EventEnabled)
                     .WithTag("TSIE", 15, 1) // Timestamp not supported
                     .WithTag("ADD1H", 16, 1)
                     .WithTag("SUB1H", 17, 1)
@@ -172,7 +220,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)Registers.ISR, new DoubleWordRegister(this, 0x7)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => !alarmA.Enable, name: "ALRAWF")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => !alarmB.Enable, name: "ALRBWF")
-                    .WithTag("WUTWF", 2, 1)
+                    .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => !wakeupTimer.Enabled, name: "WUTWF")
                     .WithTag("SHPF", 3, 1)
                     .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => mainTimer.TimeState.Year != 2000, name: "INITS")
                     .WithFlag(5, out syncFlag, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RSF",
@@ -207,7 +255,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                             alarmB.Flag = false;
                         },
                         valueProviderCallback: _ => alarmB.Flag)
-                    .WithTag("WUTF", 10, 1)
+                    .WithFlag(10, out wakeupTimerFlag, FieldMode.WriteZeroToClear | FieldMode.Read, name: "WUTF",
+                        changeCallback: (_, __) =>
+                        {
+                            UpdateInterrupts();
+                        })
                     .WithTag("TSF", 11, 1)
                     .WithTag("TSOVF", 12, 1)
                     .WithTag("TAMP1F", 13, 1)
@@ -223,7 +275,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(23, 9)
                 },
                 {(long)Registers.WakeupTimerRegister, new DoubleWordRegister(this, 0xFFFF)
-                    .WithTag("WUT", 0, 16)
+                    .WithValueField(0, 16, name: "WUT",
+                        writeCallback: (_, value) =>
+                        {
+                            if(!CheckIfUnlocked(Registers.WakeupTimerRegister))
+                            {
+                                return;
+                            }
+                            // WUCKSEL value: '11x' = 2^16 is added to the WUT counter value (see reference manual p.565)
+                            if((wakeupClockSelection.Value & 0b110) == 0b110)
+                            {
+                                value += 0x10000;
+                            }
+
+                            wakeupTimer.Limit = value;
+                        },
+                        valueProviderCallback: _ => (uint)wakeupTimer.Limit)
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.CalibrationRegister, new DoubleWordRegister(this)
@@ -461,6 +528,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTag("MASKSS", 24, 4)
                     .WithReservedBits(28, 4)
                 },
+                {(long)Registers.OptionRegister, new DoubleWordRegister(this)
+                    .WithTaggedFlag("RTC_ALARM_TYPE", 0)
+                    .WithTaggedFlag("RTC_OUT_RMP", 1)
+                    .WithReservedBits(2, 30)
+                },
             };
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
@@ -515,6 +587,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             mainTimer.Reset();
             alarmA.Reset();
             alarmB.Reset();
+            wakeupTimer.Reset();
         }
 
         private void ResetInnerStatus()
@@ -551,6 +624,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             state |= alarmB.Flag && alarmB.InterruptEnable;
 
             AlarmIRQ.Set(state);
+            WakeupIRQ.Set(wakeupTimerFlag.Value);
         }
 
         private bool CheckIfInInitMode(Registers reg)
@@ -623,7 +697,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         // timestamp timer is currenlty not implementedw
 
         private readonly DoubleWordRegisterCollection registers;
+        private readonly IValueRegisterField wakeupClockSelection;
+        private readonly IFlagRegisterField wakeupTimerFlag;
         private readonly LimitTimer ticker;
+        private readonly LimitTimer wakeupTimer;
+        private readonly long wakeupTimerFrequency;
+
         private bool firstStageUnlocked;
         private bool registersUnlocked;
         private bool initMode;
@@ -631,6 +710,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private const uint UnlockKey1 = 0xCA;
         private const uint UnlockKey2 = 0x53;
+        private const long DefaultWakeupTimerFrequency = 32768;
 
         private class TimerConfig
         {
@@ -1066,7 +1146,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             ClockCalibrationRegister = 0x3c,
             TamperAndAlternateFunctionConfigurationRegister = 0x40,
             AlarmASubSecondRegister = 0x44,
-            AlarmBSubSecondRegister = 0x48
+            AlarmBSubSecondRegister = 0x48,
+            OptionRegister = 0x4c,
         }
     }
 }
