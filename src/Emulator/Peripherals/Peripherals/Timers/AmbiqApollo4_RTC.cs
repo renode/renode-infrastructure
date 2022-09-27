@@ -42,10 +42,14 @@ namespace Antmicro.Renode.Peripherals.Timers
         public override void Reset()
         {
             interruptStatus = false;
+            lastUpdateTimerValue = ulong.MaxValue;
+            writeBusy = false;
+            valueReadWithCountersLower = 0;
+
             InitializeBCDValueFields();
             IRQ.Unset();
             internalTimer.Reset();
-            valueReadWithCountersLower = 0;
+
             base.Reset();
         }
 
