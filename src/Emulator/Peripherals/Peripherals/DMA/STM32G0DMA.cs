@@ -112,38 +112,45 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public uint ReadDoubleWord(long offset)
         {
-            if(offset < (long)Registers.Channel1Configuration)
+            if(registers.TryRead(offset, out var result))
             {
-                return registers.Read(offset);
+                return result;
             }
-            return channels[GetChanneNumberBasedOnOffset(offset)].ReadDoubleWord(offset);
+            if(TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
+            {
+                return channels[channelNo].ReadDoubleWord(offset);
+            }
+            this.Log(LogLevel.Error, "Could not read from offset 0x{0:X} nor read from channel {1}, the channel has to be in range 0-{2}", offset, channelNo, numberOfChannels);
+            return 0;
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            if(offset < (long)Registers.Channel1Configuration)
+            if(registers.TryWrite(offset, value))
             {
-                registers.Write(offset, value);
                 return;
             }
-            channels[GetChanneNumberBasedOnOffset(offset)].WriteDoubleWord(offset, value);
+            if(TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
+            {
+                channels[channelNo].WriteDoubleWord(offset, value);
+                return;
+            }
+            this.Log(LogLevel.Error, "Could not write to offset 0x{0:X} nor write to channel {1}, the channel has to be in range 0-{2}", offset, channelNo, numberOfChannels);
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long Size => 0x100;
 
-        private int GetChanneNumberBasedOnOffset(long offset)
+        private bool TryGetChannelNumberBasedOnOffset(long offset, out int channel)
         {
             var shifted = offset - (long)Registers.Channel1Configuration;
-            var channel = (int)(shifted / ShiftBetweenChannels);
+            channel = (int)(shifted / ShiftBetweenChannels);
             if(channel < 0 || channel > numberOfChannels)
             {
-                this.Log(LogLevel.Error, "Tried to access channel {0} (offset 0x{1:X}), the channel has to be in range 0-{2}", channel, offset, numberOfChannels);
-                return 0;
+                return false;
             }
-
-            return channel;
+            return true;
         }
 
         private void Update()
