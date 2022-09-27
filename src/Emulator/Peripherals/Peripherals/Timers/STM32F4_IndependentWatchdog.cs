@@ -71,7 +71,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if(registersUnlocked)
                 {
-                    watchdogTimer.Divider = (int)Math.Pow(2, (2 + value));
+                    var divider = (int)Math.Pow(2, (2 + value));
+                    if(divider > 256)
+                    {
+                        divider = 256;
+                    }
+                    watchdogTimer.Divider = divider;
                 }
                 else
                 {
