@@ -37,9 +37,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             for(var i = 0; i < numberOfChannels; ++i)
             {
                 var j = i;
-                interruptStatus.DefineFlagField(j * 4 + 0, FieldMode.Read, valueProviderCallback: _ => channels[j].GlobalInterrupt, name: $"Global interrupt flag for channel {j} (GIF{j})");
-                interruptStatus.DefineFlagField(j * 4 + 1, FieldMode.Read, valueProviderCallback: _ => channels[j].TransferComplete, name: $"Transfer complete flag for channel {j} (TCIF{j})");
-                interruptStatus.DefineFlagField(j * 4 + 2, FieldMode.Read, valueProviderCallback: _ => channels[j].HalfTransfer, name: $"Half transfer flag for channel {j} (HTIF{j})");
+                interruptStatus.DefineFlagField(j * 4 + 0, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].GlobalInterrupt,
+                    name: $"Global interrupt flag for channel {j} (GIF{j})");
+                interruptStatus.DefineFlagField(j * 4 + 1, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].TransferComplete,
+                    name: $"Transfer complete flag for channel {j} (TCIF{j})");
+                interruptStatus.DefineFlagField(j * 4 + 2, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].HalfTransfer,
+                    name: $"Half transfer flag for channel {j} (HTIF{j})");
                 interruptStatus.Tag($"Transfer error flag for channel {j} (TEIF{j})", j * 4 + 3, 1);
 
                 interruptFlagClear.DefineFlagField(j * 4 + 0, FieldMode.Write, writeCallback: (_, val) => channels[j].GlobalInterrupt = !val, name: $"Global interrupt flag clear for channel {j} (CGIF{j})");
