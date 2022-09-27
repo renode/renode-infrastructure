@@ -32,7 +32,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"The '{(RiscV32Registers)register}' register is read-only.");
             }
 
-            SetRegisterValue32(r.Index, checked((UInt32)value));
+            switch(r.Width)
+            {
+            case 32:
+                SetRegisterValue32(r.Index, checked((UInt32)value));
+                break;
+            case 64:
+                SetRegisterValue64(r.Index, checked((UInt64)value));
+                break;
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
         }
 
         public override RegisterValue GetRegisterUnsafe(int register)
@@ -45,7 +55,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-            return GetRegisterValue32(r.Index);
+            switch(r.Width)
+            {
+            case 32:
+                return GetRegisterValue32(r.Index);
+            case 64:
+                return GetRegisterValue64(r.Index);
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
@@ -653,6 +671,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         #pragma warning restore 649
 
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        #pragma warning disable 649
+
+        [Import(Name = "tlib_set_register_value_64")]
+        protected ActionInt32UInt64 SetRegisterValue64;
+        [Import(Name = "tlib_get_register_value_64")]
+        protected FuncUInt64Int32 GetRegisterValue64;
+
+        #pragma warning restore 649
+
         private static readonly Dictionary<RiscV32Registers, CPURegister> mapping = new Dictionary<RiscV32Registers, CPURegister>
         {
             { RiscV32Registers.ZERO,  new CPURegister(0, 32, isGeneral: true, isReadonly: true) },
@@ -688,38 +716,38 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.X30,  new CPURegister(30, 32, isGeneral: true, isReadonly: false) },
             { RiscV32Registers.X31,  new CPURegister(31, 32, isGeneral: true, isReadonly: false) },
             { RiscV32Registers.PC,  new CPURegister(32, 32, isGeneral: true, isReadonly: false) },
-            { RiscV32Registers.F0,  new CPURegister(33, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F1,  new CPURegister(34, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F2,  new CPURegister(35, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F3,  new CPURegister(36, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F4,  new CPURegister(37, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F5,  new CPURegister(38, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F6,  new CPURegister(39, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F7,  new CPURegister(40, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F8,  new CPURegister(41, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F9,  new CPURegister(42, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F10,  new CPURegister(43, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F11,  new CPURegister(44, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F12,  new CPURegister(45, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F13,  new CPURegister(46, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F14,  new CPURegister(47, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F15,  new CPURegister(48, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F16,  new CPURegister(49, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F17,  new CPURegister(50, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F18,  new CPURegister(51, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F19,  new CPURegister(52, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F20,  new CPURegister(53, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F21,  new CPURegister(54, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F22,  new CPURegister(55, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F23,  new CPURegister(56, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F24,  new CPURegister(57, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F25,  new CPURegister(58, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F26,  new CPURegister(59, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F27,  new CPURegister(60, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F28,  new CPURegister(61, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F29,  new CPURegister(62, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F30,  new CPURegister(63, 32, isGeneral: false, isReadonly: false) },
-            { RiscV32Registers.F31,  new CPURegister(64, 32, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F0,  new CPURegister(33, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F1,  new CPURegister(34, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F2,  new CPURegister(35, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F3,  new CPURegister(36, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F4,  new CPURegister(37, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F5,  new CPURegister(38, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F6,  new CPURegister(39, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F7,  new CPURegister(40, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F8,  new CPURegister(41, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F9,  new CPURegister(42, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F10,  new CPURegister(43, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F11,  new CPURegister(44, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F12,  new CPURegister(45, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F13,  new CPURegister(46, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F14,  new CPURegister(47, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F15,  new CPURegister(48, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F16,  new CPURegister(49, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F17,  new CPURegister(50, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F18,  new CPURegister(51, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F19,  new CPURegister(52, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F20,  new CPURegister(53, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F21,  new CPURegister(54, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F22,  new CPURegister(55, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F23,  new CPURegister(56, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F24,  new CPURegister(57, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F25,  new CPURegister(58, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F26,  new CPURegister(59, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F27,  new CPURegister(60, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F28,  new CPURegister(61, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F29,  new CPURegister(62, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F30,  new CPURegister(63, 64, isGeneral: false, isReadonly: false) },
+            { RiscV32Registers.F31,  new CPURegister(64, 64, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.VSTART,  new CPURegister(101, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.VXSAT,  new CPURegister(102, 32, isGeneral: false, isReadonly: false) },
             { RiscV32Registers.VXRM,  new CPURegister(103, 32, isGeneral: false, isReadonly: false) },
