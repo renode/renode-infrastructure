@@ -48,9 +48,40 @@ namespace Antmicro.Renode.Peripherals.DMA
                     name: $"Half transfer flag for channel {j} (HTIF{j})");
                 interruptStatus.Tag($"Transfer error flag for channel {j} (TEIF{j})", j * 4 + 3, 1);
 
-                interruptFlagClear.DefineFlagField(j * 4 + 0, FieldMode.Write, writeCallback: (_, val) => channels[j].GlobalInterrupt = !val, name: $"Global interrupt flag clear for channel {j} (CGIF{j})");
-                interruptFlagClear.DefineFlagField(j * 4 + 1, FieldMode.Write, writeCallback: (_, val) => channels[j].TransferComplete = !val, name: $"Transfer complete flag clear for channel {j} (CTEIF{j})");
-                interruptFlagClear.DefineFlagField(j * 4 + 2, FieldMode.Write, writeCallback: (_, val) => channels[j].HalfTransfer = !val, name: $"Half transfer flag clear for channel {j} (CHTIF{j})");
+                interruptFlagClear.DefineFlagField(j * 4 + 0, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        if(!val)
+                        {
+                            return;
+                        }
+                        channels[j].GlobalInterrupt = false;
+                        channels[j].TransferComplete = false;
+                        channels[j].HalfTransfer = false;
+                    },
+                    name: $"Global interrupt flag clear for channel {j} (CGIF{j})");
+                interruptFlagClear.DefineFlagField(j * 4 + 1, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        if(!val)
+                        {
+                            return;
+                        }
+                        channels[j].TransferComplete = false;
+                        channels[j].GlobalInterrupt = false;
+                    },
+                    name: $"Transfer complete flag clear for channel {j} (CTEIF{j})");
+                interruptFlagClear.DefineFlagField(j * 4 + 2, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        if(!val)
+                        {
+                            return;
+                        }
+                        channels[j].HalfTransfer = false;
+                        channels[j].GlobalInterrupt = false;
+                    },
+                    name: $"Half transfer flag clear for channel {j} (CHTIF{j})");
                 interruptFlagClear.Tag($"Transfer error flag clear for channel {j} (CTEIF{j})", j * 4 + 3, 1);
             }
 
