@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 switch(value)
                 {
                     case Key.Reload:
-                        watchdogTimer.Limit = reloadValue;
+                        Reload();
                         break;
                     case Key.Start:
                         watchdogTimer.Enabled = true;
@@ -89,6 +89,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "PVU")
             .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "RVU")
             .WithReservedBits(2, 30);
+        }
+
+        private void Reload()
+        {
+            watchdogTimer.Limit = reloadValue;
         }
 
         private void TimerLimitReachedCallback()
