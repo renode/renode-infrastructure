@@ -199,7 +199,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithEnumField(8, 2, out peripheralTransferType, name: "Peripheral size (PSIZE)")
                     .WithEnumField(10, 2, out memoryTransferType, name: "Memory size (MSIZE)")
                     .WithTag("Priority level (PL)", 12, 2)
-                    .WithTag("Memory-to-memory mode (MEM2MEM)", 14, 1)
+                    .WithFlag(14, out memoryToMemory, name: "Memory-to-memory mode (MEM2MEM)")
                     .WithReservedBits(15, 17)
                     .WithWriteCallback(
                             (_, __) => parent.Update()));
@@ -261,18 +261,14 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void InitTransfer()
             {
-                if(transferDirection.Value)
+                if(transferDirection.Value || memoryToMemory.Value)
                 {
-                    // source: peripheral
-                    // destination: memory
                     IssueCopy(peripheralAddress.Value, memoryAddress.Value, dataCount.Value,
                         peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                         memoryTransferType.Value);
                 }
-                else if(!transferDirection.Value)
+                else
                 {
-                    // source: memory
-                    // destination: peripheral
                     IssueCopy(memoryAddress.Value, peripheralAddress.Value, dataCount.Value,
                         memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
                         peripheralTransferType.Value);
@@ -316,6 +312,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField transferDirection;
             private IFlagRegisterField peripheralIncrementMode;
             private IFlagRegisterField memoryIncrementMode;
+            private IFlagRegisterField memoryToMemory;
             private IValueRegisterField dataCount;
             private IValueRegisterField memoryAddress;
             private IValueRegisterField peripheralAddress;
