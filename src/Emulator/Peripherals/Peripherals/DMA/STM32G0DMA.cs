@@ -85,10 +85,21 @@ namespace Antmicro.Renode.Peripherals.DMA
                 interruptFlagClear.Tag($"Transfer error flag clear for channel {j} (CTEIF{j})", j * 4 + 3, 1);
             }
 
+            var channelSelection = new DoubleWordRegister(this)
+                .WithTag("DMA channel 1 selection (C1S)", 0, 4)
+                .WithTag("DMA channel 2 selection (C2S)", 4, 4)
+                .WithTag("DMA channel 3 selection (C3S)", 8, 4)
+                .WithTag("DMA channel 4 selection (C4S)", 12, 4)
+                .WithTag("DMA channel 5 selection (C5S)", 16, 4)
+                .WithTag("DMA channel 6 selection (C6S)", 20, 4)
+                .WithTag("DMA channel 7 selection (C7S)", 24, 4)
+                .WithReservedBits(28, 4);
+
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.InterruptStatus, interruptStatus },
                 {(long)Registers.InterruptFlagClear, interruptFlagClear },
+                {(long)Registers.ChannelSelection, channelSelection },
             };
 
             registers = new DoubleWordRegisterCollection(this, registerMap);
@@ -366,6 +377,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             Channel7DataCount = 0x84,
             Channel7PeripheralAddress = 0x88,
             Channel7MemoryAddress = 0x8c,
+            // 0x90 to 0xA4 - Reserved
+            ChannelSelection = 0xA8
         }
     }
 }
