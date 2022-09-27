@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }, name: "PR")
             .WithReservedBits(3, 29);
 
-            Registers.Reload.Define(this)
+            Registers.Reload.Define(this, DefaultReloadValue)
             .WithValueField(0, 12, writeCallback: (_, value) =>
             {
                 if(registersUnlocked)
