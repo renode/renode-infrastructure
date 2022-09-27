@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             watchdogTimer.Reset();
             registersUnlocked = false;
             reloadValue = DefaultReloadValue;
+            window = DefaultWindow;
         }
 
         public long Size => 0x400;
@@ -45,7 +46,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                 switch(value)
                 {
                     case Key.Reload:
-                        Reload();
+                        if(watchdogTimer.Value > window)
+                        {
+                            this.Log(LogLevel.Warning, "Watchdog reloaded outside of window, triggering reset!");
+                            machine.RequestReset();
+                        }
+                        else
+                        {
+                            Reload();
+                        }
                         break;
                     case Key.Start:
                         watchdogTimer.Enabled = true;
@@ -88,7 +97,23 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.Status.Define(this)
             .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "PVU")
             .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "RVU")
-            .WithReservedBits(2, 30);
+            .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "WVU")
+            .WithReservedBits(3, 29);
+
+            Registers.Window.Define(this, DefaultWindow)
+            .WithValueField(0, 12, writeCallback: (_, value) =>
+            {
+                if(registersUnlocked)
+                {
+                    window = value;
+                    Reload();
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Trying to change watchdog window without unlocking it");
+                }
+            }, name: "WIN")
+            .WithReservedBits(12, 20);
         }
 
         private void Reload()
@@ -104,10 +129,12 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private bool registersUnlocked;
         private uint reloadValue;
+        private uint window;
 
         private readonly LimitTimer watchdogTimer;
 
         private const uint DefaultReloadValue = 0xFFF;
+        private const uint DefaultWindow = 0xFFF;
         private const uint DefaultPrescalerValue = 4;
 
         private enum Key
@@ -122,7 +149,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             Key = 0x0,
             Prescaler = 0x4,
             Reload = 0x8,
-            Status = 0xC
+            Status = 0xC,
+            Window = 0x10,
         }
     }
 }
