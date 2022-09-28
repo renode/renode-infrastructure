@@ -428,11 +428,6 @@ namespace Antmicro.Renode.Core
         {
             lock(pausingSync)
             {
-                if(state == State.NotStarted)
-                {
-                    this.DebugLog("Reset request: doing nothing, because system is not started.");
-                    return;
-                }
                 using(ObtainPausedState())
                 {
                     foreach(var resetable in registeredPeripherals.Distinct())
