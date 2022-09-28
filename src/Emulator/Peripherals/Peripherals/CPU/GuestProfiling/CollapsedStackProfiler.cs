@@ -69,7 +69,24 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override void OnContextChange(ulong newContextId)
         {
-            // Not implemented yet
+            if(newContextId == currentContextId)
+            {
+                return;
+            }
+
+            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
+
+            var instructionsElapsed = GetInstructionsDelta(cpu.ExecutedInstructions);
+            AddStackToBufferWithDelta(instructionsElapsed);
+            currentContext.PushCurrentStack();
+
+            if(!wholeExecution.ContainsKey(newContextId))
+            {
+                wholeExecution.Add(newContextId, new ProfilerContext());
+            }
+
+            currentContextId = newContextId;
+            currentContext.PopCurrentStack();
         }
 
         public override void InterruptEnter(ulong interruptIndex)
