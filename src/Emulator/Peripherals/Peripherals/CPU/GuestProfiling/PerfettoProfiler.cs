@@ -75,7 +75,53 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override void OnContextChange(ulong newContextId)
         {
-            // Not implemented yet
+            if(newContextId == currentContextId)
+            {
+                return;
+            }
+
+            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
+
+            ulong track = enableMultipleTracks ? currentContextId : MainTrack;
+            ulong time = InstructionCountToNs(cpu.ExecutedInstructions);
+
+            // End the current thread's stack frame
+            for(int i = 0; i < currentStack.Count; i++)
+            {
+                writer.CreateEventEnd(time, track);
+            }
+            currentContext.PushCurrentStack();
+
+            // Get the new thread's execution and restore the events
+            if(!wholeExecution.ContainsKey(newContextId))
+            {
+                wholeExecution.Add(newContextId, new ProfilerContext());
+                if(enableMultipleTracks)
+                {
+                    writer.CreateTrack($"Track: 0x{newContextId:X}", newContextId);
+                }
+            }
+
+            currentContextId = newContextId;
+
+            ulong newTrack = enableMultipleTracks ? newContextId : MainTrack;
+            if(currentContext.Count > 0)
+            {
+                currentContext.PopCurrentStack();
+                // Restore events from the previous visit to this context
+                foreach(var frame in currentStack.Reverse())
+                {
+                    writer.CreateEventBegin(time, frame, newTrack);
+                }
+            }
+            else
+            {
+                currentContext.PopCurrentStack();
+            }
+
+            currentTrack = newTrack;
+
+            CheckAndFlush(time);
         }
 
         public override void InterruptEnter(ulong interruptIndex)
