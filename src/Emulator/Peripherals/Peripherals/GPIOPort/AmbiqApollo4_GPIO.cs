@@ -52,6 +52,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public void WriteDoubleWord(long offset, uint value)
         {
+            if(offset >= (long)Registers.PinConfiguration0 && offset <= (long)Registers.PinConfiguration127)
+            {
+                if(padKey.Value != PadKeyUnlockValue)
+                {
+                    this.Log(LogLevel.Warning, "Tried to change pin configuration register which is locked. PADKEY value: {0:X}", padKey.Value);
+                    return;
+                }
+            }
             RegistersCollection.Write(offset, value);
         }
 
@@ -282,6 +290,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         })
                     .WithWriteCallback((_, __) => UpdateInterrupt(descriptor.Type));
             }
+
+            Registers.PadKey.Define(this)
+                .WithValueField(0, 32, out padKey, name: "PADKEY")
+                ;
         }
 
         private void EnableTristatePinOutputState(int pinIdx, bool enabled)
@@ -370,6 +382,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             irq[(int)irqType].Set(flag);
         }
 
+        private IValueRegisterField padKey;
+
         private readonly IFlagRegisterField[] inputEnable = new IFlagRegisterField[NumberOfPins];
         private readonly IEnumRegisterField<InterruptEnable>[] interruptMode = new IEnumRegisterField<InterruptEnable>[NumberOfPins];
         private readonly IEnumRegisterField<IOMode>[] ioMode = new IEnumRegisterField<IOMode>[NumberOfPins];
@@ -384,6 +398,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private const int NumberOfBanks = NumberOfPins / PinsPerBank;
         private const int NumberOfExternalInterrupts = 8;
         private const int NumberOfPins = 128;
+        private const uint PadKeyUnlockValue = 0x73;
         private const int PinsPerBank = 32;
 
         private enum ChipSelectConfiguration
