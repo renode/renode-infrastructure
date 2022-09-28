@@ -101,7 +101,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var pc = block.FirstInstructionPC;
             var counter = 0u;
-
+    
+            var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var insnAdditionalData);
+                                            
             while(counter < block.InstructionsCount)
             {
                 if(!TryReadAndDecodeInstruction(pc, block.DisassemblyFlags, out var opcode))
@@ -111,28 +113,35 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(IncludePC)
                 {
-                    WritePcToBuffer(pc);
+                    WritePCToBuffer(pc);
                 }
                 if(IncludeOpcode)
                 {
                     WriteByteToBuffer((byte)opcode.Length);
                     WriteBytesToBuffer(opcode);
                 }
+                while(hasAdditionalData && insnAdditionalData.PC == pc)
+                {
+                    WriteByteToBuffer((byte)insnAdditionalData.Type);
+                    WriteBytesToBuffer(insnAdditionalData.GetBinaryRepresentation());
+                    hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out insnAdditionalData);
+                }
+                WriteByteToBuffer((byte)AdditionalDataType.None);
 
                 pc += (ulong)opcode.Length;
                 counter++;
 
-                if(bufferPosition + pcWidth + (format != TraceFormat.PC ? Byte.MaxValue + 1 : 0) >= buffer.Length)
+                if(bufferPosition >= BufferFlushLevel)
                 {
                     FlushBuffer();
                 }
             }
         }
-        
+
         private bool IncludeOpcode => this.format != TraceFormat.PC;
 
         private bool IncludePC => this.format != TraceFormat.Opcode;
-        
+
         private void WriteBytesToBuffer(byte[] data)
         {
             Buffer.BlockCopy(data, 0, buffer, bufferPosition, data.Length);
@@ -144,8 +153,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             buffer[bufferPosition] = data;
             bufferPosition += 1;
         }
-        
-        private void WritePcToBuffer(ulong pc)
+
+        private void WritePCToBuffer(ulong pc)
         {
             BitHelper.GetBytesFromValue(buffer, bufferPosition, pc, pcWidth, true);
             bufferPosition += pcWidth;
@@ -199,10 +208,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly int pcWidth;
 
         private const string FormatSignature = "ReTrace";
-        private const byte FormatVersion = 1;
+        private const byte FormatVersion = 2;
 
         private const int CacheSize = 100000;
         private const int BufferSize = 10000;
+        private const int BufferFlushLevel = 9000;
     }
 
     public class TraceTextWriter : TraceWriter
@@ -227,6 +237,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var pc = block.FirstInstructionPC;
             var counter = 0;
+            var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var nextAdditionalData);
 
             while(counter < (int)block.InstructionsCount)
             {
@@ -264,19 +275,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                             }
                             break;
                     }
-
+                    while(hasAdditionalData && (nextAdditionalData.PC == result.PC))
+                    {
+                        stringBuilder.AppendFormat("{0}\n", nextAdditionalData.GetStringRepresentation());
+                        hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out nextAdditionalData);
+                    }
                     pc += (ulong)result.OpcodeSize;
                     counter++;
                 }
-
-                if(stringBuilder.Length > BufferFlushLevel)
-                {
-                    Flush();
-                }
+                FlushIfNecessary();
             }
         }
 
-        public override void Flush()
+        public override void FlushBuffer()
         {
             textWriter.Write(stringBuilder);
             textWriter.Flush();
@@ -293,11 +304,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(disposing)
             {
-                Flush();
+                FlushBuffer();
                 textWriter?.Dispose();
                 stream?.Dispose();
             }
             disposed = true;
+        }
+
+        private void FlushIfNecessary()
+        {
+            if(stringBuilder.Length > BufferFlushLevel)
+            {
+                FlushBuffer();
+            }
         }
 
         private bool TryReadAndDisassembleInstruction(ulong pc, uint flags, out DisassemblyResult result)

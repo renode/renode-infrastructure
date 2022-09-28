@@ -89,11 +89,12 @@ namespace Antmicro.Renode.Logging.Profiling
         Exception
     }
 
-    public enum MemoryOperation
+    public enum MemoryOperation: byte
     {
         MemoryIORead,
         MemoryIOWrite,
         MemoryRead,
-        MemoryWrite
+        MemoryWrite,
+        InsnFetch,
     }
 }

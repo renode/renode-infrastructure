@@ -5,14 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Collections.Concurrent;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Logging.Profiling;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -75,6 +77,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             writer.WriteHeader();
 
             blocks = new BlockingCollection<Block>();
+            currentAdditionalData = new Queue<AdditionalData>();
 
             underlyingThread = new Thread(WriterThreadBody);
             underlyingThread.IsBackground = true;
@@ -131,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         writer.Write(block);
                     }
                     while(blocks.TryTake(out block));
-                    writer.Flush();
+                    writer.FlushBuffer();
                 }
                 catch(InvalidOperationException)
                 {
@@ -140,6 +143,21 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
             writer.Dispose();
+        }
+
+        public void TrackMemoryAccesses()
+        {
+            if(AttachedCPU.Architecture == "i386")
+            {
+                throw new RecoverableException("This feature is not yet available on the X86 platforms.");
+            }
+            AttachedCPU.SetHookAtMemoryAccess((pc, operation, address) =>
+            {
+                if((MemoryOperation)operation != MemoryOperation.InsnFetch)
+                {
+                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, (MemoryOperation)operation, address));
+                }
+            });
         }
 
         private void HandleBlockEndHook(ulong pc, uint instructionsInBlock)
@@ -163,12 +181,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                     FirstInstructionPC = pc,
                     InstructionsCount = instructionsInBlock,
                     DisassemblyFlags = AttachedCPU.CurrentBlockDisassemblyFlags,
+                    AdditionalDataInTheBlock = currentAdditionalData,
                 });
             }
-            catch(Exception)
+            catch(Exception e)
             {
-                this.Log(LogLevel.Warning, "The translation block that started at 0x{0:X} will not be traced and saved to file. The ExecutionTracer isn't ready yet.", pc);
+                this.Log(LogLevel.Warning, "The translation block that started at 0x{0:X} will not be traced and saved to file. The ExecutionTracer isn't ready yet.\n Underlying error : {1}", pc, e);
             }
+            currentAdditionalData = new Queue<AdditionalData>();
         }
 
         [Transient]
@@ -177,6 +197,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Thread underlyingThread;
 
         private BlockingCollection<Block> blocks;
+        private Queue<AdditionalData> currentAdditionalData;
         private bool wasStarted;
         private bool wasStoped;
 
@@ -187,10 +208,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             public ulong FirstInstructionPC;
             public ulong InstructionsCount;
             public uint DisassemblyFlags;
+            public Queue<AdditionalData> AdditionalDataInTheBlock;
 
             public override string ToString()
             {
-                return $"[Block: starting at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions, flags: 0x{DisassemblyFlags:X}]";
+                return $"[Block: starting at 0x{FirstInstructionPC:X} with {InstructionsCount} instructions and {AdditionalDataInTheBlock.Count} additional data, flags: 0x{DisassemblyFlags:X}]";
             }
         }
     }
