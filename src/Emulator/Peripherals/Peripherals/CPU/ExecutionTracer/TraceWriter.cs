@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public virtual void WriteHeader() { }
 
-        public virtual void Flush() { }
+        public virtual void FlushBuffer() { }
 
         public TranslationCPU AttachedCPU { get; }
 
@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(disposing)
             {
-                Flush();
+                FlushBuffer();
                 stream?.Dispose();
             }
             disposed = true;
@@ -94,32 +94,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             stream.Write(Encoding.ASCII.GetBytes(FormatSignature), 0, Encoding.ASCII.GetByteCount(FormatSignature));
             stream.WriteByte(FormatVersion);
             stream.WriteByte((byte)pcWidth);
-            stream.WriteByte((byte)(format != TraceFormat.PC ? 1 : 0));
+            stream.WriteByte((byte)(IncludeOpcode ? 1 : 0));
         }
 
         public override void Write(ExecutionTracer.Block block)
         {
             var pc = block.FirstInstructionPC;
-            var counter = 0;
+            var counter = 0u;
 
-            while(counter < (int)block.InstructionsCount)
+            while(counter < block.InstructionsCount)
             {
                 if(!TryReadAndDecodeInstruction(pc, block.DisassemblyFlags, out var opcode))
                 {
                     break;
                 }
 
-                if(pcWidth > 0)
+                if(IncludePC)
                 {
-                    BitHelper.GetBytesFromValue(buffer, bufferPosition, pc, pcWidth, true);
-                    bufferPosition += pcWidth;
+                    WritePcToBuffer(pc);
                 }
-                if(format != TraceFormat.PC)
+                if(IncludeOpcode)
                 {
-                    buffer[bufferPosition] = (byte)opcode.Length;
-                    bufferPosition += 1;
-                    opcode.CopyTo(buffer, bufferPosition);
-                    bufferPosition += opcode.Length;
+                    WriteByteToBuffer((byte)opcode.Length);
+                    WriteBytesToBuffer(opcode);
                 }
 
                 pc += (ulong)opcode.Length;
@@ -127,12 +124,34 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(bufferPosition + pcWidth + (format != TraceFormat.PC ? Byte.MaxValue + 1 : 0) >= buffer.Length)
                 {
-                    Flush();
+                    FlushBuffer();
                 }
             }
         }
+        
+        private bool IncludeOpcode => this.format != TraceFormat.PC;
 
-        public override void Flush()
+        private bool IncludePC => this.format != TraceFormat.Opcode;
+        
+        private void WriteBytesToBuffer(byte[] data)
+        {
+            Buffer.BlockCopy(data, 0, buffer, bufferPosition, data.Length);
+            bufferPosition += data.Length;
+        }
+
+        private void WriteByteToBuffer(byte data)
+        {
+            buffer[bufferPosition] = data;
+            bufferPosition += 1;
+        }
+        
+        private void WritePcToBuffer(ulong pc)
+        {
+            BitHelper.GetBytesFromValue(buffer, bufferPosition, pc, pcWidth, true);
+            bufferPosition += pcWidth;
+        }
+
+        public override void FlushBuffer()
         {
             stream.Write(buffer, 0, bufferPosition);
             stream.Flush();
