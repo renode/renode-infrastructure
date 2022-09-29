@@ -27,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             base.Reset();
             RegistersCollection.Reset();
+
+            outputPinValues.Initialize();
         }
 
         public override void OnGPIO(int number, bool value)
@@ -85,8 +87,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(4, out inputEnable[regIdx], name: $"INPEN{regIdx} - Input enable for GPIO {regIdx}",
                         changeCallback: (_, newValue) => { if(State[regIdx]) HandlePinStateChangeInterrupt(regIdx, risingEdge: newValue); })
                     .WithFlag(5, out readZero[regIdx], name: $"RDZERO{regIdx} - Return 0 for read data on GPIO {regIdx}")
-                    .WithEnumField<DoubleWordRegister, InterruptEnable>(6, 2, out interruptMode[regIdx], name: $"IRPTEN{regIdx} - Interrupt enable for GPIO {regIdx}")
-                    .WithEnumField<DoubleWordRegister, IOMode>(8, 2, out ioMode[regIdx], name: $"OUTCFG{regIdx} - Pin IO mode selection for GPIO pin {regIdx}")
+                    .WithEnumField(6, 2, out interruptMode[regIdx], name: $"IRPTEN{regIdx} - Interrupt enable for GPIO {regIdx}")
+                    .WithEnumField(8, 2, out ioMode[regIdx], name: $"OUTCFG{regIdx} - Pin IO mode selection for GPIO pin {regIdx}",
+                        changeCallback: (_, __) => UpdateOutputPinState(regIdx))
                     .WithWriteCallback((_, __) =>
                     {
                         this.Log(LogLevel.Noisy, "Pin #{0} configured to IO mode {1}, input enable: {2}", regIdx, ioMode[regIdx].Value, inputEnable[regIdx].Value);
@@ -118,15 +121,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     var pinIdx = regIdx * PinsPerBank + bitIdx;
 
-                    // Let's only call the method for the pins with a state changed.
-                    if(Connections[pinIdx].IsSet != value)
+                    // Let's only call the method if the pins value is really changed.
+                    if(outputPinValues[pinIdx] != value)
                     {
-                        SetOutputPinState(pinIdx, value);
+                        SetOutputPinValue(pinIdx, value);
                     }
                 }, valueProviderCallback: (bitIdx, _) =>
                 {
                     var pinIdx = regIdx * PinsPerBank + bitIdx;
-                    return Connections[pinIdx].IsSet && IsPinOutputEnabled(pinIdx);
+                    return outputPinValues[pinIdx];
                 });
             });
 
@@ -136,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     if(value)
                     {
-                        SetOutputPinState(regIdx * PinsPerBank + bitIdx, true);
+                        SetOutputPinValue(regIdx * PinsPerBank + bitIdx, true);
                     }
                 });
             });
@@ -147,7 +150,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     if(value)
                     {
-                        SetOutputPinState(regIdx * PinsPerBank + bitIdx, false);
+                        SetOutputPinValue(regIdx * PinsPerBank + bitIdx, false);
                     }
                 });
             });
@@ -300,6 +303,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             tristatePinOutputEnabled[pinIdx] = enabled;
             this.Log(LogLevel.Debug, "GPIO #{0} tri-state {1}", pinIdx, enabled ? "enabled" : "disabled");
+
+            UpdateOutputPinState(pinIdx);
         }
 
         private void HandlePinStateChangeInterrupt(int pinIdx, bool risingEdge)
@@ -335,16 +340,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        private void SetOutputPinState(int pinIdx, bool state)
+        private void SetOutputPinValue(int pinIdx, bool state)
         {
-            if(!IsPinOutputEnabled(pinIdx))
-            {
-                this.Log(LogLevel.Warning, "Tried to {0} output pin #{1}, but it isn't enabled", state ? "set" : "clear", pinIdx);
-                return;
-            }
-
-            this.Log(LogLevel.Debug, "{0} output pin #{1}", state ? "Setting" : "Clearing", pinIdx);
-            Connections[pinIdx].Set(state);
+            outputPinValues[pinIdx] = state;
+            UpdateOutputPinState(pinIdx);
         }
 
         private void TriggerInterrupt(int pinIdx)
@@ -382,6 +381,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             irq[(int)irqType].Set(flag);
         }
 
+        private void UpdateOutputPinState(int pinIdx)
+        {
+            var newPinState = IsPinOutputEnabled(pinIdx) && outputPinValues[pinIdx];
+            if(Connections[pinIdx].IsSet != newPinState)
+            {
+                Connections[pinIdx].Set(newPinState);
+                this.Log(LogLevel.Debug, "{0} output pin #{1}", newPinState ? "Setting" : "Clearing", pinIdx);
+            }
+        }
+
         private IValueRegisterField padKey;
 
         private readonly IFlagRegisterField[] inputEnable = new IFlagRegisterField[NumberOfPins];
@@ -392,6 +401,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly IFlagRegisterField[] readZero = new IFlagRegisterField[NumberOfPins];
 
         private readonly GPIO[] irq = new [] { new GPIO(), new GPIO(), new GPIO(), new GPIO(), new GPIO(), new GPIO(), new GPIO(), new GPIO() };
+        private readonly bool[] outputPinValues = new bool[NumberOfPins];
         private readonly bool[] tristatePinOutputEnabled = new bool[NumberOfPins];
 
         private const int FirstVirtualPinIndex = 105;
