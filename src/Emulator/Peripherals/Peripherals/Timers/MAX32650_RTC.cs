@@ -34,38 +34,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             subSecondsCounter = 0;
         }
 
-        public byte SubSecondsSignificantBits => (byte)(subSecondsCounter >> 8);
+        public GPIO IRQ { get; }
 
         public long Size => 0x400;
 
-        public GPIO IRQ { get; }
-
-        private void SubsecondTick()
-        {
-            subSecondsCounter += 1;
-            if(subSecondsCounter > SubSecondTickLimit)
-            {
-                subSecondsCounter = 0;
-                secondsCounter.Value += 1;
-
-                if(timeOfDayAlarmEnabled.Value && (secondsCounter.Value & TimeOfDayAlarmMask) == timeOfDayAlarm.Value)
-                {
-                    timeOfDayAlarmFlag.Value = true;
-                }
-            }
-
-            if(subSecondAlarmEnabled.Value)
-            {
-                subSecondAlarmCounter += 1;
-                if(subSecondAlarmCounter > SubSecondAlarmMaxValue)
-                {
-                    subSecondAlarmCounter = subSecondAlarm.Value;
-                    subSecondAlarmFlag.Value = true;
-                }
-            }
-
-            UpdateInterrupts();
-        }
+        public byte SubSecondsSignificantBits => (byte)(subSecondsCounter >> 8);
 
         private void DefineRegisters()
         {
@@ -120,6 +93,33 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(6, 26);
         }
 
+        private void SubsecondTick()
+        {
+            subSecondsCounter += 1;
+            if(subSecondsCounter > SubSecondTickLimit)
+            {
+                subSecondsCounter = 0;
+                secondsCounter.Value += 1;
+
+                if(timeOfDayAlarmEnabled.Value && (secondsCounter.Value & TimeOfDayAlarmMask) == timeOfDayAlarm.Value)
+                {
+                    timeOfDayAlarmFlag.Value = true;
+                }
+            }
+
+            if(subSecondAlarmEnabled.Value)
+            {
+                subSecondAlarmCounter += 1;
+                if(subSecondAlarmCounter > SubSecondAlarmMaxValue)
+                {
+                    subSecondAlarmCounter = subSecondAlarm.Value;
+                    subSecondAlarmFlag.Value = true;
+                }
+            }
+
+            UpdateInterrupts();
+        }
+
         private void UpdateInterrupts()
         {
             var interruptPending = readyInterruptEnabled.Value;
@@ -131,24 +131,23 @@ namespace Antmicro.Renode.Peripherals.Timers
         private ulong subSecondAlarmCounter;
         private ulong subSecondsCounter;
 
-        private IValueRegisterField secondsCounter;
-
         private IFlagRegisterField canBeToggled;
         private IFlagRegisterField readyInterruptEnabled;
-        private IFlagRegisterField timeOfDayAlarmEnabled;
         private IFlagRegisterField subSecondAlarmEnabled;
-        private IFlagRegisterField timeOfDayAlarmFlag;
         private IFlagRegisterField subSecondAlarmFlag;
+        private IFlagRegisterField timeOfDayAlarmEnabled;
+        private IFlagRegisterField timeOfDayAlarmFlag;
 
-        private IValueRegisterField timeOfDayAlarm;
+        private IValueRegisterField secondsCounter;
         private IValueRegisterField subSecondAlarm;
+        private IValueRegisterField timeOfDayAlarm;
 
-        private readonly bool subSecondsMSBOverwrite;
         private readonly LimitTimer internalClock;
+        private readonly bool subSecondsMSBOverwrite;
 
+        private const ulong SubSecondAlarmMaxValue = 0xFFFFFFFF;
         private const ulong SubSecondTickLimit = 0xFFF;
         private const ulong TimeOfDayAlarmMask = 0xFFFFF;
-        private const ulong SubSecondAlarmMaxValue = 0xFFFFFFFF;
 
         private enum Registers
         {
