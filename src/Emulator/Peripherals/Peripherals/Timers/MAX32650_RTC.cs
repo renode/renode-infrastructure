@@ -4,19 +4,33 @@
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
+
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MAX32650_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_RTC(Machine machine, bool subSecondsMSBOverwrite = false) : base(machine)
+        public MAX32650_RTC(Machine machine, bool subSecondsMSBOverwrite = false, string baseDateTime = null) : base(machine)
         {
+            BaseDateTime = Misc.UnixEpoch;
+            if(baseDateTime != null)
+            {
+                if(!DateTime.TryParse(baseDateTime, out var parsedBaseDateTime))
+                {
+                    throw new Exceptions.ConstructionException($"Invalid 'baseDateTime': {baseDateTime}");
+                }
+                BaseDateTime = parsedBaseDateTime;
+            }
+
             DefineRegisters();
 
-            internalClock = new LimitTimer(machine.ClockSource, 0x1000, this, "rtc_tick", limit: 1, enabled: false, eventEnabled: true);
+            internalClock = new LimitTimer(machine.ClockSource, SubSecondCounterResolution, this, "rtc_tick", limit: 1, enabled: false, eventEnabled: true);
             internalClock.LimitReached += SubsecondTick;
 
             this.subSecondsMSBOverwrite = subSecondsMSBOverwrite;
@@ -37,11 +51,22 @@ namespace Antmicro.Renode.Peripherals.Timers
             subSecondsCounter = 0;
         }
 
+        public string PrintPreciseCurrentDateTime()
+        {
+            return CurrentDateTime.ToString("o");
+        }
+
+        public DateTime BaseDateTime { get; }
+
+        public DateTime CurrentDateTime => BaseDateTime + TimePassedSinceBaseDateTime;
+
         public GPIO IRQ { get; }
 
         public long Size => 0x400;
 
         public byte SubSecondsSignificantBits => (byte)(subSecondsCounter >> 8);
+
+        public TimeSpan TimePassedSinceBaseDateTime => TimeSpan.FromSeconds(secondsCounter + ((double)subSecondsCounter / SubSecondCounterResolution));
 
         private void DefineRegisters()
         {
@@ -103,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             lock(countersLock)
             {
                 subSecondsCounter += 1;
-                if(subSecondsCounter > SubSecondTickLimit)
+                if(subSecondsCounter >= SubSecondCounterResolution)
                 {
                     subSecondsCounter = 0;
                     secondsCounter += 1;
@@ -138,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private uint secondsCounter;
         private ulong subSecondAlarmCounter;
-        private ulong subSecondsCounter;
+        private uint subSecondsCounter;
 
         private IFlagRegisterField canBeToggled;
         private IFlagRegisterField readyInterruptEnabled;
@@ -155,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly bool subSecondsMSBOverwrite;
 
         private const ulong SubSecondAlarmMaxValue = 0xFFFFFFFF;
-        private const ulong SubSecondTickLimit = 0xFFF;
+        private const uint SubSecondCounterResolution = 4096;
         private const ulong TimeOfDayAlarmMask = 0xFFFFF;
 
         private enum Registers
