@@ -8,7 +8,7 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -18,7 +18,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             this.machine = machine;
             IRQ = new GPIO();
-            epoch = new DateTime(1970, 1, 1);
             Reset();
         }
 
@@ -31,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             switch((Offset)offset)
             {
             case Offset.Data:
-                return (uint)((machine.RealTimeClockDateTime - epoch).TotalSeconds + tickOffset);
+                return (uint)(machine.RealTimeClockDateTime - Misc.UnixEpoch).TotalSeconds + tickOffset;
             case Offset.Match:
                 return matchRegister;
             case Offset.InterruptMaskSetOrClear:
@@ -64,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 break;
             case Offset.Load:
-                tickOffset += value - ((uint)(machine.RealTimeClockDateTime - epoch).TotalSeconds + tickOffset);
+                tickOffset += value - (uint)(machine.RealTimeClockDateTime - Misc.UnixEpoch).TotalSeconds + tickOffset;
                 break;
             case Offset.Control:
                 rawInterruptStatusRegister = 0x0000;
@@ -107,7 +106,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint rawInterruptStatusRegister;
         private uint tickOffset;
 
-        private readonly DateTime epoch;
         private readonly Machine machine;
         private readonly byte[] id = { 0x31, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
 

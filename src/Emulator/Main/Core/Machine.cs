@@ -1033,7 +1033,7 @@ namespace Antmicro.Renode.Core
                 switch(RealTimeClockMode)
                 {
                 case RealTimeClockMode.Epoch:
-                    return new DateTime(1970, 1, 1);
+                    return Misc.UnixEpoch;
                 case RealTimeClockMode.HostTimeLocal:
                     return machineCreatedAt;
                 case RealTimeClockMode.HostTimeUTC:

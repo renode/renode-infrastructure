@@ -10,6 +10,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -22,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ = new GPIO();
             machine.RealTimeClockModeChanged += _ => SetDateTimeFromMachine();
 
-            var baseDateTime = new DateTime(1970, 1, 1);
+            var baseDateTime = Misc.UnixEpoch;
             internalTimer = new RTCTimer(machine, this, baseDateTime, alarmAction: () => InterruptStatus = true);
 
             DefineRegisters();

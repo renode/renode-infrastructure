@@ -1459,6 +1459,8 @@ namespace Antmicro.Renode.Utilities
             Marshal.FreeHGlobal(bufferPointer);
             return result;
         }
+
+        public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 }
 
