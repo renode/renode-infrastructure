@@ -22,6 +22,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.subSecondsMSBOverwrite = subSecondsMSBOverwrite;
 
             IRQ = new GPIO();
+
+            Reset();
         }
 
         public override void Reset()
