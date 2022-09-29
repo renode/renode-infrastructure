@@ -21,9 +21,10 @@ namespace Antmicro.Renode.Peripherals.SD
     // * Toggling selected state
     // * RCA (relative card address) filtering
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
+    // Card type (SC/HC/XC/UC) is determined based on the provided capacity
     public class SDCard : ISPIPeripheral, IDisposable
     {
-        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined, bool highCapacityMode = false)
+        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
         {
             var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize); 
             if((blockSize != BlockLength.Undefined) && (capacity % blockLenghtInBytes != 0))
@@ -32,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.SD
             }
             
             this.spiMode = spiMode;
-            this.highCapacityMode = highCapacityMode;
+            this.highCapacityMode = SDHelpers.TypeFromCapacity((ulong)capacity) != CardType.StandardCapacity_SC;
             this.capacity = capacity;
             this.blockSize = blockSize;
             spiContext = new SpiContext();
