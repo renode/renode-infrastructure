@@ -1010,7 +1010,17 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public DateTime RealTimeClockDateTime => RealTimeClockStart + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
+        public DateTime RealTimeClockDateTime
+        {
+            get
+            {
+                if(SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+                return RealTimeClockStart + ElapsedVirtualTime.TimeElapsed.ToTimeSpan();
+            }
+        }
 
         public RealTimeClockMode RealTimeClockMode
         {
