@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             RegistersCollection.Reset();
 
             outputPinValues.Initialize();
+            tristatePinOutputEnabled.Initialize();
         }
 
         public override void OnGPIO(int number, bool value)
