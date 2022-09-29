@@ -199,7 +199,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 {
                     PC = pc,
                     OpcodeSize = bytes,
-                    OpcodeString = strBldr.ToString(),
+                    OpcodeString = strBldr.ToString().Replace(" ", ""),
                     DisassemblyString = Marshal.PtrToStringAnsi(strBuf)
                 };
                 
