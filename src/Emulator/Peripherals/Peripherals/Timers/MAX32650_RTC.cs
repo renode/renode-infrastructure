@@ -27,6 +27,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 BaseDateTime = parsedBaseDateTime;
             }
+            machine.RealTimeClockModeChanged += _ => SetDateTimeFromMachine();
 
             DefineRegisters();
 
@@ -49,6 +50,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             secondsCounter = 0;
             subSecondAlarmCounter = 0;
             subSecondsCounter = 0;
+
+            SetDateTimeFromMachine(hushLog: true);
         }
 
         public string PrintPreciseCurrentDateTime()
@@ -153,6 +156,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                     this.Log(LogLevel.Info, "New date time set: {0:o}", CurrentDateTime);
                 }
             }
+        }
+
+        private void SetDateTimeFromMachine(bool hushLog = false)
+        {
+            SetDateTime(machine.RealTimeClockDateTime, hushLog);
         }
 
         private void SubsecondTick()
