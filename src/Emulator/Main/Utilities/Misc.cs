@@ -1192,15 +1192,22 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
-        public static DateTime With(this DateTime @this, int? year = null, int? month = null, int? day = null, int? hour = null, int? minute = null, int? second = null)
+        public static DateTime With(this DateTime @this, int? year = null, int? month = null, int? day = null, int? hour = null, int? minute = null, int? second = null, double? millisecond = null)
         {
-            return new DateTime(
+            var dateTime = new DateTime(
                 year ?? @this.Year,
                 month ?? @this.Month,
                 day ?? @this.Day,
                 hour ?? @this.Hour,
                 minute ?? @this.Minute,
                 second ?? @this.Second);
+
+            if(millisecond != null)
+            {
+                dateTime = dateTime.AddMilliseconds(millisecond.Value);
+            }
+
+            return dateTime;
         }
 
         public static int EnqueueRange<T>(this Queue<T> @this, IEnumerable<T> data, int? limit = null)
