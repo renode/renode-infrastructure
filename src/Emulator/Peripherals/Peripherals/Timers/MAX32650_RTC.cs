@@ -56,6 +56,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             return CurrentDateTime.ToString("o");
         }
 
+        public void SetDateTime(int? year = null, int? month = null, int? day = null, int? hour = null, int? minute = null, int? second = null, double? millisecond = null)
+        {
+            SetDateTime(CurrentDateTime.With(year, month, day, hour, minute, second, millisecond));
+        }
+
         public DateTime BaseDateTime { get; }
 
         public DateTime CurrentDateTime => BaseDateTime + TimePassedSinceBaseDateTime;
@@ -67,6 +72,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         public byte SubSecondsSignificantBits => (byte)(subSecondsCounter >> 8);
 
         public TimeSpan TimePassedSinceBaseDateTime => TimeSpan.FromSeconds(secondsCounter + ((double)subSecondsCounter / SubSecondCounterResolution));
+
+        private static uint CalculateSubSeconds(double seconds)
+        {
+            var subSecondFraction = seconds % 1;
+            return (uint)(subSecondFraction * SubSecondCounterResolution);
+        }
 
         private void DefineRegisters()
         {
@@ -121,6 +132,27 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithTaggedFlag("RTC_OSCCTRL.bypass", 4)
                 .WithTaggedFlag("RTC_OSCCTRL.32kout", 5)
                 .WithReservedBits(6, 26);
+        }
+
+        private void SetDateTime(DateTime dateTime, bool hushLog = false)
+        {
+            if(dateTime < BaseDateTime)
+            {
+                this.Log(LogLevel.Warning, "Tried to set DateTime older than the RTC's BaseDateTime ({0}): {1:o}", BaseDateTime, dateTime);
+                return;
+            }
+            var sinceBaseDateTime = dateTime - BaseDateTime;
+
+            lock(countersLock)
+            {
+                secondsCounter = (uint)sinceBaseDateTime.TotalSeconds;
+                subSecondsCounter = CalculateSubSeconds(sinceBaseDateTime.TotalSeconds);
+
+                if(!hushLog)
+                {
+                    this.Log(LogLevel.Info, "New date time set: {0:o}", CurrentDateTime);
+                }
+            }
         }
 
         private void SubsecondTick()
