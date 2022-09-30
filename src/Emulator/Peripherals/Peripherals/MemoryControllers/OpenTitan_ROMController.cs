@@ -170,12 +170,12 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             // data's width is 32 bits of proper data and 7 bits of ECC
             var dataPresent = PRESENTCipher.Descramble(data, 0, 32 + 7, NumberOfScramblingRounds);
             var dataPrince = PRINCECipher.Scramble(index | dataNonce, key[1], key[0], rounds: 6);
-            var descrabled = (uint)(dataPresent ^ dataPrince);
+            var descrabled = (dataPresent ^ dataPrince) & ((1UL << 39) - 1);
             if(index < romLengthInWords - 8 && !ECCHsiao.CheckECC(descrabled))
             {
                 this.Log(LogLevel.Warning, "ECC error at logical index 0x{0:X}", index);
             }
-            rom.WriteDoubleWord((long)index * 4, descrabled);
+            rom.WriteDoubleWord((long)index * 4, (uint)descrabled);
         }
 
         private void CalculateDigest(ulong[] words)
@@ -222,7 +222,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 var code = 0ul;
                 for(byte i = 0; i < 7; ++i)
                 {
-                    BitHelper.SetBit(ref code, i, BitHelper.CalculateParity(word & bitmask[i]));
+                    var inverted = i % 2 == 1;
+                    var bit = BitHelper.CalculateParity(word & bitmask[i]);
+                    BitHelper.SetBit(ref code, i, bit ^ inverted);
                 }
                 return (ulong)word | (code << 32);
             }
