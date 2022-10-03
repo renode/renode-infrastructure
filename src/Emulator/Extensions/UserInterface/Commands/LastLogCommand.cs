@@ -38,6 +38,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private void PrintLastLogs(ICommandInteraction writer, int numberOfEntries = DefaultNumberOfEntries)
         {
+            Logger.Flush();
             if(numberOfEntries > MemoryBackend.MaxCount)
             {
                 throw new RecoverableException($"The number of entries cannot be larger than {MemoryBackend.MaxCount}");
