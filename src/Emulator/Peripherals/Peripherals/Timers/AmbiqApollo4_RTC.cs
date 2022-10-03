@@ -69,14 +69,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             base.WriteDoubleWord(offset, value);
         }
 
-        public string PrintCurrentDateTime()
-        {
-            return internalTimer.GetCurrentDateTime().ToString("o");
-        }
-
         public string PrintNextAlarmDateTime()
         {
             return internalTimer.IsAlarmSet() ? internalTimer.GetNextAlarmDateTime().ToString("o") : "Alarm not set.";
+        }
+
+        public string PrintPreciseCurrentDateTime()
+        {
+            return CurrentDateTime.ToString("o");
         }
 
         public void SetDateTime(int? year = null, int? month = null, int? day = null, int? hours = null, int? minutes = null, int? seconds = null, int? secondHundredths = null)
@@ -119,6 +119,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             // precision. It doesn't make sense to log such a warning for the value taken from the machine.
             SetDateTimeInternal(machine.RealTimeClockDateTime, hushPrecisionWarning: true);
         }
+
+        public DateTime CurrentDateTime => internalTimer.GetCurrentDateTime();
 
         public GPIO IRQ { get; }
 
