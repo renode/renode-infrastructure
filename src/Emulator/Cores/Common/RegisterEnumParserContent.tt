@@ -1,4 +1,4 @@
-﻿<#
+<#
 //
 // Copyright (c) 2010-2018 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
@@ -30,7 +30,7 @@
             handlers = new Dictionary<Mode, Action<string>>
             {
                 { Mode.ScanForEnum,          ScanForEnumHandler          },
-                { Mode.InsideEnum,           InsideEnumHanlder           },
+                { Mode.InsideEnum,           InsideEnumHandler           },
                 { Mode.InsideUndefinedIfdef, InsideUndefinedIfdefHandler },
                 { Mode.InsideDefinedIfdef,   InsideDefinedIfdefHandler   }
             };
@@ -116,7 +116,7 @@
             }
         }
 
-        private void InsideEnumHanlder(string line)
+        private void InsideEnumHandler(string line)
         {
             if(line.Trim().StartsWith(BeginningOfIfder, StringComparison.CurrentCulture))
             {
@@ -151,11 +151,11 @@
             {
                 if(!groupedRegisters.ContainsKey(regDesc.Name))
                 {
-                    groupedRegisters[regDesc.Name] = new List<Tuple<RegisterDescriptor,int>>();
+                    groupedRegisters[regDesc.Name] = new List<Tuple<RegisterDescriptor, int>>();
                 }
 
                 var index = int.Parse(match.Groups["index"].Value);
-                groupedRegisters[regDesc.Name].Add(Tuple.Create(regDesc,index));
+                groupedRegisters[regDesc.Name].Add(Tuple.Create(regDesc, index));
             }
             else
             {
@@ -171,7 +171,7 @@
             }
             else
             {
-                InsideEnumHanlder(line);
+                InsideEnumHandler(line);
             }
         }
 
