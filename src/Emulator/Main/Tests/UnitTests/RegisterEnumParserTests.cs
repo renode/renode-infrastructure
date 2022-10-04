@@ -128,6 +128,24 @@ namespace Antmicro.Renode.CoresSourceParser
             Assert.AreEqual(17, parser.RegisterGroups[0].IndexValueMap[3]);
         }
 
+        [Test]
+        public void ShouldParseEnumWithCommentOrEmptyLines()
+        {
+            var stream = GetStreamWitString(@"typedef enum {
+
+                // Some comment
+                A_1_32 = 15,
+                
+                A_2_32 = 16,
+                //Another comment
+                A_3_32 = 17
+            } Registers;");
+
+            var parser = new RegistersEnumParser(stream);
+            Assert.AreEqual(0, parser.Registers.Length);
+            Assert.AreEqual(1, parser.RegisterGroups.Length);
+        }
+
         private static Stream GetStreamWitString(string text)
         {
             var result = new MemoryStream();
