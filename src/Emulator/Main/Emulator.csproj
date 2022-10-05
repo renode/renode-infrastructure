@@ -173,6 +173,7 @@
     <Compile Include="Core\Structure\IRegistrationPoint.cs" />
     <Compile Include="Peripherals\Bus\IBusRegistered.cs" />
     <Compile Include="Peripherals\Bus\BusRegistered.cs" />
+    <Compile Include="Peripherals\Bus\IBusController.cs" />
     <Compile Include="Peripherals\Bus\SystemBus.cs" />
     <Compile Include="Peripherals\Bus\PeripheralCollection.cs" />
     <Compile Include="Peripherals\Bus\UnhandledAccessBehaviour.cs" />
