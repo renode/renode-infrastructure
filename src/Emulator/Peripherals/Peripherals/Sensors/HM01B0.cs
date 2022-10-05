@@ -7,6 +7,7 @@
 
 using System;
 using System.IO;
+using System.Collections.Generic;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -18,43 +19,68 @@ namespace Antmicro.Renode.Peripherals.Sensors
     {
         public HiMaxHM01B0() : base(16)
         {
-            imageData = new byte[0];
+            frames = new List<byte[]>();
+            framesLock = new Object();
+            currentFrameIndex = 0;
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            currentFrameIndex = 0;
         }
 
         public byte[] ReadFrame()
         {
-            return imageData;
+            var output = new byte[0];
+            lock(framesLock)
+            {
+                if (frames.Count > 0)
+                {
+                        output = frames[currentFrameIndex];
+                        currentFrameIndex = (currentFrameIndex + 1) % frames.Count;
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "No frames available. Returning empty array");
+                }
+            }
+
+            return output;
         }
 
-        public string ImageSource 
+        public void AddFrame(string path)
         {
-            get
+            byte[] imageData;
+            try
             {
-                return imageSource;
+                imageData = File.ReadAllBytes(path);
+                this.NoisyLog("Loaded {0} bytes of image data as frame number {1}", imageData.Length, frames.Count);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException($"Could not load image from path {path}: {(e.Message)}");
             }
 
-            set
+            lock(framesLock)
             {
-                try
-                {
-                    imageData = File.ReadAllBytes(value);
-                    imageSource = value;
-
-                    this.NoisyLog("Loaded {0} bytes of image data to buffer", imageData.Length);
-                }
-                catch(Exception e)
-                {
-                    throw new RecoverableException($"Could not load image {value}: {(e.Message)}");
-                }
+                frames.Add(imageData);
             }
+        }
+        
+        public void DropFrames()
+        {
+            currentFrameIndex = 0;
+            frames.Clear();
         }
 
         protected override void DefineRegisters()
         {
         }
-        
-        private byte[] imageData;
-        private string imageSource;
+
+        private readonly List<byte[]> frames;
+        private readonly Object framesLock;
+        private int currentFrameIndex;
 
         // based on https://github.com/sparkfun/SparkFun_Apollo3_AmbiqSuite_BSPs/blob/master/common/third_party/hm01b0/HM01B0.h 
         public enum Registers
