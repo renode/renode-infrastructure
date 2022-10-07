@@ -12,24 +12,23 @@ using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class SAMD5_UART : UARTBase, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
+    [AllowedTranslations(AllowedTranslation.DoubleWordToByte | AllowedTranslation.WordToByte)]
+    public class SAMD5_UART : UARTBase, IBytePeripheral, IKnownSize, IProvidesRegisterCollection<ByteRegisterCollection>
     {
         public SAMD5_UART(Machine machine) : base(machine)
         {
-            RegistersCollection = new DoubleWordRegisterCollection(this);
+            RegistersCollection = new ByteRegisterCollection(this);
             IRQ = new GPIO();
             DefineRegisters();
-            
             Reset();
         }
 
-        public uint ReadDoubleWord(long offset)
+        public byte ReadByte(long offset)
         {
             return RegistersCollection.Read(offset);
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public void WriteByte(long offset, byte value)
         {
             RegistersCollection.Write(offset, value);
         }
@@ -42,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public GPIO IRQ { get; }
 
-        public DoubleWordRegisterCollection RegistersCollection { get; }
+        public ByteRegisterCollection RegistersCollection { get; }
 
         public long Size => 0x100;
 
@@ -61,13 +60,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void QueueEmptied()
         {
+            receiveStart.Value = false;
             receiveComplete.Value = false;
             UpdateInterrupt();
         }
 
         private void DefineRegisters()
         {
-            Registers.DataRegister.Define(this)
+            Registers.DataRegister0.Define(this)
                 .WithValueField(0, 8, name: "DATA",
                     valueProviderCallback: _ =>
                     {
@@ -85,7 +85,6 @@ namespace Antmicro.Renode.Peripherals.UART
                         transmitComplete.Value = true;
                         UpdateInterrupt();
                     })
-                .WithReservedBits(8, 24)
             ;
 
             Registers.InterruptFlag.Define(this)
@@ -111,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("ERROR Interrupt Enable", 7)
                 .WithWriteCallback((_, __) => UpdateInterrupt())
             ;
-            
+
             Registers.InterruptEnableSet.Define(this)
                 .WithFlag(0, name: "DRE - Data Register Empty Interrupt Enable", valueProviderCallback: _ => dataRegisterEmptyInterruptEnable.Value, writeCallback: (_, val) => { dataRegisterEmptyInterruptEnable.Value |= val; })
                 .WithFlag(1, name: "TXC - Transmit Complete Interrupt Enable", valueProviderCallback: _ => transmitCompleteInterruptEnable.Value, writeCallback: (_, val) => { transmitCompleteInterruptEnable.Value |= val; })
@@ -127,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupt()
         {
-            var flag = (dataRegisterEmptyInterruptEnable.Value && Count > 0)
+            var flag = (dataRegisterEmptyInterruptEnable.Value && Count == 0)
                 || (transmitCompleteInterruptEnable.Value && transmitComplete.Value)
                 || (receiveCompleteInterruptEnable.Value && receiveComplete.Value)
                 || (receiveStartInterruptEnable.Value && receiveStart.Value);
@@ -147,19 +146,37 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private enum Registers : long
         {
-            ControlA = 0x0,
-            ControlB = 0x4,
-            ControlC = 0x8,
-            Baud = 0xC,
+            ControlA0 = 0x0,
+            ControlA1 = 0x1,
+            ControlA2 = 0x2,
+            ControlA3 = 0x3,
+            ControlB0 = 0x4,
+            ControlB1 = 0x5,
+            ControlB2 = 0x6,
+            ControlB3 = 0x7,
+            ControlC0 = 0x8,
+            ControlC1 = 0x9,
+            ControlC2 = 0xA,
+            ControlC3 = 0xB,
+            Baud0 = 0xC,
+            Baud1 = 0xD,
             ReceivePulseLength = 0xE,
             InterruptEnableClear = 0x14,
             InterruptEnableSet = 0x16,
             InterruptFlag = 0x18,
-            Status = 0x1A,
-            SynchronizationBusy = 0x1C,
+            Status0 = 0x1A,
+            Status1 = 0x1B,
+            SynchronizationBusy0 = 0x1C,
+            SynchronizationBusy1 = 0x1D,
+            SynchronizationBusy2 = 0x1E,
+            SynchronizationBusy3 = 0x1F,
             ReceiveErrorCount = 0x20,
-            Length = 0x22,
-            DataRegister = 0x28,
+            Length0 = 0x22,
+            Length1 = 0x23,
+            DataRegister0 = 0x28,
+            DataRegister1 = 0x29,
+            DataRegister2 = 0x2A,
+            DataRegister3 = 0x2B,
             DebugControl = 0x30
         }
     }
