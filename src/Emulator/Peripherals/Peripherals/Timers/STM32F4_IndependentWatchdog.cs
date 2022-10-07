@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         //TODO: Use RCC to set restart cause.
         public STM32F4_IndependentWatchdog(Machine machine, long frequency) : base(machine)
         {
-            watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, "STM32_IWDG", DefaultReloadValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true);
+            watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, "STM32_IWDG", DefaultReloadValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true, divider: DefaultPrescalerValue);
             watchdogTimer.LimitReached += TimerLimitReachedCallback;
             DefineRegisters();
             Reset();
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private const uint DefaultReloadValue = 0xFFF;
         private const uint DefaultWindow = 0xFFF;
-        private const uint DefaultPrescalerValue = 4;
+        private const int DefaultPrescalerValue = 4;
 
         private enum Key
         {
