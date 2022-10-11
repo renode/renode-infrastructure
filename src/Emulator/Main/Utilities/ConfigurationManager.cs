@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -93,6 +93,8 @@ namespace Antmicro.Renode.Utilities
             AddToCache(group, name, value);
             config.Set(name, value);
         }
+
+        public string FilePath => Config.FileName;
 
         private IConfig VerifyValue(string group, string name, object defaultValue)
         {
