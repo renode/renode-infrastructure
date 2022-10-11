@@ -296,6 +296,7 @@
     <Compile Include="Peripherals\CPU\ICPUWithExternalMmu.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMappedMemory.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithRegisters.cs" />
+    <Compile Include="Peripherals\CPU\ICPUWithOpcodeHooks.cs" />
     <Compile Include="Peripherals\CPU\IInitableCPU.cs" />
     <Compile Include="Peripherals\CPU\CPURegister.cs" />
     <Compile Include="Utilities\ConfigurationManager.cs" />

@@ -17,11 +17,12 @@ using Antmicro.Renode.Peripherals.CFU;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Migrant;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks
     {
         protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
                 : base(hartId, cpuType, machine, endianness, bitness)
@@ -67,6 +68,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ChildCollection = new Dictionary<int, ICFU>();
 
             customOpcodes = new List<Tuple<string, ulong, ulong>>();            
+            postOpcodeExecutionHooks = new List<Action<ulong>>();
         }
 
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
@@ -238,6 +240,27 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibSetVector(registerNumber, elementIndex, value.Value);
             }
             return TlibGetVector(registerNumber, elementIndex);
+        }
+
+        public void EnablePostOpcodeExecutionHooks(uint value)
+        {
+            TlibEnablePostOpcodeExecutionHooks(value != 0 ? 1u : 0u);
+        }
+
+        public void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong> action)
+        {
+            var index = TlibInstallPostOpcodeExecutionHook(mask, value);
+            if(index == UInt32.MaxValue)
+            {
+                throw new RecoverableException("Unable to register opcode hook. Maximum number of hooks already installed");
+            }
+            // Assert that the list index will match the one returned from the core
+            if(index != postOpcodeExecutionHooks.Count)
+            {
+                throw new ApplicationException("Mismatch in the post-execution opcode hooks on the C# and C side." +
+                                                " One of them miss at least one element");
+            }
+            postOpcodeExecutionHooks.Add(action);
         }
 
         public CSRValidationLevel CSRValidation
@@ -559,6 +582,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pcWrittenFlag ? 1 : 0;
         }
 
+        [Export]
+        private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc)
+        {
+            this.NoisyLog($"Got opcode hook no {id} from PC {pc}");
+            if(id < (uint)postOpcodeExecutionHooks.Count)
+            {
+                postOpcodeExecutionHooks[(int)id].Invoke(pc);
+            }
+            else
+            {
+                this.Log(LogLevel.Error, "Received opcode hook with non-existing id = {0}", id);
+            }
+        }
+        
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private bool pcWrittenFlag;
@@ -574,6 +611,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Dictionary<SimpleCSR, ulong> simpleCSRs = new Dictionary<SimpleCSR, ulong>();
 
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
+        
+        [Constructor]
+        private readonly List<Action<ulong>> postOpcodeExecutionHooks;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -642,6 +682,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt32IntPtr TlibSetWholeVector;
+        
+        [Import]
+        private ActionUInt32 TlibEnablePostOpcodeExecutionHooks;
+
+        [Import]
+        private FuncUInt32UInt64UInt64 TlibInstallPostOpcodeExecutionHook;
 
 #pragma warning restore 649
 

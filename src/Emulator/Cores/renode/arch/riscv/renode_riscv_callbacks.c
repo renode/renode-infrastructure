@@ -15,3 +15,4 @@ EXTERNAL_AS(action_uint64_uint64, WriteCSR, tlib_write_csr)
 EXTERNAL(action_uint64, tlib_mip_changed)
 
 EXTERNAL_AS(func_int32_uint64_uint64, HandleCustomInstruction, tlib_handle_custom_instruction)
+EXTERNAL_AS(action_uint32_uint64, HandlePostOpcodeExecutionHook, tlib_handle_post_opcode_execution_hook)
