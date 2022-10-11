@@ -160,6 +160,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             });
         }
 
+        public void TrackVectorConfiguration()
+        {
+            if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
+            {
+                throw new RecoverableException("This feature is not available on this platform");
+            }
+            var cpuWithPostOpcodeExecutionHooks = AttachedCPU as ICPUWithPostOpcodeExecutionHooks;
+            cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
+            // 0x7057 it the fixed part of the vcfg opcodes
+            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc) =>
+            {
+                var vl = AttachedCPU.GetRegisterUnsafe(RiscVVlRegisterIndex);
+                var vtype = AttachedCPU.GetRegisterUnsafe(RiscVVtypeRegisterIndex);
+                currentAdditionalData.Enqueue(new RiscVVectorConfigurationData(pc, vl.RawValue, vtype.RawValue));
+            });
+        }
+
         private void HandleBlockEndHook(ulong pc, uint instructionsInBlock)
         {
             if(instructionsInBlock == 0 || wasStoped)
@@ -202,6 +219,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool wasStoped;
 
         private readonly TraceWriterBuilder writerBuilder;
+
+        private const int RiscVVlRegisterIndex = 3104;
+        private const int RiscVVtypeRegisterIndex = 3105;
 
         public struct Block
         {

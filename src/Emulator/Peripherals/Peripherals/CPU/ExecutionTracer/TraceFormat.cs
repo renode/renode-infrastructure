@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         None = 0,
         MemoryAccess = 1,
+        RiscVVectorConfiguration = 2,
     }
 
     public abstract class AdditionalData
@@ -72,5 +73,50 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly ulong operationTarget;
         private readonly MemoryOperation operationType;
+    }
+
+    public class RiscVVectorConfigurationData : AdditionalData
+    {
+        public RiscVVectorConfigurationData(ulong pc, ulong vl, ulong vtype) : base(pc, AdditionalDataType.RiscVVectorConfiguration)
+        {
+            this.VectorLength = vl;
+            this.VectorType = vtype;
+        }
+
+        public override string GetStringRepresentation()
+        {
+            return $"Vector configured to VL: 0x{VectorLength:X}, VTYPE: 0x{VectorType:X}";
+        }
+
+        public override byte[] GetBinaryRepresentation()
+        {
+            /*
+              [0] = [VectorLength 63:56]
+              [1] = [VectorLength 55:48]
+              [2] = [VectorLength 47:40]
+              [3] = [VectorLength 39:32]
+              [4] = [VectorLength 31:24]
+              [5] = [VectorLength 23:16]
+              [6] = [VectorLength 15:8]
+              [7] = [VectorLength 7:0]
+              [8] = [VectorType 63:56]
+              [9] = [VectorType 55:48]
+              [10] = [VectorType 47:40]
+              [11] = [VectorType 39:32]
+              [12] = [VectorType 31:24]
+              [13] = [VectorType 23:16]
+              [14] = [VectorType 15:8]
+              [15] = [VectorType 7:0]
+            */
+            var byteLength = sizeof(ulong) * 2;
+            var output = new byte[byteLength];
+
+            BitHelper.GetBytesFromValue(output, 0, VectorLength, sizeof(ulong), true);
+            BitHelper.GetBytesFromValue(output, sizeof(ulong), VectorType, sizeof(ulong), true);
+            return output;
+        }
+
+        public ulong VectorLength { get; }
+        public ulong VectorType { get; }
     }
 }
