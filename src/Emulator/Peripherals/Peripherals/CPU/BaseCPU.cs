@@ -203,8 +203,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool DebuggerConnected { get; set; }
 
-        public virtual int CyclesPerInstruction { get; set; }
-        
         public override bool IsHalted
         {
             get

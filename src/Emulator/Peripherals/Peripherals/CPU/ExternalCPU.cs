@@ -21,7 +21,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ExternalCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
             : base(0, cpuType, machine, endianness, bitness)
         {
-            CyclesPerInstruction = 1;
             throw new Exception("This is only a stub class that should not be directly used in a platform");
         }
 

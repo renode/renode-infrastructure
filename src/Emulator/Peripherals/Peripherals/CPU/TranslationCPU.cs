@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public override int CyclesPerInstruction
+        public int CyclesPerInstruction
         {
             get
             {
