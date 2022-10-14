@@ -135,6 +135,66 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public bool IsGyroscopePoweredOn => IsDataRateEnabledAndDefined(gyroscopeOutputDataRateSelection.Value, isGyroscopeOutputDataRate: true);
         public GPIO Interrupt1 { get; }
 
+        public decimal DefaultAccelerationX 
+        { 
+            get => defaultAccelerationX;
+            set
+            {
+                defaultAccelerationX = value;
+                UpdateDefaultAccelerationSample();
+            }
+        }
+
+        public decimal DefaultAccelerationY 
+        { 
+            get => defaultAccelerationY;
+            set
+            {
+                defaultAccelerationY = value;
+                UpdateDefaultAccelerationSample();
+            }
+        }
+
+        public decimal DefaultAccelerationZ 
+        { 
+            get => defaultAccelerationZ;
+            set
+            {
+                defaultAccelerationZ = value;
+                UpdateDefaultAccelerationSample();
+            }
+        }
+
+        public decimal DefaultAngularRateX
+        {
+            get => defaultAngularRateX;
+            set
+            {
+                defaultAngularRateX = value;
+                UpdateDefaultAngularRateSample();
+            }
+        }
+
+        public decimal DefaultAngularRateY
+        {
+            get => defaultAngularRateY;
+            set
+            {
+                defaultAngularRateY = value;
+                UpdateDefaultAngularRateSample();
+            }
+        }
+
+        public decimal DefaultAngularRateZ
+        {
+            get => defaultAngularRateZ;
+            set
+            {
+                defaultAngularRateZ = value;
+                UpdateDefaultAngularRateSample();
+            }
+        }
+
         // NOTE: The meaning of this field
         // is the default value of the channel
         // when there are no samples in the fifo
@@ -294,8 +354,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 ;
 
             Registers.FifoControl3.Define(this)
-                .WithEnumField(0, 4, out accelerometerFifoBatchingDataRateSelection, name: "BDR_XL")
-                .WithEnumField(4, 4, out gyroscopeFifoBatchingDataRateSelection, name: "BDR_GY")
+                .WithEnumField(0, 4, out accelerometerFifoBatchingDataRateSelection, name: "BDR_XL",
+                    changeCallback: (_, __) =>
+                    {
+                        UpdateDefaultAccelerationSample();
+                    }
+                )
+                .WithEnumField(4, 4, out gyroscopeFifoBatchingDataRateSelection, name: "BDR_GY",
+                    changeCallback: (_, __) =>
+                    {
+                        UpdateDefaultAngularRateSample();
+                    }
+                )
                 ;
 
             Registers.FifoControl4.Define(this)
@@ -463,6 +533,42 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private uint DataRateToFrequency(DataRates dr)
+        {
+            switch(dr)
+            {
+                // here we select the middle value, rounded down as currently we don't support fractions of Hz when declaring frequencies
+                case DataRates._1_6HzOr6_5HzOr12_5Hz:
+                    return 5;
+                case DataRates._12_5Hz:
+                    // here we need to round the value down as currently we don't support fractions of Hz when declaring frequencies
+                    return 12;
+                case DataRates._26Hz:
+                    return 26;
+                case DataRates._52Hz:
+                    return 52;
+                case DataRates._104Hz:
+                    return 104;
+                case DataRates._208Hz:
+                    return 208;
+                case DataRates._416Hz:
+                    return 416;
+                case DataRates._833Hz:
+                    return 833;
+                case DataRates._1_66kHz:
+                    return 1660;
+                case DataRates._3_33kHz:
+                    return 3330;
+                case DataRates._6_66kHz:
+                    return 6660;
+                default:
+                    throw new Exception($"Unexpected data rate: {dr}");
+            }
+        }
+
+        private IManagedThread accelerometerFeederThread;
+        private IManagedThread gyroFeederThread;
+
         private decimal accelerationSensitivity;
         private byte address;
         private decimal angularRateSensitivity;
@@ -493,7 +599,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private class LSM6DSO_FIFO : SensorSamplesFifo<LSM6DSO_Vector3DSample>
         {
-            public LSM6DSO_FIFO(Machine machine, IPeripheral owner, string name, uint capacity) : base()
+            public LSM6DSO_FIFO(Machine machine, LSM6DSO_IMU owner, string name, uint capacity) : base()
             {
                 Capacity = capacity;
                 this.machine = machine;
@@ -555,12 +661,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public void FeedAccelerationSamplesFromBinaryFile(string path, string delayString)
             {
-                FeedSamplesFromBinaryFile(path, delayString, DefaultAccelerometerTag);
+                owner.accelerometerFeederThread?.Stop();
+                owner.accelerometerFeederThread = FeedSamplesFromBinaryFile(path, delayString, DefaultAccelerometerTag, onFinish: () =>
+                {
+                    owner.UpdateDefaultAccelerationSample();
+                });
             }
 
             public void FeedAngularRateSamplesFromBinaryFile(string path, string delayString)
             {
-                FeedSamplesFromBinaryFile(path, delayString, DefaultGyroscopeTag);
+                owner.gyroFeederThread?.Stop();
+                owner.gyroFeederThread = FeedSamplesFromBinaryFile(path, delayString, DefaultGyroscopeTag, onFinish: () =>
+                {
+                    owner.UpdateDefaultAngularRateSample();
+                });;
             }
 
             public override void Reset()
@@ -636,15 +750,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 );
             }
 
-            private void FeedSamplesFromBinaryFile(string path, string delayString, FifoTag tag)
+            private IManagedThread FeedSamplesFromBinaryFile(string path, string delayString, FifoTag tag, Action onFinish)
             {
-                FeedSamplesFromBinaryFile(machine, owner, name, path, delayString,
+                return FeedSamplesFromBinaryFile(machine, owner, name, path, delayString,
                     sampleConstructor: values =>
                     {
                         var sample = new LSM6DSO_Vector3DSample(tag);
                         sample.Load(values);
                         return sample;
-                    }
+                    },
+                    onFinish: onFinish
                 );
             }
 
@@ -694,7 +809,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             private readonly Machine machine;
             private readonly string name;
-            private readonly IPeripheral owner;
+            private readonly LSM6DSO_IMU owner;
         }
 
         private class LSM6DSO_Vector3DSample : Vector3DSample
@@ -801,6 +916,45 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             private FifoTag tag;
         }
+
+        private void UpdateDefaultAccelerationSample()
+        {
+            accelerometerFeederThread?.Stop();
+            if(accelerometerFifoBatchingDataRateSelection.Value != DataRates.Disabled)
+            {
+                var freq = DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value);
+                var defaultSample = new LSM6DSO_Vector3DSample(LSM6DSO_FIFO.DefaultAccelerometerTag, DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ);
+                accelerometerFeederThread = commonFifo.FeedSamplesPeriodically(machine, this, "default_sample_acc", "0", freq, new [] { defaultSample });
+                this.Log(LogLevel.Debug, "Started feeding default acceleration samples at {0}Hz", freq);
+            }
+            else
+            {
+                this.Log(LogLevel.Debug, "Stopped feeding default acceleration samples");
+            }
+        }
+
+        private void UpdateDefaultAngularRateSample()
+        {
+            gyroFeederThread?.Stop();
+            if(gyroscopeFifoBatchingDataRateSelection.Value != DataRates.Disabled)
+            {
+                var freq = DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value);
+                var defaultSample = new LSM6DSO_Vector3DSample(LSM6DSO_FIFO.DefaultGyroscopeTag, DefaultAngularRateX, DefaultAngularRateY, DefaultAngularRateZ);
+                gyroFeederThread = commonFifo.FeedSamplesPeriodically(machine, this, "default_sample_gyro", "0", freq, new [] { defaultSample });
+                this.Log(LogLevel.Debug, "Started feeding default gyroscope samples at {0}Hz", freq);
+            }
+            else
+            {
+                this.Log(LogLevel.Debug, "Stopped feeding default gyroscope samples");
+            }
+        }
+
+        private decimal defaultAccelerationX;
+        private decimal defaultAccelerationY;
+        private decimal defaultAccelerationZ;
+        private decimal defaultAngularRateX;
+        private decimal defaultAngularRateY;
+        private decimal defaultAngularRateZ;
 
         private struct SampleReadingRegisterInfo
         {
