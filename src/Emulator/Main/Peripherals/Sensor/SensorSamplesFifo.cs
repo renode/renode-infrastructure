@@ -8,6 +8,8 @@
 using System;
 using System.Linq;
 using System.IO;
+using System.Threading;
+using System.Collections;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
@@ -40,7 +42,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedSamplesFromBinaryFile(Machine machine, IPeripheral owner, string name, string path, string delayString, Func<List<decimal>, T> sampleConstructor = null)
+        public IManagedThread FeedSamplesPeriodically(Machine machine, IPeripheral owner, string name, string delayString, uint frequency, IEnumerable<T> samples)
+        {
+            if(!TimeInterval.TryParse(delayString, out var delay))
+            {
+                throw new RecoverableException($"Invalid delay: {delayString}");
+            }
+
+            return FeedSamplesInner(machine, owner, name, delay, frequency, samples, true);
+        }
+
+        public IManagedThread FeedSamplesFromBinaryFile(Machine machine, IPeripheral owner, string name, string path, string delayString, Func<List<decimal>, T> sampleConstructor = null, Action onFinish = null)
         {
             if(sampleConstructor == null)
             {
@@ -58,13 +70,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             TimeInterval? firstPacketStartTime = null;
 
+            var result = new ManagedThreadsContainer();
             var packets = SensorSamplesPacket<T>.ParseFile(path, sampleConstructor);
             foreach(var packet in packets)
             {
                 firstPacketStartTime = firstPacketStartTime ?? packet.StartTime;
                 var packetDelay = packet.StartTime - firstPacketStartTime.Value + delay;
-                FeedSamplesPeriodically(machine, owner, name, packetDelay, packet.Frequency, packet.Samples);
+                var feeder = FeedSamplesInner(machine, owner, name, packetDelay, packet.Frequency, packet.Samples, false, onFinish);
+                result.Add(feeder);
             }
+
+            return result;
         }
 
         public void FeedSamplesFromFile(string path, Func<string[], T> sampleConstructor = null)
@@ -102,29 +118,36 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public uint SamplesCount => (uint)samplesFifo.Count;
 
-        private void FeedSamplesPeriodically(Machine machine, IPeripheral owner, string name, TimeInterval startDelay, uint frequency, Queue<T> samples)
+        private IManagedThread FeedSamplesInner(Machine machine, IPeripheral owner, string name, TimeInterval startDelay, uint frequency, IEnumerable<T> samples, bool repeatMode = false, Action onFinish = null)
         {
-            owner.Log(LogLevel.Noisy, "{0}: {1} samples will be fed at {2} Hz starting at {3:c}", name, samples.Count, frequency, startDelay.ToTimeSpan());
+            var samplesBuffer = new SamplesBuffer(samples, autoRewind: repeatMode);
+            
+            owner.Log(LogLevel.Noisy, "{0}: {1} samples will be fed at {2} Hz starting at {3:c}", name, samplesBuffer.TotalSamplesCount, frequency, startDelay.ToTimeSpan());
 
             Action feedSample = () =>
             {
-                var sample = samples.Dequeue();
-                owner.Log(LogLevel.Noisy, "{0} {1}: Feeding sample: {2}; samples left: {3}", machine.ElapsedVirtualTime.TimeElapsed, name, sample, samples.Count);
+                if(!samplesBuffer.TryGetNextSample(out var sample))
+                {
+                    return;
+                }
+                owner.Log(LogLevel.Noisy, "{0} {1}: Feeding sample {2}/{3}: {4}", machine.ElapsedVirtualTime.TimeElapsed, name, samplesBuffer.CurrentSampleIndex, samplesBuffer.TotalSamplesCount, sample);
                 FeedSample(sample);
             };
 
             Func<bool> stopCondition = () =>
             {
-                if(samples.Count == 0)
+                if(samplesBuffer.IsFinished)
                 {
                     owner.Log(LogLevel.Noisy, "{0} {1}: All samples fed", machine.ElapsedVirtualTime.TimeElapsed, name);
+                    onFinish?.Invoke();
                     return true;
                 }
                 return false;
             };
 
-            var thread = machine.ObtainManagedThread(feedSample, frequency, name + " sample loader", owner, stopCondition);
-            thread.StartDelayed(startDelay);
+            var feederThread = machine.ObtainManagedThread(feedSample, frequency, name + " sample loader", owner, stopCondition);
+            feederThread.StartDelayed(startDelay);
+            return feederThread;
         }
 
         private IEnumerable<T> ParseSamplesFile(string path, Func<string[], T> sampleConstructor)
@@ -173,5 +196,84 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private T currentSample;
         private readonly Queue<T> samplesFifo;
+
+        private class ManagedThreadsContainer : IManagedThread
+        {
+            public void Add(IManagedThread t)
+            {
+                threads.Add(t);
+            }
+
+            public void Dispose()
+            {
+                foreach(var t in threads)
+                {
+                    t.Dispose();
+                }
+            }
+
+            public void Start()
+            {
+                foreach(var t in threads)
+                {
+                    t.Start();
+                }
+            }
+            
+            public void StartDelayed(TimeInterval i)
+            {
+                foreach(var t in threads)
+                {
+                    t.StartDelayed(i);
+                }
+            }
+            
+            public void Stop()
+            {
+                foreach(var t in threads)
+                {
+                    t.Stop();
+                }
+            }
+
+            private readonly List<IManagedThread> threads = new List<IManagedThread>();
+        }
+        
+        private class SamplesBuffer
+        {
+            public SamplesBuffer(IEnumerable<T> samples, bool autoRewind)
+            {
+                internalSamples = new List<T>(samples);
+                this.autoRewind = autoRewind;
+            }
+
+            public bool TryGetNextSample(out T sample)
+            {
+                if(IsFinished)
+                {
+                    sample = default(T);
+                    return false;
+                }
+
+                // if `autoRewind` was false, IsFinished would return `false`
+                if(CurrentSampleIndex == internalSamples.Count)
+                {
+                    CurrentSampleIndex = 0;
+                }
+
+                sample = internalSamples[CurrentSampleIndex];
+                CurrentSampleIndex++;
+                return true;
+            }
+
+            public bool IsFinished => internalSamples.Count == 0 || (CurrentSampleIndex == internalSamples.Count && !autoRewind);
+
+            public int TotalSamplesCount => internalSamples.Count;
+
+            public int CurrentSampleIndex { get; private set; }
+
+            private readonly bool autoRewind;
+            private readonly List<T> internalSamples;
+        }
     }
 }
