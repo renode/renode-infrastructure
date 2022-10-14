@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // ...
             // `number = 22` -> RTC Wakeup event (EXTI22 - Interrupt 13)
 
-            if(number > MaxEXTILines)
+            if(number > MaxEXTILines - 1)
             {
                 this.Log(LogLevel.Error, "Given value: {0} exceeds maximum EXTI lines: {1}", number, MaxEXTILines);
                 return;
