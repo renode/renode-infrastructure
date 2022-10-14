@@ -5,20 +5,25 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Text;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class AmbiqApollo4_IOMaster : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class AmbiqApollo4_IOMaster : IPeripheralContainer<ISPIPeripheral, TypedNumberRegistrationPoint<int>>, IPeripheralContainer<II2CPeripheral, TypedNumberRegistrationPoint<int>>,
+        IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IPeripheral, IKnownSize
     {
-        public AmbiqApollo4_IOMaster(Machine machine) : base(machine)
+        public AmbiqApollo4_IOMaster(Machine machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
 
@@ -30,23 +35,20 @@ namespace Antmicro.Renode.Peripherals.SPI
             outgoingFifo = new Fifo("outgoing FIFO", this);
             outgoingFifo.SetCountChangeAction(OutgoingFifoCountChangeAction);
 
+            spiPeripherals = new Dictionary<int, ISPIPeripheral>();
+            i2cPeripherals = new Dictionary<int, II2CPeripheral>();
+
+            this.machine = machine;
+
             DefineRegisters();
             Reset();
         }
 
-        public override void Register(ISPIPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
-        {
-            if(registrationPoint.Address < 0 || registrationPoint.Address >= MaxSpiPeripheralsConnected)
-            {
-                throw new Exceptions.ConstructionException($"Invalid SPI peripheral ID: {registrationPoint.Address}! Only IDs from 0 to {MaxSpiPeripheralsConnected - 1} are valid.");
-            }
-            base.Register(peripheral, registrationPoint);
-        }
-
-        public override void Reset()
+        public void Reset()
         {
             activeTransactionContinue = false;
-            activeTransactionPeripheralId = 0;
+            activeSpiSlaveSelect = 0;
+            i2cSlaveAddress = 0;
 
             RegistersCollection.Reset();
             activeTransactionStatus.Value = CommandStatuses.Idle;
@@ -65,6 +67,48 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             RegistersCollection.Write(offset, value);
         }
+
+        public void Register(ISPIPeripheral peripheral, TypedNumberRegistrationPoint<int> registrationPoint)
+        {
+            if(registrationPoint.Address < 0 || registrationPoint.Address >= MaxSpiPeripheralsConnected)
+            {
+                throw new ConstructionException($"Invalid SPI peripheral ID: {registrationPoint.Address}! Only IDs from 0 to {MaxSpiPeripheralsConnected - 1} are valid.");
+            }
+            Register(spiPeripherals, peripheral, registrationPoint.WithType<ISPIPeripheral>());
+        }
+
+        public void Register(II2CPeripheral peripheral, TypedNumberRegistrationPoint<int> registrationPoint)
+        {
+            Register(i2cPeripherals, peripheral, registrationPoint.WithType<II2CPeripheral>());
+        }
+
+        public void Unregister(ISPIPeripheral peripheral)
+        {
+            Unregister(spiPeripherals, peripheral);
+        }
+
+        public void Unregister(II2CPeripheral peripheral)
+        {
+            Unregister(i2cPeripherals, peripheral);
+        }
+
+        public IEnumerable<TypedNumberRegistrationPoint<int>> GetRegistrationPoints(ISPIPeripheral peripheral)
+        {
+            return spiPeripherals.Keys.Select(x => new TypedNumberRegistrationPoint<int>(x, typeof(ISPIPeripheral)))
+                .ToList();
+        }
+
+        public IEnumerable<TypedNumberRegistrationPoint<int>> GetRegistrationPoints(II2CPeripheral peripheral)
+        {
+            return i2cPeripherals.Keys.Select(x => new TypedNumberRegistrationPoint<int>(x, typeof(II2CPeripheral)))
+                .ToList();
+        }
+
+        IEnumerable<IRegistered<ISPIPeripheral, TypedNumberRegistrationPoint<int>>> IPeripheralContainer<ISPIPeripheral, TypedNumberRegistrationPoint<int>>.Children =>
+            spiPeripherals.Select(x => Registered.Create(x.Value, new TypedNumberRegistrationPoint<int>(x.Key, typeof(ISPIPeripheral)))).ToList();
+
+        IEnumerable<IRegistered<II2CPeripheral, TypedNumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, TypedNumberRegistrationPoint<int>>.Children =>
+            i2cPeripherals.Select(x => Registered.Create(x.Value, new TypedNumberRegistrationPoint<int>(x.Key, typeof(II2CPeripheral)))).ToList();
 
         public GPIO IRQ { get; }
 
@@ -174,13 +218,21 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.SubmoduleControl.Define(this)
                 .WithFlag(0, out spiMasterEnabled, name: "SMOD0EN")
                 .WithEnumField<DoubleWordRegister, SubmoduleTypes>(1, 3, FieldMode.Read, name: "SMOD0TYPE", valueProviderCallback: _ => SubmoduleTypes.SpiMaster)
-                .WithTaggedFlag("SMOD1EN", 4)
-                // It should be I2CMaster (0x1), but I2C isn't currently supported so let's mark it as NotInstalled.
-                .WithEnumField<DoubleWordRegister, SubmoduleTypes>(5, 3, FieldMode.Read, name: "SMOD1TYPE", valueProviderCallback: _ => SubmoduleTypes.NotInstalled)
+                .WithFlag(4, out i2cMasterEnabled, name: "SMOD1EN")
+                .WithEnumField<DoubleWordRegister, SubmoduleTypes>(5, 3, FieldMode.Read, name: "SMOD1TYPE", valueProviderCallback: _ => SubmoduleTypes.I2CMaster)
                 .WithTaggedFlag("SMOD2EN", 8)
                 // It should be I2SMaster_Slave (0x4), but I2S isn't currently supported so let's mark it as NotInstalled.
                 .WithEnumField<DoubleWordRegister, SubmoduleTypes>(9, 3, FieldMode.Read, name: "SMOD2TYPE", valueProviderCallback: _ => SubmoduleTypes.NotInstalled)
                 .WithReservedBits(12, 20)
+                .WithWriteCallback((_, __) =>
+                {
+                    if(spiMasterEnabled.Value && i2cMasterEnabled.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Both SPI and I2C modules have been enabled");
+                        spiMasterEnabled.Value = false;
+                        i2cMasterEnabled.Value = false;
+                    }
+                })
                 ;
 
             Registers.CommandAndOffset.Define(this)
@@ -188,31 +240,31 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(4, 3, out transactionOffsetCount, name: "OFFSETCNT")
                 .WithFlag(7, out transactionContinue, name: "CONT")
                 .WithValueField(8, 12, out transactionSize, name: "TSIZE")
-                .WithValueField(20, 2, out transactionPeripheralId, name: "CMDSEL")
+                .WithValueField(20, 2, out spiSlaveSelect, name: "CMDSEL")
                 .WithReservedBits(22, 2)
                 .WithValueField(24, 8, out transactionOffsetLow, name: "OFFSETLO")
                 .WithWriteCallback((_, __) =>
                 {
                     this.Log(LogLevel.Noisy,
-                            "Transaction received for SPI#{0}; command: {1}, size: {2}, offset: <count: {3}, low=0x{4:X2}, high=0x{5:X8}>, cont: {6}",
-                            transactionPeripheralId.Value, transactionCommand.Value, transactionSize.Value, transactionOffsetCount.Value,
+                            "Transaction received for #{0}; command: {1}, size: {2}, offset: <count: {3}, low=0x{4:X2}, high=0x{5:X8}>, cont: {6}",
+                            PrettyPendingPeripheral, transactionCommand.Value, transactionSize.Value, transactionOffsetCount.Value,
                             transactionOffsetLow.Value, transactionOffsetHigh.Value, transactionContinue.Value);
 
-                    if(!spiMasterEnabled.Value)
+                    if(!spiMasterEnabled.Value && !i2cMasterEnabled.Value)
                     {
-                        this.Log(LogLevel.Error, "Invalid operation; SPI Master inferface is disabled!");
+                        this.Log(LogLevel.Error, "Invalid operation; SPI/I2C Master inferfaces are disabled!");
                         return;
                     }
 
                     if(activeTransactionCommand.Value != Commands.None)
                     {
-                        this.Log(LogLevel.Error, "Dropping the new transaction received for SPI#{0}: {1}; {2} on SPI#{3} is still being processed.",
-                            transactionPeripheralId.Value, transactionCommand.Value, activeTransactionCommand.Value, activeTransactionPeripheralId);
+                        this.Log(LogLevel.Error, "Dropping the new transaction received for #{0}: {1}; {2} on {3} is still being processed.",
+                            PrettyPendingPeripheral, transactionCommand.Value, activeTransactionCommand.Value, PrettyActivePeripheral);
                         return;
                     }
 
                     if(!IsTransactionValid(transactionCommand.Value, transactionSize.Value, transactionOffsetCount.Value,
-                            (int)transactionPeripheralId.Value, out var errorMessage))
+                            (int)spiSlaveSelect.Value, out var errorMessage))
                     {
                         this.Log(LogLevel.Error, errorMessage);
                         activeTransactionStatus.Value = CommandStatuses.Error;
@@ -224,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     // Only the command and size left values are accessible through registers.
                     activeTransactionCommand.Value = transactionCommand.Value;
                     activeTransactionContinue = transactionContinue.Value;
-                    activeTransactionPeripheralId = (int)transactionPeripheralId.Value;
+                    activeSpiSlaveSelect = (int)spiSlaveSelect.Value;
                     activeTransactionSizeLeft.Value = transactionSize.Value;
 
                     SendTransactionOffset(transactionOffsetCount.Value);
@@ -423,7 +475,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 ;
 
             Registers.I2CMasterConfiguration.Define(this)
-                .WithTaggedFlag("ADDRSZ", 0)
+                .WithFlag(0, out i2cExtendedAdressingMode, name: "ADDRSZ")
                 .WithTaggedFlag("I2CLSB", 1)
                 .WithTaggedFlag("ARBEN", 2)
                 .WithReservedBits(3, 1)
@@ -438,7 +490,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                 ;
 
             Registers.I2CDeviceConfiguration.Define(this)
-                .WithTag("DEVADDR", 0, 10)
+                .WithValueField(0, 10, name: "DEVADDR",
+                    valueProviderCallback: _ => i2cSlaveAddress,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!i2cExtendedAdressingMode.Value && value > 0x7F)
+                        {
+                            value &= 0x7F;
+                            this.Log(LogLevel.Warning, "Tried to set 10-bit address with extended mode disabled; truncated to 7-bit");
+                        }
+                        i2cSlaveAddress = value;
+                    })
                 .WithReservedBits(10, 22)
                 ;
 
@@ -500,7 +562,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateIRQ();
         }
 
-        private bool IsTransactionValid(Commands command, uint size, uint offsetCount, int peripheralId, out string errorMessage)
+        private bool IsTransactionValid(Commands command, uint size, uint offsetCount, int spiSlaveSelect, out string errorMessage)
         {
             errorMessage = null;
             if(command != Commands.Read && command != Commands.Write)
@@ -519,9 +581,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 errorMessage = $"Invalid transaction offset count: {offsetCount}";
             }
-            else if(!ChildCollection.ContainsKey(peripheralId))
+            else if(spiMasterEnabled.Value && !spiPeripherals.ContainsKey(spiSlaveSelect))
             {
-                errorMessage = $"Transaction cannot be completed. There's no SPI peripheral registered with ID: {peripheralId}";
+                errorMessage = $"Transaction cannot be completed. There's no SPI peripheral registered with ID: {spiSlaveSelect}";
+            }
+            else if(i2cMasterEnabled.Value && !i2cPeripherals.ContainsKey((int)i2cSlaveAddress))
+            {
+                errorMessage = $"Transaction cannot be completed. There's no I2C peripheral registered with ID: {i2cSlaveAddress}";
             }
             return errorMessage == null;
         }
@@ -546,10 +612,27 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 var bytesToReceive = Math.Min(4, activeTransactionSizeLeft.Value);
                 uint result = 0;
-                for(int i = 0; i < bytesToReceive; i++)
+                if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
                 {
-                    var byteIndex = transferDataLSBFirst.Value ? i : bytesToReceive - i - 1;
-                    BitHelper.UpdateWithShifted(ref result, ChildCollection[activeTransactionPeripheralId].Transmit(0), (int)(byteIndex * 8), 8);
+                    for(int i = 0; i < bytesToReceive; i++)
+                    {
+                        var byteIndex = transferDataLSBFirst.Value ? i : bytesToReceive - i - 1;
+                        BitHelper.UpdateWithShifted(ref result, spiPeripheral.Transmit(0), (int)(byteIndex * 8), 8);
+                    }
+                }
+                else if(ActiveTransactionPeripheral is II2CPeripheral i2cPeripheral)
+                {
+                    var data = i2cPeripheral.Read((int)bytesToReceive);
+                    foreach(var item in data.Select((value, index) => new { index, value }))
+                    {
+                        var byteIndex = transferDataLSBFirst.Value ? item.index : bytesToReceive - item.index - 1;
+                        BitHelper.UpdateWithShifted(ref result, item.value, (int)(byteIndex * 8), 8);
+                    }
+                }
+                else
+                {
+                    // This code should be unreachable
+                    throw new ArgumentException("Peripheral has to be selected before receiving data!");
                 }
                 activeTransactionSizeLeft.Value -= bytesToReceive;
                 TryFinishTransaction();
@@ -563,10 +646,24 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void Send(uint data, uint size, bool lsbFirst = false)
         {
-            foreach(var dataByte in BitHelper.GetBytesFromValue(data, (int)size, reverse: lsbFirst))
+            var dataBytes = BitHelper.GetBytesFromValue(data, (int)size, reverse: lsbFirst);
+            if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
             {
-                ChildCollection[activeTransactionPeripheralId].Transmit(dataByte);
-                this.Log(LogLevel.Noisy, "Byte sent to the peripheral: 0x{0:X}", dataByte);
+                foreach(var dataByte in dataBytes)
+                {
+                    spiPeripheral.Transmit(dataByte);
+                    this.Log(LogLevel.Noisy, "Byte sent to the SPI peripheral: 0x{0:X}", dataByte);
+                }
+            }
+            else if(ActiveTransactionPeripheral is II2CPeripheral i2cPeripheral)
+            {
+                i2cPeripheral.Write(dataBytes);
+                this.Log(LogLevel.Noisy, "{0} byte(s) sent to the I2C peripheral: 0x{0:X08}", size, data);
+            }
+            else
+            {
+                // This code should be unreachable
+                throw new ArgumentException("Peripheral has to be selected before sending data!");
             }
         }
 
@@ -611,7 +708,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }
                 else
                 {
-                    ChildCollection[activeTransactionPeripheralId].FinishTransmission();
+                    if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
+                    {
+                        spiPeripheral.FinishTransmission();
+                    }
+                    else if(ActiveTransactionPeripheral is II2CPeripheral i2cPeripheral)
+                    {
+                        i2cPeripheral.FinishTransmission();
+                    }
+                    else
+                    {
+                        // This code should be unreachable
+                        throw new ArgumentException("Trying to finish transaction for which peripherial wasn't chosen");
+                    }
                 }
                 activeTransactionCommand.Value = Commands.None;
 
@@ -650,6 +759,82 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private void Register<T>(Dictionary<int, T> container, T peripheral, TypedNumberRegistrationPoint<int> registrationPoint) where T: IPeripheral
+        {
+            if(container.ContainsKey(registrationPoint.Address))
+            {
+                throw new RegistrationException("The specified registration point is already in use.");
+            }
+            container.Add(registrationPoint.Address, peripheral);
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        private void Unregister<T>(Dictionary<int, T> container, T peripheral) where T: IPeripheral
+        {
+            var toRemove = container.Where(x => x.Value.Equals(peripheral)).Select(x => x.Key).ToList(); //ToList required, as we remove from the source
+            if(toRemove.Count == 0)
+            {
+                throw new RegistrationException("The specified peripheral was never registered.");
+            }
+            foreach(var key in toRemove)
+            {
+                container.Remove(key);
+            }
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        private string PrettyPendingPeripheral
+        {
+            get
+            {
+                if(spiMasterEnabled.Value)
+                {
+                    return $"SPI#{spiSlaveSelect.Value}";
+                }
+                else if(i2cMasterEnabled.Value)
+                {
+                    return $"I2C#{i2cSlaveAddress}";
+                }
+                return String.Empty;
+            }
+        }
+
+        private string PrettyActivePeripheral
+        {
+            get
+            {
+                if(spiMasterEnabled.Value)
+                {
+                    return $"SPI#{activeSpiSlaveSelect}";
+                }
+                else if(i2cMasterEnabled.Value)
+                {
+                    return $"I2C#{i2cSlaveAddress}";
+                }
+                return String.Empty;
+            }
+        }
+
+        private IPeripheral ActiveTransactionPeripheral
+        {
+            get
+            {
+                if(activeTransactionCommand.Value == Commands.None)
+                {
+                    return null;
+                }
+                else if(spiMasterEnabled.Value)
+                {
+                    return spiPeripherals[activeSpiSlaveSelect];
+                }
+                else if(i2cMasterEnabled.Value)
+                {
+                    return i2cPeripherals[(int)i2cSlaveAddress];
+                }
+                return null;
+            }
+        }
+
         private IEnumRegisterField<Commands> activeTransactionCommand;
         private IValueRegisterField activeTransactionSizeLeft;
         private IEnumRegisterField<CommandStatuses> activeTransactionStatus;
@@ -658,18 +843,21 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField[] ioMasterInterruptsEnableFlags;
         private IFlagRegisterField[] ioMasterInterruptsStatusFlags;
         private IFlagRegisterField spiMasterEnabled;
+        private IFlagRegisterField i2cMasterEnabled;
         private IEnumRegisterField<Commands> transactionCommand;
         private IFlagRegisterField transactionContinue;
         private IValueRegisterField transactionOffsetCount;
         private IValueRegisterField transactionOffsetHigh;
         private IValueRegisterField transactionOffsetLow;
-        private IValueRegisterField transactionPeripheralId;
         private IValueRegisterField transactionSize;
+        private IValueRegisterField spiSlaveSelect;
         private IFlagRegisterField transferDataLSBFirst;
         private IFlagRegisterField writePopToAdvanceReadPointer;
+        private IFlagRegisterField i2cExtendedAdressingMode;
 
         private bool activeTransactionContinue;
-        private int activeTransactionPeripheralId;
+        private int activeSpiSlaveSelect;
+        private uint i2cSlaveAddress;
 
         /*
             Both FIFOs occupy a single 64-byte memory:
@@ -679,6 +867,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         */
         private readonly Fifo incomingFifo;
         private readonly Fifo outgoingFifo;
+        private readonly Dictionary<int, ISPIPeripheral> spiPeripherals;
+        private readonly Dictionary<int, II2CPeripheral> i2cPeripherals;
+        private readonly Machine machine;
 
         private const int IoMasterInterruptsCount = 15;
         private const int MaxSpiPeripheralsConnected = 4;
