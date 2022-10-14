@@ -65,13 +65,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var lineNumber = (byte)number;
             var irqNumber = gpioMapping[lineNumber];
 
-            if(number == 23 && value)
+            if((number > 22) && value)
             {
                 pending |= (1u << lineNumber);
                 Connections[irqNumber].Set();
                 return;
             }
-            if(number == 23 && !value)
+            if((number > 22) && !value)
             {
                 pending &= ~(1u << lineNumber);
                 Connections[irqNumber].Unset();
@@ -175,7 +175,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        private static readonly int[] gpioMapping = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 23 };
+        private static readonly int[] gpioMapping = {
+            0, 1, 2, 3,         // 0-3
+            4, 5, 5, 5,         // 4-7
+            5, 5, 6, 6,         // 8-11
+            6, 6, 6, 6,         // 12-15
+            7, 8, 9, 10,        // 16-19
+            11, 12, 13, 23,     // 20-23
+            24, 25, 26, 27,     // 24-27
+            28, 29, 30, 31      // 28-31
+        };
 
         private uint interruptMask;
         private uint eventMask;
