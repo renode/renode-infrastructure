@@ -26,6 +26,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Interrupt1 = new GPIO();
             Interrupt2 = new GPIO();
 
+            UpdateDefaultMeasurements();
+
             circularFifo = new AFESampleFIFO(this);
             measurementEnabled = new bool[MeasurementRegisterCount];
             dataFeed = new DataFeed(this);
@@ -33,7 +35,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void FeedSamplesFromBinaryFile(ReadFilePath filePath, string delayString)
         {
-            dataFeed.FeedSamplesFromBinaryFile(machine, this, "fifo", filePath, delayString);
+            lock(feederThreadLock)
+            {
+                feedingSamplesFromFile = true;
+                feederThread?.Stop();
+                circularFifo.Clear();
+                feederThread = dataFeed.FeedSamplesFromBinaryFile(machine, this, "fifo", filePath, delayString, null, () =>
+                {
+                    feedingSamplesFromFile = false;
+                    TryFeedDefaultSample();
+                });
+            }
         }
 
         public void WriteByte(long offset, byte value)
@@ -66,6 +78,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 measurementEnabled[i] = false;
             }
             UpdateInterrupts();
+
+            feederThread?.Stop();
+            feederThread = null;
+            feedingSamplesFromFile = false;
         }
 
         public byte Transmit(byte data)
@@ -103,15 +119,95 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public GPIO Interrupt1 { get; }
         public GPIO Interrupt2 { get; }
 
-        public int Measurement1ADCValue { get; set; }
-        public int Measurement2ADCValue { get; set; }
-        public int Measurement3ADCValue { get; set; }
-        public int Measurement4ADCValue { get; set; }
-        public int Measurement5ADCValue { get; set; }
-        public int Measurement6ADCValue { get; set; }
-        public int Measurement7ADCValue { get; set; }
-        public int Measurement8ADCValue { get; set; }
-        public int Measurement9ADCValue { get; set; }
+        public int Measurement1ADCValue 
+        { 
+            get => measurement1ADCValue;
+            set
+            {
+                measurement1ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement2ADCValue 
+        { 
+            get => measurement2ADCValue;
+            set
+            {
+                measurement2ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement3ADCValue 
+        { 
+            get => measurement3ADCValue;
+            set
+            {
+                measurement3ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement4ADCValue 
+        { 
+            get => measurement4ADCValue;
+            set
+            {
+                measurement4ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement5ADCValue 
+        { 
+            get => measurement5ADCValue;
+            set
+            {
+                measurement5ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement6ADCValue 
+        { 
+            get => measurement6ADCValue;
+            set
+            {
+                measurement6ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement7ADCValue 
+        { 
+            get => measurement7ADCValue;
+            set
+            {
+                measurement7ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement8ADCValue 
+        { 
+            get => measurement8ADCValue;
+            set
+            {
+                measurement8ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
+
+        public int Measurement9ADCValue 
+        { 
+            get => measurement9ADCValue;
+            set
+            {
+                measurement9ADCValue = value;
+                UpdateDefaultMeasurements();
+            }
+        }
 
         private void UpdateInterrupts()
         {
@@ -249,12 +345,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     .WithFlag(6, name: "SYSTEM_CONF1.sw_force_sync")
                     .WithFlag(7, name: "SYSTEM_CONF1.meas9_en",
                         valueProviderCallback: _ => measurementEnabled[(int)Channel.Measurement9],
-                        writeCallback: (_, value) => measurementEnabled[(int)Channel.Measurement9] = value)
+                        changeCallback: (_, value) => 
+                        { 
+                            measurementEnabled[(int)Channel.Measurement9] = value;
+                            TryFeedDefaultSample();
+                        })
                 },
                 {(long)Registers.SystemConfiguration2, new ByteRegister(this)
                     .WithFlags(0, 8, name: "SYSTEM_CONF2.MEASX_EN",
                         valueProviderCallback: (idx, _) => measurementEnabled[idx],
-                        writeCallback: (idx, _, value) => measurementEnabled[idx] = value)
+                        changeCallback: (idx, _, value) =>
+                        {
+                            measurementEnabled[idx] = value;
+                            TryFeedDefaultSample();
+                        })
                 },
                 {(long)Registers.SystemConfiguration3, CreateDummyRegister("SYSTEM_CONF3.data")},
                 {(long)Registers.PhotodiodeBias, CreateDummyRegister("PHOTO_BIAS.data")},
@@ -266,9 +370,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     .WithReservedBits(5, 3)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-                {(long)Registers.FrameRateClockFrequency, CreateDummyRegister("FR_CLK_FREQ.data")},
-                {(long)Registers.FrameRateClockDividerMSB, CreateDummyRegister("FR_CLK_DIVMSB.data")},
-                {(long)Registers.FrameRateClockDividerLSB, CreateDummyRegister("FR_CLK_DIVLSB.data")},
+                {(long)Registers.FrameRateClockFrequency, new ByteRegister(this, 0x20)
+                    .WithTag("FR_CLK.fine_tune", 0, 5)
+                    .WithFlag(5, out clockSelect, name: "FR_CLK.sel")
+                    .WithReservedBits(6, 2)
+                },
+                {(long)Registers.FrameRateClockDividerMSB, new ByteRegister(this, 0x1)
+                    .WithValueField(0, 7, out clockDividerHigh, name: "FR_CLK.div_h")
+                    .WithReservedBits(7, 1)
+                },
+                {(long)Registers.FrameRateClockDividerLSB, new ByteRegister(this)
+                    .WithValueField(0, 8, out clockDividerLow, name: "FR_CLK.div_l")
+                },
                 {(long)Registers.ThresholdMeasurementSelect, CreateDummyRegister("THRESH_MEAS_SEL.data")},
                 {(long)Registers.ThresholdHysteresis, CreateDummyRegister("THRESH_HYST.data")},
                 {(long)Registers.PPGHiThreshold1, CreateDummyRegister("PPG_HI_THRESH1.data")},
@@ -326,6 +439,70 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return registerMap;
         }
 
+        private bool TryFeedDefaultSample()
+        {
+            lock(feederThreadLock)
+            {
+                if(feedingSamplesFromFile)
+                {
+                    return false;
+                }
+
+                feederThread?.Stop();
+                if(measurementEnabled.Any(x => x)) 
+                {
+                    var freq = CalculateCurrentFrequency();
+                    this.Log(LogLevel.Debug, "Starting the default sample feeding at {0}Hz", freq);
+                    feederThread = dataFeed.FeedSamplesPeriodically(machine, this, "default_sample_afe", "0", freq, new [] { defaultMeasurements });
+
+                    return true;
+                }
+
+                return false;
+            }
+        }
+            
+        private void UpdateDefaultMeasurements()
+        {
+            var ch1 = new AFESample(SampleSource.PPGMeasurement1, Measurement1ADCValue);
+            var ch2 = new AFESample(SampleSource.PPGMeasurement2, Measurement2ADCValue);
+            var ch3 = new AFESample(SampleSource.PPGMeasurement3, Measurement3ADCValue);
+            var ch4 = new AFESample(SampleSource.PPGMeasurement4, Measurement4ADCValue);
+            var ch5 = new AFESample(SampleSource.PPGMeasurement5, Measurement5ADCValue);
+            var ch6 = new AFESample(SampleSource.PPGMeasurement6, Measurement6ADCValue);
+            var ch7 = new AFESample(SampleSource.PPGMeasurement7, Measurement7ADCValue);
+            var ch8 = new AFESample(SampleSource.PPGMeasurement8, Measurement8ADCValue);
+            var ch9 = new AFESample(SampleSource.PPGMeasurement9, Measurement9ADCValue);
+
+            // fifo requires two samples per channel
+            defaultMeasurements = new SensorSampleMeasurements(new []
+            {
+                ch1, ch1,
+                ch2, ch2,
+                ch3, ch3,
+                ch4, ch4,
+                ch5, ch5,
+                ch6, ch6,
+                ch7, ch7,
+                ch8, ch8,
+                ch9, ch9
+            });
+        }
+
+        public uint CalculateCurrentFrequency()
+        {
+            return 52;
+
+            // FIXME: the calculation below does not provide an expected result of 52
+            /*
+            var clockBaseFrequency = clockSelect.Value
+                ? 32768
+                : 32000u;
+
+            return clockBaseFrequency / ((clockDividerHigh.Value << 7) + clockDividerLow.Value);
+            */
+        }
+
         private IEnumerable<Channel> ActiveChannels =>
             measurementEnabled.Where((active, idx) => active).Select((_, idx) => (Channel)idx);
 
@@ -337,9 +514,28 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly DataFeed dataFeed;
         private readonly AFESampleFIFO circularFifo;
         private readonly bool[] measurementEnabled;
+        private readonly object feederThreadLock = new object();
 
+        private bool feedingSamplesFromFile;
+        
+        private int measurement1ADCValue;
+        private int measurement2ADCValue;
+        private int measurement3ADCValue;
+        private int measurement4ADCValue;
+        private int measurement5ADCValue;
+        private int measurement6ADCValue;
+        private int measurement7ADCValue;
+        private int measurement8ADCValue;
+        private int measurement9ADCValue;
+
+        private SensorSampleMeasurements defaultMeasurements;
+        private IManagedThread feederThread;
         private States? state;
         private Registers? chosenRegister;
+
+        private IFlagRegisterField clockSelect;
+        private IValueRegisterField clockDividerHigh;
+        private IValueRegisterField clockDividerLow;
 
         private IFlagRegisterField interrupt1FullEnabled;
         private IFlagRegisterField interrupt2FullEnabled;
