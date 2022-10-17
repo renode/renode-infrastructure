@@ -60,9 +60,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void FinishTransmission()
         {
-            Interrupt1.Set(ApplyInterruptPolarity(false, polarityInterrupt1.Value));
-            Interrupt2.Set(ApplyInterruptPolarity(false, polarityInterrupt2.Value));
-
             chosenRegister = null;
             state = null;
         }
@@ -73,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             chosenRegister = null;
             state = null;
             circularFifo.Clear();
+            previousFifoTresholdReached = false;
             for(var i = 0; i < MeasurementRegisterCount; ++i)
             {
                 measurementEnabled[i] = false;
@@ -209,16 +207,22 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private void UpdateStatus()
+        {
+            statusFifoFull.Value |= FifoThresholdReached && (!fifoAssertThresholdOnce.Value || (previousFifoTresholdReached == FifoThresholdReached));
+            previousFifoTresholdReached = FifoThresholdReached;
+        }
+
         private void UpdateInterrupts()
         {
             // Currently, only A_FULL interrupt is supported for both INT1 and INT2
             // GPIO ports.
 
             var interrupt1 = false;
-            interrupt1 = interrupt1FullEnabled.Value && FifoThresholdReached;
+            interrupt1 = interrupt1FullEnabled.Value && statusFifoFull.Value;;
 
             var interrupt2 = false;
-            interrupt2 = interrupt2FullEnabled.Value && FifoThresholdReached;
+            interrupt2 = interrupt2FullEnabled.Value && statusFifoFull.Value;
 
             Interrupt1.Set(ApplyInterruptPolarity(interrupt1, polarityInterrupt1.Value));
             Interrupt2.Set(ApplyInterruptPolarity(interrupt2, polarityInterrupt2.Value));
@@ -297,8 +301,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var registerMap = new Dictionary<long, ByteRegister>()
             {
                 {(long)Registers.Status1, new ByteRegister(this)
-                    .WithFlag(0, FieldMode.Read, name: "STATUS1.a_full",
-                        valueProviderCallback: _ => FifoThresholdReached)
+                    .WithFlag(0, out statusFifoFull, FieldMode.ReadToClear, name: "STATUS1.a_full")
                     .WithTaggedFlag("STATUS1.frame_rdy", 1)
                     .WithTaggedFlag("STATUS1.fifo_data_rdy", 2)
                     .WithTaggedFlag("STATUS1.alc_ovf", 3)
@@ -325,13 +328,32 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 },
                 {(long)Registers.FIFOData, new ByteRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, name: "FIFO_DATA.data",
-                        valueProviderCallback: _ => circularFifo.DequeueByte())
+                        valueProviderCallback: _ =>
+                        {
+                            var output = circularFifo.DequeueByte();
+                            if(clearFlagsOnRead.Value)
+                            {
+                                statusFifoFull.Value = false;
+                                UpdateInterrupts();
+                            }
+                            return output;
+                        })
                 },
                 {(long)Registers.FIFOConfiguration1, new ByteRegister(this)
                     .WithValueField(0, 8, out fifoFullThreshold, name: "FIFO_CONF1.fifo_a_full")
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-                {(long)Registers.FIFOConfiguration2, CreateDummyRegister("FIFO_CONF2.data")},
+                {(long)Registers.FIFOConfiguration2, new ByteRegister(this)
+                    .WithReservedBits(0, 1)
+                    .WithFlag(1, name: "FIFO_CONF2.fifo_ro",
+                        valueProviderCallback: _ => circularFifo.Rollover,
+                        writeCallback: (_, value) => circularFifo.Rollover = value)
+                    .WithFlag(2, out fifoAssertThresholdOnce, name: "FIFO_CONF2.a_full_type")
+                    .WithFlag(3, out clearFlagsOnRead, name: "FIFO_CONF2.fifo_stat_clr")
+                    .WithFlag(4, FieldMode.WriteOneToClear | FieldMode.Read, name: "FIFO_CONF2.flush_fifo",
+                        writeCallback: (_, value) => { if(value) circularFifo.Clear(); })
+                    .WithReservedBits(5, 3)
+                },
                 {(long)Registers.SystemConfiguration1, new ByteRegister(this)
                     .WithFlag(0, name: "SYSTEM_CONF1.reset",
                         valueProviderCallback: _ => false,
@@ -532,6 +554,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IManagedThread feederThread;
         private States? state;
         private Registers? chosenRegister;
+        private bool previousFifoTresholdReached;
+
+        private IFlagRegisterField statusFifoFull;
 
         private IFlagRegisterField clockSelect;
         private IValueRegisterField clockDividerHigh;
@@ -539,6 +564,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private IFlagRegisterField interrupt1FullEnabled;
         private IFlagRegisterField interrupt2FullEnabled;
+
+        private IFlagRegisterField fifoAssertThresholdOnce;
+        private IFlagRegisterField clearFlagsOnRead;
 
         private IValueRegisterField fifoFullThreshold;
 
@@ -558,12 +586,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public void EnqueueSample(AFESample sample)
             {
-                samples.Enqueue(sample);
-                if(samples.Count > MaximumFIFOCount)
+                if(samples.Count == MaximumFIFOCount)
                 {
                     parent.Log(LogLevel.Warning, "Sample FIFO overrun");
-                    samples.Dequeue();
+                    if(Rollover)
+                    {
+                        samples.Dequeue();
+                    }
+                    else
+                    {
+                        return;
+                    }
                 }
+                samples.Enqueue(sample);
             }
 
             public byte DequeueByte()
@@ -590,6 +625,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 samples.Clear();
             }
 
+            public bool Rollover { get; set; }
             public uint Count => (uint)samples.Count;
 
             private IEnumerator<byte> currentSampleEnumerator;
@@ -717,6 +753,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         string.Join(", ", missingChannels.Select(chan => chan.ToString())));
                 }
 
+                parent.UpdateStatus();
                 parent.UpdateInterrupts();
             }
 
