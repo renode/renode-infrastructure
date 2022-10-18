@@ -1072,7 +1072,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var result = TlibInit(Model);
             if(result == -1)
             {
-                throw new InvalidOperationException("Unknown cpu type");
+                throw new ConstructionException("Unknown CPU type");
             }
             if(cpuState != null)
             {
