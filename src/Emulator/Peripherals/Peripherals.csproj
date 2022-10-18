@@ -380,6 +380,7 @@
     <Compile Include="Peripherals\Sensors\ArduCAMMini2MPPlus.cs" />
     <Compile Include="Peripherals\Sensors\OV2640.cs" />
     <Compile Include="Peripherals\Sensors\LIS2DS12.cs" />
+    <Compile Include="Peripherals\Sensors\LIS2DW12.cs" />
     <Compile Include="Peripherals\Sensors\LSM303DLHC_Accelerometer.cs" />
     <Compile Include="Peripherals\Sensors\LSM303DLHC_Gyroscope.cs" />
     <Compile Include="Peripherals\Timers\PULP_Timer.cs" />
