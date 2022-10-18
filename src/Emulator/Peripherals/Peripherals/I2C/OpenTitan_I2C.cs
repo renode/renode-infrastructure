@@ -17,7 +17,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class OpenTitan_I2C: SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_I2C : SimpleContainer<II2CPeripheral>, II2CPeripheral, IDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_I2C(Machine machine) : base(machine)
         {
@@ -40,8 +40,10 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             FatalAlert = new GPIO();
 
+            acquiredFifo = new Queue<AcquireFormatIndicator>();
             formatFifo = new Queue<FormatIndicator>();
             rxFifo = new Queue<byte>();
+            txFifo = new Queue<byte>();
 
             var registers = new Dictionary<long, DoubleWordRegister>
             {
@@ -114,28 +116,42 @@ namespace Antmicro.Renode.Peripherals.I2C
                 },
 
                 {(long)Registers.Control, new DoubleWordRegister(this, 0x0)
-                    .WithFlag(0, out enabled, writeCallback: (_, val) => { if(val) ExecuteCommands(); }, name: "ENABLEHOST")
-                    .WithTaggedFlag("ENABLETARGET", 1)
+                    .WithFlag(0, out enabledHost, name: "ENABLEHOST")
+                    .WithFlag(1, out enabledTarget, name: "ENABLETARGET")
                     .WithTaggedFlag("LLPBK", 2)
                     .WithReservedBits(3, 29)
+                    .WithWriteCallback((_, __) => {
+                        if(enabledHost.Value && enabledTarget.Value)
+                        {
+                            this.Log(LogLevel.Warning, "This peripheral does not support working in both target and host mode in the same time. " +
+                                                        "The mode is now set to the host mode.");
+                            enabledHost.Value = true;
+                            enabledTarget.Value = false;
+                        }
+                        this.NoisyLog("The mode set to {0}", enabledHost.Value ? "host" : (enabledTarget.Value ? "target" : "none"));
+                        if(enabledHost.Value)
+                        {
+                            ExecuteCommands();
+                        }
+                    })
                 },
 
-                {(long)Registers.Status, new DoubleWordRegister(this, 0x3c )
+                {(long)Registers.Status, new DoubleWordRegister(this, 0x3c)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => (formatFifo.Count == MaximumFifoDepth), name: "FMTFULL")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => (rxFifo.Count == MaximumFifoDepth), name: "RXFULL")
                     .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => (formatFifo.Count == 0), name: "FMTEMPTY")
                     .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => true, name: "HOSTIDLE")
                     .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => true, name: "TARGETIDLE")
                     .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => (rxFifo.Count == 0), name: "RXEMPTY")
-                    .WithTaggedFlag("TXFULL", 6)
-                    .WithTaggedFlag("ACQFULL", 7)
-                    .WithTaggedFlag("TXEMPTY", 8)
-                    .WithTaggedFlag("ACQEMPTY", 9)
+                    .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => (txFifo.Count == MaximumFifoDepth), name: "TXFULL")
+                    .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => (acquiredFifo.Count == MaximumFifoDepth), name: "ACQFULL")
+                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => (txFifo.Count == 0), name: "TXEMPTY")
+                    .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => (acquiredFifo.Count == 0), name: "ACQEMPTY")
                     .WithReservedBits(10, 22)
                 },
 
                 {(long)Registers.ReadData, new DoubleWordRegister(this, 0x0)
-                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => 
+                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ =>
                         {
                             if(!Misc.TryDequeue(rxFifo, out var value))
                             {
@@ -158,24 +174,24 @@ namespace Antmicro.Renode.Peripherals.I2C
                 },
 
                 {(long)Registers.FifoControl, new DoubleWordRegister(this, 0x0)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val)  => { if(val) rxFifo.Clear(); }, name: "RXRST")
-                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val)  => { if(val) formatFifo.Clear(); }, name: "FMTRST")
-                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(2,  3, out rxWatermarkLevel, name: "RXILVL")
-                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(5,  2, out fmtWatermarkLevel, name: "FMTILVL_FIELD")
-                    .WithTaggedFlag("ACQRST", 7)
-                    .WithTaggedFlag("TXRST", 8)
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) rxFifo.Clear(); }, name: "RXRST")
+                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) formatFifo.Clear(); }, name: "FMTRST")
+                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(2, 3, out rxWatermarkLevel, name: "RXILVL")
+                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(5, 2, out fmtWatermarkLevel, name: "FMTILVL_FIELD")
+                    .WithFlag(7, FieldMode.Write, writeCallback: (_, val) => { if(val) acquiredFifo.Clear(); }, name:"ACQRST")
+                    .WithFlag(8, FieldMode.Write, writeCallback: (_, val) => { if(val) txFifo.Clear(); }, name:"TXRST")
                     .WithReservedBits(9, 23)
                     .WithWriteCallback((_, __) => UpdateWatermarks())
                  },
 
                 {(long)Registers.FifoStatus, new DoubleWordRegister(this, 0x0)
-                    .WithTag("FMTLVL", 0, 7)
+                    .WithValueField(0, 7, FieldMode.Read, valueProviderCallback: (_) => (uint)formatFifo.Count, name: "FMTLVL")
                     .WithReservedBits(7, 1)
-                    .WithTag("TXLVL", 8, 7)
+                    .WithValueField(8, 7, FieldMode.Read, valueProviderCallback: (_) => (uint)txFifo.Count, name: "TXLVL")
                     .WithReservedBits(15, 1)
-                    .WithTag("RXLVL", 16, 7)
+                    .WithValueField(16, 7, FieldMode.Read, valueProviderCallback: (_) => (uint)rxFifo.Count, name: "RXLVL")
                     .WithReservedBits(23, 1)
-                    .WithTag("ACQLVL", 24, 7)
+                    .WithValueField(24, 7, FieldMode.Read, valueProviderCallback: (_) => (uint)acquiredFifo.Count, name:"ACQLVL")
                     .WithReservedBits(31, 1)
                  },
 
@@ -230,13 +246,15 @@ namespace Antmicro.Renode.Peripherals.I2C
                  },
 
                 {(long)Registers.AcquiredData, new DoubleWordRegister(this, 0x0)
-                    .WithTag("ABYTE", 0, 8)
-                    .WithTag("SIGNAL", 8, 2)
+                    .WithValueField(0, 10, FieldMode.Read, valueProviderCallback: (_) =>
+                        {
+                            return acquiredFifo.TryDequeue(out var output) ? output.ToRegisterValue() : 0;
+                        }, name:"ABYTE and SIGNAL")
                     .WithReservedBits(10, 22)
-                 },
+                },
 
                 {(long)Registers.TransmitData, new DoubleWordRegister(this, 0x0)
-                    .WithTag("TXDATA", 0, 8)
+                    .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, val) => EnqueueTx((byte)val), name: "TXDATA")
                     .WithReservedBits(8, 24)
                  },
 
@@ -253,8 +271,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }
             };
 
+            acquiredFifo = new Queue<AcquireFormatIndicator>();
             formatFifo = new Queue<FormatIndicator>();
             rxFifo = new Queue<byte>();
+            txFifo = new Queue<byte>();
 
             registersCollection = new DoubleWordRegisterCollection(this, registers);
             Reset();
@@ -279,6 +299,55 @@ namespace Antmicro.Renode.Peripherals.I2C
         public void WriteDoubleWord(long offset, uint value)
         {
             registersCollection.Write(offset, value);
+        }
+
+        // Below 3 methods are meant to be used only in the target mode
+        public void Write(byte[] data)
+        {
+            if(data.Length == 0)
+            {
+                return;
+            }
+
+            var index = 0;
+            if(currentState == State.Idle || currentState == State.Transaction)
+            {
+                // Handle the start/repeated start byte
+                EnqueueAcquired(new AcquireFormatIndicator(data[0], start: true, stop: currentState == State.Transaction));
+                currentState = State.Transaction;
+                index += 1;
+            }
+            for(; index < data.Length; index++)
+            {
+                EnqueueAcquired(new AcquireFormatIndicator(data[index], start: false, stop: false));
+            }
+        }
+
+        public byte[] Read(int count)
+        {
+            var temp = new List<byte>();
+            for(var i = 0; i < count; i++)
+            {
+                if(!txFifo.TryDequeue(out var data))
+                {
+                    break;
+                }
+                temp.Add(data);
+            }
+            return temp.ToArray();
+        }
+
+        public void FinishTransmission()
+        {
+            if(enabledHost.Value)
+            {
+                throw new ApplicationException("This should never be called in the host mode");
+            }
+            EnqueueAcquired(new AcquireFormatIndicator(0x0, start: false, stop: true));
+            currentState = State.Idle;
+
+            transactionCompleteInterruptState.Value = true;
+            UpdateInterrupts();
         }
 
         public long Size => 0x1000;
@@ -347,6 +416,10 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void ExecuteCommands()
         {
+            if(enabledTarget.Value)
+            {
+                throw new ApplicationException("This should not be possible in the target mode");
+            }
             this.NoisyLog("Executing queued commands");
             while(formatFifo.Count > 0)
             {
@@ -354,9 +427,10 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
+
         private void HandleCommand(FormatIndicator command)
         {
-            DebugHelper.Assert(selectedSlave != null || currentState == State.Idle , $"Cannot have no selected slave in the state {currentState}. This should have never happend");
+            DebugHelper.Assert(selectedSlave != null || currentState == State.Idle, $"Cannot have no selected slave in the state {currentState}. This should have never happend");
 
             switch(currentState)
             {
@@ -449,6 +523,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 overflowInterrupt.Value = true;
                 UpdateInterrupts();
+                this.Log(LogLevel.Warning, "Fifo {0} is at its maximum capacity of {1} elements. Dropping enqueued element", queue.GetType().Name, MaximumFifoDepth);
                 return;
             }
             queue.Enqueue(value);
@@ -461,14 +536,29 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void EnqueueFormat()
         {
+            if(enabledTarget.Value)
+            {
+                this.Log(LogLevel.Warning, "Cannot enqueue commands when in target mode.");
+                return;
+            }
             var format = new FormatIndicator((byte)formatByte.Value, startFlag.Value, stopFlag.Value, readFlag.Value, readContinueFlag.Value,
                                              nakOkFlag.Value);
             HandleEnqueue(formatFifo, format, formatOverflowInterruptState, formatWatermarkInterruptState, fmtWatermark);
             this.Log(LogLevel.Noisy, "Enqueued format data: {0}", format);
-            if(enabled.Value)
+            if(enabledHost.Value)
             {
                 ExecuteCommands();
             }
+        }
+
+        private void EnqueueAcquired(AcquireFormatIndicator acquired)
+        {
+            if(enabledHost.Value)
+            {
+                this.Log(LogLevel.Warning, "Cannot enqueue acquired data when in target mode");
+                return;
+            }
+            HandleEnqueue(acquiredFifo, acquired, acqOverflowInterruptState);
         }
 
         private void EnqueueRx(uint value)
@@ -476,10 +566,22 @@ namespace Antmicro.Renode.Peripherals.I2C
             HandleEnqueue(rxFifo, (byte)value, rxOverflowInterruptState, rxWatermarkInterruptState, rxWatermark);
         }
 
+        private void EnqueueTx(byte value)
+        {
+            if(enabledHost.Value)
+            {
+                this.Log(LogLevel.Warning, "Tx Fifo is available only in the target mode.");
+                return;
+            }
+            HandleEnqueue(txFifo, value, txOverflowInterruptState);
+        }
+
         private void ResetBuffers()
         {
-            rxFifo.Clear();
+            acquiredFifo.Clear();
             formatFifo.Clear();
+            rxFifo.Clear();
+            txFifo.Clear();
         }
 
         private IFlagRegisterField formatWatermarkInterruptState;
@@ -515,7 +617,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField ackAfterStopInterruptEnable;
         private IFlagRegisterField hostTimeoutInterruptEnable;
 
-        private IFlagRegisterField enabled;
+        private IFlagRegisterField enabledHost;
+        private IFlagRegisterField enabledTarget;
         private IFlagRegisterField startFlag;
         private IFlagRegisterField stopFlag;
         private IFlagRegisterField readFlag;
@@ -530,7 +633,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private readonly DoubleWordRegisterCollection registersCollection;
         private readonly Queue<FormatIndicator> formatFifo;
+        private readonly Queue<AcquireFormatIndicator> acquiredFifo;
         private readonly Queue<byte> rxFifo;
+        private readonly Queue<byte> txFifo;
 
         private II2CPeripheral selectedSlave;
         private byte? transactionAddress;
@@ -563,6 +668,51 @@ namespace Antmicro.Renode.Peripherals.I2C
             TransmitData = 0x50,
             TargetClockStretching = 0x54,
             HostClockGenerationTimeout = 0x58,
+        }
+
+        public struct AcquireFormatIndicator
+        {
+            public AcquireFormatIndicator(byte data, bool start, bool stop)
+            {
+                this.Data = data;
+                if(start)
+                {
+                    ReadFlag = ((data & 0x1) == 1);
+                }
+                else
+                {
+                    ReadFlag = false;
+                }
+                this.StartFlag = start;
+                this.StopFlag = stop;
+            }
+
+            public override string ToString()
+            {
+                return $"{Data:X2} with start: {StartFlag}, stop: {StopFlag}, read: {ReadFlag}";
+            }
+
+            public uint ToRegisterValue()
+            {
+                uint flags = (StartFlag ? 1u : 0u) | ((StopFlag ? 1u : 0u) << 1);
+                return (uint)Data | (flags << 8);
+            }
+
+            public static AcquireFormatIndicator FromRegister(uint registerValue)
+            {
+                bool startFlag, stopFlag;
+                var data = (byte)registerValue;
+
+                startFlag = ((registerValue >> 8) & 1) == 1;
+                stopFlag = ((registerValue >> 9) & 1) == 1;
+
+                return new AcquireFormatIndicator(data, start: startFlag, stop: stopFlag);
+            }
+
+            public byte Data { get; }
+            public bool ReadFlag { get; }
+            public bool StartFlag { get; }
+            public bool StopFlag { get; }
         }
 
         public struct FormatIndicator
