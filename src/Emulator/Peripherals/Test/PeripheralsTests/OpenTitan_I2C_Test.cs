@@ -140,6 +140,146 @@ namespace Antmicro.Renode.PeripheralsTests
             Assert.AreEqual(RxQueueEmptyMask, ReadFromRegister(I2C.Registers.Status) & RxQueueEmptyMask);
         }
 
+        [Test]
+        public void ShouldNotAllowEnablingBothModesAtTheSameTime()
+        {
+            EnableTarget();
+            EnableHost();
+            Assert.AreEqual(1u, ReadFromRegister(I2C.Registers.Control));
+        }
+
+        [Test]
+        public void ShouldNotAcceptCommandsWhenInTargetMode()
+        {
+            EnableTarget();
+            EnqueueCommand(new I2C.FormatIndicator(data: Sensor1Address, start: true));
+            Assert.AreEqual(FmtFifoEmptyMask, ReadFromRegister(I2C.Registers.Status) & FmtFifoEmptyMask);
+        }
+
+        [Test]
+        public void ShouldQueueTransmitBytesWhenInTargetMode()
+        {
+            EnableTarget();
+            EnqueueTransmission(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            Assert.AreEqual(9u, GetTxFifoLevel());
+        }
+
+        [Test]
+        public void ShouldNotQueueTransmissionWhenInHostMode()
+        {
+            EnableHost();
+            EnqueueTransmission(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            Assert.AreEqual(0u, GetTxFifoLevel());
+        }
+
+        [Test]
+        public void TargetShouldInterpretTransmissionCompleteAsStop()
+        {
+            EnableTarget();
+            peripheral.FinishTransmission();
+            Assert.AreEqual(new I2C.AcquireFormatIndicator(0x0, false, true),
+                            I2C.AcquireFormatIndicator.FromRegister(ReadFromRegister(I2C.Registers.AcquiredData)),
+                            "Expected stop flag");
+        }
+
+        [Test]
+        public void TargetShouldCorrectlyAssignRWflag()
+        {
+            EnableTarget();
+            var someAddr = 0x7Fu;
+            var readBit = 0x1u;
+            peripheral.Write(new byte[] { (byte)((someAddr << 1) | readBit) });
+            peripheral.FinishTransmission();
+            readBit = 0x0u;
+            peripheral.Write(new byte[] { (byte)((someAddr << 1) | readBit) });
+            peripheral.FinishTransmission();
+            var acqFormat = I2C.AcquireFormatIndicator.FromRegister(ReadFromRegister(I2C.Registers.AcquiredData));
+
+            Assert.AreEqual((someAddr << 1) | 1u, acqFormat.Data, "Expected correct data in the 1st paket");
+            Assert.AreEqual(true, acqFormat.ReadFlag, "Expected correct read flag in the 1st paket");
+            Assert.AreEqual(true, acqFormat.StartFlag, "Expected correct start flag in the 1st paket");
+            Assert.AreEqual(false, acqFormat.StopFlag, "Expected correct stop flag in the 1st paket");
+
+            acqFormat = I2C.AcquireFormatIndicator.FromRegister(ReadFromRegister(I2C.Registers.AcquiredData));
+            Assert.AreEqual(true, acqFormat.StopFlag, "Expected correct stop flag in the 2nd ");
+
+            acqFormat = I2C.AcquireFormatIndicator.FromRegister(ReadFromRegister(I2C.Registers.AcquiredData));
+            Assert.AreEqual((someAddr << 1) | 0u, acqFormat.Data, "Expected correct data in the 3rd paket");
+            Assert.AreEqual(false, acqFormat.ReadFlag, "Expected correct read flag in the 3rd paket");
+            Assert.AreEqual(true, acqFormat.StartFlag, "Expected correct start flag in the 3rd paket");
+            Assert.AreEqual(false, acqFormat.StopFlag, "Expected correct stop flag in the 3rd paket");
+
+            acqFormat = I2C.AcquireFormatIndicator.FromRegister(ReadFromRegister(I2C.Registers.AcquiredData));
+            Assert.AreEqual(true, acqFormat.StopFlag, "Expected correct stop flag in the 4th packet");
+        }
+
+        [Test]
+        public void TargetShouldProperlyHandleRead()
+        {
+            EnableTarget();
+            var data = new byte[] { 0x1, 0x2, 0xFF, 0x3, 0x4, 0xFE };
+            foreach(var b in data)
+            {
+                WriteToRegister(I2C.Registers.TransmitData, b);
+            }
+            var readData = peripheral.Read(6);
+
+            Assert.AreEqual(6, readData.Length, "Received data length mismatch");
+            Assert.AreEqual(data, readData, "Received data mismatch");
+        }
+
+        [Test]
+        public void TargetShouldNotReturnMoreThanQueued()
+        {
+            EnableTarget();
+            WriteToRegister(I2C.Registers.TransmitData, 0x1);
+            Assert.AreEqual(1, peripheral.Read(10).Length);
+        }
+
+        [Test]
+        public void ShouldCorrectlyShowStatusOfTheAcqFifo()
+        {
+            EnableTarget();
+            Assert.AreEqual(AcqFifoEmptyMask, ReadFromRegister(I2C.Registers.Status) & AcqFifoEmptyMask, "Fifo not empty after init");
+            for(var x = 0; x < 4; x++)
+            {
+                peripheral.Write(new byte[] { 0x1 });
+            }
+            Assert.AreEqual(0, ReadFromRegister(I2C.Registers.Status) & AcqFifoEmptyMask, "Fifo empty after peripheral write?");
+            Assert.AreEqual(4, ((int)ReadFromRegister(I2C.Registers.FifoStatus) >> (int)AcqFifoLevelOffset) & FifoLevelMask, "Wrong fifo level returned");
+
+            for(var x = 0; x < 60; x++)
+            {
+                peripheral.Write(new byte[] { 0x1 });
+            }
+            Assert.AreEqual(AcqFifoFullMask, ReadFromRegister(I2C.Registers.Status) & AcqFifoFullMask, "Fifo not full after 64 writes?");
+            Assert.AreEqual(64, ReadFromRegister(I2C.Registers.FifoStatus) >> (int)AcqFifoLevelOffset, "Wrong fifo level returned");
+            WriteToRegister(I2C.Registers.FifoControl, AcqFifoResetMask);
+            Assert.AreEqual(AcqFifoEmptyMask, ReadFromRegister(I2C.Registers.Status) & AcqFifoEmptyMask, "Fifo not empty after reset");
+        }
+
+        [Test]
+        public void ShouldCorrectlyShowStatusOfTheTxFifo()
+        {
+            EnableTarget();
+            Assert.AreEqual(TxFifoEmptyMask, ReadFromRegister(I2C.Registers.Status) & TxFifoEmptyMask, "Fifo not empty after init");
+            for(var x = 0; x < 4; x++)
+            {
+                WriteToRegister(I2C.Registers.TransmitData, 0x1);
+            }
+            Assert.AreEqual(0, ReadFromRegister(I2C.Registers.Status) & TxFifoEmptyMask, "Fifo empty?");
+            Assert.AreEqual(4, ReadFromRegister(I2C.Registers.FifoStatus) >> 8, "Wrong fifo level returned");
+
+            for(var x = 0; x < 60; x++)
+            {
+                WriteToRegister(I2C.Registers.TransmitData, 0x1);
+            }
+            Assert.AreEqual(TxFifoFullMask, ReadFromRegister(I2C.Registers.Status) & TxFifoFullMask, "Fifo not full after 64 writes?");
+            Assert.AreEqual(64, ReadFromRegister(I2C.Registers.FifoStatus) >> (int)TxFifoLevelOffset, "Wrong fifo level returned");
+            WriteToRegister(I2C.Registers.FifoControl, TxFifoResetMask);
+            Assert.AreEqual(TxFifoEmptyMask, ReadFromRegister(I2C.Registers.Status) & TxFifoEmptyMask, "Fifo not empty after reset");
+        }
+
         private byte PerformReadFromSlave(byte address, byte offset)
         {
             EnqueueReadFromSlave(address, offset);
@@ -161,6 +301,19 @@ namespace Antmicro.Renode.PeripheralsTests
             WriteToRegister(I2C.Registers.Control, 0x1);
         }
 
+        private void EnableTarget()
+        {
+            WriteToRegister(I2C.Registers.Control, 0x2);
+        }
+
+        private void EnqueueTransmission(byte[] bytes)
+        {
+            foreach(var b in bytes)
+            {
+                WriteToRegister(I2C.Registers.TransmitData, b);
+            }
+        }
+
         private void EnqueueCommand(I2C.FormatIndicator command)
         {
             WriteToRegister(I2C.Registers.FormatData, command.ToRegisterFormat());
@@ -176,6 +329,11 @@ namespace Antmicro.Renode.PeripheralsTests
             return peripheral.ReadDoubleWord((long)register);
         }
 
+        private uint GetTxFifoLevel()
+        {
+            return (ReadFromRegister(I2C.Registers.FifoStatus) >> 8) & 0x7F;
+        }
+
         private Machine machine;
         private II2CPeripheral sensor1;
         private II2CPeripheral sensor2;
@@ -188,10 +346,21 @@ namespace Antmicro.Renode.PeripheralsTests
         private const byte Sensor2Id = 0x5B;
         private const byte Sensor2IdOffset = 0xFD;
 
+        private const uint FifoLevelMask = 0x7F;
+        private const uint AcqFifoLevelOffset = 24;
+        private const uint TxFifoLevelOffset = 8;
+
+        private const uint AcqFifoResetMask = 0x80;
+        private const uint TxFifoResetMask = 0x100;
+
+        private const uint AcqFifoEmptyMask = 0x200;
+        private const uint AcqFifoFullMask = 0x80;
         private const uint FmtFifoEmptyMask = 0x04;
         private const uint FmtOverflowInterruptMask = 0x4;
         private const uint FmtWatermarkInterruptMask = 0x1;
         private const uint RxQueueEmptyMask = 0x20;
         private const uint RxWatermarkInterruptMask = 0x2;
+        private const uint TxFifoEmptyMask = 0x100;
+        private const uint TxFifoFullMask = 0x40;
     }
 }
