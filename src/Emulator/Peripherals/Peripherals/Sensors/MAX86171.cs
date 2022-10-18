@@ -351,7 +351,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     .WithFlag(2, out fifoAssertThresholdOnce, name: "FIFO_CONF2.a_full_type")
                     .WithFlag(3, out clearFlagsOnRead, name: "FIFO_CONF2.fifo_stat_clr")
                     .WithFlag(4, FieldMode.WriteOneToClear | FieldMode.Read, name: "FIFO_CONF2.flush_fifo",
-                        writeCallback: (_, value) => { if(value) circularFifo.Clear(); })
+                        writeCallback: (_, value) => 
+                        { 
+                            if(value) 
+                            {
+                                circularFifo.Clear(); 
+
+                                statusFifoFull.Value = false;
+                                UpdateInterrupts();
+                            }
+                        })
                     .WithReservedBits(5, 3)
                 },
                 {(long)Registers.SystemConfiguration1, new ByteRegister(this)
