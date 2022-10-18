@@ -371,6 +371,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
             if(autoEnd.Value)
             {
+                currentSlave.FinishTransmission();
                 stopDetection.Value = true;
                 masterMode = false;
             }
