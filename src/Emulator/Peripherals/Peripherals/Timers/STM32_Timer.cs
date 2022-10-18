@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -292,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             Limit = autoReloadValue;
                         }
-                    }, valueProviderCallback: _ => autoReloadValue, name: "Counter value (CNT)")
+                    }, valueProviderCallback: _ => autoReloadValue, name: "Auto-reload value (ARR)")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.RepetitionCounter, new DoubleWordRegister(this)
