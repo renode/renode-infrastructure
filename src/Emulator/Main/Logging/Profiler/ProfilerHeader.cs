@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -39,8 +39,13 @@ namespace Antmicro.Renode.Logging.Profiling
             buffer.AddRange(BitConverter.GetBytes(busPeripherals.Count()));
             foreach(var peripheral in busPeripherals)
             {
-                buffer.AddRange(BitConverter.GetBytes(peripheral.Name.Length));
-                buffer.AddRange(Encoding.ASCII.GetBytes(peripheral.Name));
+                var name = peripheral.Name;
+                if(peripheral.RegistrationPoint is BusMultiRegistration bmr)
+                {
+                    name = $"{bmr.ConnectionRegionName}@{name}";
+                }
+                buffer.AddRange(BitConverter.GetBytes(name.Length));
+                buffer.AddRange(Encoding.ASCII.GetBytes(name));
                 var registrationPoint = peripheral.RegistrationPoint as BusRangeRegistration;
                 buffer.AddRange(BitConverter.GetBytes(registrationPoint.Range.StartAddress));
                 buffer.AddRange(BitConverter.GetBytes(registrationPoint.Range.EndAddress));
