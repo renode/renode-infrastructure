@@ -491,6 +491,7 @@
     <Compile Include="Peripherals\Sensors\MAX30208.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32L0_PWR.cs" />
     <Compile Include="Peripherals\Sensors\AS6221.cs" />
+    <Compile Include="Peripherals\Sensors\MAX77818.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
