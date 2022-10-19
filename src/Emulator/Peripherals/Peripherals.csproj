@@ -214,6 +214,7 @@
     </Compile>
     <Compile Include="Peripherals\USBDeprecated\UsbHub.cs" />
     <Compile Include="Peripherals\Helpers\CadenceInterruptFlag.cs" />
+    <Compile Include="Peripherals\UART\Cadence_UART.cs" />
     <Compile Include="Peripherals\UART\CadenceUart.cs" />
     <Compile Include="Peripherals\UART\Atmel91DebugUnit.cs" />
     <Compile Include="Peripherals\UART\ImxUart.cs" />
