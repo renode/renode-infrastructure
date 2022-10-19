@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging.Profiling;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -31,8 +31,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.PC = pc;
             this.Type = type;
         }
-        public ulong PC {get;}
-        public AdditionalDataType Type {get;}
+        public ulong PC { get; }
+        public AdditionalDataType Type { get; }
 
         public abstract string GetStringRepresentation();
         public abstract byte[] GetBinaryRepresentation();
