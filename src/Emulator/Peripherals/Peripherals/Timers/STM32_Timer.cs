@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 for(var i = 0; i < NumberOfCCChannels; ++i)
                 {
-                    ccTimers[i].Enabled = Enabled && ccTimers[i].EventEnabled;
+                    ccTimers[i].Enabled = enableRequested && ccTimers[i].EventEnabled;
                 }
                 
                 if(updateInterruptEnable.Value && repetitionsLeft == 0)
@@ -68,7 +68,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control1, new DoubleWordRegister(this)
-                    .WithFlag(0, writeCallback: (_, val) => Enabled = val, valueProviderCallback: _ => Enabled, name: "Counter enable (CEN)")
+                    .WithFlag(0, writeCallback: (_, val) =>
+                    {
+                        enableRequested = val;
+                        Enabled = enableRequested && autoReloadValue > 0;
+                    }, valueProviderCallback: _ => enableRequested, name: "Counter enable (CEN)")
                     .WithFlag(1, out updateDisable, name: "Update disable (UDIS)")
                     .WithFlag(2, out updateRequestSource, name: "Update request source (URS)")
                     .WithFlag(3, writeCallback: (_, val) => Mode = val ? WorkMode.OneShot : WorkMode.Periodic, valueProviderCallback: _ => Mode == WorkMode.OneShot, name: "One-pulse mode (OPM)")
@@ -288,6 +292,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(0, 32, writeCallback: (_, val) =>
                     {
                         autoReloadValue = val;
+                        Enabled = enableRequested && autoReloadValue > 0;
                         if(!autoReloadPreloadEnable.Value)
                         {
                             Limit = autoReloadValue;
@@ -342,6 +347,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             base.Reset();
             registers.Reset();
             autoReloadValue = initialLimit;
+            enableRequested = false;
             Limit = initialLimit;
             repetitionsLeft = 0;
             updateInterruptFlag = false;
@@ -409,6 +415,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint autoReloadValue;
         private uint repetitionsLeft;
         private bool updateInterruptFlag;
+        private bool enableRequested;
         private bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
         private readonly IFlagRegisterField updateDisable;
         private readonly IFlagRegisterField updateRequestSource;
