@@ -1113,17 +1113,17 @@ namespace Antmicro.Renode.Utilities
                 mi.GetParameters().Select(x => x.ParameterType).SequenceEqual(delegateMethodInfo.GetParameters().Select(x => x.ParameterType));
         }
 
-        public static int Clamp(this int value, int min, int max)
+        public static T Clamp<T>(this T @this, T min, T max) where T : IComparable
         {
-            if(value < min)
+            if(@this.CompareTo(min) < 0)
             {
                 return min;
             }
-            if(value > max)
+            else if(@this.CompareTo(max) > 0)
             {
                 return max;
             }
-            return value;
+            return @this;
         }
 
         public static string[] Split(this string value, int size)
