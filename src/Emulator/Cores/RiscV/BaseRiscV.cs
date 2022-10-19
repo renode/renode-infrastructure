@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             ChildCollection = new Dictionary<int, ICFU>();
 
-            customOpcodes = new List<Tuple<string, ulong, ulong>>();            
+            customOpcodes = new List<Tuple<string, ulong, ulong>>();
             postOpcodeExecutionHooks = new List<Action<ulong>>();
         }
 
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(this.NMIVectorLength == null || this.NMIVectorAddress == null)
             {
                 this.Log(LogLevel.Warning, "Non maskable interrupt not supported on this CPU. {0} or {1} not set",
-                        nameof(this.NMIVectorAddress) , nameof(this.NMIVectorLength));
+                        nameof(this.NMIVectorAddress), nameof(this.NMIVectorLength));
             }
             else
             {
@@ -217,7 +217,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ConstructionException($"Could not install custom instruction handler for length {length}, mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
             }
 
-            customOpcodes.Add(Tuple.Create(name ?? pattern, bitPattern, bitMask)); 
+            customOpcodes.Add(Tuple.Create(name ?? pattern, bitPattern, bitMask));
             customInstructionsMapping[id] = handler;
             return true;
         }
@@ -228,7 +228,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 InstallOpcodeCounterPattern(opc.Item1, opc.Item2, opc.Item3);
             }
-            
+
             EnableOpcodesCounting = true;
         }
 
@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return gdbFeatures;
             }
         }
-        
+
         public IEnumerable<InstructionSet> ArchitectureSets { get; }
 
         public abstract RegisterValue VLEN { get; }
@@ -491,7 +491,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             var valuePointer = Marshal.AllocHGlobal(vlenb);
             Marshal.Copy(valueArray, 0, valuePointer, vlenb);
-            
+
             var result = true;
             if(TlibSetWholeVector(registerNumber, valuePointer) != 0)
             {
@@ -521,7 +521,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool IsVectorRegisterNumber(int register)
         {
-            return RiscVRegisterDescription.StartOfVRegisters <= register && register < RiscVRegisterDescription.StartOfVRegisters + RiscVRegisterDescription.NumberOfVRegisters; 
+            return RiscVRegisterDescription.StartOfVRegisters <= register && register < RiscVRegisterDescription.StartOfVRegisters + RiscVRegisterDescription.NumberOfVRegisters;
         }
 
         [Export]
@@ -595,7 +595,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Error, "Received opcode hook with non-existing id = {0}", id);
             }
         }
-        
+
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private bool pcWrittenFlag;
@@ -611,7 +611,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Dictionary<SimpleCSR, ulong> simpleCSRs = new Dictionary<SimpleCSR, ulong>();
 
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
-        
+
         [Constructor]
         private readonly List<Action<ulong>> postOpcodeExecutionHooks;
 
@@ -640,8 +640,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
-        
         [Import(Name="tlib_install_custom_csr")]
+
         private FuncInt32UInt64 TlibInstallCustomCSR;
 
         [Import]
@@ -682,7 +682,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt32IntPtr TlibSetWholeVector;
-        
+
         [Import]
         private ActionUInt32 TlibEnablePostOpcodeExecutionHooks;
 
@@ -825,7 +825,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private readonly InterruptMode interruptMode;
-        
+
         private readonly List<Tuple<string, ulong, ulong>> customOpcodes;
 
         protected enum IrqType
