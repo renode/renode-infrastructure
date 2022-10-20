@@ -50,6 +50,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Peripherals\Timers\ABRTCMC.cs" />
     <Compile Include="Peripherals\Timers\EFR32_RTCC.cs" />
     <Compile Include="Peripherals\Timers\EFR32_Timer.cs" />
     <Compile Include="Peripherals\Timers\LiteX_CPUTimer.cs" />
