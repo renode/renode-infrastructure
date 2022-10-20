@@ -37,7 +37,21 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 for(var i = 0; i < NumberOfCCChannels; ++i)
                 {
-                    ccTimers[i].Enabled = enableRequested && ccTimers[i].EventEnabled;
+                    UpdateCaptureCompareTimer(i);
+                    if(!ccTimers[i].Enabled)
+                    {
+                        continue;
+                    }
+
+                    switch(outputCompareModes[i].Value)
+                    {
+                        case OutputCompareMode.PwmMode1:
+                            Connections[i].Set();
+                            break;
+                        case OutputCompareMode.PwmMode2:
+                            Connections[i].Unset();
+                            break;
+                    }
                 }
                 
                 if(updateInterruptEnable.Value && repetitionsLeft == 0)
@@ -62,9 +76,32 @@ namespace Antmicro.Renode.Peripherals.Timers
                 ccTimers[j] = new LimitTimer(machine.ClockSource, frequency, this, String.Format("cctimer{0}", j + 1), limit: initialLimit, eventEnabled: true, direction: Direction.Ascending, enabled: false, autoUpdate: false, workMode: WorkMode.OneShot);
                 ccTimers[j].LimitReached += delegate
                 {
-                    ccInterruptFlag[j] = true;
-                    this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
-                    UpdateInterrupts();
+                    switch(outputCompareModes[j].Value)
+                    {
+                        case OutputCompareMode.SetActiveOnMatch:
+                            Connections[j].Blink(); // high pulse
+                            break;
+                        case OutputCompareMode.SetInactiveOnMatch:
+                            Connections[j].Unset();
+                            Connections[j].Set(); // low pulse
+                            break;
+                        case OutputCompareMode.ToggleOnMatch:
+                            Connections[j].Toggle();
+                            break;
+                        case OutputCompareMode.PwmMode1:
+                            Connections[j].Unset();
+                            break;
+                        case OutputCompareMode.PwmMode2:
+                            Connections[j].Set();
+                            break;
+                    }
+
+                    if(ccInterruptEnable[j])
+                    {
+                        ccInterruptFlag[j] = true;
+                        this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
+                        UpdateInterrupts();
+                    }
                 };
             }
 
@@ -118,10 +155,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 
                 {(long)Registers.DmaOrInterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out updateInterruptEnable, name: "Update interrupt enable (UIE)")
-                    .WithFlag(1, valueProviderCallback: _ => ccTimers[0].EventEnabled, writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(0, val), name: "Capture/Compare 1 interrupt enable (CC1IE)")
-                    .WithFlag(2, valueProviderCallback: _ => ccTimers[1].EventEnabled, writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(1, val), name: "Capture/Compare 2 interrupt enable (CC2IE)")
-                    .WithFlag(3, valueProviderCallback: _ => ccTimers[2].EventEnabled, writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(2, val), name: "Capture/Compare 3 interrupt enable (CC3IE)")
-                    .WithFlag(4, valueProviderCallback: _ => ccTimers[3].EventEnabled, writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(3, val), name: "Capture/Compare 4 interrupt enable (CC4IE)")
+                    .WithFlag(1, valueProviderCallback: _ => ccInterruptEnable[0], writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(0, val), name: "Capture/Compare 1 interrupt enable (CC1IE)")
+                    .WithFlag(2, valueProviderCallback: _ => ccInterruptEnable[1], writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(1, val), name: "Capture/Compare 2 interrupt enable (CC2IE)")
+                    .WithFlag(3, valueProviderCallback: _ => ccInterruptEnable[2], writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(2, val), name: "Capture/Compare 3 interrupt enable (CC3IE)")
+                    .WithFlag(4, valueProviderCallback: _ => ccInterruptEnable[3], writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(3, val), name: "Capture/Compare 4 interrupt enable (CC4IE)")
                     .WithReservedBits(5, 1)
                     .WithTag("Trigger interrupt enable (TIE)", 6, 1)
                     .WithReservedBits(7, 1)
@@ -211,55 +248,63 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 
                 {(long)Registers.CaptureOrCompareMode1, new DoubleWordRegister(this)
-                    .WithTag("CC1S", 0, 2)
+                    // Fields of this register vary between 'Output compare'/'Input capture' mode
+                    // Only fields for output compare mode are defined
+                    .WithEnumField<DoubleWordRegister, CaptureCompareSelection>(0, 2, writeCallback: (_, val) => WriteCaptureCompareSelection(0, val), name: "CC1S")
+                    // Input mode:
+                        // "IC1PSC", 2, 2
+                        // "IC1F", 4, 4
                     .WithTaggedFlag("OC1FE", 2)
                     .WithTaggedFlag("OC1PE", 3)
-                    .WithTag("OC1M", 4, 3)
+                    .WithEnumField(4, 3, out outputCompareModes[0], writeCallback: (_, val) => WriteOutputCompareMode(0, val), name: "OC1M")
                     .WithTaggedFlag("OC1CE", 7)
-                    .WithTag("CC2S", 8, 2)
-                    .WithTag("OC2M", 12, 3)
-                    .WithReservedBits(15, 17)
+                    .WithEnumField<DoubleWordRegister, CaptureCompareSelection>(8, 2, writeCallback: (_, val) => WriteCaptureCompareSelection(1, val), name: "CC2S")
+                    .WithTaggedFlag("OC2FE", 10)
+                    .WithTaggedFlag("OC2PE", 11)
+                    .WithEnumField(12, 3, out outputCompareModes[1], writeCallback: (_, val) => WriteOutputCompareMode(1, val), name: "OC2M")
+                    .WithTaggedFlag("OC2CE", 15)
+                    // Input mode:
+                        // "IC2PSC", 10, 2
+                        // "IC2F", 12, 4
+                    .WithReservedBits(16, 16)
                 },
                 
                 {(long)Registers.CaptureOrCompareMode2, new DoubleWordRegister(this)
                     // Fields of this register vary between 'Output compare'/'Input capture' mode
-                    // Only common fields are defined
-                    .WithTag("CC3S", 0, 2)
-                    //Output mode:
-                        // "OC3FE", 2
-                        // "OC3PE", 3
-                        // "OC3M", 4, 3
-                        // "OC3CE", 7
+                    // Only fields for output compare mode are defined
+                    .WithEnumField<DoubleWordRegister, CaptureCompareSelection>(0, 2, writeCallback: (_, val) => WriteCaptureCompareSelection(2, val), name: "CC3S")
+                    .WithTaggedFlag("OC3FE", 2)
+                    .WithTaggedFlag("OC3PE", 3)
+                    .WithEnumField(4, 3, out outputCompareModes[2], writeCallback: (_, val) => WriteOutputCompareMode(2, val), name: "OC3M")
+                    .WithTaggedFlag("OC3CE", 7)
                     // Input mode:
                         // "IC3PSC", 2, 2
                         // "IC3F", 4, 4
-                    .WithReservedBits(2, 6) 
-                    .WithTag("CC4S", 8, 2)
-                    .WithReservedBits(10, 6)
-                    //Output mode:
-                        // "OC4FE", 2
-                        // "OC4PE", 3
-                        // "OC4M", 4, 3
-                        // "OC4CE", 7
+                    .WithEnumField<DoubleWordRegister, CaptureCompareSelection>(8, 2, writeCallback: (_, val) => WriteCaptureCompareSelection(3, val), name: "CC4S")
+                    .WithTaggedFlag("OC4FE", 10)
+                    .WithTaggedFlag("OC4PE", 11)
+                    .WithEnumField(12, 3, out outputCompareModes[3], writeCallback: (_, val) => WriteOutputCompareMode(3, val), name: "OC4M")
+                    .WithTaggedFlag("OC4CE", 15)
                     // Input mode:
-                        // "IC4PSC", 2, 2
-                        // "IC4F", 4, 4
+                        // "IC4PSC", 10, 2
+                        // "IC4F", 12, 4
+                    .WithReservedBits(16, 16)
                 },
                 
                 {(long)Registers.CaptureOrCompareEnable, new DoubleWordRegister(this)
-                    .WithTaggedFlag("CC1E", 0) 
+                    .WithFlag(0, valueProviderCallback: _ => ccOutputEnable[0], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(0, val), name: "Capture/Compare 1 enable (CC1E)")
                     .WithTaggedFlag("CC1P", 1) 
                     .WithTaggedFlag("CC1NE", 2) 
                     .WithTaggedFlag("CC1NP", 3) 
-                    .WithTaggedFlag("CC2E", 4) 
+                    .WithFlag(4, valueProviderCallback: _ => ccOutputEnable[1], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(1, val), name: "Capture/Compare 2 enable (CC2E)")
                     .WithTaggedFlag("CC2P", 5) 
                     .WithTaggedFlag("CC2NE", 6) 
                     .WithTaggedFlag("CC2NP", 7) 
-                    .WithTaggedFlag("CC3E", 8) 
+                    .WithFlag(8, valueProviderCallback: _ => ccOutputEnable[2], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(2, val), name: "Capture/Compare 3 enable (CC3E)")
                     .WithTaggedFlag("CC3P", 9) 
                     .WithTaggedFlag("CC3NE", 10) 
                     .WithTaggedFlag("CC3NP", 11) 
-                    .WithTaggedFlag("CC4E", 12) 
+                    .WithFlag(12, valueProviderCallback: _ => ccOutputEnable[3], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(3, val), name: "Capture/Compare 4 enable (CC4E)")
                     .WithTaggedFlag("CC4P", 13) 
                     .WithReservedBits(14, 18)
                 },
@@ -364,8 +409,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             for(var i = 0; i < NumberOfCCChannels; ++i)
             {
                 ccTimers[i].Reset();
-                ccTimers[i].EventEnabled = false;
                 ccInterruptFlag[i] = false;
+                ccInterruptEnable[i] = false;
+                ccOutputEnable[i] = false;
+                Connections[i].Unset();
             }
             UpdateInterrupts();
         }
@@ -392,7 +439,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateCaptureCompareTimer(int i)
         {
-            ccTimers[i].Enabled = Enabled && ccTimers[i].EventEnabled && Value < ccTimers[i].Limit;
+            ccTimers[i].Enabled = Enabled && IsInterruptOrOutputEnabled(i) && Value < ccTimers[i].Limit;
             if(ccTimers[i].Enabled)
             {
                 ccTimers[i].Value = Value;
@@ -408,11 +455,47 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        private void WriteCaptureCompareOutputEnable(int i, bool value)
+        {
+            ccOutputEnable[i] = value;
+            UpdateCaptureCompareTimer(i);
+            this.Log(LogLevel.Noisy, "cctimer{0}: Output Enable set to {1}", i + 1, value);
+        }
+
         private void WriteCaptureCompareInterruptEnable(int i, bool value)
         {
-            ccTimers[i].EventEnabled = value;
+            ccInterruptEnable[i] = value;
             UpdateCaptureCompareTimer(i);
             this.Log(LogLevel.Noisy, "cctimer{0}: Interrupt Enable set to {1}", i + 1, value);
+        }
+
+        private bool IsInterruptOrOutputEnabled(int i)
+        {
+            return ccInterruptEnable[i] || ccOutputEnable[i];
+        }
+
+        private void WriteCaptureCompareSelection(int i, CaptureCompareSelection value)
+        {
+            if(value != CaptureCompareSelection.Output)
+            {
+                this.Log(LogLevel.Warning, "Channel {0}: input capture mode is not supported", i + 1);
+            }
+        }
+
+        private void WriteOutputCompareMode(int i, OutputCompareMode value)
+        {
+            this.Log(LogLevel.Noisy, "cctimer{0}: output compare mode set to {1}", i + 1, value);
+            switch(value)
+            {
+                case OutputCompareMode.ForceInactive:
+                case OutputCompareMode.SetActiveOnMatch:
+                    Connections[i].Unset();
+                    break;
+                case OutputCompareMode.SetInactiveOnMatch:
+                case OutputCompareMode.ForceActive:
+                    Connections[i].Set();
+                    break;
+            }
         }
 
         private void ClaimCaptureCompareInterrupt(int i, bool value)
@@ -430,7 +513,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             value |= updateInterruptFlag & updateInterruptEnable.Value;
             for(var i  = 0; i < NumberOfCCChannels; ++i)
             {
-                value |= ccInterruptFlag[i] & ccTimers[i].EventEnabled;
+                value |= ccInterruptFlag[i] & ccInterruptEnable[i];
             }
 
             IRQ.Set(value);
@@ -442,6 +525,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private bool updateInterruptFlag;
         private bool enableRequested;
         private bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
+        private bool[] ccInterruptEnable = new bool[NumberOfCCChannels];
+        private bool[] ccOutputEnable = new bool[NumberOfCCChannels];
         private readonly IFlagRegisterField updateDisable;
         private readonly IFlagRegisterField updateRequestSource;
         private readonly IFlagRegisterField updateInterruptEnable;
@@ -449,6 +534,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IEnumRegisterField<CenterAlignedMode> centerAlignedMode;
         private readonly IValueRegisterField repetitionCounter;
         private readonly DoubleWordRegisterCollection registers;
+        private readonly IEnumRegisterField<OutputCompareMode>[] outputCompareModes = new IEnumRegisterField<OutputCompareMode>[NumberOfCCChannels];
         private readonly LimitTimer[] ccTimers = new LimitTimer[NumberOfCCChannels];
         private readonly Machine machine;
         private readonly Dictionary<int, IGPIO> connections;
@@ -461,6 +547,28 @@ namespace Antmicro.Renode.Peripherals.Timers
             CenterAligned1 = 1,   // Up and down alternatively, compare interrupt flag set only when counting down
             CenterAligned2 = 2,   // Up and down alternatively, compare interrupt flag set only when counting up
             CenterAligned3 = 3,   // Up and down alternatively, compare interrupt flag set on both up/down counting
+        }
+
+        private enum OutputCompareMode
+        {
+            Frozen             = 0, // Comparison between CNT and CCR has no effect on the outputs
+            SetActiveOnMatch   = 1, // Output is high when CNT = CCR
+            SetInactiveOnMatch = 2, // Output is low when CNT = CCR
+            ToggleOnMatch      = 3, // Output is toggled when CNT = CCR
+            ForceInactive      = 4, // Output is forced low
+            ForceActive        = 5, // Output is forced high
+            PwmMode1           = 6, // Ascending:  output is high when CNT < CCR
+                                    // Descending: output is high when CNT ≤ CCR
+            PwmMode2           = 7, // Ascending:  output is high when CNT ≥ CCR
+                                    // Descending: output is high when CNT > CCR
+        }
+
+        private enum CaptureCompareSelection
+        {
+            Output   = 0, // Channel is configured as an output
+            InputTi1 = 1, // Channel is configured as an input, mapped on TI1
+            InputTi2 = 2, // Channel is configured as an input, mapped on TI2
+            InputTrc = 3, // Channel is configured as an input, mapped on TRC
         }
 
         private enum Registers : long
