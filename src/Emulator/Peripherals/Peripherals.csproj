@@ -157,6 +157,7 @@
     <Compile Include="Peripherals\Network\SMC91X.cs" />
     <Compile Include="Peripherals\I2C\Cadence_I2C.cs" />
     <Compile Include="Peripherals\I2C\BetrustedEcI2C.cs" />
+    <Compile Include="Peripherals\I2C\BetrustedSocI2C.cs" />
     <Compile Include="Peripherals\I2C\VybridI2C.cs" />
     <Compile Include="Peripherals\I2C\OpenCoresI2C.cs" />
     <Compile Include="Peripherals\Wireless\EmberRadio.cs" />
