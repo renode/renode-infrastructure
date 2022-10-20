@@ -161,10 +161,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(4, out txEnabledReg, name: "txEnabled")
                     .WithFlag(3, out rxDisabledReg, name: "rxDisabled")
                     .WithFlag(2, out rxEnabledReg, name: "rxEnabled")
-                    .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txReset")
-                    .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "rxReset",
+                    .WithFlag(1, valueProviderCallback: _ => false, name: "txReset")
+                    .WithFlag(0, valueProviderCallback: _ => false, name: "rxReset",
                         writeCallback:
-                            (_, __) => this.ClearBuffer()
+                            (_, val) => { if(val) this.ClearBuffer(); }
                     )
                     .WithWriteCallback((_, __) => {
                         UpdateSticky();
@@ -328,7 +328,10 @@ namespace Antmicro.Renode.Peripherals.UART
                         writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val),
                         name: "rxFifoTriggerInterruptStatus"
                     )
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
+                    .WithWriteCallback((_, __) => {
+                        UpdateSticky();
+                        UpdateInterrupts();
+                    })
                 },
                 {(long)Registers.BaudRateGenerator, new DoubleWordRegister(this)
                     .WithReservedBits(16, 16)
