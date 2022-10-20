@@ -6,7 +6,9 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
@@ -16,11 +18,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     // This class does not implement advanced-control timers interrupts
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class STM32_Timer : LimitTimer, IDoubleWordPeripheral
+    public class STM32_Timer : LimitTimer, IDoubleWordPeripheral, INumberedGPIOOutput, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>, IPeripheralRegister<IGPIOReceiver, NullRegistrationPoint>
     {
         public STM32_Timer(Machine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit,  direction: Direction.Ascending, enabled: false, autoUpdate: false)
         {
+            this.machine = machine;
             IRQ = new GPIO();
+            connections = Enumerable.Range(0, NumberOfCCChannels).ToDictionary(i => i, _ => (IGPIO)new GPIO());
             this.initialLimit = initialLimit;
 
             LimitReached += delegate
@@ -367,8 +371,24 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; private set; }
+        public IReadOnlyDictionary<int, IGPIO> Connections => connections;
 
         public long Size => 0x400;
+
+        public void Register(IGPIOReceiver peripheral, NumberRegistrationPoint<int> registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Register(IGPIOReceiver peripheral, NullRegistrationPoint registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(IGPIOReceiver peripheral)
+        {
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
 
         private void UpdateCaptureCompareTimer(int i)
         {
@@ -430,6 +450,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IValueRegisterField repetitionCounter;
         private readonly DoubleWordRegisterCollection registers;
         private readonly LimitTimer[] ccTimers = new LimitTimer[NumberOfCCChannels];
+        private readonly Machine machine;
+        private readonly Dictionary<int, IGPIO> connections;
 
         private const int NumberOfCCChannels = 4;
 
