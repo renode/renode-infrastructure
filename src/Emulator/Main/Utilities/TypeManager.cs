@@ -762,20 +762,29 @@ namespace Antmicro.Renode.Utilities
         private readonly bool isBundled;
 
         // This list filters out assemblies that are known not to be interesting for TypeManager.
-        // It has to be manualy catered for, but it shaves about 400ms from the startup time.
+        // It has to be manualy catered for, but it shaves about 400ms from the startup time on mono and 2s on NET.
         private static string[] assemblyBlacklist = new []
         {
             "AntShell.dll",
+            "AtkSharp.dll",
             "BigGustave.dll",
             "BitMiracle.LibJpeg.NET.dll",
+            "CairoSharp.dll",
             "CookComputing.XmlRpcV2.dll",
+            "crypto.dll",
             "CxxDemangler.dll",
             "Dynamitey.dll",
             "ELFSharp.dll",
             "FdtSharp.dll",
+            "GdkSharp.dll",
+            "GioSharp.dll",
+            "GLibSharp.dll",
+            "GtkSharp.dll",
             "IronPython.dll",
             "IronPython.Modules.dll",
+            "IronPython.SQLite.dll",
             "IronPython.StdLib.dll",
+            "IronPython.Wpf.dll",
             "libtftp.dll",
             "Lucene.Net.dll",
             "LZ4.dll",
@@ -785,13 +794,31 @@ namespace Antmicro.Renode.Utilities
             "Microsoft.Scripting.Metadata.dll",
             "Migrant.dll",
             "Mono.Cecil.dll",
+            "Mono.Cecil.Mdb.dll",
+            "Mono.Cecil.Pdb.dll",
+            "Mono.Cecil.Rocks.dll",
+            "Newtonsoft.Json.dll",
             "Nini.dll",
+            "NuGet.Frameworks.dll",
+            "nunit.engine.api.dll",
+            "nunit.engine.core.dll",
+            "nunit.engine.dll",
+            "nunit.framework.dll",
+            "NUnit3.TestAdapter.dll",
             "OptionsParser.dll",
             "PacketDotNet.dll",
+            "PangoSharp.dll",
+            "protobuf-net.dll",
             "Sprache.dll",
             "TermSharp.dll",
+            "testhost.dll",
             "Xwt.dll",
             "Xwt.Gtk.dll",
+            "Xwt.Gtk3.dll",
+            "Xwt.WPF.dll",
+            // Exclude from analysis all "Microsoft" and "System" assemblies.
+            "Microsoft.",
+            "System.",
         };
 
         private class AssemblyDescription
