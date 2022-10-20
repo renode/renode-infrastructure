@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Peripherals.Bus;
@@ -14,7 +15,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class Cadence_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class Cadence_UART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
         public Cadence_UART(Machine machine, ulong clockFrequency = 50000000) : base(machine)
         {
@@ -56,6 +57,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 rxFifoOverflow.SetSticky(true);
                 this.Log(LogLevel.Warning, "Rx FIFO overflowed, incoming byte not queued.");
             }
+            UpdateBufferState();
             // Trigger the timeout interrupt immediately after each reception
             rxTimeoutError.SetSticky(true);
             UpdateSticky();
@@ -71,8 +73,11 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public long Size => 0x10000;
+        public BufferState BufferState { get; private set; }
 
         public GPIO IRQ { get; }
+
+        public event Action<BufferState> BufferStateChanged;
 
         public override Bits StopBits => ConvertInternalStop(stopBitsField.Value);
 
@@ -142,6 +147,29 @@ namespace Antmicro.Renode.Peripherals.UART
         private void UpdateInterrupts()
         {
             IRQ.Set(GetInterruptFlags().Any(x => x.InterruptStatus));
+        }
+
+        private void UpdateBufferState()
+        {
+            if((!rxFifoFull.Status && BufferState == BufferState.Full) ||
+               (!rxFifoEmpty.Status && BufferState == BufferState.Empty) ||
+               ((rxFifoFull.Status || rxFifoEmpty.Status) && BufferState == BufferState.Ready))
+            {
+                if(rxFifoEmpty.Status)
+                {
+                    BufferState = BufferState.Empty;
+                }
+                else if(rxFifoFull.Status)
+                {
+                    BufferState = BufferState.Full;
+                }
+                else
+                {
+                    BufferState = BufferState.Ready;
+                }
+
+                BufferStateChanged?.Invoke(BufferState);
+            }
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -388,6 +416,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
                             }
+                            UpdateBufferState();
                             UpdateSticky();
                             UpdateInterrupts();
                             return character;
