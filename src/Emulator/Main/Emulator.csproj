@@ -566,6 +566,7 @@
     <Compile Include="Peripherals\CPU\CpuAbortException.cs" />
     <Compile Include="Peripherals\IHasFrequency.cs" />
     <Compile Include="Peripherals\Sensor\SensorSamplesPacket.cs" />
+    <Compile Include="Core\Structure\TypedNumberRegistrationPoint.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
