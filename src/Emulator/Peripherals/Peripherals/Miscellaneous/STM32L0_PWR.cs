@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             this.Log(LogLevel.Warning, "External PVD input selected, this is not supported");
                         }
                     }, name: "PLS")
-                .WithTaggedFlag("DBP", 8)
+                .WithFlag(8, name: "DBP")
                 .WithTaggedFlag("ULP", 9)
                 .WithTaggedFlag("FWU", 10)
                 .WithEnumField<DoubleWordRegister, VoltageScalingRangeSelection>(11, 2, out vosValue, name: "VOS", writeCallback: (oldValue, value) =>
