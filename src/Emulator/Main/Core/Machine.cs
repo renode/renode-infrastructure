@@ -48,6 +48,7 @@ namespace Antmicro.Renode.Core
             pausedState = new PausedState(this);
             SystemBus = new SystemBus(this);
             registeredPeripherals = new MultiTree<IPeripheral, IRegistrationPoint>(SystemBus);
+            peripheralsBusControllers = new Dictionary<IBusPeripheral, BusControllerWrapper>();
             userStateHook = delegate
             {
             };
@@ -352,6 +353,43 @@ namespace Antmicro.Renode.Core
                 return managedThread != null ? managedThread.ToString() : peripheral.GetType().Name;
             }
             return name;
+        }
+
+        public IBusController RegisterBusController(IBusPeripheral peripheral, IBusController controller)
+        {
+            using(ObtainPausedState())
+            {
+                if(!peripheralsBusControllers.TryGetValue(peripheral, out var wrapper))
+                {
+                    wrapper = new BusControllerWrapper(controller);
+                    peripheralsBusControllers.Add(peripheral, wrapper);
+                }
+                else
+                {
+                    if(wrapper.ParentController != SystemBus && wrapper.ParentController != controller)
+                    {
+                        throw new RecoverableException($"Trying to change the BusController from {wrapper.ParentController} to {controller} for the {peripheral} peripheral.");
+                    }
+                    wrapper.ChangeWrapped(controller);
+                }
+                return wrapper;
+            }
+        }
+
+        public bool TryGetBusController(IBusPeripheral peripheral, out IBusController controller)
+        {
+            var exists = peripheralsBusControllers.TryGetValue(peripheral, out var wrapper);
+            controller = wrapper;
+            return exists;
+        }
+
+        public IBusController GetSystemBus(IBusPeripheral peripheral)
+        {
+            if(!TryGetBusController(peripheral, out var controller))
+            {
+                controller = RegisterBusController(peripheral, SystemBus);
+            }
+            return controller;
         }
 
         public bool IsRegistered(IPeripheral peripheral)
@@ -1398,6 +1436,7 @@ namespace Antmicro.Renode.Core
         private RealTimeClockMode realTimeClockMode;
 
         private readonly MultiTree<IPeripheral, IRegistrationPoint> registeredPeripherals;
+        private readonly Dictionary<IBusPeripheral, BusControllerWrapper> peripheralsBusControllers;
         private readonly Dictionary<IPeripheral, string> localNames;
         private readonly HashSet<IHasOwnLife> ownLifes;
         private readonly object collectionSync;
@@ -1410,6 +1449,18 @@ namespace Antmicro.Renode.Core
             NotStarted,
             Started,
             Paused
+        }
+
+        private class BusControllerWrapper : BusControllerProxy
+        {
+            public BusControllerWrapper(IBusController wrappedController) : base(wrappedController)
+            {
+            }
+
+            public void ChangeWrapped(IBusController wrappedController)
+            {
+                ParentController = wrappedController;
+            }
         }
 
         private sealed class PausedState : IDisposable

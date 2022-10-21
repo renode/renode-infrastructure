@@ -174,7 +174,9 @@
     <Compile Include="Peripherals\Bus\IBusRegistered.cs" />
     <Compile Include="Peripherals\Bus\BusRegistered.cs" />
     <Compile Include="Peripherals\Bus\IBusController.cs" />
+    <Compile Include="Peripherals\Bus\BusAccessPrivileges.cs" />
     <Compile Include="Peripherals\Bus\SystemBus.cs" />
+    <Compile Include="Peripherals\Bus\BusControllerProxy.cs" />
     <Compile Include="Peripherals\Bus\PeripheralCollection.cs" />
     <Compile Include="Peripherals\Bus\UnhandledAccessBehaviour.cs" />
     <Compile Include="Peripherals\Bus\PeripheralAccessMethods.cs" />
