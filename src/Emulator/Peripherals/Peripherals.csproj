@@ -448,6 +448,7 @@
     <Compile Include="Peripherals\Miscellaneous\Crypto\AESServiceProvider.cs" />
     <Compile Include="Peripherals\Miscellaneous\Crypto\MessageAuthenticationServiceProvider.cs" />
     <Compile Include="Peripherals\UART\PL011.cs" />
+    <Compile Include="Peripherals\Miscellaneous\WindowIOMMU.cs" />
     <Compile Include="Peripherals\Miscellaneous\ExternalWindowMMU.cs" />
     <Compile Include="Peripherals\Video\MusteinGenericGPU.cs" />
     <Compile Include="Peripherals\UART\SAMD5_UART.cs" />
