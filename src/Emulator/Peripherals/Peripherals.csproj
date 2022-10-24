@@ -404,6 +404,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_HMAC.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_AES.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_KeyManager.cs" />
+    <Compile Include="Peripherals\Miscellaneous\OpenTitan_BigNumberAcceleratorMock.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_ResetManager.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_LifeCycleState.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_OneTimeProgrammableMemoryController.cs" />
