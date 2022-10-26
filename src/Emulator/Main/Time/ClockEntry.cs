@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Time
             this.WorkMode = workMode;
             this.Owner = owner;
             this.LocalName = localName;
-            this.Ratio = Step * FrequencyToRatio(owner, Frequency);
+            this.Ratio = FrequencyToRatio(owner, Step * Frequency);
         }
 
         public ClockEntry With(ulong? period = null, long? frequency = null, Action handler = null, bool? enabled = null,
