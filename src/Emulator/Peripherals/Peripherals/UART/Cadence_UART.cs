@@ -195,7 +195,8 @@ namespace Antmicro.Renode.Peripherals.UART
                         writeCallback:
                             (_, val) => { if(val) this.ClearBuffer(); }
                     )
-                    .WithWriteCallback((_, __) => {
+                    .WithWriteCallback((_, __) =>
+                    {
                         UpdateSticky();
                         UpdateInterrupts();
                     })
@@ -357,7 +358,8 @@ namespace Antmicro.Renode.Peripherals.UART
                         writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val),
                         name: "rxFifoTriggerInterruptStatus"
                     )
-                    .WithWriteCallback((_, __) => {
+                    .WithWriteCallback((_, __) =>
+                    {
                         UpdateSticky();
                         UpdateInterrupts();
                     })
@@ -369,7 +371,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.RxFifoTriggerLevel, new DoubleWordRegister(this, 0x00000020)
                     .WithReservedBits(6, 26)
                     .WithValueField(0, 6, out rxTriggerLevel)
-                    .WithWriteCallback((_, __) => {
+                    .WithWriteCallback((_, __) =>
+                    {
                         UpdateSticky();
                         UpdateInterrupts();
                     })
