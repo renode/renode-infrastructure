@@ -15,6 +15,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class Cadence_UART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
         public Cadence_UART(Machine machine, ulong clockFrequency = 50000000) : base(machine)
