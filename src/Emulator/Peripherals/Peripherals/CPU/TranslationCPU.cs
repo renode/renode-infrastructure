@@ -251,6 +251,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             Init();
             // TODO: state of the reset events
             FreeState();
+            if(memoryAccessHook != null)
+            {
+                // Repeat memory hook enable to make sure that the tcg context is set not to use the tlb
+                TlibOnMemoryAccessEventEnabled(1);
+            }
         }
 
         public override ExecutionMode ExecutionMode
