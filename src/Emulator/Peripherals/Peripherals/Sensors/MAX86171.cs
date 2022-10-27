@@ -409,6 +409,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 innerPacket = (int)packet;
             }
 
+            public AFESample(SampleSource tag, int value)
+            {
+                innerPacket = (((int)tag & 0xF) << 20) | (value & 0x0FFFFF);
+            }
+
             public int Value => (innerPacket & 0x0FFFFF);
             public SampleSource Tag => (SampleSource)((innerPacket & 0xF00000) >> 20);
             public byte Byte1 => (byte)((innerPacket & 0xFF0000) >> 16);
