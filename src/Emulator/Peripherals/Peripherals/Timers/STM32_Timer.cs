@@ -320,7 +320,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 var j = i;
                 registersMap.Add((long)Registers.CaptureOrCompare1 + (j * 0x4), new DoubleWordRegister(this)
-                    .WithValueField(0, 32, valueProviderCallback: _ => (uint)ccTimers[j].Limit, writeCallback: (_, val) => { ccTimers[j].Limit = val; }, name: String.Format("Capture/compare value {0} (CCR{0})", j + 1))
+                    .WithValueField(0, 32, valueProviderCallback: _ => (uint)ccTimers[j].Limit, writeCallback: (_, val) =>
+                    {
+                        if(val == 0)
+                        {
+                            ccTimers[j].Enabled = false;
+                        }
+                        ccTimers[j].Limit = val;
+                    }, name: String.Format("Capture/compare value {0} (CCR{0})", j + 1))
                     .WithWriteCallback((_, __) => { UpdateCaptureCompareTimer(j); UpdateInterrupts(); })
                 );
             }
