@@ -422,6 +422,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private class SensorSampleMeasurements : SensorSample
         {
+            public SensorSampleMeasurements()
+            {
+            }
+            
+            public SensorSampleMeasurements(AFESample[] samples)
+            {
+                packets = samples;
+            }
+            
             public override void Load(IList<decimal> data)
             {
                 packets = data.Select(sample => new AFESample(sample)).ToArray();
