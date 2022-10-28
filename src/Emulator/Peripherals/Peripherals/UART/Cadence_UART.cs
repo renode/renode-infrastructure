@@ -326,35 +326,35 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("txFifoTriggerInterruptStatus", 10)
                     .WithTaggedFlag("deltaModemStatusInterruptStatus", 9)
                     .WithFlag(8,
-                        valueProviderCallback: (_) => rxTimeoutError.InterruptStatus,
+                        valueProviderCallback: (_) => rxTimeoutError.StickyStatus,
                         writeCallback: (_, val) => rxTimeoutError.ClearSticky(val),
                         name: "rxTimeoutErrorInterruptStatus"
                     )
                     .WithTaggedFlag("rxParityErrorInterruptStatus", 7)
                     .WithTaggedFlag("rxFramingErrorInterruptStatus", 6)
                     .WithFlag(5,
-                        valueProviderCallback: (_) => rxFifoOverflow.InterruptStatus,
+                        valueProviderCallback: (_) => rxFifoOverflow.StickyStatus,
                         writeCallback: (_, val) => rxFifoOverflow.ClearSticky(val),
                         name: "rxFifoOverflowInterruptStatus"
                     )
                     .WithTaggedFlag("txFifoFullInterruptStatus", 4)
                     .WithFlag(3,
-                        valueProviderCallback: (_) => txFifoEmpty.InterruptStatus,
+                        valueProviderCallback: (_) => txFifoEmpty.StickyStatus,
                         // There is no sense to clear the txFifoEmptyInterruptStatus flag, because a Tx FIFO is always empty
                         name: "txFifoEmptyInterruptStatus"
                     )
                     .WithFlag(2,
-                        valueProviderCallback: (_) => rxFifoFull.InterruptStatus,
+                        valueProviderCallback: (_) => rxFifoFull.StickyStatus,
                         writeCallback: (_, val) => rxFifoFull.ClearSticky(val),
                         name: "rxFifoFullInterruptStatus"
                     )
                     .WithFlag(1,
-                        valueProviderCallback: (_) => rxFifoEmpty.InterruptStatus,
+                        valueProviderCallback: (_) => rxFifoEmpty.StickyStatus,
                         writeCallback: (_, val) => rxFifoEmpty.ClearSticky(val),
                         name: "rxFifoEmptyInterruptMStatus"
                     )
                     .WithFlag(0,
-                        valueProviderCallback: (_) => rxFifoTrigger.InterruptStatus,
+                        valueProviderCallback: (_) => rxFifoTrigger.StickyStatus,
                         writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val),
                         name: "rxFifoTriggerInterruptStatus"
                     )
