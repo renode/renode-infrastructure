@@ -1979,7 +1979,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         {
             ActivateNewHooks();
-            
+
             try
             {
                 while(actionsToExecuteOnCpuThread.TryDequeue(out var queuedAction))
@@ -2014,10 +2014,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 case TlibExecutionResult.WaitingForInterrupt:
                     return ExecutionResult.WaitingForInterrupt;
-                    
+
                 case TlibExecutionResult.ExternalMmuFault:
                     return ExecutionResult.ExternalMmuFault;
-                    
+
                 case TlibExecutionResult.StoppedAtBreakpoint:
                     return ExecutionResult.StoppedAtBreakpoint;
 
