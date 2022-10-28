@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(5, out transferCompleteFlag, FieldMode.Read, name: "TXC")
                     .WithTaggedFlag("TXBL", 6)
                     .WithFlag(7, out receiveDataValidFlag, FieldMode.Read, name: "RXDATAV")
-                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => Count >= BufferSize, name: "RXFULL")
+                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => Count == BufferSize, name: "RXFULL")
                     .WithTaggedFlag("TXBDRIGHT", 9)
                     .WithTaggedFlag("TXBSRIGHT", 10)
                     .WithTaggedFlag("RXDATAVRIGHT", 11)
@@ -375,6 +375,16 @@ namespace Antmicro.Renode.Peripherals.UART
             return registers.Read(offset);
         }
 
+        public override void WriteChar(byte value)
+        {
+            if(BufferState == BufferState.Full)
+            {
+                this.Log(LogLevel.Warning, "RX buffer is full. Dropping incmoing byte (0x{0:X})", value);
+                return;
+            }
+            base.WriteChar(value);
+        }
+
         public IEnumerable<IRegistered<ISPIPeripheral, NullRegistrationPoint>> Children
         {
             get
@@ -454,7 +464,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             interruptsManager.SetInterrupt(Interrupt.ReceiveDataValid);
             receiveDataValidFlag.Value = true;
-            BufferState = Count >= BufferSize ? BufferState.Full : BufferState.Ready;
+            BufferState = Count == BufferSize ? BufferState.Full : BufferState.Ready;
         }
 
         protected override void QueueEmptied()
