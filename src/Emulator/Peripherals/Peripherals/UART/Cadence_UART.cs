@@ -52,15 +52,15 @@ namespace Antmicro.Renode.Peripherals.UART
             if(Count < FifoCapacity)
             {
                 base.WriteChar(value);
+                UpdateBufferState();
+                // Trigger the timeout interrupt immediately after each reception
+                rxTimeoutError.SetSticky(true);
             }
             else
             {
                 rxFifoOverflow.SetSticky(true);
                 this.Log(LogLevel.Warning, "Rx FIFO overflowed, incoming byte not queued.");
             }
-            UpdateBufferState();
-            // Trigger the timeout interrupt immediately after each reception
-            rxTimeoutError.SetSticky(true);
             UpdateSticky();
             UpdateInterrupts();
         }
@@ -413,18 +413,20 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             if(!RxEnabled)
                             {
-                                this.Log(LogLevel.Warning, "Trying to read from a disabled Rx.");
-                                return default(byte);
+                                this.Log(LogLevel.Warning, "Reading from disabled Rx FIFO.");
                             }
                             if(!TryGetCharacter(out var character))
                             {
-                                this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
+                                this.Log(LogLevel.Warning, "Reading from an empty Rx FIFO, dummy data returned.");
                             }
-                            UpdateBufferState();
-                            UpdateSticky();
-                            UpdateInterrupts();
                             return character;
                         })
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateBufferState();
+                        UpdateSticky();
+                        UpdateInterrupts();
+                    })
                 },
                 {(long)Registers.BaudRateDivider, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
