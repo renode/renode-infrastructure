@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -171,16 +171,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public override void WriteChar(byte value)
-        {
-            if(!receiverEnableFlag.Value)
-            {
-                this.Log(LogLevel.Info, "Data received when the receiver is disabled: 0x{0:X}", value);
-                return;
-            }
-            base.WriteChar(value);
-        }
-
         protected override void CharWritten()
         {
             interruptsManager.SetInterrupt(Interrupt.ReceiveDataValid);
@@ -192,6 +182,8 @@ namespace Antmicro.Renode.Peripherals.UART
             interruptsManager.ClearInterrupt(Interrupt.ReceiveDataValid);
             receiveDataValidFlag.Value = false;
         }
+
+        protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
 
         private void HandleTxBufferData(byte data)
         {
