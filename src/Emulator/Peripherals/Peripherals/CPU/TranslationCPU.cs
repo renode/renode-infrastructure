@@ -8,12 +8,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Runtime.ExceptionServices;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using Antmicro.Migrant;
@@ -26,13 +23,10 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
-using Antmicro.Renode.Peripherals.CPU.Registers;
-using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
-using ELFSharp.UImage;
 using Machine = Antmicro.Renode.Core.Machine;
 using Antmicro.Renode.Disassembler.LLVM;
 
