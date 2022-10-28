@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -16,7 +17,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class EFR32_USART : UARTBase, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>
+    public class EFR32_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>
     {
         public EFR32_USART(Machine machine, uint clockFrequency = 19000000) : base(machine)
         {
@@ -171,16 +172,38 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public BufferState BufferState
+        {
+            get
+            {
+                return bufferState;
+            }
+
+            private set
+            {
+                if(bufferState == value)
+                {
+                    return;
+                }
+                bufferState = value;
+                BufferStateChanged?.Invoke(value);
+            }
+        }
+
+        public event Action<BufferState> BufferStateChanged;
+
         protected override void CharWritten()
         {
             interruptsManager.SetInterrupt(Interrupt.ReceiveDataValid);
             receiveDataValidFlag.Value = true;
+            BufferState = Count >= BufferSize ? BufferState.Full : BufferState.Ready;
         }
 
         protected override void QueueEmptied()
         {
             interruptsManager.ClearInterrupt(Interrupt.ReceiveDataValid);
             receiveDataValidFlag.Value = false;
+            BufferState = BufferState.Empty;
         }
 
         protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
@@ -234,6 +257,9 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField transmitterEnableFlag;
         private readonly uint uartClockFrequency;
         private ISPIPeripheral spiSlaveDevice;
+        private BufferState bufferState;
+
+        private const int BufferSize = 3; // with shift register
 
         private enum OperationMode
         {
