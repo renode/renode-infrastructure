@@ -215,8 +215,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 
                 {(long)Registers.CaptureOrCompareMode2, new DoubleWordRegister(this)
-                    // Fields of this register vary between 'Output compare'/'Input compare' mode
-                    // Only common fields were defined
+                    // Fields of this register vary between 'Output compare'/'Input capture' mode
+                    // Only common fields are defined
                     .WithTag("CC3S", 0, 2)
                     //Output mode:
                         // "OC3FE", 2
