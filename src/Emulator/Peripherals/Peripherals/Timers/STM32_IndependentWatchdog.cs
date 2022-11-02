@@ -14,14 +14,16 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class STM32F4_IndependentWatchdog : BasicDoubleWordPeripheral, IKnownSize
+    public class STM32_IndependentWatchdog : BasicDoubleWordPeripheral, IKnownSize
     {
         //TODO: Stop timer on debug stop.
         //TODO: Use RCC to set restart cause.
-        public STM32F4_IndependentWatchdog(Machine machine, long frequency) : base(machine)
+        public STM32_IndependentWatchdog(Machine machine, long frequency, bool windowOption = true, uint defaultPrescaler = 0) : base(machine)
         {
             watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, "STM32_IWDG", DefaultReloadValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true, divider: DefaultPrescalerValue);
             watchdogTimer.LimitReached += TimerLimitReachedCallback;
+            this.defaultPrescaler = defaultPrescaler;
+            this.windowOption = windowOption;
             DefineRegisters();
             Reset();
         }
@@ -46,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 switch(value)
                 {
                     case Key.Reload:
-                        if(watchdogTimer.Value > window)
+                        if(windowOption && watchdogTimer.Value > window)
                         {
                             this.Log(LogLevel.Warning, "Watchdog reloaded outside of window, triggering reset!");
                             machine.RequestReset();
@@ -66,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }, name: "KEY")
             .WithReservedBits(16, 16);
 
-            Registers.Prescaler.Define(this)
+            Registers.Prescaler.Define(this, defaultPrescaler)
             .WithValueField(0, 3, writeCallback: (_, value) =>
             {
                 if(registersUnlocked)
@@ -105,20 +107,23 @@ namespace Antmicro.Renode.Peripherals.Timers
             .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "WVU")
             .WithReservedBits(3, 29);
 
-            Registers.Window.Define(this, DefaultWindow)
-            .WithValueField(0, 12, writeCallback: (_, value) =>
+            if(windowOption)
             {
-                if(registersUnlocked)
+                Registers.Window.Define(this, DefaultWindow)
+                .WithValueField(0, 12, writeCallback: (_, value) =>
                 {
-                    window = value;
-                    Reload();
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, "Trying to change watchdog window without unlocking it");
-                }
-            }, name: "WIN")
-            .WithReservedBits(12, 20);
+                    if(registersUnlocked)
+                    {
+                        window = value;
+                        Reload();
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Warning, "Trying to change watchdog window without unlocking it");
+                    }
+                }, name: "WIN")
+                .WithReservedBits(12, 20);
+            }
         }
 
         private void Reload()
@@ -137,6 +142,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint window;
 
         private readonly LimitTimer watchdogTimer;
+        private readonly uint defaultPrescaler;
+        private readonly bool windowOption;
 
         private const uint DefaultReloadValue = 0xFFF;
         private const uint DefaultWindow = 0xFFF;
