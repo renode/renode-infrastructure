@@ -1,0 +1,387 @@
+//
+// Copyright (c) 2010-2022 Antmicro
+//
+//  This file is licensed under the MIT License.
+//  Full license text is available in 'licenses/MIT.txt'.
+//
+using System;
+using System.Linq;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Logging.Profiling;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.Memory;
+
+namespace Antmicro.Renode.Peripherals.MTD
+{
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
+    public class STM32L0_FlashController : BasicDoubleWordPeripheral, IKnownSize
+    {
+        public STM32L0_FlashController(Machine machine, MappedMemory flash, MappedMemory eeprom) : base(machine)
+        {
+            this.underlyingFlash = flash;
+            this.underlyingEeprom = eeprom;
+
+            powerDownLock = new LockRegister(this, nameof(powerDownLock), PowerDownKeys);
+            programEraseControlLock = new LockRegister(this, nameof(programEraseControlLock), ProgramEraseControlKeys);
+            programEraseLock = new LockRegister(this, nameof(programEraseLock), ProgramEraseKeys);
+            optionByteLock = new LockRegister(this, nameof(optionByteLock), OptionByteKeys);
+
+            DefineRegisters();
+            programEraseControlLock.Locked += delegate
+            {
+                programEraseLock.Lock();
+                optionByteLock.Lock();
+                programEraseControl.Reset();
+            };
+
+            Reset();
+        }
+
+        public override void WriteDoubleWord(long offset, uint value)
+        {
+            var reg = (Registers)offset;
+            // The PECR lock is the only one that covers a whole register and not a single bit.
+            // Handle it here for simplicity.
+            if(reg == Registers.ProgramEraseControl && programEraseControlLock.IsLocked)
+            {
+                this.Log(LogLevel.Warning, "Attempt to write {0:x8} to {1} while it is locked", value, reg);
+                return;
+            }
+            base.WriteDoubleWord(offset, value);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            powerDownLock.Reset();
+            programEraseControlLock.Reset();
+            programEraseLock.Reset();
+            optionByteLock.Reset();
+        }
+
+        public long Size => 0x400;
+
+        private void DefineRegisters()
+        {
+            Registers.AccessControl.Define(this)
+                .WithTaggedFlag("LATENCY", 0)
+                .WithFlag(1, out prefetchEnabled, name: "PRFTEN", changeCallback: (oldValue, value) =>
+                    {
+                        if(value && disableBuffer.Value)
+                        {
+                            this.Log(LogLevel.Warning, "Attempt to set PRFTEN while DISAB_BUF is set, ignoring");
+                            prefetchEnabled.Value = oldValue;
+                        }
+                    })
+                .WithReservedBits(2, 1)
+                .WithTaggedFlag("SLEEP_PD", 3)
+                .WithFlag(4, out runPowerDown, name: "RUN_PD", changeCallback: (oldValue, value) =>
+                    {
+                        if(powerDownLock.IsLocked)
+                        {
+                            this.Log(LogLevel.Warning, "Attempt to write RUN_PD while it is locked, ignoring");
+                            runPowerDown.Value = oldValue;
+                        }
+                        else if(!value)
+                        {
+                            powerDownLock.Lock(); // Resetting the RUN_PD flag re-locks the bit
+                        }
+                    })
+                .WithFlag(5, out disableBuffer, name: "DISAB_BUF", changeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            prereadEnabled.Value = false;
+                            prefetchEnabled.Value = false;
+                        }
+                    })
+                .WithFlag(6, out prereadEnabled, name: "PRE_READ", changeCallback: (oldValue, value) =>
+                    {
+                        if(value && disableBuffer.Value)
+                        {
+                            this.Log(LogLevel.Warning, "Attempt to set PRE_READ while DISAB_BUF is set, ignoring");
+                            prereadEnabled.Value = oldValue;
+                        }
+                    });
+
+            // PECR is protected by programEraseControlLock in WriteDoubleWord. If we get to any of
+            // the callbacks below, the PECR register is definitely not locked and they don't need to check.
+            programEraseControl = Registers.ProgramEraseControl.Define(this, 0x7)
+                .WithFlag(0, name: "PE_LOCK", valueProviderCallback: _ => programEraseControlLock.IsLocked, changeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            programEraseControlLock.Lock();
+                        }
+                        // We don't need to handle an attempt at a keyless unlock because PECR can only
+                        // be written if it is unlocked (see WriteDoubleWord)
+                    })
+                .WithFlag(1, name: "PRG_LOCK", valueProviderCallback: _ => programEraseLock.IsLocked, changeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            programEraseLock.Lock();
+                        }
+                        else
+                        {
+                            this.Log(LogLevel.Warning, "Attempt to unlock PRG_LOCK without key");
+                        }
+                    })
+                .WithFlag(2, name: "OPT_LOCK", valueProviderCallback: _ => optionByteLock.IsLocked, changeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            optionByteLock.Lock();
+                        }
+                        else
+                        {
+                            this.Log(LogLevel.Warning, "Attempt to unlock OPT_LOCK without key");
+                        }
+                    })
+                .WithFlag(3, out programMemorySelect, name: "PROG")
+                .WithTaggedFlag("DATA", 4)
+                .WithReservedBits(5, 3)
+                .WithTaggedFlag("FIX", 8)
+                .WithFlag(9, name: "ERASE", changeCallback: (_, value) => { SetEraseMode(value); })
+                .WithTaggedFlag("FPRG", 10)
+                .WithReservedBits(11, 4)
+                .WithTaggedFlag("PARALLELBANK", 15)
+                .WithTaggedFlag("EOPIE", 16)
+                .WithTaggedFlag("ERRIE", 17)
+                .WithTaggedFlag("OBL_LAUNCH", 18)
+                .WithReservedBits(19, 4)
+                .WithTaggedFlag("NZDISABLE", 23)
+                .WithReservedBits(24, 8);
+
+            Registers.PowerDownKey.Define(this)
+                .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_PDKEYR", writeCallback: (_, value) =>
+                    {
+                        powerDownLock.ConsumeValue(value);
+                    });
+
+            Registers.ProgramEraseControlKey.Define(this)
+                .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_PEKEYR", writeCallback: (_, value) =>
+                    {
+                        programEraseControlLock.ConsumeValue(value);
+                    });
+
+            Registers.ProgramAndEraseKey.Define(this)
+                .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_PRGKEYR", writeCallback: (_, value) =>
+                    {
+                        programEraseLock.ConsumeValue(value);
+                    });
+
+            Registers.OptionBytesUnlockKey.Define(this)
+                .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_OPTKEYR", writeCallback: (_, value) =>
+                    {
+                        optionByteLock.ConsumeValue(value);
+                        this.Log(LogLevel.Warning, "Option bytes unlock key register accessed, option bytes currently unimplemented");
+                    });
+
+            Registers.Status.Define(this, 0xC)
+                .WithFlag(0, mode: FieldMode.Read, valueProviderCallback: _ => false, name: "BSY")
+                .WithFlag(1, mode: FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "EOP")
+                .WithFlag(2, mode: FieldMode.Read, valueProviderCallback: _ => true, name: "ENDHV")
+                .WithFlag(3, mode: FieldMode.Read, valueProviderCallback: _ => true, name: "READY")
+                .WithReservedBits(4, 4)
+                .WithFlag(8, mode: FieldMode.WriteOneToClear, name: "WRPERR")
+                .WithFlag(9, mode: FieldMode.WriteOneToClear, name: "PGAERR")
+                .WithFlag(10, mode: FieldMode.WriteOneToClear, name: "SIZERR")
+                .WithFlag(11, mode: FieldMode.WriteOneToClear, name: "OPTVERR")
+                .WithReservedBits(12, 1)
+                .WithFlag(13, mode: FieldMode.WriteOneToClear, name: "RDERR")
+                .WithReservedBits(14, 2)
+                .WithFlag(16, mode: FieldMode.WriteOneToClear, name: "NOTZEROERR")
+                .WithFlag(17, mode: FieldMode.WriteOneToClear, name: "FWWERR")
+                .WithReservedBits(18, 14);
+
+            Registers.OptionBytes.Define(this, 0x807000AA)
+                .WithValueField(0, 8, mode: FieldMode.Read, name: "RDPROT")
+                .WithFlag(8, mode: FieldMode.Read, name: "WPRMOD")
+                .WithReservedBits(9, 7)
+                .WithValueField(16, 4, mode: FieldMode.Read, name: "BOR_LEV")
+                .WithFlag(20, mode: FieldMode.Read, name: "WDG_SW")
+                .WithFlag(21, mode: FieldMode.Read, name: "nRTS_STOP")
+                .WithFlag(22, mode: FieldMode.Read, name: "nRTS_STDBY")
+                .WithFlag(23, mode: FieldMode.Read, name: "BFB2")
+                .WithReservedBits(24, 5)
+                .WithFlag(29, mode: FieldMode.Read, name: "nBOOT_SEL")
+                .WithFlag(30, mode: FieldMode.Read, name: "nBOOT0")
+                .WithFlag(31, mode: FieldMode.Read, name: "nBOOT1");
+
+            Registers.WriteProtection1.Define(this)
+                .WithValueField(0, 32, mode: FieldMode.Read, name: "WRPROT1");
+
+            Registers.WriteProtection2.Define(this)
+                .WithValueField(0, 16, mode: FieldMode.Read, name: "WRPROT2")
+                .WithReservedBits(16, 16);
+        }
+
+        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong address)
+        {
+            // Only write accesses can be used to erase
+            if(operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
+            {
+                return;
+            }
+
+            // Only accesses to our underlying flash or EEPROM peripheral can be used to erase
+            var registered = machine.SystemBus.WhatIsAt(address);
+            if(registered == null)
+            {
+                return;
+            }
+
+            var offset = address - registered.RegistrationPoint.Range.StartAddress;
+            if(registered.Peripheral == underlyingFlash)
+            {
+                // Program memory must be selected
+                if(!programMemorySelect.Value)
+                {
+                    this.Log(LogLevel.Warning, "Erase attempted without program memory being selected");
+                    return;
+                }
+
+                // Writing anything anywhere within a flash page erases the whole page
+                var flashPageStart = offset & ~(ulong)(FlashPageSize - 1);
+                underlyingFlash.WriteBytes((long)flashPageStart, FlashPageErasePattern);
+                this.Log(LogLevel.Debug, "Erased flash page {0} (at 0x{1:x8})", flashPageStart / FlashPageSize, flashPageStart);
+            }
+            else if(registered.Peripheral == underlyingEeprom)
+            {
+                // Program memory must not be selected
+                if(programMemorySelect.Value)
+                {
+                    this.Log(LogLevel.Warning, "EEPROM word erase attempted with program memory selected");
+                    return;
+                }
+
+                // Writing anything anywhere within an EEPROM word erases the whole word
+                var eepromWordStart = offset & ~(ulong)(EepromWordSize - 1);
+                underlyingEeprom.WriteDoubleWord((long)eepromWordStart, EepromWordErasePattern);
+                this.Log(LogLevel.Debug, "Erased EEPROM word {0} (at 0x{1:x8})", eepromWordStart / EepromWordSize, eepromWordStart);
+            }
+        }
+
+        private void SetEraseMode(bool enabled)
+        {
+            if(!machine.SystemBus.TryGetCurrentCPU(out var icpu))
+            {
+                this.Log(LogLevel.Error, "Failed to get CPU");
+                return;
+            }
+
+            var cpu = icpu as ICPUWithMemoryAccessHooks;
+            if(cpu == null)
+            {
+                this.Log(LogLevel.Error, "CPU does not support memory access hooks, cannot trigger memory erase");
+                return;
+            }
+
+            Action<ulong, MemoryOperation, ulong> hook = EraseMemoryAccessHook;
+            cpu.SetHookAtMemoryAccess(enabled ? hook : null);
+        }
+
+        private readonly MappedMemory underlyingFlash;
+        private readonly MappedMemory underlyingEeprom;
+
+        private DoubleWordRegister programEraseControl;
+        private IFlagRegisterField prefetchEnabled;
+        private IFlagRegisterField runPowerDown;
+        private IFlagRegisterField prereadEnabled;
+        private IFlagRegisterField disableBuffer;
+        private IFlagRegisterField programMemorySelect;
+        private readonly LockRegister powerDownLock;
+        private readonly LockRegister programEraseControlLock;
+        private readonly LockRegister programEraseLock;
+        private readonly LockRegister optionByteLock;
+
+        private const int EepromWordSize = 4;
+        private const int FlashPageSize = 128;
+        private const uint EepromWordErasePattern = 0;
+        private static readonly byte[] FlashPageErasePattern = (byte[])Enumerable.Repeat((byte)0x00, FlashPageSize).ToArray();
+        private static readonly uint[] PowerDownKeys = {0x04152637, 0xFAFBFCFD};
+        private static readonly uint[] ProgramEraseControlKeys = {0x89ABCDEF, 0x02030405};
+        private static readonly uint[] ProgramEraseKeys = {0x8C9DAEBF, 0x13141516};
+        private static readonly uint[] OptionByteKeys = {0xFBEAD9C8, 0x24252627};
+
+        private class LockRegister
+        {
+            public LockRegister(STM32L0_FlashController owner, string name, uint[] keys)
+            {
+                this.owner = owner;
+                this.name = name;
+                this.keys = keys;
+            }
+
+            public void ConsumeValue(uint value)
+            {
+                owner.Log(LogLevel.Debug, "Lock {0} received 0x{1:x8}", name, value);
+                if(DisabledUntilReset)
+                {
+                    owner.Log(LogLevel.Debug, "Lock {0} is disabled until reset, ignoring", name);
+                    return;
+                }
+
+                if(keyIndex >= keys.Length || keys[keyIndex] != value)
+                {
+                    owner.Log(LogLevel.Debug, "Lock {0} now disabled until reset after bad write", name);
+                    Lock();
+                    DisabledUntilReset = true;
+                    return;
+                }
+
+                if(++keyIndex == keys.Length)
+                {
+                    IsLocked = false;
+                    owner.Log(LogLevel.Debug, "Lock {0} unlocked", name);
+                }
+            }
+
+            public void Lock()
+            {
+                if(IsLocked)
+                {
+                    return;
+                }
+
+                owner.Log(LogLevel.Debug, "Lock {0} locked", name);
+                IsLocked = true;
+                keyIndex = 0;
+                Locked?.Invoke();
+            }
+
+            public void Reset()
+            {
+                Lock();
+                DisabledUntilReset = false;
+            }
+
+            public bool IsLocked { get; private set; } = true;
+            public bool DisabledUntilReset { get; private set; }
+            public event Action Locked;
+
+            private readonly STM32L0_FlashController owner;
+            private readonly string name;
+            private readonly uint[] keys;
+            private int keyIndex;
+        }
+
+        private enum Registers : long
+        {
+            AccessControl = 0x00,          // ACR
+            ProgramEraseControl = 0x04,    // PECR
+            PowerDownKey = 0x08,           // PDKEYR
+            ProgramEraseControlKey = 0x0C, // PEKEYR
+            ProgramAndEraseKey = 0x10,     // PRGKEYR
+            OptionBytesUnlockKey = 0x14,   // OPTKEYR
+            Status = 0x18,                 // SR
+            OptionBytes = 0x1C,            // OPTR
+            WriteProtection1 = 0x20,       // WRPROT1
+            WriteProtection2 = 0x80,       // WRPROT2
+        }
+    }
+}
