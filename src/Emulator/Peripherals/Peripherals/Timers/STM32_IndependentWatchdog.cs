@@ -35,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             registersUnlocked = false;
             reloadValue = DefaultReloadValue;
             window = DefaultWindow;
+            windowEnabled = false;
         }
 
         public long Size => 0x400;
@@ -48,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 switch(value)
                 {
                     case Key.Reload:
-                        if(windowOption && watchdogTimer.Value > window)
+                        if(windowEnabled && watchdogTimer.Value > window)
                         {
                             this.Log(LogLevel.Warning, "Watchdog reloaded outside of window, triggering reset!");
                             machine.RequestReset();
@@ -114,6 +115,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(registersUnlocked)
                     {
+                        windowEnabled = true;
                         window = value;
                         Reload();
                     }
@@ -140,6 +142,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private bool registersUnlocked;
         private uint reloadValue;
         private uint window;
+        private bool windowEnabled;
 
         private readonly LimitTimer watchdogTimer;
         private readonly uint defaultPrescaler;
