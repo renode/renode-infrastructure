@@ -18,7 +18,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             IRQ = new GPIO();
 
             Registers.PowerControl.Define(this, 0x1000)
-                .WithTaggedFlag("LPSDSR", 0)
+                // The LPSDSR flag has no functionality because low-power run mode is not implemented
+                .WithFlag(0, name: "LPSDSR")
                 .WithTaggedFlag("PDDS", 1)
                 .WithFlag(2, FieldMode.WriteOneToClear, writeCallback: (_, __) => wakeupFlag.Value = false, name: "CWUF")
                 .WithFlag(3, FieldMode.WriteOneToClear, writeCallback: (_, __) => standbyFlag.Value = false, name: "CSBF")
