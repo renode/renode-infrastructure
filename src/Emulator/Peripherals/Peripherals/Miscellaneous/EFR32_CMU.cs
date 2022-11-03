@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             base.Reset();
         }
 
-        public long Size => 0x100;
+        public long Size => 0x200;
 
         private void DefineRegisters()
         {
@@ -100,54 +100,82 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum Registers
         {
-            Control = 0x000, //RW CMU Control Register
-            HFRCOControl = 0x010, //RWH HFRCO Control Register
-            AUXHFRCOControl = 0x018, //RW AUXHFRCO Control Register
-            LFRCOControl = 0x020, //RW LFRCO Control Register
-            HFXOControl = 0x024, //RW HFXO Control Register
-            HFXOSTARTUPControl = 0x02C, //RW HFXO Startup Control
-            HFXOSteadyStateControl = 0x030, //RW HFXO Steady State Control
-            HFXOTimeoutControl = 0x034, //RW HFXO Timeout Control
-            LFXOControl = 0x038, //RW LFXO Control Register
-            CalibrationControl = 0x050, //RW Calibration Control Register
-            CalibartionCounter = 0x054, //RWH Calibration Counter Register
-            OscillatorEnableDisableCommand = 0x060, //W1 Oscillator Enable/Disable Command Register
-            Command = 0x064, //W1 Command Register
-            DebugTraceClockSelect = 0x070, //RW Debug Trace Clock Select
-            HighFrequencyClockSelectCommand = 0x074, //W1 High Frequency Clock Select Command Register
-            LowFrequencyAClockSelect = 0x080, //RW Low Frequency A Clock Select Register
-            LowFrequencyBClockSelect = 0x084, //RW Low Frequency B Clock Select Register
-            LowFrequencyEClockSelect = 0x088, //RW Low Frequency E Clock Select Register
-            Status = 0x090, //R Status Register
-            HighFrequencyClockStatus = 0x094, //R HFCLK Status Register
-            HFXOTrimStatus = 0x09C, //R HFXO Trim Status
-            InterruptFlag = 0x0A0, //R Interrupt Flag Register
-            InterruptFlagSet = 0x0A4, //W1 Interrupt Flag Set Register
-            InterruptFlagClear = 0x0A8, //(R)W1 Interrupt Flag Clear Register
-            InterruptEnable = 0x0AC, //RW Interrupt Enable Register
-            HighFrequencyBusClockEnable = 0x0B0, //RW High Frequency Bus Clock Enable Register 0
-            HighFrequencyPeripheralClockEnable = 0x0C0, //RW High Frequency Peripheral Clock Enable Register 0
-            HighFrequencyAlternateRadioPeripheralClockEnable = 0x0CC, //RW High Frequency Alternate Radio Peripheral Clock Enable Register 0
-            LowFrequencyAClockEnable = 0x0E0, //RW Low Frequency a Clock Enable Register 0 (Async Reg)
-            LowFrequencyBClockEnable = 0x0E8, //RW Low Frequency B Clock Enable Register 0 (Async Reg)
-            LowFrequencyEClockEnable = 0x0F0, //RW Low Frequency E Clock Enable Register 0 (Async Reg)
-            HighFrequencyClockPrescaler = 0x100, //RW High Frequency Clock Prescaler Register
-            HighFrequencyCoreClockPrescaler = 0x108, //RW High Frequency Core Clock Prescaler Register
-            HighFrequencyPeripheralClockPrescaler = 0x10C, //RW High Frequency Peripheral Clock Prescaler Register
-            HighFrequencyRadioPeripheralClockPrescaler = 0x110, //RW High Frequency Radio Peripheral Clock Prescaler Register
-            HighFrequencyExportClockPrescaler = 0x114, //RW High Frequency Export Clock Prescaler Register
-            LowFrequencyAPrescaler = 0x120, //RW Low Frequency a Prescaler Register 0 (Async Reg)
-            LowFrequencyBPrescaler = 0x128, //RW Low Frequency B Prescaler Register 0 (Async Reg)
-            LowFrequencyEPrescaler = 0x130, //RW Low Frequency E Prescaler Register 0 (Async Reg)
-            HighFrequencyAlternateRadioPeripheralClockPrescaler = 0x138, //RW High Frequency Alternate Radio Peripheral Clock Prescaler Register
-            SynchronizationBusy = 0x140, //R Synchronization Busy Register
-            Freeze = 0x144, //RW Freeze Register
-            PCNTControl = 0x150, //RWH PCNT Control Register
-            ADCControl = 0x15C, //RWH ADC Control Register
-            RoutingPinEnable = 0x170, //RW I/O Routing Pin Enable Register
-            RoutingLocation0 = 0x174, //RW I/O Routing Location Register
-            RoutingLocation1 = 0x178, //RW I/O Routing Location Register
-            ConfigurationLoc = 0x180, //RWH Configuration Lock Register
+            Control                                             = 0x000,
+            HFRCOControl                                        = 0x010,
+            HFRCOLDOControl                                     = 0x014,
+            AUXHFRCOControl                                     = 0x018,
+            AuxiliaryHFRCOLDOControl                            = 0x01C,
+            LFRCOControl                                        = 0x020,
+            HFXOControl                                         = 0x024,
+            HFXOSTARTUPControl                                  = 0x02C,
+            HFXOSteadyStateControl                              = 0x030,
+            HFXOTimeoutControl                                  = 0x034,
+            LFXOControl                                         = 0x038,
+            ULFRCOControl                                       = 0x03C,
+            DPLLControl                                         = 0x040,
+            DPLLControl1                                        = 0x044,
+            CalibrationControl                                  = 0x050,
+            CalibartionCounter                                  = 0x054,
+            OscillatorEnableDisableCommand                      = 0x060,
+            Command                                             = 0x064,
+            DebugTraceClockSelect                               = 0x070,
+            HighFrequencyClockSelectCommand                     = 0x074,
+            LowFrequencyAClockSelect                            = 0x080,
+            LowFrequencyBClockSelect                            = 0x084,
+            LowFrequencyEClockSelect                            = 0x088,
+            Status                                              = 0x090,
+            HighFrequencyClockStatus                            = 0x094,
+            HFXOTrimStatus                                      = 0x09C,
+            InterruptFlag                                       = 0x0A0,
+            InterruptFlagSet                                    = 0x0A4,
+            InterruptFlagClear                                  = 0x0A8,
+            InterruptEnable                                     = 0x0AC,
+            HighFrequencyBusClockEnable                         = 0x0B0,
+            HighFrequencyCoreClockEnable                        = 0x0B8,
+            HighFrequencyPeripheralClockEnable                  = 0x0C0,
+            HighFrequencyRadioPeripheralClockEnable             = 0x0C8,
+            HighFrequencyAlternateRadioPeripheralClockEnable    = 0x0CC,
+            HighFrequencyUndividedClockEnable                   = 0x0D0,
+            LowFrequencyAClockEnable                            = 0x0E0,
+            LowFrequencyBClockEnable                            = 0x0E8,
+            LowFrequencyEClockEnable                            = 0x0F0,
+            HighFrequencyClockPrescaler                         = 0x100,
+            HighFrequencyCoreClockPrescaler                     = 0x108,
+            HighFrequencyPeripheralClockPrescaler               = 0x10C,
+            HighFrequencyRadioPeripheralClockPrescaler          = 0x110,
+            HighFrequencyExportClockPrescaler                   = 0x114,
+            LowFrequencyAPrescaler                              = 0x120,
+            LowFrequencyBPrescaler                              = 0x128,
+            LowFrequencyEPrescaler                              = 0x130,
+            HighFrequencyAlternateRadioPeripheralClockPrescaler = 0x138,
+            SynchronizationBusy                                 = 0x140,
+            Freeze                                              = 0x144,
+            PCNTControl                                         = 0x150,
+            LVDSControl                                         = 0x158,
+            ADCControl                                          = 0x15C,
+            RoutingPinEnable                                    = 0x170,
+            RoutingLocation0                                    = 0x174,
+            RoutingLocation1                                    = 0x178,
+            ConfigurationLoc                                    = 0x180,
+            HFRCOSpreadSpectrum                                 = 0x184,
+            RadioDeFeaturing                                    = 0x188,
+            HighFrequencyBusClockLock                           = 0x190,
+            HighFrequencyCoreClockLock                          = 0x194,
+            HighFrequencyPeripheralClockLock                    = 0x198,
+            HighFrequencyRadioPeripheralClockLock               = 0x1A4,
+            AlternateRadioPeripheralClockLock                   = 0x1AC,
+            HighFrequencyUndividedClockLock                     = 0x1B0,
+            LowFrequencyAClockLock                              = 0x1B4,
+            LowFrequencyBClockLock                              = 0x1BC,
+            LowFrequencyEClockLock                              = 0x1C4,
+            PCNTClockLock                                       = 0x1CC,
+            Test                                                = 0x1D0,
+            HFRCOTestControl                                    = 0x1D4,
+            AUXHRCOTestControl                                  = 0x1D8,
+            LFRCOTestControl                                    = 0x1DC,
+            HFXOTestControl                                     = 0x1E0,
+            LFXOTestControl                                     = 0x1E4,
+            DPLLOffset                                          = 0x1FC,
         }
     }
 }
