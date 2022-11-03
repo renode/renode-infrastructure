@@ -44,7 +44,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(9, FieldMode.Write, name: "LFXODIS", writeCallback: (_, val) => { if(val) { lfxoens.Value = false; } })
                 .WithReservedBits(10, 22)
             ;
-            
+
+            Registers.LowFrequencyEClockSelect.Define32(this)
+                // This field has to be RW with memory, because SW is reading back written value
+                .WithEnumField<DoubleWordRegister, LowFrequencyClockSelectMode>(0, 3, name: "LFE")
+                .WithReservedBits(3, 29)
+            ;
+
             Registers.Status.Define32(this)
                 .WithFlag(0, out hfrcoens, FieldMode.Read, name: "HFRCOENS")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => hfrcoens.Value, name: "HFRCORDY")
@@ -77,6 +83,51 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithEnumField<DoubleWordRegister, ClockSource>(0, 3, FieldMode.Read, name: "SELECTED", valueProviderCallback: _ => highFrequencyClockSelect.Value)
                 .WithReservedBits(3, 29)
             ;
+
+            Registers.HighFrequencyBusClockEnable.Define32(this)
+                .WithTaggedFlag("CRYPTO0", 0)
+                .WithTaggedFlag("CRYPTO1", 1)
+                .WithTaggedFlag("LE", 2)
+                .WithTaggedFlag("GPIO", 3)
+                .WithTaggedFlag("PRS", 4)
+                .WithTaggedFlag("LDMA", 5)
+                .WithTaggedFlag("GPCRC", 6)
+                .WithReservedBits(7, 25)
+            ;
+
+            Registers.HighFrequencyRadioPeripheralClockEnable.Define32(this)
+                // Those fields have to be RW with memory, because SW is reading back written values
+                .WithFlag(0, name: "PROTIMER")
+                .WithFlag(1, name: "RFSENSE")
+                .WithFlag(2, name: "RAC")
+                .WithFlag(3, name: "FRC")
+                .WithFlag(4, name: "CRC")
+                .WithFlag(5, name: "SYNTH")
+                .WithFlag(6, name: "MODEM")
+                .WithFlag(7, name: "AGC")
+                .WithReservedBits(8, 24)
+            ;
+
+            Registers.RadioDeFeaturing.Define32(this, 0x3f0000)
+                .WithTag("SYNTHLODIVFREQCTRL", 0, 9)
+                .WithTaggedFlag("RACIFLILTENABLE", 9)
+                .WithTaggedFlag("RACAUXPLL", 10)
+                .WithTaggedFlag("MODEMDEC1", 11)
+                .WithTaggedFlag("MODEMANTDIVMODE", 12)
+                .WithTaggedFlag("RACIFPGAENPGA", 13)
+                .WithTag("RACPASLICE", 14, 7)
+                .WithTaggedFlag("RACSGPAEN", 21)
+                .WithTaggedFlag("RACPAEN", 22)
+                .WithTaggedFlag("RACPAEN0DBM", 23)
+                .WithTaggedFlag("FRCCONVMODE", 24)
+                .WithReservedBits(25, 1)
+                .WithTaggedFlag("FRCPAUSING", 26)
+                .WithTaggedFlag("MODEMDSSS", 27)
+                .WithTaggedFlag("MODEMMODFORMAT", 28)
+                .WithTaggedFlag("MODEMDUALSYNC", 29)
+                .WithReservedBits(30, 1)
+                .WithTaggedFlag("UNLOCKED", 31)
+            ;
         }
 
         private IFlagRegisterField hfrcoens;
@@ -96,6 +147,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LowFrequencyCrystalOscillator                       = 0x4,
             HighFrequencyResistorCapacitorOscillatorDividedBy2  = 0x5,
             ClockInput0                                         = 0x7,
+        }
+
+        private enum LowFrequencyClockSelectMode
+        {
+            Disabled                                            = 0x0,
+            LowFrequencyResistorCapacitorOscillator             = 0x1,
+            LowFrequencyCrystalOscillator                       = 0x2,
+            HighFrequencyClockLowEnergy                         = 0x3,
+            UltraLowFrequencyResistorCapacitorOscillator        = 0x4,
+            PrecisionLowFrequencyResistorCapacitorOscillator    = 0x5,
         }
 
         private enum Registers
