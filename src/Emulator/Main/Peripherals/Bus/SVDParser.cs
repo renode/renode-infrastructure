@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             parent.Log(LogLevel.Info, "Loaded SVD: {0}. Name: {1}. Description: {2}.", path, device.Name, device.Description);
         }
 
-        public bool TryReadAccess(ulong offset, out uint value, SysbusAccessWidth type)
+        public bool TryReadAccess(ulong offset, out ulong value, SysbusAccessWidth type)
         {
             var bytesToRead = CheckAndGetWidth(type);
             var weHaveIt = false;
@@ -102,12 +102,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             else
             {
-                value = AssambleValueFromRegisters(offset, bytesToRead, ref weHaveIt);
+                value = AssembleValueFromRegisters(offset, bytesToRead, ref weHaveIt);
             }
             return weHaveIt;
         }
 
-        public bool TryWriteAccess(ulong offset, uint value, SysbusAccessWidth width)
+        public bool TryWriteAccess(ulong offset, ulong value, SysbusAccessWidth width)
         {
             int bytesToWrite = CheckAndGetWidth(width);
             var weHaveIt = false;
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return registerDictionary.TryGetValue(offset, out tmpRegister) && tmpRegister.Address == offset && tmpRegister.SizeInBytes == countOfBytes;
         }
 
-        private void LogWriteRequests(uint value, ulong offset, int sizeInBytes, ref bool weHaveIt)
+        private void LogWriteRequests(ulong value, ulong offset, int sizeInBytes, ref bool weHaveIt)
         {
             for(var i = 0; i < sizeInBytes; i++)
             {
@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(registerDictionary.TryGetValue(tmpOffset, out var register))
                 {
                     var howManyTimes = HowManyRequestsToTheRegister(register, sizeInBytes, offset, tmpOffset);
-                    var mask = ((1u << (8 * howManyTimes)) - 1) << (8 * i);
+                    var mask = ((1ul << (8 * howManyTimes)) - 1) << (8 * i);
                     var tmpValue = (value & mask) >> (8 * i);
                     if(register.HasWriteAccess || register.HasWriteOnceAccess)
                     {
@@ -163,16 +163,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private uint AssambleValueFromRegisters(ulong offset, int sizeInBytes, ref bool weHaveIt)
+        private ulong AssembleValueFromRegisters(ulong offset, int sizeInBytes, ref bool weHaveIt)
         {
-            var result = 0u;
+            var result = 0ul;
             for(var i = 0; i < sizeInBytes; i++)
             {
                 var tmpOffset = offset + (ulong)i;
                 if(registerDictionary.TryGetValue(tmpOffset, out var register))
                 {
                     var howManyTimes = HowManyRequestsToTheRegister(register, sizeInBytes, offset, tmpOffset);
-                    var mask = ((1u << (8 * howManyTimes)) - 1) << (8 * (int)(tmpOffset - register.Address));
+                    var mask = ((1ul << (8 * howManyTimes)) - 1) << (8 * (int)(tmpOffset - register.Address));
                     var tmpValue = (register.ResetValue & mask) >> (8 * (int)(tmpOffset - register.Address));
                     if(register.HasReadAccess)
                     {
@@ -218,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private void LogReadSuccess(uint value, string peripheralName, string name, ulong offset, ulong? originalOffset = null)
+        private void LogReadSuccess(ulong value, string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
             var formatString = "Read from an unimplemented register {1}:{2} (0x{3:X}){4}, returning a value from SVD: 0x{0:X}.";
             var originalReadIndication = String.Empty;
@@ -237,7 +237,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             );
         }
 
-        private void LogWriteSuccess(uint value, string peripheralName, string name, ulong offset, bool writeOnce = false, ulong? originalOffset = null, uint? originalValue = null)
+        private void LogWriteSuccess(ulong value, string peripheralName, string name, ulong offset, bool writeOnce = false, ulong? originalOffset = null, ulong? originalValue = null)
         {
             var formatString = "Write of value 0x{0:X} to an unimplemented{5} register {1}:{2} (0x{3:X}){4} generated from SVD.";
             var originalWriteIndication = String.Empty;
@@ -280,7 +280,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             );
         }
 
-        private void LogWriteFail(uint value, string peripheralName, string name, ulong offset, ulong? originalOffset = null, uint? originalValue = null)
+        private void LogWriteFail(ulong value, string peripheralName, string name, ulong offset, ulong? originalOffset = null, ulong? originalValue = null)
         {
             var formatString = "Invalid write of value 0x{0:X} to a read-only register {1}:{2} (0x{3:X}){4} generated from SVD.";
             var originalWriteIndication = String.Empty;
@@ -306,6 +306,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             case SysbusAccessWidth.Byte:
             case SysbusAccessWidth.Word:
             case SysbusAccessWidth.DoubleWord:
+            case SysbusAccessWidth.QuadWord:
                 return (int)type;
             default:
                 throw new ArgumentException($"'{type}' is unsupported width of data.");
@@ -643,7 +644,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 return new RegisterSettings(
                     (int?)SmartParseHexOrDecimal(sizeString, node),
-                    (uint?)SmartParseHexOrDecimal(resetValueString, node),
+                    (ulong?)SmartParseHexOrDecimal(resetValueString, node),
                     address,
                     GetPermittedAccess(accessString)
                 );
@@ -748,14 +749,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Size = settings.Size ?? throw new RecoverableException($"Size not provided for register '{path}'.");
                 // Register's size can be not dividable by 8
                 SizeInBytes = (uint)Math.Ceiling(Size / 8.0);
-                // Reset value assumed to be 0 if not provided. Maximum size of the register cropped to 32 bits.
-                ResetValue = (settings.ResetValue & 0xFFFFFFFF) ?? 0u;
-                if(Size > 32)
+                // Reset value assumed to be 0 if not provided. Maximum size of the register cropped to 64 bits.
+                ResetValue = (settings.ResetValue & 0xFFFFFFFFFFFFFFFFul) ?? 0u;
+                if(Size > 64)
                 {
                     ResetValue = 0u;
                     Peripheral.ParentDevice.Parent.currentSystemBus.Log(
                         LogLevel.Warning,
-                        "Register {0} size set to {1} bits. Registers larger than 32 bits are not supported. Reset value for this register is set to {2}.",
+                        "Register {0} size set to {1} bits. Registers larger than 64 bits are not supported. Reset value for this register is set to {2}.",
                         Name,
                         Size,
                         ResetValue
@@ -776,7 +777,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public PermittedAccess Access { get; private set; }
             public SVDPeripheral Peripheral { get; private set; }
 
-            public uint ResetValue
+            public ulong ResetValue
             {
                 get
                 {
@@ -786,7 +787,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     var resetValueInLittleEndian = value;
                     // In SVD file it is possible to try set larger value than registers capacity is.
-                    var max = (uint)(1L << Size) - 1;
+                    var max = (ulong)(1L << Size) - 1;
                     if(resetValueInLittleEndian > max)
                     {
                         var normalizeResetValue = resetValueInLittleEndian & max;
@@ -803,7 +804,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                     if(Peripheral.ParentDevice.Endianess == Endianess.BigEndian)
                     {
-                        var resetValueInBigEndian = 0u;
+                        var resetValueInBigEndian = 0ul;
                         for(var i = 0; i < SizeInBytes; i++)
                         {
                             var tmp = ((resetValueInLittleEndian >> 8 * i) & 0xFF);
@@ -828,13 +829,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            private uint resetValueWithCorrectEndianess;
+            private ulong resetValueWithCorrectEndianess;
             private string path;
         }
 
         private struct RegisterSettings
         {
-            public RegisterSettings(int? size, uint? resetValue, ulong? address, PermittedAccess? access)
+            public RegisterSettings(int? size, ulong? resetValue, ulong? address, PermittedAccess? access)
             {
                 Size = size;
                 ResetValue = resetValue;
@@ -842,7 +843,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Access = access;
             }
 
-            public RegisterSettings(RegisterSettings parentRegisterSettings, int? size = null, uint? resetValue = null, ulong? address = null, PermittedAccess? access = null)
+            public RegisterSettings(RegisterSettings parentRegisterSettings, int? size = null, ulong? resetValue = null, ulong? address = null, PermittedAccess? access = null)
             {
                 Size = size ?? parentRegisterSettings.Size;
                 ResetValue = resetValue ?? parentRegisterSettings.ResetValue;
@@ -851,7 +852,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public int? Size { get; private set; }
-            public uint? ResetValue { get; private set; }
+            public ulong? ResetValue { get; private set; }
             public ulong? Address { get; private set; }
             public PermittedAccess? Access { get; private set; }
         }
