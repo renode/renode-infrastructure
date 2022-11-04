@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -41,6 +41,10 @@ namespace Antmicro.Renode.UnitTests
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x78563412);
             dwordPeriMock.Setup(x => x.ReadDoubleWord(4)).Returns(0xCCBBAA90);
             dwordPeripheral = dwordPeriMock.Object;
+
+            var qwordPeriMock = new Mock<IQuadWordPeripheral>();
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x7856341221436587);
+            qwordPeripheral = qwordPeriMock.Object;
         }
 
         [Test]
@@ -77,6 +81,32 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0x56, dwordPeripheral.ReadByteUsingDwordBigEndian(1));
             Assert.AreEqual(0x34, dwordPeripheral.ReadByteUsingDwordBigEndian(2));
             Assert.AreEqual(0x12, dwordPeripheral.ReadByteUsingDwordBigEndian(3));
+        }
+
+        [Test]
+        public void ShouldReadByteUsingQuadWord()
+        {
+            Assert.AreEqual(0x87, qwordPeripheral.ReadByteUsingQword(0));
+            Assert.AreEqual(0x65, qwordPeripheral.ReadByteUsingQword(1));
+            Assert.AreEqual(0x43, qwordPeripheral.ReadByteUsingQword(2));
+            Assert.AreEqual(0x21, qwordPeripheral.ReadByteUsingQword(3));
+            Assert.AreEqual(0x12, qwordPeripheral.ReadByteUsingQword(4));
+            Assert.AreEqual(0x34, qwordPeripheral.ReadByteUsingQword(5));
+            Assert.AreEqual(0x56, qwordPeripheral.ReadByteUsingQword(6));
+            Assert.AreEqual(0x78, qwordPeripheral.ReadByteUsingQword(7));
+        }
+
+        [Test]
+        public void ShouldReadByteUsingQuadWordBigEndian()
+        {
+            Assert.AreEqual(0x78, qwordPeripheral.ReadByteUsingQwordBigEndian(0));
+            Assert.AreEqual(0x56, qwordPeripheral.ReadByteUsingQwordBigEndian(1));
+            Assert.AreEqual(0x34, qwordPeripheral.ReadByteUsingQwordBigEndian(2));
+            Assert.AreEqual(0x12, qwordPeripheral.ReadByteUsingQwordBigEndian(3));
+            Assert.AreEqual(0x21, qwordPeripheral.ReadByteUsingQwordBigEndian(4));
+            Assert.AreEqual(0x43, qwordPeripheral.ReadByteUsingQwordBigEndian(5));
+            Assert.AreEqual(0x65, qwordPeripheral.ReadByteUsingQwordBigEndian(6));
+            Assert.AreEqual(0x87, qwordPeripheral.ReadByteUsingQwordBigEndian(7));
         }
 
         [Test]
@@ -122,6 +152,25 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldReadWordUsingQuadWord()
+        {
+            Assert.AreEqual(0x6587, qwordPeripheral.ReadWordUsingQword(0));
+            Assert.AreEqual(0x2143, qwordPeripheral.ReadWordUsingQword(2));
+            Assert.AreEqual(0x3412, qwordPeripheral.ReadWordUsingQword(4));
+            Assert.AreEqual(0x7856, qwordPeripheral.ReadWordUsingQword(6));
+        }
+
+        [Test]
+        public void ShouldReadWordUsingQuadWordBigEndian()
+        {
+            Assert.AreEqual(0x5678, qwordPeripheral.ReadWordUsingQwordBigEndian(0));
+            Assert.AreEqual(0x1234, qwordPeripheral.ReadWordUsingQwordBigEndian(2));
+            Assert.AreEqual(0x4321, qwordPeripheral.ReadWordUsingQwordBigEndian(4));
+            Assert.AreEqual(0x8765, qwordPeripheral.ReadWordUsingQwordBigEndian(6));
+        }
+
+
+        [Test]
         public void ShouldReadDoubleWordUsingByte()
         {
             Assert.AreEqual(0x78563412, bytePeripheral.ReadDoubleWordUsingByte(0));
@@ -157,9 +206,24 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0x12345678, wordPeripheral.ReadDoubleWordUsingWordBigEndian(0));
         }
 
+        [Test]
+        public void ShouldReadDoubleWordUsingQuadWord()
+        {
+            Assert.AreEqual(0x21436587, qwordPeripheral.ReadDoubleWordUsingQword(0));
+            Assert.AreEqual(0x78563412, qwordPeripheral.ReadDoubleWordUsingQword(4));
+        }
+
+        [Test]
+        public void ShouldReadDoubleWordUsingQuadWordBigEndian()
+        {
+            Assert.AreEqual(0x12345678, qwordPeripheral.ReadDoubleWordUsingQwordBigEndian(0));
+            Assert.AreEqual(0x87654321, qwordPeripheral.ReadDoubleWordUsingQwordBigEndian(4));
+        }
+
         private IBytePeripheral bytePeripheral;
         private IWordPeripheral wordPeripheral;
         private IDoubleWordPeripheral dwordPeripheral;
+        private IQuadWordPeripheral qwordPeripheral;
     }
 }
 

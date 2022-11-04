@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -24,6 +24,7 @@ namespace Antmicro.Renode.UnitTests
             bytePeriMock = new Mock<IBytePeripheral>();
             wordPeriMock = new Mock<IWordPeripheral>();
             dwordPeriMock = new Mock<IDoubleWordPeripheral>();
+            qwordPeriMock = new Mock<IQuadWordPeripheral>();
         }
 
         [Test]
@@ -70,6 +71,36 @@ namespace Antmicro.Renode.UnitTests
             bytePeriMock.Verify(x => x.WriteByte(1, 0x56), Times.Once());
             bytePeriMock.Verify(x => x.WriteByte(2, 0x34), Times.Once());
             bytePeriMock.Verify(x => x.WriteByte(3, 0x12), Times.Once());
+        }
+
+        [Test]
+        public void ShouldWriteQuadWordUsingByte()
+        {
+            var bytePeripheral = bytePeriMock.Object;
+            bytePeripheral.WriteQuadWordUsingByte(0, 0x7856341221436587);
+            bytePeriMock.Verify(x => x.WriteByte(0, 0x87), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(1, 0x65), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(2, 0x43), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(3, 0x21), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(4, 0x12), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(5, 0x34), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(6, 0x56), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(7, 0x78), Times.Once());
+        }
+
+        [Test]
+        public void ShouldWriteQuadWordUsingByteBigEndian()
+        {
+            var bytePeripheral = bytePeriMock.Object;
+            bytePeripheral.WriteQuadWordUsingByteBigEndian(0, 0x7856341221436587);
+            bytePeriMock.Verify(x => x.WriteByte(0, 0x78), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(1, 0x56), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(2, 0x34), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(3, 0x12), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(4, 0x21), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(5, 0x43), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(6, 0x65), Times.Once());
+            bytePeriMock.Verify(x => x.WriteByte(7, 0x87), Times.Once());
         }
 
         [Test]
@@ -120,6 +151,28 @@ namespace Antmicro.Renode.UnitTests
             wordPeripheral.WriteDoubleWordUsingWordBigEndian(0, 0x78563412);
             wordPeriMock.Verify(x => x.WriteWord(0, 0x5678));
             wordPeriMock.Verify(x => x.WriteWord(2, 0x1234));
+        }
+
+        [Test]
+        public void ShouldWriteQuadWordUsingWord()
+        {
+            var wordPeripheral = wordPeriMock.Object;
+            wordPeripheral.WriteQuadWordUsingWord(0, 0x7856341221436587);
+            wordPeriMock.Verify(x => x.WriteWord(0, 0x6587));
+            wordPeriMock.Verify(x => x.WriteWord(2, 0x2143));
+            wordPeriMock.Verify(x => x.WriteWord(4, 0x3412));
+            wordPeriMock.Verify(x => x.WriteWord(6, 0x7856));
+        }
+
+        [Test]
+        public void ShouldWriteQuadWordUsingWordBigEndian()
+        {
+            var wordPeripheral = wordPeriMock.Object;
+            wordPeripheral.WriteQuadWordUsingWordBigEndian(0, 0x7856341221436587);
+            wordPeriMock.Verify(x => x.WriteWord(0, 0x5678));
+            wordPeriMock.Verify(x => x.WriteWord(2, 0x1234));
+            wordPeriMock.Verify(x => x.WriteWord(4, 0x4321));
+            wordPeriMock.Verify(x => x.WriteWord(6, 0x8765));
         }
 
         [Test]
@@ -179,6 +232,24 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldWriteQuadWordUsingDoubleWord()
+        {
+            var dwordPeripheral = dwordPeriMock.Object;
+            dwordPeripheral.WriteQuadWordUsingDword(0, 0x7856341221436587);
+            dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x21436587));
+            dwordPeriMock.Verify(x => x.WriteDoubleWord(4, 0x78563412));
+        }
+
+        [Test]
+        public void ShouldWriteQuadWordUsingDoubleWordBigEndian()
+        {
+            var dwordPeripheral = dwordPeriMock.Object;
+            dwordPeripheral.WriteQuadWordUsingDwordBigEndian(0, 0x7856341221436587);
+            dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12345678));
+            dwordPeriMock.Verify(x => x.WriteDoubleWord(4, 0x87654321));
+        }
+
+        [Test]
         public void ShouldWriteWordUsingDoubleWordNotAligned1()
         {
             var dwordPeripheral = dwordPeriMock.Object;
@@ -209,5 +280,6 @@ namespace Antmicro.Renode.UnitTests
         private Mock<IBytePeripheral> bytePeriMock;
         private Mock<IWordPeripheral> wordPeriMock;
         private Mock<IDoubleWordPeripheral> dwordPeriMock;
+        private Mock<IQuadWordPeripheral> qwordPeriMock;
     }
 }
