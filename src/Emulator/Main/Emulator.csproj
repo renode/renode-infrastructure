@@ -218,6 +218,7 @@
     <Compile Include="Exceptions\RecoverableException.cs" />
     <Compile Include="Exceptions\ConstructionException.cs" />
     <Compile Include="Core\IGPIOReceiver.cs" />
+    <Compile Include="Peripherals\Bus\IQuadWordPeripheral.cs" />
     <Compile Include="Peripherals\Bus\IDoubleWordPeripheral.cs" />
     <Compile Include="Peripherals\Bus\IBytePeripheral.cs" />
     <Compile Include="Peripherals\Bus\IWordPeripheral.cs" />
@@ -229,6 +230,7 @@
     <Compile Include="Peripherals\Bus\Wrappers\BytePeripheralWrapper.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\WordPeripheralWrapper.cs" />
     <Compile Include="Peripherals\Bus\Wrappers\DoubleWordPeripheralWrapper.cs" />
+    <Compile Include="Peripherals\Bus\Wrappers\QuadWordPeripheralWrapper.cs" />
     <Compile Include="Core\GPIOEndpoint.cs" />
     <Compile Include="Core\GPIO.cs" />
     <Compile Include="Core\ILocalGPIOReceiver.cs" />
