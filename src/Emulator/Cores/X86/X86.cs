@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -57,19 +57,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint ReadByteFromPort(uint address)
         {
-            return ReadByteFromBus(IoPortBaseAddress + address);
+            return (uint)ReadByteFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
         private uint ReadWordFromPort(uint address)
         {
-            return ReadWordFromBus(IoPortBaseAddress + address);
+            return (uint)ReadWordFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
         private uint ReadDoubleWordFromPort(uint address)
         {
-            return ReadDoubleWordFromBus(IoPortBaseAddress + address);
+            return (uint)ReadDoubleWordFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
