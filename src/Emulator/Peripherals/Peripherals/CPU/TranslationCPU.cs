@@ -563,7 +563,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected uint ReadByteFromBus(ulong offset)
+        protected ulong ReadByteFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -576,7 +576,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected uint ReadWordFromBus(ulong offset)
+        protected ulong ReadWordFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -589,7 +589,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected uint ReadDoubleWordFromBus(ulong offset)
+        protected ulong ReadDoubleWordFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -602,7 +602,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteByteToBus(ulong offset, uint value)
+        protected ulong ReadQuadWordFromBus(ulong offset)
+        {
+            if(UpdateContextOnLoadAndStore)
+            {
+                TlibRestoreContext();
+            }
+            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
+            {
+                return machine.SystemBus.ReadQuadWord(offset);
+            }
+        }
+
+        [Export]
+        protected void WriteByteToBus(ulong offset, ulong value)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -615,7 +628,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteWordToBus(ulong offset, uint value)
+        protected void WriteWordToBus(ulong offset, ulong value)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -628,7 +641,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteDoubleWordToBus(ulong offset, uint value)
+        protected void WriteDoubleWordToBus(ulong offset, ulong value)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -636,7 +649,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
             {
-                machine.SystemBus.WriteDoubleWord(offset, value);
+                machine.SystemBus.WriteDoubleWord(offset, (uint)value);
+            }
+        }
+
+        [Export]
+        protected void WriteQuadWordToBus(ulong offset, ulong value)
+        {
+            if(UpdateContextOnLoadAndStore)
+            {
+                TlibRestoreContext();
+            }
+            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
+            {
+                machine.SystemBus.WriteQuadWord(offset, value);
             }
         }
 
@@ -1175,7 +1201,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pauseGuard;
         }
 
-        private CpuThreadPauseGuard ObtainPauseGuardForWriting(ulong address, SysbusAccessWidth width, uint value)
+        private CpuThreadPauseGuard ObtainPauseGuardForWriting(ulong address, SysbusAccessWidth width, ulong value)
         {
             pauseGuard.InitializeForWriting(address, width, value);
             return pauseGuard;
@@ -1328,7 +1354,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 guard.Value = new object();
             }
 
-            public void InitializeForWriting(ulong address, SysbusAccessWidth width, uint value)
+            public void InitializeForWriting(ulong address, SysbusAccessWidth width, ulong value)
             {
                 Initialize(address, width, value);
             }
@@ -1338,7 +1364,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Initialize(address, width, null);
             }
 
-            private void Initialize(ulong address, SysbusAccessWidth width, uint? value)
+            private void Initialize(ulong address, SysbusAccessWidth width, ulong? value)
             {
                 Initialize();
                 if(!parent.machine.SystemBus.TryGetWatchpointsAt(address, value.HasValue ? Access.Write : Access.Read, out var watchpoints))

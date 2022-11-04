@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,7 +9,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public delegate void BusHookDelegate(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth access, uint value);
+    public delegate void BusHookDelegate(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth access, ulong value);
 
     public class BusHookHandler
     {
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             Enabled = true;
         }
 
-        public void Invoke(ICpuSupportingGdb cpu, ulong currentAddress, SysbusAccessWidth currentWidth, uint value = 0)
+        public void Invoke(ICpuSupportingGdb cpu, ulong currentAddress, SysbusAccessWidth currentWidth, ulong value = 0)
         {
             if((currentWidth & width) != 0)
             {

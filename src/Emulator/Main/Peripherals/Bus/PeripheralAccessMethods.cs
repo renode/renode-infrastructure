@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,6 +21,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         public BusAccess.WordWriteMethod WriteWord;
         public BusAccess.DoubleWordReadMethod ReadDoubleWord;
         public BusAccess.DoubleWordWriteMethod WriteDoubleWord;
+        public BusAccess.QuadWordReadMethod ReadQuadWord;
+        public BusAccess.QuadWordWriteMethod WriteQuadWord;
         public Action<ulong> SetAbsoluteAddress;
         public IBusPeripheral Peripheral;
         [Constructor(true)]
@@ -43,6 +45,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 break;
             case BusAccess.Method.DoubleWord:
                 SetReadOrWriteMethod(i, obj, operation, ref ReadDoubleWord, ref WriteDoubleWord);
+                break;
+            case BusAccess.Method.QuadWord:
+                SetReadOrWriteMethod(i, obj, operation, ref ReadQuadWord, ref WriteQuadWord);
                 break;
             default:
                 throw new ArgumentException(string.Format("Unsupported access method: {0}", method));

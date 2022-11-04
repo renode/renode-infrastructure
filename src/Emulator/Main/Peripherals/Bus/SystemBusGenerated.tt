@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,6 +14,7 @@
     types.Add("byte", "Byte");
     types.Add("ushort", "Word");
     types.Add("uint", "DoubleWord");
+    types.Add("ulong", "QuadWord");
 #>
 /********************************************************
 *

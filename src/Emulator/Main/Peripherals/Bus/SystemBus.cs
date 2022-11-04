@@ -194,9 +194,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                         pam.WriteByte = new BusAccess.ByteWriteMethod(new WriteLoggingWrapper<byte>(busPeripheral, new Action<long, byte>(pam.WriteByte)).Write);
                         pam.WriteWord = new BusAccess.WordWriteMethod(new WriteLoggingWrapper<ushort>(busPeripheral, new Action<long, ushort>(pam.WriteWord)).Write);
                         pam.WriteDoubleWord = new BusAccess.DoubleWordWriteMethod(new WriteLoggingWrapper<uint>(busPeripheral, new Action<long, uint>(pam.WriteDoubleWord)).Write);
+                        pam.WriteQuadWord = new BusAccess.QuadWordWriteMethod(new WriteLoggingWrapper<ulong>(busPeripheral, new Action<long, ulong>(pam.WriteQuadWord)).Write);
                         pam.ReadByte = new BusAccess.ByteReadMethod(new ReadLoggingWrapper<byte>(busPeripheral, new Func<long, byte>(pam.ReadByte)).Read);
                         pam.ReadWord = new BusAccess.WordReadMethod(new ReadLoggingWrapper<ushort>(busPeripheral, new Func<long, ushort>(pam.ReadWord)).Read);
                         pam.ReadDoubleWord = new BusAccess.DoubleWordReadMethod(new ReadLoggingWrapper<uint>(busPeripheral, new Func<long, uint>(pam.ReadDoubleWord)).Read);
+                        pam.ReadQuadWord = new BusAccess.QuadWordReadMethod(new ReadLoggingWrapper<ulong>(busPeripheral, new Func<long, ulong>(pam.ReadQuadWord)).Read);
                         return pam;
                     }
                     else
@@ -204,9 +206,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                         pam.WriteByte = new BusAccess.ByteWriteMethod(((WriteLoggingWrapper<byte>)pam.WriteByte.Target).OriginalMethod);
                         pam.WriteWord = new BusAccess.WordWriteMethod(((WriteLoggingWrapper<ushort>)pam.WriteWord.Target).OriginalMethod);
                         pam.WriteDoubleWord = new BusAccess.DoubleWordWriteMethod(((WriteLoggingWrapper<uint>)pam.WriteDoubleWord.Target).OriginalMethod);
+                        pam.WriteQuadWord = new BusAccess.QuadWordWriteMethod(((WriteLoggingWrapper<ulong>)pam.WriteQuadWord.Target).OriginalMethod);
                         pam.ReadByte = new BusAccess.ByteReadMethod(((ReadLoggingWrapper<byte>)pam.ReadByte.Target).OriginalMethod);
                         pam.ReadWord = new BusAccess.WordReadMethod(((ReadLoggingWrapper<ushort>)pam.ReadWord.Target).OriginalMethod);
                         pam.ReadDoubleWord = new BusAccess.DoubleWordReadMethod(((ReadLoggingWrapper<uint>)pam.ReadDoubleWord.Target).OriginalMethod);
+                        pam.ReadQuadWord = new BusAccess.QuadWordReadMethod(((ReadLoggingWrapper<ulong>)pam.ReadQuadWord.Target).OriginalMethod);
                         return pam;
                     }
                 });
@@ -1205,9 +1209,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             var bytePeripheral = peripheral as IBytePeripheral;
             var wordPeripheral = peripheral as IWordPeripheral;
             var dwordPeripheral = peripheral as IDoubleWordPeripheral;
+            var qwordPeripheral = peripheral as IQuadWordPeripheral;
             BytePeripheralWrapper byteWrapper = null;
             WordPeripheralWrapper wordWrapper = null;
             DoubleWordPeripheralWrapper dwordWrapper = null;
+            QuadWordPeripheralWrapper qwordWrapper = null;
 
             if(methods.ReadByte != null)
             {
@@ -1223,9 +1229,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 dwordWrapper = new DoubleWordPeripheralWrapper(methods.ReadDoubleWord, methods.WriteDoubleWord);
             }
+            if(methods.ReadQuadWord != null)
+            {
+                qwordWrapper = new QuadWordPeripheralWrapper(methods.ReadQuadWord, methods.WriteQuadWord);
+            }
 
-            if(bytePeripheral == null && wordPeripheral == null && dwordPeripheral == null && byteWrapper == null
-               && wordWrapper == null && dwordWrapper == null)
+            if(bytePeripheral == null && wordPeripheral == null && dwordPeripheral == null && qwordPeripheral == null
+                    && byteWrapper == null && wordWrapper == null && dwordWrapper == null && qwordWrapper == null)
             {
                 throw new RegistrationException(string.Format("Cannot register peripheral {0}, it does not implement any of IBusPeripheral derived interfaces," +
                 "nor any other methods were pointed.", peripheral));
@@ -1249,25 +1259,35 @@ namespace Antmicro.Renode.Peripherals.Bus
                     methods.ReadByte = bytePeripheral.ReadByte;
                     methods.WriteByte = bytePeripheral.WriteByte;
                 }
-                else if(wordWrapper != null && (allowedTranslations & AllowedTranslation.ByteToWord) != 0)
+                else if(qwordWrapper != null && (allowedTranslations & AllowedTranslation.ByteToQuadWord) != 0)
                 {
-                    methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)wordWrapper.ReadByteUsingWord : wordWrapper.ReadByteUsingWordBigEndian;
-                    methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)wordWrapper.WriteByteUsingWord : wordWrapper.WriteByteUsingWordBigEndian;
+                    methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)qwordWrapper.ReadByteUsingQword : qwordWrapper.ReadByteUsingQwordBigEndian;
+                    methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)qwordWrapper.WriteByteUsingQword : qwordWrapper.WriteByteUsingQwordBigEndian;
                 }
                 else if(dwordWrapper != null && (allowedTranslations & AllowedTranslation.ByteToDoubleWord) != 0)
                 {
                     methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)dwordWrapper.ReadByteUsingDword : dwordWrapper.ReadByteUsingDwordBigEndian;
                     methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)dwordWrapper.WriteByteUsingDword : dwordWrapper.WriteByteUsingDwordBigEndian;
                 }
-                else if(wordPeripheral != null && (allowedTranslations & AllowedTranslation.ByteToWord) != 0)
+                else if(wordWrapper != null && (allowedTranslations & AllowedTranslation.ByteToWord) != 0)
                 {
-                    methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)wordPeripheral.ReadByteUsingWord : wordPeripheral.ReadByteUsingWordBigEndian;
-                    methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)wordPeripheral.WriteByteUsingWord : wordPeripheral.WriteByteUsingWordBigEndian;
+                    methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)wordWrapper.ReadByteUsingWord : wordWrapper.ReadByteUsingWordBigEndian;
+                    methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)wordWrapper.WriteByteUsingWord : wordWrapper.WriteByteUsingWordBigEndian;
+                }
+                else if(qwordPeripheral != null && (allowedTranslations & AllowedTranslation.ByteToQuadWord) != 0)
+                {
+                    methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)qwordPeripheral.ReadByteUsingQword : qwordPeripheral.ReadByteUsingQwordBigEndian;
+                    methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)qwordPeripheral.WriteByteUsingQword : qwordPeripheral.WriteByteUsingQwordBigEndian;
                 }
                 else if(dwordPeripheral != null && (allowedTranslations & AllowedTranslation.ByteToDoubleWord) != 0)
                 {
                     methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)dwordPeripheral.ReadByteUsingDword : dwordPeripheral.ReadByteUsingDwordBigEndian;
                     methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)dwordPeripheral.WriteByteUsingDword : dwordPeripheral.WriteByteUsingDwordBigEndian;
+                }
+                else if(wordPeripheral != null && (allowedTranslations & AllowedTranslation.ByteToWord) != 0)
+                {
+                    methods.ReadByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteReadMethod)wordPeripheral.ReadByteUsingWord : wordPeripheral.ReadByteUsingWordBigEndian;
+                    methods.WriteByte = periEndianess == Endianess.LittleEndian ? (BusAccess.ByteWriteMethod)wordPeripheral.WriteByteUsingWord : wordPeripheral.WriteByteUsingWordBigEndian;
                 }
                 else
                 {
@@ -1283,6 +1303,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     methods.ReadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordReadMethod)wordPeripheral.ReadWord : wordPeripheral.ReadWordBigEndian;
                     methods.WriteWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordWriteMethod)wordPeripheral.WriteWord : wordPeripheral.WriteWordBigEndian;
                 }
+                else if(qwordWrapper != null && (allowedTranslations & AllowedTranslation.WordToQuadWord) != 0)
+                {
+                    methods.ReadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordReadMethod)qwordWrapper.ReadWordUsingQword : qwordWrapper.ReadWordUsingQwordBigEndian;
+                    methods.WriteWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordWriteMethod)qwordWrapper.WriteWordUsingQword : qwordWrapper.WriteWordUsingQwordBigEndian;
+                }
                 else if(dwordWrapper != null && (allowedTranslations & AllowedTranslation.WordToDoubleWord) != 0)
                 {
                     methods.ReadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordReadMethod)dwordWrapper.ReadWordUsingDword : dwordWrapper.ReadWordUsingDwordBigEndian;
@@ -1292,6 +1317,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     methods.ReadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordReadMethod)byteWrapper.ReadWordUsingByte : byteWrapper.ReadWordUsingByteBigEndian;
                     methods.WriteWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordWriteMethod)byteWrapper.WriteWordUsingByte : byteWrapper.WriteWordUsingByteBigEndian;
+                }
+                else if(qwordPeripheral != null && (allowedTranslations & AllowedTranslation.WordToQuadWord) != 0)
+                {
+                    methods.ReadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordReadMethod)qwordPeripheral.ReadWordUsingQword : qwordPeripheral.ReadWordUsingQwordBigEndian;
+                    methods.WriteWord = periEndianess == Endianess.LittleEndian ? (BusAccess.WordWriteMethod)qwordPeripheral.WriteWordUsingQword : qwordPeripheral.WriteWordUsingQwordBigEndian;
                 }
                 else if(dwordPeripheral != null && (allowedTranslations & AllowedTranslation.WordToDoubleWord) != 0)
                 {
@@ -1323,6 +1353,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     methods.ReadDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordReadMethod)dwordPeripheral.ReadDoubleWord : dwordPeripheral.ReadDoubleWordBigEndian;
                     methods.WriteDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordWriteMethod)dwordPeripheral.WriteDoubleWord : dwordPeripheral.WriteDoubleWordBigEndian;
                 }
+                else if(qwordWrapper != null && (allowedTranslations & AllowedTranslation.DoubleWordToQuadWord) != 0)
+                {
+                    methods.ReadDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordReadMethod)qwordWrapper.ReadDoubleWordUsingQword : qwordWrapper.ReadDoubleWordUsingQwordBigEndian;
+                    methods.WriteDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordWriteMethod)qwordWrapper.WriteDoubleWordUsingQword : qwordWrapper.WriteDoubleWordUsingQwordBigEndian;
+                }
                 else if(wordWrapper != null && (allowedTranslations & AllowedTranslation.DoubleWordToWord) != 0)
                 {
                     methods.ReadDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordReadMethod)wordWrapper.ReadDoubleWordUsingWord : wordWrapper.ReadDoubleWordUsingWordBigEndian;
@@ -1332,6 +1367,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     methods.ReadDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordReadMethod)byteWrapper.ReadDoubleWordUsingByte : byteWrapper.ReadDoubleWordUsingByteBigEndian;
                     methods.WriteDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordWriteMethod)byteWrapper.WriteDoubleWordUsingByte : byteWrapper.WriteDoubleWordUsingByteBigEndian;
+                }
+                else if(qwordPeripheral != null && (allowedTranslations & AllowedTranslation.DoubleWordToQuadWord) != 0)
+                {
+                    methods.ReadDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordReadMethod)qwordPeripheral.ReadDoubleWordUsingQword : qwordPeripheral.ReadDoubleWordUsingQwordBigEndian;
+                    methods.WriteDoubleWord = periEndianess == Endianess.LittleEndian ? (BusAccess.DoubleWordWriteMethod)qwordPeripheral.WriteDoubleWordUsingQword : qwordPeripheral.WriteDoubleWordUsingQwordBigEndian;
                 }
                 else if(wordPeripheral != null && (allowedTranslations & AllowedTranslation.DoubleWordToWord) != 0)
                 {
@@ -1354,6 +1394,55 @@ namespace Antmicro.Renode.Peripherals.Bus
                 // if methods.ReadDoubleWord != null then we have a dwordWrapper
                 methods.ReadDoubleWord = (BusAccess.DoubleWordReadMethod)dwordWrapper.ReadDoubleWordBigEndian;
                 methods.WriteDoubleWord = (BusAccess.DoubleWordWriteMethod)dwordWrapper.WriteDoubleWordBigEndian;
+            }
+            if(methods.ReadQuadWord == null)
+            {
+                if(qwordPeripheral != null)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)qwordPeripheral.ReadQuadWord : qwordPeripheral.ReadQuadWordBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)qwordPeripheral.WriteQuadWord : qwordPeripheral.WriteQuadWordBigEndian;
+                }
+                else if(dwordWrapper != null && (allowedTranslations & AllowedTranslation.QuadWordToDoubleWord) != 0)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)dwordWrapper.ReadQuadWordUsingDword : dwordWrapper.ReadQuadWordUsingDwordBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)dwordWrapper.WriteQuadWordUsingDword : dwordWrapper.WriteQuadWordUsingDwordBigEndian;
+                }
+                else if(wordWrapper != null && (allowedTranslations & AllowedTranslation.QuadWordToWord) != 0)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)wordWrapper.ReadQuadWordUsingWord : wordWrapper.ReadQuadWordUsingWordBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)wordWrapper.WriteQuadWordUsingWord : wordWrapper.WriteQuadWordUsingWordBigEndian;
+                }
+                else if(byteWrapper != null && (allowedTranslations & AllowedTranslation.QuadWordToByte) != 0)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)byteWrapper.ReadQuadWordUsingByte : byteWrapper.ReadQuadWordUsingByteBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)byteWrapper.WriteQuadWordUsingByte : byteWrapper.WriteQuadWordUsingByteBigEndian;
+                }
+                else if(dwordPeripheral != null && (allowedTranslations & AllowedTranslation.QuadWordToDoubleWord) != 0)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)dwordPeripheral.ReadQuadWordUsingDword : dwordPeripheral.ReadQuadWordUsingDwordBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)dwordPeripheral.WriteQuadWordUsingDword : dwordPeripheral.WriteQuadWordUsingDwordBigEndian;
+                }
+                else if(wordPeripheral != null && (allowedTranslations & AllowedTranslation.QuadWordToWord) != 0)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)wordPeripheral.ReadQuadWordUsingWord : wordPeripheral.ReadQuadWordUsingWordBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)wordPeripheral.WriteQuadWordUsingWord : wordPeripheral.WriteQuadWordUsingWordBigEndian;
+                }
+                else if(bytePeripheral != null && (allowedTranslations & AllowedTranslation.QuadWordToByte) != 0)
+                {
+                    methods.ReadQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordReadMethod)bytePeripheral.ReadQuadWordUsingByte : bytePeripheral.ReadQuadWordUsingByteBigEndian;
+                    methods.WriteQuadWord = periEndianess == Endianess.LittleEndian ? (BusAccess.QuadWordWriteMethod)bytePeripheral.WriteQuadWordUsingByte : bytePeripheral.WriteQuadWordUsingByteBigEndian;
+                }
+                else
+                {
+                    methods.ReadQuadWord = peripheral.ReadQuadWordNotTranslated;
+                    methods.WriteQuadWord = peripheral.WriteQuadWordNotTranslated;
+                }
+            }
+            else if(periEndianess == Endianess.BigEndian)
+            {
+                // if methods.ReadQuadWord != null then we have a qwordWrapper
+                methods.ReadQuadWord = (BusAccess.QuadWordReadMethod)qwordWrapper.ReadQuadWordBigEndian;
+                methods.WriteQuadWord = (BusAccess.QuadWordWriteMethod)qwordWrapper.WriteQuadWordBigEndian;
             }
 
             peripheralRegistered = true;

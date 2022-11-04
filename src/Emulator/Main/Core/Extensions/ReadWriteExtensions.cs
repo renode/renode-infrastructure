@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -92,6 +92,60 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
+        public static ulong ReadQuadWordUsingByte(this IBytePeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (ulong)
+                    (peripheral.ReadByte(address + 7) << 56 | peripheral.ReadByte(address + 6) << 48
+                     | peripheral.ReadByte(address + 5) << 40 | peripheral.ReadByte(address + 4) << 32
+                     | peripheral.ReadByte(address + 3) << 24 | peripheral.ReadByte(address + 2) << 16
+                     | peripheral.ReadByte(address + 1) << 8 | peripheral.ReadByte(address));
+            }
+        }
+
+        public static ulong ReadQuadWordUsingByteBigEndian(this IBytePeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (ulong)
+                    (peripheral.ReadByte(address + 7) | peripheral.ReadByte(address + 6) << 8
+                     | peripheral.ReadByte(address + 5) << 16 | peripheral.ReadByte(address + 4) << 24
+                     | peripheral.ReadByte(address + 3) << 32 | peripheral.ReadByte(address + 2) << 40
+                     | peripheral.ReadByte(address + 1) << 48 | peripheral.ReadByte(address) << 56);
+            }
+        }
+
+        public static void WriteQuadWordUsingByte(this IBytePeripheral peripheral, long address, ulong value)
+        {
+            unchecked
+            {
+                peripheral.WriteByte(address + 7, (byte)(value >> 56));
+                peripheral.WriteByte(address + 6, (byte)(value >> 48));
+                peripheral.WriteByte(address + 5, (byte)(value >> 40));
+                peripheral.WriteByte(address + 4, (byte)(value >> 32));
+                peripheral.WriteByte(address + 3, (byte)(value >> 24));
+                peripheral.WriteByte(address + 2, (byte)(value >> 16));
+                peripheral.WriteByte(address + 1, (byte)(value >> 8));
+                peripheral.WriteByte(address, (byte)value);
+            }
+        }
+
+        public static void WriteQuadWordUsingByteBigEndian(this IBytePeripheral peripheral, long address, ulong value)
+        {
+            unchecked
+            {
+                peripheral.WriteByte(address, (byte)(value >> 56));
+                peripheral.WriteByte(address + 1, (byte)(value >> 48));
+                peripheral.WriteByte(address + 2, (byte)(value >> 40));
+                peripheral.WriteByte(address + 3, (byte)(value >> 32));
+                peripheral.WriteByte(address + 4, (byte)(value >> 24));
+                peripheral.WriteByte(address + 5, (byte)(value >> 16));
+                peripheral.WriteByte(address + 6, (byte)(value >> 8));
+                peripheral.WriteByte(address + 7, (byte)value);
+            }
+        }
+
         public static byte ReadByteUsingWord(this IWordPeripheral peripheral, long address)
         {
             unchecked
@@ -176,6 +230,48 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
+        public static byte ReadByteUsingQword(this IQuadWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~7);
+                var offset = (int)(address & 7);
+                return (byte)(peripheral.ReadQuadWord(readAddress) >> offset * 8);
+            }
+        }
+
+        public static byte ReadByteUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~7);
+                var offset = 7 - (int)(address & 7);
+                return (byte)(peripheral.ReadQuadWord(readAddress) >> offset * 8);
+            }
+        }
+
+        public static void WriteByteUsingQword(this IQuadWordPeripheral peripheral, long address, byte value)
+        {
+            unchecked
+            {
+                var writeAddress = address & (~7);
+                var offset = (int)(address & 7);
+                var oldValue = peripheral.ReadQuadWord(writeAddress) & ~(0xFFul << offset * 8);
+                peripheral.WriteQuadWord(writeAddress, (ulong)(oldValue | ((ulong)value << 8 * offset)));
+            }
+        }
+
+        public static void WriteByteUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address, byte value)
+        {
+            unchecked
+            {
+                var writeAddress = address & (~7);
+                var offset = 7 - (int)(address & 7);
+                var oldValue = peripheral.ReadQuadWord(writeAddress) & ~(0xFFul << offset * 8);
+                peripheral.WriteQuadWord(writeAddress, (ulong)(oldValue | ((ulong)value << 8 * offset)));
+            }
+        }
+
         public static ushort ReadWordUsingDword(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
@@ -219,6 +315,49 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
+        public static ushort ReadWordUsingQword(this IQuadWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~7);
+                var offset = (int)(address & 7);
+                return (ushort)(peripheral.ReadQuadWord(readAddress) >> offset * 8);
+            }
+        }
+
+        public static ushort ReadWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~7);
+                var offset = 6 - (int)(address & 7);
+                return Misc.SwapBytesUShort((ushort)(peripheral.ReadQuadWord(readAddress) >> offset * 8));
+            }
+        }
+
+        public static void WriteWordUsingQword(this IQuadWordPeripheral peripheral, long address, ushort value)
+        {
+            unchecked
+            {
+                var alignedAddress = address & (~7);
+                var offset = (int)(address & 7);
+                var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFul << offset * 8);
+                peripheral.WriteQuadWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));
+            }
+        }
+
+        public static void WriteWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address, ushort value)
+        {
+            unchecked
+            {
+                value = Misc.SwapBytesUShort(value);
+                var alignedAddress = address & (~7);
+                var offset = 6 - (int)(address & 7);
+                var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFul << offset * 8);
+                peripheral.WriteQuadWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));
+            }
+        }
+
         public static uint ReadDoubleWordUsingWord(this IWordPeripheral peripheral, long address)
         {
             unchecked
@@ -254,6 +393,131 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
+        public static uint ReadDoubleWordUsingQword(this IQuadWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~7);
+                var offset = (int)(address & 7);
+                return (uint)(peripheral.ReadQuadWord(readAddress) >> offset * 8);
+            }
+        }
+
+        public static uint ReadDoubleWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~7);
+                var offset = 4 - (int)(address & 7);
+                return Misc.SwapBytesUInt((uint)(peripheral.ReadQuadWord(readAddress) >> offset * 8));
+            }
+        }
+
+        public static void WriteDoubleWordUsingQword(this IQuadWordPeripheral peripheral, long address, uint value)
+        {
+            unchecked
+            {
+                var alignedAddress = address & (~7);
+                var offset = (int)(address & 7);
+                var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFFFFFul << offset * 8);
+                peripheral.WriteQuadWord(alignedAddress, (ulong)(oldValue | (ulong)(value << 8 * offset)));
+            }
+        }
+
+        public static void WriteDoubleWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address, uint value)
+        {
+            unchecked
+            {
+                value = Misc.SwapBytesUInt(value);
+                var alignedAddress = address & (~7);
+                var offset = 4 - (int)(address & 7);
+                var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFFFFFul << offset * 8);
+                peripheral.WriteQuadWord(alignedAddress, (ulong)(oldValue | (ulong)(value << 8 * offset)));
+            }
+        }
+
+        public static ulong ReadQuadWordUsingWord(this IWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (ulong)
+                    (peripheral.ReadWord(address + 6) << 48 | peripheral.ReadWord(address + 4) << 32
+                     | peripheral.ReadWord(address + 2) << 16 | peripheral.ReadWord(address));
+            }
+        }
+
+        public static ulong ReadQuadWordUsingWordBigEndian(this IWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (ulong)
+                    (Misc.SwapBytesUShort(peripheral.ReadWord(address)) << 48 |
+                     Misc.SwapBytesUShort(peripheral.ReadWord(address + 2)) << 32 |
+                     Misc.SwapBytesUShort(peripheral.ReadWord(address + 4)) << 16 |
+                     Misc.SwapBytesUShort(peripheral.ReadWord(address + 6)));
+            }
+        }
+
+        public static void WriteQuadWordUsingWord(this IWordPeripheral peripheral, long address, ulong value)
+        {
+            unchecked
+            {
+                peripheral.WriteWord(address + 6, (ushort)(value >> 48));
+                peripheral.WriteWord(address + 4, (ushort)(value >> 32));
+                peripheral.WriteWord(address + 2, (ushort)(value >> 16));
+                peripheral.WriteWord(address, (ushort)value);
+            }
+        }
+
+        public static void WriteQuadWordUsingWordBigEndian(this IWordPeripheral peripheral, long address, ulong value)
+        {
+            unchecked
+            {
+                peripheral.WriteWord(address, Misc.SwapBytesUShort((ushort)(value >> 48)));
+                peripheral.WriteWord(address + 2, Misc.SwapBytesUShort((ushort)(value >> 32)));
+                peripheral.WriteWord(address + 4, Misc.SwapBytesUShort((ushort)(value >> 16)));
+                peripheral.WriteWord(address + 6, Misc.SwapBytesUShort((ushort)value));
+            }
+        }
+
+        public static ulong ReadQuadWordUsingDword(this IDoubleWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (ulong)
+                    (peripheral.ReadDoubleWord(address + 4) << 32
+                     | peripheral.ReadDoubleWord(address));
+            }
+        }
+
+        public static ulong ReadQuadWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (ulong)
+                    (Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address)) << 32 |
+                     Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address + 4)));
+            }
+        }
+
+        public static void WriteQuadWordUsingDword(this IDoubleWordPeripheral peripheral, long address, ulong value)
+        {
+            unchecked
+            {
+                peripheral.WriteDoubleWord(address + 4, (uint)(value >> 32));
+                peripheral.WriteDoubleWord(address, (uint)value);
+            }
+        }
+
+        public static void WriteQuadWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address, ulong value)
+        {
+            unchecked
+            {
+                peripheral.WriteDoubleWord(address, Misc.SwapBytesUInt((uint)(value >> 32)));
+                peripheral.WriteDoubleWord(address + 4, Misc.SwapBytesUInt((uint)value));
+            }
+        }
+
         public static ushort ReadWordBigEndian(this IWordPeripheral peripheral, long address)
         {
             return Misc.SwapBytesUShort(peripheral.ReadWord(address));
@@ -274,6 +538,16 @@ namespace Antmicro.Renode.Core.Extensions
             peripheral.WriteDoubleWord(address, Misc.SwapBytesUInt(value));
         }
 
+        public static ulong ReadQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        {
+            return Misc.SwapBytesULong(peripheral.ReadQuadWord(address));
+        }
+
+        public static void WriteQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address, ulong value)
+        {
+            peripheral.WriteQuadWord(address, Misc.SwapBytesULong(value));
+        }
+
         public static byte ReadByteNotTranslated(this IBusPeripheral peripheral, long address)
         {
             LogNotTranslated(peripheral, SysbusAccessWidth.Byte, address);
@@ -292,6 +566,12 @@ namespace Antmicro.Renode.Core.Extensions
             return 0;
         }
 
+        public static ulong ReadQuadWordNotTranslated(this IBusPeripheral peripheral, long address)
+        {
+            LogNotTranslated(peripheral, SysbusAccessWidth.QuadWord, address);
+            return 0;
+        }
+
         public static void WriteByteNotTranslated(this IBusPeripheral peripheral, long address, byte value)
         {
             LogNotTranslated(peripheral, SysbusAccessWidth.Byte, address, value);
@@ -307,7 +587,12 @@ namespace Antmicro.Renode.Core.Extensions
             LogNotTranslated(peripheral, SysbusAccessWidth.DoubleWord, address, value);
         }
 
-        private static void LogNotTranslated(IBusPeripheral peripheral, SysbusAccessWidth operationWidth, long address, uint? value = null)
+        public static void WriteQuadWordNotTranslated(this IBusPeripheral peripheral, long address, ulong value)
+        {
+            LogNotTranslated(peripheral, SysbusAccessWidth.QuadWord, address, value);
+        }
+
+        private static void LogNotTranslated(IBusPeripheral peripheral, SysbusAccessWidth operationWidth, long address, ulong? value = null)
         {
             var strBldr = new StringBuilder();
             strBldr.AppendFormat("Attempt to {0} {1} from peripheral that doesn't support {1} interface.", value.HasValue ? "write" : "read", operationWidth);
