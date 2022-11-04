@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using System.IO;
@@ -1488,6 +1489,87 @@ namespace Antmicro.Renode.Utilities
                 return true;
             }
             return false;
+        }
+
+        public static byte ReadWithOffset<T>(this T @this, long register, int offset, bool msbFirst = false) where T : IRegisterCollection
+        {
+            int innerOffset;
+            uint outputValue;
+            if(@this is ByteRegisterCollection)
+            {
+                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
+                innerOffset = 0;
+                outputValue = (uint)byteRegisterCollection.Read(register);
+            }
+            else if(@this is WordRegisterCollection)
+            {
+                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
+                innerOffset = offset % 2;
+                if(msbFirst)
+                {
+                    innerOffset = 1 - innerOffset;
+                }
+                outputValue = (uint)wordRegisterCollection.Read(register + offset / 2);
+            }
+            else if(@this is DoubleWordRegisterCollection)
+            {
+                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
+                innerOffset = offset % 4;
+                if(msbFirst)
+                {
+                    innerOffset = 3 - innerOffset;
+                }
+                outputValue = (uint)doubleWordRegisterCollection.Read(register + offset / 4);
+            }
+            else
+            {
+                throw new Exception("unreachable code");
+            }
+            var mask = 0xFFUL << (innerOffset * 8);
+            return (byte)((outputValue & mask) >> (innerOffset * 8));
+        }
+
+        public static void WriteWithOffset<T>(this T @this, long register, int offset, byte value, bool msbFirst = false) where T : IRegisterCollection
+        {
+            int innerOffset;
+            uint previousValue;
+            Action<uint> writeFunction;
+            if(@this is ByteRegisterCollection)
+            {
+                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
+                innerOffset = 0;
+                previousValue = (uint)byteRegisterCollection.Read(register);
+                writeFunction = (data) => byteRegisterCollection.Write(register, (byte)data);
+            }
+            else if(@this is WordRegisterCollection)
+            {
+                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
+                innerOffset = offset % 2;
+                if(msbFirst)
+                {
+                    innerOffset = 1 - innerOffset;
+                }
+                previousValue = (uint)wordRegisterCollection.Read(register + offset / 2);
+                writeFunction = (data) => wordRegisterCollection.Write(register + offset / 2, (ushort)data);
+            }
+            else if(@this is DoubleWordRegisterCollection)
+            {
+                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
+                innerOffset = offset % 4;
+                if(msbFirst)
+                {
+                    innerOffset = 3 - innerOffset;
+                }
+                previousValue = (uint)doubleWordRegisterCollection.Read(register + offset / 4);
+                writeFunction = (data) => doubleWordRegisterCollection.Write(register + offset / 4, (uint)data);
+            }
+            else
+            {
+                throw new Exception("unreachable code");
+            }
+            var mask = 0xFFU << (innerOffset * 8);
+            var newValue = (previousValue & ~mask) | ((uint)value << (innerOffset * 8));
+            writeFunction((uint)newValue);
         }
 
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
