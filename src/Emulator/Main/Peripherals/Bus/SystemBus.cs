@@ -490,7 +490,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             checked
             {
-                Lookup.InsertSymbol(name, (uint)address.StartAddress, (uint)address.Size);
+                Lookup.InsertSymbol(name, address.StartAddress, address.Size);
             }
             pcCache.Invalidate();
         }
@@ -622,7 +622,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
             }
             AddFingerprint(fileName);
-            UpdateLowestLoadedAddress(checked((uint)loadPoint));
+            UpdateLowestLoadedAddress(loadPoint);
             this.DebugLog("Binary loaded.");
         }
 
