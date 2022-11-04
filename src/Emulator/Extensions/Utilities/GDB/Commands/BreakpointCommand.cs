@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, breakpointType: BreakpointType.MemoryBreakpoint), manager.BlockOnStep);
         }
 
-        private void AccessWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, uint value)
+        private void AccessWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, ulong value)
         {
             //? I See a possible problem here.
             //? Here we call `Halt` event with T05 argument, but in a second we will call it once again with S05 in HandleStepping@TranlationCPU.
@@ -123,12 +123,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.AccessWatchpoint), manager.BlockOnStep);
         }
 
-        private void WriteWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, uint value)
+        private void WriteWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, ulong value)
         {
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.WriteWatchpoint), manager.BlockOnStep);
         }
 
-        private void ReadWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, uint value)
+        private void ReadWatchpointHook(ICpuSupportingGdb cpu, ulong address, SysbusAccessWidth width, ulong value)
         {
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.ReadWatchpoint), manager.BlockOnStep);
         }
