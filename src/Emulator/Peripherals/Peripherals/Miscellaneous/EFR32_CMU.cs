@@ -90,12 +90,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum ClockSource
         {
-            HFRCO = 0x1,
-            HFXO = 0x2,
-            LFRCO = 0x3,
-            LFXO = 0x4,
-            HFRCODIV2 = 0x5,
-            CLKIN0 = 0x7,
+            HighFrequencyResistorCapacitorOscillator            = 0x1,
+            HighFrequencyCrystalOscillator                      = 0x2,
+            LowFrequencyResistorCapacitorOscillator             = 0x3,
+            LowFrequencyCrystalOscillator                       = 0x4,
+            HighFrequencyResistorCapacitorOscillatorDividedBy2  = 0x5,
+            ClockInput0                                         = 0x7,
         }
 
         private enum Registers
