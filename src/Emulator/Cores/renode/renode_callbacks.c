@@ -34,13 +34,15 @@ void tlib_on_translation_block_find_slow(uint64_t pc)
 EXTERNAL_AS(action_string, ReportAbort, tlib_abort)
 EXTERNAL_AS(action_int32_string, LogAsCpu, tlib_log)
 
-EXTERNAL_AS(func_uint32_uint64, ReadByteFromBus, tlib_read_byte)
-EXTERNAL_AS(func_uint32_uint64, ReadWordFromBus, tlib_read_word)
-EXTERNAL_AS(func_uint32_uint64, ReadDoubleWordFromBus, tlib_read_double_word)
+EXTERNAL_AS(func_uint64_uint64, ReadByteFromBus, tlib_read_byte)
+EXTERNAL_AS(func_uint64_uint64, ReadWordFromBus, tlib_read_word)
+EXTERNAL_AS(func_uint64_uint64, ReadDoubleWordFromBus, tlib_read_double_word)
+EXTERNAL_AS(func_uint64_uint64, ReadQuadWordFromBus, tlib_read_quad_word)
 
-EXTERNAL_AS(action_uint64_uint32, WriteByteToBus, tlib_write_byte)
-EXTERNAL_AS(action_uint64_uint32, WriteWordToBus, tlib_write_word)
-EXTERNAL_AS(action_uint64_uint32, WriteDoubleWordToBus, tlib_write_double_word)
+EXTERNAL_AS(action_uint64_uint64, WriteByteToBus, tlib_write_byte)
+EXTERNAL_AS(action_uint64_uint64, WriteWordToBus, tlib_write_word)
+EXTERNAL_AS(action_uint64_uint64, WriteDoubleWordToBus, tlib_write_double_word)
+EXTERNAL_AS(action_uint64_uint64, WriteQuadWordToBus, tlib_write_quad_word)
 
 EXTERNAL_AS(func_uint32_uint64_uint32, OnBlockBegin, tlib_on_block_begin)
 
