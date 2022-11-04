@@ -55,10 +55,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             for(var i = 0; i < NumberOfCCChannels; ++i)
             {
                 var j = i;
-                ccTimers[j] = new LimitTimer(machine.ClockSource, frequency, this, String.Format("cctimer{0}", j + 1), limit: initialLimit, eventEnabled: true, direction: Direction.Ascending, enabled: false, autoUpdate: false);
+                ccTimers[j] = new LimitTimer(machine.ClockSource, frequency, this, String.Format("cctimer{0}", j + 1), limit: initialLimit, eventEnabled: true, direction: Direction.Ascending, enabled: false, autoUpdate: false, workMode: WorkMode.OneShot);
                 ccTimers[j].LimitReached += delegate
                 {
-                    ccTimers[j].Enabled = false;
                     ccInterruptFlag[j] = true;
                     this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
                     UpdateInterrupts();
@@ -371,7 +370,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 ccTimers[i].Value = Value;
             }
-            ccTimers[i].Mode = Mode;
             ccTimers[i].Direction = Direction;
         }
 
