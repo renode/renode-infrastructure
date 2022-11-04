@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Hooks
 
             if (WriteScript != null)
             {
-                WriteHook = new Func<uint, long, uint>((valueToWrite, offset) =>
+                WriteHook = new Func<ulong, long, ulong>((valueToWrite, offset) =>
                     {
                         Scope.SetVariable("value", valueToWrite);
                         Scope.SetVariable("offset", offset);
@@ -37,13 +37,13 @@ namespace Antmicro.Renode.Hooks
                         {
                             Sysbus.Log(LogLevel.Error, "Python runtime error: {0}", error);
                         });
-                        return (uint)Scope.GetVariable("value");
+                        return (ulong)Scope.GetVariable("value");
                     });
             }
 
             if (ReadScript != null)
             {
-                ReadHook = new Func<uint, long, uint>((readValue, offset) =>
+                ReadHook = new Func<ulong, long, ulong>((readValue, offset) =>
                     {
                         Scope.SetVariable("value", readValue);
                         Scope.SetVariable("offset", offset);
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Hooks
                         {
                             Sysbus.Log(LogLevel.Error, "Python runtime error: {0}", error);
                         });
-                        return (uint)Scope.GetVariable("value");
+                        return (ulong)Scope.GetVariable("value");
                     });
             }
         }
@@ -75,8 +75,8 @@ namespace Antmicro.Renode.Hooks
             }
         }
 
-        public Func<uint, long, uint> WriteHook { get; private set; }
-        public Func<uint, long, uint> ReadHook { get; private set; }
+        public Func<ulong, long, ulong> WriteHook { get; private set; }
+        public Func<ulong, long, ulong> ReadHook { get; private set; }
 
         [Transient]
         private CompiledCode readCode;
