@@ -928,7 +928,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             svdDevices.Add(svdDevice);
         }
 
-        public void Tag(Range range, string tag, uint defaultValue = 0, bool pausing = false)
+        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false)
         {
             var intersectings = tags.Where(x => x.Key.Intersects(range)).ToArray();
             if(intersectings.Length == 0)
@@ -1672,10 +1672,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private string TryGetTag(ulong address, out uint defaultValue)
+        private string TryGetTag(ulong address, out ulong defaultValue)
         {
             var tag = tags.FirstOrDefault(x => x.Key.Contains(address));
-            defaultValue = default(uint);
+            defaultValue = default(ulong);
             if(tag.Key == Range.Empty)
             {
                 return null;
@@ -1684,7 +1684,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return tag.Value.Name;
         }
 
-        private string EnterTag(string str, ulong address, out bool tagEntered, out uint defaultValue)
+        private string EnterTag(string str, ulong address, out bool tagEntered, out ulong defaultValue)
         {
             // TODO: also pausing here in a bit hacky way
             var tag = TryGetTag(address, out defaultValue);
@@ -1701,11 +1701,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return string.Format("(tag: '{0}') {1}", tag, str);
         }
 
-        private uint ReportNonExistingRead(ulong address, SysbusAccessWidth type)
+        private ulong ReportNonExistingRead(ulong address, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedReads);
             bool tagged;
-            uint defaultValue;
+            ulong defaultValue;
             var warning = EnterTag(NonExistingRead, address, out tagged, out defaultValue);
             warning = DecorateWithCPUNameAndPC(warning);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
@@ -1719,11 +1719,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(tagged)
             {
-                this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2:X}.", address, type, defaultValue);
+                //strange parsing of default value ensures we get the right width, depending on the access type
+                this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, type, defaultValue.ToString("X16").Substring(16 - (int)type * 2));
             }
             else
             {
-                uint value;
+                ulong value;
                 foreach(var svdDevice in svdDevices)
                 {
                     if(svdDevice.TryReadAccess(address, out value, type))
@@ -1736,7 +1737,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return defaultValue;
         }
 
-        private void ReportNonExistingWrite(ulong address, uint value, SysbusAccessWidth type)
+        private void ReportNonExistingWrite(ulong address, ulong value, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedWrites);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
@@ -1744,8 +1745,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
             bool tagged;
-            uint dummy;
-            var warning = EnterTag(NonExistingWrite, address, out tagged, out dummy);
+            var warning = EnterTag(NonExistingWrite, address, out tagged, out var _);
             warning = DecorateWithCPUNameAndPC(warning);
             if((UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfTagged && !tagged)
                 || (UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfNotTagged && tagged))
@@ -1818,7 +1818,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private struct TagEntry
         {
             public string Name;
-            public uint DefaultValue;
+            public ulong DefaultValue;
         }
 
         private class MappedSegmentWrapper : IMappedSegment
