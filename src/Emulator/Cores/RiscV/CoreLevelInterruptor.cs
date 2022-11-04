@@ -14,6 +14,7 @@ using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
+    [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider
     {
         public CoreLevelInterruptor(Machine machine, long frequency, int numberOfTargets = 1)
