@@ -55,8 +55,8 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (uint)
-					(peripheral.ReadByte(address + 3) << 24 | peripheral.ReadByte(address + 2) << 16
-                | peripheral.ReadByte(address + 1) << 8 | peripheral.ReadByte(address));
+                    (peripheral.ReadByte(address + 3) << 24 | peripheral.ReadByte(address + 2) << 16
+                     | peripheral.ReadByte(address + 1) << 8 | peripheral.ReadByte(address));
             }
         }
 
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Core.Extensions
             {
                 return (uint)
                     (peripheral.ReadByte(address + 3) | peripheral.ReadByte(address + 2) << 8
-                | peripheral.ReadByte(address + 1) << 16 | peripheral.ReadByte(address) << 24);
+                     | peripheral.ReadByte(address + 1) << 16 | peripheral.ReadByte(address) << 24);
             }
         }
 
@@ -371,7 +371,7 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (uint)((Misc.SwapBytesUShort(peripheral.ReadWord(address)) << 16) |
-                               Misc.SwapBytesUShort(peripheral.ReadWord(address + 2)));
+                        Misc.SwapBytesUShort(peripheral.ReadWord(address + 2)));
             }
         }
 

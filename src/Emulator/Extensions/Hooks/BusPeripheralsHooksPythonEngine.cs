@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Hooks
     public class BusPeripheralsHooksPythonEngine : PythonEngine
     {
         public BusPeripheralsHooksPythonEngine(SystemBus sysbus, IBusPeripheral peripheral, string readScript = null, string writeScript = null)
-        {       
+        {
             Peripheral = peripheral;
             Sysbus = sysbus;
             ReadScript = readScript;

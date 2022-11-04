@@ -161,9 +161,5 @@ namespace Antmicro.Renode.UnitTests
         private IWordPeripheral wordPeripheral;
         private IDoubleWordPeripheral dwordPeripheral;
     }
-
-
-
-
 }
 

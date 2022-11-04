@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             return accessOperations[t];
         }
-        
+
         public static Method GetMethodFromSignature(Type t)
         {
             return accessMethods[t];
@@ -129,5 +129,4 @@ namespace Antmicro.Renode.Peripherals.Bus
             public Type ReferencedType { get; private set; }
         }
     }
-    
 }
