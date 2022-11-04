@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ using Antmicro.Renode.Peripherals.IRQControllers.PLIC;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
+    [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
     public class PlatformLevelInterruptController : PlatformLevelInterruptControllerBase, IKnownSize
     {
         public PlatformLevelInterruptController(int numberOfSources, int numberOfContexts, bool prioritiesEnabled = true)
