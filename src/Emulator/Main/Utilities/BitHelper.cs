@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -458,6 +458,15 @@ namespace Antmicro.Renode.Utilities
             if(value >= (1 << size - 1))
             {
                 return 0xFFFFFFFF << size | value;
+            }
+            return value;
+        }
+
+        public static ulong SignExtend(ulong value, int size)
+        {
+            if(value >= (1ul << size - 1))
+            {
+                return 0xFFFFFFFFFFFFFFFF << size | value;
             }
             return value;
         }
