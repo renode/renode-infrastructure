@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -55,6 +55,12 @@ namespace Antmicro.Renode.Testing
                 InnerRegisterWrite(doubleWordWrites, encounteredAddress, encounteredValue);
             });
 
+            machine.SystemBus.AddWatchpointHook(address, SysbusAccessWidth.QuadWord, Access.Write, (cpu, encounteredAddress, width, encounteredValue) =>
+            {
+                this.Log(LogLevel.Noisy, "Registering quad word write of 0x{0:X} at address 0x{1:X}", encounteredValue, encounteredAddress);
+                InnerRegisterWrite(quadWordWrites, encounteredAddress, encounteredValue);
+            });
+
             observedAddresses.Add(address);
         }
 
@@ -73,7 +79,12 @@ namespace Antmicro.Renode.Testing
             InnerWaitForWrite(doubleWordWrites, address, expectedValue, timeout);
         }
 
-        private void InnerRegisterWrite(List<Tuple<ulong, uint>> list, ulong offset, uint value)
+        public void WaitForQuadWordWrite(ulong address, uint expectedValue, float timeout)
+        {
+            InnerWaitForWrite(quadWordWrites, address, expectedValue, timeout);
+        }
+
+        private void InnerRegisterWrite(List<Tuple<ulong, ulong>> list, ulong offset, ulong value)
         {
             lock(list)
             {
@@ -82,7 +93,7 @@ namespace Antmicro.Renode.Testing
             newWriteEvent.Set();
         }
 
-        private void InnerWaitForWrite(List<Tuple<ulong, uint>> list, ulong offset, uint value, float timeout)
+        private void InnerWaitForWrite(List<Tuple<ulong, ulong>> list, ulong offset, ulong value, float timeout)
         {
             if(!observedAddresses.Contains(offset))
             {
@@ -116,8 +127,9 @@ namespace Antmicro.Renode.Testing
 
         private readonly AutoResetEvent newWriteEvent = new AutoResetEvent(false);
         private readonly HashSet<ulong> observedAddresses = new HashSet<ulong>();
-        private readonly List<Tuple<ulong, uint>> byteWrites = new List<Tuple<ulong, uint>>();
-        private readonly List<Tuple<ulong, uint>> wordWrites = new List<Tuple<ulong, uint>>();
-        private readonly List<Tuple<ulong, uint>> doubleWordWrites = new List<Tuple<ulong, uint>>();
+        private readonly List<Tuple<ulong, ulong>> byteWrites = new List<Tuple<ulong, ulong>>();
+        private readonly List<Tuple<ulong, ulong>> wordWrites = new List<Tuple<ulong, ulong>>();
+        private readonly List<Tuple<ulong, ulong>> doubleWordWrites = new List<Tuple<ulong, ulong>>();
+        private readonly List<Tuple<ulong, ulong>> quadWordWrites = new List<Tuple<ulong, ulong>>();
     }
 }
