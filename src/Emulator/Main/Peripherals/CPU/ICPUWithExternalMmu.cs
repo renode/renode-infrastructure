@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ICPUWithExternalMmu: ICPU
     {
         void EnableExternalWindowMmu(bool value);
-        int AcquireExternalMmuWindow();
+        int AcquireExternalMmuWindow(uint type);
         void ResetMmuWindow(uint index);
         void SetMmuWindowStart(uint index, ulong startAddress);
         void SetMmuWindowEnd(uint index, ulong endAddress);

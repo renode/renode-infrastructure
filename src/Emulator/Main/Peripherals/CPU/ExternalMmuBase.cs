@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
@@ -111,9 +111,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return windowMapping.ContainsValue(index);
         }
 
-        protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null)
+        protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null, Privilege? type = Privilege.All)
         {
-            var realIndex = cpu.AcquireExternalMmuWindow();
+            var realIndex = cpu.AcquireExternalMmuWindow((uint)type.Value);
             if(realIndex == -1)
             {
                 throw new ConstructionException("Failed to acquire the MMU window. Possibly ran out of windows");
@@ -155,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ICPUWithExternalMmu cpu;
         private readonly uint windowsCount;
 
-        public enum Privilege
+        public enum Privilege : uint
         {
             Read = 0b001,
             Write = 0b010,
