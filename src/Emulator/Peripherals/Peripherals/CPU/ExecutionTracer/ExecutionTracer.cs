@@ -153,9 +153,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             AttachedCPU.SetHookAtMemoryAccess((pc, operation, address) =>
             {
-                if((MemoryOperation)operation != MemoryOperation.InsnFetch)
+                if(operation != MemoryOperation.InsnFetch)
                 {
-                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, (MemoryOperation)operation, address));
+                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, address));
                 }
             });
         }
