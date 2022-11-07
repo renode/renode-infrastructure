@@ -502,6 +502,7 @@
     <Compile Include="Peripherals\Miscellaneous\NRF52840_EGU.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Timer.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_RCC.cs" />
+    <Compile Include="Peripherals\Timers\STM32L0_LpTimer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
