@@ -719,9 +719,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             externalMmuEnabled = value;
         }
 
-        public int AcquireExternalMmuWindow()
+        public int AcquireExternalMmuWindow(uint type)
         {
-            return AssertMmuEnabled() ? TlibAcquireMmuWindow() : -1;
+            return AssertMmuEnabled() ? TlibAcquireMmuWindow(type) : -1;
         }
 
         public void ResetMmuWindow(uint index)
@@ -1692,7 +1692,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 TlibEnableExternalWindowMmu;
 
         [Import]
-        private FuncInt32 TlibAcquireMmuWindow;
+        private FuncInt32UInt32 TlibAcquireMmuWindow;
 
         [Import]
         private ActionUInt32 TlibResetMmuWindow;
