@@ -836,15 +836,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void RemoveHookAtMemoryAccess(Action<ulong, uint, ulong> hook)
-        {
-            memoryAccessHook -= hook;
-            if(interruptBeginHook == null)
-            {
-                TlibOnMemoryAccessEventEnabled(0);
-            }
-        }
-
         private ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
         private TlibExecutionResult lastTlibResult;
 
