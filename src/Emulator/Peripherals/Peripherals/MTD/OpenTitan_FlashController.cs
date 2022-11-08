@@ -5,9 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.IO;
 using System.Linq;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Miscellaneous;
@@ -407,6 +410,40 @@ namespace Antmicro.Renode.Peripherals.MTD
             FatalStandardAlert.Unset();
             FatalAlert.Unset();
             UpdateInterrupts();
+        }
+
+        public void LoadFlashInfoPartitionFromBinary(uint bankNumber, uint infoType, long offset, ReadFilePath fileName)
+        {
+            if (bankNumber >= FlashNumberOfBanks || infoType >= FlashNumberOfInfoTypes)
+            {
+                throw new RecoverableException("Invalid bank number or info type.");
+            }
+
+            var partitionSize = infoFlash[bankNumber, infoType].Size;
+            if(partitionSize < offset)
+            {
+                throw new RecoverableException($"Specified offset {offset} is bigger than partition size {partitionSize}.");
+            }
+            var bufferSize = partitionSize - offset;
+
+            try
+            {
+                using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
+                {
+                    var buffer = new byte[bufferSize];
+                    var written = 0;
+                    var read = 0;
+                    while((read = reader.Read(buffer, 0, buffer.Length)) > 0 && written < bufferSize)
+                    {
+                        infoFlash[bankNumber, infoType].WriteBytes(offset + written, buffer, 0, read);
+                        written += read;
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                throw new RecoverableException($"Exception while loading file {fileName}: {e.Message}");
+            }
         }
 
         public long Size => 0x1000;
