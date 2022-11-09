@@ -63,6 +63,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ExecuteResetWithSkipped(skippedOnLifeCycleReset);
         }
 
+        public void PeripheralRequestedReset(HardwareResetReason resetReason, bool lowPower)
+        {
+            // Reset initiated by peripheral
+            ExecutePeripheralInitiatedResetWithSkipped(skippedOnSystemReset);
+            
+            hardwareResetRequest.Value = resetReason;
+            lowPowerExitFlag.Value = lowPower;
+            nonDebugModuleResetFlag.Value = false;
+            powerOnResetFlag.Value = false;
+            softwareResetFlag.Value = false;
+        }
+
         public void RegisterModuleSpecificReset(IPeripheral peripheral, uint id)
         {
             if(id >= modules.Length)
@@ -163,6 +175,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }, unresetable: toSkip);
         }
 
+        private void ExecutePeripheralInitiatedResetWithSkipped(ICollection<IPeripheral> toSkip)
+        {
+            if(!machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                this.Log(LogLevel.Error, "Couldn't find the cpu to reset.");
+                return;
+            }
+
+            machine.RequestResetInSafeState(() =>
+            {
+                cpu.PC = resetPC;
+                this.Log(LogLevel.Info, "Hardware reset complete.");
+            }, unresetable: toSkip);
+        }
+
         private void SystemReset()
         {
             ExecuteResetWithSkipped(skippedOnSystemReset);
@@ -212,10 +239,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     });
             Registers.DeviceResetReason.Define(this, 0x1)
                 .WithFlag(0, out powerOnResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "POR")
-                .WithTaggedFlag("LOW_POWER_EXIT", 1)
+                .WithFlag(1, out lowPowerExitFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "LOW_POWER_EXIT")
                 .WithFlag(2, out nonDebugModuleResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "NDM_RESET")
                 .WithFlag(3, out softwareResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "SW_RESET")
-                .WithTag("HW_REQ", 4, 4)
+                .WithEnumField(4, 4, out hardwareResetRequest, FieldMode.Read | FieldMode.WriteOneToClear, name: "HW_REQ")
                 .WithReservedBits(8, 24);
             Registers.AlertWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("EN", 0);
@@ -256,8 +283,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IValueRegisterField resetRequest;
         private IFlagRegisterField powerOnResetFlag;
+        private IFlagRegisterField lowPowerExitFlag;
         private IFlagRegisterField nonDebugModuleResetFlag;
         private IFlagRegisterField softwareResetFlag;
+        private IEnumRegisterField<HardwareResetReason> hardwareResetRequest;
         private IValueRegisterField softwareControllableResetsWriteEnableMask;
         private readonly ulong resetPC;
         private readonly HashSet<IPeripheral> skippedOnLifeCycleReset;
@@ -276,6 +305,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             SystemReset,        // Power manager request to assert the rst_sys_n tree.
             ResetCause,         // Power manager indication for why it requested reset, the cause can be low power entry or peripheral issued request.
             PeripheralReset,    // Peripheral reset requests.
+        }
+
+        public enum HardwareResetReason
+        {
+            SystemResetControl = 0b0001,
+            Watchdog = 0b0010,
+            PowerUnstable = 0b0100,
+            Escalation = 0b1000,
         }
 
         private enum Registers
