@@ -544,8 +544,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private const decimal MinTemperature = -40.0m;
         private const decimal MaxTemperature = 85.0m;
-        private const decimal MinAcceleration = -19.5m;
-        private const decimal MaxAcceleration = 19.5m;
+        private const decimal MinAcceleration = -16m;
+        private const decimal MaxAcceleration = 16m;
 
         private enum State
         {
