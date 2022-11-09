@@ -420,7 +420,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             // This range protects from the overflow of the short variables in the 'Convert' function.
             if (temperature < MinTemperature || temperature > MaxTemperature)
             {
-                this.Log(LogLevel.Warning, "Temperature {0} is out of range, use value from the range <-40;85>", temperature);
+                this.Log(LogLevel.Warning, "Temperature {0} is out of range, use value from the range <{1:F2};{2:F2}>", temperature, MinTemperature, MaxTemperature);
                 return true;
             }
             return false;
@@ -431,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             // This range protects from the overflow of the short variables in the 'Convert' function.
             if (acceleration < MinAcceleration || acceleration > MaxAcceleration)
             {
-                this.Log(LogLevel.Warning, "Acceleration {0} is out of range, use value from the range <-19.5;19.5>", accelerationX);
+                this.Log(LogLevel.Warning, "Acceleration {0} is out of range, use value from the range <{1:F2};{2:F2}>", acceleration, MinAcceleration, MaxAcceleration);
                 return true;
             }
             return false;
