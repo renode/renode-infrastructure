@@ -415,30 +415,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             IRQ.Set(status);
         }
 
-        private decimal GetSenesorSensitivity()
-        {
-            decimal gain = SensorSensitivity;
-            switch(fullScale.Value)
-            {
-                case (uint)FullScaleSelect.FullScale2g:
-                    gain = SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.FullScale16g:
-                    gain = 8 * SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.FullScale4g:
-                    gain = 2 * SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.FullScale8g:
-                    gain = 4 * SensorSensitivity;
-                    break;
-                default:
-                    gain = SensorSensitivity;
-                    break;
-            }
-            return gain;
-        }
-
         private bool IsTemperatureOutOfRange(decimal temperature)
         {
             // This range protects from the overflow of the short variables in the 'Convert' function.
@@ -469,35 +445,38 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return result;
             }
 
-            decimal gain = GetSenesorSensitivity();
-            value = (value * 1000 / gain) / GravitationalConst;
-            var valueAsShort = (short)value;
-
-            if(upperByte)
-            {
-                return (byte)(valueAsShort >> 8);
-            }
+            var maxValue = MaxValue14Bit;
+            var shift = 1;  // shift by n-1 to preserve the sign
 
             if(modeSelection.Value == ModeSelection.HighPerformance)
             {
-                result = (byte)(valueAsShort & (byte)CoverBytes.HighPerformance14Bit);
                 this.Log(LogLevel.Noisy, "High performance (14-bit resolution) mode is selected.");
             }
             else if((modeSelection.Value == ModeSelection.LowPower) && (lowPowerModeSelection.Value != LowPowerModeSelection.LowPowerMode1_12bitResolution))
             {
-                result = (byte)(valueAsShort & (byte)CoverBytes.LowPowerMode14Bit);
                 this.Log(LogLevel.Noisy, "Low power (14-bit resolution) mode is selected.");
             }
             else if((modeSelection.Value == ModeSelection.LowPower) && (lowPowerModeSelection.Value == LowPowerModeSelection.LowPowerMode1_12bitResolution))
             {
-                result = (byte)(valueAsShort & (byte)CoverBytes.LowPowerMode12Bit);
                 this.Log(LogLevel.Noisy, "Low power (12-bit resolution) mode is selected.");
+                maxValue = MaxValue12Bit;
+                shift = 3;  // shift by n-1 to preserve the sign
             }
             else
             {
-                result = (byte)(valueAsShort);
                 this.Log(LogLevel.Noisy, "Other conversion mode selected.");
             }
+
+            var sensitivity = ((decimal)scaleDivider / maxValue) * 1000m;   // [mg/digit]
+            var gain = 1m / sensitivity;
+            var valueAsUshort = ((ushort)((short)((value * 1000) * gain))) << shift;
+            this.Log(LogLevel.Noisy, "Conversion done with sensitivity: {0:F4}, and gain: {1:F4}", sensitivity, gain);
+
+            if(upperByte)
+            {
+                return (byte)(valueAsUshort >> 8);
+            }            
+            result = (byte)(valueAsUshort);
             UpdateInterrupts();
             
             return result;
@@ -567,8 +546,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const decimal MaxTemperature = 85.0m;
         private const decimal MinAcceleration = -19.5m;
         private const decimal MaxAcceleration = 19.5m;
-        private const decimal GravitationalConst = 9.806650m; // [m/s^2]
-        private const decimal SensorSensitivity = 0.061m; // [mg/digit]
 
         private enum State
         {
@@ -612,13 +589,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             LowPowerMode2_14bitResolution = 0x01,
             LowPowerMode3_14bitResolution = 0x02,
             LowPowerMode4_14bitResolution = 0x03
-        }
-
-        private enum CoverBytes : byte
-        {
-            LowPowerMode12Bit = 0xF0,
-            LowPowerMode14Bit = 0xFC,
-            HighPerformance14Bit = 0xFC
         }
 
         private enum Registers : byte
