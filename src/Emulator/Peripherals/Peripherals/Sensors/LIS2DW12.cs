@@ -22,6 +22,23 @@ namespace Antmicro.Renode.Peripherals.Sensors
             RegistersCollection = new ByteRegisterCollection(this);
             IRQ = new GPIO();
             DefineRegisters();
+
+            accelerationFifo = new SensorSamplesFifo<Vector3DSample>();
+        }
+
+        public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
+        {
+            var sample = new Vector3DSample(x, y, z);
+
+            for(var i = 0; i < repeat; i++)
+            {
+                accelerationFifo.FeedSample(sample);
+            }
+        }
+
+        public void FeedAccelerationSample(string path)
+        {
+            accelerationFifo.FeedSamplesFromFile(path);
         }
 
         public void FinishTransmission()
@@ -84,45 +101,45 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal AccelerationX
         {
-            get => accelerationX;
+            get => accelerationFifo.Sample.X;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationX = value;
-                this.Log(LogLevel.Noisy, "AccelerationX set to {0}", accelerationX);
+                accelerationFifo.Sample.X = value;
+                this.Log(LogLevel.Noisy, "AccelerationX set to {0}", value);
                 UpdateInterrupts();
             }
         }
 
         public decimal AccelerationY
         {
-            get => accelerationY;
+            get => accelerationFifo.Sample.Y;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationY = value;
-                this.Log(LogLevel.Noisy, "AccelerationY set to {0}", accelerationY);
+                accelerationFifo.Sample.Y = value;
+                this.Log(LogLevel.Noisy, "AccelerationY set to {0}", value);
                 UpdateInterrupts();
             }
         }
 
         public decimal AccelerationZ
         {
-            get => accelerationZ;
+            get => accelerationFifo.Sample.Z;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationZ = value;
-                this.Log(LogLevel.Noisy, "AccelerationZ set to {0}", accelerationZ);
+                accelerationFifo.Sample.Z = value;
+                this.Log(LogLevel.Noisy, "AccelerationZ set to {0}", value);
                 UpdateInterrupts();
             }
         }
@@ -144,6 +161,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public GPIO IRQ { get; }
         public ByteRegisterCollection RegistersCollection { get; }
+
+        private void LoadNextSample()
+        {
+            this.Log(LogLevel.Noisy, "Acquiring next sample");
+            accelerationFifo.TryDequeueNewSample();
+            UpdateInterrupts();
+        }
 
         private void DefineRegisters()
         {
@@ -262,35 +286,50 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.DataOutXLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis LSB output register (OUT_X_L)",
-                    valueProviderCallback: _ => Convert(AccelerationX, upperByte: false));
+                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.X, upperByte: false));
 
             Registers.DataOutXHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis MSB output register (OUT_X_H)",
-                    valueProviderCallback: _ => Convert(AccelerationX, upperByte: true));
+                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.X, upperByte: true));
 
             Registers.DataOutYLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Y-axis LSB output register (OUT_Y_L)",
-                    valueProviderCallback: _ => Convert(AccelerationY, upperByte: false));
+                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Y, upperByte: false));
 
             Registers.DataOutYHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Y-axis MSB output register (OUT_Y_H)",
-                    valueProviderCallback: _ => Convert(AccelerationY, upperByte: true));
+                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Y, upperByte: true));
 
             Registers.DataOutZLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis LSB output register (OUT_Z_L)",
-                    valueProviderCallback: _ => Convert(AccelerationZ, upperByte: false));
+                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Z, upperByte: false));
 
             Registers.DataOutZHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis MSB output register (OUT_Z_H)",
-                    valueProviderCallback: _ => Convert(AccelerationZ, upperByte: true));
+                    valueProviderCallback: _ =>
+                        {
+                            if(fifoModeSelection.Value == FIFOModeSelection.FIFOMode)
+                            {
+                                LoadNextSample();
+                            }
+                            if(autoIncrement.Value)
+                            {
+                                regAddress = Registers.DataOutXLow;
+                            }
+                            return Convert(accelerationFifo.Sample.Z, upperByte: true);
+                        }
+                    );
 
             Registers.FifoControl.Define(this)
-                .WithTag("FIFO control register (FIFO_CTRL)", 0, 8);
+                .WithValueField(0, 5, out fifoTreshold, name: "FIFO threshold level setting (FTH)")
+                .WithEnumField(5, 3, out fifoModeSelection, name: "FIFO mode selection bits (FMode)");
 
             Registers.FifoSamples.Define(this)
-                .WithTag("Number of unread samples stored in FIFO (DIFF)", 0, 6)
+                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => Math.Min(accelerationFifo.SamplesCount, MaxFifoSize),
+                    name: "Number of unread samples stored in FIFO (DIFF)")
                 .WithTag("FIFO overrun status (FIFO_OVR)", 6, 1)
-                .WithTag("FIFO threshold status flag (FIFO_FTH)", 7, 1);
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => accelerationFifo.SamplesCount >= fifoTreshold.Value,
+                    name: "FIFO threshold status flag (FIFO_FTH)");
 
             Registers.TapThreshholdX.Define(this)
                 .WithTag("Threshold for tap recognition on X direction (TAP_THSX)", 0, 5)
@@ -530,22 +569,28 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField readyEnabledAcceleration;
         private IFlagRegisterField readyEnabledTemperature;
         private IFlagRegisterField interruptEnable;
+        private IValueRegisterField fifoTreshold;
         private IEnumRegisterField<LowPowerModeSelection> lowPowerModeSelection;
         private IEnumRegisterField<DataRateConfig> outDataRate;
         private IEnumRegisterField<ModeSelection> modeSelection;
-        private IValueRegisterField fullScale;
+        private IEnumRegisterField<FIFOModeSelection> fifoModeSelection;
+        private IEnumRegisterField<FullScaleSelect> fullScale;
+
         private Registers regAddress;
         private State state;
+        private int scaleDivider;
+
+        private readonly SensorSamplesFifo<Vector3DSample> accelerationFifo;
 
         private decimal temperature;
-        private decimal accelerationX;
-        private decimal accelerationY;
-        private decimal accelerationZ;
 
         private const decimal MinTemperature = -40.0m;
         private const decimal MaxTemperature = 85.0m;
         private const decimal MinAcceleration = -16m;
         private const decimal MaxAcceleration = 16m;
+        private const int MaxFifoSize = 32;
+        private const int MaxValue14Bit = 0x3FFF;
+        private const int MaxValue12Bit = 0x0FFF;
 
         private enum State
         {
@@ -581,6 +626,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
             HighPerformance = 0x01,
             SingleDataConversionOnDemand = 0x02,
             Reserved = 0x03
+        }
+
+        private enum FIFOModeSelection : byte
+        {
+            Bypass = 0x00,
+            FIFOMode = 0x01,
+            // Reserved: 0x02
+            ContinuousToFIFO = 0x03,
+            BypassToContinuous = 0x04,
+            // Reserved: 0x05
+            Continuous = 0x06,
+            // Reserved: 0x07
         }
 
         private enum LowPowerModeSelection : byte
