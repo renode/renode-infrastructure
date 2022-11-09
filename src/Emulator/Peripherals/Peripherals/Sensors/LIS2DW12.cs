@@ -480,14 +480,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private ushort TwoComplementSignConvert(decimal temp)
         {
-            var tempAsByte = Decimal.ToUInt16(temp);
+            var tempAsUshort = Decimal.ToUInt16(temp);
             if(temp < 0)
             {
-                var twoComplementTemp = (ushort)(~tempAsByte + 1);
+                var twoComplementTemp = (ushort)(~tempAsUshort + 1);
                 return twoComplementTemp;
             }
             UpdateInterrupts();
-            return tempAsByte;
+            return tempAsUshort;
         }
 
         private IFlagRegisterField autoIncrement;
