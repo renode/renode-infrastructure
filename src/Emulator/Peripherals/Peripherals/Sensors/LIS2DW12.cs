@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void Reset()
         {
             RegistersCollection.Reset();
+            SetScaleDivider();
             state = State.WaitingForRegister;
             regAddress = 0;
             IRQ.Set(false);
@@ -159,7 +160,44 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.Control1.Define(this)
                 .WithEnumField(0, 2, out lowPowerModeSelection, name: "Low-power mode selection (LP_MODE)")
                 .WithEnumField(2, 2, out modeSelection, name: "Mode selection (MODE)")
-                .WithEnumField(4, 4, out outDataRate, name: "Output data rate and mode selection (ODR)");
+                .WithEnumField(4, 4, out outDataRate, writeCallback: (_, __) =>
+                    {
+                        var samplingRate = 0;
+                        switch(outDataRate.Value)
+                        {
+                            case DataRateConfig.HighPerformanceLowPower1_6Hz:
+                                samplingRate = 2;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower12_5Hz:
+                                samplingRate = 13;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower25Hz:
+                                samplingRate = 25;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower50Hz:
+                                samplingRate = 50;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower100Hz:
+                                samplingRate = 100;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower200Hz:
+                                samplingRate = 200;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower400Hz:
+                                samplingRate = 400;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower800Hz:
+                                samplingRate = 800;
+                                break;
+                            case DataRateConfig.HighPerformanceLowPower1600Hz:
+                                samplingRate = 1600;
+                                break;
+                            default:
+                                samplingRate = 0;
+                                break;
+                        }
+                        this.Log(LogLevel.Noisy, "Sampling rate set to {0}", samplingRate);
+                    }, name: "Output data rate and mode selection (ODR)");
 
             Registers.Control2.Define(this)
                 .WithTaggedFlag("SPI serial interface mode selection (SIM)", 0)
@@ -205,7 +243,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithReservedBits(0, 2)
                 .WithTaggedFlag("Low-noise configuration (LOW_NOISE)", 2)
                 .WithTaggedFlag("Filtered data type selection (FDS)", 3)
-                .WithValueField(4, 2, out fullScale, name: "Full-scale selection (FS)")
+                .WithEnumField(4, 2, out fullScale, writeCallback: (_, __) => SetScaleDivider(), name: "Full-scale selection (FS)")
                 .WithTag("Bandwidth selection (BW_FILT1)", 6, 2);
 
             Registers.TemperatureOut.Define(this)
@@ -488,6 +526,25 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             UpdateInterrupts();
             return tempAsUshort;
+        }
+
+        private void SetScaleDivider()
+        {
+            switch(fullScale.Value)
+            {
+                case FullScaleSelect.FullScale4g:
+                    scaleDivider = 4;
+                    break;
+                case FullScaleSelect.FullScale8g:
+                    scaleDivider = 8;
+                    break;
+                case FullScaleSelect.FullScale16g:
+                    scaleDivider = 16;
+                    break;
+                default:
+                    scaleDivider = 2;
+                    break;
+            }
         }
 
         private IFlagRegisterField autoIncrement;
