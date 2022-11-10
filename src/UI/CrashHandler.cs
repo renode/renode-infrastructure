@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.UI
             ShowErrorInConsole(message);
             try 
             {
-                ShowErrorWindow(message);
+                ApplicationExtensions.InvokeInUIThreadAndWait(() => ShowErrorWindow(message));
             }
             catch(Exception)
             {
@@ -54,14 +54,8 @@ namespace Antmicro.Renode.UI
             dialog.Width = 350;
             dialog.Height = 300;
 
-            var mre = new ManualResetEvent(false);
-            ApplicationExtensions.InvokeInUIThread(() => {
-                dialog.Run();
-                dialog.Dispose();
-                mre.Set();
-            });
-
-            mre.WaitOne();
+            dialog.Run();
+            dialog.Dispose();
         }
 
         private static void SaveErrorToFile(string location, string message)
