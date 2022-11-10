@@ -10,9 +10,9 @@ namespace Antmicro.Renode.Peripherals.Helpers
 {
     public class CadenceInterruptFlag
     {
-        public CadenceInterruptFlag(Func<bool> statusProvider)
+        public CadenceInterruptFlag(Func<bool> statusProvider = null)
         {
-            this.statusProvider = statusProvider;
+            this.statusProvider = statusProvider ?? (() => false);
         }
 
         public void UpdateStickyStatus()
