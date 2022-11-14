@@ -625,9 +625,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     var data = i2cPeripheral.Read((int)bytesToReceive);
                     foreach(var item in data.Select((value, index) => new { index, value }))
                     {
-                        // var byteIndex = bytesToReceive - item.index - 1;
-                        var byteIndex = item.index;
-                        BitHelper.UpdateWithShifted(ref result, item.value, (int)(byteIndex * 8), 8);
+                        BitHelper.UpdateWithShifted(ref result, item.value, (int)(item.index * 8), 8);
                     }
                 }
                 else
