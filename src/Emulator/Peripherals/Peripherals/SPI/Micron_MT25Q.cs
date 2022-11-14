@@ -454,15 +454,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void EraseDie()
         {
             var position = 0;
-            var segment = new byte[SegmentSize];
-            for(var i = 0; i < SegmentSize; i++)
+            var segment = new byte[SectorSize];
+            for(var i = 0; i < SectorSize; i++)
             {
                 segment[i] = EmptySegment;
             }
 
             while(position < underlyingMemory.Size)
             {
-                var length = (int)Math.Min(SegmentSize, underlyingMemory.Size - position);
+                var length = (int)Math.Min(SectorSize, underlyingMemory.Size - position);
 
                 underlyingMemory.WriteBytes(position, segment, length);
                 position += length;
@@ -471,15 +471,15 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void EraseSector()
         {
-            var segment = new byte[SegmentSize];
-            for(var i = 0; i < SegmentSize; i++)
+            var segment = new byte[SectorSize];
+            for(var i = 0; i < SectorSize; i++)
             {
                 segment[i] = EmptySegment;
             }
+
             // The documentations states that on erase the operation address is
             // aligned to the segment size
-
-            var position = SegmentSize * (currentOperation.ExecutionAddress / SegmentSize);
+            var position = SectorSize * (currentOperation.ExecutionAddress / SectorSize);
             underlyingMemory.WriteBytes(position, segment);
         }
 
@@ -511,7 +511,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
-        private readonly int SegmentSize = 64.KB();
+        private readonly int SectorSize = 64.KB();
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister statusRegister;
         private readonly ByteRegister flagStatusRegister;
