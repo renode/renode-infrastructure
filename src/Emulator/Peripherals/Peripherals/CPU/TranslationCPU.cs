@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 
-    public abstract partial class TranslationCPU : BaseCPU, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters
+    public abstract partial class TranslationCPU : BaseCPU, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks
     {
         protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
         : this(0, cpuType, machine, endianness, bitness)
