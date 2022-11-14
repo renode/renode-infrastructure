@@ -349,6 +349,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             SegmentSize = reader.ReadInt32();
             size = reader.ReadInt64();
+            ResetByte = reader.ReadByte();
             if(emptyCtorUsed)
             {
                 Init();
@@ -379,6 +380,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             writer.Write(Magic);
             writer.Write(SegmentSize);
             writer.Write(size);
+            writer.Write(ResetByte);
             byte[][] outputBuffers = new byte[segments.Length][];
             Parallel.For(0, segments.Length, i =>
             {
