@@ -375,11 +375,9 @@ namespace Antmicro.Renode.Peripherals.Memory
         {
             var globalStopwatch = Stopwatch.StartNew();
             var realSegmentsCount = 0;
-            // magic
+
             writer.Write(Magic);
-            // saving size of the memory segment
             writer.Write(SegmentSize);
-            // saving size of the memory
             writer.Write(size);
             byte[][] outputBuffers = new byte[segments.Length][];
             Parallel.For(0, segments.Length, i =>
