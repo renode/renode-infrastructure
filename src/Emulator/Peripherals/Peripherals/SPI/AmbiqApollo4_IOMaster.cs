@@ -467,7 +467,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("WTFCIRQ", 20)
                 .WithTaggedFlag("WTFCPOL", 21)
                 .WithTaggedFlag("RDFCPOL", 22)
-                .WithFlag(23, out transferDataLSBFirst, name: "SPILSB")
+                .WithFlag(23, out spiTransferDataLSBFirst, name: "SPILSB")
                 .WithTag("DINDLY", 24, 3)
                 .WithTag("DOUTDLY", 27, 3)
                 .WithTaggedFlag("MSPIRST", 30)
@@ -616,7 +616,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {
                     for(int i = 0; i < bytesToReceive; i++)
                     {
-                        var byteIndex = transferDataLSBFirst.Value ? i : bytesToReceive - i - 1;
+                        var byteIndex = spiTransferDataLSBFirst.Value ? i : bytesToReceive - i - 1;
                         BitHelper.UpdateWithShifted(ref result, spiPeripheral.Transmit(0), (int)(byteIndex * 8), 8);
                     }
                 }
@@ -625,7 +625,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                     var data = i2cPeripheral.Read((int)bytesToReceive);
                     foreach(var item in data.Select((value, index) => new { index, value }))
                     {
-                        var byteIndex = transferDataLSBFirst.Value ? item.index : bytesToReceive - item.index - 1;
+                        // var byteIndex = bytesToReceive - item.index - 1;
+                        var byteIndex = item.index;
                         BitHelper.UpdateWithShifted(ref result, item.value, (int)(byteIndex * 8), 8);
                     }
                 }
@@ -644,11 +645,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void Send(uint data, uint size, bool lsbFirst = false)
+        private void Send(uint data, uint size)
         {
-            var dataBytes = BitHelper.GetBytesFromValue(data, (int)size, reverse: lsbFirst);
             if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
             {
+                var dataBytes = BitHelper.GetBytesFromValue(data, (int)size, reverse: spiTransferDataLSBFirst.Value);
                 foreach(var dataByte in dataBytes)
                 {
                     spiPeripheral.Transmit(dataByte);
@@ -657,6 +658,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             else if(ActiveTransactionPeripheral is II2CPeripheral i2cPeripheral)
             {
+                var dataBytes = BitHelper.GetBytesFromValue(data, (int)size);
                 i2cPeripheral.Write(dataBytes);
                 this.Log(LogLevel.Noisy, "{0} byte(s) sent to the I2C peripheral: 0x{0:X08}", size, data);
             }
@@ -672,7 +674,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(activeTransactionSizeLeft.Value > 0)
             {
                 var bytesToSend = Math.Min(4, activeTransactionSizeLeft.Value);
-                Send(value, bytesToSend, transferDataLSBFirst.Value);
+                Send(value, bytesToSend);
                 activeTransactionSizeLeft.Value -= bytesToSend;
                 TryFinishTransaction();
             }
@@ -851,7 +853,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IValueRegisterField transactionOffsetLow;
         private IValueRegisterField transactionSize;
         private IValueRegisterField spiSlaveSelect;
-        private IFlagRegisterField transferDataLSBFirst;
+        private IFlagRegisterField spiTransferDataLSBFirst;
         private IFlagRegisterField writePopToAdvanceReadPointer;
         private IFlagRegisterField i2cExtendedAdressingMode;
 
