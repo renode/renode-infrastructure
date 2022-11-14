@@ -471,20 +471,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void EraseDie()
         {
-            var position = 0;
-            var segment = new byte[SectorSize];
-            for(var i = 0; i < SectorSize; i++)
-            {
-                segment[i] = EmptySegment;
-            }
-
-            while(position < underlyingMemory.Size)
-            {
-                var length = (int)Math.Min(SectorSize, underlyingMemory.Size - position);
-
-                underlyingMemory.WriteBytes(position, segment, length);
-                position += length;
-            }
+            underlyingMemory.ZeroAll();
         }
 
         private void EraseSegment(int segmentSize)
