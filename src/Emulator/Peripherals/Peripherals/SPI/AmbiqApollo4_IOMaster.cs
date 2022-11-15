@@ -645,11 +645,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void Send(uint data, uint size)
+        private void Send(uint data, uint size, bool forceMSBFirst = false)
         {
             if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
             {
-                var dataBytes = BitHelper.GetBytesFromValue(data, (int)size, reverse: spiTransferDataLSBFirst.Value);
+                var dataBytes = BitHelper.GetBytesFromValue(data, (int)size, reverse: forceMSBFirst ? false : spiTransferDataLSBFirst.Value);
                 foreach(var dataByte in dataBytes)
                 {
                     spiPeripheral.Transmit(dataByte);
@@ -691,11 +691,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             // * transfer always begins with the MSB of the resulting value (0xEF for the count=2 example).
             if(count > 0)
             {
-                Send(transactionOffsetLow.Value, 1);
                 if(count > 1)
                 {
-                    Send(transactionOffsetHigh.Value, count - 1);
+                    Send(transactionOffsetHigh.Value, count - 1, forceMSBFirst: true);
                 }
+                Send(transactionOffsetLow.Value, 1);
             }
         }
 
