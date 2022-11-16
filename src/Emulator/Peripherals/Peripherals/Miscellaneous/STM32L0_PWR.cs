@@ -69,6 +69,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             base.Reset();
             IRQ.Unset();
             Voltage = 3.3;
+            prevPvdo = false;
         }
 
         public long Size => 0x400;
@@ -117,7 +118,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void UpdatePvd()
         {
-            bool pvdo = pvdEnableFlag.Value && Voltage < ThresholdVoltage;
+            bool pvdo;
+            if(prevPvdo && Voltage > ThresholdVoltage + Hysteresis)
+            {
+                // PVDO should be false if the voltage was below and is above the threshold
+                pvdo = false;
+            }
+            else if(!prevPvdo && Voltage < ThresholdVoltage - Hysteresis)
+            {
+                // PVDO should be true if the voltage was above and is below the threshold
+                pvdo = true;
+            }
+            else
+            {
+                // No change (within hysteresis)
+                pvdo = prevPvdo;
+            }
+            prevPvdo = pvdo;
+            pvdo &= pvdEnableFlag.Value;
 
             pvdoFlag.Value = pvdo;
             IRQ.Set(pvdo);
@@ -130,6 +148,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<PvdLevelSelection> pvdLevel;
         private IEnumRegisterField<VoltageScalingRangeSelection> vosValue;
         private double voltage;
+        private bool prevPvdo;
+
+        private const double Hysteresis = 0.1;
 
         public enum PvdLevelSelection
         {
