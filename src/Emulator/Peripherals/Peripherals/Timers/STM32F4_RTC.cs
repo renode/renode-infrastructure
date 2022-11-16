@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             alarmB = new AlarmConfig(this, mainTimer);
 
             AlarmIRQ = new GPIO();
+            WakeupIRQ = new GPIO();
             ticker = new LimitTimer(machine.ClockSource, 1, this, nameof(ticker), 1, direction: Direction.Ascending, eventEnabled: true);
             ticker.LimitReached += UpdateState;
             ResetInnerTimers();
@@ -479,12 +480,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             registers.Reset();
             ticker.Reset();
             AlarmIRQ.Unset();
+            WakeupIRQ.Unset();
             ResetInnerTimers();
             ResetInnerStatus();
         }
 
         public long Size => 0x400;
         public GPIO AlarmIRQ { get; }
+        public GPIO WakeupIRQ { get; }
 
         private static DateTime UpdateTimeState(DateTime timeState, DateTimeSelect select, int value)
         {
