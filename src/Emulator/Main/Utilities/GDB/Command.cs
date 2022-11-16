@@ -115,24 +115,17 @@ namespace Antmicro.Renode.Utilities.GDB
                 return null;
             }
             address += firstLength;
-
             length -= firstLength;
-            for(var i = 0; i < (int)(length / pageSize); ++i)
-            {
-                if(!TryAddTranslatedMemoryFragment(ref accesses, address, pageSize, write))
-                {
-                    return null;
-                }
-                address += length;
-            }
 
-            var lastLength = length % pageSize;
-            if(lastLength > 0)
+            while(length > 0)
             {
-                if(!TryAddTranslatedMemoryFragment(ref accesses, address, lastLength, write))
+                var translateLength = Math.Min(pageSize, length);
+                if(!TryAddTranslatedMemoryFragment(ref accesses, address, translateLength, write))
                 {
                     return null;
                 }
+                length -= translateLength;
+                address += translateLength;
             }
 
             return accesses;
