@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -108,7 +108,9 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public string MatchMnemonicFromList(List<string> mnemonicList)
         {
-            foreach(var entry in mnemonicList)
+            // Start from the longest command to properly distinguish between commands that
+            // have a similar start eg. qC and qCRC
+            foreach(var entry in mnemonicList.OrderByDescending(x => x.Length))
             {
                 if(DataAsString.StartsWith(entry))
                 {
