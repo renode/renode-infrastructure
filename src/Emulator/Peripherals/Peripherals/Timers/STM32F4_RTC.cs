@@ -215,13 +215,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTag("RECALPF", 16, 1)
                     .WithReservedBits(17, 15)
                 },
-                {(long)Registers.PrescalerRegister, new DoubleWordRegister(this)
+                {(long)Registers.PrescalerRegister, new DoubleWordRegister(this, 0x7F00FF)
                     .WithTag("PREDIV_S", 0, 15)
                     .WithReservedBits(15, 1)
                     .WithTag("PREDIV_A", 16, 7)
                     .WithReservedBits(23, 9)
                 },
-                {(long)Registers.WakeupTimerRegister, new DoubleWordRegister(this, 0x7F00FF)
+                {(long)Registers.WakeupTimerRegister, new DoubleWordRegister(this, 0xFFFF)
                     .WithTag("WUT", 0, 16)
                     .WithReservedBits(16, 16)
                 },
