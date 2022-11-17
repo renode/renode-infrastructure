@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 },
 
                 {(long)Registers.ReadData, new DoubleWordRegister(this, 0x0)
-                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => 
+                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ =>
                         {
                             if(!Misc.TryDequeue(rxFifo, out var value))
                             {
@@ -158,10 +158,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                 },
 
                 {(long)Registers.FifoControl, new DoubleWordRegister(this, 0x0)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val)  => { if(val) rxFifo.Clear(); }, name: "RXRST")
-                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val)  => { if(val) formatFifo.Clear(); }, name: "FMTRST")
-                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(2,  3, out rxWatermarkLevel, name: "RXILVL")
-                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(5,  2, out fmtWatermarkLevel, name: "FMTILVL_FIELD")
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) rxFifo.Clear(); }, name: "RXRST")
+                    .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) formatFifo.Clear(); }, name: "FMTRST")
+                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(2, 3, out rxWatermarkLevel, name: "RXILVL")
+                    .WithEnumField<DoubleWordRegister, WatermarkLevel>(5, 2, out fmtWatermarkLevel, name: "FMTILVL_FIELD")
                     .WithTaggedFlag("ACQRST", 7)
                     .WithTaggedFlag("TXRST", 8)
                     .WithReservedBits(9, 23)
@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleCommand(FormatIndicator command)
         {
-            DebugHelper.Assert(selectedSlave != null || currentState == State.Idle , $"Cannot have no selected slave in the state {currentState}. This should have never happend");
+            DebugHelper.Assert(selectedSlave != null || currentState == State.Idle, $"Cannot have no selected slave in the state {currentState}. This should have never happend");
 
             switch(currentState)
             {
