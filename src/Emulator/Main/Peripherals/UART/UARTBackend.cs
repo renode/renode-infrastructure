@@ -42,16 +42,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public void BindAnalyzer(IOProvider io)
         {
             this.io = io;
-            io.ByteRead += b =>
-            {
-                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-                {
-                    // it happens when writing from uart analyzer
-                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-                }
-
-                UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
-            };
+            io.ByteRead += ByteRead;
 
             Action<byte> writeAction = (b =>
             {
@@ -79,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(lockObject)
             {
+                io.ByteRead -= ByteRead;
                 UART.CharReceived -= actionsDictionary[io];
                 actionsDictionary.Remove(io);
             }
@@ -105,6 +97,17 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
             }
             return result.ToString();
+        }
+
+        private void ByteRead(int b)
+        {
+            if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
+            {
+                // it happens when writing from uart analyzer
+                vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
+            }
+
+            UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
         }
 
         public IUART UART { get; private set; }
