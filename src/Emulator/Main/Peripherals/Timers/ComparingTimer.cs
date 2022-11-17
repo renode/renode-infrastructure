@@ -82,8 +82,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     throw new ArgumentException("Frequency cannot be zero.");
                 }
                 frequency = value;
-                var effectiveFrequency = frequency / Divider;
-                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(frequency: effectiveFrequency));
+                RecalculateFrequency();
             }
         }
 
@@ -151,8 +150,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     throw new ArgumentException("Divider cannot be zero.");
                 }
                 divider = value;
-                var effectiveFrequency = initialFrequency / divider;
-                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(frequency: effectiveFrequency));
+                RecalculateFrequency();
             }
         }
 
@@ -188,6 +186,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             CompareReached?.Invoke();
+        }
+
+        private void RecalculateFrequency()
+        {
+            var effectiveFrequency = Frequency / Divider;
+            clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(frequency: effectiveFrequency));
         }
 
         private ulong CalculatePeriod()
