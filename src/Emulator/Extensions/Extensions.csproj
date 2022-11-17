@@ -139,6 +139,7 @@
     <Compile Include="HostInterfaces\Network\OsXTapInterface.cs" />
     <Compile Include="HostInterfaces\Network\ITapInterface.cs" />
     <Compile Include="Utilities\GDB\Commands\WriteDataToMemoryCommand.cs" />
+    <Compile Include="Utilities\GDB\Commands\CalculateCRCCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\SupportedQueryCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ReadGeneralRegistersCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ReadMemoryCommand.cs" />
