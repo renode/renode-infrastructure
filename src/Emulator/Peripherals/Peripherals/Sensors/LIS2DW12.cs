@@ -485,7 +485,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             var maxValue = MaxValue14Bit;
-            var shift = 1;  // shift by n-1 to preserve the sign
+            var shift = 2;
 
             if(modeSelection.Value == ModeSelection.HighPerformance)
             {
@@ -499,7 +499,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 this.Log(LogLevel.Noisy, "Low power (12-bit resolution) mode is selected.");
                 maxValue = MaxValue12Bit;
-                shift = 3;  // shift by n-1 to preserve the sign
+                shift = 4;
             }
             else
             {
@@ -551,16 +551,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             switch(fullScale.Value)
             {
                 case FullScaleSelect.FullScale4g:
-                    scaleDivider = 4;
-                    break;
-                case FullScaleSelect.FullScale8g:
                     scaleDivider = 8;
                     break;
-                case FullScaleSelect.FullScale16g:
+                case FullScaleSelect.FullScale8g:
                     scaleDivider = 16;
                     break;
+                case FullScaleSelect.FullScale16g:
+                    scaleDivider = 32;
+                    break;
                 default:
-                    scaleDivider = 2;
+                    scaleDivider = 4;
                     break;
             }
         }
