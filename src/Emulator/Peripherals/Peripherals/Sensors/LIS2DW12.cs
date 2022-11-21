@@ -286,7 +286,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.DataOutXLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis LSB output register (OUT_X_L)",
-                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.X, upperByte: false));
+                    valueProviderCallback: _ => 
+                    {
+                        LoadNextSample();
+                        return Convert(accelerationFifo.Sample.X, upperByte: false);
+                    });
 
             Registers.DataOutXHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis MSB output register (OUT_X_H)",
@@ -306,27 +310,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.DataOutZHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis MSB output register (OUT_Z_H)",
-                    valueProviderCallback: _ =>
-                        {
-                            if(fifoModeSelection.Value == FIFOModeSelection.FIFOMode)
-                            {
-                                LoadNextSample();
-                            }
-                            if(autoIncrement.Value)
-                            {
-                                regAddress = Registers.DataOutXLow;
-                            }
-                            return Convert(accelerationFifo.Sample.Z, upperByte: true);
-                        }
-                    );
+                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Z, upperByte: true));
 
             Registers.FifoControl.Define(this)
                 .WithValueField(0, 5, out fifoTreshold, name: "FIFO threshold level setting (FTH)")
                 .WithEnumField(5, 3, out fifoModeSelection, name: "FIFO mode selection bits (FMode)");
 
             Registers.FifoSamples.Define(this)
-                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => Math.Min(accelerationFifo.SamplesCount, MaxFifoSize),
-                    name: "Number of unread samples stored in FIFO (DIFF)")
+                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
+                        {
+                            return 0;
+                        }
+                        return Math.Min(accelerationFifo.SamplesCount, MaxFifoSize);
+                    }, name: "Number of unread samples stored in FIFO (DIFF)")
                 .WithTag("FIFO overrun status (FIFO_OVR)", 6, 1)
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => accelerationFifo.SamplesCount >= fifoTreshold.Value,
                     name: "FIFO threshold status flag (FIFO_FTH)");
@@ -441,6 +439,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 regAddress = (Registers)((int)regAddress + 1);
                 this.Log(LogLevel.Noisy, "Auto-incrementing to the next register 0x{0:X} - {0}", regAddress);
+            }
+            else if((fifoModeSelection.Value == FIFOModeSelection.FIFOMode) && (regAddress == Registers.DataOutZHigh))
+            {
+                regAddress = Registers.DataOutXLow;
             }
         }
 
