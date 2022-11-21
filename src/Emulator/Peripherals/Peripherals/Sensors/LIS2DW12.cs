@@ -508,7 +508,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             var sensitivity = ((decimal)scaleDivider / maxValue) * 1000m;   // [mg/digit]
             var gain = 1m / sensitivity;
-            var valueAsUshort = ((ushort)((short)((value * 1000) * gain))) << shift;
+            var valueAsUshort = (ushort)((ushort)((short)((value * 1000) * gain)) << shift);
             this.Log(LogLevel.Noisy, "Conversion done with sensitivity: {0:F4}, and gain: {1:F4}", sensitivity, gain);
 
             if(upperByte)
