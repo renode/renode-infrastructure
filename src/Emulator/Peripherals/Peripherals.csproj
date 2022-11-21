@@ -509,6 +509,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_SystemResetControl.cs" />
     <Compile Include="Peripherals\DMA\EFR32MG12_LDMA.cs" />
     <Compile Include="Peripherals\Mocks\DummyI2CSlave.cs" />
+    <Compile Include="Peripherals\Timers\RV8803_RTC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
