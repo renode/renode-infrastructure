@@ -503,6 +503,7 @@
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Timer.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_RCC.cs" />
     <Compile Include="Peripherals\Timers\STM32L0_LpTimer.cs" />
+    <Compile Include="Peripherals\Miscellaneous\OpenTitan_SystemResetControl.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
