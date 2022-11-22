@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -69,6 +69,22 @@ namespace Antmicro.Renode.Disassembler.LLVM
 
             text = strBldr.ToString();
             return sofar;
+        }
+
+        public string GetTripleAndModelKey(uint flags)
+        {
+            var triple = SupportedArchitectures[cpu.Architecture];
+            if(triple == "armv7a" && flags > 0)
+            {
+                triple = "thumb";
+            }
+
+            if(!ModelTranslations.TryGetValue(cpu.Model, out var model))
+            {
+                model = cpu.Model;
+            }
+            
+            return $"{triple} {model}";
         }
         
         private IDisassembler GetDisassembler(uint flags) 

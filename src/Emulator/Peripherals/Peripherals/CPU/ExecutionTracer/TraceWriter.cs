@@ -95,6 +95,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             stream.WriteByte(FormatVersion);
             stream.WriteByte((byte)pcWidth);
             stream.WriteByte((byte)(IncludeOpcode ? 1 : 0));
+            if(IncludeOpcode)
+            {
+                var tripleAndModel = AttachedCPU.Disassembler.GetTripleAndModelKey(0);
+                usesThumbFlag = tripleAndModel.Contains("armv7a");
+                var byteCount = Encoding.ASCII.GetByteCount(tripleAndModel);
+
+                stream.WriteByte((byte)(usesThumbFlag ? 1 : 0));
+                stream.WriteByte((byte)byteCount);
+                stream.Write(Encoding.ASCII.GetBytes(tripleAndModel), 0, byteCount);
+            }
         }
 
         public override void Write(ExecutionTracer.Block block)
@@ -103,6 +113,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             var counter = 0u;
     
             var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var insnAdditionalData);
+
+            if(usesThumbFlag)
+            {
+                // if the CPU supports thumb, we need to mark translation blocks 
+                // with a flag and length of the block, that is needed to properly disassemble the trace
+                var isThumb = block.DisassemblyFlags > 0;
+                WriteByteToBuffer((byte)(isThumb ? 1 : 0));
+                WriteInstructionsCountToBuffer(block.InstructionsCount);
+            }
                                             
             while(counter < block.InstructionsCount)
             {
@@ -138,6 +157,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private bool usesThumbFlag;
+
         private bool IncludeOpcode => this.format != TraceFormat.PC;
 
         private bool IncludePC => this.format != TraceFormat.Opcode;
@@ -158,6 +179,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             BitHelper.GetBytesFromValue(buffer, bufferPosition, pc, pcWidth, true);
             bufferPosition += pcWidth;
+        }
+
+        private void WriteInstructionsCountToBuffer(ulong count)
+        {
+            BitHelper.GetBytesFromValue(buffer, bufferPosition, count, 8, true);
+            bufferPosition += 8;
         }
 
         public override void FlushBuffer()
