@@ -266,6 +266,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public event Action LimitReached;
 
+        // Should be used with caution as that clears all the subscriptions from all the sources.
+        // Consequences within wider context may be difficult to predict
+        protected void ClearSubscriptions()
+        {
+            LimitReached = null;
+        }
+
         protected virtual void OnLimitReached()
         {
             lock(irqSync)
