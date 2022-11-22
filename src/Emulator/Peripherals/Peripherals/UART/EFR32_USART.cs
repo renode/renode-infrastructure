@@ -5,24 +5,35 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class EFR32_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>
+    public class EFR32_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IBytePeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>
     {
         public EFR32_USART(Machine machine, uint clockFrequency = 19000000) : base(machine)
         {
             TransmitIRQ = new GPIO();
             ReceiveIRQ = new GPIO();
+            RxDataAvailableRequest = new GPIO();
+            RxDataAvailableSingleRequest = new GPIO();
+            TxBufferLowRequest = new GPIO();
+            TxBufferLowSingleRequest = new GPIO();
+            TxEmptyRequest = new GPIO();
+            RxDataAvailableRightRequest = new GPIO();
+            RxDataAvailableRightSingleRequest = new GPIO();
+            TxBufferLowRightRequest = new GPIO();
+            TxBufferLowRightSingleRequest = new GPIO();
+            TxEmptyRequest.Set(true);
+            TxBufferLowRequest.Set(true);
 
             interruptsManager = new InterruptManager<Interrupt>(this);
 
@@ -332,6 +343,8 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
             interruptsManager.Reset();
             spiSlaveDevice = null;
+            TxEmptyRequest.Set(true);
+            TxBufferLowRequest.Set(true);
         }
 
         public void Register(ISPIPeripheral peripheral, NullRegistrationPoint registrationPoint)
@@ -375,6 +388,26 @@ namespace Antmicro.Renode.Peripherals.UART
             return registers.Read(offset);
         }
 
+        public byte ReadByte(long offset)
+        {
+            if(offset != (long)Registers.RxBufferData)
+            {
+                this.Log(LogLevel.Warning, "Unhandled byte read from offset 0x{0:X}.", offset);
+                return 0;
+            }
+            return ReadBuffer();
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            if(offset != (long)Registers.TxBufferData)
+            {
+                this.Log(LogLevel.Warning, "Unhandled byte write to offset 0x{0:X}, value 0x{1:X}.", offset, value);
+                return;
+            }
+            HandleTxBufferData((byte)value);
+        }
+
         public override void WriteChar(byte value)
         {
             if(BufferState == BufferState.Full)
@@ -394,10 +427,20 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         [IrqProvider("transmit irq", 0)]
-        public GPIO TransmitIRQ { get; private set; }
+        public GPIO TransmitIRQ { get; }
 
         [IrqProvider("receive irq", 1)]
-        public GPIO ReceiveIRQ { get; private set; }
+        public GPIO ReceiveIRQ { get; }
+
+        public GPIO RxDataAvailableRequest { get; }
+        public GPIO RxDataAvailableSingleRequest { get; }
+        public GPIO TxBufferLowRequest { get; }
+        public GPIO TxBufferLowSingleRequest { get; }
+        public GPIO TxEmptyRequest { get; }
+        public GPIO RxDataAvailableRightRequest { get; }
+        public GPIO RxDataAvailableRightSingleRequest { get; }
+        public GPIO TxBufferLowRightRequest { get; }
+        public GPIO TxBufferLowRightSingleRequest { get; }
 
         public override Parity ParityBit { get { return parityBitModeField.Value; } }
 
@@ -455,6 +498,22 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
                 bufferState = value;
                 BufferStateChanged?.Invoke(value);
+                switch(bufferState)
+                {
+                    case BufferState.Empty:
+                        RxDataAvailableRequest.Set(false);
+                        RxDataAvailableSingleRequest.Set(false);
+                        break;
+                    case BufferState.Ready:
+                        RxDataAvailableRequest.Set(false);
+                        RxDataAvailableSingleRequest.Set(true);
+                        break;
+                    case BufferState.Full:
+                        RxDataAvailableRequest.Set(true);
+                        break;
+                    default:
+                        throw new Exception("Unreachable code. Invalid BufferState value.");
+                }
             }
         }
 
@@ -486,15 +545,17 @@ namespace Antmicro.Renode.Peripherals.UART
 
             if(operationModeField.Value == OperationMode.Synchronous)
             {
-                if(spiSlaveDevice == null)
+                if(spiSlaveDevice != null)
+                {
+                    transferCompleteFlag.Value = false;
+                    var result = spiSlaveDevice.Transmit(data);
+                    WriteChar(result);
+                    transferCompleteFlag.Value = true;
+                }
+                else
                 {
                     this.Log(LogLevel.Warning, "Writing data in synchronous mode, but no device is currently connected.");
-                    return;
                 }
-                transferCompleteFlag.Value = false;
-                var result = spiSlaveDevice.Transmit(data);
-                transferCompleteFlag.Value = true;
-                WriteChar(result);
             }
             else
             {
