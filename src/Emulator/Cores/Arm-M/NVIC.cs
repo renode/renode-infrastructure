@@ -87,10 +87,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return HandlePriorityRead(offset - PriorityStart, true);
             }
-            if((offset >= SetEnableStart && offset < SetEnableEnd)
-               || (offset >= ClearEnableStart && offset < ClearEnableEnd))
+            if(offset >= SetEnableStart && offset < SetEnableEnd)
             {
                 return HandleEnableRead(offset - SetEnableStart);
+            }
+            if(offset >= ClearEnableStart && offset < ClearEnableEnd)
+            {
+                return HandleEnableRead(offset - ClearEnableStart);
             }
             if(offset >= SetPendingStart && offset < SetPendingEnd)
             {
