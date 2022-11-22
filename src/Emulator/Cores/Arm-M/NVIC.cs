@@ -589,6 +589,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var firstIRQNo = 8 * offset + 16;
                 var lastIRQNo = firstIRQNo + 31;
                 var result = 0u;
+                if(firstIRQNo < 0 || lastIRQNo > irqs.Length)
+                {
+                    this.Log(LogLevel.Error, "Trying to access IRQs from range {0}-{1}, but only {2} are defined (offset 0x{3:X})", firstIRQNo, lastIRQNo, irqs.Length, offset);
+                    return result;
+                }
                 for(var i = lastIRQNo; i > firstIRQNo; i--)
                 {
                     result |= ((irqs[i] & IRQState.Enabled) != 0) ? 1u : 0u;
