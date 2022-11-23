@@ -7,16 +7,22 @@
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_RCC(Machine machine, IPeripheral rtc) : base(machine)
+        public STM32L0_RCC(Machine machine, IPeripheral rtc, ITimer lptimer, long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency) : base(machine)
         {
             this.rtc = rtc;
+            this.lptimer = lptimer;
+            this.apbFrequency = apbFrequency;
+            this.lsiFrequency = lsiFrequency;
+            this.lseFrequency = lseFrequency;
             DefineRegisters();
             Reset();
         }
@@ -25,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void DefineRegisters()
         {
-            // Keep in mind that these registers do not affect other
+            // Keep in mind that most of these registers do not affect other
             // peripherals or their clocks.
             Registers.ClockControl.Define(this, 0x300)
                 .WithFlag(0, out var hsi16on, name: "HSI16ON")
@@ -343,7 +349,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(12, 2, name: "I2C1SEL")
                 .WithReservedBits(14, 2)
                 .WithValueField(16, 2, name: "I2C3SEL")
-                .WithValueField(18, 2, name: "LPTIM1SEL")
+                .WithEnumField<DoubleWordRegister, LpTimerClockSourceSelection>(18, 2, changeCallback: (_, value) =>
+                    {
+                        switch(value)
+                        {
+                            case LpTimerClockSourceSelection.Apb:
+                                lptimer.Frequency = apbFrequency;
+                                break;
+                            case LpTimerClockSourceSelection.Lsi:
+                                lptimer.Frequency = lsiFrequency;
+                                break;
+                            case LpTimerClockSourceSelection.Hsi16:
+                                lptimer.Frequency = Hsi16Frequency;
+                                break;
+                            case LpTimerClockSourceSelection.Lse:
+                                lptimer.Frequency = lseFrequency;
+                                break;
+                        }
+                        this.Log(LogLevel.Debug, "LpTimer clock frequency changed to {0}", lptimer.Frequency);
+                    }, name: "LPTIM1SEL")
                 .WithReservedBits(20, 6)
                 .WithTaggedFlag("HSI48SEL", 26)
                 .WithReservedBits(27, 5)
@@ -383,7 +407,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
         }
 
+        private const long DefaultApbFrequency = 32000000;
+        private const long DefaultLsiFrequency = 37000;
+        private const long DefaultLseFrequency = 32768;
+        private const long Hsi16Frequency = 16000000;
+
         private readonly IPeripheral rtc;
+        private readonly ITimer lptimer;
+        private readonly long apbFrequency;
+        private readonly long lsiFrequency;
+        private readonly long lseFrequency;
+
+        // There can't be one common ClockSourceSelection enum because different peripherals
+        // have different sets of possible values:
+        // I2C has APB, system clock, HSI16, reserved;
+        // UARTs have APB, system clock, HSI16, LSE.
+        // The system clock can be HSI16, HSE, PLL, MSI (default)
+        public enum LpTimerClockSourceSelection
+        {
+            Apb,
+            Lsi,
+            Hsi16,
+            Lse,
+        }
 
         private enum Registers
         {
