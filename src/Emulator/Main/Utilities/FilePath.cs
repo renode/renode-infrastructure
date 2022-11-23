@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Utilities
                 throw new RecoverableException($"File does not exist: {path}");
             }
 
-            try 
+            try
             {
                 using(var fs = File.Open(path, FileMode.Open))
                 {
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Utilities
                         throw new RecoverableException($"File is not writable: {path}");
                     }
                 }
-            } 
+            }
             catch (UnauthorizedAccessException e)
             {
                 throw new RecoverableException($"Error while accessing {path}: {e.Message}");
