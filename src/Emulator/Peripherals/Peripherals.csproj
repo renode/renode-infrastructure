@@ -108,7 +108,6 @@
     <Compile Include="Peripherals\Timers\STM32_Timer.cs" />
     <Compile Include="Peripherals\Timers\SP804.cs" />
     <Compile Include="Peripherals\Timers\EOSS3_SimplePeriodicTimer.cs" />
-    <Compile Include="Peripherals\Timers\CadenceTTC.cs" />
     <Compile Include="Peripherals\Timers\Cadence_TTC.cs" />
     <Compile Include="Peripherals\UART\STM32_UART.cs" />
     <Compile Include="Peripherals\UART\STM32W_UART.cs" />
