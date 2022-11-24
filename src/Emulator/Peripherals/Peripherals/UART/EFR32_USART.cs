@@ -543,28 +543,27 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
+            transferCompleteFlag.Value = false;
             if(operationModeField.Value == OperationMode.Synchronous)
             {
                 if(spiSlaveDevice != null)
                 {
-                    transferCompleteFlag.Value = false;
                     var result = spiSlaveDevice.Transmit(data);
                     WriteChar(result);
-                    transferCompleteFlag.Value = true;
                 }
                 else
                 {
                     this.Log(LogLevel.Warning, "Writing data in synchronous mode, but no device is currently connected.");
+                    WriteChar(0x0);
                 }
             }
             else
             {
-                transferCompleteFlag.Value = false;
                 interruptsManager.SetInterrupt(Interrupt.TransmitBufferLevel);
                 TransmitCharacter(data);
-                transferCompleteFlag.Value = true;
                 interruptsManager.SetInterrupt(Interrupt.TransmitComplete);
             }
+            transferCompleteFlag.Value = true;
         }
 
         private byte ReadBuffer()
