@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -92,6 +92,21 @@ namespace Antmicro.Renode.Peripherals
             }
 
             return p.RegistersCollection.AddRegister(Convert.ToInt64(o), reg);
+        }
+
+        public static void BindMany(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Func<int, WordRegister> setup, uint stepInBytes = 4)
+        {
+            if(!o.GetType().IsEnum)
+            {
+                throw new ArgumentException("This method should be called on enumerated type");
+            }
+
+            var baseAddress = Convert.ToInt64(o);
+            for(var i = 0; i < count; i++)
+            {
+                var register = setup(i);
+                p.RegistersCollection.AddRegister(baseAddress + i * stepInBytes, register);
+            }
         }
     }
 }
