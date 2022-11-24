@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return (byte)ReportNonExistingRead(address, SysbusAccessWidth.Byte);
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
                 return 0;
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.Byte);
                 return;
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
                 return;
@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return (ushort)ReportNonExistingRead(address, SysbusAccessWidth.Word);
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
                 return 0;
@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.Word);
                 return;
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
                 return;
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return (uint)ReportNonExistingRead(address, SysbusAccessWidth.DoubleWord);
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
                 return 0;
@@ -267,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.DoubleWord);
                 return;
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
                 return;
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return (ulong)ReportNonExistingRead(address, SysbusAccessWidth.QuadWord);
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
                 return 0;
@@ -357,7 +357,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 ReportNonExistingWrite(address, value, SysbusAccessWidth.QuadWord);
                 return;
             }
-            if(!IsTargetAccessible(accessMethods.Peripheral))
+            if(!IsPeripheralEnabled(accessMethods.Peripheral))
             {
                 this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
                 return;

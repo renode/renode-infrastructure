@@ -1009,6 +1009,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public bool IsPeripheralEnabled(IPeripheral peripheral)
+        {
+            if(lockedPeripherals.Contains(peripheral))
+            {
+                return false;
+            }
+            return true;
+        }
+
         public void Clear()
         {
             ClearAll();
@@ -1543,15 +1552,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             return result;
-        }
-
-        private bool IsTargetAccessible(IPeripheral peripheral)
-        {
-            if(lockedPeripherals.Contains(peripheral))
-            {
-                return false;
-            }
-            return true;
         }
 
         private static void ThrowIfNotAllMemory(IEnumerable<PeripheralLookupResult> targets)
