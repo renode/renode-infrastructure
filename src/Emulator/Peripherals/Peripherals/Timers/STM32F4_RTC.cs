@@ -221,7 +221,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => !alarmA.Enable, name: "ALRAWF")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => !alarmB.Enable, name: "ALRBWF")
                     .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => !wakeupTimer.Enabled, name: "WUTWF")
-                    .WithTag("SHPF", 3, 1)
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => false, name: "SHPF") // Shift operations not supported
                     .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => mainTimer.TimeState.Year != 2000, name: "INITS")
                     .WithFlag(5, out syncFlag, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RSF",
                               readCallback: (_, curr) => 
@@ -260,13 +260,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             UpdateInterrupts();
                         })
-                    .WithTag("TSF", 11, 1)
-                    .WithTag("TSOVF", 12, 1)
-                    .WithTag("TAMP1F", 13, 1)
-                    .WithTag("TAMP2F", 14, 1)
-                    .WithReservedBits(15, 1)
-                    .WithTag("RECALPF", 16, 1)
-                    .WithReservedBits(17, 15)
+                    // We make the following bits flags instead of tags to reduce warnings in the log
+                    // because they are interrupt flag clear bits
+                    .WithFlag(11, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TSF")
+                    .WithFlag(12, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TSOVF")
+                    .WithFlag(13, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TAMP1F")
+                    .WithFlag(14, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TAMP2F")
+                    .WithFlag(15, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TAMP3F")
+                    .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => false, name: "RECALPF") // Recalibration not supported
+                    .WithIgnoredBits(17, 15) // We don't use reserved bits because the HAL sometimes writes 0s here and sometimes 1s
                 },
                 {(long)Registers.PrescalerRegister, new DoubleWordRegister(this, 0x7F00FF)
                     .WithTag("PREDIV_S", 0, 15)
