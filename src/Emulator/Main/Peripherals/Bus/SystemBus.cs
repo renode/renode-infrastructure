@@ -997,6 +997,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             lockedPeripherals.Remove(peripheral);
         }
 
+        public void SetPeripheralEnabled(IPeripheral peripheral, bool enabled)
+        {
+            if(enabled)
+            {
+                EnablePeripheral(peripheral);
+            }
+            else
+            {
+                DisablePeripheral(peripheral);
+            }
+        }
+
         public void Clear()
         {
             ClearAll();
