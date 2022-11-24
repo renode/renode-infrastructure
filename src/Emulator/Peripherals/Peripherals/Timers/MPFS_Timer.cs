@@ -13,7 +13,7 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class MPFS_Timer : ITimer, IDoubleWordPeripheral, IKnownSize
+    public class MPFS_Timer : IDoubleWordPeripheral, IKnownSize
     {
         public MPFS_Timer(Machine machine, long frequency = 100000000)
         {

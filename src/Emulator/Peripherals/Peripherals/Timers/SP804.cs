@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class SP804 : IDoubleWordPeripheral, IKnownSize, ITimer
+    public class SP804 : IDoubleWordPeripheral, IKnownSize
     {
 
         public SP804(Machine machine, int size = 0x1000)
