@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -24,14 +24,12 @@ namespace Antmicro.Renode.Utilities.Packets
                 var offset = 0;
                 foreach(var element in fieldsAndProperties)
                 {
-                    if(element.Offset.HasValue)
-                    {
-                        offset = element.Offset.Value;
-                    }
+                    var bytesRequired = element.BytesRequired;
+                    offset = element.ByteOffset ?? offset;
 
-                    var co = offset + element.Width;
+                    var co = offset + bytesRequired;
                     maxOffset = Math.Max(co, maxOffset);
-                    offset += element.Width;
+                    offset += bytesRequired;
                 }
 
                 return maxOffset;
@@ -53,14 +51,15 @@ namespace Antmicro.Renode.Utilities.Packets
                         return maxOffset;
                     }
 
-                    if(element.Offset.HasValue)
+                    if(element.ByteOffset.HasValue)
                     {
-                        offset = element.Offset.Value;
+                        offset = element.ByteOffset.Value;
                     }
 
-                    var co = offset + element.Width;
+                    var bytesRequired = element.BytesRequired;
+                    var co = offset + bytesRequired;
                     maxOffset = Math.Max(co, maxOffset);
-                    offset += element.Width;
+                    offset += bytesRequired;
                 }
 
                 return -1;
@@ -93,81 +92,21 @@ namespace Antmicro.Renode.Utilities.Packets
                     type = type.GetEnumUnderlyingType();
                 }
 
-                if(field.Offset.HasValue)
+                if(field.ByteOffset.HasValue)
                 {
-                    offset = dataOffset + field.Offset.Value;
+                    offset = dataOffset + field.ByteOffset.Value;
                 }
 
-                if(type == typeof(uint))
+                if(type == typeof(byte[]))
                 {
-                    if(offset + sizeof(uint) > data.Count)
-                    {
-                        return false;
-                    }
-
-                    var v = field.IsLSBFirst
-                        ? (uint)((data[offset + 3] << 24) | (data[offset + 2] << 16) | (data[offset + 1] << 8) | (data[offset]))
-                        : (uint)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | (data[offset + 3]));
-                    offset += 4;
-                    field.SetValue(innerResult, v);
-                }
-                else if(type == typeof(short))
-                {
-                    if(offset + sizeof(short) > data.Count)
-                    {
-                        return false;
-                    }
-
-                    var v = field.IsLSBFirst
-                        ? (short)((data[offset + 1] << 8) | (data[offset]))
-                        : (short)((data[offset] << 8) | (data[offset + 1]));
-                    offset += 2;
-                    field.SetValue(innerResult, v);
-                }
-                else if(type == typeof(ushort))
-                {
-                    if(offset + sizeof(ushort) > data.Count)
-                    {
-                        return false;
-                    }
-
-                    var v = field.IsLSBFirst
-                        ? (ushort)((data[offset + 1] << 8) | (data[offset]))
-                        : (ushort)((data[offset] << 8) | (data[offset + 1]));
-                    offset += 2;
-                    field.SetValue(innerResult, v);
-                }
-                else if(type == typeof(byte))
-                {
-                    if(offset + sizeof(byte) > data.Count)
-                    {
-                        return false;
-                    }
-
-                    // TODO: support Offset.bits/Width in other type as well
-                    var offsetInBits = (int)(field.GetAttribute<OffsetAttribute>()?.OffsetInBits ?? 0);
-                    var width = (int)(field.GetAttribute<WidthAttribute>()?.Value ?? 8);
-
-                    if(offsetInBits + width > 8)
-                    {
-                        throw new ArgumentException($"Unsupported offset/width combination: {(offsetInBits + width)}");
-                    }
-
-                    var v = (byte)BitHelper.GetValue(data[offset], offsetInBits, width);
-                    offset += 1;
-                    field.SetValue(innerResult, v);
-                }
-                else if(type == typeof(byte[]))
-                {
-                    var width = (int)(field.GetAttribute<WidthAttribute>()?.Value ?? 0);
-                    if(width == 0)
-                    {
-                        throw new ArgumentException("Positive width must be provided to decode byte array");
-                    }
-
+                    var width = field.Width;
                     if(offset + width > data.Count)
                     {
                         return false;
+                    }
+                    if(width == 0)
+                    {
+                        throw new ArgumentException("Positive width must be provided to decode byte array");
                     }
 
                     var v = new byte[width];
@@ -176,40 +115,88 @@ namespace Antmicro.Renode.Utilities.Packets
                         v[i] = data[offset + i];
                     }
 
+                    field.SetValue(innerResult, v);
                     offset += width;
+                    continue;
+                }
+
+                var bitOffset = field.BitOffset ?? 0;
+                var bytesRequired = field.BytesRequired;
+                if(offset + bytesRequired > data.Count)
+                {
+                    return false;
+                }
+
+                var intermediate = 0UL;
+                {
+                    var i = 0;
+                    foreach(var b in data.Skip(offset))
+                    {
+                        if(i >= bytesRequired)
+                        {
+                            break;
+                        }
+                        // assume host LSB bit ordering
+                        var shift = (i << 3) - bitOffset;
+                        intermediate |= shift > 0 ? (ulong)b << shift : (ulong)b >> -shift;
+                        i += 1;
+                    }
+                }
+
+                if(type == typeof(uint))
+                {
+                    var v = (uint)intermediate;
+
+                    if(!field.IsLSBFirst)
+                    {
+                        v = BitHelper.ReverseBytes(v);
+                    }
+                    v = BitHelper.GetValue(v, 0, field.BitWidth ?? 32);
+                    field.SetValue(innerResult, v);
+                }
+                else if(type == typeof(short) || type == typeof(ushort))
+                {
+                    var v = (ushort)intermediate;
+
+                    if(!field.IsLSBFirst)
+                    {
+                        v = BitHelper.ReverseBytes(v);
+                    }
+                    v = (ushort)BitHelper.GetValue(v, 0, field.BitWidth ?? 16);
+                    if(type == typeof(short))
+                    {
+                        field.SetValue(innerResult, (short)v);
+                    }
+                    else
+                    {
+                        field.SetValue(innerResult, v);
+                    }
+                }
+                else if(type == typeof(byte))
+                {
+                    var v = (byte)intermediate;
+                    v = BitHelper.GetValue(v, 0, field.BitWidth ?? 8);
                     field.SetValue(innerResult, v);
                 }
                 else if(type == typeof(ulong))
                 {
-                    if(offset + sizeof(ulong) > data.Count)
+                    var v = intermediate;
+                    if(!field.IsLSBFirst)
                     {
-                        return false;
+                        v = BitHelper.ReverseBytes(v);
                     }
-
-                    var v = field.IsLSBFirst
-                        ? (((ulong)data[offset + 7] << 56)
-                                | ((ulong)data[offset + 6] << 48)
-                                | ((ulong)data[offset + 5] << 40)
-                                | ((ulong)data[offset + 4] << 32)
-                                | ((ulong)data[offset + 3] << 24)
-                                | ((ulong)data[offset + 2] << 16)
-                                | ((ulong)data[offset + 1] << 8)
-                                | ((ulong)data[offset]))
-                        : (((ulong)data[offset] << 56)
-                                | ((ulong)data[offset + 1] << 48)
-                                | ((ulong)data[offset + 2] << 40)
-                                | ((ulong)data[offset + 3] << 32)
-                                | ((ulong)data[offset + 4] << 24)
-                                | ((ulong)data[offset + 5] << 16)
-                                | ((ulong)data[offset + 6] << 8)
-                                | ((ulong)data[offset + 7]));
-                    offset += 8;
+                    v = BitHelper.GetValue(v, 0, field.BitWidth ?? 64);
                     field.SetValue(innerResult, v);
+                }
+                else if(type == typeof(bool))
+                {
+                    field.SetValue(innerResult, BitHelper.IsBitSet(intermediate, 0));
                 }
                 else
                 {
                     throw new ArgumentException($"Unsupported field type: {type.Name}");
                 }
+                offset += bytesRequired;
             }
 
             result = (T)innerResult;
@@ -230,9 +217,9 @@ namespace Antmicro.Renode.Utilities.Packets
             var offset = dataOffset;
             foreach(var field in fieldsAndProperties)
             {
-                if(field.Offset.HasValue)
+                if(field.ByteOffset.HasValue)
                 {
-                    offset = dataOffset + field.Offset.Value;
+                    offset = dataOffset + field.ByteOffset.Value;
                 }
 
                 if(field.ElementType == typeof(uint))
@@ -273,9 +260,9 @@ namespace Antmicro.Renode.Utilities.Packets
                     type = type.GetEnumUnderlyingType();
                 }
 
-                if(element.Offset.HasValue)
+                if(element.ByteOffset.HasValue)
                 {
-                    offset = element.Offset.Value;
+                    offset = element.ByteOffset.Value;
                 }
 
                 var widthAttribute = element.GetAttribute<WidthAttribute>();
@@ -451,16 +438,11 @@ namespace Antmicro.Renode.Utilities.Packets
             public bool IsLSBFirst => ((MemberInfo)fieldInfo ?? propertyInfo).DeclaringType.GetCustomAttribute<LeastSignificantByteFirst>() != null
                     || GetAttribute<LeastSignificantByteFirst>() != null;
 
-            public int? Offset
-            {
-                get
-                {
-                    var offsetAttribute = GetAttribute<OffsetAttribute>();
-                    return (offsetAttribute != null)
-                        ? (int)offsetAttribute.OffsetInBytes
-                        : (int?)null;
-                }
-            }
+            public int? ByteOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
+
+            public int? BitOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBits;
+
+            public int BytesRequired => ((BitOffset ?? 0) + BitWidth + 7) / 8 ?? (Width + (BitOffset > 0 ? 1 : 0));
 
             public int Order => GetAttribute<PacketFieldAttribute>().Order;
 
@@ -474,7 +456,7 @@ namespace Antmicro.Renode.Utilities.Packets
                         type = type.GetEnumUnderlyingType();
                     }
 
-                    if(type == typeof(byte))
+                    if(type == typeof(byte) || type == typeof(bool))
                     {
                         return 1;
                     }
@@ -496,6 +478,57 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
 
                     throw new ArgumentException($"Unknown width of type: {type}");
+                }
+            }
+
+            public int? BitWidth
+            {
+                get
+                {
+                    var type = ElementType;
+                    if(type.IsEnum)
+                    {
+                        type = type.GetEnumUnderlyingType();
+                    }
+
+                    if(type == typeof(bool))
+                    {
+                        return 1;
+                    }
+
+                    int inBytes;
+                    if(type == typeof(byte))
+                    {
+                        inBytes = sizeof(byte);
+                    }
+                    else if(type == typeof(ushort))
+                    {
+                        inBytes = sizeof(ushort);
+                    }
+                    else if(type == typeof(uint))
+                    {
+                        inBytes = sizeof(uint);
+                    }
+                    else if(type == typeof(ulong))
+                    {
+                        inBytes = sizeof(ulong);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+
+                    var width = inBytes << 3;
+                    var setWidth = (int?)GetAttribute<WidthAttribute>()?.Value;
+                    if(setWidth < 0)
+                    {
+                        throw new ArgumentException($"Width is less than zero.");
+                    }
+                    if(setWidth > width)
+                    {
+                        throw new ArgumentException($"Width is greater than the size of type: {type} ({width} bits).");
+                    }
+                    return setWidth ?? width;
                 }
             }
 
