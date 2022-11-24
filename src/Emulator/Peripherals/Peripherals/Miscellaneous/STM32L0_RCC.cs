@@ -14,8 +14,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_RCC(Machine machine) : base(machine)
+        public STM32L0_RCC(Machine machine, IPeripheral rtc) : base(machine)
         {
+            this.rtc = rtc;
             DefineRegisters();
             Reset();
         }
@@ -359,8 +360,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("CSSLSEON", 13)
                 .WithTaggedFlag("CSSLSED", 14)
                 .WithValueField(16, 2, name: "RTCSEL")
-                .WithTaggedFlag("RTCEN", 18)
-                .WithTaggedFlag("RTCRST", 19)
+                .WithFlag(18, writeCallback: (_, value) => machine.SystemBus.SetPeripheralEnabled(rtc, value),
+                    valueProviderCallback: _ => machine.SystemBus.IsPeripheralEnabled(rtc), name: "RTCEN")
+                .WithFlag(19, writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            rtc.Reset();
+                            machine.SystemBus.DisablePeripheral(rtc);
+                        }
+                    }, name: "RTCRST")
                 .WithReservedBits(20, 3)
                 .WithTaggedFlag("RMVF", 23)
                 .WithTaggedFlag("FWRSTF", 24)
@@ -373,6 +382,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("LPWRRSTF", 31)
                 ;
         }
+
+        private readonly IPeripheral rtc;
 
         private enum Registers
         {
