@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -13,13 +13,8 @@ namespace Antmicro.Renode.Utilities.Packets
     {
         public OffsetAttribute(uint bytes = 0, uint bits = 0)
         {
-            if(bytes != 0 && bits != 0)
-            {
-                throw new ArgumentException("Setting both offsets is currently not supported");
-            }
-
-            OffsetInBytes = bytes;
-            OffsetInBits = bits;
+            OffsetInBytes = bytes + (bits >> 3);
+            OffsetInBits = bits & 0x7;
         }
 
         public uint OffsetInBytes { get; }
