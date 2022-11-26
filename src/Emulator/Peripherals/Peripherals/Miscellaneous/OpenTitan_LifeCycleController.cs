@@ -87,9 +87,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // This array was reversed to comply with the OpenTitan tests suite - the spec does not specify this
                 deviceId = Misc.HexStringToByteArray(value).Reverse().ToArray();
                 var otpDeviceId = otpController.GetOtpItem(OpenTitan_OneTimeProgrammableMemoryController.OtpItem.DeviceId);
-                if(deviceId != otpDeviceId)
+                // Only print the warning message if otpDeviceId is set.
+                if(deviceId != otpDeviceId && !otpDeviceId.All(o => o == 0))
                 {
-                    this.Log(LogLevel.Warning, "The set DeviceId differs from the one stored in the OTP Controller");
+                    var otpDeviceIdString = string.Join("", otpDeviceId);
+                    this.Log(LogLevel.Warning, "The set DeviceId differs from the one stored in the OTP Controller. Set: {0}, OTP:{1}",
+                             value, otpDeviceIdString);
                 }
                 deviceIdString = value;
             }
