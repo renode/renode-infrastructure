@@ -247,14 +247,31 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(5, 27);
 
             Registers.ErrorCode.Define(this)
-                .WithFlag(0, out outOfBoundsError, FieldMode.Read | FieldMode.WriteOneToClear, name: "oob_err")
-                .WithFlag(1, out memoryProtectionError, FieldMode.Read | FieldMode.WriteOneToClear, name: "mp_err")
+                .WithFlag(0, out errorCodeOutOfBoundsError, FieldMode.Read | FieldMode.WriteOneToClear, name: "op_err")
+                .WithFlag(1, out errorCodeMemoryProtectionError, FieldMode.Read | FieldMode.WriteOneToClear, name: "mp_err")
                 .WithTaggedFlag("rd_err", 2)
-                .WithTaggedFlag("prog_win_err", 3)
-                .WithTaggedFlag("prog_type_err", 4)
-                .WithTaggedFlag("flash_phy_err", 5)
-                .WithTaggedFlag("update_err", 6)
-                .WithReservedBits(7, 25);
+                .WithTaggedFlag("prog_err", 3)
+                .WithTaggedFlag("prog_win_err", 4)
+                .WithTaggedFlag("prog_type_err", 5)
+                .WithTaggedFlag("flash_macro", 6)
+                .WithTaggedFlag("update_err", 7)
+                .WithReservedBits(8, 24);
+
+            Registers.FaultStatus.Define(this)
+                .WithTaggedFlag("op_err", 0)
+                .WithTaggedFlag("mp_err", 1)
+                .WithTaggedFlag("rd_err", 2)
+                .WithTaggedFlag("prog_err", 3)
+                .WithTaggedFlag("prog_win_err", 4)
+                .WithTaggedFlag("prog_type_err", 5)
+                .WithTaggedFlag("flash_macro_err", 6)
+                .WithTaggedFlag("seed_err", 7)
+                .WithTaggedFlag("phy_relbl_err", 8)
+                .WithTaggedFlag("phy_storage_err", 9)
+                .WithTaggedFlag("spurious_ack", 10)
+                .WithTaggedFlag("arb_err", 11)
+                .WithTaggedFlag("host_gnt_err", 12)
+                .WithReservedBits(13, 19);
 
             Registers.ErrorAddress.Define(this)
                 .WithValueField(0, 32, out errorAddress, FieldMode.Read, name: "ERR_ADDR");
@@ -317,12 +334,12 @@ namespace Antmicro.Renode.Peripherals.MTD
 
                         if(isInBounds)
                         {
-                            memoryProtectionError.Value = true;
+                            errorCodeMemoryProtectionError.Value = true;
                             errorAddress.Value = (uint)(programOffset + flashAddress.Value);
                         }
                         else
                         {
-                            outOfBoundsError.Value = true;
+                            errorCodeOutOfBoundsError.Value = true;
                         }
                         return;
                     }
@@ -361,12 +378,12 @@ namespace Antmicro.Renode.Peripherals.MTD
 
                         if(isInBounds)
                         {
-                            memoryProtectionError.Value = true;
+                            errorCodeMemoryProtectionError.Value = true;
                             errorAddress.Value = (uint)(readOffset + flashAddress.Value);
                         }
                         else
                         {
-                            outOfBoundsError.Value = true;
+                            errorCodeOutOfBoundsError.Value = true;
                         }
                         return value;
                     }
@@ -550,7 +567,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             if(!IsOffsetInBounds(truncatedOffset))
             {
-                outOfBoundsError.Value = true;
+                errorCodeOutOfBoundsError.Value = true;
                 opStatusRegisterErrorFlag.Value = true;
                 opStatusRegisterDoneFlag.Value = true;
                 interruptStatusOperationDone.Value = true;
@@ -584,7 +601,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 opStatusRegisterErrorFlag.Value = true;
                 opStatusRegisterDoneFlag.Value = true;
                 interruptStatusOperationDone.Value = true;
-                memoryProtectionError.Value = true;
+                errorCodeMemoryProtectionError.Value = true;
                 UpdateInterrupts();
                 return;
             }
@@ -847,8 +864,8 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IFlagRegisterField statusReadFullFlag;
         private readonly IFlagRegisterField statusReadEmptyFlag;
 
-        private readonly IFlagRegisterField outOfBoundsError;
-        private readonly IFlagRegisterField memoryProtectionError;
+        private readonly IFlagRegisterField errorCodeOutOfBoundsError;
+        private readonly IFlagRegisterField errorCodeMemoryProtectionError;
 
         private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionReadEnabled;
         private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionProgEnabled;
