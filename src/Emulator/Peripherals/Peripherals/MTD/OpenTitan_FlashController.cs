@@ -38,11 +38,17 @@ namespace Antmicro.Renode.Peripherals.MTD
             mpRegionReadEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
             mpRegionProgEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
             mpRegionEraseEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
+            mpRegionScrambleEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
+            mpRegionEccEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
+            mpRegionHighEnduranceEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
 
             bankInfoPageEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
             bankInfoPageReadEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
             bankInfoPageProgramEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
             bankInfoPageEraseEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageScrambleEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageEccEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
+            bankInfoPageHighEnduranceEnabled = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfBanks, FlashNumberOfInfoTypes][];
 
             dataFlash = flash;
             // This is required as part of the tests use full address, while the other use just flash offset
@@ -59,6 +65,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                     bankInfoPageReadEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
                     bankInfoPageProgramEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
                     bankInfoPageEraseEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageScrambleEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageEccEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
+                    bankInfoPageHighEnduranceEnabled[bankNumber, infoType] = new IEnumRegisterField<MultiBitBool4>[FlashNumberOfPagesInInfo[infoType]];
                 }
             }
 
@@ -103,8 +112,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(4, 28);
 
             Registers.ExecutionFetchesEnabled.Define(this)
-                .WithTag("EN", 0, 4)
-                .WithReservedBits(4, 28);
+                .WithValueField(0, 32, out execFetchesCtrl, name: "EN");
 
             Registers.ControllerInit.Define(this)
                 .WithTaggedFlag("VAL", 0)
@@ -172,9 +180,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out mpRegionReadEnabled[i], name: $"RD_EN_{i}")
                     .WithEnumField<DoubleWordRegister, MultiBitBool4>(8, 4, out mpRegionProgEnabled[i], name: $"PROG_EN_{i}")
                     .WithEnumField<DoubleWordRegister, MultiBitBool4>(12, 4, out mpRegionEraseEnabled[i], name: $"ERASE_EN_{i}")
-                    .WithTag($"SCRAMBLE_EN_{i}", 16, 4)
-                    .WithTag($"ECC_EN_{i}", 20, 4)
-                    .WithTag($"HE_EN_{i}", 24, 4)
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(16, 4, out mpRegionScrambleEnabled[i], name: $"SCRAMBLE_EN_{i}")
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(20, 4, out mpRegionEccEnabled[i], name: $"ECC_EN_{i}")
+                    .WithEnumField<DoubleWordRegister, MultiBitBool4>(24, 4, out mpRegionHighEnduranceEnabled[i], name: $"HE_EN_{i}")
                     .WithReservedBits(28, 4));
 
                 RegistersCollection.AddRegister((long)(Registers.RegionBaseAndSizeConfiguration0 + 0x4 * i), new DoubleWordRegister(this)
@@ -187,9 +195,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithEnumField<DoubleWordRegister, MultiBitBool4>(0, 4, out defaultMpRegionReadEnabled, name: "RD_EN")
                 .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out defaultMpRegionProgEnabled, name: "PROG_EN")
                 .WithEnumField<DoubleWordRegister, MultiBitBool4>(8, 4, out defaultMpRegionEraseEnabled, name: "ERASE_EN")
-                .WithTag("SCRAMBLE_EN", 12, 4)
-                .WithTag("ECC_EN", 16, 4)
-                .WithTag("HE_EN", 20, 4)
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(12, 4, out defaultMpRegionScrambleEnabled, name: "SCRAMBLE_EN")
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(16, 4, out defaultMpRegionEccEnabled, name: "ECC_EN")
+                .WithEnumField<DoubleWordRegister, MultiBitBool4>(20, 4, out defaultMpRegionHighEnduranceEnabled, name: "HE_EN")
                 .WithReservedBits(24, 8);
 
             var registerOffset = Registers.Bank0Info0Enable0;
@@ -215,9 +223,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                             .WithEnumField<DoubleWordRegister, MultiBitBool4>(4, 4, out bankInfoPageReadEnabled[bankNumber, infoType][pageNumber], name: $"RD_EN_{pageNumber}")
                             .WithEnumField<DoubleWordRegister, MultiBitBool4>(8, 4, out bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber], name: $"PROG_EN_{pageNumber}")
                             .WithEnumField<DoubleWordRegister, MultiBitBool4>(12, 4, out bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber], name: $"ERASE_EN_{pageNumber}")
-                            .WithTag($"SCRAMBLE_EN_{pageNumber}", 16, 4)
-                            .WithTag($"ECC_EN_{pageNumber}", 20, 4)
-                            .WithTag($"HE_EN_{pageNumber}", 24, 4)
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(16, 4, out bankInfoPageScrambleEnabled[bankNumber, infoType][pageNumber], name: $"SCRAMBLE_EN_{pageNumber}")
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(20, 4, out bankInfoPageEccEnabled[bankNumber, infoType][pageNumber], name: $"ECC_EN_{pageNumber}")
+                            .WithEnumField<DoubleWordRegister, MultiBitBool4>(24, 4, out bankInfoPageHighEnduranceEnabled[bankNumber, infoType][pageNumber], name: $"HE_EN_{pageNumber}")
                             .WithReservedBits(28, 4);
                         registerOffset += 0x4;
                     }
@@ -682,6 +690,15 @@ namespace Antmicro.Renode.Peripherals.MTD
                 case OperationType.EraseDataPage:
                     ret = (bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
                     break;
+                case OperationType.ScrambleData:
+                    ret = (bankInfoPageScrambleEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                    break;
+                case OperationType.Ecc:
+                    ret = (bankInfoPageEccEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                    break;
+                case OperationType.HighEndurance:
+                    ret = (bankInfoPageHighEnduranceEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                    break;
                 default:
                     break;
             }
@@ -708,6 +725,15 @@ namespace Antmicro.Renode.Peripherals.MTD
                     break;
                 case OperationType.EraseDataPage:
                     ret = (defaultMpRegionEraseEnabled.Value == MultiBitBool4.True);
+                    break;
+                case OperationType.ScrambleData:
+                    ret = (defaultMpRegionScrambleEnabled.Value == MultiBitBool4.True);
+                    break;
+                case OperationType.Ecc:
+                    ret = (defaultMpRegionEccEnabled.Value == MultiBitBool4.True);
+                    break;
+                case OperationType.HighEndurance:
+                    ret = (defaultMpRegionHighEnduranceEnabled.Value == MultiBitBool4.True);
                     break;
                 default:
                     break;
@@ -769,6 +795,15 @@ namespace Antmicro.Renode.Peripherals.MTD
                     break;
                 case OperationType.EraseDataPage:
                     ret = (mpRegionEraseEnabled[regionId].Value == MultiBitBool4.True);
+                    break;
+                case OperationType.ScrambleData:
+                    ret = (mpRegionScrambleEnabled[regionId].Value == MultiBitBool4.True);
+                    break;
+                case OperationType.Ecc:
+                    ret = (mpRegionEccEnabled[regionId].Value == MultiBitBool4.True);
+                    break;
+                case OperationType.HighEndurance:
+                    ret = (mpRegionHighEnduranceEnabled[regionId].Value == MultiBitBool4.True);
                     break;
                 default:
                     break;
@@ -855,6 +890,8 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IFlagRegisterField interruptEnableOperationDone;
         private readonly IFlagRegisterField interruptEnableCorrectableError;
 
+        private readonly IValueRegisterField execFetchesCtrl;
+
         private readonly MappedMemory dataFlash;
         private readonly ArrayMemory[,] infoFlash;
         // This is required as the tests use full address or just flash offset
@@ -870,6 +907,9 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionReadEnabled;
         private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionProgEnabled;
         private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionEraseEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionScrambleEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionEccEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4> defaultMpRegionHighEnduranceEnabled;
 
         private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionEnabled;
         private readonly IValueRegisterField[] mpRegionBase;
@@ -877,10 +917,16 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionReadEnabled;
         private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionProgEnabled;
         private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionEraseEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionScrambleEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionEccEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[] mpRegionHighEnduranceEnabled;
         private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageEnabled;
         private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageReadEnabled;
         private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageProgramEnabled;
         private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageEraseEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageScrambleEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageEccEnabled;
+        private readonly IEnumRegisterField<MultiBitBool4>[,][] bankInfoPageHighEnduranceEnabled;
 
         private readonly IFlagRegisterField flashSelectBankEraseMode;
         private readonly IFlagRegisterField flashSelectPartition;
@@ -1039,7 +1085,10 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             ReadData,
             ProgramData,
-            EraseDataPage
+            EraseDataPage,
+            ScrambleData,
+            Ecc,
+            HighEndurance
         }
         #pragma warning restore format
     } // class
