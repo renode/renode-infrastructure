@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
-        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF)
+        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, eventEnabled: true, autoUpdate: true);
             this.machine = machine;
             this.priorityMask = priorityMask;
+            this.cpuId = cpuId;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
             resetMachine = machine.RequestReset;
@@ -116,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.VectorTableOffset:
                 return cpu.VectorTableOffset;
             case Registers.CPUID:
-                return CPUID;
+                return cpuId;
             case Registers.CoprocessorAccessControl:
                 return cpu.CPACR;
             case Registers.FPContextControl:
@@ -798,6 +799,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private CortexM cpu;
         private readonly LimitTimer systick;
         private readonly Machine machine;
+        private readonly uint cpuId;
 
         private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
@@ -813,7 +815,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int PriorityStart        = 0x400;
         private const int PriorityEnd          = 0x7F0;
         private const int IRQCount             = 512 + 16;
-        private const uint CPUID               = 0x412FC231;
+        private const uint DefaultCpuId        = 0x412FC231;
         private const int VectKey              = 0x5FA;
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
