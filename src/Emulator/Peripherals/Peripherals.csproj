@@ -499,6 +499,7 @@
     <Compile Include="Peripherals\MTD\STM32L0_FlashController.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_EGU.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Timer.cs" />
+    <Compile Include="Peripherals\Miscellaneous\STM32H7_RCC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
