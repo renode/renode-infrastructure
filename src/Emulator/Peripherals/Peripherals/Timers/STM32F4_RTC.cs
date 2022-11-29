@@ -241,7 +241,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                               })
                     .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => initMode, name: "INITF")
                     .WithFlag(7, FieldMode.Write, name: "INIT",
-                        writeCallback: (_, value) =>
+                        changeCallback: (_, value) =>
                         {
                             if(CheckIfUnlocked(Registers.ISR))
                             {
