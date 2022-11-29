@@ -19,7 +19,6 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public STM32F4_RTC(Machine machine, long wakeupTimerFrequency = DefaultWakeupTimerFrequency)
         {
-            this.wakeupTimerFrequency = wakeupTimerFrequency;
             mainTimer = new TimerConfig(this);
             alarmA = new AlarmConfig(this, mainTimer);
             alarmB = new AlarmConfig(this, mainTimer);
@@ -122,14 +121,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 // 0xx: RTC / 2^(4 - xx) clock is selected
                                 // 000: RTC / 2^4 = RTC / 16
                                 // 011: RTC / 2^1 = RTC / 2
-                                wakeupTimer.Frequency = wakeupTimerFrequency;
                                 wakeupTimer.Divider = (int)Math.Pow(2, 4 - value);
                             }
                             else
                             {
                                 // 1xx: ck_spre (usually 1 Hz) clock is selected
-                                wakeupTimer.Frequency = 1;
-                                wakeupTimer.Divider = 1;
+                                // ck_spre = RTC / {(PREDIV_S + 1) * (PREDIV_A + 1)}, see RM p.548
+                                wakeupTimer.Divider = (int)((predivS.Value + 1) * (predivA.Value + 1));
                             }
                         })
                     .WithTag("TSEDGE", 3, 1)
@@ -279,9 +277,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithIgnoredBits(17, 15) // We don't use reserved bits because the HAL sometimes writes 0s here and sometimes 1s
                 },
                 {(long)Registers.PrescalerRegister, new DoubleWordRegister(this, 0x7F00FF)
-                    .WithTag("PREDIV_S", 0, 15)
+                    .WithValueField(0, 15, out predivS, name: "PREDIV_S")
                     .WithReservedBits(15, 1)
-                    .WithTag("PREDIV_A", 16, 7)
+                    .WithValueField(16, 7, out predivA, name: "PREDIV_A")
                     .WithReservedBits(23, 9)
                 },
                 {(long)Registers.WakeupTimerRegister, new DoubleWordRegister(this, 0xFFFF)
@@ -708,10 +706,11 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IValueRegisterField wakeupClockSelection;
+        private readonly IValueRegisterField predivS;
+        private readonly IValueRegisterField predivA;
         private readonly IFlagRegisterField wakeupTimerFlag;
         private readonly LimitTimer ticker;
         private readonly LimitTimer wakeupTimer;
-        private readonly long wakeupTimerFrequency;
 
         private bool firstStageUnlocked;
         private bool registersUnlocked;
