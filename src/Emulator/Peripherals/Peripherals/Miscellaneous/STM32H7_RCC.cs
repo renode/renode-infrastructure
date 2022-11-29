@@ -63,6 +63,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("MCO1", 22, 3)
                     .WithTag("MCO2PRE", 25, 4)
                     .WithTag("MCO2", 29, 3)
+                },
+                {(long)Registers.ClockControlAndStatus, new DoubleWordRegister(this, 0x0)
+                    .WithFlag(0, out var lsion, name: "LSION")
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
+                    .WithReservedBits(2, 30)
                 }
             };
 
@@ -92,7 +97,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             ClockControl = 0x0,
             InternalClockSourceCalibration = 0x4,
-            ClockConfiguration = 0x10
+            ClockConfiguration = 0x10,
+            // ...
+            ClockControlAndStatus = 0x74
         }
     }
 }
