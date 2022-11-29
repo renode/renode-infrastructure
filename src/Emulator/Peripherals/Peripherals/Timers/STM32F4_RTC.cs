@@ -134,7 +134,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                         })
                     .WithTag("TSEDGE", 3, 1)
                     .WithTag("REFCKON", 4, 1)
-                    .WithTag("BYPSHAD", 5, 1)
+                    .WithFlag(5, name: "BYPSHAD",
+                        valueProviderCallback: _ => true, // Always report that shadow registers are bypassed
+                        writeCallback: (_, value) =>
+                        {
+                            if(!value)
+                            {
+                                this.Log(LogLevel.Warning, "Shadow registers are not supported");
+                            }
+                        })
                     .WithFlag(6, name: "FMT",
                         writeCallback: (_, value) =>
                         {
