@@ -31,9 +31,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             // The countChangeAction cannot be set in the FIFO constructor.
             incomingFifo = new Fifo("incoming FIFO", this);
-            incomingFifo.SetCountChangeAction(IncomingFifoCountChangeAction);
+            incomingFifo.CountChangeAction += IncomingFifoCountChangeAction;
             outgoingFifo = new Fifo("outgoing FIFO", this);
-            outgoingFifo.SetCountChangeAction(OutgoingFifoCountChangeAction);
+            outgoingFifo.CountChangeAction += OutgoingFifoCountChangeAction;
 
             spiPeripherals = new Dictionary<int, ISPIPeripheral>();
             i2cPeripherals = new Dictionary<int, II2CPeripheral>();
@@ -543,8 +543,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 ;
         }
 
-        private void IncomingFifoCountChangeAction(Fifo fifo)
+        private void IncomingFifoCountChangeAction(Fifo fifo, uint currentCount, uint previousCount)
         {
+            // Ignore change in count if it didn't decrease
+            if(currentCount >= previousCount)
+            {
+                return;
+            }
+
             // Receive more data if there's a space to receive and Read command awaits.
             if(!fifo.Full && activeTransactionCommand.Value == Commands.Read && activeTransactionSizeLeft.Value > 0)
             {
@@ -592,8 +598,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             return errorMessage == null;
         }
 
-        private void OutgoingFifoCountChangeAction(Fifo fifo)
+        private void OutgoingFifoCountChangeAction(Fifo fifo, uint currentCount, uint previousCount)
         {
+            // Ignore if we are currently sending data
+            if(currentCount <= previousCount)
+            {
+                return;
+            }
+
             // Send more data if there's data to send and Write command awaits.
             if(!fifo.Empty && activeTransactionCommand.Value == Commands.Write && activeTransactionSizeLeft.Value > 0)
             {
@@ -735,8 +747,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void UpdateFifoThresholdInterruptStatus()
         {
             InterruptStatusSet(IoMasterInterrupts.FifoThreshold, value:
-                outgoingFifo.BytesLeft >= fifoInterruptWriteThreshold.Value
-                || incomingFifo.BytesCount >= fifoInterruptReadThreshold.Value
+                outgoingFifo.BytesCount < fifoInterruptWriteThreshold.Value
+                || incomingFifo.BytesCount > fifoInterruptReadThreshold.Value
             );
         }
 
@@ -906,11 +918,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                 resetFlag = false;
             }
 
-            public void SetCountChangeAction(Action<Fifo> action)
-            {
-                countChangeAction = action;
-            }
-
             public override string ToString()
             {
                 StringBuilder builder = new StringBuilder();
@@ -974,6 +981,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }
                 return false;
             }
+
+            public Action<Fifo, uint, uint> CountChangeAction { get; set; }
 
             public uint BytesCapacity => DoubleWordCapacity * 4;
             public uint BytesCount => Count * 4;
@@ -1046,13 +1055,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         throw new ArgumentException($"{name}: Invalid value for Count: {value} (Capacity: {DoubleWordCapacity})");
                     }
+                    var previousCount = count;
                     count = value;
-                    countChangeAction?.Invoke(this);
+                    CountChangeAction?.Invoke(this, count, previousCount);
                 }
             }
 
             private uint count;
-            private Action<Fifo> countChangeAction;
             private int headIndex;
             private bool resetFlag;
             private int tailIndex = -1;
