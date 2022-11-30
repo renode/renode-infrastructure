@@ -110,6 +110,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         IEnumerable<IRegistered<II2CPeripheral, TypedNumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, TypedNumberRegistrationPoint<int>>.Children =>
             i2cPeripherals.Select(x => Registered.Create(x.Value, new TypedNumberRegistrationPoint<int>(x.Key, typeof(II2CPeripheral)))).ToList();
 
+        public bool ForceReceiveLSBFirst { get; set; }
+
         public GPIO IRQ { get; }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
@@ -626,9 +628,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 uint result = 0;
                 if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
                 {
+                    var lsbFirst = spiTransferDataLSBFirst.Value || ForceReceiveLSBFirst;
                     for(int i = 0; i < bytesToReceive; i++)
                     {
-                        var byteIndex = spiTransferDataLSBFirst.Value ? i : bytesToReceive - i - 1;
+                        var byteIndex = lsbFirst ? i : bytesToReceive - i - 1;
                         BitHelper.UpdateWithShifted(ref result, spiPeripheral.Transmit(0), (int)(byteIndex * 8), 8);
                     }
                 }
