@@ -633,13 +633,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             ulong extendedTargetAddress = 0;
             ulong minAddr = ulong.MaxValue;
 
-            try 
+            try
             {
                 this.DebugLog("Loading HEX {0}.", fileName);
                 using(var file = new System.IO.StreamReader(fileName))
                 {
-                    while((line = file.ReadLine()) != null)  
-                    {  
+                    while((line = file.ReadLine()) != null)
+                    {
                         if(line.Length < 11)
                         {
                             throw new RecoverableException($"Line is too short error at line #{lineNum}.");
