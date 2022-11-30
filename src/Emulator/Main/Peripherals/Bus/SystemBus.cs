@@ -632,6 +632,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             int lineNum = 1;
             ulong extendedTargetAddress = 0;
             ulong minAddr = ulong.MaxValue;
+            bool endOfFileReached = false;
 
             try
             {
@@ -640,6 +641,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     while((line = file.ReadLine()) != null)
                     {
+                        if(endOfFileReached)
+                        {
+                            throw new RecoverableException($"Unexpected data after the end of file marker at line #{lineNum}");
+                        }
+
                         if(line.Length < 11)
                         {
                             throw new RecoverableException($"Line is too short error at line #{lineNum}.");
@@ -694,6 +700,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                                     this.Log(LogLevel.Debug, "Setting PC to 0x{0:X}", startingAddress);
                                     cpu.PC = startingAddress;
                                 }
+                                break;
+
+                            case HexRecordType.EndOfFile:
+                                endOfFileReached = true;
                                 break;
 
                             default:
