@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private void DefineRegisters()
         {
             Registers.AccessControl.Define(this)
-                .WithTaggedFlag("LATENCY", 0)
+                .WithFlag(0, name: "LATENCY")
                 .WithFlag(1, out prefetchEnabled, name: "PRFTEN", changeCallback: (oldValue, value) =>
                     {
                         if(value && disableBuffer.Value)
