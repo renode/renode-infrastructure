@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             programEraseLock = new LockRegister(this, nameof(programEraseLock), ProgramEraseKeys);
             optionByteLock = new LockRegister(this, nameof(optionByteLock), OptionByteKeys);
 
+            signatureRegisters = new DoubleWordRegisterCollection(this);
+
             DefineRegisters();
             programEraseControlLock.Locked += delegate
             {
@@ -60,6 +62,12 @@ namespace Antmicro.Renode.Peripherals.MTD
             programEraseControlLock.Reset();
             programEraseLock.Reset();
             optionByteLock.Reset();
+        }
+
+        [ConnectionRegion("signature")]
+        public uint ReadDoubleWordFromSignature(long offset)
+        {
+            return signatureRegisters.Read(offset);
         }
 
         public long Size => 0x400;
@@ -218,6 +226,20 @@ namespace Antmicro.Renode.Peripherals.MTD
             Registers.WriteProtection2.Define(this)
                 .WithValueField(0, 16, mode: FieldMode.Read, name: "WRPROT2")
                 .WithReservedBits(16, 16);
+
+            // The fields containing the lot number are in ASCII (so the lot number is "000000")
+            SignatureRegisters.UniqueId1.Define(signatureRegisters)
+                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => 0, name: "WAF_NUM")
+                .WithValueField(8, 24, FieldMode.Read, valueProviderCallback: _ => 0x3030, name: "LOT_NUM[55:32]");
+
+            SignatureRegisters.UniqueId2.Define(signatureRegisters)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x30303030, name: "LOT_NUM[31:0]");
+
+            SignatureRegisters.UniqueId3.Define(signatureRegisters)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0, name: "U_ID[95:64]");
+
+            SignatureRegisters.FlashSize.Define(signatureRegisters)
+                .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => (uint)(underlyingFlash.Size / 1024), name: "F_SIZE");
         }
 
         private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong address)
@@ -298,6 +320,8 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly LockRegister programEraseControlLock;
         private readonly LockRegister programEraseLock;
         private readonly LockRegister optionByteLock;
+
+        private readonly DoubleWordRegisterCollection signatureRegisters;
 
         private const int EepromWordSize = 4;
         private const int FlashPageSize = 128;
@@ -382,6 +406,14 @@ namespace Antmicro.Renode.Peripherals.MTD
             OptionBytes = 0x1C,            // OPTR
             WriteProtection1 = 0x20,       // WRPROT1
             WriteProtection2 = 0x80,       // WRPROT2
+        }
+
+        private enum SignatureRegisters : long
+        {
+            UniqueId1 = 0x50, // U_ID(31:0)
+            UniqueId2 = 0x54, // U_ID(63:32)
+            UniqueId3 = 0x64, // U_ID(95:64)
+            FlashSize = 0x7c, // F_SIZE
         }
     }
 }
