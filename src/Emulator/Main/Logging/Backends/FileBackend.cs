@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Logging
 
                 var type = entry.Type;
                 var message = FormatLogEntry(entry);
-                output.WriteLine(string.Format("{0:HH:mm:ss} [{1}] {2}", CustomDateTime.Now, type, message));
+                output.WriteLine(string.Format("{0:HH:mm:ss.ffff} [{1}] {2}", CustomDateTime.Now, type, message));
                 if(flushAfterEachWrite)
                 {
                     output.Flush();
