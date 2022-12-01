@@ -760,6 +760,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SetEnable = 0x100,
             ClearEnable = 0x180,
             SetPending = 0x200,
+            ClearPending = 0x280,
             ActiveBit = 0x300,
             InterruptPriority = 0x400,
             CPUID = 0xD00,
