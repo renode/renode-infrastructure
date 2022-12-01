@@ -423,6 +423,11 @@ namespace Antmicro.Renode.Peripherals.UART
                         })
                     .WithWriteCallback((_, __) =>
                     {
+                        UpdateSticky();
+                        UpdateInterrupts();
+                    })
+                    .WithReadCallback((_, __) =>
+                    {
                         UpdateBufferState();
                         UpdateSticky();
                         UpdateInterrupts();
