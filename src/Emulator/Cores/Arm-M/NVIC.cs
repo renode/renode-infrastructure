@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -454,8 +454,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.NoisyLog("Internal IRQ {0}.", number);
                 if((irqs[number] & IRQState.Active) == 0)
                 {
-                    irqs[number] |= IRQState.Pending;
-                    pendingIRQs.Add(number);
+                    SetPending(number);
                 }
                 FindPendingInterrupt();
             }
@@ -474,8 +473,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     // let's latch it if not active
                     if((irqs[number] & IRQState.Active) == 0)
                     {
-                        irqs[number] |= IRQState.Pending;
-                        pendingIRQs.Add(number);
+                        SetPending(number);
                     }
                 }
                 else
@@ -607,6 +605,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        private void SetPending(int i)
+        {
+            this.DebugLog("Set pending IRQ {0}.", i);
+            var before = irqs[i];
+            irqs[i] |= IRQState.Pending;
+            pendingIRQs.Add(i);
+
+            // when SEVONPEND is set all interrupts (even those masked)
+            // generate an event when entering the pending state
+            if(before != irqs[i] && currentSevOnPending)
+            {
+                foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
+                {
+                    cpu.SetEventFlag(true);
+                }
+            }
+        }
+
         private void SetOrClearPendingInterrupt(int offset, uint value, bool set)
         {
             lock(irqs)
@@ -621,9 +637,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         {
                             if (set)
                             {
-                                this.DebugLog("Set pending IRQ {0}.", i);
-                                irqs[i] |= IRQState.Pending;
-                                pendingIRQs.Add(i);
+                                SetPending(i);
                             }
                             else
                             {
