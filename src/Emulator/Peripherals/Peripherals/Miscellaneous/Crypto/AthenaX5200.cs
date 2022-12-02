@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             rsaServiceProvider = new RSAServiceProvider(memoryManager);
             aesServiceProvider = new AESServiceProvider(memoryManager, machine.SystemBus);
             msgAuthServiceProvider = new MessageAuthenticationServiceProvider(memoryManager, machine.SystemBus);
+            dsaServiceProvider = new DSAServiceProvider(memoryManager, machine.SystemBus);
 
             Registers.CSR.Define(this)
                 .WithFlag(0,
@@ -82,6 +83,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 { JumpTable.RunSHA, msgAuthServiceProvider.PerformSHA },
                 { JumpTable.RunSHADMA, msgAuthServiceProvider.PerformSHADMA },
                 { JumpTable.RunHMACSHA, msgAuthServiceProvider.PerformHMACSHA },
+                { JumpTable.RunDSA_Sign, dsaServiceProvider.SignDMA },
             };
 
             Reset();
@@ -164,6 +166,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private readonly RSAServiceProvider rsaServiceProvider;
         private readonly AESServiceProvider aesServiceProvider;
         private readonly MessageAuthenticationServiceProvider msgAuthServiceProvider;
+        private readonly DSAServiceProvider dsaServiceProvider;
         
         private enum JumpTable
         {
@@ -180,6 +183,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             UninstantiateDRBG = 0x32,
             RunHMACSHA = 0x36,
             RunSHADMA = 0x3C,
+            RunDSA_Sign = 0x40,
             DecryptCipherRSA = 0x4E,
             RunGCMNew = 0x5A
         }
