@@ -10,6 +10,8 @@ using System;
 using NUnit.Framework;
 using Antmicro.Renode.Core;
 
+using Range = Antmicro.Renode.Core.Range;
+
 namespace Antmicro.Renode.UnitTests
 {
     [TestFixture]

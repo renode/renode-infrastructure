@@ -18,6 +18,8 @@ using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities.Collections;
 
+using Range = Antmicro.Renode.Core.Range;
+
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public partial class SystemBus

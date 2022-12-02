@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -29,6 +29,8 @@ using Antmicro.Renode.Core.Extensions;
 using System.Reflection;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Peripherals.Memory;
+
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,6 +12,8 @@ using Antmicro.Renode.UserInterface.Tokenizer;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core;
+
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.MonitorTests
 {

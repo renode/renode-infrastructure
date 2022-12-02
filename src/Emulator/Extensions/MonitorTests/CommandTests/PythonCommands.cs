@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,6 +21,8 @@ using System.Collections;
 using Antmicro.Renode.Utilities;
 using System.Text.RegularExpressions;
 using Antmicro.Renode.Peripherals.Memory;
+
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.MonitorTests.CommandTests
 {

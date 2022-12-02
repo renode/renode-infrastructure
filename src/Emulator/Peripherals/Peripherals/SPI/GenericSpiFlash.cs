@@ -13,6 +13,8 @@ using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.SPI.NORFlash;
 using Antmicro.Renode.Utilities;
 
+using Range = Antmicro.Renode.Core.Range;
+
 namespace Antmicro.Renode.Peripherals.SPI
 {
     public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver

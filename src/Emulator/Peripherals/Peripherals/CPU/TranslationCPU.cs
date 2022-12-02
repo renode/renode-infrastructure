@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -29,6 +29,8 @@ using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
 using Machine = Antmicro.Renode.Core.Machine;
 using Antmicro.Renode.Disassembler.LLVM;
+
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
