@@ -108,14 +108,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                         valueProviderCallback: (_) => timer.Mode
                     )
                     .WithFlag(0, name: "Disable",
-                        writeCallback: (_, val) => timer.Disabled = val,
-                        valueProviderCallback: (_) => timer.Disabled
+                        writeCallback: (_, val) => timer.Enabled = !val,
+                        valueProviderCallback: (_) => !timer.Enabled
                     )
                 },
                 {(long)Registers.CounterValue1, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "CounterValue",
                         writeCallback: (_, val) => timer.Value = val,
-                        valueProviderCallback: (_) => timer.Value
+                        valueProviderCallback: (_) => (uint)timer.Value
                     )
                 },
                 {(long)Registers.CounterInterval1, new DoubleWordRegister(this)
@@ -208,10 +208,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                     || (IntervalInterruptFlag && IntervalInterruptEnabled));
             }
 
-            public bool Disabled
+            public bool Enabled
             {
-                get => !timer.Enabled;
-                set => timer.Enabled = !value;
+                get => timer.Enabled;
+                set => timer.Enabled = value;
             }
 
             public CounterMode Mode
@@ -260,9 +260,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set => timer.Direction = value;
             }
 
-            public uint Value
+            public ulong Value
             {
-                get => (uint)timer.Value;
+                get => timer.Value;
                 set => timer.Value = value;
             }
 
@@ -271,6 +271,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 get => timer.Frequency;
                 set => timer.Frequency = value;
             }
+
 
             public bool OverflowInterruptFlag { get; set; }
             public bool OverflowInterruptEnabled { get; set; }
