@@ -34,6 +34,7 @@
       <CSources Include="$(TcgDirectory)/tcg-runtime.c" />
       <CSources Include="$(TcgDirectory)/optimize.c" />
       <CSources Include="$(TcgDirectory)/additional.c" />
+      <CSources Include="$(TcgDirectory)/host-utils.c" />
 
       <InputFiles Include="$(TcgDirectory)/**" Exclude="$(TcgDirectory)/bin/**;$(TcgDirectory)/obj/**;$(TcgDirectory)/**/.*;$(TcgDirectory)/*.a" />
     </ItemGroup>
