@@ -450,6 +450,7 @@
     <Compile Include="Peripherals\Miscellaneous\Crypto\RSAServiceProvider.cs" />
     <Compile Include="Peripherals\Miscellaneous\Crypto\AESServiceProvider.cs" />
     <Compile Include="Peripherals\Miscellaneous\Crypto\MessageAuthenticationServiceProvider.cs" />
+    <Compile Include="Peripherals\Miscellaneous\Crypto\AthenaX5200_BigIntegerHelper.cs" />
     <Compile Include="Peripherals\UART\PL011.cs" />
     <Compile Include="Peripherals\Miscellaneous\WindowIOMMU.cs" />
     <Compile Include="Peripherals\Miscellaneous\ExternalWindowMMU.cs" />
