@@ -15,12 +15,12 @@ using Antmicro.Migrant;
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public sealed class STM32F7_USART : BasicDoubleWordPeripheral, IKnownSize, IUART
+    public sealed class STM32F7_USART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
         public STM32F7_USART(Machine machine, uint frequency, bool lowPowerMode = false) : base(machine)
         {
             IRQ = new GPIO();
-            receiveQueue = new Queue<byte>();
+            RegistersCollection = new DoubleWordRegisterCollection(this);
             this.frequency = frequency;
             this.lowPowerMode = lowPowerMode;
             DefineRegisters();
@@ -28,26 +28,24 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public override void Reset()
         {
-            receiveQueue.Clear();
+            base.Reset();
+            RegistersCollection.Reset();
             IRQ.Unset();
         }
 
-        public void WriteChar(byte value)
+        public uint ReadDoubleWord(long offset)
         {
-            if(receiveEnabled.Value && enabled.Value)
-            {
-                receiveQueue.Enqueue(value);
-                UpdateInterrupt();
-            }
-            else
-            {
-                this.Log(LogLevel.Warning, "Char was received, but the receiver (or the whole USART) is not enabled. Ignoring.");
-            }
+            return RegistersCollection.Read(offset);
         }
 
-        public uint BaudRate => BaudRateMultiplier * frequency / baudRateDivisor.Value;
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            RegistersCollection.Write(offset, value);
+        }
+
+        public override uint BaudRate => BaudRateMultiplier * frequency / baudRateDivisor.Value;
         
-        public Bits StopBits
+        public override Bits StopBits
         {
             get
             {
@@ -67,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public Parity ParityBit
+        public override Parity ParityBit
         {
             get
             {
@@ -79,16 +77,27 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        [field: Transient]
-        public event Action<byte> CharReceived;
-
         public GPIO IRQ { get; }
 
         public long Size => 0x400;
-        
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        protected override void CharWritten()
+        {
+            UpdateInterrupt();
+        }
+
+        protected override void QueueEmptied()
+        {
+            UpdateInterrupt();
+        }
+
+        protected override bool IsReceiveEnabled => receiveEnabled.Value && enabled.Value;
+
         private void DefineRegisters()
         {
-            var cr1 = Registers.ControlRegister1.Define(this)
+            var cr1 = Registers.ControlRegister1.Define(RegistersCollection)
                 .WithFlag(0, out enabled, name: "UE")
                 .WithTaggedFlag("UESM", 1)
                 .WithFlag(2, out receiveEnabled, name: "RE")
@@ -110,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(29, 3)
                 .WithWriteCallback((_, __) => UpdateInterrupt());
 
-            var cr2 = Registers.ControlRegister2.Define(this)
+            var cr2 = Registers.ControlRegister2.Define(RegistersCollection)
                 .WithReservedBits(0, 4)
                 .WithTaggedFlag("ADDM7", 4)
                 .WithReservedBits(7, 1)
@@ -122,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("MSBFIRST", 19)
                 .WithTag("ADD", 24, 8);
 
-            var cr3 = Registers.ControlRegister3.Define(this)
+            var cr3 = Registers.ControlRegister3.Define(RegistersCollection)
                 .WithTaggedFlag("EIE", 0)
                 .WithTaggedFlag("HDSEL", 3)
                 .WithTaggedFlag("DMAR", 6)
@@ -142,26 +151,25 @@ namespace Antmicro.Renode.Peripherals.UART
 
             if(lowPowerMode)
             {
-                Registers.BaudRate.Define(this)
+                Registers.BaudRate.Define(RegistersCollection)
                     .WithValueField(0, 20, out baudRateDivisor, name: "BRR")
                     .WithReservedBits(20, 12);
             }
             else
             {
-                Registers.BaudRate.Define(this)
+                Registers.BaudRate.Define(RegistersCollection)
                     .WithValueField(0, 16, out baudRateDivisor, name: "BRR")
                     .WithReservedBits(16, 16);
             }
 
-            var request = Registers.Request.Define(this)
+            var request = Registers.Request.Define(RegistersCollection)
                 .WithFlag(1, FieldMode.Write, name: "SBKRQ")
                 .WithFlag(2, FieldMode.Write, name: "MMRQ")
                 .WithFlag(3, FieldMode.Write, writeCallback: (_, value) =>
                 {
                     if(value)
                     {
-                        receiveQueue.Clear();
-                        UpdateInterrupt();
+                        ClearBuffer();
                     }
                 }, name: "RXFRQ")
                 .WithReservedBits(6, 26);
@@ -172,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("NF", 2)
                 .WithTaggedFlag("ORE", 3)
                 .WithTaggedFlag("IDLE", 4)
-                .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => (receiveQueue.Count != 0), name: "RXNE")
+                .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => (Count != 0), name: "RXNE")
                 .WithFlag(6, out transferComplete, FieldMode.Read, name: "TC")
                 .WithFlag(7, FieldMode.Read, name: "TXE", valueProviderCallback: _ => true)
                 .WithTaggedFlag("CTSIF", 9)
@@ -188,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(23, 2)
                 .WithReservedBits(26, 6);
 
-            var icr = Registers.InterruptFlagClear.Define(this)
+            var icr = Registers.InterruptFlagClear.Define(RegistersCollection)
                 .WithTaggedFlag("PECF", 0)
                 .WithTaggedFlag("FECF", 1)
                 .WithTaggedFlag("NCF", 2)
@@ -208,11 +216,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(21, 11)
                 .WithWriteCallback((_, __) => UpdateInterrupt());
 
-            Registers.ReceiveData.Define(this)
+            Registers.ReceiveData.Define(RegistersCollection)
                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => HandleReceiveData(), name: "RDR")
                 .WithReservedBits(8, 24);
 
-            Registers.TransmitData.Define(this)
+            Registers.TransmitData.Define(RegistersCollection)
                 .WithValueField(0, 8, 
                     // reading this register will intentionally return the last written value
                     writeCallback: (_, val) => HandleTransmitData(val), name: "TDR")
@@ -303,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             if(transmitEnabled.Value && enabled.Value)
             {
-                CharReceived?.Invoke((byte)value);
+                base.TransmitCharacter((byte)value);
                 transferComplete.Value = true;
                 UpdateInterrupt();
             }
@@ -315,8 +323,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private uint HandleReceiveData()
         {
-            var result = receiveQueue.Dequeue();
-            UpdateInterrupt();
+            if(!TryGetCharacter(out var result))
+            {
+                this.Log(LogLevel.Warning, "No characters in queue.");
+            }
             return result;
         }
 
@@ -324,7 +334,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             var transmitRegisterEmptyInterrupt = transmitRegisterEmptyInterruptEnabled.Value; // we assume that transmit register is always empty
             var transferCompleteInterrupt = transferComplete.Value && transferCompleteInterruptEnabled.Value;
-            var readRegisterNotEmptyInterrupt = (receiveQueue.Count != 0) && readRegisterNotEmptyInterruptEnabled.Value;
+            var readRegisterNotEmptyInterrupt = Count != 0 && readRegisterNotEmptyInterruptEnabled.Value;
             
             IRQ.Set(transmitRegisterEmptyInterrupt || transferCompleteInterrupt || readRegisterNotEmptyInterrupt);
         }
@@ -342,7 +352,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField stopBits;
         private IFlagRegisterField over8;
 
-        private readonly Queue<byte> receiveQueue;
         private readonly uint frequency;
         private readonly bool lowPowerMode;
 
