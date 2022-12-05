@@ -15,47 +15,13 @@ using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class EFM32_UART : UARTBase, IDoubleWordPeripheral, IPeripheralContainer<IUART, NullRegistrationPoint>
+    public class EFM32_UART : UARTBase, IDoubleWordPeripheral
     {
         public EFM32_UART(Machine machine) : base(machine)
         {
             TransmitIRQ = new GPIO();
             ReceiveIRQ = new GPIO();
         }
-
-        #region IContainer implementation
-
-        private IUART registeredPeripheral;
-
-        public void Register(IUART peripheral, NullRegistrationPoint registrationPoint)
-        {
-            if(registeredPeripheral != null)
-            {
-                throw new RegistrationException("Cannot register more than one peripheral.");
-            }
-            Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
-            registeredPeripheral = peripheral;
-        }
-
-        public void Unregister(IUART peripheral)
-        {
-            Machine.UnregisterAsAChildOf(this, peripheral);
-            registeredPeripheral = null;
-        }
-
-        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(IUART peripheral)
-        {
-            return new [] { NullRegistrationPoint.Instance };
-        }
-
-        public IEnumerable<IRegistered<IUART, NullRegistrationPoint>> Children
-        {
-            get
-            {
-                return new []  { Registered.Create(registeredPeripheral, NullRegistrationPoint.Instance) };
-            }
-        }
-        #endregion
 
         public GPIO TransmitIRQ{get; private set;}
         public GPIO ReceiveIRQ{get; private set;}
