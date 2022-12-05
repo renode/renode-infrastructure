@@ -8,18 +8,18 @@
 using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public abstract class UARTBase : IUART
+    public abstract class UARTBase : NullRegistrationPointPeripheralContainer<IUART>, IUART
     {
-        protected UARTBase(Machine machine)
+        protected UARTBase(Machine machine) : base(machine)
         {
             queue = new Queue<byte>();
             innerLock = new object();
-            Machine = machine;
         }
 
         public virtual void WriteChar(byte value)
@@ -37,9 +37,25 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public virtual void Reset()
+        public override void Reset()
         {
             ClearBuffer();
+        }
+
+        public override void Register(IUART uart, NullRegistrationPoint registrationPoint)
+        {
+            base.Register(uart, registrationPoint);
+
+            this.CharReceived += uart.WriteChar;
+            uart.CharReceived += this.WriteChar;
+        }
+
+        public override void Unregister(IUART uart)
+        {
+            base.Unregister(uart);
+
+            this.CharReceived -= uart.WriteChar;
+            uart.CharReceived -= this.WriteChar;
         }
 
         [field: Transient]
@@ -92,7 +108,6 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         protected readonly object innerLock;
-        protected readonly Machine Machine;
         private readonly Queue<byte> queue;
 
         public abstract Bits StopBits { get; }
