@@ -418,7 +418,7 @@ namespace Antmicro.Renode.Peripherals.UART
             base.WriteChar(value);
         }
 
-        public IEnumerable<IRegistered<ISPIPeripheral, NullRegistrationPoint>> Children
+        IEnumerable<IRegistered<ISPIPeripheral, NullRegistrationPoint>> IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>.Children
         {
             get
             {
