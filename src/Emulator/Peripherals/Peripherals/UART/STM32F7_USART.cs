@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.UART
         
         private void DefineRegisters()
         {
-            var cr1 = Register.ControlRegister1.Define(this)
+            var cr1 = Registers.ControlRegister1.Define(this)
                 .WithFlag(0, out enabled, name: "UE")
                 .WithTaggedFlag("UESM", 1)
                 .WithFlag(2, out receiveEnabled, name: "RE")
@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(29, 3)
                 .WithWriteCallback((_, __) => UpdateInterrupt());
 
-            var cr2 = Register.ControlRegister2.Define(this)
+            var cr2 = Registers.ControlRegister2.Define(this)
                 .WithReservedBits(0, 4)
                 .WithTaggedFlag("ADDM7", 4)
                 .WithReservedBits(7, 1)
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("MSBFIRST", 19)
                 .WithTag("ADD", 24, 8);
 
-            var cr3 = Register.ControlRegister3.Define(this)
+            var cr3 = Registers.ControlRegister3.Define(this)
                 .WithTaggedFlag("EIE", 0)
                 .WithTaggedFlag("HDSEL", 3)
                 .WithTaggedFlag("DMAR", 6)
@@ -142,18 +142,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
             if(lowPowerMode)
             {
-                Register.BaudRate.Define(this)
+                Registers.BaudRate.Define(this)
                     .WithValueField(0, 20, out baudRateDivisor, name: "BRR")
                     .WithReservedBits(20, 12);
             }
             else
             {
-                Register.BaudRate.Define(this)
+                Registers.BaudRate.Define(this)
                     .WithValueField(0, 16, out baudRateDivisor, name: "BRR")
                     .WithReservedBits(16, 16);
             }
 
-            var request = Register.Request.Define(this)
+            var request = Registers.Request.Define(this)
                 .WithFlag(1, FieldMode.Write, name: "SBKRQ")
                 .WithFlag(2, FieldMode.Write, name: "MMRQ")
                 .WithFlag(3, FieldMode.Write, writeCallback: (_, value) =>
@@ -166,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 }, name: "RXFRQ")
                 .WithReservedBits(6, 26);
 
-            var isr = Register.InterruptAndStatus.Define(this, lowPowerMode ? 0xC0u : 0x200000C0u)
+            var isr = Registers.InterruptAndStatus.Define(RegistersCollection, lowPowerMode ? 0xC0u : 0x200000C0u)
                 .WithTaggedFlag("PE", 0)
                 .WithTaggedFlag("FE", 1)
                 .WithTaggedFlag("NF", 2)
@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(23, 2)
                 .WithReservedBits(26, 6);
 
-            var icr = Register.InterruptFlagClear.Define(this)
+            var icr = Registers.InterruptFlagClear.Define(this)
                 .WithTaggedFlag("PECF", 0)
                 .WithTaggedFlag("FECF", 1)
                 .WithTaggedFlag("NCF", 2)
@@ -208,11 +208,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(21, 11)
                 .WithWriteCallback((_, __) => UpdateInterrupt());
 
-            Register.ReceiveData.Define(this)
+            Registers.ReceiveData.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => HandleReceiveData(), name: "RDR")
                 .WithReservedBits(8, 24);
 
-            Register.TransmitData.Define(this)
+            Registers.TransmitData.Define(this)
                 .WithValueField(0, 8, 
                     // reading this register will intentionally return the last written value
                     writeCallback: (_, val) => HandleTransmitData(val), name: "TDR")
@@ -348,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private uint BaudRateMultiplier => lowPowerMode ? 256u : over8.Value ? 2u : 1u;
 
-        private enum Register
+        private enum Registers
         {
             ControlRegister1   = 0x0,
             ControlRegister2   = 0x4,
