@@ -556,6 +556,7 @@
     <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_Registers.cs" />
     <Compile Include="Peripherals\Timers\EFR32xG2_RTCC.cs" />
     <Compile Include="Peripherals\Timers\EFR32_RTCCCounter.cs" />
+    <Compile Include="Peripherals\Miscellaneous\STM32H7_HardwareSemaphore.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
