@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -64,10 +64,44 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("MCO2PRE", 25, 4)
                     .WithTag("MCO2", 29, 3)
                 },
+                {(long)Registers.BackupDomainControl, new DoubleWordRegister(this)
+                    .WithFlag(0, out var lseon, name: "LSEON")
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lseon.Value, name: "LSERDY")
+                    .WithValueField(2, 1, name: "LSEBYP")
+                    .WithReservedBits(3, 5)
+                    .WithValueField(8, 2, name: "RTCSEL")
+                    .WithReservedBits(10, 5)
+                    .WithTaggedFlag("RTCEN", 15)
+                    .WithValueField(16, 1, name: "BDRST")
+                    .WithReservedBits(17, 15)
+                },
                 {(long)Registers.ClockControlAndStatus, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, out var lsion, name: "LSION")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
                     .WithReservedBits(2, 30)
+                },
+                {(long)Registers.AHB4Enable, new DoubleWordRegister(this, 0x0)
+                    .WithFlag(0, name: "GPIOAEN")
+                    .WithFlag(1, name: "GPIOBEN")
+                    .WithFlag(2, name: "GPIOCEN")
+                    .WithFlag(3, name: "GPIODEN")
+                    .WithFlag(4, name: "GPIOEEN")
+                    .WithFlag(5, name: "GPIOFEN")
+                    .WithFlag(6, name: "GPIOGEN")
+                    .WithFlag(7, name: "GPIOHEN")
+                    .WithFlag(8, name: "GPIOIEN")
+                    .WithFlag(9, name: "GPIOJEN")
+                    .WithFlag(10, name: "GPIOKEN")
+                    .WithReservedBits(11, 8)
+                    .WithFlag(19, name: "CRCEN")
+                    .WithReservedBits(20, 1)
+                    .WithFlag(21, name: "BDMAEN")
+                    .WithReservedBits(22, 2)
+                    .WithFlag(24, name: "ADC3EN")
+                    .WithFlag(25, name: "HSEMEN")
+                    .WithReservedBits(26, 2)
+                    .WithFlag(28, name: "BKPRAMEN")
+                    .WithReservedBits(29, 3)
                 }
             };
 
@@ -99,7 +133,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             InternalClockSourceCalibration = 0x4,
             ClockConfiguration = 0x10,
             // ...
-            ClockControlAndStatus = 0x74
+            BackupDomainControl = 0x70,
+            ClockControlAndStatus = 0x74,
+            // ...
+            AHB4Enable = 0xE0
         }
     }
 }
