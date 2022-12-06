@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_RCC(Machine machine, IPeripheral rtc, ITimer lptimer, long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency) : base(machine)
+        public STM32L0_RCC(Machine machine, IPeripheral rtc = null, ITimer lptimer = null, long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency) : base(machine)
         {
             this.rtc = rtc;
             this.lptimer = lptimer;
@@ -351,6 +351,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(16, 2, name: "I2C3SEL")
                 .WithEnumField<DoubleWordRegister, LpTimerClockSourceSelection>(18, 2, changeCallback: (_, value) =>
                     {
+                        if(lptimer == null) 
+                        {
+                            this.Log(LogLevel.Error, "Trying to change LPTimer frequency, but it was not passed in the RCC constructor, ignoring");
+                            return;
+                        }
                         switch(value)
                         {
                             case LpTimerClockSourceSelection.Apb:
@@ -384,12 +389,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("CSSLSEON", 13)
                 .WithTaggedFlag("CSSLSED", 14)
                 .WithValueField(16, 2, name: "RTCSEL")
-                .WithFlag(18, writeCallback: (_, value) => machine.SystemBus.SetPeripheralEnabled(rtc, value),
-                    valueProviderCallback: _ => machine.SystemBus.IsPeripheralEnabled(rtc), name: "RTCEN")
+                .WithFlag(18, writeCallback: (_, value) =>
+                    {
+                        if(rtc == null && value)
+                        {
+                            this.Log(LogLevel.Error, "Trying to enable RTC, but it was not passed int the RCC constructor, ignoring");
+                            return;
+                        }
+                        machine.SystemBus.SetPeripheralEnabled(rtc, value);
+                    },
+                    valueProviderCallback: _ => rtc == null ? false : machine.SystemBus.IsPeripheralEnabled(rtc), name: "RTCEN")
                 .WithFlag(19, writeCallback: (_, value) =>
                     {
                         if(value)
                         {
+                            if(rtc == null)
+                            {
+                                this.Log(LogLevel.Error, "Trying to disable RTC, but it was not passed int the RCC constructor, ignoring");
+                                return;
+                            }
                             rtc.Reset();
                             machine.SystemBus.DisablePeripheral(rtc);
                         }
