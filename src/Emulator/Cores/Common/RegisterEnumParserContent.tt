@@ -125,9 +125,9 @@
                 return;
             }
 
-            if(line.StartsWith(BeginningOfIfder, StringComparison.CurrentCulture))
+            if(line.StartsWith(BeginningOfIfdef, StringComparison.CurrentCulture))
             {
-                var value = line.Replace(BeginningOfIfder, string.Empty).Trim();
+                var value = line.Replace(BeginningOfIfdef, string.Empty).Trim();
                 modes.Push(defines.Contains(value) ? Mode.InsideDefinedIfdef : Mode.InsideUndefinedIfdef);
                 return;
             }
@@ -199,7 +199,7 @@
         private readonly Stack<Mode> modes;
         private readonly Dictionary<string, List<Tuple<RegisterDescriptor, int>>> groupedRegisters;
 
-        private const string BeginningOfIfder = "#ifdef";
+        private const string BeginningOfIfdef = "#ifdef";
         private const string EndOfIfdef = "#endif";
         private const string BeginningOfEnum = "typedef enum {";
         private const string EndOfEnum = "} Registers;";
