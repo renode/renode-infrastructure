@@ -125,10 +125,22 @@
                 return;
             }
 
+            Mode? newMode = null;
             if(line.StartsWith(BeginningOfIfdef, StringComparison.CurrentCulture))
             {
                 var value = line.Replace(BeginningOfIfdef, string.Empty).Trim();
-                modes.Push(defines.Contains(value) ? Mode.IncludeLines : Mode.SkipLines);
+                newMode = defines.Contains(value) ? Mode.IncludeLines : Mode.SkipLines;
+            }
+            else if(line.StartsWith(BeginningOfIfndef, StringComparison.CurrentCulture))
+            {
+                var value = line.Replace(BeginningOfIfndef, string.Empty).Trim();
+                // Notice the modes are inverted compared to 'ifdef'.
+                newMode = defines.Contains(value) ? Mode.SkipLines : Mode.IncludeLines;
+            }
+
+            if(newMode.HasValue)
+            {
+                modes.Push(newMode.Value);
                 return;
             }
 
@@ -176,6 +188,11 @@
             {
                 modes.Pop();
             }
+            else if(line.Trim() == ElseIfdef)
+            {
+                modes.Pop();
+                modes.Push(Mode.SkipLines);
+            }
             else
             {
                 InsideEnumHandler(line);
@@ -187,6 +204,16 @@
             if(line.Trim() == EndOfIfdef)
             {
                 modes.Pop();
+            }
+            else if(line.Trim() == ElseIfdef)
+            {
+                modes.Pop();
+                modes.Push(Mode.IncludeLines);
+            }
+            else if(line.Trim().StartsWith("#if"))
+            {
+                // The mode should still be 'SkipLines' after ifdef + endif pairs.
+                modes.Push(Mode.SkipLines);
             }
         }
 
@@ -200,6 +227,8 @@
         private readonly Dictionary<string, List<Tuple<RegisterDescriptor, int>>> groupedRegisters;
 
         private const string BeginningOfIfdef = "#ifdef";
+        private const string BeginningOfIfndef = "#ifndef";
+        private const string ElseIfdef = "#else";
         private const string EndOfIfdef = "#endif";
         private const string BeginningOfEnum = "typedef enum {";
         private const string EndOfEnum = "} Registers;";
