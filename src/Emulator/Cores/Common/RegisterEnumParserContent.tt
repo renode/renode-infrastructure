@@ -31,8 +31,8 @@
             {
                 { Mode.ScanForEnum,          ScanForEnumHandler          },
                 { Mode.InsideEnum,           InsideEnumHandler           },
-                { Mode.InsideUndefinedIfdef, InsideUndefinedIfdefHandler },
-                { Mode.InsideDefinedIfdef,   InsideDefinedIfdefHandler   }
+                { Mode.SkipLines,            SkipLinesHandler            },
+                { Mode.IncludeLines,         IncludeLinesHandler         }
             };
             modes = new Stack<Mode>();
 
@@ -128,7 +128,7 @@
             if(line.StartsWith(BeginningOfIfdef, StringComparison.CurrentCulture))
             {
                 var value = line.Replace(BeginningOfIfdef, string.Empty).Trim();
-                modes.Push(defines.Contains(value) ? Mode.InsideDefinedIfdef : Mode.InsideUndefinedIfdef);
+                modes.Push(defines.Contains(value) ? Mode.IncludeLines : Mode.SkipLines);
                 return;
             }
 
@@ -170,7 +170,7 @@
             }
         }
 
-        private void InsideDefinedIfdefHandler(string line)
+        private void IncludeLinesHandler(string line)
         {
             if(line.Trim() == EndOfIfdef)
             {
@@ -182,7 +182,7 @@
             }
         }
 
-        private void InsideUndefinedIfdefHandler(string line)
+        private void SkipLinesHandler(string line)
         {
             if(line.Trim() == EndOfIfdef)
             {
@@ -208,8 +208,8 @@
         {
             ScanForEnum,
             InsideEnum,
-            InsideUndefinedIfdef,
-            InsideDefinedIfdef
+            SkipLines,
+            IncludeLines
         }
 
         public class RegisterDescriptor : RegisterDescriptorBase
