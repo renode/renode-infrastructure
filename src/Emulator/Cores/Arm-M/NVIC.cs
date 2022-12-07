@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
-        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId)
+        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
@@ -31,6 +31,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.machine = machine;
             this.priorityMask = priorityMask;
             this.cpuId = cpuId;
+            this.numberOfMPURegions = numberOfMPURegions;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
             resetMachine = machine.RequestReset;
@@ -176,7 +177,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.DebugLog("ConfigurableFaultStatus read. Returning NOCP.");
                 return (1 << 19) /* NOCP */;
             case Registers.MPUType:
-                return 0x800; // 8 MPU regions
+                // Bits 0-7 and 16-31 are RAZ in ARMv6-M, ARMv7-M and ARMv8-M.
+                return (numberOfMPURegions & 0xFF) << 8;  
             case Registers.InterruptControllerType:
                 return 0b0111;
             default:
@@ -736,6 +738,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 FindPendingInterrupt();
             }
         }
+
+        private uint numberOfMPURegions;
 
         [Flags]
         private enum IRQState : byte
