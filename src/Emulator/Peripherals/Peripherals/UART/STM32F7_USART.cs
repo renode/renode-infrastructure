@@ -14,7 +14,7 @@ using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [AllowedTranslations(AllowedTranslation.WordToDoubleWord)] 
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32F7_USART : BasicDoubleWordPeripheral, IKnownSize, IUART
     {
         public STM32F7_USART(Machine machine, uint frequency, bool lowPowerMode = false) : base(machine)
