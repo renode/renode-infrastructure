@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public new RegisterValue MTVAL => 0;
         public new RegisterValue MIP => 0;
 
-        protected override bool ExecutionFinished(TranslationCPU.ExecutionResult result)
+        protected override bool ExecutionFinished(ExecutionResult result)
         {
             this.Log(LogLevel.Noisy, "PC@0x{1:X}: Execution finished with result: {0}", result, PC.RawValue);
 
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
                         break;
 
-                    case (Result)TranslationCPU.ExecutionResult.Ok:
+                    case (Result)ExecutionResult.Ok:
                         // to avoid warning
                         break;
 
