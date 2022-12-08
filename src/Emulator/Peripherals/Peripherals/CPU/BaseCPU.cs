@@ -738,17 +738,6 @@ restart:
         protected readonly CpuBitness bitness;
         protected readonly Machine machine;
         
-        protected enum ExecutionResult : ulong
-        {
-            Ok = 0,
-            Interrupted = 1,
-            WaitingForInterrupt = 2,
-            StoppedAtBreakpoint = 3,
-            StoppedAtWatchpoint = 4,
-            ExternalMmuFault = 5,
-            Aborted = ulong.MaxValue
-        }
-        
         protected enum CpuResult
         {
             ExecutedInstructions = 0,

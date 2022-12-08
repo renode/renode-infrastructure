@@ -461,6 +461,7 @@
     <Compile Include="Peripherals\CPU\BreakpointType.cs" />
     <Compile Include="Peripherals\CPU\HaltArguments.cs" />
     <Compile Include="Peripherals\CPU\ExecutionMode.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionResult.cs" />
     <Compile Include="Utilities\MemberReferenceExtensions.cs" />
     <Compile Include="Utilities\WindowsFileLocker.cs" />
     <Compile Include="Peripherals\Wireless\Position.cs" />
