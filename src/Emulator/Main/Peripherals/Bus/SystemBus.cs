@@ -1829,21 +1829,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private LRUCache<ulong, Tuple<string, Symbol>> pcCache = new LRUCache<ulong, Tuple<string, Symbol>>(10000);
 
-        private struct PeripheralLookupResult
-        {
-            public IBusRegistered<IBusPeripheral> What;
-            public ulong Offset;
-            public ulong SourceIndex;
-            public ulong SourceLength;
-        }
-
-        private struct TagEntry
-        {
-            public string Name;
-            public ulong DefaultValue;
-        }
-
-        private class MappedSegmentWrapper : IMappedSegment
+        public class MappedSegmentWrapper : IMappedSegment
         {
             public MappedSegmentWrapper(IMappedSegment wrappedSegment, ulong peripheralOffset, ulong maximumSize, ICPUWithMappedMemory context)
             {
@@ -1941,6 +1927,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly ulong peripheralOffset;
             private readonly ulong usedSize;
             private readonly ICPUWithMappedMemory context;
+        }
+
+        private struct PeripheralLookupResult
+        {
+            public IBusRegistered<IBusPeripheral> What;
+            public ulong Offset;
+            public ulong SourceIndex;
+            public ulong SourceLength;
+        }
+
+        private struct TagEntry
+        {
+            public string Name;
+            public ulong DefaultValue;
         }
 
         private enum HexRecordType
