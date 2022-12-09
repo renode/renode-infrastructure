@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void WriteChar(byte value)
         {
-            if(RegisteredPeripheral != null)
+            if(RegisteredPeripheral == null)
             {
                 return;
             }
