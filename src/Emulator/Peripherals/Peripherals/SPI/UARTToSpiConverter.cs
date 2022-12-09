@@ -41,7 +41,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             get
             {
-                throw new ArgumentException();
+                // StopBits are always None
+                return Bits.None;
             }
         }
 
@@ -49,7 +50,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             get
             {
-                throw new ArgumentException();
+                // Parity is always None
+                return Parity.None;
             }
         }
 
@@ -57,7 +59,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             get
             {
-                throw new ArgumentException();
+                // BaudRate is always 0
+                return 0;
             }
         }
     }
