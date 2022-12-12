@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -146,6 +146,19 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
 
+            Registers.ErrorInterruptPending.Define(this)
+                .WithFlag(0, out errorInterruptPending, name: "EVENTS_ERROR")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
+
+            Registers.ErrorSource.Define(this)
+                .WithTaggedFlag("OVERRUN", 0)
+                .WithFlag(1, out addressNackError, name: "ANACK")
+                .WithTaggedFlag("DNACK", 2)
+                .WithReservedBits(3, 29)
+            ;
+
             Registers.Shortcuts.Define(this)
                 .WithTag("BB_SUSPEND", 0, 1)
                 .WithFlag(1, out byteBoundaryStopShortcut, name: "BB_STOP")
@@ -159,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(3, 4)
                 .WithFlag(7, out txInterruptEnabled, FieldMode.Read | FieldMode.Set, name: "TXDSENT")
                 .WithReservedBits(8, 1)
-                .WithTag("ERROR", 9, 1)
+                .WithFlag(9, out errorInterruptEnabled, FieldMode.Read | FieldMode.Set, name: "ERROR")
                 .WithReservedBits(10, 4)
                 .WithTag("BB", 14, 1)
                 .WithReservedBits(15, 3)
@@ -181,7 +194,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                     writeCallback: (_, val) => { if(val) txInterruptEnabled.Value = false; },
                     valueProviderCallback: _ => txInterruptEnabled.Value)
                 .WithReservedBits(8, 1)
-                .WithTag("ERROR", 9, 1)
+                .WithFlag(9, name: "ERROR",
+                    writeCallback: (_, val) => { if(val) errorInterruptEnabled.Value = false; },
+                    valueProviderCallback: _ => errorInterruptEnabled.Value)
                 .WithReservedBits(10, 4)
                 .WithTag("BB", 14, 1)
                 .WithReservedBits(15, 3)
@@ -236,6 +251,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                     if(selectedSlave == null)
                     {
                         this.Log(LogLevel.Warning, "No slave is currently selected");
+                        addressNackError.Value = true;
+                        errorInterruptPending.Value = true;
+                        UpdateInterrupts();
                         return;
                     }
 
@@ -358,6 +376,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             flag |= txInterruptEnabled.Value && txInterruptPending.Value;
             flag |= rxInterruptEnabled.Value && rxInterruptPending.Value;
             flag |= stoppedInterruptEnabled.Value && stoppedInterruptPending.Value;
+            flag |= errorInterruptEnabled.Value && errorInterruptPending.Value;
 
             this.Log(LogLevel.Noisy, "Setting IRQ to {0}", flag);
             IRQ.Set(flag);
@@ -377,10 +396,15 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField rxInterruptPending;
         private IFlagRegisterField rxInterruptEnabled;
 
+        private IFlagRegisterField errorInterruptPending;
+        private IFlagRegisterField errorInterruptEnabled;
+
         private IFlagRegisterField stoppedInterruptPending;
         private IFlagRegisterField stoppedInterruptEnabled;
 
         private IFlagRegisterField byteBoundaryStopShortcut;
+
+        private IFlagRegisterField addressNackError;
 
         private enum Registers
         {
