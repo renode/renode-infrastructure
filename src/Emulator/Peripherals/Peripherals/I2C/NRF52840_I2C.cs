@@ -345,7 +345,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             // different
             TrySendDataToSlave();
 
-            selectedSlave.FinishTransmission();
+            selectedSlave?.FinishTransmission();
 
             stoppedInterruptPending.Value = true;
             UpdateInterrupts();
