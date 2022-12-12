@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             TransferBuffer = 0x51C,
             Frequency = 0x524,
             Address = 0x588
-        } 
+        }
     }
 }
 
