@@ -120,6 +120,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
         {
             { "arm",    "armv7a"    },
             { "arm-m",  "thumb"     },
+            { "arm64",  "arm64"     },
             { "mips",   "mipsel"    },
             { "riscv",  "riscv32"   },
             { "riscv64","riscv64"   },
@@ -163,6 +164,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 case "thumb":
                 case "arm":
                 case "armv7a":
+                case "arm64":
                     HexFormatter = FormatHexForARM;
                     break;
                 default:
