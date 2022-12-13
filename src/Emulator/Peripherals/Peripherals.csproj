@@ -514,6 +514,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_ClockManager.cs" />
     <Compile Include="Peripherals\SPI\GenericSpiFlash.cs" />
     <Compile Include="Peripherals\SPI\Macronix_MX25R.cs" />
+    <Compile Include="Peripherals\Network\Quectel_BC660K.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
