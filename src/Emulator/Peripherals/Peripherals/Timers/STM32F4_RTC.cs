@@ -542,6 +542,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(2, 30)
                 },
             };
+            // These registers have no logic, they serve as scratchpad
+            for(var reg = (long)Registers.BackupStart; reg <= (long)Registers.BackupEnd; reg += 4)
+            {
+                registerMap.Add(reg, new DoubleWordRegister(this).WithValueField(0, 32));
+            }
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
 
@@ -1157,6 +1162,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             AlarmASubSecondRegister = 0x44,
             AlarmBSubSecondRegister = 0x48,
             OptionRegister = 0x4c,
+            BackupStart = 0x50,
+            BackupEnd = 0x9c
         }
     }
 }
