@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1288,6 +1288,11 @@ namespace Antmicro.Renode.Utilities
         public static string StripNonSafeCharacters(this string input)
         {
             return Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(input).Where(x => (x >= 32 && x <= 126) || (x == '\n')).ToArray());
+        }
+
+        public static string SurroundWith(this string str, string surrounding)
+        {
+            return $"{surrounding}{str}{surrounding}";
         }
 
         // allocate file of a given name
