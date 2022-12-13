@@ -580,6 +580,8 @@
     <Compile Include="Utilities\RESD\RESDParser.cs" />
     <Compile Include="Peripherals\Timers\BCDHelper.cs" />
     <Compile Include="Peripherals\Timers\DateTimeWithCustomWeekday.cs" />
+    <Compile Include="Peripherals\Network\AtCommandModem.cs" />
+    <Compile Include="Peripherals\Network\AtCommandModemParsing.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
