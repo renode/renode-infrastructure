@@ -102,6 +102,13 @@ namespace Antmicro.Renode.Utilities
             return t.GetMethods(DefaultBindingFlags);
         }
 
+        public static IEnumerable<MethodWithAttribute<T>> GetMethodsWithAttribute<T>(this Type type) where T : Attribute
+        {
+            return type.GetAllMethods()
+                .Select(method => new MethodWithAttribute<T>(method, (T)method.GetCustomAttribute(typeof(T), true)))
+                .Where(m => m.Attribute != null);
+        }
+
         public static IEnumerable<FieldInfo> GetAllFields(this Type t, bool recursive = true)
         {
             if(t == null)
@@ -1586,6 +1593,18 @@ namespace Antmicro.Renode.Utilities
         }
 
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
+    }
+
+    public class MethodWithAttribute<T> where T : Attribute
+    {
+        public MethodWithAttribute(MethodInfo method, T attribute)
+        {
+            Method = method;
+            Attribute = attribute;
+        }
+
+        public MethodInfo Method { get; }
+        public T Attribute { get; }
     }
 }
 
