@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SysTickValue:
                 return (uint)systick.Value;
             case Registers.SystemControlRegister:
-                return 0;
+                return currentSevOnPending ? SevOnPending : 0x0;
             case Registers.ConfigurationAndControl:
                 return ccr;
             case Registers.SystemHandlerPriority1:
