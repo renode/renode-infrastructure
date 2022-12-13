@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
         public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8)
