@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             Registers.Enable.Define(this)
-                .WithValueField(0, 4, 
+                .WithValueField(0, 4,
                     valueProviderCallback: _ => enabled ? 1 : 0u,
                     writeCallback: (_, val) =>
                     {
