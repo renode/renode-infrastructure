@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,9 +16,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with a defined flag.</returns>
         public static T WithFlag<T>(this T register, int position, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<bool, bool> readCallback = null,
-            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, bool softResettable = true,
+            string name = null) where T : PeripheralRegister
         {
-            register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
             return register;
         }
 
@@ -36,12 +37,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         /// <returns>This register with defined flags.</returns>
         public static T WithFlags<T>(this T register, int position, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, bool, bool> readCallback = null,
-            Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+            Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, bool softResettable = true,
+            string name = null) where T : PeripheralRegister
         {
-            return WithFlags(register, position, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            return WithFlags(register, position, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
         }
 
         /// <summary>
@@ -49,9 +52,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with a defined value field.</returns>
         public static T WithValueField<T>(this T register, int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<uint, uint> readCallback = null,
-            Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+            Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, bool softResettable = true,
+            string name = null) where T : PeripheralRegister
         {
-            register.DefineValueField(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            register.DefineValueField(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
             return register;
         }
 
@@ -70,12 +74,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         /// <returns>This register with defined value fields.</returns>
         public static T WithValueFields<T>(this T register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint, uint> readCallback = null,
-            Action<int, uint, uint> writeCallback = null, Action<int, uint, uint> changeCallback = null, Func<int, uint, uint> valueProviderCallback = null, string name = null) where T: PeripheralRegister
+            Action<int, uint, uint> writeCallback = null, Action<int, uint, uint> changeCallback = null, Func<int, uint, uint> valueProviderCallback = null, bool softResettable = true,
+            string name = null) where T: PeripheralRegister
         {
-            return WithValueFields(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            return WithValueFields(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
         }
 
         /// <summary>
@@ -83,10 +89,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with a defined enum field.</returns>
         public static R WithEnumField<R, T>(this R register, int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
-            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, string name = null) where R : PeripheralRegister
+            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
             where T : struct, IConvertible
         {
-            register.DefineEnumField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            register.DefineEnumField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
             return register;
         }
 
@@ -116,9 +123,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with a defined value field.</returns>
         public static T WithValueField<T>(this T register, int position, int width, out IValueRegisterField valueField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<uint, uint> readCallback = null,
-            Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+            Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, bool softResettable = true, string name = null) where T : PeripheralRegister
         {
-            valueField = register.DefineValueField(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            valueField = register.DefineValueField(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
             return register;
         }
 
@@ -128,7 +135,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with defined value fields.</returns>
         public static T WithValueFields<T>(this T register, int position, int width, int count, out IValueRegisterField[] valueFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint, uint> readCallback = null,
-            Action<int, uint, uint> writeCallback = null, Action<int, uint, uint> changeCallback = null, Func<int, uint, uint> valueProviderCallback = null, string name = null) where T: PeripheralRegister
+            Action<int, uint, uint> writeCallback = null, Action<int, uint, uint> changeCallback = null, Func<int, uint, uint> valueProviderCallback = null, bool softResettable = true,
+            string name = null) where T: PeripheralRegister
         {
             valueFields = new IValueRegisterField[count];
             for(var i = 0; i < count; i++)
@@ -140,6 +148,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     writeCallback == null ? null : (Action<uint, uint>)((x, y) => writeCallback(j, x, y)),
                     changeCallback == null ? null : (Action<uint, uint>)((x, y) => changeCallback(j, x, y)),
                     valueProviderCallback == null ? null : (Func<uint, uint>)((x) => valueProviderCallback(j, x)),
+                    softResettable,
                     name == null ? null : $"{name}_{j}");
             }
             return register;
@@ -151,10 +160,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with a defined enum field.</returns>
         public static R WithEnumField<R, T>(this R register, int position, int width, out IEnumRegisterField<T> enumField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
-            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, string name = null) where R : PeripheralRegister
+            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, bool softResettable = true, string name = null) where R : PeripheralRegister
             where T : struct, IConvertible
         {
-            enumField = register.DefineEnumField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            enumField = register.DefineEnumField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
             return register;
         }
 
@@ -164,9 +173,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with defined enum fields.</returns>
         public static R WithEnumFields<R, T>(this R register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
-            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, string name = null) where R : PeripheralRegister where T : struct, IConvertible
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct, IConvertible
         {
-            return WithEnumFields<R, T>(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            return WithEnumFields<R, T>(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
         }
 
         /// <summary>
@@ -175,7 +186,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with defined enum fields.</returns>
         public static R WithEnumFields<R, T>(this R register, int position, int width, int count, out IEnumRegisterField<T>[] enumFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
-            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, string name = null) where R : PeripheralRegister where T : struct, IConvertible
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct, IConvertible
         {
             enumFields = new IEnumRegisterField<T>[count];
             for(var i = 0; i < count; i++)
@@ -187,6 +200,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     writeCallback == null ? null : (Action<T, T>)((x, y) => writeCallback(j, x, y)),
                     changeCallback == null ? null : (Action<T, T>)((x, y) => changeCallback(j, x, y)),
                     valueProviderCallback == null ? null : (Func<T, T>)((x) => valueProviderCallback(j, x)),
+                    softResettable,
                     name == null ? null : $"{name}_{j}");
             }
             return register;
@@ -198,9 +212,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with a defined flag.</returns>
         public static T WithFlag<T>(this T register, int position, out IFlagRegisterField flagField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<bool, bool> readCallback = null,
-            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where T : PeripheralRegister
         {
-            flagField = register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            flagField = register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
             return register;
         }
 
@@ -210,7 +225,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <returns>This register with defined flags.</returns>
         public static T WithFlags<T>(this T register, int position, int count, out IFlagRegisterField[] flagFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, bool, bool> readCallback = null,
-            Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, string name = null) where T : PeripheralRegister
+            Action<int, bool, bool> writeCallback = null, Action<int, bool, bool> changeCallback = null, Func<int, bool, bool> valueProviderCallback = null, bool softResettable = true,
+            string name = null) where T : PeripheralRegister
         {
             flagFields = new IFlagRegisterField[count];
             for(var i = 0; i < count; i++)
@@ -222,6 +238,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     writeCallback == null ? null : (Action<bool, bool>)((x, y) => writeCallback(j, x, y)),
                     changeCallback == null ? null : (Action<bool, bool>)((x, y) => changeCallback(j, x, y)),
                     valueProviderCallback == null ? null : (Func<bool, bool>)((x) => valueProviderCallback(j, x)),
+                    softResettable,
                     name == null ? null : $"{name}_{j}");
             }
             return register;

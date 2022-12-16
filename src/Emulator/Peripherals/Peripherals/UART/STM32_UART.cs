@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void DefineRegisters()
         {
-            Register.Status.Define(this, 0xC0, "USART_SR")
+            Register.Status.Define(this, 0xC0, name: "USART_SR")
                 .WithTaggedFlag("PE", 0)
                 .WithTaggedFlag("FE", 1)
                 .WithTaggedFlag("NF", 2)

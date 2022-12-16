@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -80,6 +80,16 @@ namespace Antmicro.Renode.Utilities
                 mask -= 1u << (position + i);
             }
             reg &= mask;
+        }
+
+        public static void SetBits(ref uint reg, int position, int width)
+        {
+            var mask = 0x0u;
+            for(var i = 0; i < width; i++)
+            {
+                mask += 1u << (position + i);
+            }
+            reg |= mask;
         }
 
         public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
@@ -179,6 +189,11 @@ namespace Antmicro.Renode.Utilities
         public static void UpdateWithShifted(ref ulong reg, ulong newValue, int position, int width)
         {
             UpdateWith(ref reg, newValue << position, position, width);
+        }
+
+        public static void UpdateWithMasked(ref uint reg, uint newValue, uint mask)
+        {
+            reg = (reg & ~mask) | (newValue & mask);
         }
 
         public static void UpdateWith(ref uint reg, uint newValue, int position, int width)

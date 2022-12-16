@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -25,15 +25,15 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>A new register.</returns>
         /// <param name="resetValue">Reset value.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
-        public static DoubleWordRegister CreateRWRegister(uint resetValue = 0, string name = null)
+        public static DoubleWordRegister CreateRWRegister(uint resetValue = 0, string name = null, bool softResettable = true)
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
-            var register = new DoubleWordRegister(null, resetValue);
+            var register = new DoubleWordRegister(null, resetValue, softResettable);
             register.DefineValueField(0, register.MaxRegisterLength);
             return register;
         }
 
-        public DoubleWordRegister(IPeripheral parent, uint resetValue = 0) : base(parent, resetValue, 32)
+        public DoubleWordRegister(IPeripheral parent, uint resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 32)
         {
         }
 
@@ -128,15 +128,15 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>A new register.</returns>
         /// <param name="resetValue">Reset value.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
-        public static WordRegister CreateRWRegister(uint resetValue = 0, string name = null)
+        public static WordRegister CreateRWRegister(uint resetValue = 0, string name = null, bool softResettable = true)
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
-            var register = new WordRegister(null, resetValue);
+            var register = new WordRegister(null, resetValue, softResettable);
             register.DefineValueField(0, register.MaxRegisterLength);
             return register;
         }
 
-        public WordRegister(IPeripheral parent, uint resetValue = 0) : base(parent, resetValue, 16)
+        public WordRegister(IPeripheral parent, uint resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 16)
         {
         }
 
@@ -231,15 +231,15 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>A new register.</returns>
         /// <param name="resetValue">Reset value.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
-        public static ByteRegister CreateRWRegister(uint resetValue = 0, string name = null)
+        public static ByteRegister CreateRWRegister(uint resetValue = 0, string name = null, bool softResettable = true)
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
-            var register = new ByteRegister(null, resetValue);
+            var register = new ByteRegister(null, resetValue, softResettable);
             register.DefineValueField(0, register.MaxRegisterLength);
             return register;
         }
 
-        public ByteRegister(IPeripheral parent, uint resetValue = 0) : base(parent, resetValue, 8)
+        public ByteRegister(IPeripheral parent, uint resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 8)
         {
         }
 
@@ -337,7 +337,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         public void Reset()
         {
-            UnderlyingValue = resetValue;
+            BitHelper.UpdateWithMasked(ref UnderlyingValue, resetValue, resettableMask);
         }
 
         /// <summary>
@@ -389,13 +389,19 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// the second parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the first parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IFlagRegisterField DefineFlagField(int position, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<bool, bool> readCallback = null,
-            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, string name = null)
+            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, bool softResettable = true,
+            string name = null)
         {
             ThrowIfRangeIllegal(position, 1, name);
             var field = new FlagRegisterField(this, position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
             registerFields.Add(field);
+            if(!softResettable)
+            {
+                MarkNonResettable(position, 1);
+            }
             RecalculateFieldMask();
             return field;
         }
@@ -414,13 +420,19 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// the second parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the first parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IValueRegisterField DefineValueField(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<uint, uint> readCallback = null,
-            Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, string name = null)
+            Action<uint, uint> writeCallback = null, Action<uint, uint> changeCallback = null, Func<uint, uint> valueProviderCallback = null, bool softResettable = true,
+            string name = null)
         {
             ThrowIfRangeIllegal(position, width, name);
             var field = new ValueRegisterField(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
             registerFields.Add(field);
+            if(!softResettable)
+            {
+                MarkNonResettable(position, width);
+            }
             RecalculateFieldMask();
             return field;
         }
@@ -439,23 +451,33 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// the second parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the first parameter of <paramref name="readCallback"/>.</param> 
+        /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IEnumRegisterField<TEnum> DefineEnumField<TEnum>(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<TEnum, TEnum> readCallback = null,
-            Action<TEnum, TEnum> writeCallback = null, Action<TEnum, TEnum> changeCallback = null, Func<TEnum, TEnum> valueProviderCallback = null, string name = null)
+            Action<TEnum, TEnum> writeCallback = null, Action<TEnum, TEnum> changeCallback = null, Func<TEnum, TEnum> valueProviderCallback = null, bool softResettable = true,
+            string name = null)
             where TEnum : struct, IConvertible
         {
             ThrowIfRangeIllegal(position, width, name);
             var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
             registerFields.Add(field);
+            if(!softResettable)
+            {
+                MarkNonResettable(position, width);
+            }
             RecalculateFieldMask();
             return field;
         }
 
-        protected PeripheralRegister(IPeripheral parent, uint resetValue, int maxLength)
+        protected PeripheralRegister(IPeripheral parent, uint resetValue, bool softResettable, int maxLength)
         {
             this.parent = parent;
             this.MaxRegisterLength = maxLength;
             this.resetValue = resetValue;
+            if(!softResettable)
+            {
+                resettableMask = 0;
+            }
             Reset();
         }
 
@@ -690,6 +712,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
             definedFieldsMask = mask;
         }
 
+        private void MarkNonResettable(int position, int width)
+        {
+            BitHelper.ClearBits(ref resettableMask, position, width);
+        }
+
         private List<RegisterField> registerFields = new List<RegisterField>();
 
         private List<Tag> tags = new List<Tag>();
@@ -698,6 +725,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         private uint definedFieldsMask;
 
+        private uint resettableMask = uint.MaxValue;
         private readonly uint resetValue;
     }
 }

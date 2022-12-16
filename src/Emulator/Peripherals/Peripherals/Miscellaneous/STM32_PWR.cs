@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2022 SICK AG
 //
 // This file is licensed under the MIT License.
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         
         private void DefineRegisters()
         {
-            Registers.PowerControl.Define(this, 0xFCC00, "PWR_CR")
+            Registers.PowerControl.Define(this, 0xFCC00, name: "PWR_CR")
                 .WithTaggedFlag("LPDS", 0)
                 .WithTaggedFlag("PDDS", 1)
                 .WithTaggedFlag("CWUF", 2)

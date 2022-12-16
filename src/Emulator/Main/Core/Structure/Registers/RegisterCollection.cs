@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -109,8 +109,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <param name="offset">Register offset.</param>
         /// <param name="resetValue">Register reset value.</param>
+        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
         /// <returns>Newly added register.</returns>
-        public DoubleWordRegister DefineRegister(long offset, uint resetValue = 0)
+        public DoubleWordRegister DefineRegister(long offset, uint resetValue = 0, bool softResettable = true)
         {
             var reg = new DoubleWordRegister(parent, resetValue);
             registers.Add(offset, reg);
@@ -230,10 +231,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <param name="offset">Register offset.</param>
         /// <param name="resetValue">Register reset value.</param>
+        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
         /// <returns>Newly added register.</returns>
-        public WordRegister DefineRegister(long offset, ushort resetValue = 0)
+        public WordRegister DefineRegister(long offset, ushort resetValue = 0, bool softResettable = true)
         {
-            var reg = new WordRegister(parent, resetValue);
+            var reg = new WordRegister(parent, resetValue, softResettable);
             registers.Add(offset, reg);
             return reg;
         }
@@ -351,10 +353,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <param name="offset">Register offset.</param>
         /// <param name="resetValue">Register reset value.</param>
+        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
         /// <returns>Newly added register.</returns>
-        public ByteRegister DefineRegister(long offset, byte resetValue = 0)
+        public ByteRegister DefineRegister(long offset, byte resetValue = 0, bool softResettable = true)
         {
-            var reg = new ByteRegister(parent, resetValue);
+            var reg = new ByteRegister(parent, resetValue, softResettable);
             registers.Add(offset, reg);
             return reg;
         }
