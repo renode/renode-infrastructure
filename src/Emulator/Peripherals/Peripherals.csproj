@@ -412,6 +412,7 @@
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_CSRNG.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_AlertHandler.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_MultiBitBool.cs" />
+    <Compile Include="Peripherals\Miscellaneous\OpenTitan_EntropySource.cs" />
     <Compile Include="Peripherals\I2C\OpenTitan_I2C.cs" />
     <Compile Include="Peripherals\GPIOPort\IMXRT_GPIO.cs" />
     <Compile Include="Peripherals\UART\OpenTitan_UART.cs" />

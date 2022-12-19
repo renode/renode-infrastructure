@@ -21,8 +21,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_CSRNG: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_CSRNG(Machine machine) : base(machine)
+        public OpenTitan_CSRNG(Machine machine, OpenTitan_EntropySource entropySource) : base(machine)
         {
+            this.entropySource = entropySource;
+
             DefineRegisters();
 
             RequestCompletedIRQ = new GPIO();
@@ -502,12 +504,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(useEntropy)
             {
                 fakeEntropy.SetEntropySizeInBytes(DefaultSeedSizeInBytes);
-                fakeEntropy.SetEntropySource(() =>
-                {
-                    var randomBytes = new byte[DefaultSeedSizeInBytes];
-                    randomSource.NextBytes(randomBytes);
-                    return randomBytes;
-                });
+                fakeEntropy.SetEntropySource(entropySource.RequestEntropySourceData);
             }
             else
             {
@@ -640,6 +637,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const int BytesPerEntropyUnit = 16;
         private const int DefaultSeedSizeInBytes = 48;
         private const int InternalStateSoftwareStateSelection = 2;
+
+        private readonly OpenTitan_EntropySource entropySource;
 
         #pragma warning disable format
         public enum RandomType
