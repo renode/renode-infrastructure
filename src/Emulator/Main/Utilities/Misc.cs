@@ -1572,6 +1572,14 @@ namespace Antmicro.Renode.Utilities
             writeFunction((uint)newValue);
         }
 
+        public static IEnumerable<T> Iterate<T>(Func<T> function)
+        {
+            while(true)
+            {
+                yield return function();
+            }
+        }
+
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 }
