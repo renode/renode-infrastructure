@@ -91,6 +91,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             nonVolatileConfigurationRegister.Reset();
             enhancedVolatileConfigurationRegister.Reset();
             currentOperation = default(DecodedOperation);
+            lockedRange = Range.Empty;
             FinishTransmission();
         }
 
@@ -124,6 +125,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
+
+        protected Range lockedRange;
 
         protected readonly int SectorSize = 64.KB();
         protected readonly ByteRegister statusRegister;
@@ -496,21 +499,37 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void EraseDie()
         {
+            // Don't allow erasing the die if range protection is enabled
+            if(lockedRange != Range.Empty)
+            {
+                this.Log(LogLevel.Error, "Die erase can only be performed when there is no locked range");
+                return;
+            }
             underlyingMemory.ZeroAll();
+        }
+
+        private void EraseRangeUnchecked(Range range)
+        {
+            var segment = new byte[range.Size];
+            for(ulong i = 0; i < range.Size; i++)
+            {
+                segment[i] = EmptySegment;
+            }
+            underlyingMemory.WriteBytes((long)range.StartAddress, segment);
         }
 
         private void EraseSegment(int segmentSize)
         {
-            var segment = new byte[segmentSize];
-            for(var i = 0; i < segmentSize; i++)
-            {
-                segment[i] = EmptySegment;
-            }
-
             // The documentations states that on erase the operation address is
             // aligned to the segment size
             var position = segmentSize * (currentOperation.ExecutionAddress / segmentSize);
-            underlyingMemory.WriteBytes(position, segment);
+            var segmentToErase = new Range((ulong)position, (ulong)segmentSize);
+            this.Log(LogLevel.Noisy, "Full segment to erase: {0}", segmentToErase);
+            foreach(var subrange in segmentToErase.Subtract(lockedRange))
+            {
+                this.Log(LogLevel.Noisy, "Erasing subrange {0}", subrange);
+                EraseRangeUnchecked(subrange);
+            }
         }
 
         private void WriteToMemory(byte val)
@@ -522,6 +541,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            if(lockedRange.Contains((ulong)position))
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is in the locked range", position);
+                return;
+            }
+
             underlyingMemory.WriteByte(position, val);
         }
 
