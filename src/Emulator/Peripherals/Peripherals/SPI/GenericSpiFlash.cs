@@ -35,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(6, name: "Dual I/O protocol")
                 .WithFlag(7, name: "Quad I/O protocol");
             statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
+            configurationRegister = new WordRegister(this);
             flagStatusRegister = new ByteRegister(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
                 //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
@@ -79,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             currentOperation.State = DecodedOperation.OperationState.RecognizeOperation;
             currentOperation = default(DecodedOperation);
-            temporaryNonVolatileConfiguration = 0;
+            temporaryConfiguration = 0;
         }
 
         public void Reset()
@@ -126,6 +127,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         protected readonly int SectorSize = 64.KB();
         protected readonly ByteRegister statusRegister;
+        protected readonly WordRegister configurationRegister;
 
         private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
         {
@@ -250,6 +252,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.ReadStatusRegister:
                     currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
                     currentOperation.Register = (uint)Register.Status;
+                    break;
+                case (byte)Commands.ReadConfigurationRegister:
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.Configuration;
                     break;
                 case (byte)Commands.WriteStatusRegister:
                     currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
@@ -380,15 +386,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                     volatileConfigurationRegister.Write(0, data);
                     break;
                 case Register.NonVolatileConfiguration:
+                case Register.Configuration:
                     if((currentOperation.CommandBytesHandled) >= 2)
                     {
-                        this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", Register.NonVolatileConfiguration);
+                        this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", register);
                         break;
                     }
-                    BitHelper.UpdateWithShifted(ref temporaryNonVolatileConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
+                    BitHelper.UpdateWithShifted(ref temporaryConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
                     if(currentOperation.CommandBytesHandled == 1)
                     {
-                        nonVolatileConfigurationRegister.Write(0, (ushort)temporaryNonVolatileConfiguration);
+                        var targetReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
+                        targetReg.Write(0, (ushort)temporaryConfiguration);
                     }
                     break;
                 //listing all cases as other registers are not writable at all
@@ -421,11 +429,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     // If more than 1 byte is read, the same byte is returned
                     return volatileConfigurationRegister.Read();
                 case Register.NonVolatileConfiguration:
+                case Register.Configuration:
                     // The documentation states that at least 2 bytes will be read
                     // After all 16 bits of the register have been read, 0 is returned
                     if((currentOperation.CommandBytesHandled) < 2)
                     {
-                        return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Read(), currentOperation.CommandBytesHandled * 8, 8);
+                        var sourceReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
+                        return (byte)BitHelper.GetValue(sourceReg.Read(), currentOperation.CommandBytesHandled * 8, 8);
                     }
                     return 0;
                 case Register.EnhancedVolatileConfiguration:
@@ -525,7 +535,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private DecodedOperation currentOperation;
-        private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
+        private uint temporaryConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
         private readonly IFlagRegisterField enable;
@@ -618,6 +628,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             // READ REGISTER Operations
             ReadStatusRegister = 0x05,
+            ReadConfigurationRegister = 0x15,
             ReadFlagStatusRegister = 0x70,
             ReadNonVolatileConfigurationRegister = 0xB5,
             ReadVolatileConfigurationRegister = 0x85,
@@ -705,6 +716,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private enum Register : uint
         {
             Status = 1, //starting from 1 to leave 0 as an unused value
+            Configuration,
             FlagStatus,
             ExtendedAddress,
             NonVolatileConfiguration,
