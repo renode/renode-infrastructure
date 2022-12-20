@@ -569,6 +569,7 @@
     <Compile Include="Peripherals\IHasFrequency.cs" />
     <Compile Include="Peripherals\Sensor\SensorSamplesPacket.cs" />
     <Compile Include="Core\Structure\TypedNumberRegistrationPoint.cs" />
+    <Compile Include="Utilities\SafeBinaryReader.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
