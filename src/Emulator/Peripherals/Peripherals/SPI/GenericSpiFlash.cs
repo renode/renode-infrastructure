@@ -405,6 +405,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     break;
                 case Register.Status:
                     statusRegister.Write(0, data);
+                    // Switch to the Configuration register and write from its start
+                    currentOperation.Register = (uint)Register.Configuration;
+                    currentOperation.CommandBytesHandled--;
                     break;
                 default:
                     this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
