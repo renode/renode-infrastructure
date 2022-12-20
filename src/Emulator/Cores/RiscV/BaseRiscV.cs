@@ -11,6 +11,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.CFU;
@@ -22,7 +23,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks
     {
         protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
                 : base(hartId, cpuType, machine, endianness, bitness)
@@ -69,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             customOpcodes = new List<Tuple<string, ulong, ulong>>();
             postOpcodeExecutionHooks = new List<Action<ulong>>();
+            postGprAccessHooks = new Action<bool>[NumberOfGeneralPurposeRegisters];
         }
 
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
@@ -261,6 +263,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                                                 " One of them miss at least one element");
             }
             postOpcodeExecutionHooks.Add(action);
+        }
+
+        public void EnablePostGprAccessHooks(uint value)
+        {
+            TlibEnablePostGprAccessHooks(value != 0 ? 1u : 0u);
+        }
+
+        public void InstallPostGprAccessHookOn(uint registerIndex, Action<bool> callback,  uint value)
+        {
+            postGprAccessHooks[registerIndex] = callback;
+            TlibEnablePostGprAccessHookOn(registerIndex, value);
         }
 
         public CSRValidationLevel CSRValidation
@@ -596,6 +609,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [Export]
+        private void HandlePostGprAccessHook(UInt32 registerIndex, UInt32 writeOrRead)
+        {
+            DebugHelper.Assert(registerIndex < 32, $"Index outside of range : {registerIndex}");
+            if(postGprAccessHooks[(int)registerIndex] == null)
+            {
+                this.Log(LogLevel.Error, "No callback for register #{0} installed", registerIndex);
+                return;
+            }
+
+            var isWrite = (writeOrRead != 0);
+
+            this.NoisyLog("Post-GPR {0} hook for register #{1} triggered", isWrite ? "write" : "read", registerIndex);
+            postGprAccessHooks[(int)registerIndex].Invoke(isWrite);
+        }
+
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private bool pcWrittenFlag;
@@ -614,6 +643,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Constructor]
         private readonly List<Action<ulong>> postOpcodeExecutionHooks;
+
+        [Transient]
+        private readonly Action<bool>[] postGprAccessHooks;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
@@ -688,6 +720,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt64UInt64 TlibInstallPostOpcodeExecutionHook;
+
+        [Import]
+        private ActionUInt32 TlibEnablePostGprAccessHooks;
+
+        [Import]
+        private ActionUInt32UInt32 TlibEnablePostGprAccessHookOn;
 
 #pragma warning restore 649
 
@@ -827,6 +865,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly InterruptMode interruptMode;
 
         private readonly List<Tuple<string, ulong, ulong>> customOpcodes;
+
+        private const int NumberOfGeneralPurposeRegisters = 32;
 
         protected enum IrqType
         {
