@@ -454,7 +454,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {(long)Registers.PartID, CreateDummyRegister("PART_ID.part_id", 0x2C)}
             };
 
-            for(var i = 0; i <= MeasurementRegisterCount; ++i)
+            for(var i = 0; i < MeasurementRegisterCount; ++i)
             {
                 var offset = i * 0x8;
 
