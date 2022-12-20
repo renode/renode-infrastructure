@@ -16,6 +16,8 @@ namespace Antmicro.Renode.Core
         void Start();
         void StartDelayed(TimeInterval delay);
         void Stop();
+
+        uint Frequency { get; set; }
     }
 }
 

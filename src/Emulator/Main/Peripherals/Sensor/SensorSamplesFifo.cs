@@ -236,6 +236,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 }
             }
 
+            public uint Frequency
+            {
+                // We assume, that all threads have the same frequency
+                get => threads[0].Frequency;
+                set
+                {
+                    foreach(var t in threads)
+                    {
+                        t.Frequency = value;
+                    }
+                }
+            }
+
             private readonly List<IManagedThread> threads = new List<IManagedThread>();
         }
         

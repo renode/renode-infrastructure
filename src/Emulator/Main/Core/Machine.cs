@@ -575,10 +575,10 @@ namespace Antmicro.Renode.Core
                         action();
                     }
                 };
-                this.frequency = frequency;
                 this.machine = machine;
-                this.name = name;
-                this.owner = owner ?? machine;
+                machine.ClockSource.ExchangeClockEntryWith(
+                    action, entry => entry,
+                    factoryIfNonExistent: () => new ClockEntry(1, frequency, this.action, owner ?? machine, name, enabled: false));
             }
 
             public void Dispose()
@@ -589,9 +589,7 @@ namespace Antmicro.Renode.Core
             public void Start()
             {
                 machine.ClockSource.ExchangeClockEntryWith(
-                    action, x => x.With(enabled: true),
-                    factoryIfNonExistent: () => { clockEntryAdded = true; return new ClockEntry(1, frequency, action, owner, name, enabled: true); }
-                );
+                    action, x => x.With(enabled: true));
             }
 
             public void StartDelayed(TimeInterval delay)
@@ -603,24 +601,23 @@ namespace Antmicro.Renode.Core
                     // Let's have the first action run precisely at the specified time.
                     action();
                 };
+                var name = machine.ClockSource.GetClockEntry(action).LocalName;
                 machine.ScheduleAction(delay, startThread, name);
             }
 
             public void Stop()
             {
-                if(clockEntryAdded)
-                {
-                    machine.ClockSource.ExchangeClockEntryWith(action, x => x.With(enabled: false));
-                }
+                machine.ClockSource.ExchangeClockEntryWith(action, x => x.With(enabled: false));
             }
 
-            private bool clockEntryAdded;
+            public uint Frequency
+            {
+                get => (uint)machine.ClockSource.GetClockEntry(action).Frequency;
+                set => machine.ClockSource.ExchangeClockEntryWith(action, entry => entry.With(frequency: value));
+            }
 
             private readonly Action action;
-            private readonly uint frequency;
             private readonly Machine machine;
-            private readonly string name;
-            private readonly IEmulationElement owner;
         }
 
         private BaseClockSource clockSource;
