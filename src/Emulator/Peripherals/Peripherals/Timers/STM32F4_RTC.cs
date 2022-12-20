@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -545,7 +545,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             // These registers have no logic, they serve as scratchpad
             for(var reg = (long)Registers.BackupStart; reg <= (long)Registers.BackupEnd; reg += 4)
             {
-                registerMap.Add(reg, new DoubleWordRegister(this).WithValueField(0, 32));
+                registerMap.Add(reg, new DoubleWordRegister(this, softResettable: false).WithValueField(0, 32));
             }
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
