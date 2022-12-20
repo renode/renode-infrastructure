@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Core
 {
@@ -65,6 +66,50 @@ namespace Antmicro.Renode.Core
                 return Range.Empty;
             }
             return new Range(startAddress, endAddress - startAddress + 1);
+        }
+
+        public List<Range> Subtract(Range sub)
+        {
+            // If the subtracted range does not intersect this range, return this range
+            if(!sub.Intersects(this))
+            {
+                return new List<Range> { this };
+            }
+
+            // If the subtracted range contains this range, return an empty list
+            if(sub.Contains(this))
+            {
+                return new List<Range> { };
+            }
+
+            // If the subtracted range contains the start of this range,
+            // return a range from the end of the subtracted range to the end of this range
+            if(sub.Contains(StartAddress))
+            {
+                return new List<Range> { new Range(sub.EndAddress + 1, EndAddress - sub.EndAddress) };
+            }
+
+            // If the subtracted range contains the end of this range,
+            // return a range from the start of this range to the start of the subtracted range
+            if(sub.Contains(EndAddress))
+            {
+                return new List<Range> { new Range(StartAddress, sub.StartAddress - StartAddress) };
+            }
+
+            // If the subtracted range is contained within this range, return two ranges:
+            // one from the start of this range to the start of the subtracted range, and
+            // one from the end of the subtracted range to the end of this range.
+            // We probably don't need to check this because it's the only possibility left
+            if(this.Contains(sub))
+            {
+                return new List<Range>
+                {
+                    new Range(StartAddress, sub.StartAddress - StartAddress),
+                    new Range(sub.EndAddress + 1, EndAddress - sub.EndAddress)
+                };
+            }
+
+            throw new Exception("Unreachable");
         }
 
         public bool Intersects(Range range)
