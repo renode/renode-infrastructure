@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,14 +12,15 @@ using Antmicro.Renode.Core.Structure;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     public sealed class STM32SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IWordPeripheral, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public STM32SPI(Machine machine) : base(machine)
+        public STM32SPI(Machine machine, int bufferCapacity = DefaultBufferCapacity) : base(machine)
         {
-            receiveBuffer = new Queue<byte>();
+            receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
             SetupRegisters();
             Reset();
@@ -110,9 +111,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             IRQ.Unset();
             lock(receiveBuffer)
             {
-                if(receiveBuffer.Count > 0)
+                if(receiveBuffer.TryDequeue(out var value))
                 {
-                    var value = receiveBuffer.Dequeue();
                     Update();
                     return value;
                 }
@@ -133,8 +133,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     receiveBuffer.Enqueue(0x0);
                     return;
                 }
-                receiveBuffer.Enqueue(peripheral.Transmit((byte)value)); // currently byte mode is the only one we support
-                this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, receiveBuffer.Peek());
+                var response = peripheral.Transmit((byte)value); // currently byte mode is the only one we support
+                receiveBuffer.Enqueue(response);
+                this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
             }
             Update();
         }
@@ -182,7 +183,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         private DoubleWordRegisterCollection registers;
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, txDmaEnable, rxDmaEnable;
 
-        private readonly Queue<byte> receiveBuffer;
+        private readonly CircularBuffer<byte> receiveBuffer;
+
+        private const int DefaultBufferCapacity = 4;
 
         private enum Registers
         {
