@@ -570,6 +570,13 @@
     <Compile Include="Peripherals\Sensor\SensorSamplesPacket.cs" />
     <Compile Include="Core\Structure\TypedNumberRegistrationPoint.cs" />
     <Compile Include="Utilities\SafeBinaryReader.cs" />
+    <Compile Include="Utilities\RESD\MetadataValue.cs" />
+    <Compile Include="Utilities\RESD\MetadataBlock.cs" />
+    <Compile Include="Utilities\RESD\DataBlock.cs" />
+    <Compile Include="Utilities\RESD\SamplesData.cs" />
+    <Compile Include="Utilities\RESD\RESDException.cs" />
+    <Compile Include="Utilities\RESD\RESDSample.cs" />
+    <Compile Include="Utilities\RESD\RESDParser.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
