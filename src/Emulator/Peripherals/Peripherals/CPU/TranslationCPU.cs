@@ -336,6 +336,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pauseGuard.RequestTranslationBlockRestart();
         }
 
+        public void RaiseException(uint exceptionId)
+        {
+            TlibRaiseException(exceptionId);
+        }
+
         public virtual void OnGPIO(int number, bool value)
         {
             lock(lck)
@@ -1687,6 +1692,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetMmuWindowsCount;
+
+        [Import]
+        private ActionUInt32 TlibRaiseException;
 
         [Import]
         private ActionUInt32 TlibEnableExternalWindowMmu;
