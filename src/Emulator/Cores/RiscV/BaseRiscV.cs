@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) 2010-2022 Antmicro
 //
 // This file is licensed under the MIT License.
