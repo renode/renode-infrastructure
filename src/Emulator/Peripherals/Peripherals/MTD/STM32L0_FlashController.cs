@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -68,6 +68,13 @@ namespace Antmicro.Renode.Peripherals.MTD
         public uint ReadDoubleWordFromSignature(long offset)
         {
             return signatureRegisters.Read(offset);
+        }
+
+        [ConnectionRegion("signature")]
+        public void WriteDoubleWordToSignature(long offset, uint value)
+        {
+            //intentionally left blank
+            this.Log(LogLevel.Error, "Attempt to write {0:x8} to {1} in the signature region", value, offset);
         }
 
         public long Size => 0x400;
