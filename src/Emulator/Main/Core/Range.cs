@@ -43,6 +43,16 @@ namespace Antmicro.Renode.Core
 
         public bool Contains(Range range)
         {
+            // Every range contains the empty range.
+            // See `Contains` for a caveat about 1-byte ranges starting at
+            // address 0 - here it means that every range will be said to
+            // contain a 1-byte-long range starting at address 0.
+
+            if(range == Empty)
+            {
+                return true;
+            }
+
             return range.StartAddress >= StartAddress && range.EndAddress <= EndAddress;
         }
 
