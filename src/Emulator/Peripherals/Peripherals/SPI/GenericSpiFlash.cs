@@ -252,6 +252,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
+                case (byte)Commands.BulkErase:
+                case (byte)Commands.ChipErase:
+                    this.Log(LogLevel.Noisy, "Performing bulk/chip erase");
+                    EraseChip();
+                    break;
                 case (byte)Commands.ReadStatusRegister:
                     currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
                     currentOperation.Register = (uint)Register.Status;
@@ -497,15 +502,23 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void EraseDie()
+        private void EraseChip()
         {
-            // Don't allow erasing the die if range protection is enabled
+            // Don't allow erasing the chip if range protection is enabled
             if(lockedRange != Range.Empty)
             {
-                this.Log(LogLevel.Error, "Die erase can only be performed when there is no locked range");
+                this.Log(LogLevel.Error, "Chip erase can only be performed when there is no locked range");
                 return;
             }
             underlyingMemory.ZeroAll();
+        }
+
+        private void EraseDie()
+        {
+            // Die erase is a separate operation because on multi-die chips it
+            // will erase only one die (part of the chip). This is not yet
+            // implemented, so we erase the whole chip.
+            EraseChip();
         }
 
         private void EraseRangeUnchecked(Range range)
@@ -691,6 +704,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             SubsectorErase4kb = 0x20,
             SectorErase = 0xD8,
             BulkErase = 0x60,
+            ChipErase = 0xC7,
             DieErase = 0xC4,
 
             // ERASE Operations with 4-Byte Address
