@@ -17,7 +17,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
     {
-        public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType)
+        public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType,
+            bool writeStatusCanSetWriteEnable = true)
         {
             if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(7, name: "Quad I/O protocol");
             statusRegister = new ByteRegister(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "writeInProgress")
-                .WithFlag(1, out enable, name: "volatileControlBit");
+                .WithFlag(1, out enable, writeStatusCanSetWriteEnable ? FieldMode.Read | FieldMode.Write : FieldMode.Read, name: "writeEnableLatch");
             configurationRegister = new WordRegister(this);
             flagStatusRegister = new ByteRegister(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
