@@ -97,6 +97,64 @@ namespace Antmicro.Renode.UnitTests
             var range = new Range(0x1000, 0x1200);
             Assert.IsTrue(range.Contains(Range.Empty));
         }
+
+        [Test]
+        public void SubtractNoIntersection()
+        {
+            var range = new Range(0x1600, 0xA00);
+            var sub = new Range(0x1000, 0x200);
+            CollectionAssert.AreEquivalent(new [] { range }, range.Subtract(sub));
+        }
+
+        [Test]
+        public void SubtractEmpty()
+        {
+            var range = new Range(0x0, 0xA00);
+            CollectionAssert.AreEquivalent(new [] { range }, range.Subtract(Range.Empty));
+        }
+
+        [Test]
+        public void SubtractContaining()
+        {
+            var range = new Range(0x1600, 0xA00);
+            var sub = new Range(0x1000, 0x1200);
+            CollectionAssert.IsEmpty(range.Subtract(sub));
+        }
+
+        [Test]
+        public void SubtractItself()
+        {
+            var range = new Range(0x1600, 0xA00);
+            CollectionAssert.IsEmpty(range.Subtract(range));
+        }
+
+        [Test]
+        public void SubtractLeft()
+        {
+            var range = new Range(0x1600, 0xA00);
+            var sub = new Range(0x1000, 0x800);
+            var expected = new Range(0x1800, 0x800);
+            CollectionAssert.AreEquivalent(new [] { expected }, range.Subtract(sub));
+        }
+
+        [Test]
+        public void SubtractRight()
+        {
+            var range = new Range(0x1600, 0xA00);
+            var sub = new Range(0x1800, 0x800);
+            var expected = new Range(0x1600, 0x200);
+            CollectionAssert.AreEquivalent(new [] { expected }, range.Subtract(sub));
+        }
+
+        [Test]
+        public void SubtractContained()
+        {
+            var range = new Range(0x1600, 0xA00);
+            var sub = new Range(0x1800, 0x200);
+            var expected1 = new Range(0x1600, 0x200);
+            var expected2 = new Range(0x1A00, 0x600);
+            CollectionAssert.AreEquivalent(new [] { expected1, expected2 }, range.Subtract(sub));
+        }
     }
 }
 
