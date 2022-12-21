@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Utilities
             var previousPosition = this.BaseStream.Position;
             var currentPosition = this.BaseStream.Seek(count, SeekOrigin.Current);
 
-            if(previousPosition + count >= currentPosition)
+            if(previousPosition + count > currentPosition)
             {
                 EndOfStreamEvent?.Invoke("Stream ended when skipping bytes");
             }
