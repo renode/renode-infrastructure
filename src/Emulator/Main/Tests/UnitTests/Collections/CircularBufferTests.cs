@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -104,6 +104,19 @@ namespace Antmicro.Renode.UnitTests.Collections
                 buffer.Enqueue(i);
             }
             Assert.AreEqual(buffer, new [] { 2, 3, 4, 5 });
+        }
+
+        // This tests that the IEnumerator implementation works correctly
+        // when the buffer is exactly full.
+        [Test]
+        public void ShouldSaveWithExactSize()
+        {
+            var buffer = new CircularBuffer<int>(4);
+            for(var i = 0; i < 4; i++)
+            {
+                buffer.Enqueue(i);
+            }
+            Assert.AreEqual(new [] { 0, 1, 2, 3 }, buffer);
         }
 
         [Test]
