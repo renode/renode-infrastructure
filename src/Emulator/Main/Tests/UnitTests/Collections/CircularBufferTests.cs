@@ -59,6 +59,65 @@ namespace Antmicro.Renode.UnitTests.Collections
         }
 
         [Test]
+        public void ShouldNotPeekWhenEmpty()
+        {
+            var buffer = new CircularBuffer<int>(5);
+            for(var i = 0; i < 5; ++i)
+            {
+                buffer.Enqueue(i);
+            }
+            for(var i = 0; i < 5; ++i)
+            {
+                buffer.TryDequeue(out var _);
+            }
+            Assert.IsFalse(buffer.TryPeek(out var __));
+        }
+
+        [Test]
+        public void ShouldNotChangeCountWhenPeeked()
+        {
+            var buffer = new CircularBuffer<int>(5);
+            for(var i = 0; i < 5; ++i)
+            {
+                buffer.Enqueue(i);
+            }
+            for(var i = 0; i < 5; ++i)
+            {
+                buffer.TryPeek(out var _);
+            }
+            Assert.AreEqual(5, buffer.Count);
+        }
+
+        [Test]
+        public void ShouldEnqueueAndPeekWithoutWrap()
+        {
+            var buffer = new CircularBuffer<int>(5);
+            for(var i = 0; i < 5; ++i)
+            {
+                buffer.Enqueue(i);
+                Assert.IsTrue(buffer.TryPeek(out var result));
+                // The expected result is 0 because the first entry won't get
+                // pushed off the end of the buffer.
+                Assert.AreEqual(0, result);
+            }
+        }
+
+        [Test]
+        public void ShouldEnqueueAndPeekWithWrap()
+        {
+            var buffer = new CircularBuffer<int>(5);
+            for(var i = 0; i < 10; ++i)
+            {
+                buffer.Enqueue(i);
+                Assert.IsTrue(buffer.TryPeek(out var result));
+                // The first 5 pushes will return 0, then 1 2 3 4 5
+                // i - 4 because Enqueue(5) pushes off the 0 so after it we have
+                // i = 5 and we expect to read a 1
+                Assert.AreEqual(i < 5 ? 0 : i - 4, result);
+            }
+        }
+
+        [Test]
         public void ShouldNeverWrapWithSingleElement()
         {
             var buffer = new CircularBuffer<int>(5);
