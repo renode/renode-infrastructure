@@ -68,6 +68,17 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
+        public bool TryPeek(out T result)
+        {
+            if(IsEmpty)
+            {
+                result = default(T);
+                return false;
+            }
+            result = buffer[FirstPosition];
+            return true;
+        }
+
         public void CopyTo(T[] array, int arrayIndex)
         {
             if(IsEmpty)
