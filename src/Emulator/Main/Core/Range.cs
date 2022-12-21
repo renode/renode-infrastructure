@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -29,6 +29,15 @@ namespace Antmicro.Renode.Core
 
         public bool Contains(ulong address)
         {
+            // The empty range does not contain any addresses.
+            // Unfortunately, the empty range is indistinguishable from a
+            // 1-byte-long range starting at address 0, so such a range
+            // will be said not to contain address 0.
+            if(this == Empty)
+            {
+                return false;
+            }
+
             return address >= StartAddress && address <= EndAddress;
         }
 
