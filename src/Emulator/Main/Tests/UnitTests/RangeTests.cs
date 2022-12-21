@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -73,6 +73,29 @@ namespace Antmicro.Renode.UnitTests
         {
             var range = new Range(0x1000, 0x1200);
             Assert.IsTrue(range.Contains(range));
+        }
+
+        [Test]
+        public void EmptyRangeShouldContainItself()
+        {
+            Assert.IsTrue(Range.Empty.Contains(Range.Empty));
+        }
+
+        [Test]
+        public void EmptyRangeShouldNotContainAnyAddress()
+        {
+            Assert.IsFalse(Range.Empty.Contains(0UL));
+            Assert.IsFalse(Range.Empty.Contains(0x80000000UL));
+            Assert.IsFalse(Range.Empty.Contains(0xFFFFFFFFUL));
+            Assert.IsFalse(Range.Empty.Contains(0x8000000000000000UL));
+            Assert.IsFalse(Range.Empty.Contains(0xFFFFFFFFFFFFFFFFUL));
+        }
+
+        [Test]
+        public void ShouldContainEmptyRange()
+        {
+            var range = new Range(0x1000, 0x1200);
+            Assert.IsTrue(range.Contains(Range.Empty));
         }
     }
 }
