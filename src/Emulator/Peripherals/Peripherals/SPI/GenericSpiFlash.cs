@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
     {
-        public GenericSpiFlash(MappedMemory underlyingMemory)
+        public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType)
         {
             if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
@@ -44,6 +44,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             this.underlyingMemory = underlyingMemory;
             underlyingMemory.ResetByte = EmptySegment;
+
+            this.manufacturerId = manufacturerId;
+            this.memoryType = memoryType;
 
             deviceData = GetDeviceData();
         }
@@ -165,8 +168,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             var data = new byte[20];
-            data[0] = ManufacturerID;
-            data[1] = MemoryType;
+            data[0] = manufacturerId;
+            data[1] = memoryType;
             data[2] = capacityCode;
             data[3] = RemainingIDBytes;
             data[4] = ExtendedDeviceID;
@@ -586,11 +589,11 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
         private readonly MappedMemory underlyingMemory;
+        private readonly byte manufacturerId;
+        private readonly byte memoryType;
 
         private const byte EmptySegment = 0xff;
-        private const byte ManufacturerID = 0x20;
         private const byte RemainingIDBytes = 0x10;
-        private const byte MemoryType = 0xBB;           // device voltage: 1.8V
         private const byte DeviceConfiguration = 0x0;   // standard
         private const byte DeviceGeneration = 0x1;      // 2nd generation
         private const byte ExtendedDeviceID = DeviceGeneration << 6;
