@@ -780,16 +780,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public uint CalculateCurrentFrequency()
         {
-            return 52;
-
-            // FIXME: the calculation below does not provide an expected result of 52
-            /*
             var clockBaseFrequency = clockSelect.Value
-                ? 32768
+                ? 32768u
                 : 32000u;
-
-            return clockBaseFrequency / ((clockDividerHigh.Value << 7) + clockDividerLow.Value);
-            */
+            return clockBaseFrequency / ((clockDividerHigh.Value << 8) + clockDividerLow.Value);
         }
 
         private IEnumerable<Channel> ActiveChannels =>
