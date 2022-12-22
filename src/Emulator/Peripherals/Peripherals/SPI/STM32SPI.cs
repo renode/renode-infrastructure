@@ -63,26 +63,12 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public uint ReadDoubleWord(long offset)
         {
-            switch((Registers)offset)
-            {
-            case Registers.Data:
-                return HandleDataRead();
-            default:
-                return registers.Read(offset);
-            }
+            return registers.Read(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            switch((Registers)offset)
-            {
-            case Registers.Data:
-                HandleDataWrite(value);
-                break;
-            default:
-                registers.Write(offset, value);
-                break;
-            }
+            registers.Write(offset, value);
         }
 
         public override void Reset()
@@ -177,6 +163,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.Status.Define(registers, 2)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RXNE")
                 .WithFlag(1, FieldMode.Read, name: "TXE");
+
+            Registers.Data.Define(registers)
+                .WithValueField(0, 16, valueProviderCallback: _ => HandleDataRead(),
+                    writeCallback: (_, value) => HandleDataWrite((uint)value), name: "DR")
+                .WithReservedBits(16, 16);
 
             Registers.CRCPolynomial.Define(registers, 7)
                 .WithTag("CRCPOLY", 0, 16)
