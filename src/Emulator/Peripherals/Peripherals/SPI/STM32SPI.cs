@@ -116,7 +116,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     Update();
                     return value;
                 }
-                this.Log(LogLevel.Warning, "Trying to read data register while no data has been received.");
+                // We don't warn when the data register is read while it's empty because the HAL
+                // (for example L0, F4) does this intentionally.
+                // See https://github.com/STMicroelectronics/STM32CubeL0/blob/bec4e499a74de98ab60784bf2ef1912bee9c1a22/Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_spi.c#L1368-L1372
                 return 0;
             }
         }
