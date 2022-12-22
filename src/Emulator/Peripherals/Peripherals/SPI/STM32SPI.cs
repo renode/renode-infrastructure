@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -113,7 +113,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 if(receiveBuffer.Count > 0)
                 {
                     var value = receiveBuffer.Dequeue();
-                    return value; // TODO: verify if Update should be called
+                    Update();
+                    return value;
                 }
                 this.Log(LogLevel.Warning, "Trying to read data register while no data has been received.");
                 return 0;
@@ -140,8 +141,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void Update()
         {
-            // TODO: verify this condition
-            IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptEnable.Value || txDmaEnable.Value || rxDmaEnable.Value);
+            var rxBufferNotEmpty = receiveBuffer.Count != 0;
+            var rxBufferNotEmptyInterruptFlag = rxBufferNotEmpty && rxBufferNotEmptyInterruptEnable.Value;
+
+            // TODO: verify the DMA conditions
+            IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptFlag || txDmaEnable.Value || rxDmaEnable.Value);
         }
 
         private void SetupRegisters()
