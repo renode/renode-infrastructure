@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
+            registers = new DoubleWordRegisterCollection(this);
             SetupRegisters();
             Reset();
         }
@@ -156,33 +157,42 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void SetupRegisters()
         {
-            var control2 = new DoubleWordRegister(this);
-            txBufferEmptyInterruptEnable = control2.DefineFlagField(7);
-            rxBufferNotEmptyInterruptEnable = control2.DefineFlagField(6);
-            txDmaEnable = control2.DefineFlagField(1);
-            rxDmaEnable = control2.DefineFlagField(0, writeCallback: (_,__) => Update());
-
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            { 
-                { (long)Registers.Control1, new DoubleWordRegister(this).WithValueField(3,3, name:"Baud").WithFlag(2, name:"Master")
-                        .WithFlag(8, name:"SSI").WithFlag(9, name:"SSM").WithFlag(6, changeCallback: (oldValue, newValue) => {
+            Registers.Control1.Define(registers)
+                .WithFlag(2, name: "Master")
+                .WithValueField(3, 3, name: "Baud")
+                .WithFlag(6, changeCallback: (oldValue, newValue) =>
+                {
                     if(!newValue)
                     {
                         IRQ.Unset();
                     }
-                }, name:"SpiEnable")},
-                {(long)Registers.Status, new DoubleWordRegister(this, 2).WithFlag(1, FieldMode.Read, name:"TXE").WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0 , name:"RXNE")},
-                {(long)Registers.CRCPolynomial, new DoubleWordRegister(this, 7).WithValueField(0, 16, name:"CRCPoly") },
-                {(long)Registers.I2SConfiguration, new DoubleWordRegister(this, 0).WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (oldValue, newValue) => {
+                }, name: "SpiEnable")
+                .WithFlag(8, name: "SSI")
+                .WithFlag(9, name: "SSM");
+
+            Registers.Control2.Define(registers)
+                .WithFlag(0, out rxDmaEnable, writeCallback: (_, __) => Update(), name: "RXDMAEN")
+                .WithFlag(1, out txDmaEnable, name: "TXDMAEN")
+                .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
+                .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE");
+
+            Registers.Status.Define(registers, 2)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RXNE")
+                .WithFlag(1, FieldMode.Read, name: "TXE");
+
+            Registers.CRCPolynomial.Define(registers, 7)
+                .WithTag("CRCPOLY", 0, 16)
+                .WithReservedBits(16, 16);
+
+            Registers.I2SConfiguration.Define(registers)
+                .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (oldValue, newValue) =>
+                {
                     // write one to clear to keep this bit 0
                     if(newValue)
                     {
                         this.Log(LogLevel.Warning, "Trying to enable not supported I2S mode.");
                     }
-                }, name:"I2SE")},
-                { (long)Registers.Control2, control2 }
-            };
-            registers = new DoubleWordRegisterCollection(this, registerDictionary);
+                }, name: "I2SE");
         }
 
         private DoubleWordRegisterCollection registers;
