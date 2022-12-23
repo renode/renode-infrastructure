@@ -189,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void ClearTranslationCache()
         {
-            using(machine.ObtainPausedState())
+            using(machine?.ObtainPausedState())
             {
                 TlibInvalidateTranslationCache();
             }
@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 currentTimer = null;
-                using(machine.ObtainPausedState())
+                using(machine?.ObtainPausedState())
                 {
                     PrepareState();
                     DisposeInner(true);
@@ -376,7 +376,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException("Could not map memory segment: starting offset or size are too high");
             }
 
-            using(machine.ObtainPausedState())
+            using(machine?.ObtainPausedState())
             {
                 currentMappings.Add(new SegmentMapping(segment));
                 RegisterMemoryChecked(segment.StartingOffset, segment.Size);
@@ -389,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void UnmapMemory(Range range)
         {
-            using(machine.ObtainPausedState())
+            using(machine?.ObtainPausedState())
             {
                 var startAddress = range.StartAddress;
                 var endAddress = range.EndAddress - 1;
@@ -479,7 +479,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetHookAtBlockBegin(Action<ulong, uint> hook)
         {
-            using(machine.ObtainPausedState())
+            using(machine?.ObtainPausedState())
             {
                 if((hook == null) ^ (blockBeginUserHook == null))
                 {
@@ -492,7 +492,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetHookAtBlockEnd(Action<ulong, uint> hook)
         {
-            using(machine.ObtainPausedState())
+            using(machine?.ObtainPausedState())
             {
                 if((hook == null) ^ (blockFinishedHook == null))
                 {
@@ -557,7 +557,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected ulong ReadByteFromBus(ulong offset)
+        protected virtual ulong ReadByteFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -570,7 +570,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected ulong ReadWordFromBus(ulong offset)
+        protected virtual ulong ReadWordFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -583,7 +583,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected ulong ReadDoubleWordFromBus(ulong offset)
+        protected virtual ulong ReadDoubleWordFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -596,7 +596,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected ulong ReadQuadWordFromBus(ulong offset)
+        protected virtual ulong ReadQuadWordFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -609,7 +609,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteByteToBus(ulong offset, ulong value)
+        protected virtual void WriteByteToBus(ulong offset, ulong value)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -622,7 +622,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteWordToBus(ulong offset, ulong value)
+        protected virtual void WriteWordToBus(ulong offset, ulong value)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -635,7 +635,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteDoubleWordToBus(ulong offset, ulong value)
+        protected virtual void WriteDoubleWordToBus(ulong offset, ulong value)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -683,7 +683,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void SetInternalHookAtBlockBegin(Action<ulong, uint> hook)
         {
-            using(machine.ObtainPausedState())
+            using(machine?.ObtainPausedState())
             {
                 if((hook == null) ^ (blockBeginInternalHook == null))
                 {
@@ -1096,7 +1096,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Marshal.Copy(cpuState, 0, statePtr, cpuState.Length);
                 AfterLoad(statePtr);
             }
-            TlibAtomicMemoryStateInit(checked((int)this.Id), machine.AtomicMemoryStatePointer);
+            if(machine != null)
+            {
+                TlibAtomicMemoryStateInit(checked((int)this.Id), machine.AtomicMemoryStatePointer);
+            }
             HandleRamSetup();
             foreach(var hook in hooks)
             {
@@ -1723,7 +1726,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected const int DefaultTranslationCacheSize = 32 * 1024 * 1024;
 
         [Export]
-        private void LogAsCpu(int level, string s)
+        protected virtual void LogAsCpu(int level, string s)
         {
             this.Log((LogLevel)level, s);
         }
