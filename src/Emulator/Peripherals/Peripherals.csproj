@@ -511,6 +511,7 @@
     <Compile Include="Peripherals\Mocks\DummyI2CSlave.cs" />
     <Compile Include="Peripherals\Timers\RV8803_RTC.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_ScrambledMemory.cs" />
+    <Compile Include="Peripherals\Miscellaneous\OpenTitan_ClockManager.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
