@@ -53,6 +53,7 @@
     <Compile Include="RiscV\IbexRiscV32.cs" />
     <Compile Include="RiscV\Minerva.cs" />
     <Compile Include="RiscV\Ri5cy.cs" />
+    <Compile Include="RiscV\OpenTitan_BigNumberAcceleratorCore.cs" />
     <Compile Include="RiscV\SimpleCSR.cs" />
     <Compile Include="RiscV\CSRValidationLevel.cs" />
     <Compile Include="RiscV\RiscVCpuHooksExtensions.cs" />
@@ -202,6 +203,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Numerics" />
     <Reference Include="Microsoft.Scripting">
       <HintPath>..\..\..\..\..\lib\resources\libraries\Microsoft.Scripting.dll</HintPath>
     </Reference>
