@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class OpenTitan_BigNumberAcceleratorCore : RiscV32, IOpenTitan_BigNumberAcceleratorCore
     {
-        public OpenTitan_BigNumberAcceleratorCore(OpenTitan_BigNumberAcceleratorMock parent, OpenTitan_ScrambledMemory instructionsMemory, OpenTitan_ScrambledMemory dataMemory)
+        public OpenTitan_BigNumberAcceleratorCore(OpenTitan_BigNumberAccelerator parent, OpenTitan_ScrambledMemory instructionsMemory, OpenTitan_ScrambledMemory dataMemory)
             : base(timeProvider: null, cpuType: "rv32im", machine: null, hartId: 0, privilegeArchitecture: PrivilegeArchitecture.Priv1_10, endianness: Endianess.LittleEndian)
         {
             this.parent = parent;
@@ -911,7 +911,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Stack<LoopContext> loopStack;
 
         private readonly PseudorandomNumberGenerator random;
-        private readonly OpenTitan_BigNumberAcceleratorMock parent;
+        private readonly OpenTitan_BigNumberAccelerator parent;
 
         // Big Number opcodes
         /* I-type

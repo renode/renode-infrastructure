@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // This is just a mock handling hint flags
     public class OpenTitan_ClockManager : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_ClockManager(Machine machine, OpenTitan_BigNumberAcceleratorMock otbn) : base(machine)
+        public OpenTitan_ClockManager(Machine machine, OpenTitan_BigNumberAccelerator otbn) : base(machine)
         {
             this.otbn = otbn;
             DefineRegisters();
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField kmacHint;
         private IFlagRegisterField otbnHint;
 
-        private readonly OpenTitan_BigNumberAcceleratorMock otbn;
+        private readonly OpenTitan_BigNumberAccelerator otbn;
 
         private enum Register
         {
