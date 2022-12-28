@@ -427,6 +427,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             string name = null)
         {
             ThrowIfRangeIllegal(position, width, name);
+            ThrowIfZeroWidth(position, width, name);
             var field = new ValueRegisterField(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
             registerFields.Add(field);
             if(!softResettable)
@@ -459,6 +460,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             where TEnum : struct, IConvertible
         {
             ThrowIfRangeIllegal(position, width, name);
+            ThrowIfZeroWidth(position, width, name);
             var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
             registerFields.Add(field);
             if(!softResettable)
@@ -670,9 +672,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
             
         private void ThrowIfRangeIllegal(int position, int width, string name)
         {
-            if(width <= 0)
+            if(width < 0)
             {
-                throw new ArgumentException("Field {0} has to have a size > 0.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
+                throw new ArgumentException("Field {0} has to have a size larger than or equal to 0.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
             }
             if(position + width > MaxRegisterLength)
             {
@@ -686,6 +688,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 {
                     throw new ArgumentException("Field {0} intersects with another range.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
                 }
+            }
+        }
+
+        private void ThrowIfZeroWidth(int position, int width, string name)
+        {
+            if(width == 0)
+            {
+                throw new ArgumentException("Field {0} has to have a size not equal to 0.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
             }
         }
 
