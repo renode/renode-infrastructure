@@ -411,7 +411,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     for(var i = 0UL; i < target.SourceLength; ++i)
                     {
-                        destination[checked((ulong)startIndex) + target.SourceIndex + i] = ReadByte(target.Offset + i);
+                        destination[checked((ulong)startIndex) + target.SourceIndex + i] = ReadByte(target.Offset + i, context);
                     }
                 }
             }
