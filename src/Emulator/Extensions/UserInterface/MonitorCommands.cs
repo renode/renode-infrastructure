@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1059,8 +1059,17 @@ namespace Antmicro.Renode.UserInterface
                 parameters = parameters.Skip(1).ToList();
             }
 
-            //Too many arguments
-            if(values.Count > parameters.Count)
+            //The last parameter can be a param array
+            Type paramArrayElementType = null;
+            var lastParam = parameters.LastOrDefault();
+            if(lastParam?.IsDefined(typeof(ParamArrayAttribute)) ?? false)
+            {
+                parameters = parameters.Take(parameters.Count - 1).ToList();
+                paramArrayElementType = lastParam.ParameterType.GetElementType();
+            }
+
+            //Too many arguments and no trailing params T[]
+            if(values.Count > parameters.Count && paramArrayElementType == null)
             {
                 return false;
             }
@@ -1071,7 +1080,8 @@ namespace Antmicro.Renode.UserInterface
                 //Convert all given parameters
                 for(i = 0; i < values.Count; ++i)
                 {
-                    var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == parameters[i].ParameterType).ToList();
+                    var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? paramArrayElementType;
+                    var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == paramType).ToList();
                     if(tokenTypes.Any())
                     {
                         var isOk = false;
@@ -1088,7 +1098,7 @@ namespace Antmicro.Renode.UserInterface
                             return false;
                         }
                     }
-                    result.Add(ConvertValue(values[i].GetObjectValue(), parameters[i].ParameterType));
+                    result.Add(ConvertValue(values[i].GetObjectValue(), paramType));
                 }
                 //If not enough parameters, check for their default values
                 if(i < parameters.Count)
