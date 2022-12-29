@@ -575,6 +575,10 @@ namespace Antmicro.Renode.UserInterface
                         {
                             writer.Write("out ", ConsoleColor.Yellow);
                         }
+                        if(param.IsDefined(typeof(ParamArrayAttribute)))
+                        {
+                            writer.Write("params ", ConsoleColor.Yellow);
+                        }
                         writer.Write(TypePrettyName(param.ParameterType), ConsoleColor.Green);
                         writer.Write($" {param.Name}");
 
