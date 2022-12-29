@@ -43,6 +43,7 @@
     <Compile Include="FeaturesTests.cs" />
     <Compile Include="TokenizerTests.cs" />
     <Compile Include="CommandTests\PythonCommands.cs" />
+    <Compile Include="CommandTests\ActionArguments.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
