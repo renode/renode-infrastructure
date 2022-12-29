@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             commands.RegisterCommand(MeasureTemperature, 0xE3);
             commands.RegisterCommand(MeasureTemperature, 0xF3);
             commands.RegisterCommand(ReadElectronicId1stByte, 0xFA, 0xF);
+            commands.RegisterCommand(ResetOutputBuffer, 0xFE);
             commands.RegisterCommand(ReadElectronicId2ndByte, 0xFC, 0xC9);
 
             Reset();
@@ -134,6 +135,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 outputBuffer.Enqueue(0x0);
             }
+        }
+
+        private void ResetOutputBuffer(byte[] command)
+        {
+            outputBuffer.Clear();
         }
 
         private decimal humidity;
