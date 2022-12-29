@@ -1051,13 +1051,12 @@ namespace Antmicro.Renode.UserInterface
         {
 
             result = new List<object>();
-            int autoFilledCount = 0;
             //this might be expanded - try all parameters with the attribute, try to fill from factory based on it's type
             if(parameters.Count > 0 && typeof(IMachine).IsAssignableFrom(parameters[0].ParameterType)
                 && Attribute.IsDefined(parameters[0], typeof(AutoParameterAttribute)))
             {
                 result.Add(currentMachine);
-                autoFilledCount++;
+                parameters = parameters.Skip(1).ToList();
             }
 
             //Too many arguments
@@ -1072,7 +1071,7 @@ namespace Antmicro.Renode.UserInterface
                 //Convert all given parameters
                 for(i = 0; i < values.Count; ++i)
                 {
-                    var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == parameters[i + autoFilledCount].ParameterType).ToList();
+                    var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == parameters[i].ParameterType).ToList();
                     if(tokenTypes.Any())
                     {
                         var isOk = false;
@@ -1089,9 +1088,8 @@ namespace Antmicro.Renode.UserInterface
                             return false;
                         }
                     }
-                    result.Add(ConvertValue(values[i].GetObjectValue(), parameters[i + autoFilledCount].ParameterType));
+                    result.Add(ConvertValue(values[i].GetObjectValue(), parameters[i].ParameterType));
                 }
-                i += autoFilledCount;
                 //If not enough parameters, check for their default values
                 if(i < parameters.Count)
                 {
