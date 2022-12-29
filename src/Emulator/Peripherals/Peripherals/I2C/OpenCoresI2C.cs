@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -38,8 +38,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
                 {(long)Registers.Status, new ByteRegister(this)
                     .WithFlag(7, out receivedAckFromSlaveNegated, FieldMode.Read)
-                    .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => false, name: "Busy")
-                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => false, name: "Arbitration lost")
+                    .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => transactionInProgress, name: "Busy")
+                    // We're using receivedAckFromSlaveNegated as we do not implement other ways of detecting arbitration loss
+                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => receivedAckFromSlaveNegated.Value, name: "Arbitration lost")
                     .WithReservedBits(2, 3)
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "Transfer in progress")
                     .WithFlag(0, out interruptFlag, FieldMode.Read)
@@ -85,17 +86,17 @@ namespace Antmicro.Renode.Peripherals.I2C
 
                             if(!TryResolveSelectedSlave(out selectedSlave))
                             {
+                                interruptFlag.Value = true;
+                                transactionInProgress = false;
                                 return;
                             }
                         }
-
-                        if(writeToSlave.Value)
+                        else if(writeToSlave.Value)
                         {
                             writeToSlave.Value = false;
                             HandleWriteToSlaveCommand();
                         }
-
-                        if(readFromSlave.Value)
+                        else if(readFromSlave.Value)
                         {
                             readFromSlave.Value = false;
                             HandleReadFromSlaveCommand();
@@ -111,6 +112,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                             }
 
                             SendDataToSlave();
+                            selectedSlave = null;
                             transactionInProgress = false;
                         }
                     })
@@ -137,6 +139,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             writeRegisters.Reset();
             dataToSlave.Clear();
             dataFromSlave.Clear();
+            selectedSlave = null;
+            transactionInProgress = false;
         }
 
         public long Size => 0x1000;
@@ -148,11 +152,11 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                  this.Log(LogLevel.Warning, "Addressing unregistered slave: 0x{0:X}", slaveAddress);
                  receivedAckFromSlaveNegated.Value = true;
-                 return true;
+                 return false;
             }
 
             receivedAckFromSlaveNegated.Value = false;
-            return false;
+            return true;
         }
 
         private void HandleReadFromSlaveCommand()
@@ -189,9 +193,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleWriteToSlaveCommand()
         {
-            if(!transactionInProgress)
+            if(selectedSlave == null)
             {
-                this.Log(LogLevel.Warning, "Writing to slave without generating START signal");
+                this.Log(LogLevel.Warning, "Trying to write to not selected slave, ignoring");
                 return;
             }
 
