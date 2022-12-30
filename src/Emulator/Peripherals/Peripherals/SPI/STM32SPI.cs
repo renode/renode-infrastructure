@@ -141,9 +141,21 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void SetupRegisters()
         {
+            // Some fields relate to the physical layer of the SPI protocol, these are not
+            // taken into account in Renode and are defined as flags or value fields without
+            // a corresponding RegisterField or read/write callbacks. They are marked with
+            // comments.
             Registers.Control1.Define(registers)
-                .WithFlag(2, name: "Master")
-                .WithValueField(3, 3, name: "Baud")
+                .WithFlag(0, name: "CPHA") // Physical
+                .WithFlag(1, name: "CPOL") // Physical
+                .WithFlag(2, writeCallback: (_, value) =>
+                {
+                    if(!value)
+                    {
+                        this.Log(LogLevel.Warning, "Slave mode is not supported");
+                    }
+                }, name: "MSTR")
+                .WithValueField(3, 3, name: "Baud") // Physical
                 .WithFlag(6, changeCallback: (oldValue, newValue) =>
                 {
                     if(!newValue)
@@ -151,18 +163,38 @@ namespace Antmicro.Renode.Peripherals.SPI
                         IRQ.Unset();
                     }
                 }, name: "SpiEnable")
-                .WithFlag(8, name: "SSI")
-                .WithFlag(9, name: "SSM");
+                .WithFlag(7, name: "LSBFIRST") // Physical
+                .WithTaggedFlag("SSI", 8)
+                .WithTaggedFlag("SSM", 9)
+                .WithTaggedFlag("RXONLY", 10)
+                .WithTaggedFlag("DFF", 11)
+                .WithTaggedFlag("CRCNEXT", 12)
+                .WithTaggedFlag("CRCEN", 13)
+                .WithTaggedFlag("BIDIOE", 14)
+                .WithTaggedFlag("BIDIMODE", 15);
 
             Registers.Control2.Define(registers)
                 .WithFlag(0, out rxDmaEnable, writeCallback: (_, __) => Update(), name: "RXDMAEN")
                 .WithFlag(1, out txDmaEnable, name: "TXDMAEN")
+                .WithTaggedFlag("SSOE", 2)
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("FRF", 4)
+                .WithTaggedFlag("ERRIE", 5)
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
-                .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE");
+                .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE")
+                .WithReservedBits(8, 24);
 
             Registers.Status.Define(registers, 2)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RXNE")
-                .WithFlag(1, FieldMode.Read, name: "TXE");
+                .WithFlag(1, FieldMode.Read, name: "TXE")
+                .WithTaggedFlag("CHSIDE", 2) // r/o
+                .WithTaggedFlag("UDR", 3) // r/o
+                .WithTaggedFlag("CRCERR", 4) // rc_w0
+                .WithTaggedFlag("MODF", 5) // r/o
+                .WithTaggedFlag("OVR", 6) // r/o
+                .WithTaggedFlag("BSY", 7) // r/o
+                .WithTaggedFlag("FRE", 8) // r/o
+                .WithReservedBits(9, 23);
 
             Registers.Data.Define(registers)
                 .WithValueField(0, 16, valueProviderCallback: _ => HandleDataRead(),
@@ -182,6 +214,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(16, 16);
 
             Registers.I2SConfiguration.Define(registers)
+                .WithTaggedFlag("CHLEN", 0)
+                .WithTag("DATLEN", 1, 2)
+                .WithTaggedFlag("CKPOL", 3)
+                .WithTag("I2SSTD", 4, 2)
+                .WithReservedBits(6, 1)
+                .WithTaggedFlag("PCMSYNC", 7)
+                .WithTag("I2SCFG", 8, 2)
                 .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (oldValue, newValue) =>
                 {
                     // write one to clear to keep this bit 0
@@ -189,7 +228,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         this.Log(LogLevel.Warning, "Trying to enable not supported I2S mode.");
                     }
-                }, name: "I2SE");
+                }, name: "I2SE")
+                .WithTaggedFlag("I2SMOD", 11)
+                .WithReservedBits(12, 20);
 
             Registers.I2SPrescaler.Define(registers, 2)
                 .WithTag("I2SDIV", 0, 8)
