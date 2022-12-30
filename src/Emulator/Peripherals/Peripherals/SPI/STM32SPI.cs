@@ -173,6 +173,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTag("CRCPOLY", 0, 16)
                 .WithReservedBits(16, 16);
 
+            Registers.ReceivedCRC.Define(registers)
+                .WithTag("RxCRC", 0, 16) // r/o
+                .WithReservedBits(16, 16);
+
+            Registers.TransmittedCRC.Define(registers)
+                .WithTag("TxCRC", 0, 16) // r/o
+                .WithReservedBits(16, 16);
+
             Registers.I2SConfiguration.Define(registers)
                 .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (oldValue, newValue) =>
                 {
@@ -182,6 +190,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                         this.Log(LogLevel.Warning, "Trying to enable not supported I2S mode.");
                     }
                 }, name: "I2SE");
+
+            Registers.I2SPrescaler.Define(registers, 2)
+                .WithTag("I2SDIV", 0, 8)
+                .WithTaggedFlag("ODD", 8)
+                .WithTaggedFlag("MCKOE", 9)
+                .WithReservedBits(10, 22);
         }
 
         private DoubleWordRegisterCollection registers;
@@ -198,7 +212,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             Status = 0x8, // SPI_SR
             Data = 0xC, // SPI_DR
             CRCPolynomial = 0x10, // SPI_CRCPR
-            I2SConfiguration = 0x1C // SPI_I2SCFGR
+            ReceivedCRC = 0x14, // SPI_RXCRCR
+            TransmittedCRC = 0x18, // SPI_TXCRCR
+            I2SConfiguration = 0x1C, // SPI_I2SCFGR
+            I2SPrescaler = 0x20, // SPI_I2SPR
         }
     }
 }
