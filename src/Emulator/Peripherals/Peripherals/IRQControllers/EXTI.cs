@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -37,44 +37,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void OnGPIO(int number, bool value)
         {
-            // Theoretically there could be up to 256 GPIOs connected to 16 EXTI lines - 16 GPIOs per port.
-            // GPIOs are connected in this order: 0 indexed to EXTI0 line, 1 -> EXTI1 etc.
-            // If we get `number` higher than 15, it means we will address other 7 EXTI lines
-            // which are connected to PVD, RTC etc.
-            //
-            // EXTI map:
-            // `number = 0` -> PA0, PB0, PC0 ... (EXTI0 - Interrupt 0)
-            // `number = 1` -> PA1, PB1, PC1 ... (EXTI1 - Interrupt 1)
-            // ...
-            // `number = 4` -> PA4, PB4, PC4 ... (EXTI4 - Interrupt 4)
-            // `number = 5` -> PA5, PB5, PC5 ... (EXTI5 - Interrupt 5)
-            // `number = 6` -> PA6, PB6, PC6 ... (EXTI6 - Interrupt 5)
-            // ...
-            // `number = 14` -> PA14, PB14, PC14 ... (EXTI14 - Interrupt 6)
-            // `number = 15` -> PA15, PB15, PC15 ... (EXTI15 - Interrupt 6)
-            // `number = 16` -> PVD (EXTI16 - Interrupt 7)
-            // `number = 17` -> RTC Alarm event (EXTI17 - Interrupt 8)
-            // ...
-            // `number = 22` -> RTC Wakeup event (EXTI22 - Interrupt 13)
-
             if(number > MaxEXTILines - 1)
             {
                 this.Log(LogLevel.Error, "Given value: {0} exceeds maximum EXTI lines: {1}", number, MaxEXTILines);
                 return;
             }
             var lineNumber = (byte)number;
-            var irqNumber = gpioMapping[lineNumber];
 
             if((number > 22) && value)
             {
                 pending |= (1u << lineNumber);
-                Connections[irqNumber].Set();
+                Connections[lineNumber].Set();
                 return;
             }
             if((number > 22) && !value)
             {
                 pending &= ~(1u << lineNumber);
-                Connections[irqNumber].Unset();
+                Connections[lineNumber].Unset();
                 return;
             }
 
@@ -83,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                || (BitHelper.IsBitSet(fallingTrigger, lineNumber) && !value))) // falling edge
             {
                 pending |= (1u << lineNumber);
-                Connections[irqNumber].Set();
+                Connections[lineNumber].Set();
             }
         }
 
@@ -133,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(BitHelper.IsBitSet(interruptMask, x))
                     {
-                        Connections[gpioMapping[x]].Set();
+                        Connections[x].Set();
                     }
                 });
                 break;
@@ -142,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 softwareInterrupt &= ~value;
                 BitHelper.ForeachActiveBit(value, (x) =>
                 {
-                    Connections[gpioMapping[x]].Unset();
+                    Connections[x].Unset();
                 });
                 break;
             default:
@@ -174,17 +153,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
-
-        private static readonly int[] gpioMapping = {
-            0, 1, 2, 3,         // 0-3
-            4, 5, 5, 5,         // 4-7
-            5, 5, 6, 6,         // 8-11
-            6, 6, 6, 6,         // 12-15
-            7, 8, 9, 10,        // 16-19
-            11, 12, 13, 23,     // 20-23
-            24, 25, 26, 27,     // 24-27
-            28, 29, 30, 31      // 28-31
-        };
 
         private uint interruptMask;
         private uint eventMask;
