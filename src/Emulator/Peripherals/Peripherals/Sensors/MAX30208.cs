@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -13,6 +12,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -23,8 +23,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             RegistersCollection = new ByteRegisterCollection(this);
             this.machine = machine;
 
-            temperaturePoller = new SingletonSensorSamplesFifo<ScalarSample>();
-            samplesFifo = new Queue<TemperatureSample>();
+            samplesFifo = new Queue<TemperatureSampleWrapper>();
 
             GPIO0 = new GPIO();
             GPIO1 = new GPIO();
@@ -33,9 +32,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
             UpdateInterrupts();
         }
 
-        public void FeedSamplesFromBinaryFile(ReadFilePath filePath, string delayString = "0")
+        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0)
         {
-            temperaturePoller.FeedSamplesFromBinaryFile(machine, this, "poller", filePath, delayString);
+            resdStream = new RESDStream<TemperatureSample>(filePath, channelId);
         }
 
         public void Write(byte[] data)
@@ -107,7 +106,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal Temperature
         {
-            get => new TemperatureSample((short)temperaturePoller.CurrentSample.Value).DecimalValue;
+            get
+            {
+                var currentSample = CurrentSample;
+                return currentSample != null ? currentSample.Temperature / 1000m : defaultTemperature;
+            }
             set => defaultTemperature = value;
         }
 
@@ -160,14 +163,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 samplesFifo.Dequeue();
             }
 
-            samplesFifo.Enqueue(new TemperatureSample((short)temperaturePoller.CurrentSample.Value));
+            // Temperature in RESD is in milli-Celsius, so scale defaultTemperature accordingly
+            var currentTemperature = CurrentSample?.Temperature ?? defaultTemperature / 0.001m;
+            // Convert from 0.001C to 0.005C
+            var convertedTemperature = (currentTemperature / 5).Clamp(short.MinValue, short.MaxValue);
 
-            if(alarmTemperatureHigh >= temperaturePoller.CurrentSample.Value)
+            samplesFifo.Enqueue(new TemperatureSampleWrapper((short)convertedTemperature));
+
+            if(alarmTemperatureHigh >= convertedTemperature)
             {
                 statusTemperatureHigh.Value = true;
             }
 
-            if(alarmTemperatureLow <= temperaturePoller.CurrentSample.Value)
+            if(alarmTemperatureLow <= convertedTemperature)
             {
                 statusTemperatureLow.Value = true;
             }
@@ -192,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 if(!samplesFifo.TryDequeue(out var sample))
                 {
-                    sample = new TemperatureSample((short)(defaultTemperature / Sensitivity));
+                    sample = new TemperatureSampleWrapper((short)(defaultTemperature / Sensitivity));
                 }
                 currentSampleEnumerator = sample.Enumerator;
                 currentSampleEnumerator.TryGetNext(out output);
@@ -341,6 +349,25 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
         }
 
+        private TemperatureSample CurrentSample
+        {
+            get
+            {
+                if(resdStream == null)
+                {
+                    return null;
+                }
+
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+
+                var currentTimestamp = machine.ClockSource.CurrentValue.TotalMicroseconds * 1000;
+                return resdStream.TryGetSample(currentTimestamp, out var sample) == RESDStreamStatus.OK ? sample : null;
+            }
+        }
+
         private decimal defaultTemperature;
 
         private Registers? registerAddress;
@@ -349,6 +376,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private uint alarmTemperatureHigh;
 
         private IEnumerator<byte> currentSampleEnumerator;
+        private RESDStream<TemperatureSample> resdStream;
 
         private IFlagRegisterField statusTemperatureReady;
         private IFlagRegisterField statusTemperatureHigh;
@@ -372,32 +400,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField gpio1Level;
 
         private readonly Machine machine;
-        private readonly SingletonSensorSamplesFifo<ScalarSample> temperaturePoller;
-        private readonly Queue<TemperatureSample> samplesFifo;
+        private readonly Queue<TemperatureSampleWrapper> samplesFifo;
 
         private const uint FIFOSize = 32;
         private const decimal Sensitivity = 0.005m;
         private const int StartConversionPin = 1;
 
-        private class SingletonSensorSamplesFifo<T> : SensorSamplesFifo<T> where T: SensorSample, new()
+        private struct TemperatureSampleWrapper
         {
-            public override void FeedSample(T sample)
-            {
-                CurrentSample = sample;
-            }
-
-            public T CurrentSample { get; private set; } = new T();
-        }
-
-        private struct TemperatureSample
-        {
-            public TemperatureSample(short data)
+            public TemperatureSampleWrapper(short data)
             {
                 Value = data;
             }
 
             public short Value { get; }
-            public decimal DecimalValue => (decimal)Value * Sensitivity;
             public byte Byte1 => (byte)(Value >> 8);
             public byte Byte2 => (byte)Value;
             public byte[] Bytes => new byte[] { Byte1, Byte2 };
