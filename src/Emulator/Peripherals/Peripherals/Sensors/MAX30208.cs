@@ -376,7 +376,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly Queue<TemperatureSample> samplesFifo;
 
         private const uint FIFOSize = 32;
-        private const decimal Sensitivity = 0.05m;
+        private const decimal Sensitivity = 0.005m;
         private const int StartConversionPin = 1;
 
         private class SingletonSensorSamplesFifo<T> : SensorSamplesFifo<T> where T: SensorSample, new()
