@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Utilities.RESD
             var magic = reader.ReadBytes(MagicValue.Length);
             if(!Enumerable.SequenceEqual(magic, MagicValue))
             {
-                throw new RESDException($"Invalid magic number for RESD file, excepted: {MagicValue}, got {magic}");
+                throw new RESDException($"Invalid magic number for RESD file, excepted: {Misc.PrettyPrintCollectionHex(MagicValue)}, got {Misc.PrettyPrintCollectionHex(magic)}");
             }
 
             var version = reader.ReadByte();
@@ -156,8 +156,7 @@ namespace Antmicro.Renode.Utilities.RESD
             var padding = reader.ReadBytes(HeaderPaddingLength);
             if(padding.Length != HeaderPaddingLength || padding.Any(b => b != 0x00))
             {
-                var paddingString = String.Join(" ", padding.Select(b => $"{b:X02}"));
-                throw new RESDException($"Invalid padding in RESD header (expected {HeaderPaddingLength} zeros, got {paddingString})");
+                throw new RESDException($"Invalid padding in RESD header (expected {HeaderPaddingLength} zeros, got {Misc.PrettyPrintCollectionHex(padding)})");
             }
         }
 
