@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var result = new byte[count];
             for(var i = 0; i < count; ++i)
             {
-                result[i] = RegistersCollection.Read((byte)((int)registerAddress + i));
+                result[i] = RegistersCollection.Read((byte)((int)registerAddress));
             }
             return result;
         }
