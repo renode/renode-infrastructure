@@ -1,12 +1,11 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.I2C;
@@ -14,6 +13,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -23,27 +23,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             RegistersCollection = new WordRegisterCollection(this);
 
+            this.machine = machine;
+
             DefineRegisters();
 
             conversionTimer = new LimitTimer(machine.ClockSource, 1, this, "conv", eventEnabled: true, enabled: true);
-            conversionTimer.LimitReached += delegate
-            {
-                if(interruptMode.Value)
-                {
-                    alarmFlag =
-                        currentTemperature > temperatureHighThreshold || currentTemperature < temperatureLowThreshold;
-                }
-                else
-                {
-                    if(consecutiveFaults < consecutiveFaultsThreshold)
-                    {
-                        consecutiveFaults++;
-                    }
-                    alarmFlag = consecutiveFaults == consecutiveFaultsThreshold;
-                }
-            };
+            conversionTimer.LimitReached += HandleConversion;
 
             Reset();
+        }
+
+        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0)
+        {
+            resdStream = new RESDStream<TemperatureSample>(filePath, channelId);
         }
 
         public void Write(byte[] data)
@@ -148,6 +140,43 @@ namespace Antmicro.Renode.Peripherals.Sensors
             conversionTimer.Limit = frequencyAndLimit.Item2;
         }
 
+        private void HandleConversion()
+        {
+            if(resdStream != null)
+            {
+                var currentTimestamp = machine.ClockSource.CurrentValue;
+                var currentTimestampInNanoseconds = currentTimestamp.TotalMicroseconds * 1000;
+                switch(resdStream.TryGetSample(currentTimestampInNanoseconds, out var sample))
+                {
+                    case RESDStreamStatus.OK:
+                        Temperature = sample.Temperature / 1000m;
+                        break;
+                    case RESDStreamStatus.BeforeStream:
+                        // Just ignore and return previously set value
+                        break;
+                    case RESDStreamStatus.AfterStream:
+                        // No more samples in file
+                        resdStream.Dispose();
+                        resdStream = null;
+                        break;
+                }
+            }
+
+            if(interruptMode.Value)
+            {
+                alarmFlag =
+                    currentTemperature > temperatureHighThreshold || currentTemperature < temperatureLowThreshold;
+            }
+            else
+            {
+                if(consecutiveFaults < consecutiveFaultsThreshold)
+                {
+                    consecutiveFaults++;
+                }
+                alarmFlag = consecutiveFaults == consecutiveFaultsThreshold;
+            }
+        }
+
         private void DefineRegisters()
         {
             Registers.Temperature.Define(this)
@@ -219,6 +248,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private Registers? registerAddress;
         private States state;
+        private RESDStream<TemperatureSample> resdStream;
 
         private IEnumRegisterField<ConversionRate> conversionRate;
 
@@ -239,6 +269,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const decimal MaximumTemperature = (decimal)short.MaxValue / (decimal)Resolution;
         private const decimal MinimumTemperature = (decimal)short.MinValue / (decimal)Resolution;
 
+        private readonly Machine machine;
         private readonly LimitTimer conversionTimer;
 
         private enum States
