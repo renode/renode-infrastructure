@@ -38,9 +38,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void OnGPIO(int number, bool value)
         {
-            if(number > MaxEXTILines - 1)
+            if(number >= NumberOfLines)
             {
-                this.Log(LogLevel.Error, "Given value: {0} exceeds maximum EXTI lines: {1}", number, MaxEXTILines);
+                this.Log(LogLevel.Error, "GPIO number {0} is out of range [0; {1})", number, NumberOfLines);
                 return;
             }
             var lineNumber = (byte)number;
@@ -155,6 +155,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
+        public long NumberOfLines => Connections.Count;
+
         private uint interruptMask;
         private uint eventMask;
         private uint risingTrigger;
@@ -166,7 +168,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // We treat lines above 23 as direct by default for backwards compatibility with
         // the old behavior of the EXTI model.
         private const int DefaultFirstDirectLine = 23;
-        private const int MaxEXTILines = 32;
 
         private enum Registers
         {
