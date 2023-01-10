@@ -24,8 +24,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     /// </summary>
     public class EXTI : IDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        public EXTI(int numberOfOutputLines = 14)
+        public EXTI(int numberOfOutputLines = 14, int firstDirectLine = DefaultFirstDirectLine)
         {
+            this.firstDirectLine = firstDirectLine;
             var innerConnections = new Dictionary<int, IGPIO>();
             for(var i = 0; i < numberOfOutputLines; ++i)
             {
@@ -44,13 +45,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             var lineNumber = (byte)number;
 
-            if((number > 22) && value)
+            if((number >= firstDirectLine) && value)
             {
                 pending |= (1u << lineNumber);
                 Connections[lineNumber].Set();
                 return;
             }
-            if((number > 22) && !value)
+            if((number >= firstDirectLine) && !value)
             {
                 pending &= ~(1u << lineNumber);
                 Connections[lineNumber].Unset();
@@ -161,6 +162,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint pending;
         private uint softwareInterrupt;
 
+        private readonly int firstDirectLine;
+        // We treat lines above 23 as direct by default for backwards compatibility with
+        // the old behavior of the EXTI model.
+        private const int DefaultFirstDirectLine = 23;
         private const int MaxEXTILines = 32;
 
         private enum Registers
