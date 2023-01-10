@@ -111,6 +111,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var bitsToSet = allNewAndOld ^ softwareInterrupt;
                 BitHelper.ForeachActiveBit(bitsToSet, (x) =>
                 {
+                    if(x >= NumberOfLines)
+                    {
+                        this.Log(LogLevel.Warning, "Software interrupt {0} is out of range [0; {1})", x, NumberOfLines);
+                        return;
+                    }
                     if(BitHelper.IsBitSet(interruptMask, x))
                     {
                         Connections[x].Set();
@@ -122,6 +127,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 softwareInterrupt &= ~value;
                 BitHelper.ForeachActiveBit(value, (x) =>
                 {
+                    if(x >= NumberOfLines)
+                    {
+                        this.Log(LogLevel.Warning, "Cleared interrupt {0} is out of range [0; {1})", x, NumberOfLines);
+                        return;
+                    }
                     Connections[x].Unset();
                 });
                 break;
