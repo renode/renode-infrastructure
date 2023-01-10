@@ -577,6 +577,7 @@
     <Compile Include="Utilities\RESD\RESDSample.cs" />
     <Compile Include="Utilities\RESD\RESDParser.cs" />
     <Compile Include="Peripherals\Timers\BCDHelper.cs" />
+    <Compile Include="Peripherals\Timers\DateTimeWithCustomWeekday.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
