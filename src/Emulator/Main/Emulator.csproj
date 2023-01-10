@@ -576,6 +576,7 @@
     <Compile Include="Utilities\RESD\RESDException.cs" />
     <Compile Include="Utilities\RESD\RESDSample.cs" />
     <Compile Include="Utilities\RESD\RESDParser.cs" />
+    <Compile Include="Peripherals\Timers\BCDHelper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

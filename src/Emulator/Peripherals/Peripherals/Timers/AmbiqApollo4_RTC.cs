@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -393,22 +393,12 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public int GetInteger()
             {
-                var units = value & 0x0F;
-                var tens = (value & 0xF0) >> 4;
-                return (tens * 10) + units;
+                return BCDHelper.DecodeFromBCD(value);
             }
 
             public void SetFromInteger(int value)
             {
-                if(value > 99 || value < 0)
-                {
-                    owner.Log(LogLevel.Warning, "Invalid value for {0}: {1}", fieldTypeName, value);
-                    return;
-                }
-
-                var nibbleLow = value % 10;
-                var nibbleHigh = value / 10;
-                BCDSet((byte)((nibbleHigh << 4) | nibbleLow));
+                BCDSet(BCDHelper.EncodeToBCD((byte)value));
             }
 
             public override string ToString()
