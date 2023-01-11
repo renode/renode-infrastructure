@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Utilities
 
             try
             {
-                using(var fs = File.Open(path, FileMode.Open, fileAccess))
+                using(var fs = File.Open(path, FileMode.Open, fileAccess, FileShare.ReadWrite))
                 {
                     if(!fs.CanRead && fileAccess == FileAccess.Read)
                     {
