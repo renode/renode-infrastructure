@@ -170,7 +170,6 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public Machine Machine { get; private set; }
         public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
-        public bool ShouldAutoStart { get; set; }
         public bool CanAttachCPU { get; set; }
         public ICpuSupportingGdb Cpu
         {

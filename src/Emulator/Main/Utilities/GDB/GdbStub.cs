@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,7 +26,6 @@ namespace Antmicro.Renode.Utilities.GDB
 
             pcktBuilder = new PacketBuilder();
             commandsManager = new CommandsManager(machine, cpus, blockOnStep);
-            commandsManager.ShouldAutoStart = autostartEmulation;
             TypeManager.Instance.AutoLoadedType += commandsManager.Register;
 
             terminal = new SocketServerProvider(false);
@@ -39,6 +38,10 @@ namespace Antmicro.Renode.Utilities.GDB
                     cpu.Halted += OnHalted;
                     cpu.ExecutionMode = blockOnStep ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
                     cpu.DebuggerConnected = true;
+                }
+                if(autostartEmulation && !EmulationManager.Instance.CurrentEmulation.IsStarted)
+                {
+                    EmulationManager.Instance.CurrentEmulation.StartAll();
                 }
             };
             terminal.ConnectionClosed += delegate

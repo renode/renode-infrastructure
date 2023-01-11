@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -55,16 +55,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     manager.Machine.Reset();
                     break;
                 case "halt":
-                    //this workaround allows to start debugging after first connection
-                    if(!manager.ShouldAutoStart)
-                    {
-                        manager.Machine.Pause();
-                    }
-                    else
-                    {
-                        EmulationManager.Instance.CurrentEmulation.StartAll();
-                        manager.ShouldAutoStart = false;
-                    }
+                    manager.Machine.Pause();
                     break;
                 case "reg":
                     var inputBuilder = new StringBuilder("=====\n");
