@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     /// This model will accept any number of input pins, but keep in mind that currently System
     /// Configuration Controller (SYSCFG) is able to handle only 16x16 pins in total.
     /// </summary>
-    public class EXTI :  IDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
+    public class EXTI : IDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
         public EXTI(int numberOfOutputLines = 14)
         {
