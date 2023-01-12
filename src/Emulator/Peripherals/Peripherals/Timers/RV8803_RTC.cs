@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Globalization;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -43,9 +44,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             get => realTimeCounter.CurrentTime.ToString();
             set
             {
-                if(!DateTime.TryParse(value, out var dt))
+                const string format = "dd-MM-yyyy HH:mm:ss";
+                if(!DateTime.TryParseExact(value, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                 {
-                    throw new RecoverableException($"Couldn't parse date: {value}. Provide input in the DateTime format, e.g., 31-12-2022 13:22:31");
+                    throw new RecoverableException($"Couldn't parse time: {value}. Provide it in the {format} format (e.g., 31-12-2022 13:22:31)");
                 }
                 realTimeCounter.CurrentTime = DateTimeWithCustomWeekday.FromDateTime(dt);
                 this.Log(LogLevel.Debug, "RTC time set to {0}", dt);
