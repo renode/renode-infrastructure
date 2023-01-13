@@ -19,12 +19,9 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public GenericSpiFlash(MappedMemory underlyingMemory)
         {
-            // original MT25Q supports capacity 8MB to 256MB,
-            // but we extended it down to 64KB
-            // to become compatible with N25Q line
-            if(underlyingMemory.Size < 64.KB() || underlyingMemory.Size > 256.MB() || !Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
+            if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
-                throw new ConstructionException("Size of the underlying memory must be a power of 2 value in range 64KB - 256MB");
+                throw new ConstructionException("Size of the underlying memory must be a power of 2");
             }
 
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
