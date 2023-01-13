@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -280,6 +280,16 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
                     currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
                     break;
+                case (byte)Commands.ResetEnable:
+                    // This command should allow ResetMemory to be executed
+                case (byte)Commands.ResetMemory:
+                    // This command should reset volatile bits in configuration registers
+                case (byte)Commands.EnterDeepPowerDown:
+                    // This command should enter deep power-down mode
+                case (byte)Commands.ReleaseFromDeepPowerdown:
+                    // This command should leave deep power-down mode, but some chips use a different mechanism
+                    this.Log(LogLevel.Warning, "Unhandled parameterless command {0}", (Commands)firstByte);
+                    return;
                 default:
                     this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
                     return;
