@@ -125,6 +125,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
         protected readonly int SectorSize = 64.KB();
+        protected readonly ByteRegister statusRegister;
 
         private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
         {
@@ -395,6 +396,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                     enhancedVolatileConfigurationRegister.Write(0, data);
                     break;
                 case Register.Status:
+                    statusRegister.Write(0, data);
+                    break;
                 default:
                     this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
                     break;
@@ -526,7 +529,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private readonly byte[] deviceData;
         private readonly IFlagRegisterField enable;
-        private readonly ByteRegister statusRegister;
         private readonly ByteRegister flagStatusRegister;
         private readonly IFlagRegisterField numberOfAddressBytes;
         private readonly ByteRegister volatileConfigurationRegister;
