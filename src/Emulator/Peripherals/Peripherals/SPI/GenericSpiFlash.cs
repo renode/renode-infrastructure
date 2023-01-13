@@ -124,6 +124,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
+        protected readonly int SectorSize = 64.KB();
+
         private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
         {
             if(currentOperation.TryAccumulateAddress(addressByte))
@@ -523,7 +525,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint temporaryNonVolatileConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
-        private readonly int SectorSize = 64.KB();
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister statusRegister;
         private readonly ByteRegister flagStatusRegister;
