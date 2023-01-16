@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1416,6 +1416,19 @@ namespace Antmicro.Renode.Core
         public void HandleTimeProgress(TimeInterval diff)
         {
             clockSource.Advance(diff);
+        }
+
+        public void PostCreationActions()
+        {
+            // Enable broadcasting dirty addresses on multicore platforms
+            var cpus = SystemBus.GetCPUs().Where(x => x is ICPUWithMappedMemory).Select(x => (ICPUWithMappedMemory)x).ToArray();
+            if(cpus.Length > 1)
+            {
+                foreach(var cpu in cpus)
+                {
+                    cpu.SetBroadcastDirty(true);
+                }
+            }
         }
 
         [Constructor]

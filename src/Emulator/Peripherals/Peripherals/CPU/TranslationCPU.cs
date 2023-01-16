@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -63,10 +63,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new Dictionary<ulong, HookDescriptor>();
             currentMappings = new List<SegmentMapping>();
+            this.id = id;
             InitializeRegisters();
             Init();
             InitDisas();
             externalMmuWindowsCount = TlibGetMmuWindowsCount();
+
+            if(id > lastReadIndexes.Count() - 1)
+            {
+                Array.Resize(ref lastReadIndexes, (int)id + 1);
+            }
+            lastReadIndexes[id] = 0;
         }
         
         public abstract string Architecture { get; }
@@ -907,6 +914,122 @@ namespace Antmicro.Renode.Peripherals.CPU
             memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, address);
         }
 
+        [Export]
+        private void OnMassBroadcastDirty(IntPtr arrayStart, int size)
+        {
+            invalidatedAddressesLock.EnterWriteLock();
+            if((size + lastInvalidatedAddressIndex + 1) >= invalidatedAddresses.Count())
+            {
+                var newSize = EnlargeDirtyAddressesList();
+                this.NoisyLog("Dirty addresses list resized to {0}", newSize);
+            }
+            try
+            {
+                var tempArray = new long[size];
+                Marshal.Copy(arrayStart, tempArray, 0, size);
+                Buffer.BlockCopy(tempArray, 0, invalidatedAddresses, (int)(lastInvalidatedAddressIndex + 1) * sizeof(long), size * sizeof(long));
+                lastInvalidatedAddressIndex += size;
+            }
+            finally
+            {
+                invalidatedAddressesLock.ExitWriteLock();
+            }
+        }
+
+        [Transient]
+        private IntPtr dirtyAddressesPtr = IntPtr.Zero;
+
+        [Export]
+        private IntPtr GetDirty(IntPtr size)
+        {
+            invalidatedAddressesLock.EnterUpgradeableReadLock();
+            try
+            {
+                int count = 0;
+                int offset = 0;
+                long lastIndex = Interlocked.Read(ref lastInvalidatedAddressIndex);
+                long lastIndexForThisCore = lastReadIndexes[id];
+                int arrayPtrSize = (int)(lastIndex + 1 - lastIndexForThisCore);
+
+                dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, arrayPtrSize * 8);
+                for(; lastIndexForThisCore <= lastIndex; lastIndexForThisCore++)
+                {
+                    var index = (lastIndexForThisCore + firstUnreadIndex) % invalidatedAddresses.Length;
+                    var address = invalidatedAddresses[index];
+                    Marshal.WriteInt64(dirtyAddressesPtr, offset, address);
+
+                    count += 1;
+                    offset += 8;
+                }
+
+                Marshal.WriteInt64(size, count);
+
+                if(lastIndex != -1)
+                {
+                    lastReadIndexes[id] = (long)lastIndex;
+                }
+
+                UpdateTheFirstDirtyAddress();
+
+                return dirtyAddressesPtr;
+            }
+            finally
+            {
+                invalidatedAddressesLock.ExitUpgradeableReadLock();
+            }
+        }
+
+        private void UpdateTheFirstDirtyAddress()
+        {
+            // Find the entries that already have been read by all the cores
+            long min = long.MaxValue;
+            for(int i = 0; i < lastReadIndexes.Length; i++)
+            {
+                long index = Interlocked.Read(ref lastReadIndexes[i]);
+                if(min > index)
+                {
+                    min = index;
+                }
+            }
+
+            // Move the FirstUnreadIndex; This is later used when resizing the array - we don't copy the elements that don't need broadcasting anymore
+            if(min > 0)
+            {
+                invalidatedAddressesLock.EnterWriteLock();
+                try
+                {
+                    for(int i = 0; i < lastReadIndexes.Length; i++)
+                    {
+                        lastReadIndexes[i] -= min;
+                    }
+                    firstUnreadIndex += min;
+                }
+                finally
+                {
+                    invalidatedAddressesLock.ExitWriteLock();
+                }
+            }
+        }
+
+        private int EnlargeDirtyAddressesList()
+        {
+            int newCapacity = invalidatedAddresses.Length * 2 + 100;
+            var newArray = new long[newCapacity];
+            var newLastWrittenIndex = lastInvalidatedAddressIndex - firstUnreadIndex;
+            Array.Copy(invalidatedAddresses, firstUnreadIndex, newArray, 0, invalidatedAddresses.Length - firstUnreadIndex);
+            Array.Copy(invalidatedAddresses, 0, newArray, firstUnreadIndex, Math.Max(firstUnreadIndex - 1, 0));
+            lastInvalidatedAddressIndex = newLastWrittenIndex;
+            invalidatedAddresses = newArray;
+            firstUnreadIndex = 0;
+            return newCapacity;
+        }
+
+        private void AddAddressToDirtyList(ulong address, long index)
+        {
+            var arrayIndex = (index + firstUnreadIndex) % invalidatedAddresses.Length;
+            invalidatedAddresses[arrayIndex] = (long)address;
+        }
+
         protected virtual void InitializeRegisters()
         {
         }
@@ -1032,6 +1155,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 File.Delete(libraryFile);
             }
+            if(dirtyAddressesPtr != IntPtr.Zero)
+            {
+                memoryManager.Free(dirtyAddressesPtr);
+            }
             memoryManager.CheckIfAllIsFreed();
         }
 
@@ -1049,6 +1176,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         */
         private static int CpuCounter = 0;
         
+        /*
+         *  Variables used for memory invalidation
+         */
+        private static long firstUnreadIndex = 0;
+        private static long[] invalidatedAddresses = new long[1 << 10];
+        private static long lastInvalidatedAddressIndex = -1;
+        private static long[] lastReadIndexes = new long[0];
+        private static ReaderWriterLockSlim invalidatedAddressesLock = new ReaderWriterLockSlim();
+
         protected override bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
             if(!base.UpdateHaltedState(ignoreExecutionMode))
@@ -1231,7 +1367,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong, MemoryOperation, ulong> memoryAccessHook;
 
         private List<SegmentMapping> currentMappings;
-
+        private readonly uint id;
         private readonly CpuThreadPauseGuard pauseGuard;
 
         [Transient]
@@ -1516,6 +1652,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
             }
+            dirtyAddressesPtr = IntPtr.Zero;
         }
 
         #endregion
@@ -1728,6 +1865,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt32 TlibGetMmuWindowAddend;
+
+        [Import]
+        private ActionInt32 TlibSetBroadcastDirty;
 
 #pragma warning restore 649
 
@@ -2036,6 +2176,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 default:
                     throw new Exception();
             }
+        }
+
+        public void SetBroadcastDirty(bool enable)
+        {
+            TlibSetBroadcastDirty(enable ? 1 : 0);
         }
 
         private string logFile;
