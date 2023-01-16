@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -104,9 +104,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             Command = 0x2C,
             SyncBusy = 0x30,
             PowerDown = 0x34,
-            ConfLock = 0x34,
-            WakeUpEnable = 0x38,
-            ChanelControlC0 = 0x3C,
+            ConfLock = 0x38,
+            WakeUpEnable = 0x3C,
+            ChanelControlC0 = 0x40,
             CaptureValueC0 = 0x44,
             CaptureTimeC0 = 0x48,
             CaptureDateC0 = 0x4C,
