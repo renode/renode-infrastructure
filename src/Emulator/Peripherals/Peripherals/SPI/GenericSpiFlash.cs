@@ -34,7 +34,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(5, name: "Double transfer rate protocol")
                 .WithFlag(6, name: "Dual I/O protocol")
                 .WithFlag(7, name: "Quad I/O protocol");
-            statusRegister = new ByteRegister(this).WithFlag(1, out enable, name: "volatileControlBit");
+            statusRegister = new ByteRegister(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "writeInProgress")
+                .WithFlag(1, out enable, name: "volatileControlBit");
             configurationRegister = new WordRegister(this);
             flagStatusRegister = new ByteRegister(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
