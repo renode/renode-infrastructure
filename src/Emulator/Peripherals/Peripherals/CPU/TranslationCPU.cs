@@ -909,6 +909,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, address);
         }
 
+        [Export]
+        private void OnMassBroadcastDirty(IntPtr arrayStart, int size)
+        {
+            var tempArray = new long[size];
+            Marshal.Copy(arrayStart, tempArray, 0, size);
+            machine.AppendDirtyAddresses(tempArray);
+        }
+
+        [Transient]
+        private IntPtr dirtyAddressesPtr = IntPtr.Zero;
+
+        [Export]
+        private IntPtr GetDirty(IntPtr size)
+        {
+            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(Id); 
+            var newAddressesCount = dirtyAddressesList.Length;
+
+            if(newAddressesCount > 0)
+            {
+                dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, newAddressesCount * 8);
+                Marshal.Copy(dirtyAddressesList, 0, dirtyAddressesPtr, newAddressesCount);
+            }      
+            Marshal.WriteInt64(size, newAddressesCount);
+
+            return dirtyAddressesPtr;
+        }
+
         protected virtual void InitializeRegisters()
         {
         }
@@ -1033,6 +1060,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(!EmulationManager.DisableEmulationFilesCleanup)
             {
                 File.Delete(libraryFile);
+            }
+            if(dirtyAddressesPtr != IntPtr.Zero)
+            {
+                memoryManager.Free(dirtyAddressesPtr);
             }
             memoryManager.CheckIfAllIsFreed();
         }
@@ -1518,6 +1549,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
             }
+            dirtyAddressesPtr = IntPtr.Zero;
         }
 
         #endregion
@@ -1730,6 +1762,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt32 TlibGetMmuWindowAddend;
+
+        [Import]
+        private ActionInt32 TlibSetBroadcastDirty;
 
 #pragma warning restore 649
 
@@ -2038,6 +2073,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 default:
                     throw new Exception();
             }
+        }
+
+        public void SetBroadcastDirty(bool enable)
+        {
+            TlibSetBroadcastDirty(enable ? 1 : 0);
         }
 
         private string logFile;

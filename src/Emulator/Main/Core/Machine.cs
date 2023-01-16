@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -55,6 +55,11 @@ namespace Antmicro.Renode.Core
             userState = string.Empty;
             SetLocalName(SystemBus, SystemBusName);
             gdbStubs = new Dictionary<int, GdbStub>();
+
+            invalidatedAddresses = new List<long>();
+            invalidatedAddresses.Capacity = InitialDirtyListLength;
+            invalidatedAddressesLock = new object();
+            firstUnbroadcastedDirtyAddressIndex = new Dictionary<uint, int>();
 
             if(createLocalTimeSource)
             {
@@ -763,6 +768,36 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public long[] GetNewDirtyAddressesForCore(uint id)
+        {
+            if(!firstUnbroadcastedDirtyAddressIndex.ContainsKey(id))
+            {
+                throw new ArgumentException("No entries for a core with id {0}. Was the core registered properly?");
+            }
+
+            long[] newAddresses;
+            lock(invalidatedAddressesLock)
+            {
+                var firstUnsentIndex = firstUnbroadcastedDirtyAddressIndex[id];
+                var addressesCount = invalidatedAddresses.Count - firstUnsentIndex;
+                newAddresses = invalidatedAddresses.GetRange(firstUnsentIndex, addressesCount).ToArray();
+                firstUnbroadcastedDirtyAddressIndex[id] += addressesCount;
+            }
+            return newAddresses;
+        }
+
+        public void AppendDirtyAddresses(long[] addresses)
+        {
+            lock(invalidatedAddressesLock)
+            {
+                if(invalidatedAddresses.Count + addresses.Length > invalidatedAddresses.Capacity)
+                {
+                    TryReduceBroadcastedDirtyAddresses();
+                }
+                invalidatedAddresses.AddRange(addresses);
+            }
+        }
+
         public void HandleTimeDomainEvent<T1, T2>(Action<T1, T2> handler, T1 handlerArgument1, T2 handlerArgument2, bool timeDomainInternalEvent)
         {
             switch(EmulationManager.Instance.CurrentEmulation.Mode)
@@ -1098,6 +1133,21 @@ namespace Antmicro.Renode.Core
         public const string UnnamedPeripheral = "[no-name]";
         public const string MachineKeyword = "machine";
         
+        private void TryReduceBroadcastedDirtyAddresses()
+        {
+            var firstUnread = firstUnbroadcastedDirtyAddressIndex.Values.Min();
+            if(firstUnread == 0)
+            {
+                return;
+            }
+
+            invalidatedAddresses.RemoveRange(0, (int)firstUnread);
+            foreach(var key in firstUnbroadcastedDirtyAddressIndex.Keys.ToArray())
+            {
+                firstUnbroadcastedDirtyAddressIndex[key] -= firstUnread;
+            }
+        }
+
         private void InnerUnregisterFromParent(IPeripheral peripheral)
         {
             using(ObtainPausedState())
@@ -1138,6 +1188,13 @@ namespace Antmicro.Renode.Core
                     var parentNode = registeredPeripherals.GetNode(parent);
                     parentNode.AddChild(peripheral, registrationPoint);
                     var ownLife = peripheral as IHasOwnLife;
+                    if(peripheral is ICPU cpu)
+                    {
+                        lock(invalidatedAddressesLock)
+                        {
+                            firstUnbroadcastedDirtyAddressIndex[cpu.Id] = 0;
+                        }
+                    }
                     if(ownLife != null)
                     {
                         ownLifes.Add(ownLife);
@@ -1418,6 +1475,19 @@ namespace Antmicro.Renode.Core
             clockSource.Advance(diff);
         }
 
+        public void PostCreationActions()
+        {
+            // Enable broadcasting dirty addresses on multicore platforms
+            var cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();
+            if(cpus.Length > 1)
+            {
+                foreach(var cpu in cpus)
+                {
+                    cpu.SetBroadcastDirty(true);
+                }
+            }
+        }
+
         [Constructor]
         private Dictionary<int, GdbStub> gdbStubs;
         private string userState;
@@ -1440,6 +1510,14 @@ namespace Antmicro.Renode.Core
         private readonly object pausingSync;
         private readonly object disposedSync;
         private readonly DateTime machineCreatedAt;
+
+        /*
+         *  Variables used for memory invalidation
+         */
+        private const int InitialDirtyListLength = 1 << 10;
+        private readonly Dictionary<uint, int> firstUnbroadcastedDirtyAddressIndex;
+        private readonly List<long> invalidatedAddresses;
+        private readonly object invalidatedAddressesLock;
 
         private enum State
         {

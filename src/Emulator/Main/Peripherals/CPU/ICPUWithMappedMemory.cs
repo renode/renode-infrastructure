@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         void UnmapMemory(Range range);
         void SetPageAccessViaIo(ulong address);
         void ClearPageAccessViaIo(ulong address);
+        void SetBroadcastDirty(bool enable);
     }
 }
 
