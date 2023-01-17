@@ -1,5 +1,5 @@
 ﻿﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -66,30 +66,73 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                 var bits = BitHelper.GetBits(val);
                                 for(var i = 0; i < bits.Length; i++)
                                 {
-                                    if((pins[i].pinOperation & Operation.Write) != 0)
-                                    {
-                                        State[i] = bits[i];
-                                        Connections[i].Set(bits[i]);
-                                    }
+                                    SetPinValue(i, bits[i]);
                                 }
                             }
                         })
                 },
 
-                {(long)Registers.RiseInterruptPending, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) =>
+                {(long)Registers.FallInterruptPending, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out fallInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
+                    .WithWriteCallback((_, __) =>
                     {
-                        lock(locker)
-                        {
-                            var bits = BitHelper.GetBits(val);
-                            for(var i = 0; i < bits.Length; i++)
-                            {
-                                if(bits[i])
-                                {
-                                    Connections[i].Set(State[i]);
-                                }
-                            }
-                        }
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.FallInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out fallInterruptEnable)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.RiseInterruptPending, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out riseInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.RiseInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out riseInterruptEnable)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.HighInterruptPending, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out highInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.HighInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out highInterruptEnable)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.LowInterruptPending, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out lowInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
+                    })
+                },
+
+                {(long)Registers.LowInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlags(0, 32, out lowInterruptEnable)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        UpdateInterrupts();
                     })
                 }
             };
@@ -112,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             lock(locker)
             {
                 base.OnGPIO(number, value);
-                Connections[number].Set(value);
+                SetPinValue(number, value);
             }
         }
 
@@ -127,11 +170,68 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public long Size => 0x1000;
 
+        private void UpdateInterrupts()
+        {
+            lock(locker)
+            {
+                for(var i = 0; i < State.Length; i++)
+                {
+                    var value = State[i];
+                    highInterruptPending[i].Value = value;
+                    lowInterruptPending[i].Value = !value;
+                }
+
+                for(var i = 0; i < NumberOfPins; i++)
+                {
+                    var falling = fallInterruptEnable[i].Value && fallInterruptPending[i].Value;
+                    var rising = riseInterruptEnable[i].Value && riseInterruptPending[i].Value;
+                    var high = highInterruptEnable[i].Value && highInterruptPending[i].Value;
+                    var low = lowInterruptEnable[i].Value && lowInterruptPending[i].Value;
+
+                    Connections[i].Set(falling || rising || high || low);
+                }
+            }
+        }
+
+        private void SetPinValue(int i, bool value)
+        {
+            lock(locker)
+            {
+                if((pins[i].pinOperation & Operation.Write) == 0)
+                {
+                    return;
+                }
+
+                var prevState = State[i];
+                State[i] = value;
+
+                if(!prevState && value)
+                {
+                    riseInterruptPending[i].Value = true;
+                }
+                else if(prevState && !value)
+                {
+                    fallInterruptPending[i].Value = true;
+                }
+
+                UpdateInterrupts();
+            }
+        }
+
         private readonly DoubleWordRegisterCollection registers;
         private readonly object locker;
         private readonly Pin[] pins;
 
         private const int NumberOfPins = 32;
+
+        private IFlagRegisterField[] fallInterruptEnable;
+        private IFlagRegisterField[] fallInterruptPending;
+        private IFlagRegisterField[] riseInterruptEnable;
+        private IFlagRegisterField[] riseInterruptPending;
+        private IFlagRegisterField[] highInterruptEnable;
+        private IFlagRegisterField[] highInterruptPending;
+        private IFlagRegisterField[] lowInterruptEnable;
+        private IFlagRegisterField[] lowInterruptPending;
 
         private struct Pin
         {
