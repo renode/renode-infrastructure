@@ -10,10 +10,11 @@ namespace Antmicro.Renode.Utilities.RESD
 {
     public class SamplesData<T> where T : RESDSample, new()
     {
-        public SamplesData(SafeBinaryReader reader)
+        public SamplesData(SafeBinaryReader reader, long samplesBorderOffset)
         {
             this.reader = reader;
             this.currentSample = new T();
+            this.samplesBorderOffset = samplesBorderOffset;
 
             currentSample.TryReadMetadata(reader);
         }
@@ -29,6 +30,12 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public bool Move(int count)
         {
+            if(reader.BaseStream.Position >= samplesBorderOffset)
+            {
+                // end of samples data
+                return false;
+            }
+
             if(count < 0)
             {
                 // although technically possible, we assume it's not supported
@@ -50,5 +57,6 @@ namespace Antmicro.Renode.Utilities.RESD
         private bool sampleReady;
         private T currentSample;
         private readonly SafeBinaryReader reader;
+        private readonly long samplesBorderOffset;
     }
 }

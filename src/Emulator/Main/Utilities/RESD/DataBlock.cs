@@ -24,25 +24,28 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public static DataBlockHeader ReadFromStream(SafeBinaryReader reader)
         {
+            var startPosition = reader.BaseStream.Position;
             var blockType = (BlockType)reader.ReadByte();
             var sampleType = (SampleType)reader.ReadUInt16();
             var channelId = reader.ReadUInt16();
             var dataSize = reader.ReadUInt64();
 
-            return new DataBlockHeader(blockType, sampleType, channelId, dataSize);
+            return new DataBlockHeader(blockType, sampleType, channelId, dataSize, startPosition);
         }
 
         public SampleType SampleType { get; }
         public BlockType BlockType { get; }
         public ushort ChannelId { get; }
         public ulong Size { get; }
+        public long StartPosition { get; }
 
-        private DataBlockHeader(BlockType blockType, SampleType sampleType, ushort channel, ulong dataSize)
+        private DataBlockHeader(BlockType blockType, SampleType sampleType, ushort channel, ulong dataSize, long startPosition)
         {
             SampleType = sampleType;
             BlockType = blockType;
             ChannelId = channel;
             Size = dataSize;
+            StartPosition = startPosition;
         }
     }
 
@@ -87,7 +90,7 @@ namespace Antmicro.Renode.Utilities.RESD
         private ConstantFrequencySamplesDataBlock(DataBlockHeader header, ulong startTime, ulong period, SafeBinaryReader reader) : base(header)
         {
             this.reader = reader;
-            this.samplesData = new SamplesData<T>(reader);
+            this.samplesData = new SamplesData<T>(reader, header.StartPosition + (long)header.Size);
 
             currentSampleTimestamp = startTime;
 
