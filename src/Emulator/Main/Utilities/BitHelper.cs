@@ -38,6 +38,15 @@ namespace Antmicro.Renode.Utilities
             return (0x1 << b);
         }
 
+        public static ulong Bits(int position, int width)
+        {
+            // Force 0 with width = 64 and up because (1UL << 64) is 1
+            var pow2 = width < 64 ? (1UL << width) : 0;
+            var nbits = pow2 - 1;
+            // Same as above
+            return position < 64 ? (nbits << position) : 0;
+        }
+
         public static bool IsBitSet(uint reg, byte bit)
         {
             return ((0x1 << bit) & reg) != 0;
