@@ -309,10 +309,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 {(long)Registers.AlarmARegister, new DoubleWordRegister(this)
                     .WithValueField(0, 4, name: "SU",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Second, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Second, Rank.Units, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Second, Rank.Units))
                     .WithValueField(4, 3, name: "ST",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Second, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Second, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Second, Rank.Tens))
                     .WithFlag(7, name: "MSK1",
                         writeCallback: (_, value) =>
@@ -324,10 +324,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         valueProviderCallback: _ => alarmA.SecondsMask)
                     .WithValueField(8, 4, name: "MU",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Minute, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Minute, Rank.Units, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Minute, Rank.Units))
                     .WithValueField(12, 3, name: "MT",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Minute, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Minute, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Minute, Rank.Tens))
                     .WithFlag(15, name: "MSK2",
                         writeCallback: (_, value) =>
@@ -338,10 +338,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         }, valueProviderCallback: _ => alarmA.MinutesMask)
                     .WithValueField(16, 4, name: "HU",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Hour, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Hour, Rank.Units, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Hour, Rank.Units))
                     .WithValueField(20, 2, name: "HT",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Hour, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Hour, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Hour, Rank.Tens))
                     .WithFlag(22, name: "PM",
                         writeCallback: (_, value) =>
@@ -361,10 +361,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         }, valueProviderCallback: _ => alarmA.HoursMask)
                     .WithValueField(24, 4, name: "DU",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Day, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Day, Rank.Units, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Day, Rank.Units))
                     .WithValueField(28, 2, name: "DT",
-                        writeCallback: (_, value) => UpdateTimerA(DateTimeSelect.Day, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerA(alarm => alarm.Update(DateTimeSelect.Day, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmA.Read(DateTimeSelect.Day, Rank.Tens))
                     .WithTag("WDSEL", 30, 1) // Weekday instead of date units usupported
                     .WithFlag(31, name: "MSK4",
@@ -379,10 +379,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 {(long)Registers.AlarmBRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 4, name: "SU",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Second, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Second, Rank.Units, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Second, Rank.Units))
                     .WithValueField(4, 3, name: "ST",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Second, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Second, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Second, Rank.Tens))
                     .WithFlag(7, name: "MSK1",
                         writeCallback: (_, value) =>
@@ -394,10 +394,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         valueProviderCallback: _ => alarmB.SecondsMask)
                     .WithValueField(8, 4, name: "MU",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Minute, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Minute, Rank.Units, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Minute, Rank.Units))
                     .WithValueField(12, 3, name: "MT",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Minute, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Minute, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Minute, Rank.Tens))
                     .WithFlag(15, name: "MSK2",
                         writeCallback: (_, value) =>
@@ -409,10 +409,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         valueProviderCallback: _ => alarmB.MinutesMask)
                     .WithValueField(16, 4, name: "HU",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Hour, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Hour, Rank.Units, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Hour, Rank.Units))
                     .WithValueField(20, 2, name: "HT",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Hour, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Hour, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Hour, Rank.Tens))
                     .WithFlag(22, name: "PM",
                         writeCallback: (_, value) =>
@@ -433,10 +433,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         valueProviderCallback: _ => alarmB.HoursMask)
                     .WithValueField(24, 4, name: "DU",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Day, Rank.Units, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Day, Rank.Units, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Day, Rank.Units))
                     .WithValueField(28, 2, name: "DT",
-                        writeCallback: (_, value) => UpdateTimerB(DateTimeSelect.Day, Rank.Tens, value),
+                        writeCallback: (_, value) => UpdateTimerB(alarm => alarm.Update(DateTimeSelect.Day, Rank.Tens, value)),
                         valueProviderCallback: _ => alarmB.Read(DateTimeSelect.Day, Rank.Tens))
                     .WithTag("WDSEL", 30, 1) // Weekday instead of date units usupported
                     .WithFlag(31, name: "MSK4",
@@ -694,14 +694,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             action(alarm);
         }
 
-        private void UpdateTimerA(DateTimeSelect what, Rank rank, uint value)
+        private void UpdateTimerA(Action<AlarmConfig> action)
         {
-            UpdateAlarm(alarmA, Registers.AlarmARegister, alarm => alarm.Update(what, rank, value));
+            UpdateAlarm(alarmA, Registers.AlarmARegister, action);
         }
 
-        private void UpdateTimerB(DateTimeSelect what, Rank rank, uint value)
+        private void UpdateTimerB(Action<AlarmConfig> action)
         {
-            UpdateAlarm(alarmB, Registers.AlarmBRegister, alarm => alarm.Update(what, rank, value));
+            UpdateAlarm(alarmB, Registers.AlarmBRegister, action);
         }
 
         private readonly TimerConfig mainTimer;
