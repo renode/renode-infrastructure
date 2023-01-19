@@ -684,24 +684,24 @@ namespace Antmicro.Renode.Peripherals.Timers
             mainTimer.Update(what, rank, value);
         }
 
-        private void UpdateTimerA(DateTimeSelect what, Rank rank, uint value)
+        private void UpdateAlarm(AlarmConfig alarm, Registers register, Action<AlarmConfig> action)
         {
-            if(!CheckIfDisabled(alarmA) || !CheckIfUnlocked(Registers.AlarmARegister))
+            if(!CheckIfDisabled(alarm) || !CheckIfUnlocked(register))
             {
                 return;
             }
 
-            alarmA.Update(what, rank, value);
+            action(alarm);
+        }
+
+        private void UpdateTimerA(DateTimeSelect what, Rank rank, uint value)
+        {
+            UpdateAlarm(alarmA, Registers.AlarmARegister, alarm => alarm.Update(what, rank, value));
         }
 
         private void UpdateTimerB(DateTimeSelect what, Rank rank, uint value)
         {
-            if(!CheckIfDisabled(alarmB) || !CheckIfUnlocked(Registers.AlarmBRegister))
-            {
-                return;
-            }
-
-            alarmB.Update(what, rank, value);
+            UpdateAlarm(alarmB, Registers.AlarmBRegister, alarm => alarm.Update(what, rank, value));
         }
 
         private readonly TimerConfig mainTimer;
