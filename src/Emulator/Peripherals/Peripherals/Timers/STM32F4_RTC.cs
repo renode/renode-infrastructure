@@ -230,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => false, name: "SHPF") // Shift operations not supported
                     .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => mainTimer.TimeState.Year != 2000, name: "INITS")
                     .WithFlag(5, out syncFlag, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RSF",
-                              readCallback: (_, curr) => 
+                              readCallback: (_, curr) =>
                               {
                                   // this strange logic is required by the Zephyr driver;
                                   // it wants to read 0 before reading 1, otherwise it times-out
@@ -594,7 +594,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     throw new ArgumentException($"Unexpected select: {select}");
             }
         }
-        
+
         private void ResetInnerTimers()
         {
             mainTimer.Reset();
@@ -646,7 +646,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return true;
             }
-            
+
             this.Log(LogLevel.Warning, "Writing to {0} allowed only in init mode", reg);
             return false;
         }
@@ -657,7 +657,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return true;
             }
-            
+
             this.Log(LogLevel.Warning, "Writing to {0} is allowed only when the register is unlocked", reg);
             return false;
         }
@@ -732,7 +732,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 this.parent = parent;
             }
-            
+
             public DateTime TimeState
             {
                 get => timeState;
@@ -755,7 +755,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            // DateTime calculates the week day automatically based on the set date, 
+            // DateTime calculates the week day automatically based on the set date,
             // but the device allows for setting an arbitrary value
             public DayOfTheWeek WeekDay { get; set; }
 
@@ -815,7 +815,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         return timeState.Minute;
                     case DateTimeSelect.Hour:
                         return PM
-                            ? timeState.Hour - 12 
+                            ? timeState.Hour - 12
                             : timeState.Hour;
                     case DateTimeSelect.Day:
                         return timeState.Day;
@@ -830,7 +830,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private DateTime timeState;
             private bool pm;
-            
+
             private readonly STM32F4_RTC parent;
         }
 
@@ -844,9 +844,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Reset();
             }
 
-            public int Day 
-            { 
-                get => day; 
+            public int Day
+            {
+                get => day;
 
                 set
                 {
@@ -855,9 +855,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public int Hour 
-            { 
-                get => hour; 
+            public int Hour
+            {
+                get => hour;
 
                 set
                 {
@@ -866,9 +866,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public int Minute 
-            { 
-                get => minute; 
+            public int Minute
+            {
+                get => minute;
 
                 set
                 {
@@ -877,9 +877,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public int Second 
-            { 
-                get => second; 
+            public int Second
+            {
+                get => second;
 
                 set
                 {
@@ -899,8 +899,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool Flag 
-            { 
+            public bool Flag
+            {
                 get => flag;
 
                 set
@@ -909,16 +909,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         throw new ArgumentException("This field can only be explicitly cleared");
                     }
-                    
+
                     flag = false;
                     parent.UpdateInterrupts();
                 }
             }
 
-            public bool Enable 
-            { 
+            public bool Enable
+            {
                 get => enable;
-                
+
                 set
                 {
                     enable = value;
@@ -926,10 +926,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool InterruptEnable 
-            { 
+            public bool InterruptEnable
+            {
                 get => interruptEnable;
-                
+
                 set
                 {
                     interruptEnable = value;
@@ -937,10 +937,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool SecondsMask 
-            { 
+            public bool SecondsMask
+            {
                 get => secondsMask;
-                
+
                 set
                 {
                     secondsMask = value;
@@ -948,10 +948,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool MinutesMask 
-            { 
+            public bool MinutesMask
+            {
                 get => minutesMask;
-                
+
                 set
                 {
                     minutesMask = value;
@@ -959,10 +959,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool HoursMask 
-            { 
+            public bool HoursMask
+            {
                 get => hoursMask;
-                
+
                 set
                 {
                     hoursMask = value;
@@ -970,10 +970,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool DaysMask 
-            { 
+            public bool DaysMask
+            {
                 get => daysMask;
-                
+
                 set
                 {
                     daysMask = value;
@@ -1090,7 +1090,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         return Minute;
                     case DateTimeSelect.Hour:
                         return PM
-                            ? Hour - 12 
+                            ? Hour - 12
                             : Hour;
                     case DateTimeSelect.Day:
                         return Day;
@@ -1113,7 +1113,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             private int second;
             private int minute;
             private int hour;
-            
+
             private readonly STM32F4_RTC parent;
             private readonly TimerConfig masterTimer;
         }
