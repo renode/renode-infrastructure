@@ -25,8 +25,16 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             AlarmIRQ = new GPIO();
             WakeupIRQ = new GPIO();
-            ticker = new LimitTimer(machine.ClockSource, 1, this, nameof(ticker), 1, direction: Direction.Ascending, eventEnabled: true);
+
+            // The ticker reaches its limit at (wakeupTimerFrequency / (PREDIV_A + 1) / (PREDIV_S + 1)) Hz
+            // The prediv values are usually chosen so that its frequency is 1 Hz but this is not required
+            ticker = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(ticker), DefaultSynchronuousPrescaler + 1, direction: Direction.Descending, eventEnabled: true, divider: DefaultAsynchronuousPrescaler + 1);
             ticker.LimitReached += UpdateState;
+
+            // The fastTicker reaches its limit once for every increment of the ticker. It is used to
+            // implement subsecond alarm interrupts.
+            fastTicker = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(fastTicker), 1, direction: Direction.Ascending, eventEnabled: true, divider: DefaultAsynchronuousPrescaler + 1);
+            fastTicker.LimitReached += UpdateAlarms;
 
             wakeupTimer = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(wakeupTimer), direction: Direction.Ascending);
             wakeupTimer.LimitReached += delegate
@@ -246,6 +254,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             if(CheckIfUnlocked(Registers.ISR))
                             {
                                 ticker.Enabled = !value;
+                                fastTicker.Enabled = !value;
                                 initMode = value;
                             }
                         })
@@ -277,9 +286,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithIgnoredBits(17, 15) // We don't use reserved bits because the HAL sometimes writes 0s here and sometimes 1s
                 },
                 {(long)Registers.PrescalerRegister, new DoubleWordRegister(this, DefaultAsynchronuousPrescaler << 16 | DefaultSynchronuousPrescaler)
-                    .WithValueField(0, 15, out predivS, name: "PREDIV_S")
+                    .WithValueField(0, 15, out predivS, writeCallback: (_, value) => ticker.Limit = value + 1, name: "PREDIV_S")
                     .WithReservedBits(15, 1)
-                    .WithValueField(16, 7, out predivA, name: "PREDIV_A")
+                    .WithValueField(16, 7, out predivA, writeCallback: (_, value) =>
+                    {
+                        ticker.Divider = (int)value + 1;
+                        fastTicker.Divider = (int)value + 1;
+                    }, name: "PREDIV_A")
                     .WithReservedBits(23, 9)
                 },
                 {(long)Registers.WakeupTimerRegister, new DoubleWordRegister(this, 0xFFFF)
@@ -413,7 +426,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(8, 24)
                 },
                 {(long)Registers.SubSecondRegister, new DoubleWordRegister(this)
-                    .WithTag("SS", 0, 16)
+                    .WithValueField(0, 16, FieldMode.Read, name: "SS", valueProviderCallback: _ => (uint)ticker.Value)
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.ShiftControlRegister, new DoubleWordRegister(this)
@@ -467,15 +480,23 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(19, 13)
                 },
                 {(long)Registers.AlarmASubSecondRegister, new DoubleWordRegister(this)
-                    .WithTag("SS", 0, 15)
+                    .WithValueField(0, 15, name: "SS",
+                        writeCallback: (_, value) => UpdateAlarmA(alarm => alarm.Subsecond = (int)value),
+                        valueProviderCallback: _ => (uint)alarmA.Subsecond)
                     .WithReservedBits(15, 9)
-                    .WithTag("MASKSS", 24, 4)
+                    .WithValueField(24, 4, name: "MASKSS",
+                        writeCallback: (_, value) => UpdateAlarmA(alarm => alarm.SubsecondsMask = value),
+                        valueProviderCallback: _ => alarmA.SubsecondsMask)
                     .WithReservedBits(28, 4)
                 },
                 {(long)Registers.AlarmBSubSecondRegister, new DoubleWordRegister(this)
-                    .WithTag("SS", 0, 15)
+                    .WithValueField(0, 15, name: "SS",
+                        writeCallback: (_, value) => UpdateAlarmB(alarm => alarm.Subsecond = (int)value),
+                        valueProviderCallback: _ => (uint)alarmB.Subsecond)
                     .WithReservedBits(15, 9)
-                    .WithTag("MASKSS", 24, 4)
+                    .WithValueField(24, 4, name: "MASKSS",
+                        writeCallback: (_, value) => UpdateAlarmB(alarm => alarm.SubsecondsMask = value),
+                        valueProviderCallback: _ => alarmB.SubsecondsMask)
                     .WithReservedBits(28, 4)
                 },
                 {(long)Registers.OptionRegister, new DoubleWordRegister(this)
@@ -540,6 +561,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             mainTimer.Reset();
             ticker.Reset();
+            fastTicker.Reset();
             alarmA.Reset();
             alarmB.Reset();
             wakeupTimer.Reset();
@@ -566,7 +588,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // (as this is how the HW works)
                 mainTimer.WeekDay = (DayOfTheWeek)(((int)mainTimer.WeekDay) % 7) + 1;
             }
+        }
 
+        private void UpdateAlarms()
+        {
             alarmA.UpdateInterruptFlag();
             alarmB.UpdateInterruptFlag();
         }
@@ -657,6 +682,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IValueRegisterField predivA;
         private readonly IFlagRegisterField wakeupTimerFlag;
         private readonly LimitTimer ticker;
+        private readonly LimitTimer fastTicker;
         private readonly LimitTimer wakeupTimer;
 
         private bool firstStageUnlocked;
@@ -832,6 +858,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
+            public int Subsecond
+            {
+                get => subsecond;
+
+                set
+                {
+                    subsecond = value;
+                    UpdateInterruptFlag();
+                }
+            }
+
             public bool PM
             {
                 get => Hour > 11 && parent.AMPMFormat;
@@ -877,6 +914,20 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set
                 {
                     interruptEnable = value;
+                    UpdateInterruptFlag();
+                }
+            }
+
+
+            // This is the number of compared least significant bits. 0 - no subsecond bits
+            // are compared, 1..14 - that many LSBs are compared, 15 - all bits are compared
+            public uint SubsecondsMask
+            {
+                get => subsecondsMask;
+
+                set
+                {
+                    subsecondsMask = value;
                     UpdateInterruptFlag();
                 }
             }
@@ -932,6 +983,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 hour = 0;
                 minute = 0;
                 second = 0;
+                subsecond = 0;
 
                 pm = false;
                 enable = false;
@@ -941,6 +993,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 minutesMask = false;
                 hoursMask = false;
                 daysMask = false;
+                subsecondsMask = 0;
             }
 
             public uint Read(DateTimeSelect select, Rank rank)
@@ -977,6 +1030,20 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // the initial value of `state` will be false
                 // for a disabled timer
                 var state = Enable;
+
+                // Subseconds mask equal to 0 means the alarm is activated when the second unit is incremented
+                // (or at most once every 1 second)
+                if(SubsecondsMask == 0)
+                {
+                    state &= (parent.ticker.Value == parent.ticker.Limit);
+                }
+                else
+                {
+                    var ssComparedBitMask = (uint)BitHelper.Bits(0, (int)SubsecondsMask);
+                    var maskedAlarmSubsecond = (ulong)(Subsecond & ssComparedBitMask);
+                    var maskedCurrentSubsecond = parent.ticker.Value & ssComparedBitMask;
+                    state &= (maskedAlarmSubsecond == maskedCurrentSubsecond);
+                }
 
                 if(!SecondsMask)
                 {
@@ -1048,12 +1115,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             private bool flag;
             private bool enable;
             private bool interruptEnable;
+            private uint subsecondsMask;
             private bool secondsMask;
             private bool minutesMask;
             private bool hoursMask;
             private bool daysMask;
 
             private int day;
+            private int subsecond;
             private int second;
             private int minute;
             private int hour;
