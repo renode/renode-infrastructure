@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Utilities
             return -1;
         }
 
-        public static long Bits(byte b)
+        public static long Bit(byte b)
         {
             return (0x1 << b);
         }

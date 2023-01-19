@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             WatchdogTimer.Divider = 128;
             WatchdogTimer.LimitReached += WatchdogTimerAlarmHandler;
 
-            RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, this, nameof(RealTimeTimer), (ulong)BitHelper.Bits(20), Direction.Ascending);
+            RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, this, nameof(RealTimeTimer), (ulong)BitHelper.Bit(20), Direction.Ascending);
             RealTimeTimer.Divider = 0x00008000;
             RealTimeTimer.OnUpdate += () => {
                 lock (localLock)
