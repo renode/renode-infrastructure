@@ -686,7 +686,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateTimerA(DateTimeSelect what, Rank rank, uint value)
         {
-            if(!CheckIfDisabled(alarmA) && CheckIfUnlocked(Registers.AlarmARegister))
+            if(!CheckIfDisabled(alarmA) || !CheckIfUnlocked(Registers.AlarmARegister))
             {
                 return;
             }
@@ -696,7 +696,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateTimerB(DateTimeSelect what, Rank rank, uint value)
         {
-            if(!CheckIfDisabled(alarmB) && CheckIfUnlocked(Registers.AlarmBRegister))
+            if(!CheckIfDisabled(alarmB) || !CheckIfUnlocked(Registers.AlarmBRegister))
             {
                 return;
             }
