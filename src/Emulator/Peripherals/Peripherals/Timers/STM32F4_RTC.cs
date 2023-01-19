@@ -276,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => false, name: "RECALPF") // Recalibration not supported
                     .WithIgnoredBits(17, 15) // We don't use reserved bits because the HAL sometimes writes 0s here and sometimes 1s
                 },
-                {(long)Registers.PrescalerRegister, new DoubleWordRegister(this, 0x7F00FF)
+                {(long)Registers.PrescalerRegister, new DoubleWordRegister(this, DefaultAsynchronuousPrescaler << 16 | DefaultSynchronuousPrescaler)
                     .WithValueField(0, 15, out predivS, name: "PREDIV_S")
                     .WithReservedBits(15, 1)
                     .WithValueField(16, 7, out predivA, name: "PREDIV_A")
@@ -725,6 +725,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const uint UnlockKey1 = 0xCA;
         private const uint UnlockKey2 = 0x53;
         private const long DefaultWakeupTimerFrequency = 32768;
+        private const int DefaultSynchronuousPrescaler = 0xFF;
+        private const int DefaultAsynchronuousPrescaler = 0x7F;
 
         private class TimerConfig
         {
