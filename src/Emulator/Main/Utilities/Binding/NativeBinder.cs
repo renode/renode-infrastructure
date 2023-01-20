@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -252,6 +252,13 @@ namespace Antmicro.Renode.Utilities.Binding
             {
                 var typeName = classToBind.GetType().FullName;
                 il.EmitWriteLine($"Export to type '{typeName}' which is not unwindable threw an exception.");
+
+                // Print exceptions.
+                var printExceptions = typeof(ExceptionKeeper).GetMethod(nameof(ExceptionKeeper.PrintExceptions));
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Ldfld, exceptionKeeperField);
+                il.EmitCall(OpCodes.Call, printExceptions, null); // call ExceptionKeeper.PrintExceptions
+                
                 il.Emit(OpCodes.Ldc_I4_1);
                 il.EmitCall(OpCodes.Call, typeof(Environment).GetMethod(nameof(Environment.Exit)), null);
             }
