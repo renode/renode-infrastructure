@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -294,6 +294,12 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
+            // We assume that transmission works for disabled fifo buffers so uart is constantly ready to transmit character
+            // when tx interrupt is enabled.
+            if(interruptMasks[(int)Interrupts.Transmit]) 
+            {
+                interruptRawStatuses[(int)Interrupts.Transmit] = true;
+            }
             interruptRawStatuses[(int)Interrupts.Receive] = Count >= receiveInterruptTriggerPoint;
             IRQ.Set(MaskedInterruptStatus != 0);
         }
@@ -335,7 +341,6 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 TransmitCharacter((byte)value);
             }
-            interruptRawStatuses[(int)Interrupts.Transmit] = true;
             UpdateInterrupts();
         }
 
