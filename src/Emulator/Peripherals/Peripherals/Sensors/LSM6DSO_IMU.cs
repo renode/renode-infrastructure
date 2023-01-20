@@ -681,7 +681,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         }
 
                         owner.Log(LogLevel.Noisy, $"{name}: Fifo filled up. Dumping the oldest sample.");
-                        queue.TryDequeue(out _);
+                        queue.TryDequeue<LSM6DSO_Vector3DSample>(out _);
                     }
 
                     queue.Enqueue(sample);
