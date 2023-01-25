@@ -15,6 +15,109 @@ using Antmicro.Renode.Logging;
 namespace Antmicro.Renode.Core.Structure.Registers
 {
     /// <summary>
+    /// 64 bit <see cref="PeripheralRegister"/>.
+    /// </summary>
+    public sealed class QuadWordRegister : PeripheralRegister
+    {
+        /// <summary>
+        /// Creates a register with one field, serving a purpose of read and write register.
+        /// </summary>
+        /// <returns>A new register.</returns>
+        /// <param name="resetValue">Reset value.</param>
+        /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
+        public static QuadWordRegister CreateRWRegister(ulong resetValue = 0, string name = null, bool softResettable = true)
+        {
+            //null because parent is used for logging purposes only - this will never happen in this case.
+            var register = new QuadWordRegister(null, resetValue, softResettable);
+            register.DefineValueField(0, register.MaxRegisterLength);
+            return register;
+        }
+
+        public QuadWordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 64)
+        {
+        }
+
+        /// <summary>
+        /// Retrieves the current value of readable fields. All FieldMode values are interpreted and callbacks are executed where applicable.
+        /// </summary>
+        public ulong Read()
+        {
+            return ReadInner();
+        }
+
+        /// <summary>
+        /// Writes the given value to writeable fields. All FieldMode values are interpreted and callbacks are executed where applicable.
+        /// </summary>
+        public void Write(long offset, ulong value)
+        {
+            WriteInner(offset, value);
+        }
+
+        /// <summary>
+        /// Defines the read callback that is called once on each read, regardles of the number of defined register fields.
+        /// Note that it will also be called for unreadable registers.
+        /// </summary>
+        /// <param name="readCallback">Method to be called whenever this register is read. The first parameter is the value of this register before read,
+        /// the second parameter is the value after read.</param>
+        public void DefineReadCallback(Action<ulong, ulong> readCallback)
+        {
+            readCallbacks.Add(readCallback);
+        }
+
+        /// <summary>
+        /// Defines the write callback that is called once on each write, regardles of the number of defined register fields.
+        /// Note that it will also be called for unwrittable registers.
+        /// </summary>
+        /// <param name="writeCallback">Method to be called whenever this register is written to. The first parameter is the value of this register before write,
+        /// the second parameter is the value written (without any modification).</param>
+        public void DefineWriteCallback(Action<ulong, ulong> writeCallback)
+        {
+            writeCallbacks.Add(writeCallback);
+        }
+
+        /// <summary>
+        /// Defines the change callback that is called once on each change, regardles of the number of defined register fields.
+        /// Note that it will also be called for unwrittable registers.
+        /// </summary>
+        /// <param name="changeCallback">Method to be called whenever this register's value is changed, either due to read or write. The first parameter is the value of this register before change,
+        /// the second parameter is the value after change.</param>
+        public void DefineChangeCallback(Action<ulong, ulong> changeCallback)
+        {
+            changeCallbacks.Add(changeCallback);
+        }
+
+        /// <summary>
+        /// Gets the underlying value without any modification or reaction.
+        /// </summary>
+        public ulong Value
+        {
+            get
+            {
+                return UnderlyingValue;
+            }
+        }
+
+        protected override void CallChangeHandlers(ulong oldValue, ulong newValue)
+        {
+            CallHandlers(changeCallbacks, oldValue, newValue);
+        }
+
+        protected override void CallReadHandlers(ulong oldValue, ulong newValue)
+        {
+            CallHandlers(readCallbacks, oldValue, newValue);
+        }
+
+        protected override void CallWriteHandlers(ulong oldValue, ulong newValue)
+        {
+            CallHandlers(writeCallbacks, oldValue, newValue);
+        }
+
+        private List<Action<ulong, ulong>> readCallbacks = new List<Action<ulong, ulong>>();
+        private List<Action<ulong, ulong>> writeCallbacks = new List<Action<ulong, ulong>>();
+        private List<Action<ulong, ulong>> changeCallbacks = new List<Action<ulong, ulong>>();
+    }
+
+    /// <summary>
     /// 32 bit <see cref="PeripheralRegister"/>.
     /// </summary>
     public sealed class DoubleWordRegister : PeripheralRegister
