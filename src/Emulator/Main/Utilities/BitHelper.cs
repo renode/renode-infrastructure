@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Linq;
+using System.Diagnostics;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -73,7 +74,17 @@ namespace Antmicro.Renode.Utilities
 
         public static void ClearBits(ref uint reg, params byte[] bits)
         {
-            uint mask = 0xFFFFFFFFu;
+            uint mask = uint.MaxValue;
+            foreach(var bit in bits)
+            {
+                mask -= 1u << bit;
+            }
+            reg &= mask;
+        }
+
+        public static void ClearBits(ref ulong reg, params byte[] bits)
+        {
+            ulong mask = ulong.MaxValue;
             foreach(var bit in bits)
             {
                 mask -= 1u << bit;
@@ -83,7 +94,17 @@ namespace Antmicro.Renode.Utilities
 
         public static void ClearBits(ref uint reg, int position, int width)
         {
-            uint mask = 0xFFFFFFFFu;
+            uint mask = uint.MaxValue;
+            for(var i = 0; i < width; i++)
+            {
+                mask -= 1u << (position + i);
+            }
+            reg &= mask;
+        }
+
+        public static void ClearBits(ref ulong reg, int position, int width)
+        {
+            ulong mask = ulong.MaxValue;
             for(var i = 0; i < width; i++)
             {
                 mask -= 1u << (position + i);
@@ -190,6 +211,12 @@ namespace Antmicro.Renode.Utilities
             return (reg & mask) != 0;
         }
 
+        public static bool AreAnyBitsSet(ulong reg, int position, int width)
+        {
+            var mask = CalculateQuadWordMask(width, position);
+            return (reg & mask) != 0;
+        }
+
         public static void UpdateWithShifted(ref uint reg, uint newValue, int position, int width)
         {
             UpdateWith(ref reg, newValue << position, position, width);
@@ -205,6 +232,11 @@ namespace Antmicro.Renode.Utilities
             reg = (reg & ~mask) | (newValue & mask);
         }
 
+        public static void UpdateWithMasked(ref ulong reg, ulong newValue, ulong mask)
+        {
+            reg = (reg & ~mask) | (newValue & mask);
+        }
+
         public static void UpdateWith(ref uint reg, uint newValue, int position, int width)
         {
             var mask = CalculateMask(width, position);
@@ -213,7 +245,7 @@ namespace Antmicro.Renode.Utilities
 
         public static void UpdateWith(ref ulong reg, ulong newValue, int position, int width)
         {
-            var mask = CalculateMask(width, position);
+            var mask = CalculateQuadWordMask(width, position);
             reg = (reg & ~mask) | (newValue & mask);
         }
 
@@ -223,15 +255,33 @@ namespace Antmicro.Renode.Utilities
             reg |= (newValue & mask);
         }
 
+        public static void OrWith(ref ulong reg, ulong newValue, int position, int width)
+        {
+            var mask = CalculateQuadWordMask(width, position);
+            reg |= (newValue & mask);
+        }
+
         public static void AndWithNot(ref uint reg, uint newValue, int position, int width)
         {
             var mask = CalculateMask(width, position);
             reg &= ~(newValue & mask);
         }
 
+        public static void AndWithNot(ref ulong reg, ulong newValue, int position, int width)
+        {
+            var mask = CalculateQuadWordMask(width, position);
+            reg &= ~(newValue & mask);
+        }
+
         public static void XorWith(ref uint reg, uint newValue, int position, int width)
         {
             var mask = CalculateMask(width, position);
+            reg ^= (newValue & mask);
+        }
+
+        public static void XorWith(ref ulong reg, ulong newValue, int position, int width)
+        {
+            var mask = CalculateQuadWordMask(width, position);
             reg ^= (newValue & mask);
         }
 
@@ -317,7 +367,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public static IList<int> GetSetBits(uint reg)
+        public static IList<int> GetSetBits(ulong reg)
         {
             var result = new List<int>();
             var pos = 0;
@@ -335,7 +385,7 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
-        public static string GetSetBitsPretty(uint reg)
+        public static string GetSetBitsPretty(ulong reg)
         {
             var setBits = new HashSet<int>(GetSetBits(reg));
             if(setBits.Count == 0)
@@ -347,7 +397,7 @@ namespace Antmicro.Renode.Utilities
             return beginnings.Select((x, i) => endings[i] == x ? x.ToString() : string.Format("{0}-{1}", x, endings[i])).Stringify(", ");
         }
 
-        public static void ForeachActiveBit(uint reg, Action<byte> action)
+        public static void ForeachActiveBit(ulong reg, Action<byte> action)
         {
             byte pos = 0;
             while(reg > 0)
@@ -386,15 +436,14 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public static bool[] GetBits(ulong reg)
+        {
+            return GetBitsInner(reg, 64);
+        }
+
         public static bool[] GetBits(uint reg)
         {
-            var result = new bool[32];
-            for(var i = 0; i < 32; ++i)
-            {
-                result[i] = (reg & 1u) == 1;
-                reg >>= 1;
-            }
-            return result;
+            return GetBitsInner(reg, 32);
         }
 
         public static byte GetValue(byte reg, int offset, int size)
@@ -426,16 +475,30 @@ namespace Antmicro.Renode.Utilities
 
         public static uint GetMaskedValue(uint reg, int maskOffset, int maskSize)
         {
-            var mask = ((0x1u << maskSize) - 1);
-            return reg & (mask << maskOffset);
+            return reg & CalculateMask(maskSize, maskOffset);
+        }
+
+        public static ulong GetMaskedValue(ulong reg, int maskOffset, int maskSize)
+        {
+            return reg & CalculateQuadWordMask(maskSize, maskOffset);
         }
 
         public static void SetMaskedValue(ref uint reg, uint value, int maskOffset, int maskSize)
         {
-            var mask = ((0x1u << maskSize) - 1);
+            var mask = CalculateMask(maskSize, maskOffset);
+            value <<= maskOffset;
             value &= mask;
-            reg &= ~(mask << maskOffset);
-            reg |= value << maskOffset;
+            reg &= ~mask;
+            reg |= value;
+        }
+
+        public static void SetMaskedValue(ref ulong reg, ulong value, int maskOffset, int maskSize)
+        {            
+            var mask = CalculateQuadWordMask(maskSize, maskOffset);
+            value <<= maskOffset;
+            value &= mask;
+            reg &= ~mask;
+            reg |= value;
         }
 
         public static uint GetValueFromBitsArray(IEnumerable<bool> array)
@@ -498,14 +561,28 @@ namespace Antmicro.Renode.Utilities
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
-            if(width == 32 && position == 0)
+            const int MaxWidth = 32;
+            AssertMaskParameters(width, position, MaxWidth);
+            if(width == MaxWidth && position == 0)
             {
                 return uint.MaxValue;
             }
             return (1u << width) - 1 << position;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]  
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong CalculateQuadWordMask(int width, int position)
+        {
+            const int MaxWidth = 64;
+            AssertMaskParameters(width, position, MaxWidth);
+            if(width == MaxWidth && position == 0)
+            {
+                return ulong.MaxValue;
+            }
+            return (1ul << width) - 1 << position;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint ReverseBitsByByte(uint i)
         {
             i = ((i >> 1) & 0x55555555) | ((i & 0x55555555) << 1);
@@ -561,6 +638,23 @@ namespace Antmicro.Renode.Utilities
         public static ulong ReverseBytes(ulong v)
         {
             return ((ulong)ReverseBytes((uint)v) << 32) | ReverseBytes((uint)(v >> 32));
+        }
+
+        private static void AssertMaskParameters(int width, int position, int maxWidth)
+        {
+            Debug.Assert(width >= 0 && position >= 0, $"Width (0x{width:X}) and position (0x{position:X}) should be grater than 0.");
+            Debug.Assert(checked(width + position) <= maxWidth, $"Sum of width (0x{width:X}) and position (0x{position:X}) should be lower than or equal to {maxWidth}.");
+        }
+
+        private static bool[] GetBitsInner(ulong reg, int length)
+        {
+            var result = new bool[length];
+            for(var i = 0; i < result.Length; ++i)
+            {
+                result[i] = (reg & 1u) == 1;
+                reg >>= 1;
+            }
+            return result;
         }
 
         // TODO: enumerator + lazy calculation
