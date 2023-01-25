@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -271,6 +271,11 @@ namespace Antmicro.Renode.Core
         public SymbolType Type { get; private set; }
         public SymbolBinding Binding { get; private set; }
         public bool IsThumbSymbol { get; private set; }
+
+        public bool IsLabel =>
+            Type != SymbolType.Function &&
+            (Binding == SymbolBinding.Local || Binding == SymbolBinding.Weak) &&
+            Length == 0;
 
         private void UpdateIsThumbSymbol()
         {
