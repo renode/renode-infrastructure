@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -35,12 +35,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
             }
 
-            protected override uint FromBinary(uint value)
+            protected override uint FromBinary(ulong value)
             {
-                return value;
+                return (uint)value;
             }
 
-            protected override uint ToBinary(uint value)
+            protected override ulong ToBinary(uint value)
             {
                 return value;
             }
@@ -54,14 +54,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
             }
 
-            protected override TEnum FromBinary(uint value)
+            protected override TEnum FromBinary(ulong value)
             {
                 return EnumConverter<TEnum>.ToEnum(value);
             }
 
-            protected override uint ToBinary(TEnum value)
+            protected override ulong ToBinary(TEnum value)
             {
-                return EnumConverter<TEnum>.ToUInt(value);
+                return EnumConverter<TEnum>.ToUInt64(value);
             }
         }
 
@@ -73,12 +73,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
             }
 
-            protected override bool FromBinary(uint value)
+            protected override bool FromBinary(ulong value)
             {
                 return value != 0;
             }
 
-            protected override uint ToBinary(bool value)
+            protected override ulong ToBinary(bool value)
             {
                 return value ? 1u : 0;
             }
@@ -94,9 +94,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 }
                 set
                 {
-                    var binary = ToBinary(value);
-                    // '1' must be of type long as width can have value up to 32 (shifting int of 32 bit would lead to overflow)
-                    if(binary >= (1L << width))
+                    ulong binary = ToBinary(value);
+                    if((binary >> width) > 0 && width < 64)
                     {
                         throw new ArgumentException("Value exceeds the size of the field.");
                     }
@@ -106,7 +105,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
             public int Width => width;
 
-            public override void CallReadHandler(uint oldValue, uint newValue)
+            public override void CallReadHandler(ulong oldValue, ulong newValue)
             {
                 if(readCallback != null)
                 {
@@ -116,7 +115,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 }
             }
 
-            public override void CallWriteHandler(uint oldValue, uint newValue)
+            public override void CallWriteHandler(ulong oldValue, ulong newValue)
             {
                 if(writeCallback != null)
                 {
@@ -126,7 +125,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 }
             }
 
-            public override void CallChangeHandler(uint oldValue, uint newValue)
+            public override void CallChangeHandler(ulong oldValue, ulong newValue)
             {
                 if(changeCallback != null)
                 {
@@ -136,7 +135,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 }
             }
 
-            public override uint CallValueProviderHandler(uint currentValue)
+            public override ulong CallValueProviderHandler(ulong currentValue)
             {
                 if(valueProviderCallback != null)
                 {
@@ -165,9 +164,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 this.valueProviderCallback = valueProviderCallback;
             }
 
-            protected abstract T FromBinary(uint value);
+            protected abstract T FromBinary(ulong value);
 
-            protected abstract uint ToBinary(T value);
+            protected abstract ulong ToBinary(T value);
 
             private readonly Action<T, T> readCallback;
             private readonly Action<T, T> writeCallback;
@@ -177,13 +176,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         private abstract class RegisterField
         {
-            public abstract void CallReadHandler(uint oldValue, uint newValue);
+            public abstract void CallReadHandler(ulong oldValue, ulong newValue);
 
-            public abstract void CallWriteHandler(uint oldValue, uint newValue);
+            public abstract void CallWriteHandler(ulong oldValue, ulong newValue);
 
-            public abstract void CallChangeHandler(uint oldValue, uint newValue);
+            public abstract void CallChangeHandler(ulong oldValue, ulong newValue);
 
-            public abstract uint CallValueProviderHandler(uint currentValue);
+            public abstract ulong CallValueProviderHandler(ulong currentValue);
 
             public readonly int position;
             public readonly int width;
@@ -201,18 +200,18 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 this.width = width;
             }
 
-            protected uint FilterValue(uint value)
+            protected ulong FilterValue(ulong value)
             {
                 return BitHelper.GetValue(value, position, width);
             }
 
-            protected uint UnfilterValue(uint baseValue, uint fieldValue)
+            protected ulong UnfilterValue(ulong baseValue, ulong fieldValue)
             {
                 BitHelper.UpdateWithShifted(ref baseValue, fieldValue, position, width);
                 return baseValue;
             }
 
-            protected void WriteFiltered(uint value)
+            protected void WriteFiltered(ulong value)
             {
                 BitHelper.UpdateWithShifted(ref parent.UnderlyingValue, value, position, width);
             }
