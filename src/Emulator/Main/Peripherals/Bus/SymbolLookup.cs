@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -296,6 +296,7 @@ namespace Antmicro.Renode.Core
             {
                 var sortedIntervals = SelectDistinctViaImportance(newSymbols).ToArray();
                 Array.Sort(sortedIntervals, comparer);
+                sortedIntervals = DropUnusedLabels(sortedIntervals).ToArray();
 
                 if(Count > 0)
                 {
@@ -408,6 +409,42 @@ namespace Antmicro.Renode.Core
             /// </summary>
             /// <value>The count.</value>
             public int Count { get; private set; }
+
+            /// <summary>
+            /// Filters out the symbols that are just labels and are also covered by non-label symbols.
+            /// </summary>
+            /// <param name="symbols">Sorted collection of symbols.</param>
+            private IEnumerable<Symbol> DropUnusedLabels(IEnumerable<Symbol> symbols)
+            {
+                Symbol currentSymbol = null;
+                foreach(var symbol in symbols)
+                {
+                    // only include labels that are not part of other symbols
+                    if(!symbol.IsLabel)
+                    {
+                        if(currentSymbol == null || !currentSymbol.Contains(symbol))
+                        {
+                            // we advance currentSymbol only if we're in topmost (largest) symbol of the stack.
+                            // The reason is that it will definitely contain all smaller ones and we will not miss this situation:
+                            //
+                            //  aaaaaa  i
+                            // xxxxxxxxxxxxx
+                            //
+                            // in which `i` is not contained by `a`, but is contained by `x`.
+                            currentSymbol = symbol;
+                        }
+                        yield return symbol;
+                    }
+                    else
+                    {
+                        // label
+                        if(currentSymbol == null || !currentSymbol.Contains(symbol))
+                        {
+                            yield return symbol;
+                        }
+                    }
+                }
+            }
 
             /// <summary>
             /// Consumes whole cake from provider
