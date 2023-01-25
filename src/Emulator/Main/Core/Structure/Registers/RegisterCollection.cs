@@ -13,6 +13,128 @@ using System;
 namespace Antmicro.Renode.Core.Structure.Registers
 {
     /// <summary>
+    /// Quad word register collection, allowing to write and read from specified offsets.
+    /// </summary>
+    public class QuadWordRegisterCollection : IRegisterCollection
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.QuadWordRegisterCollection"/> class.
+        /// </summary>
+        /// <param name="parent">Parent peripheral (for logging purposes).</param>
+        /// <param name="registersMap">Map of register offsets and registers.</param>
+        public QuadWordRegisterCollection(IPeripheral parent, IDictionary<long, QuadWordRegister> registersMap = null)
+        {
+            this.parent = parent;
+            this.registers = (registersMap != null)
+                ? new Dictionary<long, QuadWordRegister>(registersMap)
+                : new Dictionary<long, QuadWordRegister>();
+        }
+
+        /// <summary>
+        /// Returns the value of a register in a specified offset. If no such register is found, a logger message is issued.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        public ulong Read(long offset)
+        {
+            ulong result;
+            if(TryRead(offset, out result))
+            {
+                return result;
+            }
+            parent.LogUnhandledRead(offset);
+            return 0;
+        }
+
+        /// <summary>
+        /// Looks for a register in a specified offset.
+        /// </summary>
+        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="result">Read value.</param>
+        public bool TryRead(long offset, out ulong result)
+        {
+            QuadWordRegister register;
+            if(registers.TryGetValue(offset, out register))
+            {
+                result = register.Read();
+                return true;
+            }
+            result = 0;
+            return false;
+        }
+
+        /// <summary>
+        /// Writes to a register in a specified offset. If no such register is found, a logger message is issued.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="value">Value to write.</param>
+        public void Write(long offset, ulong value)
+        {
+            if(!TryWrite(offset, value))
+            {
+                parent.LogUnhandledWrite(offset, value);
+            }
+        }
+
+        /// <summary>
+        /// Tries to write to a register in a specified offset.
+        /// </summary>
+        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="value">Value to write.</param>
+        public bool TryWrite(long offset, ulong value)
+        {
+            QuadWordRegister register;
+            if(registers.TryGetValue(offset, out register))
+            {
+                register.Write(offset, value);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Resets all registers in this collection.
+        /// </summary>
+        public void Reset()
+        {
+            foreach(var register in registers.Values)
+            {
+                register.Reset();
+            }
+        }
+
+        /// <summary>
+        /// Defines a new register and adds it to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="resetValue">Register reset value.</param>
+        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
+        /// <returns>Newly added register.</returns>
+        public QuadWordRegister DefineRegister(long offset, ulong resetValue = 0, bool softResettable = true)
+        {
+            var reg = new QuadWordRegister(parent, resetValue);
+            registers.Add(offset, reg);
+            return reg;
+        }
+
+        /// <summary>
+        /// Adds an existing register to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="register">Register to add.</param>
+        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
+        public QuadWordRegister AddRegister(long offset, QuadWordRegister register)
+        {
+            registers.Add(offset, register);
+            return register;
+        }
+
+        private readonly IPeripheral parent;
+        private readonly IDictionary<long, QuadWordRegister> registers;
+    }
+
+    /// <summary>
     /// Double word register collection, allowing to write and read from specified offsets.
     /// </summary>
     public class DoubleWordRegisterCollection : IRegisterCollection
