@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Logging
             peripheral.Log(LogLevel.Warning, "Unhandled read from offset 0x{0:X}.", offset);
         }
 
-        public static void LogUnhandledWrite(this IPeripheral peripheral, long offset, long value)
+        public static void LogUnhandledWrite(this IPeripheral peripheral, long offset, ulong value)
         {
             peripheral.Log(LogLevel.Warning, "Unhandled write to offset 0x{0:X}, value 0x{1:X}.", offset, value);
         }
