@@ -34,6 +34,4 @@ namespace Antmicro.Renode.Utilities
             return dynamicMethod.Compile();
         }
     }
-
 }
-

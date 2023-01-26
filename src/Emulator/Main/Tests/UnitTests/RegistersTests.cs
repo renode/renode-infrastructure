@@ -30,7 +30,6 @@ namespace Antmicro.Renode.UnitTests
             Assert.Catch<ArgumentException>(() => localRegister.DefineValueField(0, -1));
         }
 
-
         [Test]
         public void ShouldNotExceedRegisterSize()
         {
@@ -434,4 +433,3 @@ namespace Antmicro.Renode.UnitTests
         }
     }
 }
-

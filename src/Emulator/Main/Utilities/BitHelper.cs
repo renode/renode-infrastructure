@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Utilities
             {
                 throw new ArgumentException("width not in [0,64]");
             }
-            ulong mask = (width == 64) 
+            ulong mask = (width == 64)
                 ? ulong.MaxValue
                 : (ulong)((1ul << width) - 1);
 
@@ -512,7 +512,7 @@ namespace Antmicro.Renode.Utilities
             i = ((i >> 2) & 0x33333333) | ((i & 0x33333333) << 2);
             return ((i >> 4) & 0x0F0F0F0F) | ((i & 0x0F0F0F0F) << 4);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint ReverseBitsByWord(uint i)
         {
@@ -744,4 +744,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-

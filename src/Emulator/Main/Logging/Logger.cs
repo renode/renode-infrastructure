@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -313,16 +313,16 @@ namespace Antmicro.Renode.Logging
                 // stucking forever in the loop below
                 var localEntries = entries;
                 entries = new BlockingCollection<LogEntry>(10000);
-                
+
                 while(localEntries.TryTake(out var entry))
                 {
                     // we set ids here to avoid the need of locking counter in `ObjectInnerLog`
                     entry.Id = Logger.nextEntryId++;
                     WriteLogEntryToBackends(entry);
                 }
-                
+
                 FlushBackends();
-                StartLoggingThread(); 
+                StartLoggingThread();
             }
 
             private void LoggingThreadBody()

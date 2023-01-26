@@ -361,12 +361,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public void Tag(string name, int position, int width, uint? allowedValue = null)
         {
             ThrowIfRangeIllegal(position, width, name);
-            
+
             if(allowedValue != null)
             {
                 ThrowIfAllowedValueDoesNotFitInWidth(width, allowedValue.Value, name);
             }
-            
+
             tags.Add(new Tag
             {
                 Name = name,
@@ -534,41 +534,41 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 //switch is OK, because write modes are exclusive.
                 switch(registerField.fieldMode.WriteBits())
                 {
-                case FieldMode.Write:
-                    if(BitHelper.AreAnyBitsSet(difference, registerField.position, registerField.width))
-                    {
-                        BitHelper.UpdateWith(ref UnderlyingValue, value, registerField.position, registerField.width);
-                        changedRegisters.Add(registerField);
-                    }
-                    break;
-                case FieldMode.Set:
-                    if(BitHelper.AreAnyBitsSet(setRegisters, registerField.position, registerField.width))
-                    {
-                        BitHelper.OrWith(ref UnderlyingValue, setRegisters, registerField.position, registerField.width);
-                        changedRegisters.Add(registerField);
-                    }
-                    break;
-                case FieldMode.Toggle:
-                    if(BitHelper.AreAnyBitsSet(value, registerField.position, registerField.width))
-                    {
-                        BitHelper.XorWith(ref UnderlyingValue, value, registerField.position, registerField.width);
-                        changedRegisters.Add(registerField);
-                    }
-                    break;
-                case FieldMode.WriteOneToClear:
-                    if(BitHelper.AreAnyBitsSet(~difference, registerField.position, registerField.width))
-                    {
-                        BitHelper.AndWithNot(ref UnderlyingValue, value, registerField.position, registerField.width);
-                        changedRegisters.Add(registerField);
-                    }
-                    break;
-                case FieldMode.WriteZeroToClear:
-                    if(BitHelper.AreAnyBitsSet(difference, registerField.position, registerField.width))
-                    {
-                        BitHelper.AndWithNot(ref UnderlyingValue, ~value, registerField.position, registerField.width);
-                        changedRegisters.Add(registerField);
-                    }
-                    break;
+                    case FieldMode.Write:
+                        if(BitHelper.AreAnyBitsSet(difference, registerField.position, registerField.width))
+                        {
+                            BitHelper.UpdateWith(ref UnderlyingValue, value, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.Set:
+                        if(BitHelper.AreAnyBitsSet(setRegisters, registerField.position, registerField.width))
+                        {
+                            BitHelper.OrWith(ref UnderlyingValue, setRegisters, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.Toggle:
+                        if(BitHelper.AreAnyBitsSet(value, registerField.position, registerField.width))
+                        {
+                            BitHelper.XorWith(ref UnderlyingValue, value, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.WriteOneToClear:
+                        if(BitHelper.AreAnyBitsSet(~difference, registerField.position, registerField.width))
+                        {
+                            BitHelper.AndWithNot(ref UnderlyingValue, value, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.WriteZeroToClear:
+                        if(BitHelper.AreAnyBitsSet(difference, registerField.position, registerField.width))
+                        {
+                            BitHelper.AndWithNot(ref UnderlyingValue, ~value, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
                 }
             }
             foreach(var registerField in registerFields)
@@ -591,7 +591,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 parent.Log(LogLevel.Warning, TagLogger(offset, unhandledWrites, value));
             }
-            
+
             if(InvalidTagValues(offset, value, out var invalidValueLog))
             {
                 parent.Log(LogLevel.Error, invalidValueLog);
@@ -648,13 +648,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
             if(invalidBits == 0)
             {
                 log = "";
-                return false; 
+                return false;
             }
 
             var writtenValue = "0b" + Convert.ToString(originalValue, 2).PadLeft(MaxRegisterLength, '0');
             var desiredValues = "0b";
-            
-            for(int i = MaxRegisterLength - 1; i >=0; i--)
+
+            for(int i = MaxRegisterLength - 1; i >= 0; i--)
             {
                 if(((allowedValuesMask >> i) & 1u) == 1)
                 {
@@ -669,7 +669,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return true;
         }
 
-            
+
         private void ThrowIfRangeIllegal(int position, int width, string name)
         {
             if(width < 0)

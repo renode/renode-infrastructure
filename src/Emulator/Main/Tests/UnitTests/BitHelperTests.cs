@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Utilities
         {
             Assert.AreEqual(0x00, BitHelper.ReverseBits((byte)0x00));
             Assert.AreEqual(0x00, BitHelper.ReverseBitsByByte(0x00));
-            Assert.AreEqual(0x4D, BitHelper.ReverseBits((byte)0xB2));            
+            Assert.AreEqual(0x4D, BitHelper.ReverseBits((byte)0xB2));
             Assert.AreEqual(0x1A2B3C4D, BitHelper.ReverseBitsByByte(0x58D43CB2));
         }
 
