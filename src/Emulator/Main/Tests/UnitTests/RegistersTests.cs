@@ -271,7 +271,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldHandle32BitWideRegistersProperly()
         {
             uint test = 0;
-            new DoubleWordRegister(null, 0).WithValueField(0, 32, writeCallback: (oldValue, newValue) => test = newValue).Write(0x0, 0xDEADBEEF);
+            new DoubleWordRegister(null, 0).WithValueField(0, 32, writeCallback: (oldValue, newValue) => test = (uint)newValue).Write(0x0, 0xDEADBEEF);
             Assert.AreEqual(0xDEADBEEF, test);
         }
 
@@ -335,14 +335,14 @@ namespace Antmicro.Renode.UnitTests
             newBoolValue = newValue;
         }
 
-        private void NumberCallback(uint oldValue, uint newValue)
+        private void NumberCallback(ulong oldValue, ulong newValue)
         {
             numberCallbacks++;
             oldNumberValue = oldValue;
             newNumberValue = newValue;
         }
 
-        private uint ModifyingValueCallback(uint currentValue)
+        private ulong ModifyingValueCallback(ulong currentValue)
         {
             if(enableValueProviders)
             {

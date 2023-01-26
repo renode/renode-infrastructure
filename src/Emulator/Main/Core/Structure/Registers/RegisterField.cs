@@ -27,20 +27,20 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
     public partial class PeripheralRegister
     {
-        private sealed class ValueRegisterField : RegisterField<uint>, IValueRegisterField
+        private sealed class ValueRegisterField : RegisterField<ulong>, IValueRegisterField
         {
-            public ValueRegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<uint, uint> readCallback,
-                Action<uint, uint> writeCallback, Action<uint, uint> changeCallback, Func<uint, uint> valueProviderCallback)
+            public ValueRegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<ulong, ulong> readCallback,
+                Action<ulong, ulong> writeCallback, Action<ulong, ulong> changeCallback, Func<ulong, ulong> valueProviderCallback)
                 : base(parent, position, width, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback)
             {
             }
 
-            protected override uint FromBinary(ulong value)
+            protected override ulong FromBinary(ulong value)
             {
-                return (uint)value;
+                return value;
             }
 
-            protected override ulong ToBinary(uint value)
+            protected override ulong ToBinary(ulong value)
             {
                 return value;
             }

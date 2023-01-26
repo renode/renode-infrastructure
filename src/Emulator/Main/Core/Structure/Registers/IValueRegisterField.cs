@@ -10,7 +10,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// Register field that provides an arbitrary numeric value, not exceeding the register's width.
     /// </summary>
-    public interface IValueRegisterField : IRegisterField<uint>
+    public interface IValueRegisterField : IRegisterField<ulong>
     {
     }
 }
