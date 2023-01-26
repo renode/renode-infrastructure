@@ -268,6 +268,14 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldHandle64BitWideRegistersProperly()
+        {
+            ulong test = 0;
+            new QuadWordRegister(null, 0).WithValueField(0, 64, writeCallback: (oldValue, newValue) => test = newValue).Write(0x0, 0xDEADBEEF01234567UL);
+            Assert.AreEqual(0xDEADBEEF01234567UL, test);
+        }
+
+        [Test]
         public void ShouldHandle32BitWideRegistersProperly()
         {
             uint test = 0;
