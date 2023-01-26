@@ -264,6 +264,39 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
     }
 
+    public static class QuadWordRegisterExtensions
+    {
+        /// <summary>
+        /// Fluent API for read callback registration. For description see <see cref="QuadWordRegister.DefineReadCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static QuadWordRegister WithReadCallback(this QuadWordRegister register, Action<ulong, ulong> readCallback)
+        {
+            register.DefineReadCallback(readCallback);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for write callback registration. For description see <see cref="QuadWordRegister.DefineWriteCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static QuadWordRegister WithWriteCallback(this QuadWordRegister register, Action<ulong, ulong> writeCallback)
+        {
+            register.DefineWriteCallback(writeCallback);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for change callback registration. For description see <see cref="QuadWordRegister.DefineChangeCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static QuadWordRegister WithChangeCallback(this QuadWordRegister register, Action<ulong, ulong> changeCallback)
+        {
+            register.DefineChangeCallback(changeCallback);
+            return register;
+        }
+    }
+
     public static class DoubleWordRegisterExtensions
     {
         /// <summary>
