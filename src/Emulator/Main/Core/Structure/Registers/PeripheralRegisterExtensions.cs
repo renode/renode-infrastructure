@@ -245,6 +245,28 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
+        /// </summary>
+        /// <returns>This register with a new "RESERVED" tag.</returns>
+        public static T WithReservedBits<T>(this T register, int position, int width, uint? allowedValue = null) where T : PeripheralRegister
+        {
+            register.Reserved(position, width, allowedValue);
+            return register;
+        }
+
+       /// <summary>
+        /// Fluent API for tagging bits as ignored.
+        /// </summary>
+        /// <returns>This defines a value field to avoid warnings about unhandled bits.</returns>
+        public static T WithIgnoredBits<T>(this T register, int position, int width) where T : PeripheralRegister
+        {
+            return register.WithValueField(position, width, name: "ignored");
+        }
+    }
+
+    public static class DoubleWordRegisterExtensions
+    {
+        /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="DoubleWordRegister.DefineReadCallback"/>.
         /// </summary>
         /// <returns>This register with a defined callback.</returns>
@@ -273,7 +295,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
             register.DefineChangeCallback(changeCallback);
             return register;
         }
+    }
 
+    public static class WordRegisterExtensions
+    {
         /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="WordRegister.DefineReadCallback"/>.
         /// </summary>
@@ -303,7 +328,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
             register.DefineChangeCallback(changeCallback);
             return register;
         }
+    }
 
+    public static class ByteRegisterExtensions
+    {
         /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="ByteRegister.DefineReadCallback"/>.
         /// </summary>
@@ -332,45 +360,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             register.DefineChangeCallback(changeCallback);
             return register;
-        }
-
-        /// <summary>
-        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
-        /// </summary>
-        /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static DoubleWordRegister WithReservedBits(this DoubleWordRegister register, int position, int width, uint? allowedValue = null)
-        {
-            register.Reserved(position, width, allowedValue);
-            return register;
-        }
-
-        /// <summary>
-        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
-        /// </summary>
-        /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static WordRegister WithReservedBits(this WordRegister register, int position, int width, uint? allowedValue = null)
-        {
-            register.Reserved(position, width, allowedValue);
-            return register;
-        }
-
-        /// <summary>
-        /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
-        /// </summary>
-        /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static ByteRegister WithReservedBits(this ByteRegister register, int position, int width, uint? allowedValue = null)
-        {
-            register.Reserved(position, width, allowedValue);
-            return register;
-        }
-
-        /// <summary>
-        /// Fluent API for tagging bits as ignored.
-        /// </summary>
-        /// <returns>This defines a value field to avoid warnings about unhandled bits.</returns>
-        public static R WithIgnoredBits<R>(this R register, int position, int width) where R : PeripheralRegister
-        {
-            return register.WithValueField(position, width, name: "ignored");
         }
     }
 }
