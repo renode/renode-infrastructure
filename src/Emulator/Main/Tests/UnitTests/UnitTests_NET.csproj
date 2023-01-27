@@ -5,9 +5,6 @@
     <AssemblyName>UnitTests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Using Include="Antmicro.Renode.Core.Range" Alias="Range" />
-  </ItemGroup>
-  <ItemGroup>
     <!-- Do not compile. It is included as an embedded resource to test AdHocCompiler. -->
     <Compile Remove="Mocks\MockExtension.cs" />
   </ItemGroup>

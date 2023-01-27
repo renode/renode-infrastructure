@@ -7,9 +7,6 @@
   </PropertyGroup>
   <Import Project="$(PropertiesLocation)" />
   <ItemGroup>
-    <Using Include="Antmicro.Renode.Core.Range" Alias="Range" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" Condition=" $(OS) != 'Windows_NT'" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="System.Drawing.Common" Version="5.0.2" />
