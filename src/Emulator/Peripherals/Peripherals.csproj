@@ -476,6 +476,7 @@
     <Compile Include="Peripherals\Analog\MAX32650_ADC.cs" />
     <Compile Include="Peripherals\Mocks\HPSHostController.cs" />
     <Compile Include="Peripherals\Mocks\I2CHost.cs" />
+    <Compile Include="Peripherals\Mocks\SpiHost.cs" />
     <Compile Include="Peripherals\Miscellaneous\MAX32650_TPU.cs" />
     <Compile Include="Peripherals\SPI\MAX32650_SPI.cs" />
     <Compile Include="Peripherals\Miscellaneous\BitAccess.cs" />
@@ -492,6 +493,7 @@
     <Compile Include="Peripherals\Miscellaneous\STM32L0_RCC.cs" />
     <Compile Include="Peripherals\Sensors\LSM6DSO_IMU.cs" />
     <Compile Include="Peripherals\SPI\OpenTitan_SpiHost.cs" />
+    <Compile Include="Peripherals\SPI\OpenTitan_SpiDevice.cs" />
     <Compile Include="Peripherals\SPI\Cadence_SPI.cs" />
     <Compile Include="Peripherals\Timers\IMX_GPTimer.cs" />
     <Compile Include="Peripherals\Sensors\MAX86171.cs" />
