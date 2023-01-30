@@ -179,6 +179,7 @@
     <Compile Include="Hooks\InterruptPythonEngine.cs" />
     <Compile Include="UserInterface\InlineImage.cs" />
     <Compile Include="HostInterfaces\Camera\HostCamera.cs" />
+    <Compile Include="UserInterface\Commands\CoverageCommand.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
@@ -222,6 +223,14 @@
     <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt.csproj">
       <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
       <Name>Xwt</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\Renode\Integrations\Gcov\Gcov\Gcov.csproj">
+      <Project>{46c3c820-dab7-4598-aedd-bb5498df9398}</Project>
+      <Name>Gcov</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\DWARF\DWARF.csproj">
+      <Project>{039C1D3F-9E52-4EBF-AB37-E6315DD8AC56}</Project>
+      <Name>DWARF</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

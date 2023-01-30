@@ -625,6 +625,10 @@
       <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
       <Name>ELFSharp</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\DWARF\DWARF.csproj">
+      <Project>{039C1D3F-9E52-4EBF-AB37-E6315DD8AC56}</Project>
+      <Name>ELFSharp</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet.csproj">
       <Project>{55ABBA4C-AAF9-4726-A592-0C92436CEC92}</Project>
       <Name>PacketDotNet</Name>
