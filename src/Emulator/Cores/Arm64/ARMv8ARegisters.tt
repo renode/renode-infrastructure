@@ -1,0 +1,18 @@
+﻿<#
+//
+// Copyright (c) 2010-2023 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
+<#
+    CLASS_NAME = "ARMv8A";
+    HEADER_FILE = "Emulator/Cores/tlib/arch/arm64/cpu_registers.h";
+    DEFINES.Add("TARGET_ARM64");
+
+    GENERAL_REGISTERS.AddRange(new[] { "X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23", "X24", "X25", "X26", "X27", "X28", "X29", "X30", "SP", "PC", "PSTATE" });
+#>
+<#@ include file="../Common/RegisterTemplate.tt" #>

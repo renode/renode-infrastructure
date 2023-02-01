@@ -1,0 +1,43 @@
+<Project DefaultTargets="CompileTranslationLib;Build" Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <AssemblyName>cores-arm64</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <Target Name="SetEndianess" BeforeTargets="Build">
+    <!-- Endianess cannot be set directly in Project tag, as it would be visible in Monodevelop then -->
+    <PropertyGroup>
+      <Architecture>arm64</Architecture>
+      <EmulatedTarget>arm64</EmulatedTarget>
+      <TargetWordSize>64</TargetWordSize>
+      <TargetInsnStartExtraWords>2</TargetInsnStartExtraWords>
+    </PropertyGroup>
+    <ItemGroup>
+      <Endianess Include="le" />
+    </ItemGroup>
+  </Target>
+  <Import Project="./cores.template_NET.csproj" />
+  <ItemGroup>
+    <Compile Include="Arm64\ARMv8A.cs" />
+    <Compile Include="Arm64\ARMv8ARegisters.cs">
+      <DependentUpon>ARMv8ARegisters.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Arm64\ARMv8ARegisters.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ARMv8ARegisters.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Main\Emulator_NET.csproj"/>
+    <ProjectReference Include="cores-arm_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
+    <ProjectReference Include="..\Extensions\Extensions_NET.csproj"/>
+    <ProjectReference Include="..\Peripherals\Peripherals_NET.csproj"/>
+  </ItemGroup>
+</Project>
