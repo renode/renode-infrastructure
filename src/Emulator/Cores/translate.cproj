@@ -62,7 +62,12 @@
           <CompilationFlags Include="-Wextra" />
           <CompilationFlags Include="-Wno-unused-parameter" />
           <CompilationFlags Include="-Wno-sign-compare" />
-          <CompilationFlags Include="-Werror" />
+          <!-- Clang warns about "too many arguments in call" whenever a stub (arm64/stubs.h) is called with arguments.
+               The stubs hackishly use the fact that a function defined without a "void" argument can be actually called with arguments.
+               There's no way to turn off these warnings so for now simply let's not convert warnings to errors on macOS for arm64.
+
+               TODO: Remove the condition when we get rid of the stubs or when stubs are implemented in a different way. -->
+          <CompilationFlags Include="-Werror" Condition=" $(CurrentPlatform) != 'OSX' or $(TargetArchitecture) != 'arm64' "/>
           <CompilationFlags Include="-DCONFIG_NEED_MMU" />
           <CompilationFlags Include="-DTCG_TARGET_$(HostUpper)" />
           <CompilationFlags Include="-DHOST_BITS_64" />
