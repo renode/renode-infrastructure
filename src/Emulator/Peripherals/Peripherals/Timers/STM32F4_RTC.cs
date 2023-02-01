@@ -563,7 +563,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         public void Reset()
         {
             registers.Reset();
-            ticker.Reset();
             AlarmIRQ.Unset();
             WakeupIRQ.Unset();
             ResetInnerTimers();
@@ -598,6 +597,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void ResetInnerTimers()
         {
             mainTimer.Reset();
+            ticker.Reset();
             alarmA.Reset();
             alarmB.Reset();
             wakeupTimer.Reset();
