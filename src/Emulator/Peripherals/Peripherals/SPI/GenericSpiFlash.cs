@@ -220,6 +220,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
+                case (byte)Commands.Read4byte:
+                case (byte)Commands.FastRead4byte:
+                case (byte)Commands.DualOutputFastRead4byte:
+                case (byte)Commands.DualInputOutputFastRead4byte:
+                case (byte)Commands.QuadOutputFastRead4byte:
+                case (byte)Commands.QuadInputOutputFastRead4byte:
+                case (byte)Commands.DtrFastRead4byte:
+                case (byte)Commands.DtrDualInputOutputFastRead4byte:
+                case (byte)Commands.DtrQuadInputOutputFastRead4byte:
+                    currentOperation.Operation = DecodedOperation.OperationType.Read;
+                    currentOperation.AddressLength = 4;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                    break;
                 case (byte)Commands.PageProgram:
                 case (byte)Commands.DualInputFastProgram:
                 case (byte)Commands.ExtendedDualInputFastProgram:
@@ -227,6 +240,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.ExtendedQuadInputFastProgram:
                     currentOperation.Operation = DecodedOperation.OperationType.Program;
                     currentOperation.AddressLength = NumberOfAddressBytes;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                    break;
+                case (byte)Commands.PageProgram4byte:
+                case (byte)Commands.QuadInputFastProgram4byte:
+                    currentOperation.Operation = DecodedOperation.OperationType.Program;
+                    currentOperation.AddressLength = 4;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.WriteEnable:
@@ -265,6 +284,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.ChipErase:
                     this.Log(LogLevel.Noisy, "Performing bulk/chip erase");
                     EraseChip();
+                    break;
+                case (byte)Commands.SubsectorErase4byte4kb:
+                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
+                    currentOperation.AddressLength = 4;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                    break;
+                case (byte)Commands.SectorErase4byte:
+                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
+                    currentOperation.AddressLength = 4;
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.Enter4byteAddressMode:
                     this.Log(LogLevel.Noisy, "Entering 4-byte address mode");
