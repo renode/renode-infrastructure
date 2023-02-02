@@ -266,6 +266,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     this.Log(LogLevel.Noisy, "Performing bulk/chip erase");
                     EraseChip();
                     break;
+                case (byte)Commands.Enter4byteAddressMode:
+                    this.Log(LogLevel.Noisy, "Entering 4-byte address mode");
+                    addressingMode.Value = AddressingMode.FourByte;
+                    break;
+                case (byte)Commands.Exit4byteAddressMode:
+                    this.Log(LogLevel.Noisy, "Exiting 4-byte address mode");
+                    addressingMode.Value = AddressingMode.ThreeByte;
+                    break;
                 case (byte)Commands.ReadStatusRegister:
                     currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
                     currentOperation.Register = (uint)Register.Status;
