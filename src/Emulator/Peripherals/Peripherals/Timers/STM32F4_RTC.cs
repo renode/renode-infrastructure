@@ -309,7 +309,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 value += 0x10000;
                             }
 
-                            wakeupTimer.Limit = value;
+                            // The wakeup timer flag needs to be set every (WUT + 1) cycles of the wakeup timer.
+                            wakeupTimer.Limit = value + 1;
                         },
                         valueProviderCallback: _ => (uint)wakeupTimer.Limit)
                     .WithReservedBits(16, 16)
