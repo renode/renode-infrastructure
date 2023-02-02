@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
     {
         public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType,
-            bool writeStatusCanSetWriteEnable = true)
+            bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID)
         {
             if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
@@ -52,6 +52,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             this.manufacturerId = manufacturerId;
             this.memoryType = memoryType;
+            this.extendedDeviceId = extendedDeviceId;
 
             deviceData = GetDeviceData();
         }
@@ -177,7 +178,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             data[1] = memoryType;
             data[2] = capacityCode;
             data[3] = RemainingIDBytes;
-            data[4] = ExtendedDeviceID;
+            data[4] = extendedDeviceId;
             data[5] = DeviceConfiguration;
             // unique ID code (bytes 7:20)
             return data;
@@ -596,12 +597,12 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly MappedMemory underlyingMemory;
         private readonly byte manufacturerId;
         private readonly byte memoryType;
-
+        private readonly byte extendedDeviceId;
         private const byte EmptySegment = 0xff;
         private const byte RemainingIDBytes = 0x10;
         private const byte DeviceConfiguration = 0x0;   // standard
         private const byte DeviceGeneration = 0x1;      // 2nd generation
-        private const byte ExtendedDeviceID = DeviceGeneration << 6;
+        private const byte DefaultExtendedDeviceID = DeviceGeneration << 6;
 
         // Based on TN-25-06 sepicification
         private readonly byte[] SFDPSignature = new byte[] 

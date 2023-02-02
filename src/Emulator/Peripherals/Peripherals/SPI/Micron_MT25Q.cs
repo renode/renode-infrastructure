@@ -12,8 +12,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class Micron_MT25Q : GenericSpiFlash
     {
-        public Micron_MT25Q(MappedMemory underlyingMemory)
-            : base(underlyingMemory, manufacturerId: ManufacturerId, memoryType: MemoryType)
+        public Micron_MT25Q(MappedMemory underlyingMemory, byte extendedDeviceId = DefaultExtendedDeviceId)
+            : base(underlyingMemory, manufacturerId: ManufacturerId, memoryType: MemoryType, extendedDeviceId: extendedDeviceId)
         {
             // original MT25Q supports capacity 8MB to 256MB,
             // but we extended it down to 64KB
@@ -26,5 +26,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private const byte ManufacturerId = 0x20;
         private const byte MemoryType = 0xBB; // device voltage: 1.8V
+        private const byte DefaultExtendedDeviceId = 0x00;
     }
 }
