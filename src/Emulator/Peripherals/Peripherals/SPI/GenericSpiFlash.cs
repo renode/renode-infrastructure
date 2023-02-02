@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             volatileConfigurationRegister = new ByteRegister(this, 0xfb).WithFlag(3, name: "XIP");
-            nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithFlag(0, out numberOfAddressBytes, name: "addressWith3Bytes");
+            nonVolatileConfigurationRegister = new WordRegister(this, 0xffff).WithEnumField<WordRegister, AddressingMode>(0, 1, out addressingMode, name: "addressWith3Bytes");
             enhancedVolatileConfigurationRegister = new ByteRegister(this, 0xff)
                 .WithValueField(0, 3, name: "Output driver strength")
                 .WithReservedBits(3, 1)
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(1, out enable, writeStatusCanSetWriteEnable ? FieldMode.Read | FieldMode.Write : FieldMode.Read, name: "writeEnableLatch");
             configurationRegister = new WordRegister(this);
             flagStatusRegister = new ByteRegister(this)
-                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => numberOfAddressBytes.Value, name: "Addressing")
+                .WithEnumField<ByteRegister, AddressingMode>(0, 1, FieldMode.Read, valueProviderCallback: _ => addressingMode.Value, name: "Addressing")
                 //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
                 .WithReservedBits(3, 1)
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "ProgramOrErase");
@@ -217,7 +217,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.DtrQuadInputOutputFastRead:
                 case (byte)Commands.QuadInputOutputWordRead:
                     currentOperation.Operation = DecodedOperation.OperationType.Read;
-                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.PageProgram:
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.QuadInputFastProgram:
                 case (byte)Commands.ExtendedQuadInputFastProgram:
                     currentOperation.Operation = DecodedOperation.OperationType.Program;
-                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                     break;
                 case (byte)Commands.WriteEnable:
@@ -240,25 +240,25 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case (byte)Commands.SubsectorErase4kb:
                     currentOperation.Operation = DecodedOperation.OperationType.Erase;
                     currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
-                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.SubsectorErase32kb:
                     currentOperation.Operation = DecodedOperation.OperationType.Erase;
                     currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector32K;
-                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.SectorErase:
                     currentOperation.Operation = DecodedOperation.OperationType.Erase;
                     currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
-                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.DieErase:
                     currentOperation.Operation = DecodedOperation.OperationType.Erase;
                     currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Die;
-                    currentOperation.AddressLength = numberOfAddressBytes.Value ? 3 : 4;
+                    currentOperation.AddressLength = NumberOfAddressBytes;
                     currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
                     break;
                 case (byte)Commands.BulkErase:
@@ -584,13 +584,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             return  underlyingMemory.ReadByte(position);
         }
 
+        // The addressingMode field is 1-bit wide, so a conditional expression covers all possible cases
+        private int NumberOfAddressBytes => addressingMode.Value == AddressingMode.ThreeByte ? 3 : 4;
+
         private DecodedOperation currentOperation;
         private uint temporaryConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister flagStatusRegister;
-        private readonly IFlagRegisterField numberOfAddressBytes;
+        private readonly IEnumRegisterField<AddressingMode> addressingMode;
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
@@ -635,6 +638,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
+
+        private enum AddressingMode : byte
+        {
+            FourByte = 0x0,
+            ThreeByte = 0x1
+        }
 
         private enum Commands : byte
         {
