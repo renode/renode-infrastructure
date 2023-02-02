@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -43,6 +43,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             generatedBitsFifo = new Queue<uint>();
             appendedData = new List<uint>();
             Reset();
+        }
+
+        public bool RequestData(out uint result)
+        {
+            if(generatedBitsFifo.TryDequeue(out result))
+            {
+                return generatedBitsFifo.Count != 0;
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "Trying to read from empty FIFO");
+                return false;
+            }
+        }
+
+        public void EdnSoftwareCommandRequestWrite(uint writeValue)
+        {
+            HandleCommandRequestWrite(writeValue);
         }
 
         public override void Reset()
