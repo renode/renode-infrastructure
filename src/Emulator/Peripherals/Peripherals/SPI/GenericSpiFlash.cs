@@ -20,7 +20,8 @@ namespace Antmicro.Renode.Peripherals.SPI
     public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
     {
         public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType,
-            bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID)
+            bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID,
+            byte deviceConfiguration = DefaultDeviceConfiguration, byte remainingIdBytes = DefaultRemainingIDBytes)
         {
             if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
@@ -52,7 +53,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             this.manufacturerId = manufacturerId;
             this.memoryType = memoryType;
+            this.capacityCode = GetCapacityCode(underlyingMemory.Size);
+            this.remainingIdBytes = remainingIdBytes;
             this.extendedDeviceId = extendedDeviceId;
+            this.deviceConfiguration = deviceConfiguration;
 
             deviceData = GetDeviceData();
         }
@@ -150,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private byte[] GetDeviceData()
+        protected virtual byte GetCapacityCode(long memorySize)
         {
             // capacity code:
             // 0x10 -  64 KB
@@ -164,22 +168,27 @@ namespace Antmicro.Renode.Peripherals.SPI
             // 0x22 - 256 MB
             byte capacityCode = 0;
 
-            if(underlyingMemory.Size <= 32.MB())
+            if(memorySize <= 32.MB())
             {
-                capacityCode = (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)underlyingMemory.Size);
+                capacityCode = (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)memorySize);
             }
             else
             {
-                capacityCode = (byte)((BitHelper.GetMostSignificantSetBitIndex((ulong)underlyingMemory.Size) - 26) + 0x20);
+                capacityCode = (byte)((BitHelper.GetMostSignificantSetBitIndex((ulong)memorySize) - 26) + 0x20);
             }
 
+            return capacityCode;
+        }
+
+        private byte[] GetDeviceData()
+        {
             var data = new byte[20];
             data[0] = manufacturerId;
             data[1] = memoryType;
             data[2] = capacityCode;
-            data[3] = RemainingIDBytes;
+            data[3] = remainingIdBytes;
             data[4] = extendedDeviceId;
-            data[5] = DeviceConfiguration;
+            data[5] = deviceConfiguration;
             // unique ID code (bytes 7:20)
             return data;
         }
@@ -639,12 +648,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly MappedMemory underlyingMemory;
         private readonly byte manufacturerId;
         private readonly byte memoryType;
+        private readonly byte capacityCode;
+        private readonly byte remainingIdBytes;
         private readonly byte extendedDeviceId;
+        private readonly byte deviceConfiguration;
         private const byte EmptySegment = 0xff;
-        private const byte RemainingIDBytes = 0x10;
-        private const byte DeviceConfiguration = 0x0;   // standard
         private const byte DeviceGeneration = 0x1;      // 2nd generation
+        private const byte DefaultRemainingIDBytes = 0x10;
         private const byte DefaultExtendedDeviceID = DeviceGeneration << 6;
+        private const byte DefaultDeviceConfiguration = 0x0;   // standard
 
         // Based on TN-25-06 sepicification
         private readonly byte[] SFDPSignature = new byte[] 
