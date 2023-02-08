@@ -45,6 +45,11 @@ namespace Antmicro.Renode.Peripherals.Mocks
             buffer.Clear();
         }
 
+        public void EnqueueResponseByte(byte b)
+        {
+            buffer.Enqueue(b);
+        }
+
         private readonly Queue<byte> buffer;
     }
 }
