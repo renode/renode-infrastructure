@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             this.manufacturerId = manufacturerId;
             this.memoryType = memoryType;
-            this.capacityCode = GetCapacityCode(underlyingMemory.Size);
+            this.capacityCode = GetCapacityCode();
             this.remainingIdBytes = remainingIdBytes;
             this.extendedDeviceId = extendedDeviceId;
             this.deviceConfiguration = deviceConfiguration;
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        protected virtual byte GetCapacityCode(long memorySize)
+        protected virtual byte GetCapacityCode()
         {
             // capacity code:
             // 0x10 -  64 KB
@@ -168,13 +168,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             // 0x22 - 256 MB
             byte capacityCode = 0;
 
-            if(memorySize <= 32.MB())
+            if(underlyingMemory.Size <= 32.MB())
             {
-                capacityCode = (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)memorySize);
+                capacityCode = (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)underlyingMemory.Size);
             }
             else
             {
-                capacityCode = (byte)((BitHelper.GetMostSignificantSetBitIndex((ulong)memorySize) - 26) + 0x20);
+                capacityCode = (byte)((BitHelper.GetMostSignificantSetBitIndex((ulong)underlyingMemory.Size) - 26) + 0x20);
             }
 
             return capacityCode;

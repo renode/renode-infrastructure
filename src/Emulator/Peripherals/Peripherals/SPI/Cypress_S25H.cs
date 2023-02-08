@@ -23,9 +23,9 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        protected override byte GetCapacityCode(long memorySize)
+        protected override byte GetCapacityCode()
         {
-            return (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)memorySize);
+            return (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)this.UnderlyingMemory.Size);
         }
 
         private const byte ManufacturerId = 0x34;
