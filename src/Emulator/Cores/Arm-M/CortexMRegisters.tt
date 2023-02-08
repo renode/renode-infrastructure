@@ -13,7 +13,8 @@
     CLASS_NAME = "CortexM";
     HEADER_FILE = "Emulator/Cores/tlib/arch/arm/cpu_registers.h";
 
-    DEFINES.Add("TARGET_PROTO_ARM_M");
+    DEFINES.Add("TARGET_ARM32");
+    DEFINES.Add("TARGET_PROTO_ARM32_M");
 
     // these registers are already defined in ArmRegisters.cs so we should not generate them again
     REGISTERS_FROM_BASE_CLASS.Add("SP");
