@@ -59,6 +59,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.deviceConfiguration = deviceConfiguration;
 
             deviceData = GetDeviceData();
+            SFDPSignature = GetSFDPSignature();
         }
 
         public void OnGPIO(int number, bool value)
@@ -178,6 +179,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             return capacityCode;
+        }
+
+        protected virtual byte[] GetSFDPSignature()
+        {
+            return DefaultSFDPSignature;
         }
 
         private byte[] GetDeviceData()
@@ -639,6 +645,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint temporaryConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
+        private readonly byte[] SFDPSignature;
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister flagStatusRegister;
         private readonly IEnumRegisterField<AddressingMode> addressingMode;
@@ -659,7 +666,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const byte DefaultDeviceConfiguration = 0x0;   // standard
 
         // Based on TN-25-06 sepicification
-        private readonly byte[] SFDPSignature = new byte[] 
+        private readonly byte[] DefaultSFDPSignature = new byte[]
         {
             0x53, 0x46, 0x44, 0x50, 0x06, 0x01, 0x01, 0xFF, 0x00, 0x06,
             0x01, 0x10, 0x30, 0x00, 0x00, 0xFF ,0x84, 0x00, 0x01, 0x02,
