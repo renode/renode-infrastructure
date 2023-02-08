@@ -993,10 +993,17 @@ namespace Antmicro.Renode.Core
             var currentTime = ElapsedVirtualTime.TimeElapsed;
             var startTime = currentTime + delay;
 
-            Action clockEntryHandler = () =>
+            // We can't do this in 1 assignment because we need to refer to clockEntryHandler
+            // within the body of the lambda
+            Action clockEntryHandler = null;
+            clockEntryHandler = () =>
             {
                 this.Log(LogLevel.Noisy, "{0}: Executing action scheduled at {1} (current time: {2})", name ?? "unnamed", startTime, currentTime);
                 action(currentTime);
+                if(!ClockSource.TryRemoveClockEntry(clockEntryHandler))
+                {
+                    this.Log(LogLevel.Error, "{0}: Failed to remove clock entry after running scheduled action", name ?? "unnamed");
+                }
             };
 
             ClockSource.AddClockEntry(new ClockEntry(delay.Ticks, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
