@@ -170,12 +170,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        [Export]
-        protected override void LogAsCpu(int logLevel, string message)
-        {
-            Log((LogLevel)logLevel, message);
-        }
-
         private void UpdateKeyShare(string value, int lowRegisterId, int highRegisterId)
         {
             if(value != null)
