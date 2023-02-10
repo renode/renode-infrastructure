@@ -1327,7 +1327,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new InvalidOperationException($"Trying to reallocate a pointer at 0x{oldPointer:X} which wasn't allocated by this memory manager.");
                 }
                 var ptr = Marshal.ReAllocHGlobal(oldPointer, (IntPtr)newSize); // before asking WTF here look at msdn
-                parent.NoisyLog("Reallocated a pointer: old size {0}B at 0x{1:X}, new size {2}B at 0x{3:X}.", Misc.NormalizeBinary(newSize), oldPointer, Misc.NormalizeBinary(oldSize), ptr);
+                parent.NoisyLog("Reallocated a pointer: old size {0}B at 0x{1:X}, new size {2}B at 0x{3:X}.", Misc.NormalizeBinary(oldSize), oldPointer, Misc.NormalizeBinary(newSize), ptr);
                 Interlocked.Add(ref allocated, newSize - oldSize);
                 ourPointers.TryAdd(ptr, newSize);
                 return ptr;
