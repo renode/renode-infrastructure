@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.Status.Define(registers, 2)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RXNE")
-                .WithFlag(1, FieldMode.Read, name: "TXE")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "TXE") // transfers are instant
                 .WithTaggedFlag("CHSIDE", 2) // r/o
                 .WithTaggedFlag("UDR", 3) // r/o
                 .WithTaggedFlag("CRCERR", 4) // rc_w0
