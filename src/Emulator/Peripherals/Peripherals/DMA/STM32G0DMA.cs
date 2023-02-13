@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(1, out transferCompleteInterruptEnable, name: "Transfer complete interrupt enable (TCIE)")
                     .WithFlag(2, out halfTransferInterruptEnable, name: "Half transfer interrupt enable (HTIE)")
                     .WithTag("Transfer error interrupt enable (TEIE)", 3, 1)
-                    .WithFlag(4, out transferDirection, name: "Data transfer direction (DIR)")
+                    .WithEnumField(4, 1, out transferDirection, name: "Data transfer direction (DIR)")
                     .WithTag("Circular mode (CIRC)", 5, 1)
                     .WithFlag(6, out peripheralIncrementMode, name: "Peripheral increment mode (PINC)")
                     .WithFlag(7, out memoryIncrementMode, name: "Memory increment mode (MINC)")
@@ -261,13 +261,16 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void InitTransfer()
             {
-                if(transferDirection.Value || memoryToMemory.Value)
+                // This value is still valid in memory-to-memory mode, "peripheral" means
+                // "the address specified by the peripheralAddress field" and not necessarily
+                // a peripheral.
+                if(transferDirection.Value == TransferDirection.PeripheralToMemory)
                 {
                     IssueCopy(peripheralAddress.Value, memoryAddress.Value, dataCount.Value,
                         peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                         memoryTransferType.Value);
                 }
-                else
+                else // 1-bit field, so we handle both possible values
                 {
                     IssueCopy(memoryAddress.Value, peripheralAddress.Value, dataCount.Value,
                         memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
@@ -309,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
 
-            private IFlagRegisterField transferDirection;
+            private IEnumRegisterField<TransferDirection> transferDirection;
             private IFlagRegisterField peripheralIncrementMode;
             private IFlagRegisterField memoryIncrementMode;
             private IFlagRegisterField memoryToMemory;
@@ -331,6 +334,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Bits16 = 1,
                 Bits32 = 2,
                 Reserved = 3
+            }
+
+            private enum TransferDirection
+            {
+                PeripheralToMemory = 0,
+                MemoryToPeripheral = 1,
             }
 
             private enum ChannelRegisters
