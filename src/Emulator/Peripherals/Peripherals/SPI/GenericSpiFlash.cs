@@ -403,7 +403,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                     break;
                 case DecodedOperation.OperationType.ReadSerialFlashDiscoveryParameter:
-                    result = GetSFDPByte();
+                    // handle dummy byte
+                    if(currentOperation.CommandBytesHandled == 0)
+                    {
+                        this.Log(LogLevel.Noisy, "Handling dummy byte in ReadSFDP operation");
+                    }
+                    else
+                    {
+                        result = GetSFDPByte();
+                    }
                     break;
                 case DecodedOperation.OperationType.Program:
                     if(enable.Value)
