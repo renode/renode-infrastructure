@@ -518,6 +518,7 @@
     <Compile Include="Peripherals\SPI\Macronix_MX25R.cs" />
     <Compile Include="Peripherals\Network\Quectel_BC660K.cs" />
     <Compile Include="Peripherals\UART\SiLabs\EFR32_GenericUSART.cs" />
+    <Compile Include="Peripherals\UART\EFR32xG22_USART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
