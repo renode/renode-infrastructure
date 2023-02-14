@@ -13,6 +13,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
+    [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class MPFS_PDMA : IKnownSize, IDoubleWordPeripheral, INumberedGPIOOutput
     {
         public MPFS_PDMA(Machine machine)
