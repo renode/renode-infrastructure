@@ -32,8 +32,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             else
             {
                 chipSelects.Remove(number);
+                FinishTransmissionByAddress(number);
             }
         }
+
         public void SetActiveLow(int number)
         {
             activeLowSignals.Add(number);
@@ -82,6 +84,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             var deviceAddress = chipSelects.First();
+            FinishTransmissionByAddress(deviceAddress);
+        }
+
+        private void FinishTransmissionByAddress(int deviceAddress)
+        {
             if(!TryGetByAddress(deviceAddress, out var device))
             {
                 this.Log(LogLevel.Warning, "Tried to finish transmission to device 0x{0:X}, but it's not connected", deviceAddress);
