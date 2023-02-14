@@ -19,11 +19,13 @@ namespace Antmicro.Renode.Peripherals.SPI
         public SPIMultiplexer(Machine machine) : base(machine)
         {
             chipSelects = new HashSet<int>();
+            activeLowSignals = new HashSet<int>();
         }
 
         public void OnGPIO(int number, bool value)
         {
-            if(value)
+            var active = activeLowSignals.Contains(number) ? !value : value;
+            if(active)
             {
                 chipSelects.Add(number);
             }
@@ -31,6 +33,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 chipSelects.Remove(number);
             }
+        }
+        public void SetActiveLow(int number)
+        {
+            activeLowSignals.Add(number);
         }
 
         public override void Reset()
@@ -86,6 +92,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private readonly HashSet<int> chipSelects;
+        private readonly HashSet<int> activeLowSignals;
     }
 }
 
