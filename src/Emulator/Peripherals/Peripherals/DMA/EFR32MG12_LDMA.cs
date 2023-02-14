@@ -1065,43 +1065,43 @@ namespace Antmicro.Renode.Peripherals.DMA
 
 // Some of this fields are read only via sysbus, but can be loaded from memory
 #pragma warning disable 649
-                [PacketField, Offset(bytes: 0 << 2, bits: 0), Width(2)]
+                [PacketField, Offset(doubleWords: 0, bits: 0), Width(2)]
                 public StructureType structureType;
-                [PacketField, Offset(bytes: 0 << 2, bits: 3), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 3), Width(1)]
                 public bool structureTransferRequest;
-                [PacketField, Offset(bytes: 0 << 2, bits: 4), Width(11)]
+                [PacketField, Offset(doubleWords: 0, bits: 4), Width(11)]
                 public uint transferCount;
-                [PacketField, Offset(bytes: 0 << 2, bits: 15), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 15), Width(1)]
                 public bool byteSwap;
-                [PacketField, Offset(bytes: 0 << 2, bits: 16), Width(4)]
+                [PacketField, Offset(doubleWords: 0, bits: 16), Width(4)]
                 public BlockSizeMode blockSize;
-                [PacketField, Offset(bytes: 0 << 2, bits: 20), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 20), Width(1)]
                 public bool operationDoneInterruptFlagSetEnable;
-                [PacketField, Offset(bytes: 0 << 2, bits: 21), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 21), Width(1)]
                 public RequestTransferMode requestTransferModeSelect;
-                [PacketField, Offset(bytes: 0 << 2, bits: 22), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 22), Width(1)]
                 public bool decrementLoopCount;
-                [PacketField, Offset(bytes: 0 << 2, bits: 23), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 23), Width(1)]
                 public bool ignoreSingleRequests;
-                [PacketField, Offset(bytes: 0 << 2, bits: 24), Width(2)]
+                [PacketField, Offset(doubleWords: 0, bits: 24), Width(2)]
                 public IncrementMode sourceIncrement;
-                [PacketField, Offset(bytes: 0 << 2, bits: 26), Width(2)]
+                [PacketField, Offset(doubleWords: 0, bits: 26), Width(2)]
                 public SizeMode size;
-                [PacketField, Offset(bytes: 0 << 2, bits: 28), Width(2)]
+                [PacketField, Offset(doubleWords: 0, bits: 28), Width(2)]
                 public IncrementMode destinationIncrement;
-                [PacketField, Offset(bytes: 0 << 2, bits: 30), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 30), Width(1)]
                 public AddressingMode sourceAddressingMode;
-                [PacketField, Offset(bytes: 0 << 2, bits: 31), Width(1)]
+                [PacketField, Offset(doubleWords: 0, bits: 31), Width(1)]
                 public AddressingMode destinationAddressingMode;
-                [PacketField, Offset(bytes: 1 << 2, bits: 0), Width(32)]
+                [PacketField, Offset(doubleWords: 1, bits: 0), Width(32)]
                 public uint sourceAddress;
-                [PacketField, Offset(bytes: 2 << 2, bits: 0), Width(32)]
+                [PacketField, Offset(doubleWords: 2, bits: 0), Width(32)]
                 public uint destinationAddress;
-                [PacketField, Offset(bytes: 3 << 2, bits: 0), Width(1)]
+                [PacketField, Offset(doubleWords: 3, bits: 0), Width(1)]
                 public AddressingMode linkMode;
-                [PacketField, Offset(bytes: 3 << 2, bits: 1), Width(1)]
+                [PacketField, Offset(doubleWords: 3, bits: 1), Width(1)]
                 public bool link;
-                [PacketField, Offset(bytes: 3 << 2, bits: 2), Width(30)]
+                [PacketField, Offset(doubleWords: 3, bits: 2), Width(30)]
                 public uint linkAddress;
 #pragma warning restore 649
             }
