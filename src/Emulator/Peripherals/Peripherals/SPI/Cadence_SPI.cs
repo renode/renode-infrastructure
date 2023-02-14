@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,25 +12,29 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class Cadence_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_SPI(Machine machine) : base(machine)
+        public Cadence_SPI(Machine machine, int txFifoCapacity = DefaultTxFifoCapacity, int rxFifoCapacity = DefaultRxFifoCapacity) : base(machine)
         {
+            this.txFifoCapacity = txFifoCapacity;
+            this.rxFifoCapacity = rxFifoCapacity;
+
             IRQ = new GPIO();
-            txFifoFull = new CadenceInterruptFlag(() => txFifo.Count >= TxFifoCapacity);
+            txFifoFull = new CadenceInterruptFlag(() => txFifo.Count >= this.txFifoCapacity);
             txFifoNotFull = new CadenceInterruptFlag(() => txFifo.Count < txFifoThreshold.Value);
             txFifoUnderflow = new CadenceInterruptFlag(() => false);
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
-            rxFifoFull = new CadenceInterruptFlag(() => rxFifo.Count >= RxFifoCapacity);
+            rxFifoFull = new CadenceInterruptFlag(() => rxFifo.Count >= this.rxFifoCapacity);
             rxFifoNotEmpty = new CadenceInterruptFlag(() => rxFifo.Count >= rxFifoThreshold.Value);
             modeFail = new CadenceInterruptFlag(() => false); // Not handled
 
-            txFifo = new Queue<byte>(TxFifoCapacity);
-            rxFifo = new Queue<byte>(RxFifoCapacity);
+            txFifo = new Queue<byte>(this.txFifoCapacity);
+            rxFifo = new Queue<byte>(this.rxFifoCapacity);
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
         }
 
@@ -223,6 +227,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
+            var txFifoThresholdBits = BitHelper.GetMostSignificantSetBitIndex((ulong)txFifoCapacity);
+            var rxFifoThresholdBits = BitHelper.GetMostSignificantSetBitIndex((ulong)rxFifoCapacity);
             return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Config, new DoubleWordRegister(this, 0x00020000)
@@ -438,7 +444,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                     })
                 },
                 {(long)Registers.TxFifoThreshold, new DoubleWordRegister(this, InitialFifoThreshold)
-                    .WithValueField(0, 31, out txFifoThreshold)
+                    .WithReservedBits(txFifoThresholdBits, 32 - txFifoThresholdBits)
+                    .WithValueField(0, txFifoThresholdBits, out txFifoThreshold)
                     .WithWriteCallback((_, __) =>
                     {
                         UpdateSticky();
@@ -446,7 +453,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                     })
                 },
                 {(long)Registers.RxFifoThreshold, new DoubleWordRegister(this, InitialFifoThreshold)
-                    .WithValueField(0, 31, out rxFifoThreshold)
+                    .WithReservedBits(rxFifoThresholdBits, 32 - rxFifoThresholdBits)
+                    .WithValueField(0, rxFifoThresholdBits, out rxFifoThreshold)
                     .WithWriteCallback((_, __) =>
                     {
                         UpdateSticky();
@@ -498,12 +506,14 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly CadenceInterruptFlag rxFifoNotEmpty;
         private readonly CadenceInterruptFlag modeFail;
 
+        private readonly int txFifoCapacity;
+        private readonly int rxFifoCapacity;
         private readonly Queue<byte> txFifo;
         private readonly Queue<byte> rxFifo;
         private readonly DoubleWordRegisterCollection registers;
 
-        private const int TxFifoCapacity = 128;
-        private const int RxFifoCapacity = 128;
+        private const int DefaultTxFifoCapacity = 128;
+        private const int DefaultRxFifoCapacity = 128;
         private const int InitialFifoThreshold = 0x1;
         private const int ChipSelectNoPeripheral = 0b1111;
         private const int ChipSelectAddrMask = 0b0111;
