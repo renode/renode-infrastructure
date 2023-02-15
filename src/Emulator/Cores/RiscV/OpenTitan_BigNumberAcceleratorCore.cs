@@ -186,11 +186,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException($"Provided key share is too long (expected up to 64 bytes): {value}");
                 }
 
-                wideSpecialPurposeRegisters[lowRegisterId].SetTo(bytes.Take(32));
+                wideSpecialPurposeRegisters[lowRegisterId].SetTo(new BigInteger(bytes.Take(32).ToArray()));
 
                 if(bytes.Length > 32)
                 {
-                    wideSpecialPurposeRegisters[highRegisterId].SetTo(bytes.Skip(32));
+                    wideSpecialPurposeRegisters[highRegisterId].SetTo(new BigInteger(bytes.Skip(32).ToArray()));
                 }
             }
             else
@@ -257,8 +257,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 var index = x;
                 RegisterCSR((ulong)(CustomCSR.Mod0 + index),
-                            () => (ulong)(wideSpecialPurposeRegisters[(int)WideSPR.Mod].GetPart(index)),
-                            val => { wideSpecialPurposeRegisters[(int)WideSPR.Mod].SetPartTo((uint)val, index); },
+                            () => (ulong)(wideSpecialPurposeRegisters[(int)WideSPR.Mod].PartialGet(index * sizeof(uint), sizeof(uint))),
+                            val => { wideSpecialPurposeRegisters[(int)WideSPR.Mod].PartialSet(new BigInteger(val), index * sizeof(uint), 4); },
                             name: $"MOD{index}");
             }
 
@@ -526,7 +526,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         data = new byte[256];
                         random.NextBytes(data);
                     }
-                    wideDataRegisters[wrd].SetTo(data);
+                    wideDataRegisters[wrd].SetTo(new BigInteger(data));
                 }
                 else
                 {
@@ -544,10 +544,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             var rs1QuarterWord = (int)BitHelper.GetValue(opcode, 25, 2);
             var rs2QuarterWord = (int)BitHelper.GetValue(opcode, 27, 2);
 
-            var rs1 = wideDataRegisters[wrs1].GetQuarterWord(rs1QuarterWord);
-            var rs2 = wideDataRegisters[wrs2].GetQuarterWord(rs2QuarterWord);
-            var result = (new BigInteger(rs1)) * (new BigInteger(rs2));
-            result = result << shift;
+            var rs1 = wideDataRegisters[wrs1].PartialGet(rs1QuarterWord * sizeof(ulong), sizeof(ulong));
+            var rs2 = wideDataRegisters[wrs2].PartialGet(rs2QuarterWord * sizeof(ulong), sizeof(ulong));
+            var result = rs1 * rs2;
+            result = (result << shift) & WideRegister.MaxValueMask;
             if(!zeroAccumulator)
             {
                 var acc = wideSpecialPurposeRegisters[(int)WideSPR.Acc].AsBigInteger;
@@ -572,10 +572,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 wideSpecialPurposeRegisters[(int)WideSPR.Acc].Clear();
             }
 
-            var rs1 = wideDataRegisters[wrs1].GetQuarterWord(rs1QuarterWord);
-            var rs2 = wideDataRegisters[wrs2].GetQuarterWord(rs2QuarterWord);
-            var result = (new BigInteger(rs1)) * (new BigInteger(rs2));
-            result = result << shift;
+            var rs1 = wideDataRegisters[wrs1].PartialGet(rs1QuarterWord * sizeof(ulong), sizeof(ulong));
+            var rs2 = wideDataRegisters[wrs2].PartialGet(rs2QuarterWord * sizeof(ulong), sizeof(ulong));
+            var result = rs1 * rs2;
+            result = (result << shift) & WideRegister.MaxValueMask;
             result += wideSpecialPurposeRegisters[(int)WideSPR.Acc].AsBigInteger;
 
             if(fullWordWriteback)
@@ -813,11 +813,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 var array = new byte[WideDataRegisterWidthInBytes];
                 dataMemory.ReadBytes(addr, array.Length, array, 0);
-                wideDataRegisters[grdVal].SetTo(array);
+                wideDataRegisters[grdVal].SetTo(new BigInteger(array));
             }
             else
             {
-                var array = wideDataRegisters[grdVal].AsEnumerable.ToArray();
+                var array = wideDataRegisters[grdVal].AsByteArray;
                 dataMemory.WriteBytes(addr, array);
             }
         }
@@ -863,6 +863,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(shiftBits > 0)
             {
                 rs2 = shiftRight ? rs2 >> shiftBits : rs2 << shiftBits;
+                rs2 &= WideRegister.MaxValueMask;
             }
         }
         private void ParseRTypeFields(ulong opcode, out ulong f3, out int wrd, out int wrs1, out int wrs2, out int shiftBits, out bool shiftRight, out int flagGroup)
@@ -1021,72 +1022,59 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private class WideRegister
         {
+            public static readonly BigInteger MaxValueMask = ((new BigInteger(1)) << 256) - 1;
+
             public WideRegister(bool readOnly = false)
             {
-                bytes = new byte[WideDataRegisterWidthInBytes];
+                underlyingValue = 0;
                 ReadOnly = readOnly;
             }
 
             public void Clear()
             {
-                Array.Clear(bytes, 0, bytes.Length);
-            }
-
-            public void SetTo(IEnumerable<byte> enumerable)
-            {
-                InnerSetTo(enumerable.ToArray());
+                underlyingValue = 0;
             }
 
             /* Cuts the BigInteger to 256 bits and sets the register to it */
             public void SetTo(BigInteger bigValue)
             {
-                InnerSetTo(bigValue.ToByteArray());
+                underlyingValue = bigValue & MaxValueMask;
             }
 
-            public void SetPartTo(uint value, int part)
+            public void PartialSet(BigInteger value, int byteOffset, int bytesCount)
             {
-                Misc.ByteArrayWrite(part * sizeof(uint), value, bytes);
+                var mask = (new BigInteger(0x1) << (bytesCount * 8)) - 1;
+                var shiftedValue = (value & mask) << (byteOffset * 8);
+
+                underlyingValue &= ~(mask << (byteOffset * 8));
+                underlyingValue |= shiftedValue;
             }
 
-            public ulong GetQuarterWord(int quarterWordPart)
+            public BigInteger PartialGet(int byteOffset, int bytesCount)
             {
-                return BitConverter.ToUInt64(bytes, quarterWordPart * sizeof(ulong));
+                var mask = (new BigInteger(0x1) << (bytesCount * 8)) - 1;
+                return (underlyingValue >> (byteOffset * 8)) & mask;
             }
 
-            public uint GetPart(int part)
+            public bool EqualsTo(WideRegister r)
             {
-                return Misc.ByteArrayRead(part * sizeof(uint), bytes);
+                return r.AsBigInteger.Equals(this.AsBigInteger);
             }
 
             public bool ReadOnly { get; }
 
-            public IEnumerable<byte> AsEnumerable => bytes;
+            public BigInteger AsBigInteger => underlyingValue & MaxValueMask;
 
-            public BigInteger AsBigInteger
+            public byte[] AsByteArray => underlyingValue.ToByteArray(ByteArrayLength);
+
+            public override string ToString()
             {
-                get
-                {
-                    /* The array must be appended with a zero-byte value, to make sure it is interpreted as unsigned.
-                    This is no hack, but an approach seggested in the docs! */
-                    var tempArray = new byte[WideDataRegisterWidthInBytes + 1];
-                    Buffer.BlockCopy(bytes, 0, tempArray, 0, bytes.Length);
-                    return new BigInteger(tempArray);
-                }
+                return underlyingValue.ToLongString(ByteArrayLength);
             }
 
-            private void InnerSetTo(byte[] array)
-            {
-                var bytesToCopy = WideDataRegisterWidthInBytes;
-                if(array.Length < bytesToCopy)
-                {
-                    Clear();
-                    bytesToCopy = array.Length;
-                }
-                // Clamping the value to the one that fit the register
-                Buffer.BlockCopy(array, 0, bytes, 0, bytesToCopy);
-            }
+            private BigInteger underlyingValue;
 
-            private readonly byte[] bytes;
+            private readonly int ByteArrayLength = 32;
         }
     }
 }
