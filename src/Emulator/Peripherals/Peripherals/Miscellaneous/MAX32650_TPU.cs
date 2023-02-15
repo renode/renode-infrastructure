@@ -1,14 +1,14 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
+//
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -32,9 +32,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 byte[] data;
                 data = machine.SystemBus.ReadBytes((ulong)dmaSourceAddress.Value, (int)dmaDataLength.Value, onlyMemory: true);
-                var polynomial = BitHelper.ReverseBits(crcPolynomial.Value);
-                var result = new CRCEngine(polynomial, 32, init: crcValue.Value).Calculate(data);
-                crcValue.Value = result;
+                crcEngine.Update(data);
+                crcValue.Value = crcEngine.Value;
                 dmaFinished.Value = true;
                 crcFinished.Value = true;
             }
@@ -46,6 +45,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             operationFinished.Value |= crcFinished.Value;
             UpdateInterrupts();
+        }
+
+        private void UpdateCRCEngine()
+        {
+            var polynomial = BitHelper.ReverseBits(crcPolynomial.Value);
+            crcEngine = new CRCEngine(polynomial, 32, init: crcValue.Value);
         }
 
         private void UpdateInterrupts()
@@ -66,6 +71,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             dmaDataLength.Value = 0x00000000;
             crcPolynomial.Value = DefaultCRCPolynomial;
             crcValue.Value = DefaultCRCSeed;
+
+            UpdateCRCEngine();
         }
 
         private void DefineRegisters()
@@ -141,11 +148,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ;
 
             Registers.CRCPolynomial.Define(this, DefaultCRCPolynomial)
-                .WithValueField(0, 32, out crcPolynomial, FieldMode.Write, name: "CRC_POLY.data")
+                .WithValueField(0, 32, out crcPolynomial, FieldMode.Write, name: "CRC_POLY.data",
+                    changeCallback: (_, __) => UpdateCRCEngine())
             ;
 
             Registers.CRCValue.Define(this, DefaultCRCSeed)
-                .WithValueField(0, 32, out crcValue, name: "CRC_VAL.val")
+                .WithValueField(0, 32, out crcValue, name: "CRC_VAL.val",
+                    changeCallback: (_, __) => UpdateCRCEngine())
             ;
         }
 
@@ -161,6 +170,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IValueRegisterField crcPolynomial;
         private IValueRegisterField crcValue;
+
+        private CRCEngine crcEngine;
 
         private const uint DefaultCRCPolynomial = 0xEDB88320;
         private const uint DefaultCRCSeed = 0xFFFFFFFF;
