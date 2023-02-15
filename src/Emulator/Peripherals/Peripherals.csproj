@@ -195,6 +195,7 @@
     <Compile Include="Peripherals\SPI\Cadence_xSPICommands\PIOCommands.cs" />
     <Compile Include="Peripherals\SPI\Cadence_xSPICommands\STIGCommands.cs" />
     <Compile Include="Peripherals\SPI\HiFive_SPI.cs" />
+    <Compile Include="Peripherals\SPI\MXIC_MX66UM1G45G.cs" />
     <Compile Include="Peripherals\IRQControllers\MSCM.cs" />
     <Compile Include="Peripherals\Miscellaneous\SEMA4.cs" />
     <Compile Include="Peripherals\MTD\FSLNAND.cs" />
