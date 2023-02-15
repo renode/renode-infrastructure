@@ -32,6 +32,31 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         CoreError LastError { get; }
     }
 
+    public static class BigIntegerHelpers
+    {
+        public static byte[] ToByteArray(this BigInteger bi, int width)
+        {
+            var array = bi.ToByteArray();
+            if(array.Length > width)
+            {
+                array = array.Take(width).ToArray();
+            }
+            else if(array.Length < width)
+            {
+                var fill = width - array.Length;
+                var lsb = array[array.Length - 1];
+                array = array.Concat(Enumerable.Repeat(lsb >= 0x80 ? (byte)0xff : (byte)0, fill)).ToArray();
+            }
+            return array;
+        }
+
+        public static string ToLongString(this BigInteger bi, int width)
+        {
+            var s = string.Join("", bi.ToByteArray(width).Reverse().Select(x => x.ToString("x2")));
+            return $"0x{s}";
+        }
+    }
+
     public class OpenTitan_BigNumberAccelerator : BasicDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_BigNumberAccelerator(Machine machine) : base(machine)
@@ -104,8 +129,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public string GetWideRegister(int number, bool special)
         {
-            var res = core.GetWideRegister(number, special);
-            return res.ToString();
+            return core.GetWideRegister(number, special).ToLongString(32);
         }
 
         public long Size => 0x10000;
