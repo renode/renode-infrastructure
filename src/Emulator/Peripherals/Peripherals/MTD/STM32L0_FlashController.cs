@@ -17,7 +17,7 @@ using Antmicro.Renode.Peripherals.Memory;
 namespace Antmicro.Renode.Peripherals.MTD
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class STM32L0_FlashController : BasicDoubleWordPeripheral, IKnownSize
+    public class STM32L0_FlashController : STM32_FlashController, IKnownSize
     {
         public STM32L0_FlashController(Machine machine, MappedMemory flash, MappedMemory eeprom) : base(machine)
         {
@@ -338,68 +338,6 @@ namespace Antmicro.Renode.Peripherals.MTD
         private static readonly uint[] ProgramEraseControlKeys = {0x89ABCDEF, 0x02030405};
         private static readonly uint[] ProgramEraseKeys = {0x8C9DAEBF, 0x13141516};
         private static readonly uint[] OptionByteKeys = {0xFBEAD9C8, 0x24252627};
-
-        private class LockRegister
-        {
-            public LockRegister(STM32L0_FlashController owner, string name, uint[] keys)
-            {
-                this.owner = owner;
-                this.name = name;
-                this.keys = keys;
-            }
-
-            public void ConsumeValue(uint value)
-            {
-                owner.Log(LogLevel.Debug, "Lock {0} received 0x{1:x8}", name, value);
-                if(DisabledUntilReset)
-                {
-                    owner.Log(LogLevel.Debug, "Lock {0} is disabled until reset, ignoring", name);
-                    return;
-                }
-
-                if(keyIndex >= keys.Length || keys[keyIndex] != value)
-                {
-                    owner.Log(LogLevel.Debug, "Lock {0} now disabled until reset after bad write", name);
-                    Lock();
-                    DisabledUntilReset = true;
-                    return;
-                }
-
-                if(++keyIndex == keys.Length)
-                {
-                    IsLocked = false;
-                    owner.Log(LogLevel.Debug, "Lock {0} unlocked", name);
-                }
-            }
-
-            public void Lock()
-            {
-                if(IsLocked)
-                {
-                    return;
-                }
-
-                owner.Log(LogLevel.Debug, "Lock {0} locked", name);
-                IsLocked = true;
-                keyIndex = 0;
-                Locked?.Invoke();
-            }
-
-            public void Reset()
-            {
-                Lock();
-                DisabledUntilReset = false;
-            }
-
-            public bool IsLocked { get; private set; } = true;
-            public bool DisabledUntilReset { get; private set; }
-            public event Action Locked;
-
-            private readonly STM32L0_FlashController owner;
-            private readonly string name;
-            private readonly uint[] keys;
-            private int keyIndex;
-        }
 
         private enum Registers : long
         {
