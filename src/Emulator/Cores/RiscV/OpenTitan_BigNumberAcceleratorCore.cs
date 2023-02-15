@@ -145,7 +145,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 fixedRandomPattern = value;
                 fixedRandomBytes = (value != null)
-                    ? ParseHexPattern(value)
+                    ? ParseHexPattern(value, 256)
                     : null;
             }
         }
@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(value != null)
             {
-                var bytes = ParseHexPattern(value);
+                var bytes = ParseHexPattern(value, 64);
                 if(bytes.Length > 64)
                 {
                     throw new RecoverableException($"Provided key share is too long (expected up to 64 bytes): {value}");
@@ -409,16 +409,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private byte[] ParseHexPattern(string input)
+        private byte[] ParseHexPattern(string input, int width)
         {
             if(input.StartsWith("0x"))
             {
                 input = input.Substring(2);
             }
 
-            if(input.Length % 2 != 0)
+            // fill with leading 0's
+            if(input.Length < width * 2)
             {
-                input = "0" + input;
+                input = new string('0', (width * 2) - input.Length) + input;
             }
 
             try
