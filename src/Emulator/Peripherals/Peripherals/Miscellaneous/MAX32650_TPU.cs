@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.DMACount.Define(this)
                 .WithValueField(0, 32, out dmaDataLength, name: "DMA_CNT.addr")
-                .WithChangeCallback((_, __) => CalculateCrc32());
+                .WithWriteCallback((_, __) => CalculateCrc32());
                 // According to documentation and HAL implementation, the CRC
                 // value is calculated after DMA transaction is done. As writing
                 // to this register starts DMA transaction, we can use it
