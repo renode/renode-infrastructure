@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -80,7 +80,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(11, 3, name: "PPRE2")
                 .WithReservedBits(14, 1)
                 .WithFlag(15, name: "STOPWUCK")
-                .WithTaggedFlag("PLLSRC", 16)
+                // The PLLSRC bit must preserve its value so that the HAL allows disabling the HSI when
+                // the system clock source is the PLL and the HSE is selected as the PLL clock source.
+                .WithFlag(16, name: "PLLSRC")
                 .WithReservedBits(17, 1)
                 .WithValueField(18, 4, name: "PLLMUL")
                 .WithValueField(22, 2, name: "PLLDIV")
