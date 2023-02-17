@@ -25,7 +25,7 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldClearInterruptStatusOnWriteOne()
         {
-            var uart = new Cadence_UART(machine);
+            var uart = new Cadence_UART(machine, clearInterruptStatusOnRead: false);
             uart.Reset();
             EnableRx(uart);
 
@@ -36,6 +36,20 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(FlagsAfterCharWrite, ReadInterruptStatus(uart));
 
             WriteInterruptStatus(uart, FlagsAfterCharWrite);
+            Assert.AreEqual(InterruptFlag.TxFifoEmpty, ReadInterruptStatus(uart));
+        }
+
+        [Test]
+        public void ShouldClearInterruptStatusOnRead()
+        {
+            var uart = new Cadence_UART(machine, clearInterruptStatusOnRead: true);
+            uart.Reset();
+            EnableRx(uart);
+
+            Assert.AreEqual(FlagsInitial, ReadInterruptStatus(uart));
+
+            uart.WriteChar(0);
+            Assert.AreEqual(FlagsAfterCharWrite, ReadInterruptStatus(uart));
             Assert.AreEqual(InterruptFlag.TxFifoEmpty, ReadInterruptStatus(uart));
         }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,8 +18,9 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class Cadence_UART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_UART(Machine machine, ulong clockFrequency = 50000000) : base(machine)
+        public Cadence_UART(Machine machine, bool clearInterruptStatusOnRead = false, ulong clockFrequency = 50000000) : base(machine)
         {
+            this.clearInterruptStatusOnRead = clearInterruptStatusOnRead;
             this.clockFrequency = clockFrequency;
             IRQ = new GPIO();
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
@@ -175,6 +176,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
+            var interruptStatusFieldMode = FieldMode.Read | (clearInterruptStatusOnRead ? 0 : FieldMode.Write);
             return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, new DoubleWordRegister(this, 0x00000128)
@@ -325,43 +327,59 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("txFifoNearlyFullInterruptStatus", 11)
                     .WithTaggedFlag("txFifoTriggerInterruptStatus", 10)
                     .WithTaggedFlag("deltaModemStatusInterruptStatus", 9)
-                    .WithFlag(8,
+                    .WithFlag(8, interruptStatusFieldMode,
                         valueProviderCallback: (_) => rxTimeoutError.StickyStatus,
-                        writeCallback: (_, val) => rxTimeoutError.ClearSticky(val),
+                        readCallback: (_, __) => rxTimeoutError.ClearSticky(clearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxTimeoutError.ClearSticky(val && !clearInterruptStatusOnRead),
                         name: "rxTimeoutErrorInterruptStatus"
                     )
                     .WithTaggedFlag("rxParityErrorInterruptStatus", 7)
                     .WithTaggedFlag("rxFramingErrorInterruptStatus", 6)
-                    .WithFlag(5,
+                    .WithFlag(5, interruptStatusFieldMode,
                         valueProviderCallback: (_) => rxFifoOverflow.StickyStatus,
-                        writeCallback: (_, val) => rxFifoOverflow.ClearSticky(val),
+                        readCallback: (_, __) => rxFifoOverflow.ClearSticky(clearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoOverflow.ClearSticky(val && !clearInterruptStatusOnRead),
                         name: "rxFifoOverflowInterruptStatus"
                     )
                     .WithTaggedFlag("txFifoFullInterruptStatus", 4)
-                    .WithFlag(3,
+                    .WithFlag(3, interruptStatusFieldMode,
                         valueProviderCallback: (_) => txFifoEmpty.StickyStatus,
                         // There is no sense to clear the txFifoEmptyInterruptStatus flag, because a Tx FIFO is always empty
                         name: "txFifoEmptyInterruptStatus"
                     )
-                    .WithFlag(2,
+                    .WithFlag(2, interruptStatusFieldMode,
                         valueProviderCallback: (_) => rxFifoFull.StickyStatus,
-                        writeCallback: (_, val) => rxFifoFull.ClearSticky(val),
+                        readCallback: (_, __) => rxFifoFull.ClearSticky(clearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoFull.ClearSticky(val && !clearInterruptStatusOnRead),
                         name: "rxFifoFullInterruptStatus"
                     )
-                    .WithFlag(1,
+                    .WithFlag(1, interruptStatusFieldMode,
                         valueProviderCallback: (_) => rxFifoEmpty.StickyStatus,
-                        writeCallback: (_, val) => rxFifoEmpty.ClearSticky(val),
+                        readCallback: (_, __) => rxFifoEmpty.ClearSticky(clearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoEmpty.ClearSticky(val && !clearInterruptStatusOnRead),
                         name: "rxFifoEmptyInterruptMStatus"
                     )
-                    .WithFlag(0,
+                    .WithFlag(0, interruptStatusFieldMode,
                         valueProviderCallback: (_) => rxFifoTrigger.StickyStatus,
-                        writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val),
+                        readCallback: (_, __) => rxFifoTrigger.ClearSticky(clearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val && !clearInterruptStatusOnRead),
                         name: "rxFifoTriggerInterruptStatus"
                     )
+                    .WithReadCallback((_, __) =>
+                    {
+                        if(clearInterruptStatusOnRead)
+                        {
+                            UpdateSticky();
+                            UpdateInterrupts();
+                        }
+                    })
                     .WithWriteCallback((_, __) =>
                     {
-                        UpdateSticky();
-                        UpdateInterrupts();
+                        if(!clearInterruptStatusOnRead)
+                        {
+                            UpdateSticky();
+                            UpdateInterrupts();
+                        }
                     })
                 },
                 {(long)Registers.BaudRateGenerator, new DoubleWordRegister(this)
@@ -472,6 +490,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly CadenceInterruptFlag txFifoEmpty;
 
         private readonly DoubleWordRegisterCollection registers;
+        private readonly bool clearInterruptStatusOnRead;
         private readonly ulong clockFrequency;
 
         private const int FifoCapacity = 64;
