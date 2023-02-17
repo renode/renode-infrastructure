@@ -53,6 +53,7 @@
     <Compile Include="OpenTitan_KeyManagerTest.cs" />
     <Compile Include="OpenTitan_I2C_Test.cs" />
     <Compile Include="Cadence_TTCTests.cs" />
+    <Compile Include="Cadence_UARTTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
