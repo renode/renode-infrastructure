@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,7 +21,16 @@ namespace Antmicro.Renode.Utilities
 
     public class SafeBinaryReader : BinaryReader
     {
-        public SafeBinaryReader(Stream stream) : base(stream) {}
+        public SafeBinaryReader(Stream stream) : base(stream)
+        {
+            Length = this.BaseStream.Length;
+        }
+
+        public SafeBinaryReader WithLength(long newLength)
+        {
+            var newReader = new SafeBinaryReader(this.BaseStream, newLength);
+            return newReader;
+        }
 
         public override bool ReadBoolean()
         {
@@ -121,9 +130,25 @@ namespace Antmicro.Renode.Utilities
             return (previousPosition + count) == currentPosition;
         }
 
-        public bool EOF => BaseStream.Position >= BaseStream.Length;
+        public bool SeekToEnd()
+        {
+            if(this.BaseStream.Position == Length)
+            {
+                return false;
+            }
+            this.BaseStream.Seek(Length, SeekOrigin.Begin);
+            return true;
+        }
+
+        public long Length { get; }
+        public bool EOF => BaseStream.Position >= Length;
 
         public Action<string> EndOfStreamEvent;
+
+        private SafeBinaryReader(Stream stream, long length) : this(stream)
+        {
+            Length = length;
+        }
 
         private T ExecuteAndHandleError<T>(Func<T> func)
         {
