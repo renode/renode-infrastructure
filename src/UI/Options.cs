@@ -17,7 +17,7 @@ namespace Antmicro.Renode.UI
         [Name('P', "port"), DefaultValue(-1), Description("Instead of opening a window, listen for monitor commands on the specified port.")]
         public int Port { get; set; }
 
-        [Name('e', "execute"), Description("Execute command on startup (this option is exclusive with startup script passed as an argument). May be used many times.")]
+        [Name('e', "execute"), Description("Execute command on startup (executed after the optional script). May be used many times.")]
         public string[] Execute { get; set; }
 
         [Name("config"), Description("Use the configuration file from the provided path, or create one if it does not exist")]
