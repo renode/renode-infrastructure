@@ -186,6 +186,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             return DefaultSFDPSignature;
         }
 
+        protected virtual int GetDummyBytes(Commands command)
+        {
+            switch(command)
+            {
+                case Commands.FastRead:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
         private byte[] GetDeviceData()
         {
             var data = new byte[20];
@@ -203,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             currentOperation.Operation = DecodedOperation.OperationType.None;
             currentOperation.State = DecodedOperation.OperationState.HandleCommand;
+            currentOperation.DummyBytesRemaining = GetDummyBytes((Commands)firstByte);
             switch(firstByte)
             {
                 case (byte)Commands.ReadID:
@@ -380,14 +392,17 @@ namespace Antmicro.Renode.Peripherals.SPI
         private byte HandleCommand(byte data)
         {
             byte result = 0;
+            if(currentOperation.DummyBytesRemaining > 0)
+            {
+                currentOperation.DummyBytesRemaining--;
+                this.Log(LogLevel.Noisy, "Handling dummy byte in {0} operation, {1} remaining after this one",
+                    currentOperation.Operation, currentOperation.DummyBytesRemaining);
+                return result;
+            }
+
             switch(currentOperation.Operation)
             {
                 case DecodedOperation.OperationType.ReadFast:
-                    // handle dummy byte and switch to read
-                    currentOperation.Operation = DecodedOperation.OperationType.Read;
-                    currentOperation.CommandBytesHandled--;
-                    this.Log(LogLevel.Noisy, "Handling dummy byte in ReadFast operation");
-                    break;
                 case DecodedOperation.OperationType.Read:
                     result = ReadFromMemory();
                     break;
@@ -403,15 +418,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                     break;
                 case DecodedOperation.OperationType.ReadSerialFlashDiscoveryParameter:
-                    // handle dummy byte
-                    if(currentOperation.CommandBytesHandled == 0)
-                    {
-                        this.Log(LogLevel.Noisy, "Handling dummy byte in ReadSFDP operation");
-                    }
-                    else
-                    {
-                        result = GetSFDPByte();
-                    }
+                    result = GetSFDPByte();
                     break;
                 case DecodedOperation.OperationType.Program:
                     if(enable.Value)
