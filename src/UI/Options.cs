@@ -14,7 +14,7 @@ namespace Antmicro.Renode.UI
         [Name('p', "plain"), DefaultValue(false), Description("Remove steering codes (e.g., colours) from output.")]
         public bool Plain { get; set; }
 
-        [Name('P', "port"), DefaultValue(-1), Description("Instead of opening a window, listen for monitor commands on the specified port.")]
+        [Name('P', "port"), DefaultValue(-1), Description("Instead of opening a window, listen for Monitor commands on the specified port.")]
         public int Port { get; set; }
 
         [Name('e', "execute"), Description("Execute command on startup (executed after the optional script). May be used many times.")]
@@ -29,7 +29,7 @@ namespace Antmicro.Renode.UI
         [Name("script"), PositionalArgument(0)]
         public string ScriptPath { get; set; }
 
-        [Name("hide-monitor"), DefaultValue(false), Description("Do not show monitor window.")]
+        [Name("hide-monitor"), DefaultValue(false), Description("Do not show the Monitor window.")]
         public bool HideMonitor { get; set; }
 
         [Name("hide-log"), DefaultValue(false), Description("Do not show log messages in a console.")]
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.UI
         [Name('v', "version"), DefaultValue(false), Description("Print version and exit.")]
         public bool Version { get; set; }
 
-        [Name("console"), Description("Run monitor in the console instead of a separate window")]
+        [Name("console"), Description("Run the Monitor in the console instead of a separate window")]
         public bool Console { get; set; }
 
         [Name("keep-temporary-files"), Description("Don't clean temporary files on exit")]
