@@ -81,6 +81,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             return patchedSFDPSignature;
         }
 
+        protected override int GetDummyBytes(Commands command)
+        {
+            switch(command)
+            {
+                case Commands.ReadSerialFlashDiscoveryParameter:
+                    return 1;
+                default:
+                    return base.GetDummyBytes(command);
+            }
+        }
+
         private const byte ManufacturerId = 0x34;
         private const byte MemoryType = 0x2B; // HS-T: 0x2B, HL-T: 0x2A
         private const byte RemainingIDBytes = 0x0F;
