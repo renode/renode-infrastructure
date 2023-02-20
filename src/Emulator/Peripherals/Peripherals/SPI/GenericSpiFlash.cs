@@ -680,13 +680,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
         };
 
-        private enum AddressingMode : byte
-        {
-            FourByte = 0x0,
-            ThreeByte = 0x1
-        }
-
-        private enum Commands : byte
+        protected enum Commands : byte
         {
             // Software RESET Operations
             ResetEnable = 0x66,
@@ -812,6 +806,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             // ADVANCED FUNCTION INTERFACE Operations
             InterfaceActivation = 0x9B,
             CyclicRedundancyCheck = 0x27
+        }
+
+        private enum AddressingMode : byte
+        {
+            FourByte = 0x0,
+            ThreeByte = 0x1
         }
 
         private enum Register : uint
