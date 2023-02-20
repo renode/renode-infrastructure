@@ -181,10 +181,12 @@ namespace Antmicro.Renode.Utilities.RESD
                     continue;
                 }
 
+                var limitedReader = reader.WithLength(reader.BaseStream.Position + (long)dataBlockHeader.Size);
+
                 switch(dataBlockHeader.BlockType)
                 {
                     case BlockType.ConstantFrequencySamples:
-                        block = ConstantFrequencySamplesDataBlock<T>.ReadFromStream(dataBlockHeader, reader);
+                        block = ConstantFrequencySamplesDataBlock<T>.ReadFromStream(dataBlockHeader, limitedReader);
                         return true;
 
                     default:

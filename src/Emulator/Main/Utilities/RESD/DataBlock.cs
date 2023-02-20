@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -90,7 +90,7 @@ namespace Antmicro.Renode.Utilities.RESD
         private ConstantFrequencySamplesDataBlock(DataBlockHeader header, ulong startTime, ulong period, SafeBinaryReader reader) : base(header)
         {
             this.reader = reader;
-            this.samplesData = new SamplesData<T>(reader, header.StartPosition + (long)header.Size);
+            this.samplesData = new SamplesData<T>(reader);
 
             currentSampleTimestamp = startTime;
 
