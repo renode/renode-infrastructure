@@ -13,8 +13,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class Cypress_S25H : GenericSpiFlash
     {
-        public Cypress_S25H(MappedMemory underlyingMemory)
-            : base(underlyingMemory, manufacturerId: ManufacturerId, memoryType: MemoryType,
+        public Cypress_S25H(MappedMemory underlyingMemory, S25HxFamily memoryFamily = S25HxFamily.HS_T)
+            : base(underlyingMemory, manufacturerId: ManufacturerId, memoryType: (byte)memoryFamily,
                    writeStatusCanSetWriteEnable: true, extendedDeviceId: ExtendedDeviceID,
                    remainingIdBytes: RemainingIDBytes, deviceConfiguration: DeviceConfiguration)
         {
@@ -149,5 +149,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             0xF7, 0x03, 0xF8, 0xFF, 0x02, 0x00, 0xF1, 0xFF, 0x00, 0x00, //0x20F: 0x01/03/07
             0xFF, 0x04, 0x00, 0xFF, 0xF8, 0xFF, 0xFF, 0x03              //0x21F: 0x01/03/07
         };
+
+        public enum S25HxFamily : byte
+        {
+            HL_T = 0x2A,
+            HS_T = 0x2B
+        }
     }
 }
