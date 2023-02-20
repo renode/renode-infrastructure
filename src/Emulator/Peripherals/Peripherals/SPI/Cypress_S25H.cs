@@ -26,6 +26,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         protected override byte GetCapacityCode()
         {
+            // S25Hx family of flash chips ignore assumption that 64 MB and larger memories
+            // has capacity codes starting from 0x20, leaving a gap from 0x1A to 0x1F.
             return (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)this.UnderlyingMemory.Size);
         }
 
@@ -34,7 +36,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             byte[] patchedSFDPSignature = DefaultSFDPSignature;
             byte capacity = GetCapacityCode();
 
-            Dictionary<byte, Dictionary<ulong, byte>> patchtable = new Dictionary<byte, Dictionary<ulong, byte>>() {
+            // Some values in parameters differ between flash size variants.
+            // Outer dictionary uses capacity code as a key to select offset-value
+            // pairs applied to default SFDP signature.
+
+            // Patched DWORDs:
+            // - Basic Flash Parameter DWORD-2 (0x107), DWORD-11 (0x12B)
+            // - Sector Map Parameter DWORD-10 Config-0 Region-2 (0x1EF)
+            // - Sector Map Parameter DWORD-12 Config-3 Region-0 (0x1F7)
+            // - Sector Map Parameter DWORD-18 Config-1 Region-2 (0x20F)
+            // - Sector Map Parameter DWORD-22 Config-4 Region-0 (0x21F)
+            var patchtable = new Dictionary<byte, Dictionary<ulong, byte>>() {
                 {0x19, new Dictionary<ulong, byte>() {
                     {0x107, 0x0F},
                     {0x12B, 0xE1},
@@ -61,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }}
             };
 
-            foreach (KeyValuePair<ulong, byte> patch in patchtable[capacity])
+            foreach(var patch in patchtable[capacity])
             {
                 patchedSFDPSignature[patch.Key] = patch.Value;
             }
