@@ -47,6 +47,7 @@
     </Compile>
     <Compile Include="Arm\CortexA7.cs" />
     <Compile Include="Arm\Timers\CortexAGenericTimer.cs" />
+    <Compile Include="Arm\Timers\ARM_GenericTimer.cs" />
     <Compile Include="Arm\Timers\CortexAGlobalTimer.cs" />
     <Compile Include="Arm\Timers\CortexAPrivateTimer.cs" />
     <Compile Include="Arm\GIC.cs" />

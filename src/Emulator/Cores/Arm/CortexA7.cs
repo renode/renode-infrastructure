@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,10 +16,18 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public sealed class CortexA7 : Arm
     {
-        public CortexA7(Machine machine, GIC gic, ulong genericTimerCompareValue, uint id = 0, Endianess endianness = Endianess.LittleEndian) : base("cortex-a15", machine, id, endianness)
+        public CortexA7(Machine machine, ARM_GenericTimer genericTimer, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
+            : base("cortex-a15", machine, cpuId, endianness)
         {
-            genericTimer = new CortexAGenericTimer(machine, gic, genericTimerCompareValue);
+            GenericTimer = genericTimer;
         }
+
+        public override void Reset()
+        {
+            base.Reset();
+        }
+
+        public ARM_GenericTimer GenericTimer { get; }
 
         protected override void Write32CP15Inner(uint instruction, uint value)
         {
@@ -27,12 +35,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(coprocessorRegisterN)
             {
-            case 14:
-                genericTimer.WriteRegister(instruction, value);
-                break;
-            default:
-                base.Write32CP15Inner(instruction, value);
-                break;
+                case 14:
+                    GenericTimer.WriteDoubleWordRegisterAArch32(instruction & GenericTimerDoubleWordRegisterMask, value);
+                    break;
+                default:
+                    base.Write32CP15Inner(instruction, value);
+                    break;
             }
         }
 
@@ -42,10 +50,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(coprocessorRegisterN)
             {
-            case 14: // Timer
-                return (uint)genericTimer.ReadRegister(instruction);
-            default:
-                return base.Read32CP15Inner(instruction);
+                case 14:
+                    return GenericTimer.ReadDoubleWordRegisterAArch32(instruction & GenericTimerDoubleWordRegisterMask);
+                default:
+                    return base.Read32CP15Inner(instruction);
             }
         }
 
@@ -55,11 +63,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(coprocessorRegisterM)
             {
-            case 14:
-                var result = genericTimer.ReadRegister(instruction);
-                return result;
-            default:
-                return base.Read64CP15Inner(instruction);
+                case 14:
+                    return GenericTimer.ReadQuadWordRegisterAArch32(instruction & GenericTimerQuadWordRegisterMask);
+                default:
+                    return base.Read64CP15Inner(instruction);
             }
         }
 
@@ -69,15 +76,18 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(coprocessorRegisterM)
             {
-            case 14:
-                genericTimer.WriteRegister(instruction, value);
-                break;
-            default:
-                base.Write64CP15Inner(instruction, value);
-                break;
+                case 14:
+                    GenericTimer.WriteQuadWordRegisterAArch32(instruction & GenericTimerQuadWordRegisterMask, value);
+                    break;
+                default:
+                    base.Write64CP15Inner(instruction, value);
+                    break;
             }
         }
 
-        private readonly CortexAGenericTimer genericTimer;
+        // Mask all cooprocessor instruction fields expect for opc1, CRn, opc2 and CRm
+        private const uint GenericTimerDoubleWordRegisterMask = 0xef00ef;
+        // Mask all cooprocessor instruction fields expect for opc1 and CRm
+        private const uint GenericTimerQuadWordRegisterMask = 0x000000ff;
     }
 }
