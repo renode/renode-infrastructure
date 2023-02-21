@@ -78,6 +78,11 @@ namespace Antmicro.Renode.Core
             return contexts.Select(x => x.GetSurrogate(type)).FirstOrDefault(x => x != null);
         }
 
+        public object GetSurrogate(string typeName)
+        {
+            return contexts.Select(x => x.GetSurrogate(typeName)).FirstOrDefault(x => x != null);
+        }
+
         protected ObjectCreator()
         {
             contexts = new Stack<Context>();
@@ -113,6 +118,11 @@ namespace Antmicro.Renode.Core
                 object result;
                 surrogates.TryGetValue(type, out result);
                 return result;
+            }
+
+            public object GetSurrogate(string typeName)
+            {
+                return surrogates.FirstOrDefault(x => x.Key.FullName.Contains(typeName)).Value;
             }
 
             public void Close()
