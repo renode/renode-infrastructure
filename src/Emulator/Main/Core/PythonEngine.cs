@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -87,6 +87,12 @@ namespace Antmicro.Renode.Core
             Scope = Engine.CreateScope();
             Scope.SetVariable("emulationManager", EmulationManager.Instance);
             Scope.SetVariable("pythonEngine", Engine);
+            // `Monitor` is located in a different project, so we cannot reference the class directly
+            var monitor = ObjectCreator.Instance.GetSurrogate(MonitorTypeName);
+            if(monitor != null)
+            {
+                Scope.SetVariable("monitor", monitor);
+            }
             PythonTime.localtime();
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
@@ -109,6 +115,10 @@ namespace Antmicro.Renode.Core
             {
                 var value = Scope.GetVariable<object>(variable);
                 if(value.GetType() == typeof(PythonModule))
+                {
+                    continue;
+                }
+                if(value.GetType().FullName == MonitorTypeName)
                 {
                     continue;
                 }
@@ -195,6 +205,8 @@ namespace Antmicro.Renode.Core
 
             private readonly Action<string> errorCallback;
         }
+
+        private const string MonitorTypeName = "Antmicro.Renode.UserInterface.Monitor";
     }
 }
 
