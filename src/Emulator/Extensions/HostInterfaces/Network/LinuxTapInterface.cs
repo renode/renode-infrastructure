@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -156,6 +156,9 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
             try
             {
+                // If we don't have rw access to /dev/net/tun we will loop here indefinitely
+                // because we won't be able to open tap
+                // Fortunately /dev/net/tun has rw by default
                 tapFileDescriptor = TAPTools.OpenTAP(devName, persistent);
                 if(tapFileDescriptor < 0)
                 {
