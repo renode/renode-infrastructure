@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -121,11 +121,12 @@ namespace Antmicro.Renode.Disassembler.LLVM
         
         private static readonly Dictionary<string, string> ModelTranslations = new Dictionary<string, string>
         {
-            { "x86"   , "i386"       },
+            { "x86"       , "i386"       },
             // this case is included because of #3250
-            { "arm926", "arm926ej-s" },
-            { "e200z6", "ppc32"      },
-            { "gr716" , "leon3"      }
+            { "arm926"    , "arm926ej-s" },
+            { "cortex-m4f", "cortex-m4"  },
+            { "e200z6"    , "ppc32"      },
+            { "gr716"     , "leon3"      }
         };
 
         private static readonly Dictionary<string, string> SupportedArchitectures = new Dictionary<string, string>
