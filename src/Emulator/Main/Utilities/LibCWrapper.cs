@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -139,6 +139,15 @@ namespace Antmicro.Renode.Utilities
 #endif
         }
 
+        public static int Socket(int domain, int type, int protocol)
+        {
+#if !PLATFORM_LINUX
+            throw new NotSupportedException("This API is available on Linux only!");
+#else
+            return socket(domain, type, protocol);
+#endif
+        }
+
         #region Externs
 
         [DllImport("libc", EntryPoint = "open", SetLastError = true)]
@@ -152,6 +161,9 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
         private static extern int ioctl(int d, int request, int a);
+
+        [DllImport("libc", EntryPoint = "socket", SetLastError = true)]
+        private static extern int socket(int domain, int type, int protocol);
 
         [DllImport("libc", EntryPoint = "close")]
         private static extern int close(int fd);
