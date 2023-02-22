@@ -71,38 +71,25 @@ namespace Antmicro.Renode.Disassembler.LLVM
             return sofar;
         }
 
-        public string GetTripleAndModelKey(uint flags)
+        public void GetTripleAndModelKey(uint flags, out string triple, out string model)
         {
-            var triple = SupportedArchitectures[cpu.Architecture];
+            triple = SupportedArchitectures[cpu.Architecture];
             if(triple == "armv7a" && flags > 0)
             {
                 triple = "thumb";
             }
-
-            if(!ModelTranslations.TryGetValue(cpu.Model, out var model))
+            if(!ModelTranslations.TryGetValue(cpu.Model, out model))
             {
                 model = cpu.Model;
             }
-            
-            return $"{triple} {model}";
         }
         
         private IDisassembler GetDisassembler(uint flags) 
         {
-            var triple = SupportedArchitectures[cpu.Architecture];
-            if(triple == "armv7a" && flags > 0)
-            {
-                triple = "thumb";
-            }
-
-            var key = string.Format("{0} {1}", triple, cpu.Model);
+            GetTripleAndModelKey(flags, out var triple, out var model);
+            var key = $"{triple} {model}";
             if(!cache.ContainsKey(key))
             {
-                if(!ModelTranslations.TryGetValue(cpu.Model, out var model))
-                {
-                    model = cpu.Model;
-                }
-
                 IDisassembler disas = new LLVMDisasWrapper(model, triple);
                 if(cpu.Architecture == "arm-m")
                 {
