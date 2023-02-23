@@ -45,8 +45,8 @@
     <Compile Include="Arm\ArmRegisters.cs">
       <DependentUpon>ArmRegisters.tt</DependentUpon>
     </Compile>
-    <Compile Include="Arm\CortexA7.cs" />
     <Compile Include="Arm\Timers\CortexAGenericTimer.cs" />
+    <Compile Include="Arm\ARMv7A.cs" />
     <Compile Include="Arm\Timers\ARM_GenericTimer.cs" />
     <Compile Include="Arm\Timers\CortexAGlobalTimer.cs" />
     <Compile Include="Arm\Timers\CortexAPrivateTimer.cs" />

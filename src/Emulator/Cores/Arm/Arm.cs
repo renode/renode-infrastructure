@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,9 +23,9 @@ using Endianess = ELFSharp.ELF.Endianess;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 2)]
-    public partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
+    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
-        public Arm(string cpuType, Machine machine, uint id = 0, Endianess endianness = Endianess.LittleEndian) : base(id, cpuType, machine, endianness)
+        public Arm(string cpuType, Machine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian) : base(cpuId, cpuType, machine, endianness)
         {
         }
 
@@ -90,25 +90,25 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         protected uint Read32CP15(uint instruction)
         {
-            return Read32CP15Inner(instruction);
+            return Read32CP15Inner(new Coprocessor32BitMoveInstruction(instruction));
         }
 
         [Export]
         protected void Write32CP15(uint instruction, uint value)
         {
-            Write32CP15Inner(instruction, value);
+            Write32CP15Inner(new Coprocessor32BitMoveInstruction(instruction), value);
         }
 
         [Export]
         protected ulong Read64CP15(uint instruction)
         {
-            return Read64CP15Inner(instruction);
+            return Read64CP15Inner(new Coprocessor64BitMoveInstruction(instruction));
         }
 
         [Export]
         protected void Write64CP15(uint instruction, ulong value)
         {
-            Write64CP15Inner(instruction, value);
+            Write64CP15Inner(new Coprocessor64BitMoveInstruction(instruction), value);
         }
 
         protected override Interrupt DecodeInterrupt(int number)
@@ -124,15 +124,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected virtual uint Read32CP15Inner(uint instruction)
+        protected virtual uint Read32CP15Inner(Coprocessor32BitMoveInstruction instruction)
         {
-            uint op1, op2, crm, crn;
-            crm = instruction & 0xf;
-            crn = (instruction >> 16) & 0xf;
-            op1 = (instruction >> 21) & 7;
-            op2 = (instruction >> 5) & 7;
-
-            if((op1 == 4) && (op2 == 0) && (crm == 0))
+            if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0)
             {
                 // scu
                 var scus = machine.GetPeripheralsOfType<SnoopControlUnit>().ToArray();
@@ -148,36 +142,24 @@ namespace Antmicro.Renode.Peripherals.CPU
                         throw new CpuAbortException();
                 }
             }
-            this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - op1={0}, op2={1}, crm={2}, crn={3} - returning 0x0", op1, op2, crm, crn);
+            this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - {0} - returning 0x0", instruction);
             return 0;
         }
 
-        protected virtual void Write32CP15Inner(uint instruction, uint value)
+        protected virtual void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
         {
-            uint op1, op2, crm, crn;
-            crm = instruction & 0xf;
-            crn = (instruction >> 16) & 0xf;
-            op1 = (instruction >> 21) & 7;
-            op2 = (instruction >> 5) & 7;
-
-            this.Log(LogLevel.Warning, "Unknown CP15 32-bit write - op1={0}, op2={1}, crm={2}, crn={3}", op1, op2, crm, crn);
+            this.Log(LogLevel.Warning, "Unknown CP15 32-bit write - {0}", instruction);
         }
 
-        protected virtual ulong Read64CP15Inner(uint instruction)
+        protected virtual ulong Read64CP15Inner(Coprocessor64BitMoveInstruction instruction)
         {
-            uint op1, crm;
-            crm = instruction & 0xf;
-            op1 = (instruction >> 4) & 0xf;
-            this.Log(LogLevel.Warning, "Unknown CP15 64-bit read - op1={0}, crm={1} - returning 0x0", op1, crm);
+            this.Log(LogLevel.Warning, "Unknown CP15 64-bit read - {0} - returning 0x0", instruction);
             return 0;
         }
 
-        protected virtual void Write64CP15Inner(uint instruction, ulong value)
+        protected virtual void Write64CP15Inner(Coprocessor64BitMoveInstruction instruction, ulong value)
         {
-            uint op1, crm;
-            crm = instruction & 0xf;
-            op1 = (instruction >> 4) & 0xf;
-            this.Log(LogLevel.Warning, "Unknown CP15 64-bit write - op1={0}, crm={1}", op1, crm);
+            this.Log(LogLevel.Warning, "Unknown CP15 64-bit write - {0}", instruction);
         }
 
         protected virtual UInt32 BeforePCWrite(UInt32 value)
@@ -336,5 +318,68 @@ namespace Antmicro.Renode.Peripherals.CPU
             "Kernel Trap",
             "STREX instruction"
         };
+
+        protected struct Coprocessor32BitMoveInstruction
+        {
+            public Coprocessor32BitMoveInstruction(uint instruction)
+            {
+                Opc1 = BitHelper.GetValue(instruction, Opc1Offset, Opc1Size);
+                CRn = BitHelper.GetValue(instruction, CRnOffset, CRnSize);
+                Opc2 = BitHelper.GetValue(instruction, Opc2Offset, Opc2Size);
+                CRm = BitHelper.GetValue(instruction, CRmOffset, CRmSize);
+                FieldsOnly = instruction & FieldsMask;
+            }
+
+            public override string ToString()
+            {
+                return $"op1={Opc1}, op2={Opc2}, crm={CRm}, crn={CRn}";
+            }
+
+            public uint Opc1 { get; }
+            public uint CRn { get; }
+            public uint Opc2 { get; }
+            public uint CRm { get; }
+            public uint FieldsOnly { get; }
+
+            public static readonly uint FieldsMask = BitHelper.CalculateMask(Opc1Size, Opc1Offset) | BitHelper.CalculateMask(CRnSize, CRnOffset)
+                | BitHelper.CalculateMask(Opc2Size, Opc2Offset) | BitHelper.CalculateMask(CRmSize, CRmOffset);
+
+            private const int Opc1Size = 3;
+            private const int CRnSize = 4;
+            private const int Opc2Size = 3;
+            private const int CRmSize = 4;
+
+            private const int Opc1Offset = 21;
+            private const int CRnOffset = 16;
+            private const int Opc2Offset = 5;
+            private const int CRmOffset = 0;
+        }
+
+        protected struct Coprocessor64BitMoveInstruction
+        {
+            public Coprocessor64BitMoveInstruction(uint instruction)
+            {
+                Opc1 = BitHelper.GetValue(instruction, Opc1Offset, Opc1Size);
+                CRm = BitHelper.GetValue(instruction, CRmOffset, CRmSize);
+                FieldsOnly = instruction & FieldsMask;
+            }
+
+            public override string ToString()
+            {
+                return $"op1={Opc1}, crm={CRm}";
+            }
+
+            public uint Opc1 { get; }
+            public uint CRm { get; }
+            public uint FieldsOnly { get; }
+
+            public static readonly uint FieldsMask = BitHelper.CalculateMask(Opc1Size, Opc1Offset) | BitHelper.CalculateMask(CRmSize, CRmOffset);
+
+            private const int Opc1Size = 4;
+            private const int CRmSize = 4;
+
+            private const int Opc1Offset = 4;
+            private const int CRmOffset = 0;
+        }
     }
 }
