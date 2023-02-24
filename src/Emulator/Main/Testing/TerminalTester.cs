@@ -118,14 +118,18 @@ namespace Antmicro.Renode.Testing
                 resultMatcher = null;
             }
 
+            if(pauseEmulation)
+            {
+                machine.PauseAndRequestEmulationPause(precise: true);
+            }
             matchEvent.Set();
         }
 
-        public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false)
+        public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false, bool pauseEmulation = false)
         {
             var eventName = "Line containing{1} >>{0}<<".FormatWith(pattern, treatAsRegex ? " regex" : string.Empty);
 #if DEBUG_EVENTS
-            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}) ", pattern, includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex);
+            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}, pause on match {4}) ", pattern, includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex, pauseEmulation);
 #endif
 
             var result = WaitForMatch(() =>
@@ -143,7 +147,7 @@ namespace Antmicro.Renode.Testing
 
                 return CheckUnfinishedLine(pattern, treatAsRegex, eventName);
 
-            }, timeout ?? GlobalTimeout);
+            }, timeout ?? GlobalTimeout, pauseEmulation);
 
             if(result == null)
             {
@@ -152,7 +156,7 @@ namespace Antmicro.Renode.Testing
             return result;
         }
 
-        public TerminalTesterResult NextLine(TimeInterval? timeout = null)
+        public TerminalTesterResult NextLine(TimeInterval? timeout = null, bool pauseEmulation = false)
         {
             var result = WaitForMatch(() =>
             {
@@ -162,7 +166,7 @@ namespace Antmicro.Renode.Testing
                 }
 
                 return HandleSuccess("Next line", matchingLineId: 0);
-            }, timeout ?? GlobalTimeout);
+            }, timeout ?? GlobalTimeout, pauseEmulation);
 
             if(result == null)
             {
@@ -219,31 +223,54 @@ namespace Antmicro.Renode.Testing
         public TimeInterval GlobalTimeout { get; set; }
         public TimeSpan WriteCharDelay { get; set; }
 
-        private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> resultMatcher, TimeInterval timeout)
+        private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> resultMatcher, TimeInterval timeout, bool pauseEmulation = false)
         {
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            TerminalTesterResult immediateResult = null;
+
             lock(lines)
             {
                 // Clear the old result and save the matcher for use in CharReceived
                 this.testerResult = null;
                 this.resultMatcher = resultMatcher;
+                this.pauseEmulation = pauseEmulation;
 
                 // Handle the case where the match has already happened
-                var immediateResult = resultMatcher.Invoke();
+                immediateResult = resultMatcher.Invoke();
                 if(immediateResult != null)
                 {
                     // Prevent matching in CharReceived in this case
                     this.resultMatcher = null;
-                    return immediateResult;
                 }
+            }
+
+            // Pause the emulation without the `lines` lock held to avoid deadlocks in some cases
+            if(immediateResult != null)
+            {
+                if(pauseEmulation)
+                {
+                    this.Log(LogLevel.Warning, "Pause on match was requested, but the matching string had already " +
+                        "been printed when the assertion was made. Pause time will not be deterministic.");
+                    emulation.PauseAll();
+                }
+                return immediateResult;
             }
 
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)timeout.TotalMilliseconds);
             var waitHandles = new [] { matchEvent, timeoutEvent.WaitHandle };
 
+            var emulationPausedEvent = emulation.GetStartedStateChangedEvent(false);
+
             do
             {
                 if(testerResult != null)
                 {
+                    // We know our machine is paused - we did that in WriteChar
+                    // Now let's make sure the whole emulation is paused if necessary
+                    if(pauseEmulation)
+                    {
+                        emulationPausedEvent.WaitOne();
+                    }
                     return testerResult;
                 }
 #if DEBUG_EVENTS
@@ -485,6 +512,7 @@ namespace Antmicro.Renode.Testing
         private string generatedReport;
         private Func<TerminalTesterResult> resultMatcher;
         private TerminalTesterResult testerResult;
+        private bool pauseEmulation;
 
         // Similarly how it is handled for FrameBufferTester is shouldn't matter if we unset the charEvent during deserialization 
         // as we check for char match on load in `WaitForMatch` either way
