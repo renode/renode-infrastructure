@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Testing
             this.endLineOption = endLineOption;
             this.removeColors = removeColors;
             charEvent = new AutoResetEvent(false);
+            matchEvent = new AutoResetEvent(false);
             lines = new List<Line>();
             currentLineBuffer = new SafeStringBuilder();
             sgrDecodingBuffer = new SafeStringBuilder();
@@ -94,6 +95,30 @@ namespace Antmicro.Renode.Testing
             this.Log(LogLevel.Noisy, "Char received {0} (hex 0x{1:X})", (char)value, value);
 #endif
             charEvent.Set();
+
+            lock(lines)
+            {
+                // If we're not waiting for a match, we have nothing to do
+                if(resultMatcher == null)
+                {
+                    return;
+                }
+
+                testerResult = resultMatcher.Invoke();
+#if DEBUG_EVENTS
+                this.Log(LogLevel.Noisy, "Matching result: {0}", testerResult);
+#endif
+                // If there was no match, we just keep waiting
+                if(testerResult == null)
+                {
+                    return;
+                }
+
+                // Stop matching if we have already matched something
+                resultMatcher = null;
+            }
+
+            matchEvent.Set();
         }
 
         public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false)
@@ -196,22 +221,30 @@ namespace Antmicro.Renode.Testing
 
         private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> resultMatcher, TimeInterval timeout)
         {
+            lock(lines)
+            {
+                // Clear the old result and save the matcher for use in CharReceived
+                this.testerResult = null;
+                this.resultMatcher = resultMatcher;
+
+                // Handle the case where the match has already happened
+                var immediateResult = resultMatcher.Invoke();
+                if(immediateResult != null)
+                {
+                    // Prevent matching in CharReceived in this case
+                    this.resultMatcher = null;
+                    return immediateResult;
+                }
+            }
+
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)timeout.TotalMilliseconds);
-            var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
+            var waitHandles = new [] { matchEvent, timeoutEvent.WaitHandle };
 
             do
             {
-                TerminalTesterResult result;
-                lock(lines)
+                if(testerResult != null)
                 {
-                    result = resultMatcher.Invoke();
-                }
-#if DEBUG_EVENTS
-                this.Log(LogLevel.Noisy, "Matching result: {0}", result);
-#endif
-                if(result != null)
-                {
-                    return result;
+                    return testerResult;
                 }
 #if DEBUG_EVENTS
                 this.Log(LogLevel.Noisy, "Waiting for the next event");
@@ -450,12 +483,17 @@ namespace Antmicro.Renode.Testing
         private Machine machine;
         private SGRDecodingState sgrDecodingState;
         private string generatedReport;
+        private Func<TerminalTesterResult> resultMatcher;
+        private TerminalTesterResult testerResult;
 
         // Similarly how it is handled for FrameBufferTester is shouldn't matter if we unset the charEvent during deserialization 
         // as we check for char match on load in `WaitForMatch` either way
         // Additionally in `IsIdle` the timeout would long since expire so it doesn't matter there either.
         [Constructor(false)]
         private AutoResetEvent charEvent;
+        // The same logic as above also applies for the matchEvent.
+        [Constructor(false)]
+        private AutoResetEvent matchEvent;
         private readonly SafeStringBuilder currentLineBuffer;
         private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
