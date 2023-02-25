@@ -144,6 +144,38 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
         }
 
+        [Runnable]
+        public void A2L(ICommandInteraction writer, [Values("addr2line")] LiteralToken operation, PathToken elfPath, HexToken pc)
+        {
+            try
+            {
+                using(var elf = ELFSharp.ELF.ELFReader.Load(elfPath.Value))
+                {
+                    try
+                    {
+                        var dwarf = DWARF.DWARFReader.ParseDWARF(elf);
+                        if(!dwarf.TryGetLineForPC((ulong)pc.Value, out var line))
+                        {
+                            writer.WriteLine($"Could not map address 0x{pc.Value:X} to any line", ConsoleColor.Red);
+                            return;
+                        }
+
+                        writer.WriteLine($"PC 0x{pc.Value:X} maps to {line.FilePath}:{line.LineNumber}|{line.Column}");
+                    }
+                    catch(Exception e)
+                    {
+                        writer.WriteLine($"Could not parse {elfPath.Value} DWARF data: {e.Message}", ConsoleColor.Red);
+                        return;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                writer.WriteLine($"Could not read {elfPath.Value} ELF file: {e.Message}", ConsoleColor.Red);
+                return;
+            }
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
