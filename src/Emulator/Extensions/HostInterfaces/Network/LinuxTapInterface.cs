@@ -195,7 +195,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                     if(!started || process.ExitCode != 0)
                     {
                         this.Log(LogLevel.Warning, "Could not create TUN/TAP interface, running in dummy mode.");
-                        this.Log(LogLevel.Debug, "Error {0} while opening tun device '{1}': {2}", process.ExitCode, deviceName, output);
+                        this.Log(LogLevel.Debug, "Error {0} while opening tun device '{1}'. {2}", process.ExitCode, deviceName, output);
                         return;
                     }
                     Init();

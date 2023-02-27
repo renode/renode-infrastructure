@@ -13,6 +13,7 @@ using Mono.Unix.Native;
 using Mono.Unix;
 using Antmicro.Renode.Utilities;
 using System.Net.NetworkInformation;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.TAPHelper
 {
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.TAPHelper
             int sock = LibCWrapper.Socket(2, 2, 0); //AF_INET, SOCK_DGRAM
             if(sock == -1)
             {
-                Console.Error.WriteLine("Could not create ioctl socket, error {0}", Marshal.GetLastWin32Error());
+                Logger.Log(LogLevel.Debug, "Could not create ioctl socket, error {0}", Marshal.GetLastWin32Error());
                 return sock;
             }
 
@@ -62,7 +63,7 @@ namespace Antmicro.Renode.TAPHelper
             {
                 if((err = LibCWrapper.Ioctl(sock, SIOCGIFFLAGS, ifr)) < 0)
                 {
-                    Console.Error.WriteLine("Could not get flags on TUN/TAP interface, error {0}", Marshal.GetLastWin32Error());
+                    Logger.Log(LogLevel.Debug, "Could not get flags on TUN/TAP interface, error {0}", Marshal.GetLastWin32Error());
                     return err;
                 }
 
@@ -76,7 +77,7 @@ namespace Antmicro.Renode.TAPHelper
 
                     if((err = LibCWrapper.Ioctl(sock, SIOCSIFFLAGS, ifr)) < 0)
                     {
-                        Console.Error.WriteLine("Could not activate TUN/TAP interface, error {0}", Marshal.GetLastWin32Error());
+                        Logger.Log(LogLevel.Debug, "Could not activate TUN/TAP interface, error {0}", Marshal.GetLastWin32Error());
                         return err;
                     }
                 }
@@ -95,7 +96,7 @@ namespace Antmicro.Renode.TAPHelper
             var fd = LibCWrapper.Open("/dev/net/tun", O_RDWR);
             if(fd < 0)
             {
-                Console.Error.WriteLine("Could not open /dev/net/tun, error: {0}", Marshal.GetLastWin32Error());
+                Logger.Log(LogLevel.Debug, "Could not open /dev/net/tun, error: {0}", Marshal.GetLastWin32Error());
                 return fd;
             }
 
@@ -123,7 +124,7 @@ namespace Antmicro.Renode.TAPHelper
                 int err = 0;
                 if((err = LibCWrapper.Ioctl(fd, TUNSETIFF, ifr)) < 0)
                 {
-                    Console.Error.WriteLine("Could not set TUNSETIFF, error: {0}", Marshal.GetLastWin32Error());
+                    Logger.Log(LogLevel.Debug, "Could not set TUNSETIFF, error: {0}", Marshal.GetLastWin32Error());
                     LibCWrapper.Close(fd);
                     return err;
                 }
@@ -132,7 +133,7 @@ namespace Antmicro.Renode.TAPHelper
                 {
                     if((err = LibCWrapper.Ioctl(fd, TUNSETPERSIST, 1)) < 0)
                     {
-                        Console.Error.WriteLine("Could not set TUNSETPERSIST, error: {0}", Marshal.GetLastWin32Error());
+                        Logger.Log(LogLevel.Debug, "Could not set TUNSETPERSIST, error: {0}", Marshal.GetLastWin32Error());
                         LibCWrapper.Close(fd);
                         return err;
                     }
@@ -143,7 +144,7 @@ namespace Antmicro.Renode.TAPHelper
                 {
                     if((err = Up_TUNTAP(ifr)) < 0)
                     {
-                        Console.Error.WriteLine("Could not bring device up, do it manually.");
+                        Logger.Log(LogLevel.Debug, "Could not bring device up, do it manually.");
                         LibCWrapper.Close(fd);
                         return err;
                     }
