@@ -605,7 +605,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             if(addCrc)
             {
-                frame.FillWithChecksums(new [] { EtherType.IpV4, EtherType.IpV6 }, 
+                frame.FillWithChecksums(new [] { EtherType.IpV4, EtherType.IpV6 },
                     new [] { IPProtocolType.TCP, IPProtocolType.UDP });
             }
 
