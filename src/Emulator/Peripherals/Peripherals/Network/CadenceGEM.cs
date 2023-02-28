@@ -569,7 +569,7 @@ namespace Antmicro.Renode.Peripherals.Network
             var addr = (uint)((value >> 23) & 0x1F);
             var op = (PhyOperation)((value >> 28) & 0x3);
 
-            if(!phys.TryGetValue(addr, out var phy))
+            if(!TryGetPhy<ushort>(addr, out var phy))
             {
                 this.Log(LogLevel.Warning, "Write to PHY with unknown address {0}", addr);
                 phyDataRead = 0xFFFFU;

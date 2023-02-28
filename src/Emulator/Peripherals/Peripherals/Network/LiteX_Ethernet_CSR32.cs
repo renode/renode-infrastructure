@@ -216,7 +216,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 else
                 {
                     ushort readValue = 0;
-                    if(!phys.TryGetValue(phyAddress, out var phy))
+                    if(!TryGetPhy<ushort>(phyAddress, out var phy))
                     {
                         this.Log(LogLevel.Warning, "Trying to read from non-existing PHY #{0}", phyAddress);
                     }
@@ -234,7 +234,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             case PhyState.WaitingForData:
             {
-                if(!phys.TryGetValue(lastPhyAddress, out var phy))
+                if(!TryGetPhy<ushort>(lastPhyAddress, out var phy))
                 {
                     this.Log(LogLevel.Warning, "Trying to write to non-existing PHY #{0}", lastPhyAddress);
                 }

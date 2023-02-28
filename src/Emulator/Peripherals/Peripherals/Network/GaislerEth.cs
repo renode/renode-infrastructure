@@ -100,13 +100,12 @@ namespace Antmicro.Renode.Peripherals.Network
                 var reg = ((value >> 6) & 0x1f);
                 var read = (value & 0x02) != 0;
                 var write = (value & 0x01) != 0;
-                
-                if(!phys.ContainsKey(id))
+
+                if(!TryGetPhy<ushort>(id, out var phy))
                 {
                     this.Log(LogLevel.Warning, "Write to phy with unknown ID {0}", id);
                     return;
                 }
-                var phy = phys[id];
                 if(read)
                 {
                     var phyRead = phy.Read((ushort)reg);

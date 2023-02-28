@@ -105,18 +105,18 @@ namespace Antmicro.Renode.Peripherals.Network
                 var phyId = (value >> 11) & 0x1F;
                 var register = (ushort)((value >> 6) & 0x1F);
                 var isRead = ((value >> 1) & 0x1) == 0;
-                if(!phys.ContainsKey(phyId))
+                if(!TryGetPhy<ushort>(phyId, out var phy))
                 {
                     this.Log(LogLevel.Warning, "Access to unknown phy {0}", phyId);
                     break;
                 }
                 if(isRead)
                 {
-                    macMiiData = phys[phyId].Read(register);
+                    macMiiData = phy.Read(register);
                 }
                 else
                 {
-                    phys[phyId].Write(register, macMiiData);
+                    phy.Write(register, macMiiData);
                 }
 
                 break;
