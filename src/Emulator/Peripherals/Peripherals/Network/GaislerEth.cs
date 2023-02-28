@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -111,13 +111,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     var phyRead = phy.Read((ushort)reg);
                     registers.MDIOControlStatus &= 0x0000FFFF;//clear data
-                    registers.MDIOControlStatus |= (uint)(phyRead << 16); 
+                    registers.MDIOControlStatus |= (uint)(phyRead << 16);
                 }
                 else if(write)
                 {
                     phy.Write((ushort)reg, (ushort)((value >> 16) & 0xFFFF));
                 }
-                else//unknown 
+                else//unknown
                 {
                     this.Log(LogLevel.Warning, "Unknown phy operation - neither read nor write ");
                 }
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     registers.InterruptStatus |= 1u<<0;
                     IRQ.Set();
                 }*/
-                break;  
+                break;
             case Offset.TxDescriptorPointer:
                 registers.TxDescriptorPointer = value;
                 transmitDescriptorBase = value & ~(0x3ffu);
@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             var irqEndpoints = IRQ.Endpoints;
             if(irqEndpoints.Count > 0)
-            {              
+            {
                 return (uint)irqEndpoints[0].Number;
             }
             return 0;
@@ -297,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.Network
             if(td.InterruptEnable && ((registers.Control & (1u << 2)) != 0))
             {
                 //if interrupts enabled
-                registers.Status |= 1u << 3; //transmitter interrupt bit 
+                registers.Status |= 1u << 3; //transmitter interrupt bit
                 this.IRQ.Set();
                 this.IRQ.Unset();
             }
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.Network
             td.UnderrunError = false;
             td.AttemptLimitError = false;
             td.WriteBack();
-           
+
         }
 
         #endregion
@@ -424,7 +424,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             private SystemBus sbus;
-            
+
             private uint word0;
             private uint word1;
             private uint ramAddress;
