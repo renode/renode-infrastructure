@@ -348,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         [IrqProvider("transmit irq", 0)]
         public GPIO TxIRQ { get; }
-        
+
         private void UpdateMac()
         {
             var finalMac = (ulong)((lowerMAC.Value << 32) + upperMAC.Value);
@@ -746,7 +746,7 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         /// Legacy Transmit Buffer
-        /// 
+        ///
         ///          =================================================================================
         ///          |             Byte 1                    |           Byte 0                      |
         ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
@@ -756,10 +756,10 @@ namespace Antmicro.Renode.Peripherals.Network
         /// Offset +4|                       Tx Data Buffer Pointer -- low halfword                  |
         /// Offset +6|                       Tx Data Buffer Pointer -- high halfword                 |
         ///          =================================================================================
-        /// 
-        /// 
+        ///
+        ///
         /// Enhanced Transmit Buffer
-        /// 
+        ///
         ///          =================================================================================
         ///          |             Byte 1                    |           Byte 0                      |
         ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
@@ -811,7 +811,7 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         /// Legacy Receive Buffer
-        /// 
+        ///
         ///          =================================================================================
         ///          |             Byte 1                    |           Byte 0                      |
         ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
@@ -821,10 +821,10 @@ namespace Antmicro.Renode.Peripherals.Network
         /// Offset +4|                       Rx Data Buffer Pointer -- low halfword                  |
         /// Offset +6|                       Rx Data Buffer Pointer -- high halfword                 |
         ///          =================================================================================
-        /// 
-        /// 
+        ///
+        ///
         /// Enhanced Receive Buffer
-        /// 
+        ///
         ///          =================================================================================
         ///          |             Byte 1                    |           Byte 0                      |
         ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
@@ -858,7 +858,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return Bus.ReadBytes(DataBufferAddress, Length, true);
             }
 
-            public ushort Length 
+            public ushort Length
             {
                 get
                 {
@@ -884,7 +884,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public new bool IsLast
             {
-                set 
+                set
                 {
                     BitHelper.SetBit(ref words[1], 11, value);
                 }
@@ -902,7 +902,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 return true;
             }
-            
+
             private const int MaximumBufferLength = (1 << 13) - 1;
         }
     }
