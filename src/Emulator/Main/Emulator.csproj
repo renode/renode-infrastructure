@@ -587,6 +587,7 @@
     <Compile Include="Peripherals\Network\IEmulatedNetworkService.cs" />
     <Compile Include="Peripherals\Network\EchoService.cs" />
     <Compile Include="Utilities\ICanLoadFiles.cs" />
+    <Compile Include="Peripherals\Network\Clause45Address.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
