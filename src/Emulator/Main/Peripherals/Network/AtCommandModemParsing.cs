@@ -76,6 +76,13 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 return result;
             }
+            // If we failed to parse this enum as a string above, and SmartParser also failed to parse it
+            // as a number, this means the argument itself is invalid.
+            if(parameterType.IsEnum)
+            {
+                throw new ArgumentException($"Enum argument '{argument}' is invalid");
+            }
+
             // If none of the parsers covered this parameter, this is a model implementation error.
             throw new NotSupportedException($"No argument parser found for {parameterType.FullName}");
         }
