@@ -107,6 +107,8 @@ namespace Antmicro.Renode.Peripherals.Network
         [field: Transient]
         public event Action<byte> CharReceived;
 
+        protected static readonly Encoding StringEncoding = Encoding.UTF8;
+        protected static readonly byte[] CrLfBytes = StringEncoding.GetBytes(CrLf);
         protected static readonly Response Ok = new Response(OkMessage);
         protected static readonly Response Error = new Response(ErrorMessage);
 
@@ -126,30 +128,37 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        protected void SendString(string str)
+        protected void SendBytes(byte[] bytes)
         {
-            var stringForDisplay = str.Replace(CrLf, CrLfSymbol);
             var charReceived = CharReceived;
             if(charReceived == null)
             {
-                this.Log(LogLevel.Warning, "Wanted to send string '{0}' but nothing is connected to {1}",
-                    stringForDisplay, nameof(CharReceived));
+                this.Log(LogLevel.Warning, "Wanted to send bytes '{0}' but nothing is connected to {1}",
+                    Misc.PrettyPrintCollectionHex(bytes), nameof(CharReceived));
                 return;
             }
 
-            this.Log(LogLevel.Debug, "Sending string: '{0}'", stringForDisplay);
             lock(uartWriteLock)
             {
-                foreach(var ch in str)
+                foreach(var b in bytes)
                 {
-                    charReceived((byte)ch);
+                    charReceived(b);
                 }
             }
         }
 
+        protected void SendString(string str)
+        {
+            var strWithNewlines = str.SurroundWith(CrLf);
+            var stringForDisplay = str.SurroundWith(CrLfSymbol);
+            this.Log(LogLevel.Debug, "Sending string: '{0}'", stringForDisplay);
+            SendBytes(StringEncoding.GetBytes(strWithNewlines));
+        }
+
         protected void SendResponse(Response response)
         {
-            SendString(response.StringValue);
+            this.Log(LogLevel.Debug, "Sending response: {0}", response);
+            SendBytes(response.GetBytes());
         }
 
         // This method is intended for cases where a modem driver sends a command
@@ -241,12 +250,11 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             var parameters = handler.GetParameters();
-            var parameterTypes = parameters.Select(p => p.ParameterType).ToArray();
             var argumentsString = parsed.Arguments;
             object[] arguments;
             try
             {
-                arguments = ParseArguments(argumentsString, parameterTypes);
+                arguments = ParseArguments(argumentsString, parameters);
             }
             catch(ArgumentException e)
             {
@@ -268,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             catch(ArgumentException)
             {
-                var parameterTypesString = string.Join(", ", parameterTypes.Select(t => t.FullName));
+                var parameterTypesString = string.Join(", ", parameters.Select(t => t.ParameterType.FullName));
                 var argumentTypesString = string.Join(", ", arguments.Select(a => a?.GetType()?.FullName ?? "(null)"));
                 this.Log(LogLevel.Error, "Argument type mismatch in command '{0}'. Got types [{1}], expected [{2}]",
                     command, argumentTypesString, parameterTypesString);
@@ -337,18 +345,49 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected class Response
         {
-            public Response(string status, params string[] parameters) : this(status, "", parameters)
+            public Response(string status, params string[] parameters) : this(status, "", parameters, null)
             {
             }
 
             public Response WithParameters(params string[] parameters)
             {
-                return new Response(Status, Trailer, parameters);
+                return new Response(Status, Trailer, parameters, null);
+            }
+
+            public Response WithParameters(byte[] parameters)
+            {
+                return new Response(Status, Trailer, null, parameters);
             }
 
             public Response WithTrailer(string trailer)
             {
-                return new Response(Status, trailer, Parameters);
+                return new Response(Status, trailer, Parameters, BinaryBody);
+            }
+
+            public override string ToString()
+            {
+                var result = new StringBuilder("Body: ");
+                if(Parameters != null)
+                {
+                    result.AppendFormat("[{0}]", string.Join(", ", Parameters.Select(p => p.SurroundWith("'"))));
+                }
+                else
+                {
+                    result.AppendFormat("<{0}>", Misc.PrettyPrintCollectionHex(BinaryBody));
+                }
+
+                result.AppendFormat("; Status: {0}", Status);
+                if(Trailer.Length > 0)
+                {
+                    result.AppendFormat("; Trailer: {0}", Trailer);
+                }
+                return result.ToString();
+            }
+
+            // Get the binary representation formatted as a modem would send it
+            public byte[] GetBytes()
+            {
+                return bytes;
             }
 
             // The status line is usually "OK" or "ERROR"
@@ -356,24 +395,46 @@ namespace Antmicro.Renode.Peripherals.Network
             // The parameters are the actual useful data returned by a command, for example
             // the current value of a parameter in the case of a Read command
             public string[] Parameters { get; }
+            // Alternatively to parameters, a binary body can be provided. It is placed where
+            // the parameters would be and surrounded with CrLf
+            public byte[] BinaryBody { get; }
             // The trailer can be thought of as an immediately-sent URC: it is sent after
-            // the status line
+            // the status line.
             public string Trailer { get; }
-            // The string representation formatted as a modem would send it
-            public string StringValue { get; }
 
-            private Response(string status, string trailer, string[] parameters)
+            private Response(string status, string trailer, string[] parameters, byte[] binaryBody)
             {
+                // We want exactly one of Parameters or BinaryBody. If neither is provided or both
+                // are, throw an exception.
+                if((parameters != null) == (binaryBody != null))
+                {
+                    throw new InvalidOperationException("Either parameters xor a binary body must be provided");
+                }
+
                 Status = status;
                 Trailer = trailer;
                 Parameters = parameters;
+                BinaryBody = binaryBody;
 
-                var parametersContent = string.Join(CrLf, Parameters);
-                var parametersPart = parametersContent.Length > 0 ? parametersContent.SurroundWith(CrLf) : "";
+                byte[] bodyContent;
+                if(Parameters != null)
+                {
+                    var parametersContent = string.Join(CrLf, Parameters);
+                    bodyContent = StringEncoding.GetBytes(parametersContent);
+                }
+                else
+                {
+                    bodyContent = BinaryBody;
+                }
+
+                var bodyBytes = CrLfBytes.Concat(bodyContent).Concat(CrLfBytes);
                 var statusPart = Status.SurroundWith(CrLf);
-                var trailerPart = Trailer.Length > 0 ? Trailer.SurroundWith(CrLf) : "";
-                StringValue = parametersPart + statusPart + trailerPart;
+                var statusBytes = StringEncoding.GetBytes(statusPart);
+                var trailerBytes = StringEncoding.GetBytes(Trailer.SurroundWith(CrLf));
+                bytes = bodyBytes.Concat(statusBytes).Concat(trailerBytes).ToArray();
             }
+
+            private readonly byte[] bytes;
         }
 
         [Flags]
