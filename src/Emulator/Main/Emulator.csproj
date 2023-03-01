@@ -582,6 +582,8 @@
     <Compile Include="Peripherals\Timers\DateTimeWithCustomWeekday.cs" />
     <Compile Include="Peripherals\Network\AtCommandModem.cs" />
     <Compile Include="Peripherals\Network\AtCommandModemParsing.cs" />
+    <Compile Include="Peripherals\Network\EmulatedNetworkService.cs" />
+    <Compile Include="Peripherals\Network\IEmulatedNetworkService.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
