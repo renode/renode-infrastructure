@@ -66,11 +66,11 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             Registers.KeyBank1.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "FLASH_KEYR1",
-                    writeCallback: (_, value) => controlBank1Lock.ConsumeValue(value));
+                    writeCallback: (_, value) => controlBank1Lock.ConsumeValue((uint)value));
 
             Registers.OptionKey.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "FLASH_OPTKEYR",
-                    writeCallback: (_, value) => optionControlLock.ConsumeValue(value));
+                    writeCallback: (_, value) => optionControlLock.ConsumeValue((uint)value));
 
             Registers.ControlBank1.Define(this, 0x31)
                 .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "LOCK1", valueProviderCallback: _ => controlBank1Lock.IsLocked,
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             Registers.KeyBank2.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "FLASH_KEYR2",
-                    writeCallback: (_, value) => controlBank2Lock.ConsumeValue(value));
+                    writeCallback: (_, value) => controlBank2Lock.ConsumeValue((uint)value));
 
             Registers.ControlBank2.Define(this, 0x31)
                 .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "LOCK2", valueProviderCallback: _ => controlBank2Lock.IsLocked,
@@ -197,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private void ProgramCurrentValues()
         {
-            optionStatusCurrentValue = optionStatusProgramRegister.Value;
+            optionStatusCurrentValue = (uint)optionStatusProgramRegister.Value;
             bank1WriteProtectionCurrentValue = (byte)bank1WriteProtectionProgramRegister.Value;
             bank2WriteProtectionCurrentValue = (byte)bank2WriteProtectionProgramRegister.Value;
         }

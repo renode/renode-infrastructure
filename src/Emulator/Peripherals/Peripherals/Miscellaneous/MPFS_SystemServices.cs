@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             return;
                         }
-                        HandleRequest((Commands)command.Value, commandOffset.Value);
+                        HandleRequest((Commands)command.Value, (uint)commandOffset.Value);
                         IRQ.Blink();
                     })
             ;

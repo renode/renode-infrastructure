@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {
                     register.WithValueField(0, 32,
                         valueProviderCallback: _ => outgoingFifo.DirectGet((uint)index),
-                        writeCallback: (_, newValue) => outgoingFifo.DirectSet((uint)index, newValue));
+                        writeCallback: (_, newValue) => outgoingFifo.DirectSet((uint)index, (uint)newValue));
                 }, stepInBytes: 4);
 
             Registers.IncomingFifoAccessPort.DefineMany(this, 8, (register, index) =>
@@ -178,7 +178,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.FifoPush.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "FIFODIN", writeCallback: (_, newValue) =>
                 {
-                    if(!outgoingFifo.TryPush(newValue))
+                    if(!outgoingFifo.TryPush((uint)newValue))
                     {
                         this.Log(LogLevel.Warning, "Failed to write to the outgoing FIFO (value: 0x{0})", newValue);
                         InterruptStatusSet(IoMasterInterrupts.WriteFifoOverflow, true);
@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         return;
                     }
 
-                    if(!IsTransactionValid(transactionCommand.Value, transactionSize.Value, transactionOffsetCount.Value,
+                    if(!IsTransactionValid(transactionCommand.Value, (uint)transactionSize.Value, (uint)transactionOffsetCount.Value,
                             (int)spiSlaveSelect.Value, out var errorMessage))
                     {
                         this.Log(LogLevel.Error, errorMessage);
@@ -281,7 +281,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     activeSpiSlaveSelect = (int)spiSlaveSelect.Value;
                     activeTransactionSizeLeft.Value = transactionSize.Value;
 
-                    SendTransactionOffset(transactionOffsetCount.Value);
+                    SendTransactionOffset((uint)transactionOffsetCount.Value);
                     while(activeTransactionSizeLeft.Value > 0)
                     {
                         if(activeTransactionCommand.Value == Commands.Read)
@@ -501,7 +501,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                             value &= 0x7F;
                             this.Log(LogLevel.Warning, "Tried to set 10-bit address with extended mode disabled; truncated to 7-bit");
                         }
-                        i2cSlaveAddress = value;
+                        i2cSlaveAddress = (uint)value;
                     })
                 .WithReservedBits(10, 22)
                 ;
@@ -624,7 +624,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             if(activeTransactionSizeLeft.Value > 0)
             {
-                var bytesToReceive = Math.Min(4, activeTransactionSizeLeft.Value);
+                var bytesToReceive = Math.Min(4, (uint)activeTransactionSizeLeft.Value);
                 uint result = 0;
                 if(ActiveTransactionPeripheral is ISPIPeripheral spiPeripheral)
                 {
@@ -686,7 +686,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             if(activeTransactionSizeLeft.Value > 0)
             {
-                var bytesToSend = Math.Min(4, activeTransactionSizeLeft.Value);
+                var bytesToSend = Math.Min(4, (uint)activeTransactionSizeLeft.Value);
                 Send(value, bytesToSend);
                 activeTransactionSizeLeft.Value -= bytesToSend;
                 TryFinishTransaction();
@@ -706,9 +706,9 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 if(count > 1)
                 {
-                    Send(transactionOffsetHigh.Value, count - 1, forceMSBFirst: true);
+                    Send((uint)transactionOffsetHigh.Value, count - 1, forceMSBFirst: true);
                 }
-                Send(transactionOffsetLow.Value, 1);
+                Send((uint)transactionOffsetLow.Value, 1);
             }
         }
 

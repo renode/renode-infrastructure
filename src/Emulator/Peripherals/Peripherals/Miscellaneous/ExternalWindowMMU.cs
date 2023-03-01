@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -93,10 +93,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 registersMap.Add((long)Register.PrivilegesBase + index * 4, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: $"PRIVILEGES[{index}]", writeCallback: (_, value) =>
                     {
-                        SetWindowPrivileges(index, value);
+                        SetWindowPrivileges(index, (uint)value);
                     }, valueProviderCallback: _ =>
                     {
-                        return (uint)GetWindowPrivileges(index);
+                        return GetWindowPrivileges(index);
                     }));
             }
             return new DoubleWordRegisterCollection(this, registersMap);

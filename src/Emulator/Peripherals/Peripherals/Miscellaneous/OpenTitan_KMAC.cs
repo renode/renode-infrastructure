@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -398,7 +398,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     var i = ii;
                     registersDictionary.Add((long)Registers.KeyShare0_0 + i * 4 + offset * j, new DoubleWordRegister(this)
                         .WithValueField(0, 32,
-                            writeCallback: (_, val) => { keyShare[j].SetBytesFromValue(val, i * 4); },
+                            writeCallback: (_, val) => { keyShare[j].SetBytesFromValue((uint)val, i * 4); },
                             valueProviderCallback: _ => (uint)BitConverter.ToInt32(keyShare[j], i * 4), name: $"key_{i}")
                     );
                 }
@@ -409,7 +409,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var i = ii;
                 registersDictionary.Add((long)Registers.Prefix0 + i * 4, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
-                        writeCallback: (_, val) => { prefix.SetBytesFromValue(val, i * 4); },
+                        writeCallback: (_, val) => { prefix.SetBytesFromValue((uint)val, i * 4); },
                         valueProviderCallback: _ => (uint)BitConverter.ToInt32(prefix, i * 4), name: $"prefix_{i}")
                 );
             }

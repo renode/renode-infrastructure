@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -111,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.X86
 
                 // here we have a different registers offset!
                 dict[(long)Registers.Timer1LoadCount2 + 0x4 * i] = new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => alternativeLoadCount[j] = val);
+                    .WithValueField(0, 32, writeCallback: (_, val) => alternativeLoadCount[j] = (uint)val);
             }
 
             registers = new DoubleWordRegisterCollection(this, dict);

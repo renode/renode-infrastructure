@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.SD
             RegisteredPeripheral.WriteData((long)BlockSize * cardOffset, data.Length, data);
         }
 
-        protected uint[] ExecuteCommand(uint command, uint args, bool sendInitSequence, bool dataTransfer)
+        protected uint[] ExecuteCommand(Commands command, uint args, bool sendInitSequence, bool dataTransfer)
         {
             var response = new uint[4];
             if(RegisteredPeripheral == null)
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 return response;
             }
             
-            switch((Commands)command)
+            switch(command)
             {
             case Commands.GoIdleState:
                 if(sendInitSequence)

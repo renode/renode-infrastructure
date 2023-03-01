@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -90,12 +90,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             var radioStatus0 = new DoubleWordRegister(this, 0).WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => (uint)fsmState)
                                                               .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true);
-            var radioStatus1 = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReadRadioStatus1Register);
+            var radioStatus1 = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => ReadRadioStatus1Register());
             var rssiValidStatus = new DoubleWordRegister(this, 0x1).WithFlag(0, FieldMode.Read);
 
             var interruptMask = CreateRegistersGroup(2, this, 0, 8,
                                  valueProviderCallback: i => irqHandler.GetRegisterMask(InterruptRegisterHelper.GetMaskRegister(i)),
-                                 writeCallback: (i, @new) => { irqHandler.SetRegisterMask(InterruptRegisterHelper.GetMaskRegister(i), @new); });
+                                 writeCallback: (i, @new) => { irqHandler.SetRegisterMask(InterruptRegisterHelper.GetMaskRegister(i), (uint)@new); });
             var randomData = new DoubleWordRegister(this, 0).WithValueField(0, 2, FieldMode.Read, valueProviderCallback: _ => (uint)(random.Next() & 3));
 
             var frameFiltering0 = new DoubleWordRegister(this, 0xD);
@@ -117,8 +117,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                 valueProviderCallback: _ => DequeueData(), writeCallback: (_, @new) => { EnqueueData((byte)@new); });
             var interruptFlag = CreateRegistersGroup(2, this, 0, 8,
                                 valueProviderCallback: i => irqHandler.GetRegisterValue(InterruptRegisterHelper.GetValueRegister(i)),
-                                writeCallback: (i, @new) => { irqHandler.SetRegisterValue(InterruptRegisterHelper.GetValueRegister(i), @new); });
-            var commandStrobeProcessor = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Write, writeCallback: (_, @new) => { HandleSFRInstruction(@new); });
+                                writeCallback: (i, @new) => { irqHandler.SetRegisterValue(InterruptRegisterHelper.GetValueRegister(i), (uint)@new); });
+            var commandStrobeProcessor = new DoubleWordRegister(this, 0).WithValueField(0, 8, FieldMode.Write, writeCallback: (_, @new) => { HandleSFRInstruction((uint)@new); });
 
             var rxFifoBytesCount = new DoubleWordRegister(this).WithValueField(0, 8, FieldMode.Read, valueProviderCallback: (_) => GetRxFifoBytesCount());
 
@@ -415,8 +415,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 var j = i;
                 result[i] = new DoubleWordRegister(parent)
                     .WithValueField(position, width, mode, name: name + j,
-                        valueProviderCallback: valueProviderCallback == null ? (Func<uint, uint>)null : _ => valueProviderCallback(j),
-                        writeCallback: writeCallback == null ? (Action<uint, uint>)null : (_, @new) => { writeCallback(j, @new); });
+                        valueProviderCallback: _ =>
+                        {
+                            if(valueProviderCallback != null)
+                            {
+                                return valueProviderCallback(j);
+                            }
+                            return 0;
+                        },
+                        writeCallback: (_, @new) =>
+                        {
+                            if(writeCallback != null)
+                            {
+                                writeCallback(j, (uint)@new);
+                            }
+                        });
             }
             return result;
         }
@@ -429,7 +442,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private uint ReadRadioStatus1Register(uint oldValue)
+        private uint ReadRadioStatus1Register()
         {
             if(txPendingCounter > 0)
             {

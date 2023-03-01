@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.DateTimeSynchronizedYear.Define(this)
                 .WithValueField(0, 8, name: "Year",
                     valueProviderCallback: _ => CalculateYear(bufferedCurrentTime),
-                    writeCallback: (_, value) => timeToUpload = timeToUpload.With(year: CalculateYear(value)))
+                    writeCallback: (_, value) => timeToUpload = timeToUpload.With(year: CalculateYear((uint)value)))
             ;
 
             Registers.DateTimeSynchronizedWeekday.Define(this)
@@ -253,7 +253,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // year 0 means 2000
                 .WithValueField(0, 8, name: "Year",
                     valueProviderCallback: _ => CalculateYear(currentTime),
-                    writeCallback: (_, value) => timeToUpload = timeToUpload.With(year: CalculateYear(value)))
+                    writeCallback: (_, value) => timeToUpload = timeToUpload.With(year: CalculateYear((uint)value)))
             ;
 
             Registers.DateTimeWeekday.Define(this)

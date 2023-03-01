@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -115,12 +115,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var j = i;
                 var ivRegister = new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, value) => BitConverter.GetBytes(value).CopyTo(inputVector, j * 4),
+                    .WithValueField(0, 32, writeCallback: (_, value) => BitConverter.GetBytes((uint)value).CopyTo(inputVector, j * 4),
                                             valueProviderCallback: _ => BitConverter.ToUInt32(inputVector, j * 4));
                 registersMap.Add((long)Registers.AesInputVector + 4 * i, ivRegister);
 
                 var tagRegister = new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, value) => BitConverter.GetBytes(value).CopyTo(tag, j * 4),
+                    .WithValueField(0, 32, writeCallback: (_, value) => BitConverter.GetBytes((uint)value).CopyTo(tag, j * 4),
                                             valueProviderCallback: _ => BitConverter.ToUInt32(tag, j * 4));
                 registersMap.Add((long)Registers.AesTagOut + 4 * i, tagRegister);
             }
@@ -387,7 +387,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             using(var aes = AesProvider.GetCbcMacProvider(GetSelectedKey()))
             {
-                ProcessDataInMemory(dmaInputAddress.Value, null, length, aes.EncryptBlockInSitu);
+                ProcessDataInMemory((uint)dmaInputAddress.Value, null, length, aes.EncryptBlockInSitu);
                 aes.LastBlock.CopyTo(tag);
             }
         }
@@ -411,7 +411,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var encryptedNonceCounterBlock = Block.OfSize(AesBlockSizeInBytes);
             using(var aes = AesProvider.GetEcbProvider(GetSelectedKey()))
             {
-                ProcessDataInMemory(dmaInputAddress.Value, dmaOutputAddress.Value, length, b =>
+                ProcessDataInMemory((uint)dmaInputAddress.Value, (uint)dmaOutputAddress.Value, length, b =>
                 {
                     aes.EncryptBlock(ivBlock, encryptedNonceCounterBlock);
                     b.XorWith(encryptedNonceCounterBlock);
@@ -428,7 +428,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     ? (Action<Block>)aes.EncryptBlockInSitu
                     : aes.DecryptBlockInSitu;
 
-                ProcessDataInMemory(dmaInputAddress.Value, dmaOutputAddress.Value, length, processor);
+                ProcessDataInMemory((uint)dmaInputAddress.Value, (uint)dmaOutputAddress.Value, length, processor);
             }
         }
 
@@ -440,7 +440,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     ? (Action<Block>)aes.EncryptBlockInSitu
                     : aes.DecryptBlockInSitu;
 
-                ProcessDataInMemory(dmaInputAddress.Value, dmaOutputAddress.Value, length, processor);
+                ProcessDataInMemory((uint)dmaInputAddress.Value, (uint)dmaOutputAddress.Value, length, processor);
             }
         }
 
@@ -467,7 +467,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     adataPresent = true;
                     // there is adata
-                    ProcessDataInMemory(dmaInputAddress.Value, null, length, ccmCbcMacAesProvider.EncryptBlockInSitu, adataBlock);
+                    ProcessDataInMemory((uint)dmaInputAddress.Value, null, length, ccmCbcMacAesProvider.EncryptBlockInSitu, adataBlock);
                     if(aesOperationLength > 0)
                     {
                         // message data will be sent in a second dma transfer
@@ -493,7 +493,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
 
                 // this is the second transfer with message data
-                ProcessDataInMemory(dmaInputAddress.Value, null, length, ccmCbcMacAesProvider.EncryptBlockInSitu);
+                ProcessDataInMemory((uint)dmaInputAddress.Value, null, length, ccmCbcMacAesProvider.EncryptBlockInSitu);
             }
 
             // calculate tag
@@ -528,7 +528,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(ccmCbcMacAesProvider != null)
             {
                 // calculate authentication from decrypted data
-                ProcessDataInMemory(dmaInputAddress.Value, null, length, ccmCbcMacAesProvider.EncryptBlockInSitu);
+                ProcessDataInMemory((uint)dmaInputAddress.Value, null, length, ccmCbcMacAesProvider.EncryptBlockInSitu);
                 // calculate tag
                 s0Block.XorWith(ccmCbcMacAesProvider.LastBlock).CopyTo(tag);
 
@@ -544,9 +544,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             var result = Block.OfSize(AesBlockSizeInBytes);
             // flags
-            var flags = (byte)(((aesAuthLength.Value > 0 ? 1 : 0) << aesAuthLengthOffset)
-                + (ccmLengthOfAuthenticationField.Value << ccmLengthOfAuthenticationFieldOffset)
-                + ccmLengthField.Value);
+            var flags = (byte)(((aesAuthLength.Value > 0 ? 1u : 0u) << aesAuthLengthOffset)
+                + ((uint)ccmLengthOfAuthenticationField.Value << ccmLengthOfAuthenticationFieldOffset)
+                + (uint)ccmLengthField.Value);
             result.UpdateByte(flags);
             // nonce
             var nonceLength = 15 - (int)(ccmLengthField.Value + 1);

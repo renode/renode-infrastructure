@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         },name: "RESET")
                 },
                 {(long)Registers.MIIManagementFrame, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite(value), valueProviderCallback: _ => HandlePhyRead())
+                    .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite((uint)value), valueProviderCallback: _ => HandlePhyRead())
                 },
                 {(long)Registers.ReceiveControl, new DoubleWordRegister(this)
                     .WithTaggedFlag("GRS", 31)
@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, extendedMode.Value));
+                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, extendedMode.Value));
                         })
                     .WithReservedBits(1, 1)
                     .WithReservedBits(0, 1)
@@ -183,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of transmit buffer descriptor ring start address while transmission is started is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, extendedMode.Value));
+                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, extendedMode.Value));
                         })
                     .WithReservedBits(1, 1)
                     .WithReservedBits(0, 1)

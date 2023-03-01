@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -250,12 +250,12 @@ namespace Antmicro.Renode.Peripherals.DMA
             private void InitTransfer()
             {
                 execConfig.Write(0, nextConfigRegister.Value);
-                execBytesLow.Write(0, nextBytesLow.Value);
-                execBytesHigh.Write(0, nextBytesHigh.Value);
-                execSourceLow.Write(0, nextSourceLow.Value);
-                execSourceHigh.Write(0, nextSourceHigh.Value);
-                execDestinationLow.Write(0, nextDestinationLow.Value);
-                execDestinationHigh.Write(0, nextDestinationHigh.Value);
+                execBytesLow.Write(0, (uint)nextBytesLow.Value);
+                execBytesHigh.Write(0, (uint)nextBytesHigh.Value);
+                execSourceLow.Write(0, (uint)nextSourceLow.Value);
+                execSourceHigh.Write(0, (uint)nextSourceHigh.Value);
+                execDestinationLow.Write(0, (uint)nextDestinationLow.Value);
+                execDestinationHigh.Write(0, (uint)nextDestinationHigh.Value);
 
                 ulong sourceAddress = nextSourceHigh.Value;
                 sourceAddress = sourceAddress << 32;
@@ -321,7 +321,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            private TransferType GetTransactionSize(TransactionDirection direction, uint val)
+            private TransferType GetTransactionSize(TransactionDirection direction, ulong val)
             {
                 TransferType type;
                 switch(val)

@@ -79,8 +79,8 @@ namespace Antmicro.Renode.Peripherals.PCI
                     .WithWriteCallback((_, value) => { address = value; })
                 },
                 {(long)Registers.ConfigData, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, value) => WriteData(value),
-                        valueProviderCallback: ReadData, name: "CONFIG_DATA")
+                    .WithValueField(0, 32, writeCallback: (_, value) => WriteData((uint)value),
+                        valueProviderCallback: _ => ReadData(), name: "CONFIG_DATA")
                 },
             };
             return new DoubleWordRegisterCollection(this, registersDictionary);
@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 
             if(selectedDevice != null)
             {
-                selectedDevice.ConfigurationWriteDoubleWord(registerNumber.Value*4, data);
+                selectedDevice.ConfigurationWriteDoubleWord((long)registerNumber.Value*4, data);
             }
             else
             {
@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.PCI
             }
         }
 
-        private uint ReadData(uint oldVal)
+        private uint ReadData()
         {
             if(configEnabled.Value)
             {
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.PCI
                     return 0;
                 }
                 //Address is multiplied by 4 cause Read function take offset as argument
-                return selectedDevice.ConfigurationReadDoubleWord(registerNumber.Value * 4);
+                return selectedDevice.ConfigurationReadDoubleWord((long)registerNumber.Value * 4);
             }
             else
             {

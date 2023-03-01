@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         return;
                     }
 
-                    var commandResult = sdCard.HandleCommand((uint)commandIndex.Value, commandArgument1Field.Value);
+                    var commandResult = sdCard.HandleCommand((uint)commandIndex.Value, (uint)commandArgument1Field.Value);
                     switch(responseTypeSelectField.Value)
                     {
                         case ResponseType.NoResponse:
@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Tried to write data in DMA mode to register that does not support it");
                         return;
                     }
-                    WriteBuffer(sdCard, BitConverter.GetBytes(value));
+                    WriteBuffer(sdCard, BitConverter.GetBytes((uint)value));
                 })
             ;
 
@@ -347,16 +347,16 @@ namespace Antmicro.Renode.Peripherals.SD
                     internalBuffer.EnqueueRange(sdCard.ReadExtendedCardSpecificDataRegister());
                     break;
                 case SDCardCommand.ReadSingleBlock:
-                    ReadCard(sdCard, blockSizeField.Value);
+                    ReadCard(sdCard, (uint)blockSizeField.Value);
                     break;
                 case SDCardCommand.ReadMultipleBlocks:
-                    ReadCard(sdCard, blockCountField.Value * blockSizeField.Value);
+                    ReadCard(sdCard, (uint)(blockCountField.Value * blockSizeField.Value));
                     break;
                 case SDCardCommand.WriteSingleBlock:
-                    WriteCard(sdCard, blockSizeField.Value);
+                    WriteCard(sdCard, (uint)blockSizeField.Value);
                     break;
                 case SDCardCommand.WriteMultipleBlocks:
-                    WriteCard(sdCard, blockCountField.Value * blockSizeField.Value);
+                    WriteCard(sdCard, (uint)(blockCountField.Value * blockSizeField.Value));
                     break;
             }
         }
@@ -380,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private void WriteBuffer(SDCard sdCard, byte[] data)
         {
-            var limit = blockCountField.Value * blockSizeField.Value;
+            var limit = (uint)(blockCountField.Value * blockSizeField.Value);
             internalBuffer.EnqueueRange(data);
             if(internalBuffer.Count < limit)
             {

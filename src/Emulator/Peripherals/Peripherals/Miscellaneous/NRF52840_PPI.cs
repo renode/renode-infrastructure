@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -120,13 +120,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var j = i;
 
                 ((Registers)((int)Registers.Channel0EventEndpoint + i * 8)).Define(this, name: "CH[n].EEP")
-                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => UpdateEventEndpoint(oldValue, newValue, j))
+                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => UpdateEventEndpoint((uint)oldValue, (uint)newValue, j))
                 ;
 
                 ((Registers)((int)Registers.Channel0TaskEndpoint + i * 8)).Define(this, name: "CH[n].TEP")
                     .WithValueField(0, 32, changeCallback: (_, value) =>
                     {
-                        taskEndpoint[j] = value;
+                        taskEndpoint[j] = (uint)value;
                         this.Log(LogLevel.Noisy, "Connected channel {0} to trigger a task at 0x{1:X}", j, taskEndpoint[j]);
                     })
                 ;
@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ((Registers)((int)Registers.Fork0TaskEndpoint + i * 4)).Define(this, name: "FORK[n].TEP")
                     .WithValueField(0, 32, changeCallback: (_, value) =>
                     {
-                        forkEndpoint[j] = value;
+                        forkEndpoint[j] = (uint)value;
                         this.Log(LogLevel.Noisy, "Connected channel {0} to trigger a fork task at 0x{1:X}", j, taskEndpoint[j]);
                     })
                 ;

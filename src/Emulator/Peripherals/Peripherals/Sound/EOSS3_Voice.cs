@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 
         private void InputSamples()
         {
-            var samplesCount = bufferTransferLength.Value * 2; // samples are 16bit and the register indicates the amount of 32bit words
+            var samplesCount = (uint)bufferTransferLength.Value * 2; // samples are 16bit and the register indicates the amount of 32bit words
             var preparedDoubleWords = new uint[samplesCount / 2];
 
             switch(numberOfChannels)

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -82,7 +82,7 @@ namespace Antmicro.Renode.Peripherals
                 {(long)Registers.Count, new DoubleWordRegister(this)
                     .WithValueField(0, 31, name: "pwmcount", valueProviderCallback: _ => (uint)rawTimer.Value, writeCallback: (_, value) =>
                     {
-                        SetValue(value);
+                        SetValue((uint)value);
                         UpdateInterrupt();
                     })
                     .WithReservedBits(31, 1)

@@ -180,13 +180,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 statusTemperatureLow.Value = true;
             }
 
-            if(fifoFullAssertOnThreshold.Value && (fifoFullThreshold.Value + 1) == samplesFifo.Count)
+            if(fifoFullAssertOnThreshold.Value && (int)(fifoFullThreshold.Value + 1) == samplesFifo.Count)
             {
                 statusFifoThreshold.Value = true;
             }
             else
             {
-                statusFifoThreshold.Value = fifoFullThreshold.Value >= samplesFifo.Count;
+                statusFifoThreshold.Value = (int)fifoFullThreshold.Value >= samplesFifo.Count;
             }
 
             statusTemperatureReady.Value = true;
@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         // otherwise if we enable it, don't change anything.
                         if(!value)
                         {
-                            statusFifoThreshold.Value |= fifoFullThreshold.Value >= samplesFifo.Count;
+                            statusFifoThreshold.Value |= (int)fifoFullThreshold.Value >= samplesFifo.Count;
                         }
                     })
                 .WithFlag(3, out clearFlagsOnRead, name: "FIFO_CONF2.fifo_stat_clr")
@@ -295,24 +295,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.AlarmHighMSB.Define(this)
                 .WithValueField(0, 8, name: "ALARM_HI_MSB.alarm_hi_msb",
                     valueProviderCallback: _ => alarmTemperatureHigh >> 8,
-                    writeCallback: (_, value) => alarmTemperatureHigh = (alarmTemperatureHigh & 0xFF) | (value << 8))
+                    writeCallback: (_, value) => alarmTemperatureHigh = (alarmTemperatureHigh & 0xFF) | (uint)(value << 8))
             ;
 
             Registers.AlarmHighLSB.Define(this)
                 .WithValueField(0, 8, name: "ALARM_HI_LSB.alarm_hi_lsb",
                     valueProviderCallback: _ => alarmTemperatureHigh,
-                    writeCallback: (_, value) => alarmTemperatureHigh = (alarmTemperatureHigh & 0xFF00) | value)
+                    writeCallback: (_, value) => alarmTemperatureHigh = (alarmTemperatureHigh & 0xFF00) | (uint)value)
             ;
 
             Registers.AlarmLowMSB.Define(this)
                 .WithValueField(0, 8, name: "ALARM_LO_MSB.alarm_lo_msb",
                     valueProviderCallback: _ => alarmTemperatureLow >> 8,
-                    writeCallback: (_, value) => alarmTemperatureLow = (alarmTemperatureLow & 0xFF) | (value << 8))
+                    writeCallback: (_, value) => alarmTemperatureLow = (alarmTemperatureLow & 0xFF) | (uint)(value << 8))
             ;
 
             Registers.AlarmLowLSB.Define(this)
                 .WithValueField(0, 8, name: "ALARM_LO_LSB.alarm_lo_lsb",
-                    writeCallback: (_, value) => alarmTemperatureLow = (alarmTemperatureLow & 0xFF00) | value)
+                    writeCallback: (_, value) => alarmTemperatureLow = (alarmTemperatureLow & 0xFF00) | (uint)value)
             ;
 
             Registers.TempSensorSetup.Define(this, 0xC0)

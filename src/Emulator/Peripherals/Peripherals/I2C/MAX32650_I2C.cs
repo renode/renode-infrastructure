@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -205,8 +205,8 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void UpdateInterrupts()
         {
-            interruptRxThresholdPending.Value = rxQueue.Count >= rxThreshold.Value;
-            interruptTxThresholdPending.Value = txQueue.Count <= txThreshold.Value;
+            interruptRxThresholdPending.Value = rxQueue.Count >= (int)rxThreshold.Value;
+            interruptTxThresholdPending.Value = txQueue.Count <= (int)txThreshold.Value;
 
             var pending = false;
             pending |= interruptTimeoutEnabled.Value && interruptTimeoutPending.Value;

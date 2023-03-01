@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.TransitionToken0.DefineMany(this, TokenRegistersCount, (register, idx) =>
             {
                 register.WithValueField(0, 32,
-                                        writeCallback: (_, val) => Misc.ByteArrayWrite(idx * 4, val, token),
+                                        writeCallback: (_, val) => Misc.ByteArrayWrite(idx * 4, (uint)val, token),
                                         valueProviderCallback: (_) => Misc.ByteArrayRead(idx * 4, token), name: $"TRANSITION_TOKEN_{idx}");
             });
 

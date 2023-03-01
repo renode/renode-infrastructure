@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(!dataLeft && bootRequestMode.Value == MultiBitBool4.True)
             {
                 this.Log(LogLevel.Debug, "BOOT_REQ_MODE is on. Issueing a new request.");
-                SendCsrngCommand(bootGenerateCommand.Value);
+                SendCsrngCommand((uint)bootGenerateCommand.Value);
             }
             
             if(!dataLeft && autoRequestModeOn)
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return;
                     }
 
-                    SendCsrngCommand(val);
+                    SendCsrngCommand((uint)val);
                 }, name: "BOOT_INST_CMD");
 
             Registers.BootGenerateCommand.Define(this, 0xfff003)
@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return;
                     }
 
-                    SendCsrngCommand(val);
+                    SendCsrngCommand((uint)val);
                 }, name: "BOOT_GEN_CMD"); 
 
             Registers.CsrngSoftwareCommandRequest.Define(this)
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         autoRequestModeOn = true;
                     }
 
-                    SendCsrngCommand(val);
+                    SendCsrngCommand((uint)val);
                 } 
                 , name: "SW_CMD_REQ");
 
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         UpdateInterrupts();
                         return;
                     }
-                    reseedCommands.Enqueue(val);
+                    reseedCommands.Enqueue((uint)val);
                 }, name: "RESEED_CMD");
 
             Registers.CsrngGenerateCommand.Define(this)
@@ -265,11 +265,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         UpdateInterrupts();
                         return;
                     }
-                    generateCommands.Enqueue(val);
+                    generateCommands.Enqueue((uint)val);
                 }, name: "GENERATE_CMD"); 
 
             Registers.MaximumNumberOfRequestsBetweenReseeds.Define(this)
-                .WithValueField(0, 32, out requestsBetweenReseeds, writeCallback: (_, val) => maxNumberOfRequestsBetweenReseeds = val, name: "MAX_NUM_REQS_BETWEEN_RESEEDS");
+                .WithValueField(0, 32, out requestsBetweenReseeds, writeCallback: (_, val) => maxNumberOfRequestsBetweenReseeds = (uint)val, name: "MAX_NUM_REQS_BETWEEN_RESEEDS");
 
             Registers.RecoverableAlertStatus.Define(this)
                 .WithFlag(0, out ednEnableFieldAlert, FieldMode.Read | FieldMode.WriteZeroToClear, name: "EDN_ENABLE_FIELD_ALERT")

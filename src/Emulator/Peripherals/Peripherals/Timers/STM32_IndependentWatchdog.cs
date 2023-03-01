@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2021 Zisis Adamos
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if(registersUnlocked)
                 {
-                    reloadValue = value;
+                    reloadValue = (uint)value;
                 }
                 else
                 {
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     if(registersUnlocked)
                     {
                         windowEnabled = true;
-                        window = value;
+                        window = (uint)value;
                         Reload();
                     }
                     else

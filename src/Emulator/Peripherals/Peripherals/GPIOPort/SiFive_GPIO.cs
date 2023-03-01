@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(0, 32,
                         writeCallback: (_, val) =>
                         {
-                            var bits = BitHelper.GetBits(val);
+                            var bits = BitHelper.GetBits((uint)val);
                             for(var i = 0; i < bits.Length; i++)
                             {
                                 Misc.FlipFlag(ref pins[i].pinOperation, Operation.Read, bits[i]);
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(0, 32,
 	                    writeCallback: (_, val) =>
                         {
-                            var bits = BitHelper.GetBits(val);
+                            var bits = BitHelper.GetBits((uint)val);
                             for (var i = 0; i < bits.Length; i++)
                             {
                                 Misc.FlipFlag(ref pins[i].pinOperation, Operation.Write, bits[i]);
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             lock(locker)
                             {
-                                var bits = BitHelper.GetBits(val);
+                                var bits = BitHelper.GetBits((uint)val);
                                 for(var i = 0; i < bits.Length; i++)
                                 {
                                     SetPinValue(i, bits[i]);

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 register
                     .WithValueField(0, 32,
-                        writeCallback: (_, val) => { combosDefinition[idx].TriggerDurationInCycles = val; },
+                        writeCallback: (_, val) => { combosDefinition[idx].TriggerDurationInCycles = (uint)val; },
                         valueProviderCallback: (_) => combosDefinition[idx].TriggerDurationInCycles,
                         name: $"detection_timer_{idx}");
             });

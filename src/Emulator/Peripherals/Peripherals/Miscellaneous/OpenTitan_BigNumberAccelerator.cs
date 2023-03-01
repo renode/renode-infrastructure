@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -276,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 register
                     .WithValueField(0, 32,
                                     valueProviderCallback: _ => instructionsMemory.ReadDoubleWord(regId * sizeof(uint)),
-                                    writeCallback: (_, val) => instructionsMemory.WriteDoubleWord(regId * sizeof(uint), val),
+                                    writeCallback: (_, val) => instructionsMemory.WriteDoubleWord(regId * sizeof(uint), (uint)val),
                                     name: $"InstructionMemoryAccess{regId}");
             });
 
@@ -285,7 +285,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 register
                     .WithValueField(0, 32,
                                     valueProviderCallback: _ => dataMemory.ReadDoubleWord(regId * sizeof(uint)),
-                                    writeCallback: (_, val) => dataMemory.WriteDoubleWord(regId * sizeof(uint), val),
+                                    writeCallback: (_, val) => dataMemory.WriteDoubleWord(regId * sizeof(uint), (uint)val),
                                     name: $"DataMemoryAccess{regId}");
             });
         }

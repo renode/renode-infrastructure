@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -42,14 +42,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.Frames, new DoubleWordRegister(this)
                     .WithValueField(0, 16, writeCallback: (_, value) =>
                         {
-                            BitHelper.UpdateWith(ref totalBytes, value, 0, 16);
+                            BitHelper.UpdateWith(ref totalBytes, (uint)value, 0, 16);
                             bytesSent = 0;
                         }, valueProviderCallback: _ => totalBytes, name: "TOTALBYTES")
                     .WithValueField(16, 9, out commandBytes, name: "CMDBYTES")
                     .WithTag("QSPI", 25, 1)
                     .WithValueField(26, 4, writeCallback: (_, value) =>
                         {
-                            idleCycles = value;
+                            idleCycles = (uint)value;
                             bytesToSkip = value >= 8 ? 1u : 0;
                             if(value != 0 && value != 8)
                             {
@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
 
                 {(long)Registers.TxData1, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, val) => HandleByte(val), name: "TXDATA")
+                    .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, val) => HandleByte((uint)val), name: "TXDATA")
                 },
 
                 {(long)Registers.RxData4, new DoubleWordRegister(this)
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         {
                             for(var i = 0; i < 4; i++)
                             {
-                                HandleByte(BitHelper.GetValue(val, i * 8, 8));
+                                HandleByte(BitHelper.GetValue((uint)val, i * 8, 8));
                             }
                         },
                         name: "TXDATA4")
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 // this register intentionally exposes the whole register for reading and the upper bytes for writing
                 {(long)Registers.FramesUpper, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => totalBytes, name: "BYTESLOWER")
-                    .WithValueField(16, 16, writeCallback: (_, value) => BitHelper.UpdateWithShifted(ref totalBytes, value, 16, 16),
+                    .WithValueField(16, 16, writeCallback: (_, value) => BitHelper.UpdateWithShifted(ref totalBytes, (uint)value, 16, 16),
                         valueProviderCallback: _ => totalBytes >> 16, name: "BYTESUPPER")
                 }
             };
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public uint ReadDoubleWord(long offset)
         {
             return xipMode.Value
-                ? RegisteredPeripheral.UnderlyingMemory.ReadDoubleWord(BitHelper.SetBitsFrom((uint)offset, upperAddress.Value, 24, 8))
+                ? RegisteredPeripheral.UnderlyingMemory.ReadDoubleWord(BitHelper.SetBitsFrom((uint)offset, (uint)upperAddress.Value, 24, 8))
                 : registers.Read(offset);
         }
 
@@ -250,11 +250,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                     // 1 command byte + 3 or 4 address bytes
                     else
                     {
-                        if(bytesSent < commandBytes.Value)
+                        if(bytesSent < (int)commandBytes.Value)
                         {
                             HandleByteTransmission(val);
                         }
-                        if(bytesSent == commandBytes.Value)
+                        if(bytesSent == (int)commandBytes.Value)
                         {
                             for(var i = bytesSent; i < totalBytes; i++)
                             {

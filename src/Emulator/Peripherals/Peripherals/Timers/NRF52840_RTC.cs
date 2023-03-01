@@ -183,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         foreach(var timer in innerTimers)
                         {
-                            timer.Divider = value + 1;
+                            timer.Divider = (uint)(value + 1u);
                         }
                         tickTimer.Divider = (int)(value + 1);
                     })

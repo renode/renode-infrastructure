@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals
 
                 {(long)Registers.WriteTo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write,
                     writeCallback: (_, address) => {
-                        sysbus.WriteDoubleWord(address, data.Value);
+                        sysbus.WriteDoubleWord(address, (uint)data.Value);
                     })
                 },
 

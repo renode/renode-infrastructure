@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             // Potentially we should raise an exception, as GPIO is bidirectional,
                             // but we do not have such infrastructure.
-                            var bits = BitHelper.GetBits(val);
+                            var bits = BitHelper.GetBits((uint)val);
                             for(var i = 0; i < bits.Length; i++)
                             {
                                 if((irqManager.PinDirection[i] & GPIOInterruptManager.Direction.Output) != 0)
@@ -77,11 +77,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
 
                 {(long)Registers.ClearRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits(val, false), name: "CLEAR_BITS")
+                    .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits((uint)val, false), name: "CLEAR_BITS")
                 },
 
                 {(long)Registers.SetRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits(val, true), name: "SET_BITS")
+                    .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits((uint)val, true), name: "SET_BITS")
                 },
             };
 
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(5, 3,
                         writeCallback: (_, value) =>
                         {
-                            if(!intTypeToVal.TryGetValue(value, out var type))
+                            if(!intTypeToVal.TryGetValue((uint)value, out var type))
                             {
                                 this.Log(LogLevel.Warning, "Invalid interrupt type for pin #{0}: {1}", j, value);
                                 return;

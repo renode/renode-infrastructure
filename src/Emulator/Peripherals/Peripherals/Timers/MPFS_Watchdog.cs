@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -140,10 +140,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             switch(state)
             {
                 case State.ForbiddenRegion:
-                    rest = maximumValueForWhichRefreshIsPermitted.Value;
+                    rest = (uint)maximumValueForWhichRefreshIsPermitted.Value;
                     break;
                 case State.RefreshRegion:
-                    rest = triggerValue.Value;
+                    rest = (uint)triggerValue.Value;
                     break;
                 //intentionally no State.AfterTrigger, rest = 0
             }

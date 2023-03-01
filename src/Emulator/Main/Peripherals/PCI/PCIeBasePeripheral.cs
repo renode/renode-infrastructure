@@ -162,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.PCI
             }
             baseAddressRegisters[i] = register;
             registers.AddRegister((long)Registers.BaseAddressRegister0 + 4 * i, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, changeCallback: (_, value) => baseAddressRegisters[i].Value = value,
+                    .WithValueField(0, 32, changeCallback: (_, value) => baseAddressRegisters[i].Value = (uint)value,
                         valueProviderCallback: _ => baseAddressRegisters[i].Value, name: $"BAR{i}"))
                     .WithWriteCallback((_, value) => parent.RegisterBar(new Range(baseAddressRegisters[i].BaseAddress, baseAddressRegisters[i].RequestedSize), this, i));
         }

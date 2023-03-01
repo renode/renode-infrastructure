@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.Command0, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "command0Payload",
                         valueProviderCallback: _ => commandPayload[0],
-                        writeCallback: (_, val) => commandPayload[0] = val
+                        writeCallback: (_, val) => commandPayload[0] = (uint)val
                     )
                     .WithWriteCallback((_, __) =>
                         {
@@ -170,31 +170,31 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.Command1, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "command1Payload",
                         valueProviderCallback: _ => commandPayload[1],
-                        writeCallback: (_, val) => commandPayload[1] = val
+                        writeCallback: (_, val) => commandPayload[1] = (uint)val
                     )
                 },
                 {(long)Registers.Command2, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "command2Payload",
                         valueProviderCallback: _ => commandPayload[2],
-                        writeCallback: (_, val) => commandPayload[2] = val
+                        writeCallback: (_, val) => commandPayload[2] = (uint)val
                     )
                 },
                 {(long)Registers.Command3, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "command3Payload",
                         valueProviderCallback: _ => commandPayload[3],
-                        writeCallback: (_, val) => commandPayload[3] = val
+                        writeCallback: (_, val) => commandPayload[3] = (uint)val
                     )
                 },
                 {(long)Registers.Command4, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "command4Payload",
                         valueProviderCallback: _ => commandPayload[4],
-                        writeCallback: (_, val) => commandPayload[4] = val
+                        writeCallback: (_, val) => commandPayload[4] = (uint)val
                     )
                 },
                 {(long)Registers.Command5, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "command5Payload",
                         valueProviderCallback: _ => commandPayload[5],
-                        writeCallback: (_, val) => commandPayload[5] = val
+                        writeCallback: (_, val) => commandPayload[5] = (uint)val
                     )
                 },
                 {(long)Registers.CommandStatus, new DoubleWordRegister(this)

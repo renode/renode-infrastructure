@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -57,8 +57,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void RefreshConnectionsState()
         {
-            var outputBits = BitHelper.GetBits(outputEnable.Value);
-            var bits = BitHelper.GetBits(output.Value);
+            var outputBits = BitHelper.GetBits((uint)outputEnable.Value);
+            var bits = BitHelper.GetBits((uint)output.Value);
             for(var i = 0; i < 32; i++)
             {
                 Connections[i].Set(bits[i] && outputBits[i]);

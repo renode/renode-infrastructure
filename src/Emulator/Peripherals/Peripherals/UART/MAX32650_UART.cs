@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 interruptRxOverrunPending.Value |= true;
             }
-            interruptRxFIFOLevelPending.Value |= Count >= rxFIFOLevel.Value;
+            interruptRxFIFOLevelPending.Value |= Count >= (int)rxFIFOLevel.Value;
             UpdateInterrupts();
         }
 

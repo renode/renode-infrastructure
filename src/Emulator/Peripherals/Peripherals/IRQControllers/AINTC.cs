@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if(priorities[i].Value < bestFiqPriority)
                         {
-                            bestFiqPriority = priorities[i].Value;
+                            bestFiqPriority = (uint)priorities[i].Value;
                             bestFiq = i;
                         }
                     }
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if(priorities[i].Value < bestIrqPriority)
                         {
-                            bestIrqPriority = priorities[i].Value;
+                            bestIrqPriority = (uint)priorities[i].Value;
                             bestIrq = i;
                         }
                     }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                         // `bit` is the bit number in the given double word,
                         // and `sourceIdBase + bit` indicate the source number.
                         var sourceIdBase = lOffset * 8;
-                        var bits = BitHelper.GetBits(value);
+                        var bits = BitHelper.GetBits((uint)value);
                         for(var bit = 0u; bit < bits.Length; bit++)
                         {
                             var sourceNumber = sourceIdBase + bit;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             encoder = new PCMEncoder(txSampleWidth, TxSampleFrequency, txChannels, false);
             // Write samples after reading whole buffer, rather than performing a write after receiving every single one
-            encoder.SetBufferingBySamplesCount(txBufferSize.Value / (txSampleWidth / 8));
+            encoder.SetBufferingBySamplesCount((uint)txBufferSize.Value / (txSampleWidth / 8));
             encoder.Output = OutputFile;
 
             this.Log(LogLevel.Debug, "Starting transmission");

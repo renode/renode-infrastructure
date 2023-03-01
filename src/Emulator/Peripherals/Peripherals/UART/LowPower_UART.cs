@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -368,7 +368,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public override uint BaudRate => (baudRateModuloDivisor.Value == 0)
             ? 0
-            : (uint)(frequency / ((oversamplingRatio.Value == 0 ? 16 : oversamplingRatio.Value + 1) * baudRateModuloDivisor.Value));
+            : (uint)(frequency / ((oversamplingRatio.Value == 0 ? 16 : (uint)(oversamplingRatio.Value + 1)) * (uint)baudRateModuloDivisor.Value));
 
         public GPIO IRQ { get; }
         public GPIO DMA { get; }
@@ -439,7 +439,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             if(receiveFifoEnabled.Value)
             {
-                receiveDataRegisterFull.Value = Count > receiveWatermark.Value;
+                receiveDataRegisterFull.Value = Count > (int)receiveWatermark.Value;
             }
             else
             {
@@ -448,7 +448,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             if(transmitFifoEnabled.Value)
             {
-                transmitDataRegisterEmpty.Value = txQueue.Count <= transmitWatermark.Value;
+                transmitDataRegisterEmpty.Value = txQueue.Count <= (int)transmitWatermark.Value;
             }
             else
             {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -49,17 +49,17 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 {(long)Registers.OutputData, new DoubleWordRegister(this)
                     // upper 16 bits are reserved
-                    .WithValueField(0, 16, name: "ODR", writeCallback: (_, value) => SetConnectionsStateUsingBits(value), valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Values.Select(x=>x.IsSet)))
+                    .WithValueField(0, 16, name: "ODR", writeCallback: (_, value) => SetConnectionsStateUsingBits((uint)value), valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Values.Select(x=>x.IsSet)))
                 },
 
                 {(long)Registers.BitSetReset, new DoubleWordRegister(this)
-                    .WithValueField(16, 16, FieldMode.Write, name: "BR", writeCallback: (_, value) => SetBitsFromMask(value, false))
-                    .WithValueField(0, 16, FieldMode.Write, name: "BS", writeCallback: (_, value) => SetBitsFromMask(value, true))
+                    .WithValueField(16, 16, FieldMode.Write, name: "BR", writeCallback: (_, value) => SetBitsFromMask((uint)value, false))
+                    .WithValueField(0, 16, FieldMode.Write, name: "BS", writeCallback: (_, value) => SetBitsFromMask((uint)value, true))
                 },
 
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
                     // upper 16 bits are reserved
-                    .WithValueField(0, 16, FieldMode.Write, name: "BR", writeCallback: (_, value) => SetBitsFromMask(value, false))
+                    .WithValueField(0, 16, FieldMode.Write, name: "BR", writeCallback: (_, value) => SetBitsFromMask((uint)value, false))
                 }
             };
 

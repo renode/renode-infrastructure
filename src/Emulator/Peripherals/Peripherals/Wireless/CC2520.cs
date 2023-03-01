@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             get
             {
-                return ChannelValueFromFrequency(channel.Value);
+                return ChannelValueFromFrequency((uint)channel.Value);
             }
 
             set
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     var sourceMatchingMask = 0u;
                     if(frame.SourceAddressingMode == AddressingMode.ShortAddress)
                     {
-                        uint sourceMatchingShortEnabled = (shortAddressMatchingEnabled[2].Value << 16) | (shortAddressMatchingEnabled[1].Value << 8) | shortAddressMatchingEnabled[0].Value;
+                        uint sourceMatchingShortEnabled = (uint)((shortAddressMatchingEnabled[2].Value << 16) | (shortAddressMatchingEnabled[1].Value << 8) | shortAddressMatchingEnabled[0].Value);
                         for(byte i = 0; i < 24; ++i)
                         {
                             var mask = 1u << i;
@@ -207,7 +207,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     }
                     else if(frame.SourceAddressingMode == AddressingMode.ExtendedAddress)
                     {
-                        uint sourceMatchingExtendedEnabled = (extendedAddressMatchingEnabled[2].Value << 16) | (extendedAddressMatchingEnabled[1].Value << 8) | extendedAddressMatchingEnabled[0].Value;
+                        uint sourceMatchingExtendedEnabled = (uint)((extendedAddressMatchingEnabled[2].Value << 16) | (extendedAddressMatchingEnabled[1].Value << 8) | extendedAddressMatchingEnabled[0].Value);
                         for(byte i = 0; i < 12; ++i)
                         {
                             var mask = 3u << (2 * i);
@@ -617,7 +617,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                 .WithValueField(0, 8, out pendingExceptionMaskB[2], name: "EXCMASKB2")
                 },
                 {(long)Registers.FrequencyControl, new ByteRegister(this, 0x0B)
-                                .WithValueField(0, 7, out channel, changeCallback: (_, chanVal) => this.Log(LogLevel.Info, "Setting channel to {0}", ChannelValueFromFrequency(chanVal)), name: "FREQ")
+                                .WithValueField(0, 7, out channel, changeCallback: (_, chanVal) => this.Log(LogLevel.Info, "Setting channel to {0}", ChannelValueFromFrequency((uint)chanVal)), name: "FREQ")
                 },
                 {(long)Registers.TxPower, new ByteRegister(this, 0x6)
                                 .WithValueField(0, 8, name: "PA_POWER")
@@ -1077,7 +1077,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     if(Parent.rxFifo.Count > 0)
                     {
                         var data = Parent.rxFifo.Dequeue();
-                        if(Parent.rxFifo.Count <= Parent.fifopThreshold.Value)
+                        if(Parent.rxFifo.Count <= (int)Parent.fifopThreshold.Value)
                         {
                             Parent.UnsetException(ExceptionFlags.FifoThresholdReached);
                         }
@@ -1220,7 +1220,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                         AddressA++;
                         Parent.SetException(HighPriority.Value ? ExceptionFlags.DPUDoneHigh : ExceptionFlags.DPUDoneLow);
                     }
-                    if(Parent.rxFifo.Count <= Parent.fifopThreshold.Value)
+                    if(Parent.rxFifo.Count <= (int)Parent.fifopThreshold.Value)
                     {
                         Parent.UnsetException(ExceptionFlags.FifoThresholdReached);
                     }

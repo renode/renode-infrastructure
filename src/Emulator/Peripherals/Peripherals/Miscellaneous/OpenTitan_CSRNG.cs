@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("READ_INT_STATE", 8, 4)
                 .WithReservedBits(12, 20);
             Registers.CommandRequest.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) => HandleCommandRequestWrite(val), name: "CMD_REQ");
+                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) => HandleCommandRequestWrite((uint)val), name: "CMD_REQ");
             Registers.CommandStatus.Define(this, 0x1)
                 .WithFlag(0, out readyFlag, FieldMode.Read, name: "CMD_RDY")
                 .WithFlag(1, out requestFailedFlag, FieldMode.Read, name: "CMD_STS")

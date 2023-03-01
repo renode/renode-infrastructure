@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -360,7 +360,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
             else
             {
-                if(data.Length != rxBufferSize.Value)
+                if(data.Length != (int)rxBufferSize.Value)
                 {
                     this.Log(LogLevel.Warning, "Received {0} bytes from the device, but RX DMA stream is configured for {1} bytes. This might indicate problems in the driver", data.Length, rxBufferSize.Value);
                 }

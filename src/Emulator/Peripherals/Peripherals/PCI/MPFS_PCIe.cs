@@ -257,7 +257,7 @@ namespace Antmicro.Renode.Peripherals.PCI
             registers.Add(baseOffset + (long)AddressTranslationRegisters.SourceAddressLowAndParameters, new DoubleWordRegister(this)
                             .WithFlag(0, changeCallback: (_, value) => table.Enabled = value,
                                          valueProviderCallback: _ => table.Enabled, name: "ATR_IMPL")
-                            .WithValueField(1, 6, changeCallback: (_, value) => table.SizePower = value,
+                            .WithValueField(1, 6, changeCallback: (_, value) => table.SizePower = (uint)value,
                                                   valueProviderCallback: _ => table.SizePower, name: "ATR_SIZE")
                             .WithReservedBits(7, 5)
                             .WithValueField(12, 20, changeCallback: (_, value) => BitHelper.UpdateWithShifted(ref table.SourceAddress, value, 12, 20),

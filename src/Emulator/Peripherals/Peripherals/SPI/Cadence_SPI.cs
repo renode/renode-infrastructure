@@ -26,11 +26,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             IRQ = new GPIO();
             txFifoFull = new CadenceInterruptFlag(() => txFifo.Count >= this.txFifoCapacity);
-            txFifoNotFull = new CadenceInterruptFlag(() => txFifo.Count < txFifoThreshold.Value);
+            txFifoNotFull = new CadenceInterruptFlag(() => txFifo.Count < (int)txFifoThreshold.Value);
             txFifoUnderflow = new CadenceInterruptFlag(() => false);
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
             rxFifoFull = new CadenceInterruptFlag(() => rxFifo.Count >= this.rxFifoCapacity);
-            rxFifoNotEmpty = new CadenceInterruptFlag(() => rxFifo.Count >= rxFifoThreshold.Value);
+            rxFifoNotEmpty = new CadenceInterruptFlag(() => rxFifo.Count >= (int)rxFifoThreshold.Value);
             modeFail = new CadenceInterruptFlag(() => false); // Not handled
 
             txFifo = new Queue<byte>(this.txFifoCapacity);

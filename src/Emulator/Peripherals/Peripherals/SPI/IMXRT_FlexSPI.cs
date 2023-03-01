@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             rxQueue.Reset();
             serialFlashAddress.Value = (uint)offset;
 
-            commandsEngine.LoadCommands(ahbReadSequenceIndex.Value, ahbReadSequenceLength.Value + 1);
+            commandsEngine.LoadCommands((uint)ahbReadSequenceIndex.Value, (uint)ahbReadSequenceLength.Value + 1);
             commandsEngine.Execute();
 
             var result = rxQueue.Read(0, width);
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             serialFlashAddress.Value = (uint)offset;
 
-            commandsEngine.LoadCommands(ahbWriteSequenceIndex.Value, ahbWriteSequenceLength.Value + 1);
+            commandsEngine.LoadCommands((uint)ahbWriteSequenceIndex.Value, (uint)ahbWriteSequenceLength.Value + 1);
             commandsEngine.Execute();
             TryPushData();
         }
@@ -357,7 +357,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             // sequenceNumber's value in register is 1 less than the actual value
-            commandsEngine.LoadCommands(sequenceIndex.Value, sequenceNumber.Value + 1);
+            commandsEngine.LoadCommands((uint)sequenceIndex.Value, (uint)sequenceNumber.Value + 1);
             commandsEngine.Execute();
         }
 
@@ -365,8 +365,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             var flag = false;
 
-            ipTxWatermarkEmpty.Value = txQueue.EmptyLevel >= txWatermark.Value;
-            ipRxWatermarkAvailable.Value = rxQueue.FillLevel >= rxWatermark.Value;
+            ipTxWatermarkEmpty.Value = txQueue.EmptyLevel >= (int)txWatermark.Value;
+            ipRxWatermarkAvailable.Value = rxQueue.FillLevel >= (int)rxWatermark.Value;
 
             flag |= ipCommandDone.Value && ipCommandDoneEnabled.Value;
             flag |= ipTxWatermarkEmpty.Value && ipTxWatermarkEmptyEnabled.Value;

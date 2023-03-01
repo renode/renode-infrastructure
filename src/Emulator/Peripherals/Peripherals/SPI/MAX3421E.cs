@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -348,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(5, out var outnin, name: "outnin")
                 .WithTag("ISO", 6, 1)
                 .WithFlag(7, out var hs, name: "hs")
-                .WithWriteCallback((_, v) => { HandleHostTransfer(ep.Value, setup.Value, outnin.Value, hs.Value); })
+                .WithWriteCallback((_, v) => { HandleHostTransfer((uint)ep.Value, setup.Value, outnin.Value, hs.Value); })
             ;
 
             RegisterType.HostResult.Define(this)
@@ -461,7 +461,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             if(endpoint != null)
             {
-                if(sendByteCount.Value != sendQueue.Count)
+                if((int)sendByteCount.Value != sendQueue.Count)
                 {
                     this.Log(LogLevel.Warning, "Requested to send BULK out {0} bytes of data, but there are {1} bytes in the queue.", sendByteCount.Value, sendQueue.Count);
                 }

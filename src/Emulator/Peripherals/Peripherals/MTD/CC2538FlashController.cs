@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -42,11 +42,11 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithReservedBits(10, 22)
                 },
                 {(long)Registers.FlashAddress, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, valueProviderCallback: _ => writeAddress >> 2, writeCallback: (_, value) => { writeAddress = value; }, name : "FADDR")
+                    .WithValueField(0, 16, valueProviderCallback: _ => writeAddress >> 2, writeCallback: (_, value) => { writeAddress = (uint)value; }, name : "FADDR")
                     .WithReservedBits(17, 15)
                 },
                 {(long)Registers.FlashData, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) => Write(value), name: "FWDATA")
+                    .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) => Write((uint)value), name: "FWDATA")
                 },
                 {(long)Registers.DieConfig0, new DoubleWordRegister(this, 0xB9640580)
                     .WithValueField(0, 32, FieldMode.Read)

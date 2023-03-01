@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -123,10 +123,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(2, 6)
                     .WithValueField(8, 5, name: "PSEL",
                         valueProviderCallback: _ => channels[idx].SelectedPin,
-                        writeCallback: (_, val) => channels[idx].SelectedPin = val)
+                        writeCallback: (_, val) => channels[idx].SelectedPin = (uint)val)
                     .WithValueField(13, 1, name: "PORT",
                         valueProviderCallback: _ => channels[idx].SelectedPort,
-                        writeCallback: (_, val) => channels[idx].SelectedPort = val)
+                        writeCallback: (_, val) => channels[idx].SelectedPort = (uint)val)
                     .WithReservedBits(14, 2)
                     .WithEnumField<DoubleWordRegister, Polarity>(16, 2, name: "POLARITY",
                         valueProviderCallback: _ => channels[idx].Polarity,

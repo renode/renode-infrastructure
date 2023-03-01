@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     var centerAlignedUnbalancedMode = (centerAlignedMode.Value == CenterAlignedMode.CenterAligned1) || (centerAlignedMode.Value == CenterAlignedMode.CenterAligned2);
                     this.Log(LogLevel.Noisy, "IRQ pending");
                     updateInterruptFlag = true;
-                    repetitionsLeft = (uint)(1 + repetitionCounter.Value * (centerAlignedUnbalancedMode ? 2 : 1));
+                    repetitionsLeft = 1u + (uint)repetitionCounter.Value * (centerAlignedUnbalancedMode ? 2u : 1u);
                     UpdateInterrupts();
                 }
 
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             Value = autoReloadValue;
                         }
 
-                        repetitionsLeft = repetitionCounter.Value;
+                        repetitionsLeft = (uint)repetitionCounter.Value;
                         
                         if(!updateRequestSource.Value && updateInterruptEnable.Value)
                         {
@@ -339,7 +339,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)Registers.AutoReload, new DoubleWordRegister(this)
                     .WithValueField(0, 32, writeCallback: (_, val) =>
                     {
-                        autoReloadValue = val;
+                        autoReloadValue = (uint)val;
                         Enabled = enableRequested && autoReloadValue > 0;
                         if(!autoReloadPreloadEnable.Value)
                         {

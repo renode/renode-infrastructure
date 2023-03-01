@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 controlRegister = new DoubleWordRegister(this);
                 controlRegister.DefineFlagField(7, changeCallback: OnModeChange, name: "MODE");
-                controlRegister.DefineValueField(4, 3, writeCallback: OnPrescalerChange, name: "PRESC");
+                controlRegister.DefineValueField(4, 3, writeCallback: (prevVal, val) => OnPrescalerChange((uint)prevVal, (uint)val), name: "PRESC");
                 controlRegister.DefineFlagField(1, writeCallback: OnReload, name: "RELOAD");
                 controlRegister.DefineFlagField(0, writeCallback: OnEnableChange, name: "ENABLE");
                 EventEnabled = true;
@@ -273,7 +273,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Mode = newValue ? WorkMode.OneShot : WorkMode.Periodic;
             }
 
-            private void OnPrescalerChange(uint oldValue, uint newValue)
+            private void OnPrescalerChange(ulong oldValue, ulong newValue)
             {
                 if(newValue < 4)
                 {

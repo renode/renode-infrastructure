@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Where(x => x.Key >= 0).OrderBy(x => x.Key).Select(x => x.Value.IsSet)),
                     writeCallback: (_, val) =>
                     {
-                        var bits = BitHelper.GetBits(val);
+                        var bits = BitHelper.GetBits((uint)val);
                         for(var i = 0; i < LedsCount; i++)
                         {
                             Connections[i].Set(bits[i]);
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void UpdateInterrupt()
         {
-            var enabled = BitHelper.GetBits(buttonsEnabled.Value).Take(ButtonsCount);
+            var enabled = BitHelper.GetBits((uint)buttonsEnabled.Value).Take(ButtonsCount);
             IRQ.Set(enabled.Zip(buttonsPending, (en, pe) => en && pe).Any());
         }
 

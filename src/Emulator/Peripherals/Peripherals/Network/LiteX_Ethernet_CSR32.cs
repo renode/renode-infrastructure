@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.Network
             Registers.ReaderSlot.Define(this)
                 .WithValueField(0, 32, out readerSlotNumber, name: "reader_slot", writeCallback: (_, val) =>
                 {
-                    if(val >= readSlots.Length)
+                    if((long)val >= readSlots.Length)
                     {
                         this.Log(LogLevel.Warning, "Trying to set reader slot number out of range ({0}). Forcing value of 0", val);
                         readerSlotNumber.Value = 0;
@@ -329,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 .WithValueField(0, 32, name: "reader_length",
                     writeCallback: (_, val) =>
                     {
-                        readSlots[readerSlotNumber.Value].DataLength = val;
+                        readSlots[readerSlotNumber.Value].DataLength = (uint)val;
                     },
                     valueProviderCallback: _ => readSlots[readerSlotNumber.Value].DataLength)
             ;

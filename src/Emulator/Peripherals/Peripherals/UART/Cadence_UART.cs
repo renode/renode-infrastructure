@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ = new GPIO();
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
             rxFifoFull = new CadenceInterruptFlag(() => Count >= FifoCapacity);
-            rxFifoTrigger = new CadenceInterruptFlag(() => Count >= rxTriggerLevel.Value && rxTriggerLevel.Value > 0);
+            rxFifoTrigger = new CadenceInterruptFlag(() => Count >= (int)rxTriggerLevel.Value && rxTriggerLevel.Value > 0);
             rxFifoEmpty = new CadenceInterruptFlag(() => Count == 0);
             rxTimeoutError = new CadenceInterruptFlag(() => false);
             txFifoEmpty = new CadenceInterruptFlag(() => true);

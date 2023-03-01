@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.TransmitData.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) =>
                 {
-                    if(!TrySendData(val))
+                    if(!TrySendData((uint)val))
                     {
                         this.Log(LogLevel.Warning, "Couldn't send data");
                     }
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private uint GetWordSizeInBits()
         {
-            return Math.Min(32, frameSize.Value + 1);
+            return Math.Min(32u, (uint)frameSize.Value + 1);
         }
 
         private uint GetWordsCount()
@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint GetFrameSize()
         {
             // frameSize keeps value substructed by 1
-            var sizeLeft = frameSize.Value + 1;
+            var sizeLeft = (uint)frameSize.Value + 1;
             if(sizeLeft % 8 != 0)
             {
                 sizeLeft += (8 - (sizeLeft % 8));

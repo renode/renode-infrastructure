@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     .WithValueField(0, 8, name: $"argument{idx}", 
                         writeCallback: (_, val) =>
                         {
-                            BitHelper.ReplaceBits(ref argumentValue, width: 8, source: val, destinationPosition: 24 - idx * 8);
+                            BitHelper.ReplaceBits(ref argumentValue, width: 8, source: (uint)val, destinationPosition: 24 - idx * 8);
                         },
                         valueProviderCallback: _ => BitHelper.GetValue(argumentValue, offset: 24 - idx * 8, size: 8))
                     .WithIgnoredBits(8, 24);
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     this.Log(LogLevel.Noisy, "Issuing command #{0} with argument 0x{3:X}, transfer type is {1}, response type is {2}", commandIndexField.Value, transferTypeField.Value, responseTypeField.Value, argumentValue);
 
-                    var resp = RegisteredPeripheral.HandleCommand(commandIndexField.Value, argumentValue).AsByteArray();
+                    var resp = RegisteredPeripheral.HandleCommand((uint)commandIndexField.Value, argumentValue).AsByteArray();
 
                     this.Log(LogLevel.Noisy, "Received response of size {0}", resp.Length);
 #if DEBUG_PACKETS
@@ -236,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 register
                     .WithValueField(0, 8, name: $"BlockSize{idx}", 
-                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref blockSize, width: 8, source: val, destinationPosition: 8 - idx * 8),
+                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref blockSize, width: 8, source: (uint)val, destinationPosition: 8 - idx * 8),
                         valueProviderCallback: _ => BitHelper.GetValue(blockSize, offset: 8 - idx * 8, size: 8))
                     .WithIgnoredBits(8, 24);
             });
@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 register
                     .WithValueField(0, 8, name: $"BlockCount{idx}",
-                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref blockCount, width: 8, source: val, destinationPosition: 24 - idx * 8),
+                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref blockCount, width: 8, source: (uint)val, destinationPosition: 24 - idx * 8),
                         valueProviderCallback: _ => BitHelper.GetValue(blockCount, offset: 24 - idx * 8, size: 8))
                     .WithIgnoredBits(8, 24);
             });
@@ -263,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 register
                     .WithValueField(0, 8, name: $"ReaderLength{idx}",
-                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref readerLength, val, width: 8, destinationPosition: 24 - idx * 8),
+                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref readerLength, (uint)val, width: 8, destinationPosition: 24 - idx * 8),
                         valueProviderCallback: _ => BitHelper.GetValue(readerLength, offset: 24 - idx * 8, size: 8))
                     .WithIgnoredBits(8, 24);
             });
@@ -293,7 +293,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 register
                     .WithValueField(0, 8, name: $"WriterLength{idx}",
-                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref writerLength, val, width: 8, destinationPosition: 24 - idx * 8),
+                        writeCallback: (_, val) => BitHelper.ReplaceBits(ref writerLength, (uint)val, width: 8, destinationPosition: 24 - idx * 8),
                         valueProviderCallback: _ => BitHelper.GetValue(writerLength, offset: 24 - idx * 8, size: 8))
                     .WithIgnoredBits(8, 24);
             });

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -133,9 +133,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void TimerUpdateConfiguration()
         {
-            var divider = (prescaler.Value + 1);
+            var divider = (uint)(prescaler.Value + 1u);
             underlyingTimer.Divider = (divider == 0) ? 1 : divider;
-            underlyingTimer.Step = step.Value;
+            underlyingTimer.Step = (uint)step.Value;
         }
 
         private void UpdateInterrupts()

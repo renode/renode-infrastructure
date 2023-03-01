@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -95,11 +95,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 switch(gpio.Value)
                 {
                     case GPIOSignal.RxFifoThreshold:
-                        Connections[i].Set(fifoThreshold.Value < rxFifo.Count);
+                        Connections[i].Set((int)fifoThreshold.Value < rxFifo.Count);
                         this.Log(LogLevel.Noisy, $"RX: threshold {fifoThreshold.Value}, fifo {rxFifo.Count}");
                         break;
                     case GPIOSignal.TxFifoThreshold:
-                        Connections[i].Set(127 - fifoThreshold.Value <= txFifo.Count);
+                        Connections[i].Set(127 - (int)fifoThreshold.Value <= txFifo.Count);
                         break;
                     case GPIOSignal.TxFifoFull:
                         if(!Connections[i].IsSet)
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                         }
                         else
                         {
-                            Connections[i].Set(txFifo.Count > 127 - fifoThreshold.Value);
+                            Connections[i].Set(txFifo.Count > 127 - (int)fifoThreshold.Value);
                         }
                         break;
                     case GPIOSignal.PacketSync:
@@ -856,13 +856,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var extDict = new Dictionary<long, ByteRegister>
             {
                 {(long)ExtendedRegisters.Frequency2, new ByteRegister(this)
-                    .WithValueField(0, 8, writeCallback: (_, value) => BitHelper.ReplaceBits(ref frequency, value, 8, 16))
+                    .WithValueField(0, 8, writeCallback: (_, value) => BitHelper.ReplaceBits(ref frequency, (uint)value, 8, 16))
                 },
                 {(long)ExtendedRegisters.Frequency1, new ByteRegister(this)
-                    .WithValueField(0, 8, writeCallback: (_, value) => BitHelper.ReplaceBits(ref frequency, value, 8, 8))
+                    .WithValueField(0, 8, writeCallback: (_, value) => BitHelper.ReplaceBits(ref frequency, (uint)value, 8, 8))
                 },
                 {(long)ExtendedRegisters.Frequency0, new ByteRegister(this)
-                    .WithValueField(0, 8, writeCallback: (_, value) => BitHelper.ReplaceBits(ref frequency, value, 8))
+                    .WithValueField(0, 8, writeCallback: (_, value) => BitHelper.ReplaceBits(ref frequency, (uint)value, 8))
                 },
                 {(long)ExtendedRegisters.ReceivedSignalStrengthIndicator1, new ByteRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (Rssi & 0xff0) >> 4, name: "RSSI_11_4")

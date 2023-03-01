@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -174,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithValueField(0, NumberOfPins, name: "Out",
                     writeCallback: (_, val) =>
                     {
-                        var bits = BitHelper.GetBits(val);
+                        var bits = BitHelper.GetBits((uint)val);
                         for(var i = 0; i < bits.Length; i++)
                         {
                             Connections[i].Set(bits[i]);

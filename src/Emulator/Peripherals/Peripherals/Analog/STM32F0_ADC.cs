@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     }
                     endOfSamplingFlag.Value = true;
 
-                    var watchdogOnThisChannel = (!analogWatchdogSingleChannel.Value || analogWatchdogChannel.Value == currentChannel);
+                    var watchdogOnThisChannel = (!analogWatchdogSingleChannel.Value || (int)analogWatchdogChannel.Value == currentChannel);
                     if(analogWatchdogEnable.Value && watchdogOnThisChannel)
                     {
                         if(data.Value > analogWatchdogHighValue.Value || data.Value < analogWatchdogLowValue.Value)

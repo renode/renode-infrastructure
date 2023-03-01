@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                     return;
                 }
                 WriteVirtqueueUsed(data.Item1, data.Item2, bytesProcessed);
-                availableIndex = (ushort)((availableIndex + 1) % virtqueueSize.Value);
+                availableIndex = (ushort)((availableIndex + 1u) % virtqueueSize.Value);
                 availableIndexFromDriver++;
             }
         }
@@ -264,7 +264,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         {
             var ringAddress = virtqueueUsedAddress + (ulong)VirtqueueUsedAndAvailable.Ring
                                 + UsedRingEntrySize * ((ulong)usedIndex);
-            usedIndex = (ushort)((usedIndex + 1) % virtqueueSize.Value);
+            usedIndex = (ushort)((usedIndex + 1u) % virtqueueSize.Value);
             usedIndexForDriver++;
             base.machine.SystemBus.WriteWord(virtqueueUsedAddress + (ulong)VirtqueueUsedAndAvailable.Flags, 0);
             base.machine.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Index, (uint)descriptorIndex);

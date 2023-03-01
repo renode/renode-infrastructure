@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -120,11 +120,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             , 0x10);
 
             Registers.DataPacketFifo0.DefineMany(this, NumberOfRegularQueues, (reg, idx) =>
-                reg.WithValueField(0x0, 32, writeCallback: packetFifos[idx].EnqueueCallback, valueProviderCallback: packetFifos[idx].DequeueCallback, name: queueNames[idx] + "_data_reg")
+                reg.WithValueField(0x0, 32, writeCallback: (prevVal, val) => packetFifos[idx].EnqueueCallback((uint)prevVal, (uint)val), valueProviderCallback: (prevVal) => packetFifos[idx].DequeueCallback((uint)prevVal), name: queueNames[idx] + "_data_reg")
             , 0x10);
 
             Registers.DataPacketFifo8k.Define(this)
-                .WithValueField(0x0, 17, writeCallback: packetFifos[3].EnqueueCallback, valueProviderCallback: packetFifos[3].DequeueCallback, name: queueNames[3] + "_data_reg")
+                .WithValueField(0x0, 17, writeCallback: (prevVal, val) => packetFifos[3].EnqueueCallback((uint)prevVal, (uint)val), valueProviderCallback: (prevVal) => packetFifos[3].DequeueCallback((uint)prevVal), name: queueNames[3] + "_data_reg")
                 .WithFlag(0x11, name: queueNames[3] + "_push_eop")
                 .WithReservedBits(18, 14);
         }
@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 PopThreshold.Value = false;
 
                 fifo.Enqueue(value);
-                if(fifo.Count >= PushThresholdLevel.Value)
+                if(fifo.Count >= (int)PushThresholdLevel.Value)
                 {
                     PushThreshold.Value = true;
                     parent.Log(LogLevel.Noisy, "Push treshold in {0}.", name);
@@ -251,7 +251,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     Underflow.Value = false;
                 }
-                if(fifo.Count - 1 <= PopThresholdLevel.Value)
+                if(fifo.Count - 1 <= (int)PopThresholdLevel.Value)
                 {
                     PopThreshold.Value = true;
                     parent.Log(LogLevel.Noisy, "Pop treshold in {0}.", name);
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(pf8kRingBuffMode && !pf8kFifoMode)
                 {
                     pf3BufferMode.Enqueue((ushort)value);
-                    if(pf3BufferMode.Count >= PushThresholdLevel.Value)
+                    if(pf3BufferMode.Count >= (int)PushThresholdLevel.Value)
                     {
                         PushThreshold.Value = true;
                         parent.Log(LogLevel.Noisy, "Push treshold in {0}.", name);
@@ -325,7 +325,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 else if(!pf8kRingBuffMode && pf8kFifoMode)
                 {
                     pf3QueueMode.Enqueue((ushort)value);
-                    if(pf3QueueMode.Count >= PushThresholdLevel.Value)
+                    if(pf3QueueMode.Count >= (int)PushThresholdLevel.Value)
                     {
                         PushThreshold.Value = true;
                         parent.Log(LogLevel.Noisy, "Push treshold in {0}", name);
@@ -364,7 +364,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         Underflow.Value = false;
                     }
-                    if(pf3BufferMode.Count - 1 <= PopThresholdLevel.Value)
+                    if(pf3BufferMode.Count - 1 <= (int)PopThresholdLevel.Value)
                     {
                         PopThreshold.Value = true;
                         parent.Log(LogLevel.Noisy, "Pop treshold in {0}.", name);
@@ -385,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         Underflow.Value = false;
                     }
-                    if(pf3QueueMode.Count - 1 <= PopThresholdLevel.Value)
+                    if(pf3QueueMode.Count - 1 <= (int)PopThresholdLevel.Value)
                     {
                         PopThreshold.Value = true;
                         parent.Log(LogLevel.Noisy, "Pop treshold in {0}.", name);

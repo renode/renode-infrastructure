@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     {
                         lock(innerLock)
                         {
-                            var bits = BitHelper.GetBits(value);
+                            var bits = BitHelper.GetBits((uint)value);
                             for(var i = 0; i < bits.Length; i++)
                             {
                                 if((irqManager.PinDirection[i] & GPIOInterruptManager.Direction.Output) != 0)
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             return;
                         }
 
-                        if(!intTypeToVal.TryGetValue(value, out var type))
+                        if(!intTypeToVal.TryGetValue((uint)value, out var type))
                         {
                             this.Log(LogLevel.Warning, "Invalid interrupt type for pin #{0}: {1}", j, value);
                             return;

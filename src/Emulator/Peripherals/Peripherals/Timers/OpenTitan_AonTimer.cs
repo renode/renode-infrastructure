@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 })
                 .WithValueField(1, 12, name: "prescaler",
                     valueProviderCallback: _ => wkupTimer.Divider - 1,
-                    writeCallback: (_, val) => wkupTimer.Divider = val + 1)
+                    writeCallback: (_, val) => wkupTimer.Divider = (uint)(val + 1u))
                 .WithReservedBits(13, 19);
 
             Registers.WakeupTimerThreshold.Define(this)

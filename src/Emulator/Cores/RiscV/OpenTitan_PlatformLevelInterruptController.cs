@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                     valueProviderCallback: _ => irqSources[j].Priority,
                                     writeCallback: (_, value) =>
                                     {
-                                        irqSources[j].Priority = value;
+                                        irqSources[j].Priority = (uint)value;
                                         RefreshInterrupts();
                                     })
                      .WithReservedBits(3, 29));

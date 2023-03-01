@@ -148,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.UART.Silabs
                         factor = 256 / 4;
                         break;
                 }
-                var divisor = oversample * (256 + (fractionalClockDividerField.Value << 3));
+                var divisor = oversample * (256 + ((uint)fractionalClockDividerField.Value << 3));
                 var quotient = uartClockFrequency / divisor;
                 var remainder = uartClockFrequency % divisor;
                 return (factor * quotient) + (factor * remainder) / divisor;

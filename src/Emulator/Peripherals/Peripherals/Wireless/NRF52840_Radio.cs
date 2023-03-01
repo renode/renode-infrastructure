@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -56,9 +56,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var headerLengthInAir = HeaderLengthInAir();
             var headerLengthInRAM = HeaderLengthInRAM();
 
-            var dataAddress = packetPointer.Value;
+            var dataAddress = (uint)packetPointer.Value;
             machine.SystemBus.WriteBytes(frame, address: dataAddress, startingIndex: addressLength, count: headerLengthInRAM);
-            var payloadLength = Math.Min(frame[addressLength + s0Length.Value], maxPacketLength.Value);
+            var payloadLength = Math.Min(frame[addressLength + (int)s0Length.Value], (byte)maxPacketLength.Value);
             machine.SystemBus.WriteBytes(frame, address: (ulong)(dataAddress + headerLengthInRAM), startingIndex: addressLength + headerLengthInAir, count: payloadLength);
 
             var crcLen = 4;
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public long Size => 0x1000;
 
-        public uint Frequency => (frequencyMap.Value ? 2360 : 2400U) + frequency.Value;
+        public uint Frequency => (frequencyMap.Value ? 2360 : 2400U) + (uint)frequency.Value;
 
         public GPIO IRQ { get; }
 
@@ -419,7 +419,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void SendPacket()
         {
-            var dataAddress = packetPointer.Value;
+            var dataAddress = (uint)packetPointer.Value;
             var headerLengthInAir = HeaderLengthInAir();
             var addressLength = (int)baseAddressLength.Value + 1;
             var headerLengthInRAM = HeaderLengthInRAM();
@@ -428,12 +428,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 this.Log(LogLevel.Noisy, "Header length difference between onAir={0} and inRam={1}", headerLengthInAir, headerLengthInRAM);
             }
 
-            var data = new byte[addressLength + headerLengthInRAM + maxPacketLength.Value];
-            FillCurrentAddress(data, 0, txAddress.Value);
+            var data = new byte[addressLength + headerLengthInRAM + (uint)maxPacketLength.Value];
+            FillCurrentAddress(data, 0, (uint)txAddress.Value);
 
             machine.SystemBus.ReadBytes(dataAddress, headerLengthInRAM, data, addressLength);
             this.Log(LogLevel.Noisy, "Header: {0} S0 {1} Length {2} S1 {3} s1inc {4}", Misc.PrettyPrintCollectionHex(data), s0Length.Value, lengthFieldLength.Value, s1Length.Value, s1Include.Value);
-            var payloadLength = data[addressLength + s0Length.Value];
+            var payloadLength = data[addressLength + (uint)s0Length.Value];
             if(payloadLength > maxPacketLength.Value)
             {
                 this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length ({1}), trimming...", payloadLength, maxPacketLength.Value);
@@ -517,7 +517,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
         {
             // based on 6.20.2 Address configuration
-            var baseAddress = logicalAddress == 0 ? baseAddress0.Value : baseAddress1.Value;
+            var baseAddress = (uint)(logicalAddress == 0 ? baseAddress0.Value : baseAddress1.Value);
             var baseBytes = BitConverter.GetBytes(baseAddress);
             var i = 0;
             if(baseAddressLength.Value > 4)

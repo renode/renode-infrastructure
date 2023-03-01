@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     register.WithValueField(0, 32, name: $"SCMPR{registerIndex}",
                         // SCMPR value written is relative to the current COUNTER (systemTimer's Value).
-                        writeCallback: (_, newValue) => compareRegisters[registerIndex].CompareValue = Value + newValue,
+                        writeCallback: (_, newValue) => compareRegisters[registerIndex].CompareValue = Value + (uint)newValue,
                         valueProviderCallback: _ => compareRegisters[registerIndex].CompareValue);
                 }, stepInBytes: 4);
 
@@ -288,7 +288,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             public void OnGPIO(int number, bool high)
             {
                 if(Enabled.Value
-                        && TriggerSourceGPIOPinNumber.Value == number
+                        && (int)TriggerSourceGPIOPinNumber.Value == number
                         // The 'value' is 'true' here if the opposite (low to high) transition has just occurred.
                         && CaptureOnHighToLowGPIOTransition.Value != high)
                 {

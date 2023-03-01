@@ -174,25 +174,25 @@ namespace Antmicro.Renode.Peripherals.MTD
             Registers.PowerDownKey.Define(this)
                 .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_PDKEYR", writeCallback: (_, value) =>
                     {
-                        powerDownLock.ConsumeValue(value);
+                        powerDownLock.ConsumeValue((uint)value);
                     });
 
             Registers.ProgramEraseControlKey.Define(this)
                 .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_PEKEYR", writeCallback: (_, value) =>
                     {
-                        programEraseControlLock.ConsumeValue(value);
+                        programEraseControlLock.ConsumeValue((uint)value);
                     });
 
             Registers.ProgramAndEraseKey.Define(this)
                 .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_PRGKEYR", writeCallback: (_, value) =>
                     {
-                        programEraseLock.ConsumeValue(value);
+                        programEraseLock.ConsumeValue((uint)value);
                     });
 
             Registers.OptionBytesUnlockKey.Define(this)
                 .WithValueField(0, 32, mode: FieldMode.Write, name: "FLASH_OPTKEYR", writeCallback: (_, value) =>
                     {
-                        optionByteLock.ConsumeValue(value);
+                        optionByteLock.ConsumeValue((uint)value);
                         this.Log(LogLevel.Warning, "Option bytes unlock key register accessed, option bytes currently unimplemented");
                     });
 

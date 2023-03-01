@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             eventInterruptEnable = control2.DefineFlagField(9, changeCallback: InterruptEnableChange);
             errorInterruptEnable = control2.DefineFlagField(8);
 
-            dataRegister = data.DefineValueField(0, 8, valueProviderCallback: DataRead, writeCallback: DataWrite);
+            dataRegister = data.DefineValueField(0, 8, valueProviderCallback: (prevVal) => DataRead((uint)prevVal), writeCallback: (prevVal, val) => DataWrite((uint)prevVal, (uint)val));
 
             acknowledgeFailed = status1.DefineFlagField(10, FieldMode.ReadToClear | FieldMode.WriteZeroToClear, changeCallback: (_,__) => Update());
             dataRegisterEmpty = status1.DefineFlagField(7, FieldMode.Read);

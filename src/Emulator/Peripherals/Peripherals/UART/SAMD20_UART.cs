@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 {(long)Registers.Data, new DoubleWordRegister(this)
                     .WithValueField(0, 9,
-                        writeCallback: (_, val) => HandleTransmitData(val),
+                        writeCallback: (_, val) => HandleTransmitData((uint)val),
                         valueProviderCallback: _ => HandleReceiveData(),
                         name: "DATA")
                     .WithReservedBits(9, 7)
@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        public uint BaudRate => baudrate.Value;
+        public uint BaudRate => (uint)baudrate.Value;
 
         public Bits StopBits => stopBitMode.Value ? Bits.Two : Bits.One;
 

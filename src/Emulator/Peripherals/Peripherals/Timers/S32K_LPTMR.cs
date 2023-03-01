@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             this.Log(LogLevel.Warning, "Trying to update the prescale value with LPTIMR enabled - ignoring...");
                             return;
                         }
-                        prescaleValue = value;
+                        prescaleValue = (uint)value;
                     }, valueProviderCallback: _ => prescaleValue) // we keep the prescaleValue not to have to calculate logarithms
                 .WithReservedBits(7, 25)
                 .WithWriteCallback((_, __) => UpdateDivider())
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             //set tcf until disabled. May be unhandled, because setting compare to 0 can be difficult
                             this.Log(LogLevel.Warning, "Trying to set CMR to 0, this is currently not handled");
                         }
-                        compare = value;
+                        compare = (uint)value;
 
                     })
                 .WithReservedBits(16, 16)

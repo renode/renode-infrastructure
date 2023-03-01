@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -114,17 +114,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(1, FieldMode.Read, name: "Transmit FIFO Overflow Interrupt Status TXOIS")
                     .WithFlag(2, FieldMode.Read, name: "Receive FIFO Underflow Interrupt Status RXUIS")
                     .WithFlag(3, FieldMode.Read, name: "Receive FIFO Overflow Interrupt Status RXUIS")
-                    .WithFlag(4, FieldMode.Read, valueProviderCallback: x => receiveFifo.Count > receiveFifoInterruptThreshold.Value && receiveFifoFullInterruptEnabled.Value, name: "Receive FIFO Full Interrupt Status RXFIS")
+                    .WithFlag(4, FieldMode.Read, valueProviderCallback: x => receiveFifo.Count > (int)receiveFifoInterruptThreshold.Value && receiveFifoFullInterruptEnabled.Value, name: "Receive FIFO Full Interrupt Status RXFIS")
                 },
                 {(long)Registers.RawInterruptStatus, new DoubleWordRegister(this, 0)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: x => true, name: "Transmit FIFO Empty Raw Interrupt Status TXEIR")
                     .WithTag("Transmit FIFO Overflow Raw Interrupt Status TXOIR", 1, 1) //ro
                     .WithTag("Receive FIFO Underflow Raw Interrupt Status RXUIR", 2, 1) //ro
                     .WithTag("Receive FIFO Overflow Raw Interrupt Status RXUIR", 3, 1) //ro
-                    .WithFlag(4, out receiveFifoFullRawInterrupt, FieldMode.Read, valueProviderCallback: x => receiveFifo.Count > receiveFifoInterruptThreshold.Value, name: "Receive FIFO Full Raw Interrupt Status RXFIR")
+                    .WithFlag(4, out receiveFifoFullRawInterrupt, FieldMode.Read, valueProviderCallback: x => receiveFifo.Count > (int)receiveFifoInterruptThreshold.Value, name: "Receive FIFO Full Raw Interrupt Status RXFIR")
                 }
             };
-            var dataRegister = new DoubleWordRegister(this, 0).WithValueField(0, 16, writeCallback: WriteData, valueProviderCallback: ReadData);
+            var dataRegister = new DoubleWordRegister(this, 0).WithValueField(0, 16, writeCallback: (_, val) => WriteData((uint)val), valueProviderCallback: _ => ReadData());
             for(var i = 0; i < 36; i++)
             {
                 //the fifo elements are not addressable, so reading/writing to any of these has the same effect -> it can be a single register.
@@ -134,12 +134,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
-        private uint ReadData(uint unused)
+        private uint ReadData()
         {
             return receiveFifo.Count > 0 ? receiveFifo.Dequeue() : (byte)0x00;
         }
 
-        private void WriteData(uint unused, uint data)
+        private void WriteData(uint data)
         {
             if(!ssiEnabled.Value)
             {

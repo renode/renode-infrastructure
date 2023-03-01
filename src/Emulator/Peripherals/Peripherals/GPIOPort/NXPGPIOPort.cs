@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -122,19 +122,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 {(long)Registers.GlobalPinControlLow, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var globalPinWriteEnableLow, FieldMode.Write, name: "GPWE") //order of fields is relevant
-                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite(value, globalPinWriteEnableLow.Value, highBits: false, highRegisters: false), name: "GPWE")
+                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite((uint)value, (uint)globalPinWriteEnableLow.Value, highBits: false, highRegisters: false), name: "GPWE")
                 },
                 {(long)Registers.GlobalPinControlHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var globalPinWriteEnableHigh, FieldMode.Write, name: "GPWE") //order of fields is relevant
-                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite(value, globalPinWriteEnableHigh.Value, highBits: false, highRegisters: true), name: "GPWD")
+                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite((uint)value, (uint)globalPinWriteEnableHigh.Value, highBits: false, highRegisters: true), name: "GPWD")
                 },
                 {(long)Registers.GlobalInterruptControlLow, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var globalInterruptWriteEnableLow, FieldMode.Write, name: "GIWE") //order of fields is relevant
-                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite(value, globalInterruptWriteEnableLow.Value, highBits: true, highRegisters: false), name: "GIWE")
+                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite((uint)value, (uint)globalInterruptWriteEnableLow.Value, highBits: true, highRegisters: false), name: "GIWE")
                 },
                 {(long)Registers.GlobalInterruptControlHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var globalInterruptWriteEnableHigh, FieldMode.Write, name: "GIWE") //order of fields is relevant
-                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite(value, globalInterruptWriteEnableHigh.Value, highBits: true, highRegisters: true), name: "GIWD")
+                    .WithValueField(16, 16, FieldMode.Write, writeCallback: (_, value) => GlobalPinControlWrite((uint)value, (uint)globalInterruptWriteEnableHigh.Value, highBits: true, highRegisters: true), name: "GIWD")
                 },
                 {(long)Registers.InterruptStatusFlag, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfConnections, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: (i, _) => interruptManager.ActiveInterrupts.ElementAt(i), writeCallback: (i, _, value) =>
@@ -221,7 +221,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)GPIORegisters.SetOutput, new DoubleWordRegister(this)
                     .WithValueField(0, NumberOfConnections, FieldMode.Write,
                         writeCallback: (_, value) => {
-                            value = FilterForDirection(value, true);
+                            value = FilterForDirection((uint)value, true);
                             for(byte i = 0; i < NumberOfConnections; i++)
                             {
                                 if(BitHelper.IsBitSet(value, i))
@@ -235,7 +235,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)GPIORegisters.ClearOutput, new DoubleWordRegister(this)
                     .WithValueField(0, NumberOfConnections, FieldMode.Write,
                         writeCallback: (_, value) => {
-                            value = FilterForDirection(value, true);
+                            value = FilterForDirection((uint)value, true);
                             for(byte i = 0; i < NumberOfConnections; i++)
                             {
                                 if(BitHelper.IsBitSet(value, i))
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)GPIORegisters.ToggleOutput, new DoubleWordRegister(this)
                     .WithValueField(0, NumberOfConnections, FieldMode.Write,
                         writeCallback: (_, value) => {
-                            value = FilterForDirection(value, true);
+                            value = FilterForDirection((uint)value, true);
                             for(byte i = 0; i < NumberOfConnections; i++)
                             {
                                 if(BitHelper.IsBitSet(value, i))

@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.Control6.Define(this)
                 .WithTaggedFlag("SIM", 0)
                 .WithReservedBits(1, 2)
-                .WithValueField(3, 3, name: "FSCALE: Full-scale selection", writeCallback: (_, val) => UpdateSensitivity(val))
+                .WithValueField(3, 3, name: "FSCALE: Full-scale selection", writeCallback: (_, val) => UpdateSensitivity((uint)val))
                 .WithTag("BW", 6, 2)
             ;
 

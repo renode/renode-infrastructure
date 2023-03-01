@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     if(bytesToHandle > transferCount.Value)
                     {
                         this.Log(LogLevel.Warning, "DMA configuration mismatch detected - transfer count left is {0} bytes, but there are more ({1}) bytes available in the SPI Master's buffer. Some data will be lost!", transferCount.Value, bytesToHandle);
-                        bytesToHandle = transferCount.Value;
+                        bytesToHandle = (uint)transferCount.Value;
                     }
 
                     // now we must check if there is one or two bytes again

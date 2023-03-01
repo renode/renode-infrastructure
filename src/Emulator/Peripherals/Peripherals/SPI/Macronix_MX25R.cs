@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             statusRegister
                 .WithValueField(2, 4,
-                    writeCallback: (_, value) => UpdateLockedRange(value), name: "BP (level of protected block)")
+                    writeCallback: (_, value) => UpdateLockedRange((uint)value), name: "BP (level of protected block)")
                 .WithTaggedFlag("QE (Quad Enable)", 6)
                 .WithTaggedFlag("SRWD (Status register write protect)", 7);
 

@@ -49,8 +49,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void UpdateCRCEngine()
         {
-            var polynomial = BitHelper.ReverseBits(crcPolynomial.Value);
-            crcEngine = new CRCEngine(polynomial, 32, init: crcValue.Value);
+            var polynomial = BitHelper.ReverseBits((uint)crcPolynomial.Value);
+            crcEngine = new CRCEngine(polynomial, 32, init: (uint)crcValue.Value);
         }
 
         private void UpdateInterrupts()

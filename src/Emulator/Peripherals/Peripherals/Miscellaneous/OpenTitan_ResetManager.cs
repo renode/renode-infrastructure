@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -273,7 +273,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 8, out softwareControllableResetsWriteEnableMask, FieldMode.Read | FieldMode.WriteZeroToClear, name: "EN")
                 .WithReservedBits(8, 24);
             Registers.SoftwareControllableResets.Define(this, 0xff)
-                .WithValueField(0, 8, writeCallback: (_, val) => { SetResetHolds(val); }, name: "VAL")
+                .WithValueField(0, 8, writeCallback: (_, val) => { SetResetHolds((uint)val); }, name: "VAL")
                 .WithReservedBits(8, 24);
             Registers.ErrorCode.Define(this)
                 .WithTaggedFlag("REG_INTG_ERR", 0)

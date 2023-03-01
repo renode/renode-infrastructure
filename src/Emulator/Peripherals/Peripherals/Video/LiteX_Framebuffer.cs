@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010 - 2019 Antmicro
+// Copyright (c) 2010 - 2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.Video
                     {
                         var height = (int)((vres[0].Value << 8) | vres[1].Value);
                         var width = (int)((hres[0].Value << 8) | hres[1].Value);
-                        bufferAddress = (bufferRegisters[0].Value << 24) | (bufferRegisters[1].Value << 16) | (bufferRegisters[2].Value << 8) | bufferRegisters[3].Value;
+                        bufferAddress = (uint)((bufferRegisters[0].Value << 24) | (bufferRegisters[1].Value << 16) | (bufferRegisters[2].Value << 8) | bufferRegisters[3].Value);
 
                         var memoryBase = (uint)machine.SystemBus.GetRegistrationPoints(memory).First().Range.StartAddress;
                         bufferAddress += memoryBase;

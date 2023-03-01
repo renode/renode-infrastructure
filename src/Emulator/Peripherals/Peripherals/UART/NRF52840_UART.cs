@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public override uint BaudRate => GetBaudRate(baudrate.Value);
+        public override uint BaudRate => GetBaudRate((uint)baudrate.Value);
         public long Size => 0x1000;
 
         [IrqProvider]
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.UART
             if(easyDMA)
             {
                 rxAmount.Value = 0;
-                currentRxPointer = rxPointer.Value;
+                currentRxPointer = (uint)rxPointer.Value;
             }
             rxStarted = true;
             if(Count > 0)

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -333,7 +333,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     if(isInBounds && isAllowed)
                     {
                         var oldData = ReadFlashDoubleWord(programOffset);
-                        WriteFlashDoubleWord(programOffset, oldData & data);
+                        WriteFlashDoubleWord(programOffset, oldData & (uint)data);
                         programOffset += 4;
                     }
                     else
@@ -355,7 +355,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     }
 
                     var offset = address.Value;
-                    if(programOffset > (offset + 4 * controlNum.Value))
+                    if(programOffset > (long)(offset + 4 * controlNum.Value))
                     {
                         opStatusRegisterDoneFlag.Value = true;
                         interruptStatusOperationDone.Value = true;
@@ -399,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     }
 
                     var offset = address.Value;
-                    if(readOffset > (offset + 4 * controlNum.Value))
+                    if(readOffset > (long)(offset + 4 * controlNum.Value))
                     {
                         opStatusRegisterDoneFlag.Value = true;
                         interruptStatusOperationDone.Value = true;
@@ -539,7 +539,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartReadOperation: reading {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            readOffset = address.Value;
+            readOffset = (long)address.Value;
             UpdateReadFifoSignals(true);
         }
 
@@ -555,7 +555,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartProgramOperation: programming {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            programOffset = address.Value;
+            programOffset = (long)address.Value;
         }
 
         private void StartEraseOperation()
@@ -570,7 +570,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 "OpenTitan_FlashController/StartEraseOperation: erasing {0}",
                 flashSelectPartition.Value ? "InfoPartition" : "DataPartition");
 
-            var offset = address.Value;
+            var offset = (uint)address.Value;
             var size = flashSelectBankEraseMode.Value ? BytesPerBank : BytesPerPage;
             var truncatedOffset = offset & ~(size - 1);
             var bankNumber = truncatedOffset / BytesPerBank;
@@ -627,13 +627,13 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private void UpdateReadFifoSignals(bool readInProgress)
         {
-            var flashOffset = address.Value;
+            var flashOffset = (uint)address.Value;
             if(readInProgress)
             {
                 var wordsLeft = (readOffset - flashOffset) / 4 + 1;
                 statusReadFullFlag.Value = wordsLeft >= 16;
                 interruptStatusReadFull.Value |= statusReadFullFlag.Value;
-                interruptStatusReadLevel.Value |= wordsLeft >= readFifoLevel.Value;
+                interruptStatusReadLevel.Value |= wordsLeft >= (long)readFifoLevel.Value;
                 statusReadEmptyFlag.Value = false;
             }
             else
@@ -828,8 +828,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
 
             var operationPage = operationOffset / BytesPerPage;
-            var regionStart = mpRegionBase[regionId].Value;
-            var regionEnd = regionStart + mpRegionSize[regionId].Value;
+            var regionStart = (uint)mpRegionBase[regionId].Value;
+            var regionEnd = regionStart + (uint)mpRegionSize[regionId].Value;
 
             return regionStart <= operationPage && operationPage < regionEnd;
         }

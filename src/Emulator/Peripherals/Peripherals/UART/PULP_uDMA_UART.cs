@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            this.Machine.SystemBus.WriteByte((ulong)(rxBufferAddress.Value + rxIdx), c);
+            this.Machine.SystemBus.WriteByte(rxBufferAddress.Value + rxIdx, c);
             rxIdx++;
 
             if(rxIdx == rxBufferSize.Value)
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.UART
             // Intentionally left blank
         }
 
-        private int rxIdx;
+        private uint rxIdx;
         private bool rxStarted;
 
         private readonly DoubleWordRegisterCollection registers;

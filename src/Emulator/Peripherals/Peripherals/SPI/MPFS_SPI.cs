@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -182,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                                     //TODO: should probably enqueue data if frame counter is enabled and the frameTransmitted reached the threshold.
                                     // We do not handle TXFIFO as its handling is not clear from the documentation.
                                     TryReceive(RegisteredPeripheral.Transmit((byte)val));
-                                    if(framesReceived + framesTransmitted == frameCounterLimit.Value)
+                                    if(framesReceived + framesTransmitted == (int)frameCounterLimit.Value)
                                     {
                                         dataSent.Value = true;
                                         transmitDone.Value = true;
@@ -309,25 +309,25 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                 {(long)Registers.AliasedControlRegister0, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, BitHelper.SetBitsFrom(controlRegister.Value, newVal, 0, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 0, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 0, 8), name: "CTRL0")
                 },
 
                 {(long)Registers.AliasedControlRegister1, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, BitHelper.SetBitsFrom(controlRegister.Value, newVal, 8, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 8, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 8, 8), name: "CTRL1")
                 },
 
                 {(long)Registers.AliasedControlRegister2, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, BitHelper.SetBitsFrom(controlRegister.Value, newVal, 16, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 16, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 16, 8), name: "CTRL2")
                 },
 
                 {(long)Registers.AliasedControlRegister3, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, BitHelper.SetBitsFrom(controlRegister.Value, newVal, 24, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 24, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 24, 8), name: "CTRL3")
                 }
             };
@@ -384,7 +384,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return returnValue;
                 }
                 TryReceive(data);
-                if(framesReceived == commandSize.Value)
+                if(framesReceived == (int)commandSize.Value)
                 {
                     fullCommandReceived.Value = true;
                     returnValue = CalculateSlaveHardwareStatus();
@@ -417,14 +417,14 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void TryReceive(byte data)
         {
-            if(receiveBuffer.Count < (fifoSize * frameSize.Value))
+            if(receiveBuffer.Count < (fifoSize * (int)frameSize.Value))
             {
                 framesReceived++;
                 receiveBuffer.Enqueue(data);
                 // Docs are not clear if this should be done in slave or master mode.
-                if(!disableFrameCount.Value && receiveBuffer.Count % frameSize.Value == 0)
+                if(!disableFrameCount.Value && receiveBuffer.Count % (int)frameSize.Value == 0)
                 {
-                    if(framesTransmitted + framesReceived == frameCounterLimit.Value)
+                    if(framesTransmitted + framesReceived == (int)frameCounterLimit.Value)
                     {
                         dataReceived.Value = true;
                         receiveDone.Value = true;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {(long)Registers.ChipSelectID, new DoubleWordRegister(this)
                 .WithValueField(0, 32, writeCallback: (_, val) =>
                     {
-                        if(val >= numberOfCSLines)
+                        if((long)val >= numberOfCSLines)
                         {
                             this.Log(LogLevel.Warning, "Tried to set CS id out of range: {0}", val);
                             csIdInvalidErrorTriggered.Value = true;
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithEnumField<DoubleWordRegister, CommandSpeed>(10, 2, out var commandSpeed, FieldMode.Write, name: "SPEED")
                 .WithEnumField<DoubleWordRegister, CommandDirection>(12, 2, out var commandDirection, FieldMode.Write, name: "DIRECTION")
                 .WithReservedBits(14, 18)
-                .WithWriteCallback((_, __) => EnqueueCommand(commandLength.Value, commandDirection.Value, commandSpeed.Value, keepChipSelect.Value))
+                .WithWriteCallback((_, __) => EnqueueCommand((uint)commandLength.Value, commandDirection.Value, commandSpeed.Value, keepChipSelect.Value))
             },
             {(long)Registers.Rxdata, new DoubleWordRegister(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => RxDequeueAsUInt(), name: "SPIReceiveData")

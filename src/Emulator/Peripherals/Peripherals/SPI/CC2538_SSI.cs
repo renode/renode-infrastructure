@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(4, 28)
                 },
                 { (long)Registers.Data, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, valueProviderCallback: _ => rxFifo.TryDequeue(out var val) ? val : 0u, writeCallback: (_, value) => SendData(value), name: "DATA")
+                    .WithValueField(0, 16, valueProviderCallback: _ => rxFifo.TryDequeue(out var val) ? val : 0u, writeCallback: (_, value) => SendData((uint)value), name: "DATA")
                     .WithReservedBits(16, 16)
                     .WithReadCallback((_, __) => Update())
                 },

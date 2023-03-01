@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void CalculateCrc32()
         {
             var byteLength = (int)wordLength.Value * 4;
-            this.Log(LogLevel.Debug, "Calculating CRC32 for the <0x{0:X8},0x{1:X8}> address range; seed: 0x{2:X8}", address.Value, address.Value + byteLength, crcSeedOrResult.Value);
+            this.Log(LogLevel.Debug, "Calculating CRC32 for the <0x{0:X8},0x{1:X8}> address range; seed: 0x{2:X8}", address.Value, (long)address.Value + byteLength, crcSeedOrResult.Value);
 
             if(crcSeedOrResult.Value != ValidCrcSeed)
             {
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     this.Log(LogLevel.Noisy, "Data for CRC32 calculation:\n{0}", data.Select(b => "0x" + b.ToString("X2")).Stringify(limitPerLine: 8));
                 }
 
-                var result = new CRCEngine(0x04C11DB7, 32, init: crcSeedOrResult.Value).Calculate(data);
+                var result = new CRCEngine(0x04C11DB7, 32, init: (uint)crcSeedOrResult.Value).Calculate(data);
 
                 // The most common CRC-32 algorithm (CRC-32/BZIP2) requires inverting the output (xoring with 0xffffffff).
                 // See the 'xorout' parameter: https://reveng.sourceforge.io/crc-catalogue/all.htm#crc.cat.crc-32-bzip2

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -195,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             .WithValueField(5, 5, out regularSequence[13], name: "14th conversion in regular sequence")
             .WithValueField(10, 5, out regularSequence[14], name: "15th conversion in regular sequence")
             .WithValueField(15, 5, out regularSequence[15], name: "16th conversion in regular sequence")
-            .WithValueField(20, 4, writeCallback: (_, val) => { regularSequenceLen = val + 1; }, name: "Regular channel sequence length");
+            .WithValueField(20, 4, writeCallback: (_, val) => { regularSequenceLen = (uint)val + 1; }, name: "Regular channel sequence length");
 
          Registers.RegularSequence2.Define(this)
             .WithValueField(0, 5, out regularSequence[6], name: "7th conversion in regular sequence")

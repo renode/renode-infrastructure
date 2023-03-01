@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void HandleRead()
         {
-            if(addressField.Value >= mmcmRegisters.Length)
+            if((int)addressField.Value >= mmcmRegisters.Length)
             {
                 this.Log(LogLevel.Error, "Trying to read from a non-existing MMCM register #{0}. This model supports registers <0-{1}>", addressField.Value, mmcmRegisters.Length - 1);
                 return;
@@ -110,13 +110,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void HandleWrite()
         {
-            if(addressField.Value >= mmcmRegisters.Length)
+            if((int)addressField.Value >= mmcmRegisters.Length)
             {
                 this.Log(LogLevel.Error, "Trying to write to a non-existing MMCM register #{0}. This model supports registers <0-{1}>", addressField.Value, mmcmRegisters.Length - 1);
                 return;
             }
 
-            mmcmRegisters[addressField.Value] = dataWriteField.Value;
+            mmcmRegisters[addressField.Value] = (uint)dataWriteField.Value;
             dataReadyField.Value = true;
         }
 

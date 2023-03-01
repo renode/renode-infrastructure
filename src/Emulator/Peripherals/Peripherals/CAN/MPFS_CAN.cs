@@ -1,5 +1,5 @@
 ﻿﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                             name: "TxIntEbl")
                         .WithTag("WPN", 3, 1)
                         .WithValueField(16, 4,
-                            writeCallback: (_, val) => txMessageBuffers[index].DataLengthCode = val,
+                            writeCallback: (_, val) => txMessageBuffers[index].DataLengthCode = (uint)val,
                             valueProviderCallback: _ => txMessageBuffers[index].DataLengthCode,
                             name: "DLC")
                         .WithTag("IDE", 20, 1)
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.TransmitMessageID + shiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(3, 29,
-                            writeCallback: (_, val) => txMessageBuffers[index].MessageId = val,
+                            writeCallback: (_, val) => txMessageBuffers[index].MessageId = (uint)val,
                             valueProviderCallback: _ => txMessageBuffers[index].MessageId,
                             name: "ID")
                 );
@@ -161,14 +161,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.TransmitMessageDataHigh + shiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Write,
-                            writeCallback: (_, val) => txMessageBuffers[index].SetData(val, Offset.High),
+                            writeCallback: (_, val) => txMessageBuffers[index].SetData((uint)val, Offset.High),
                             name: $"TX_MSG{index}_DATA_HIGH")
                 );
                 registersMap.Add(
                     (long)ControllerRegisters.TransmitMessageDataLow + shiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Write,
-                            writeCallback: (_, val) => txMessageBuffers[index].SetData(val, Offset.Low),
+                            writeCallback: (_, val) => txMessageBuffers[index].SetData((uint)val, Offset.Low),
                             name: $"TX_MSG{index}_DATA_LOW")
                 );
 
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                             name: "LF")
                         .WithFlag(7, name: "WPNL")
                         .WithValueField(16, 4, FieldMode.Read,
-                            writeCallback: (_, val) => rxMessageBuffers[index].DataLengthCode = val,
+                            writeCallback: (_, val) => rxMessageBuffers[index].DataLengthCode = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].DataLengthCode,
                             name: "DLC")
                         .WithTag("IDE", 20, 1)
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.ReceiveMessageID + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(3, 29,
-                            writeCallback: (_, val) => rxMessageBuffers[index].MessageId = val,
+                            writeCallback: (_, val) => rxMessageBuffers[index].MessageId = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].MessageId,
                             name: "ID")
                 );
@@ -236,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                         .WithTag("RTR", 1, 1)
                         .WithTag("IDE", 2, 1)
                         .WithValueField(3, 29,
-                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMask = val,
+                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMask = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMask,
                             name: "Identifier")
                 );
@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                         .WithTag("RTR", 1, 1)
                         .WithTag("IDE", 2, 1)
                         .WithValueField(3, 29,
-                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCode = val,
+                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCode = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceCode,
                             name: "Identifier")
                 );
@@ -255,7 +255,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegisterData + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                     .WithValueField(0, 16,
-                        writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMaskData = val,
+                        writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMaskData = (uint)val,
                         valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceMaskData,
                         name: $"RX_MSG{index}_AMR_DATA")
                 );
@@ -263,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegisterData + shiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 16,
-                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCodeData = val,
+                            writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCodeData = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].AcceptanceCodeData,
                             name: $"RX_MSG{index}_ACR_DATA")
                 );

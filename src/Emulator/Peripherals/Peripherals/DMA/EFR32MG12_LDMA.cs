@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -481,13 +481,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 ;
                 DescriptorSourceDataAddressRegister = new DoubleWordRegister(parent)
                     .WithValueField(0, 32,
-                        writeCallback: (_, value) => descriptor.sourceAddress = value,
+                        writeCallback: (_, value) => descriptor.sourceAddress = (uint)value,
                         valueProviderCallback: _ => descriptor.sourceAddress,
                         name: "SRCADDR")
                 ;
                 DescriptorDestinationDataAddressRegister = new DoubleWordRegister(parent)
                     .WithValueField(0, 32,
-                        writeCallback: (_, value) => descriptor.destinationAddress = value,
+                        writeCallback: (_, value) => descriptor.destinationAddress = (uint)value,
                         valueProviderCallback: _ => descriptor.destinationAddress,
                         name: "DSTADDR")
                 ;
@@ -500,7 +500,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         valueProviderCallback: _ => descriptor.link,
                         name: "LINK")
                     .WithValueField(2, 30,
-                        writeCallback: (_, value) => descriptor.linkAddress = value,
+                        writeCallback: (_, value) => descriptor.linkAddress = (uint)value,
                         valueProviderCallback: _ => descriptor.linkAddress,
                         name: "LINKADDR")
                 ;

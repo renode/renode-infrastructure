@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.SD
             response[2].Value = 0;
             response[3].Value = 0;
 
-            var commandResult = device.HandleCommand((uint)commandOperation.Value, commandArgument.Value);
+            var commandResult = device.HandleCommand((uint)commandOperation.Value, (uint)commandArgument.Value);
             switch(responseType.Value)
             {
                 case ResponseType.None:
@@ -257,8 +257,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 this.Log(LogLevel.Warning, "There seems to be an inconsistency between the number of bytes to read from the device ({0}) and the number of bytes to copy to the memory ({1})", bytesToReadFromDevice, rxBufferSize.Value);
             }
 
-            var data = device.ReadData(bytesToReadFromDevice);
-            if(rxBufferSize.Value < data.Length)
+            var data = device.ReadData((uint)bytesToReadFromDevice);
+            if((int)rxBufferSize.Value < data.Length)
             {
                 data = data.Take((int)rxBufferSize.Value).ToArray();
             }
@@ -276,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.SD
             }
 
             var data = Machine.SystemBus.ReadBytes((ulong)txBufferAddress.Value, (int)txBufferSize.Value);
-            if(bytesToWriteToDevice < data.Length)
+            if((int)bytesToWriteToDevice < data.Length)
             {
                 data = data.Take((int)txBufferSize.Value).ToArray();
             }

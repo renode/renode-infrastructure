@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             var currentState = gpioPort.ReadDoubleWord((uint)register);
                             // no need to filter value with & AlwaysOnGPIOMask, as it is already filtered
-                            gpioPort.WriteDoubleWord((uint)register, (currentState & ~AlwaysOnGPIOMask) | value);
+                            gpioPort.WriteDoubleWord((uint)register, (currentState & ~AlwaysOnGPIOMask) | (uint)value);
                         }, valueProviderCallback: _ =>
                         {
                             return gpioPort.ReadDoubleWord((uint)register);

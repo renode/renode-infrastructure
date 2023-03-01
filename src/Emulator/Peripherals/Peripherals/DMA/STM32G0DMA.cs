@@ -266,13 +266,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // a peripheral.
                 if(transferDirection.Value == TransferDirection.PeripheralToMemory)
                 {
-                    IssueCopy(peripheralAddress.Value, memoryAddress.Value, dataCount.Value,
+                    IssueCopy(peripheralAddress.Value, memoryAddress.Value, (uint)dataCount.Value,
                         peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                         memoryTransferType.Value);
                 }
                 else // 1-bit field, so we handle both possible values
                 {
-                    IssueCopy(memoryAddress.Value, peripheralAddress.Value, dataCount.Value,
+                    IssueCopy(memoryAddress.Value, peripheralAddress.Value, (uint)dataCount.Value,
                         memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
                         peripheralTransferType.Value);
                 }

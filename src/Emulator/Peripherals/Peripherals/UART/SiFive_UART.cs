@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO IRQ { get; private set; }
         public override Bits StopBits => numberOfStopBits.Value ? Bits.Two : Bits.One;
         public override Parity ParityBit => Parity.None;
-        public override uint BaudRate => (uint)(inputClockFrequency / (1 + baudRateDivisor.Value));
+        public override uint BaudRate => (uint)(inputClockFrequency / (uint)(1 + baudRateDivisor.Value));
 
         protected override void CharWritten()
         {
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(innerLock)
             {
                 transmitWatermarkInterruptPending.Value = (transmitWatermarkLevel.Value > 0);
-                receiveWatermarkInterruptPending.Value = (Count > receiveWatermarkLevel.Value);
+                receiveWatermarkInterruptPending.Value = (Count > (int)receiveWatermarkLevel.Value);
 
                 IRQ.Set(transmitWatermarkInterruptEnable.Value && transmitWatermarkInterruptPending.Value
 			|| receiveWatermarkInterruptEnable.Value && receiveWatermarkInterruptPending.Value);

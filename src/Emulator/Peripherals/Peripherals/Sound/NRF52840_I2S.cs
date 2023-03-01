@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                     return;
                 }
                 encoder = new PCMEncoder(sampleWidth, sampleFrequency, numberOfChannels, false);
-                encoder.SetBufferingBySamplesCount(maxSamplesCount.Value);
+                encoder.SetBufferingBySamplesCount((uint)maxSamplesCount.Value);
                 encoder.Output = OutputFile;
             }
 
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 this.Log(LogLevel.Error, "Trying to start aquisition, when peripheral is disabled (ENABLE==0). Will not start");
                 return;
             }
-            rxTxThread = machine.ObtainManagedThread(ProcessFrames, sampleFrequency / (maxSamplesCount.Value * samplesPerDoubleWord));
+            rxTxThread = machine.ObtainManagedThread(ProcessFrames, sampleFrequency / ((uint)maxSamplesCount.Value * samplesPerDoubleWord));
             rxTxThread.Start();
         }
 
@@ -164,9 +164,9 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
         }
         
-        private void SetMasterClockLrckRatio(uint value)
+        private void SetMasterClockLrckRatio(MasterLrClockRatio value)
         {
-            switch((MasterLrClockRatio)value)
+            switch(value)
             {
                 case MasterLrClockRatio.X32:
                     sampleRatio = 32;
@@ -202,9 +202,9 @@ namespace Antmicro.Renode.Peripherals.Sound
             SetSampleFrequency();
         }
 
-        private void SetMasterClockFrequency(uint val)
+        private void SetMasterClockFrequency(MasterClockFrequency val)
         {
-            switch((MasterClockFrequency)val)
+            switch(val)
             {
                 case MasterClockFrequency.Mhz32Div8:
                     masterFrequency = 32000000 / 8;
@@ -365,12 +365,12 @@ namespace Antmicro.Renode.Peripherals.Sound
                     .WithFlag(0, name: "MCKEN")
                     .WithReservedBits(1,31);
             Registers.ConfigMasterClockFrequency.Define(this, 0x20000000)
-                    .WithValueField(0, 32, writeCallback: (_, val) => SetMasterClockFrequency(val), name: "MCKFREQ");
+                    .WithValueField(0, 32, writeCallback: (_, val) => SetMasterClockFrequency((MasterClockFrequency)val), name: "MCKFREQ");
             Registers.ConfigRatio.Define(this, 0x6)
-                    .WithValueField(0, 4, writeCallback: (_, val) => SetMasterClockLrckRatio(val), name: "RATIO")
+                    .WithValueField(0, 4, writeCallback: (_, val) => SetMasterClockLrckRatio((MasterLrClockRatio)val), name: "RATIO")
                     .WithReservedBits(4,28);
             Registers.ConfigSwidth.Define(this, 0x1)
-                    .WithValueField(0, 2, writeCallback: (_, val) => SetSampleWidth(val), name: "SWIDTH")
+                    .WithValueField(0, 2, writeCallback: (_, val) => SetSampleWidth((uint)val), name: "SWIDTH")
                     .WithReservedBits(2,30);
             Registers.ConfigAlign.Define(this)
                     .WithTaggedFlag("ALIGN", 0)

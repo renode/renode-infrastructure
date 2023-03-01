@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             get
             {
-                return ((zoomOutputWidthHigh.Value << 8) + zoomOutputWidthLow.Value) * 4;
+                return (uint)((zoomOutputWidthHigh.Value << 8) + zoomOutputWidthLow.Value) * 4;
             }
         }
 
@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             get
             {
-                return ((zoomOutputHeightHigh.Value << 8) + zoomOutputHeightLow.Value) * 4;
+                return (uint)((zoomOutputHeightHigh.Value << 8) + zoomOutputHeightLow.Value) * 4;
             }
         }
 

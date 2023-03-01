@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -43,12 +43,12 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithValueField(8, 6, out pageLatchAddress, name: "PA")
                 },
                 {(long)Registers.WriteDataAtPageAddress, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, writeCallback: (_, value) => pageLatch[pageLatchAddress.Value] = value, name: "PAGE_WRITE_ADDR")
+                    .WithValueField(0, 32, FieldMode.Read, writeCallback: (_, value) => pageLatch[pageLatchAddress.Value] = (uint)value, name: "PAGE_WRITE_ADDR")
                 },
                 {(long)Registers.WriteDataAtPageAddressThenIncrement, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, writeCallback: (_, value) =>
                     {
-                        pageLatch[pageLatchAddress.Value] = value;
+                        pageLatch[pageLatchAddress.Value] = (uint)value;
                         pageLatchAddress.Value = (pageLatchAddress.Value + 1) % PageLatchEntries;
                     }, name: "PAGE_WRITE_INC_ADDR")
                 },
@@ -367,7 +367,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                         * 4;
             //we assume it won't fail, as the register infrastructure takes care of the possible values
             offset += sectorMappings[selectedSector.Value].Start;
-            return offset;
+            return (uint)offset;
         }
 
         private readonly IValueRegisterField pageLatchAddress;

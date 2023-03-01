@@ -201,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     valueProviderCallback: _ => consecutiveFaultsThreshold - 1,
                     writeCallback: (_, value) =>
                     {
-                        consecutiveFaultsThreshold = value + 1;
+                        consecutiveFaultsThreshold = (uint)value + 1;
                         consecutiveFaults = 0;
                     })
                 .WithReservedBits(13, 2)

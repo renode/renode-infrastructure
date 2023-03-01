@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 var effectiveValue = 0u;
                 var oldValue = flash.ReadDoubleWord(internalAddressRegister);
-                var writeValue = writeData.Value;
+                var writeValue = (uint)writeData.Value;
                 var newValue = oldValue & writeValue;
 
                 // This code is here to reflect half-word (16bits) writes. It is legal to unset bits once for each half-word.
@@ -221,9 +221,9 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             if(isWriteEnabled.Value)
             {
-                if(writeAddress.Value < flash.Size)
+                if((long)writeAddress.Value < flash.Size)
                 {
-                    internalAddressRegister = writeAddress.Value;
+                    internalAddressRegister = (uint)writeAddress.Value;
                     invalidAddress.Value = false;
                 }
                 else

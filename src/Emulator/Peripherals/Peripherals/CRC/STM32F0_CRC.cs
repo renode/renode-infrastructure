@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2022 Pieter Agten
 //
 // This file is licensed under the MIT License.
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.CRC
                     .WithValueField(0, 32, name: "CRC_DR",
                         writeCallback: (_, value) =>
                         {
-                            UpdateCRC(value, 4);
+                            UpdateCRC((uint)value, 4);
                             // Equivalent for byte and word implemented directly in writeByte and writeWord methods
                         },
                         valueProviderCallback: _ => CRC.Value
@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.CRC
 
         private void ReloadCRCConfig()
         {
-            var config = new CRCConfig(polynomial.Value, PolySizeToCRCWidth(polySize.Value), reflectInput: false, reflectOutput: reverseOutputData.Value, init: initialValue.Value, xorOutput: 0x0);
+            var config = new CRCConfig((uint)polynomial.Value, PolySizeToCRCWidth(polySize.Value), reflectInput: false, reflectOutput: reverseOutputData.Value, init: (uint)initialValue.Value, xorOutput: 0x0);
             if(crc == null || !config.Equals(crc.Config))
             {
                 crc = new CRCEngine(config);

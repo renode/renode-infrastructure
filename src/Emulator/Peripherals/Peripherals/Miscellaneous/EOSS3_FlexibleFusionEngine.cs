@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -124,11 +124,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(isWrite.Value)
                 {
                     this.Log(LogLevel.Noisy, "Writing to slave {0} at 0x{1:X}, value 0x{2:X}", selectedSlave.Value, slaveAddress.Value, writeData.Value);
-                    slave.WriteByte(slaveAddress.Value << 2, (byte)writeData.Value);
+                    slave.WriteByte((long)slaveAddress.Value << 2, (byte)writeData.Value);
                 }
                 else
                 {
-                    readData.Value = slave.ReadByte(slaveAddress.Value << 2);
+                    readData.Value = slave.ReadByte((long)slaveAddress.Value << 2);
                     this.Log(LogLevel.Noisy, "Read from slave {0} at 0x{1:X}, value 0x{2:X}", selectedSlave.Value, slaveAddress.Value, readData.Value);
                 }
             }

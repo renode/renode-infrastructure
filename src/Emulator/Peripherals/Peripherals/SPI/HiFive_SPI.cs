@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -155,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void UpdateInterrupts()
         {
             transmitWatermarkPending.Value = (transmitWatermark.Value > 0);
-            receiveWatermarkPending.Value = (receiveQueue.Count > receiveWatermark.Value);
+            receiveWatermarkPending.Value = (receiveQueue.Count > (int)receiveWatermark.Value);
 
             IRQ.Set((transmitWatermarkInterruptEnable.Value && transmitWatermarkPending.Value)
                 || (receiveWatermarkInterruptEnable.Value && receiveWatermarkPending.Value));

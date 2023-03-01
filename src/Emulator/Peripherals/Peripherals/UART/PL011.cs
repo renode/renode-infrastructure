@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.UART
             get
             {
                 var divisor = 16 * (integerBaudRate.Value + (fractionalBaudRate.Value / 64));
-                return (divisor > 0) ? (UARTClockFrequency / divisor) : 0;
+                return (divisor > 0) ? (UARTClockFrequency / (uint)divisor) : 0;
             }
         }
 
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.Data.Define(this)
                 .WithValueField(0, 8, name: "DATA - Receive (read) / Transmit (write) data character",
                         valueProviderCallback: _ => ReadDataRegister(),
-                        writeCallback: (_, newValue) => WriteDataRegister(newValue))
+                        writeCallback: (_, newValue) => WriteDataRegister((uint)newValue))
                 .WithTaggedFlag("FE - Framing error", 8)
                 .WithTaggedFlag("PE - Parity error", 9)
                 .WithTaggedFlag("BE - Break error", 10)

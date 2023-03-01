@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -306,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             OtpItem item;
             OtpPartition partition;
             int itemOffset, partitionOffset;
-            var readAddress = accessAddress.Value;
+            var readAddress = (uint)accessAddress.Value;
 
             if(!TryGetOtpPartitionAndItem(readAddress, out item, out partition, out itemOffset, out partitionOffset))
             {

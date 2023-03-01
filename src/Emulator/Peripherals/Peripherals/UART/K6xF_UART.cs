@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -30,14 +30,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(0, 5, writeCallback: (_, value) =>
                     {
                         // setting the high bits of the baud rate factor
-                        BitHelper.ReplaceBits(ref baudRateDivValue, value, 5, 8);
+                        BitHelper.ReplaceBits(ref baudRateDivValue, (uint)value, 5, 8);
                     },name: "SBR")
                 },
                 {(long)Registers.BaudRateLow, new ByteRegister(this)
                     .WithValueField(0, 8, writeCallback: (_, value) =>
                     {
                         // setting the low bits of the baud rate factor
-                        BitHelper.ReplaceBits(ref baudRateDivValue, value, 8);
+                        BitHelper.ReplaceBits(ref baudRateDivValue, (uint)value, 8);
                     },name: "SBR")
                 },
                 {(long)Registers.Control2, new ByteRegister(this)
@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             this.Log(LogLevel.Warning, "Cannot set transmitter watermark when transmitter is enabled");
                             return;
                         }
-                        transmitWatermark = b;
+                        transmitWatermark = (uint)b;
                         UpdateInterrupts();
                     },
                     valueProviderCallback: _ =>
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             this.Log(LogLevel.Warning, "Cannot set receiver watermark when receiver is enabled");
                             return;
                         }
-                        receiverWatermark = b;
+                        receiverWatermark = (uint)b;
                         UpdateInterrupts();
                     },
                     valueProviderCallback: _ =>

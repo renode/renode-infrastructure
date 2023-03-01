@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -162,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             eventStarted.Value = true;
             UpdateInterrupts();
 
-            var samplesCount = maxSamplesCount.Value;
+            var samplesCount = (uint)maxSamplesCount.Value;
             var doubleWordsCount = samplesCount / 2;
             var preparedDoubleWords = new uint[doubleWordsCount];
 
@@ -232,7 +232,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             UpdateInterrupts();
         }
 
-        private void SetGain(uint val, Channel channel)
+        private void SetGain(ulong val, Channel channel)
         {
             if(val > 80)
             {

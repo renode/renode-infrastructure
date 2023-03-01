@@ -294,15 +294,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 var channelId = channel + 1;
                 var nonMatchingMetadata = new List<String>();
-                if(currentSample.ConfigLedAExposure[channelId].HasValue && CalculateExposure(measurementLEDACurrent[channel].Value, ledRange[channel].Value, out var ledAExposure) != currentSample.ConfigLedAExposure[channelId])
+                if(currentSample.ConfigLedAExposure[channelId].HasValue && CalculateExposure((uint)measurementLEDACurrent[channel].Value, (uint)ledRange[channel].Value, out var ledAExposure) != currentSample.ConfigLedAExposure[channelId])
                 {
                     nonMatchingMetadata.Add($"LED A exposure (expected: {currentSample.ConfigLedAExposure[channelId]}, got: {ledAExposure})");
                 }
-                if(currentSample.ConfigLedBExposure[channelId].HasValue && CalculateExposure(measurementLEDBCurrent[channel].Value, ledRange[channel].Value, out var ledBExposure) != currentSample.ConfigLedBExposure[channelId])
+                if(currentSample.ConfigLedBExposure[channelId].HasValue && CalculateExposure((uint)measurementLEDBCurrent[channel].Value, (uint)ledRange[channel].Value, out var ledBExposure) != currentSample.ConfigLedBExposure[channelId])
                 {
                     nonMatchingMetadata.Add($"LED B exposure (expected: {currentSample.ConfigLedBExposure[channelId]}, got: {ledBExposure})");
                 }
-                if(currentSample.ConfigLedCExposure[channelId].HasValue && CalculateExposure(measurementLEDCCurrent[channel].Value, ledRange[channel].Value, out var ledCExposure) != currentSample.ConfigLedCExposure[channelId])
+                if(currentSample.ConfigLedCExposure[channelId].HasValue && CalculateExposure((uint)measurementLEDCCurrent[channel].Value, (uint)ledRange[channel].Value, out var ledCExposure) != currentSample.ConfigLedCExposure[channelId])
                 {
                     nonMatchingMetadata.Add($"LED C exposure (expected: {currentSample.ConfigLedCExposure[channelId]}, got: {ledCExposure})");
                 }
@@ -784,7 +784,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var clockBaseFrequency = clockSelect.Value
                 ? 32768u
                 : 32000u;
-            return clockBaseFrequency / ((clockDividerHigh.Value << 8) + clockDividerLow.Value);
+            return (uint)(clockBaseFrequency / ((clockDividerHigh.Value << 8) + clockDividerLow.Value));
         }
 
         private IEnumerable<Channel> ActiveChannels =>

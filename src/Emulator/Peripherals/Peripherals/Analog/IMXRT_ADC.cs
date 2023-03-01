@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -99,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             this.Log(LogLevel.Debug, "Trigger #{0} fired", triggerId);
 
-            var channel = inputChannel[triggerId].Value;
+            var channel = (uint)inputChannel[triggerId].Value;
             if(channel == ConversionDisabledMask)
             {
                 this.Log(LogLevel.Warning, "Trigger #{0} fired, but the conversion is disabled", triggerId);

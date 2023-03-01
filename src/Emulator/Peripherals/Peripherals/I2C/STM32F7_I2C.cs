@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 Update();
             }
 
-            if(txData.Count >= bytesToTransfer.Value)
+            if(txData.Count >= (int)bytesToTransfer.Value)
             {
                 // STOP condition
                 stopDetection.Value = true;
@@ -251,11 +251,11 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithChangeCallback((_,__) => Update())
                 }, {
                     (long)Registers.ReceiveData, new DoubleWordRegister(this, 0)
-                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: ReceiveDataRead, name: "RXDATA")
+                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: preVal => ReceiveDataRead((uint)preVal), name: "RXDATA")
                         .WithReservedBits(9, 23)
                 }, {
                     (long)Registers.TransmitData, new DoubleWordRegister(this, 0)
-                        .WithValueField(0, 8, writeCallback: HandleTransmitDataWrite, name: "TXDATA")
+                        .WithValueField(0, 8, writeCallback: (prevVal, val) => HandleTransmitDataWrite((uint)prevVal, (uint)val), name: "TXDATA")
                         .WithReservedBits(9, 23)
                 }
             };
@@ -349,7 +349,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 return;
             }
             txData.Enqueue((byte)newValue);
-            if(txData.Count == bytesToTransfer.Value)
+            if(txData.Count == (int)bytesToTransfer.Value)
             {
                 currentSlave.Write(txData.ToArray());
                 txData.Clear();

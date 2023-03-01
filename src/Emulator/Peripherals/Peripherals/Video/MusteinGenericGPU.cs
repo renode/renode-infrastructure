@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2018-2022 Microchip
 //
 // This file is licensed under the MIT License.
@@ -179,11 +179,11 @@ namespace Antmicro.Renode.Peripherals.Video
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
                 { controlOffset + (long)Registers.Width * accessAligment, new DoubleWordRegister(this, DefaultWidth)
-                    .WithValueField(0, 16, name: "Width", writeCallback: (_, x) => Reconfigure(setWidth: x), valueProviderCallback: _ => (uint)Width)
+                    .WithValueField(0, 16, name: "Width", writeCallback: (_, x) => Reconfigure(setWidth: (uint)x), valueProviderCallback: _ => (uint)Width)
                 },
 
                 { controlOffset + (long)Registers.Height * accessAligment, new DoubleWordRegister(this, DefaultHeight)
-                    .WithValueField(0, 16, name: "Height", writeCallback: (_, y) => Reconfigure(setHeight: y), valueProviderCallback: _ => (uint)Height)
+                    .WithValueField(0, 16, name: "Height", writeCallback: (_, y) => Reconfigure(setHeight: (uint)y), valueProviderCallback: _ => (uint)Height)
                 },
 
                 { controlOffset + (long)Registers.Format * accessAligment, new DoubleWordRegister(this, (uint)DefaultColor | ((uint)DefaultPacking << 4))

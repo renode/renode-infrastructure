@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 {(long)Registers.CounterInterval1, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "IntervalCounter",
-                        writeCallback: (_, val) => timer.Interval = val,
+                        writeCallback: (_, val) => timer.Interval = (uint)val,
                         valueProviderCallback: (_) => timer.Interval
                     )
                 },

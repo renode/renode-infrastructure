@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return;
             }
 
-            if((interruptMask.Value & (1 << number)) != 0x0) //interrupt is not masked
+            if(((int)interruptMask.Value & (1 << number)) != 0x0) //interrupt is not masked
             {
                 sleepMode.Value = false;
                 interruptTimestamps[number] = (ushort)timerSoftware30Bit.Value; //only lower bits are latched
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithFlag(0, writeCallback: EnableCounter, name: "SPT_EN")
                 .WithTag("CLK_SRC_SEL", 1, 1)
                 .WithValueField(2, 8, out interruptMask, name: "INT_MASK_N")
-                .WithValueField(10, 8, writeCallback: UpdateFFEKickOffPeriod, name: "FFE_TO_PERIOD")
+                .WithValueField(10, 8, writeCallback: (_, val) => UpdateFFEKickOffPeriod((uint)val), name: "FFE_TO_PERIOD")
                 .WithTag("PMU_TO_PERIOD", 18, 4)
                 .WithReservedBits(22, 10);
 
@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(1, 31);
 
             Registers.UpdateTimerValue.Define32(this)
-                .WithValueField(0, 30, writeCallback: UpdateSoftwareTimer, name: "UPDATE_TIMER_VALUE")
+                .WithValueField(0, 30, writeCallback: (_, val) => UpdateSoftwareTimer((uint)val), name: "UPDATE_TIMER_VALUE")
                 .WithReservedBits(30, 1);
 
             Registers.SpareBits.Define32(this)
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             enabled = value;
         }
 
-        private void UpdateFFEKickOffPeriod(uint _, uint value)
+        private void UpdateFFEKickOffPeriod(uint value)
         {
             if(value == 0x0)
             {
@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             ffeKickOffPeriod = value;
         }
 
-        private void UpdateSoftwareTimer(uint _, uint value)
+        private void UpdateSoftwareTimer(uint value)
         {
             if(enabled)
             {

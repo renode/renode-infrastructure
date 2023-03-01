@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 {(long)Registers.InputData, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) =>
                     {
-                        gpcrc.Update(BitConverter.GetBytes(value));
+                        gpcrc.Update(BitConverter.GetBytes((uint)value));
                     }, name: "INPUTDATA")
                 },
                 {(long)Registers.Data, new DoubleWordRegister(this)
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             if(isEnabled)
             {
-                gpcrc.RawValue = initDataField.Value;
+                gpcrc.RawValue = (uint)initDataField.Value;
             }
         }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -417,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.Network
             ushort result = 0;
             var address = miiRegisterAddress.Value;
             this.DebugLog("Read from PHY register 0x{0:X}.", address);
-            if(!phyRegisters.TryRead(address, out result))
+            if(!phyRegisters.TryRead((long)address, out result))
             {
                 this.Log(LogLevel.Warning, "Read from unimplemented PHY register 0x{0:X}.", address);
             }
@@ -429,7 +429,7 @@ namespace Antmicro.Renode.Peripherals.Network
             var address = miiRegisterAddress.Value;
             var registerFriendlyName = string.Format("PHY register 0x{0:X}, value 0x{1:X}", address, value);
             this.DebugLog("Write to {0}.", registerFriendlyName);
-            if(!phyRegisters.TryWrite(address, value))
+            if(!phyRegisters.TryWrite((long)address, value))
             {
                 this.Log(LogLevel.Warning, "Write to unimplemented {0}.", registerFriendlyName);
             }

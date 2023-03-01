@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -155,33 +155,33 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var regs = new Dictionary<long, DoubleWordRegister>()
             {
                 {(long)Registers.ExternalInterruptPortSelectLow, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePort(oldValue, newValue, false), name: "EXTIPSEL")
+                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePort((uint)oldValue, (uint)newValue, false), name: "EXTIPSEL")
                 },
                 {(long)Registers.ExternalInterruptPortSelectHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePort(oldValue, newValue, true), name: "EXTIPSEL")
+                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePort((uint)oldValue, (uint)newValue, true), name: "EXTIPSEL")
                 },
                 {(long)Registers.ExternalInterruptPinSelectLow, new DoubleWordRegister(this, 0x32103210)
-                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePin(oldValue, newValue, false), name: "EXTIPINSEL")
+                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePin((uint)oldValue, (uint)newValue, false), name: "EXTIPINSEL")
                 },
                 {(long)Registers.ExternalInterruptPinSelectHigh, new DoubleWordRegister(this, 0x32103210)
-                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePin(oldValue, newValue, true), name: "EXTIPINSEL")
+                    .WithValueField(0, 32, changeCallback: (oldValue, newValue) => ReroutePin((uint)oldValue, (uint)newValue, true), name: "EXTIPINSEL")
                 },
                 {(long)Registers.ExternalInterruptRisingEdgeTrigger, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, changeCallback: (_, value) => SetEdgeSensitivity(value, InterruptTrigger.RisingEdge))
+                    .WithValueField(0, 16, changeCallback: (_, value) => SetEdgeSensitivity((uint)value, InterruptTrigger.RisingEdge))
                 },
                 {(long)Registers.ExternalInterruptFallingEdgeTrigger, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, changeCallback: (_, value) => SetEdgeSensitivity(value, InterruptTrigger.FallingEdge))
+                    .WithValueField(0, 16, changeCallback: (_, value) => SetEdgeSensitivity((uint)value, InterruptTrigger.FallingEdge))
                 },
                 {(long)Registers.InterruptFlag, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: (_) => BitHelper.GetValueFromBitsArray(externalInterrupt), name: "EXT")
                     .WithTag("EM4WU", 16, 16)
                 },
                 {(long)Registers.InterruptFlagSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write, writeCallback: (_, value) => UpdateExternalInterruptBits(value, true), name: "EXT")
+                    .WithValueField(0, 16, FieldMode.Write, writeCallback: (_, value) => UpdateExternalInterruptBits((uint)value, true), name: "EXT")
                     .WithTag("EM4WU", 16, 16)
                 },
                 {(long)Registers.InterruptFlagClear, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, writeCallback: (_, value) => UpdateExternalInterruptBits(value, false), valueProviderCallback: (_) =>
+                    .WithValueField(0, 16, writeCallback: (_, value) => UpdateExternalInterruptBits((uint)value, false), valueProviderCallback: (_) =>
                     {
                         var result = BitHelper.GetValueFromBitsArray(externalInterrupt);
                         for(var i = 0; i < NumberOfExternalInterrupts; ++i)
@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                     .WithValueField(0, 16, writeCallback: (_, value) =>
                     {
-                        Array.Copy(BitHelper.GetBits(value), interruptEnable, NumberOfExternalInterrupts);
+                        Array.Copy(BitHelper.GetBits((uint)value), interruptEnable, NumberOfExternalInterrupts);
                         UpdateInterrupts();
                     },
                                     valueProviderCallback: (_) => BitHelper.GetValueFromBitsArray(interruptEnable), name: "EXT")
@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                      .WithValueField(0, 16,
                                      writeCallback: (_, newValue) =>
                                      {
-                                         var bits = BitHelper.GetBits(newValue);
+                                         var bits = BitHelper.GetBits((uint)newValue);
                                          for(var i = 0; i < 16; i++)
                                          {
                                              var pin = pinOffset + i;

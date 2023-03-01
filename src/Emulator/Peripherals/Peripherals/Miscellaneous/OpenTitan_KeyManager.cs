@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case OperationMode.GenerateHWOutput:
                     if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
                     {
-                        var data = BitConverter.GetBytes(keyVersion.Value)
+                        var data = BitConverter.GetBytes((uint)keyVersion.Value)
                             .Concat(salt)
                             .Concat(DestinationCipherSeed)
                             .Concat(hardOutputSeed);
@@ -173,7 +173,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case OperationMode.GenerateSWOutput:
                     if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
                     {
-                        var data = BitConverter.GetBytes(keyVersion.Value)
+                        var data = BitConverter.GetBytes((uint)keyVersion.Value)
                             .Concat(salt)
                             .Concat(DestinationCipherSeed)
                             .Concat(softOutputSeed);
@@ -345,17 +345,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.SealingSoftwareBinding0.DefineMany(this, MultiRegistersCount, (register, idx) =>
             {
-                register.WithValueField(0, 32, writeCallback: (_, val) => { sealingSoftwareBinding.SetBytesFromValue(val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(sealingSoftwareBinding, idx * 4), name: $"VAL_{idx}");
+                register.WithValueField(0, 32, writeCallback: (_, val) => { sealingSoftwareBinding.SetBytesFromValue((uint)val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(sealingSoftwareBinding, idx * 4), name: $"VAL_{idx}");
             });
 
             Registers.AttestationSoftwareBinding0.DefineMany(this, MultiRegistersCount, (register, idx) =>
             {
-                register.WithValueField(0, 32, writeCallback: (_, val) => { attestationSoftwareBinding.SetBytesFromValue(val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(attestationSoftwareBinding, idx * 4), name: $"VAL_{idx}");
+                register.WithValueField(0, 32, writeCallback: (_, val) => { attestationSoftwareBinding.SetBytesFromValue((uint)val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(attestationSoftwareBinding, idx * 4), name: $"VAL_{idx}");
             });
 
             Registers.Salt0.DefineMany(this, MultiRegistersCount, (register, idx) =>
             {
-                register.WithValueField(0, 32, writeCallback: (_, val) => { salt.SetBytesFromValue(val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(salt, idx * 4), name: $"VAL_{idx}");
+                register.WithValueField(0, 32, writeCallback: (_, val) => { salt.SetBytesFromValue((uint)val, idx * 4); }, valueProviderCallback: _ => (uint)BitConverter.ToInt32(salt, idx * 4), name: $"VAL_{idx}");
             });
 
             Registers.KeyVersion.Define(this)
@@ -478,11 +478,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 switch(state.Value)
                 {
                     case WorkingState.CreatorRootKey:
-                        return maxCreatorKeyVersion.Value;
+                        return (uint)maxCreatorKeyVersion.Value;
                     case WorkingState.OwnerIntermediateKey:
-                        return maxOwnerIntermediateKeyVersion.Value;
+                        return (uint)maxOwnerIntermediateKeyVersion.Value;
                     case WorkingState.OwnerKey:
-                        return maxOwnerKeyVersion.Value;
+                        return (uint)maxOwnerKeyVersion.Value;
                     default:
                         this.Log(LogLevel.Error, "Invalid state for getting `MaxKeyVersion`, state's value is 0x{0:X}", state.Value);
                         return 0;

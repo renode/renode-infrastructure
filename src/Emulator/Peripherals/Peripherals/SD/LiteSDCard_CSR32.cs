@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     this.Log(LogLevel.Noisy, "Issuing command #{0}, transfer type is {1}, response type is {2}", commandIndexField.Value, transferTypeField.Value, responseTypeField.Value);
 
-                    var resp = RegisteredPeripheral.HandleCommand(commandIndexField.Value, argumentValue.Value).AsByteArray();
+                    var resp = RegisteredPeripheral.HandleCommand((uint)commandIndexField.Value, (uint)argumentValue.Value).AsByteArray();
 
                     this.Log(LogLevel.Noisy, "Received response of size {0}", resp.Length);
 #if DEBUG_PACKETS
@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             readerAddress &= 0xffffffff;
 
-            var data = RegisteredPeripheral.ReadData(readerLength.Value);
+            var data = RegisteredPeripheral.ReadData((uint)readerLength.Value);
 #if DEBUG_PACKETS
             this.Log(LogLevel.Noisy, "Reading {0} bytes of data from device: {1}. Writing it to 0x{2:X}", data.Length, Misc.PrettyPrintCollectionHex(data), readerAddress);
 #endif

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -202,7 +202,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             if(newValue)
             {
-                responseRegisters = ExecuteCommand(commandIndex.Value, commandArgument, sendInitSequence.Value, dataTransfer.Value);
+                responseRegisters = ExecuteCommand((Commands)commandIndex.Value, commandArgument, sendInitSequence.Value, dataTransfer.Value);
                 startCommandFlag.Value = false;
 
                 if(dataTransfer.Value)

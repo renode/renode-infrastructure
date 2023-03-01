@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 observeFifo.Enqueue(value);
             }
 
-            if(observeFifo.Count >= observeFifoThreshold.Value)
+            if(observeFifo.Count >= (int)observeFifoThreshold.Value)
             {
                 observeFifoReadyInterruptState.Value = true;
                 UpdateInterrupts();
@@ -220,7 +220,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(1, out healthTestFailedInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_health_test_failed")
                 .WithFlag(2, out observeFifoReadyInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_observe_fifo_ready", writeCallback: (_, val) => 
                 {
-                    if(val && observeFifo.Count >= observeFifoThreshold.Value)
+                    if(val && observeFifo.Count >= (int)observeFifoThreshold.Value)
                     {
                         observeFifoReadyInterruptState.Value = true;
                     }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -114,8 +114,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void UpdateInterrupts()
         {
-            interruptRxLevelPending.Value = rxQueue.Count >= rxFIFOThreshold.Value;
-            interruptTxLevelPending.Value = txQueue.Count >= txFIFOThreshold.Value;
+            interruptRxLevelPending.Value = rxQueue.Count >= (int)rxFIFOThreshold.Value;
+            interruptTxLevelPending.Value = txQueue.Count >= (int)txFIFOThreshold.Value;
 
             var pending = false;
             pending |= interruptTxLevelEnabled.Value && interruptTxLevelPending.Value;
@@ -334,7 +334,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
                 {(long)Registers.TrasmitPacketSize, new DoubleWordRegister(this)
                     .WithValueField(0, 16, name: "CTRL1.tx_num_char",
-                        writeCallback: (_, value) => charactersToTransmit = value)
+                        writeCallback: (_, value) => charactersToTransmit = (uint)value)
                     .WithTag("CTRL1.rx_num_char", 16, 16)
                 },
                 {(long)Registers.StaticConfiguration, new DoubleWordRegister(this)

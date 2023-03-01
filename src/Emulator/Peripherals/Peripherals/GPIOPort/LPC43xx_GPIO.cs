@@ -75,21 +75,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 parent.RegistersCollection.DefineRegister((uint)Registers.MaskedPin + 4 * portNumber)
                     .WithValueField(0, PinsPerPort, name: $"GPIO_MPIN{portNumber}",
-                        writeCallback: (_, value) => SetStateValue(state.Value & mask.Value | value & ~mask.Value),
+                        writeCallback: (_, value) => SetStateValue((uint)(state.Value & mask.Value | value & ~mask.Value)),
                         valueProviderCallback: _ => GetStateValue() & ~mask.Value);
 
                 parent.RegistersCollection.DefineRegister((uint)Registers.SetPin + 4 * portNumber)
                     .WithValueField(0, PinsPerPort, name: $"GPIO_SET{portNumber}",
-                        writeCallback: (_, value) => SetStateValue(state.Value | value),
+                        writeCallback: (_, value) => SetStateValue((uint)(state.Value | value)),
                         valueProviderCallback: _ => GetStateValue());
 
                 parent.RegistersCollection.DefineRegister((uint)Registers.ClearPin + 4 * portNumber)
                     .WithValueField(0, PinsPerPort, FieldMode.Write, name: $"GPIO_CLR{portNumber}",
-                        writeCallback: (_, value) => SetStateValue(state.Value & ~value));
+                        writeCallback: (_, value) => SetStateValue((uint)(state.Value & ~value)));
 
                 parent.RegistersCollection.DefineRegister((uint)Registers.NegatePin + 4 * portNumber)
                     .WithValueField(0, PinsPerPort, FieldMode.Write, name: $"GPIO_NOT{portNumber}",
-                        writeCallback: (_, value) => SetStateValue(state.Value ^ value));
+                        writeCallback: (_, value) => SetStateValue((uint)(state.Value ^ value)));
             }
 
             private UInt32 GetStateValue()

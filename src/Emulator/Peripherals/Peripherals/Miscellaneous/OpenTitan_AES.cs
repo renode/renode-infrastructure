@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         this.Log(LogLevel.Noisy, "Ignored write to key_share_0_{0}, sideload is set", part);
                         return;
                     }
-                    initialKeyShare_0.SetPart(part, value);
+                    initialKeyShare_0.SetPart(part, (uint)value);
                     TryPrepareKey();
                 }, name: $"key_share_0_{part}");
             });
@@ -99,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         this.Log(LogLevel.Noisy, "Ignored write to key_share_1_{0}, sideload is set", part);
                         return;
                     }
-                    initialKeyShare_1.SetPart(part, value);
+                    initialKeyShare_1.SetPart(part, (uint)value);
                     TryPrepareKey();
                 }, name: $"key_share_1_{part}");
             });
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.InitializationVector_0.DefineMany(this, InitializationVectorLengthInBytes / sizeof(uint), (register, idx) =>
             {
                 var part = (uint)idx;
-                register.WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) => initializationVector.SetPart(part, value), name: $"iv_{part}");
+                register.WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) => initializationVector.SetPart(part, (uint)value), name: $"iv_{part}");
             });
 
             Registers.InputData_0.DefineMany(this, DataLengthInBytes / sizeof(uint), (register, idx) =>
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var part = (uint)idx;
                 register.WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) =>
                 {
-                    inputData.SetPart(part, value);
+                    inputData.SetPart(part, (uint)value);
                     if(inputData.AllDataWritten && !manualOperation.Value)
                     {
                         ProcessInput();

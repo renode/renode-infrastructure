@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 reg.WithValueField(0, 8, name: $"LOAD{idx}", writeCallback: (_, val) =>
                 {
-                    BitHelper.ReplaceBits(ref loadValue, width: 8, source: val, destinationPosition: 24 - idx * 8);
+                    BitHelper.ReplaceBits(ref loadValue, width: 8, source: (uint)val, destinationPosition: 24 - idx * 8);
                 });
             }, stepInBytes: 8);
 
@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 reg.WithValueField(0, 8, name: $"RELOAD{idx}", writeCallback: (_, val) =>
                 {
-                    BitHelper.ReplaceBits(ref reloadValue, width: 8, source: val, destinationPosition: 24 - idx * 8);
+                    BitHelper.ReplaceBits(ref reloadValue, width: 8, source: (uint)val, destinationPosition: 24 - idx * 8);
                 });
             }, stepInBytes: 8);
 

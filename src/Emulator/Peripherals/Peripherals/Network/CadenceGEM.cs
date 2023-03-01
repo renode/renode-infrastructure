@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
+                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.SystemBus, (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
                         })
                 },
 
@@ -205,7 +205,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = value;
+                            rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = (uint)value;
                         })
                 },
 
@@ -229,7 +229,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is started is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.SystemBus, (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
                         })
                 },
 
@@ -241,7 +241,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = value;
+                            txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = (uint)value;
                         })
                 },
 
@@ -301,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
 
                 {(long)Registers.PhyMaintenance, new DoubleWordRegister(this)
-                    .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite(value), valueProviderCallback: _ => HandlePhyRead())
+                    .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite((uint)value), valueProviderCallback: _ => HandlePhyRead())
                 },
 
                 {(long)Registers.SpecificAddress1Bottom, new DoubleWordRegister(this)
@@ -504,14 +504,14 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
                 // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-                rxPacketTimestamp.seconds = secTimer.Value;
+                rxPacketTimestamp.seconds = (uint)secTimer.Value;
                 rxPacketTimestamp.nanos = (uint)nanoTimer.Value;
 
                 rxDescriptorsQueue.CurrentDescriptor.Invalidate();
                 if(!rxDescriptorsQueue.CurrentDescriptor.Ownership)
                 {
                     var actualLength = (uint)(removeFrameChecksum.Value ? frame.Bytes.Length - 4 : frame.Bytes.Length);
-                    if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, actualLength, receiveBufferOffset.Value))
+                    if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, actualLength, (uint)receiveBufferOffset.Value))
                     {
                         // The current implementation doesn't handle packets that do not fit into a single buffer.
                         // In case we encounter this error, we probably should implement partitioning/scattering procedure.
@@ -614,7 +614,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
             // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-            txPacketTimestamp.seconds = secTimer.Value;
+            txPacketTimestamp.seconds = (uint)secTimer.Value;
             txPacketTimestamp.nanos = (uint)nanoTimer.Value;
 
             if(txBufferDescriptorTimeStampMode.Value != TimestampingMode.Disabled)

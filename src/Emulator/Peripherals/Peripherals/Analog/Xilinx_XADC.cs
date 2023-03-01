@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithValueField(0, 32, FieldMode.Write, writeCallback: (oldValue, newValue) =>
                 {
                     this.DebugLog($"Command FIFO write: 0x{newValue:x}");
-                    HandleCommand(newValue);
+                    HandleCommand((uint)newValue);
                 });
 
             Register.DataFifo.Define(this)
@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private void UpdateInterrupts()
         {
-            intStatusDfifoGth.Value |= dataFifo.Count > dataFifoThreshold.Value;
+            intStatusDfifoGth.Value |= dataFifo.Count > (int)dataFifoThreshold.Value;
 
             var interruptFlag = (interruptStatus.Value & ~interruptMask.Value) != 0;
             IRQ.Set(interruptFlag);

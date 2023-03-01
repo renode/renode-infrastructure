@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public bool FifoOverrunStatus => commonFifo.OverrunOccurred;
-        public uint FifoWatermarkThreshold => fifoThresholdBits0_7.Value | (fifoThresholdBit8.Value ? 0x100u : 0x0u);
+        public uint FifoWatermarkThreshold => (uint)fifoThresholdBits0_7.Value | (fifoThresholdBit8.Value ? 0x100u : 0x0u);
         public bool IsAccelerometerDataBatchedInFifo => IsDataRateEnabledAndDefined(accelerometerFifoBatchingDataRateSelection.Value);
         public bool IsAccelerometerPoweredOn => IsDataRateEnabledAndDefined(accelerometerOutputDataRateSelection.Value);
         public bool IsGyroscopeDataBatchedInFifo => IsDataRateEnabledAndDefined(gyroscopeFifoBatchingDataRateSelection.Value);

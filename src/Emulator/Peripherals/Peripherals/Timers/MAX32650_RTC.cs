@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -87,11 +87,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.Seconds.Define(this)
                 .WithValueField(0, 32, name: "RTC_SEC.sec",
                     valueProviderCallback: _ => secondsCounter,
-                    writeCallback: (_, value) => { lock(countersLock) secondsCounter = value; });
+                    writeCallback: (_, value) => { lock(countersLock) secondsCounter = (uint)value; });
             Registers.SubSeconds.Define(this)
                 .WithValueField(0, 8, name: "RTC_SSEC.ssec",
                     valueProviderCallback: _ => (byte)subSecondsCounter,
-                    writeCallback: (_, value) => { lock(countersLock) subSecondsCounter = (subSecondsMSBOverwrite ? 0xF00 : (subSecondsCounter & 0xF00)) | value; })
+                    writeCallback: (_, value) => { lock(countersLock) subSecondsCounter = (subSecondsMSBOverwrite ? 0xF00 : (subSecondsCounter & 0xF00)) | (uint)value; })
                 .WithReservedBits(8, 24);
             Registers.TimeOfDayAlarm.Define(this)
                 .WithValueField(0, 20, out timeOfDayAlarm, name: "RTC_TODA.tod_alarm")

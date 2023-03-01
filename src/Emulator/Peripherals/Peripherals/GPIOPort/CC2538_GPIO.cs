@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(0, 8,
                         writeCallback: (_, val) =>
                         {
-                            var bits = BitHelper.GetBits(val);
+                            var bits = BitHelper.GetBits((uint)val);
                             for(int i = 0; i < 8; i++)
                             {
                                 if(irqManager.PinDirection[i] == GPIOInterruptManager.Direction.Input)
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.DataDirection, new DoubleWordRegister(this)
                     .WithValueField(0, 8, writeCallback: (_, val) =>
                     {
-                        var bits = BitHelper.GetBits(val);
+                        var bits = BitHelper.GetBits((uint)val);
                         for(var i = 0; i < 8; i++)
                         {
                             irqManager.PinDirection[i] = bits[i] ? GPIOInterruptManager.Direction.Output : GPIOInterruptManager.Direction.Input;
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                     .WithValueField(0, 8, writeCallback: (_, val) =>
                     {
-                        var bits = BitHelper.GetBits(val);
+                        var bits = BitHelper.GetBits((uint)val);
                         for(var i = 0; i < 8; i++)
                         {
                             irqManager.InterruptEnable[i] = bits[i];
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.InterruptClear, new DoubleWordRegister(this)
                                 .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, val) =>
                                 {
-                                    var bits = BitHelper.GetBits(val);
+                                    var bits = BitHelper.GetBits((uint)val);
                                     for(var i = 0; i < 8; i++)
                                     {
                                         if(bits[i])
@@ -193,9 +193,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             lock(locker)
             {
-                var isBothEdgesSensitive = BitHelper.GetBits(interruptBothEdgeField.Value);
-                var isLevelSensitive = BitHelper.GetBits(interruptSenseField.Value);
-                var isActiveHighOrRisingEdge = BitHelper.GetBits(interruptEventField.Value);
+                var isBothEdgesSensitive = BitHelper.GetBits((uint)interruptBothEdgeField.Value);
+                var isLevelSensitive = BitHelper.GetBits((uint)interruptSenseField.Value);
+                var isActiveHighOrRisingEdge = BitHelper.GetBits((uint)interruptEventField.Value);
 
                 for(int i = 0; i < 8; i++)
                 {

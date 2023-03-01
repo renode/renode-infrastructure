@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.UART
             RegistersCollection.Write(offset, value);
         }
 
-        public override uint BaudRate => BaudRateMultiplier * frequency / baudRateDivisor.Value;
+        public override uint BaudRate => BaudRateMultiplier * frequency / (uint)baudRateDivisor.Value;
         
         public override Bits StopBits
         {
@@ -223,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.TransmitData.Define(RegistersCollection)
                 .WithValueField(0, 8, 
                     // reading this register will intentionally return the last written value
-                    writeCallback: (_, val) => HandleTransmitData(val), name: "TDR")
+                    writeCallback: (_, val) => HandleTransmitData((uint)val), name: "TDR")
                 .WithReservedBits(8, 24);
 
             if(lowPowerMode)

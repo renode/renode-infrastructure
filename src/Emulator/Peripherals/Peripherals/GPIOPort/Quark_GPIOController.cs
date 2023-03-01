@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.X86
                 {(long)Registers.PortAData, new DoubleWordRegister(this)
                                 .WithValueField(0, 32, writeCallback: (_, val) =>
                                 {
-                                    var bits = BitHelper.GetBits(val);
+                                    var bits = BitHelper.GetBits((uint)val);
                                     for(int i = 0; i < bits.Length; i++)
                                     {
                                         if(PortDataDirection[i] == PinDirection.Output)
@@ -150,12 +150,12 @@ namespace Antmicro.Renode.Peripherals.X86
                     }, valueProviderCallback: _ => { return BitHelper.GetValueFromBitsArray(State); })
                 },
                 {(long)Registers.PortADataDirection, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, writeCallback: (_, val) => Array.Copy(BitHelper.GetBits(val).Select(x => x ? PinDirection.Output : PinDirection.Input).ToArray() , PortDataDirection, 32),
+                                .WithValueField(0, 32, writeCallback: (_, val) => Array.Copy(BitHelper.GetBits((uint)val).Select(x => x ? PinDirection.Output : PinDirection.Input).ToArray() , PortDataDirection, 32),
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(PortDataDirection.Select(x => x == PinDirection.Output)))
                 },
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                                 .WithValueField(0, 32, writeCallback: (_, val) => {
-                                            Array.Copy(BitHelper.GetBits(val), InterruptEnable, 32);
+                                            Array.Copy(BitHelper.GetBits((uint)val), InterruptEnable, 32);
                                             RefreshInterrupts();
                                         },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptEnable))
@@ -173,7 +173,7 @@ namespace Antmicro.Renode.Peripherals.X86
                 },
                 {(long)Registers.InterruptMask, new DoubleWordRegister(this)
                                 .WithValueField(0, 32, writeCallback: (_, val) => {
-                                        Array.Copy(BitHelper.GetBits(val), InterruptMask, 32);
+                                        Array.Copy(BitHelper.GetBits((uint)val), InterruptMask, 32);
                                         RefreshInterrupts();
                                     },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptMask))
@@ -204,9 +204,9 @@ namespace Antmicro.Renode.Peripherals.X86
         {
             lock(internalLock)
             {
-                var isBothEdgesSensitive = BitHelper.GetBits(interruptBothEdgeField.Value);
-                var isEdgeSensitive = BitHelper.GetBits(interruptTypeField.Value);
-                var isActiveHighOrRisingEdge = BitHelper.GetBits(interruptPolarityField.Value);
+                var isBothEdgesSensitive = BitHelper.GetBits((uint)interruptBothEdgeField.Value);
+                var isEdgeSensitive = BitHelper.GetBits((uint)interruptTypeField.Value);
+                var isActiveHighOrRisingEdge = BitHelper.GetBits((uint)interruptPolarityField.Value);
                 for(int i = 0; i < interruptType.Length; i++)
                 {
                     if(isBothEdgesSensitive[i])
