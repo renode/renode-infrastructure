@@ -8,7 +8,7 @@
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord | AllowedTranslation.QuadWordToDoubleWord)]
     public class Silencer : IDoubleWordPeripheral
     {
         public uint ReadDoubleWord(long offset)
