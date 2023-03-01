@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public abstract void PassthroughWriteChar(byte value);
 
-        public virtual uint BaudRate => 115200;
+        public virtual uint BaudRate { get; protected set; } = 115200;
 
         public Bits StopBits => Bits.One;
 
