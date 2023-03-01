@@ -1468,6 +1468,21 @@ namespace Antmicro.Renode.Utilities
             return count;
         }
 
+        // Remaps a number from [inMin; inMax] to [outMin; outMax].
+        // Supports "reversing the direction", like remapping [0; 10] to [1; -1].
+        // If the input is null or outside the input range, returns null.
+        public static decimal? RemapNumber(decimal? value, decimal inMin, decimal inMax, decimal outMin, decimal outMax)
+        {
+            if(value == null || value < inMin || value > inMax)
+            {
+                return null;
+            }
+
+            var inRangeLen = inMax - inMin;
+            var outRangeLen = outMax - outMin;
+            return (value - inMin) * outRangeLen / inRangeLen + outMin;
+        }
+
         public static byte[] AsBytes(uint[] data)
         {
             var outLength = data.Length * sizeof(uint);
