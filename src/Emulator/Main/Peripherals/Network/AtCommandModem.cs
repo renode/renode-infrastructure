@@ -78,6 +78,11 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 var command = lineBuffer.ToString();
                 lineBuffer.Clear();
+                if(command == "")
+                {
+                    this.Log(LogLevel.Debug, "Ignoring empty command");
+                    return;
+                }
                 this.Log(LogLevel.Debug, "Command received: '{0}'", command);
                 var response = HandleCommand(command);
                 if(response != null)
