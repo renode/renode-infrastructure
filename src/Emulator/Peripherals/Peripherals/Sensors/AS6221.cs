@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             DefineRegisters();
 
-            conversionTimer = new LimitTimer(machine.ClockSource, 1, this, "conv", eventEnabled: true, enabled: true);
+            conversionTimer = new LimitTimer(machine.ClockSource, 1, this, "conv", autoUpdate: true, eventEnabled: true, enabled: true);
             conversionTimer.LimitReached += HandleConversion;
 
             Reset();
@@ -99,6 +99,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void Reset()
         {
             RegistersCollection.Reset();
+            conversionTimer.Reset();
+
             registerAddress = null;
             state = States.Idle;
 
