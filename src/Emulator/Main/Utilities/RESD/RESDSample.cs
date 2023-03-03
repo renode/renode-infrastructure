@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,6 +22,11 @@ namespace Antmicro.Renode.Utilities.RESD
             if(!Width.HasValue)
             {
                 throw new RESDException($"This sample type ({this.GetType().Name}) doesn't allow for skipping data.");
+            }
+
+            if(reader.BaseStream.Position + count * Width.Value > reader.Length)
+            {
+                return false;
             }
 
             reader.SkipBytes(count * Width.Value);

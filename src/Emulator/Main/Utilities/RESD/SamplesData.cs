@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             if(!sampleReady)
             {
-                currentSample.TryReadFromStream(reader);
+                sampleReady = currentSample.TryReadFromStream(reader);
             }
             return currentSample;
         }
@@ -44,12 +44,14 @@ namespace Antmicro.Renode.Utilities.RESD
 
             if(count > 0)
             {
-                sampleReady = false;
-                if(!currentSample.Skip(reader, count))
+                // as GetCurrentSample lazily reads next sample, we have to
+                // take it under account when skipping samples
+                if(!currentSample.Skip(reader, count - (sampleReady ? 1 : 0)))
                 {
                     reader.SeekToEnd();
                     return false;
                 }
+                sampleReady = false;
             }
 
             return !reader.EOF;
