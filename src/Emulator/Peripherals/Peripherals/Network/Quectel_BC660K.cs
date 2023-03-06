@@ -35,12 +35,18 @@ namespace Antmicro.Renode.Peripherals.Network
             mtResultCodeMode = MobileTerminationResultCodeMode.Disabled;
             dataBuffer = new MemoryStream();
             inReset = false;
+            echoInDataMode = false;
             Enabled = false;
             vddExt.Unset();
         }
 
         public override void PassthroughWriteChar(byte value)
         {
+            if(echoInDataMode)
+            {
+                SendChar((char)value);
+            }
+
             // Variable-length data mode - ^Z confirms, Esc cancels
             if(dataBytesRemaining == null)
             {
@@ -264,6 +270,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private int? dataBytesRemaining;
         private Action<byte[]> dataCallback;
         private bool inReset;
+        private bool echoInDataMode;
 
         private readonly string imeiNumber;
         private readonly string softwareVersionNumber;
