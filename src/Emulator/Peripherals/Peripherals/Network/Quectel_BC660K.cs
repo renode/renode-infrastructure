@@ -123,6 +123,13 @@ namespace Antmicro.Renode.Peripherals.Network
             PassthroughMode = false;
         }
 
+        private void EnableModem()
+        {
+            Enabled = true;
+            // Notify the DTE that the modem is ready
+            SendString(ModemReady);
+        }
+
         // CSQ - Signal Quality Report
         [AtCommand("AT+CSQ")]
         private Response Csq() => Ok.WithParameters("+CSQ: 22,0");
