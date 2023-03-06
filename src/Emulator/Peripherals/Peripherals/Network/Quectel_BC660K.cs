@@ -184,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // CSQ - Signal Quality Report
         [AtCommand("AT+CSQ")]
-        private Response Csq() => Ok.WithParameters("+CSQ: 22,0");
+        private Response Csq() => Ok.WithParameters($"+CSQ: {SignalStrength},{BitErrorRate}");
 
         // CGMI - Request Manufacturer Identification
         [AtCommand("AT+CGMI")]
