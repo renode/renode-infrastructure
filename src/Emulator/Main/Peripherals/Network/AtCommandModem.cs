@@ -241,12 +241,11 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             var parameters = handler.GetParameters();
-            var parameterTypes = parameters.Select(p => p.ParameterType).ToArray();
             var argumentsString = parsed.Arguments;
             object[] arguments;
             try
             {
-                arguments = ParseArguments(argumentsString, parameterTypes);
+                arguments = ParseArguments(argumentsString, parameters);
             }
             catch(ArgumentException e)
             {
@@ -268,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             catch(ArgumentException)
             {
-                var parameterTypesString = string.Join(", ", parameterTypes.Select(t => t.FullName));
+                var parameterTypesString = string.Join(", ", parameters.Select(t => t.ParameterType.FullName));
                 var argumentTypesString = string.Join(", ", arguments.Select(a => a?.GetType()?.FullName ?? "(null)"));
                 this.Log(LogLevel.Error, "Argument type mismatch in command '{0}'. Got types [{1}], expected [{2}]",
                     command, argumentTypesString, parameterTypesString);
