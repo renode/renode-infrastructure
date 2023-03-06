@@ -161,7 +161,6 @@ namespace Antmicro.Renode.Peripherals.Network
             PassthroughMode = true;
             dataBytesRemaining = byteCount;
             dataCallback = callback;
-            SendString(DataModePrompt);
         }
 
         private void ExitDataMode(bool callCallback)
@@ -276,6 +275,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 ExecuteWithDelay(() =>
                 {
                     // We throw away the sent bytes and just return SEND OK
+                    SendString(DataModePrompt);
                     EnterDataMode(sendLength, bytes =>
                     {
                         this.Log(LogLevel.Warning, "ConnectionId {0} requested send of '{1}' in data mode, not implemented",
