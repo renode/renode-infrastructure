@@ -39,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.Network
             dataCallback = null;
             inReset = false;
             echoInDataMode = false;
+            networkRegistrationUrcType = NetworkRegistrationUrcType.Disabled;
             Enabled = false;
             vddExt.Unset();
         }
@@ -183,9 +184,134 @@ namespace Antmicro.Renode.Peripherals.Network
             vddExt.Set();
         }
 
+        // ATI - Display Product Identification Information
+        [AtCommand("ATI")]
+        private Response Ati() => Ok.WithParameters(Vendor, ModelName, Revision);
+
+        // AT&W - Save Current Parameters to NVRAM
+        [AtCommand("AT&W")]
+        private Response Atw()
+        {
+            var d = 200UL;
+            ExecuteWithDelay(() => SendString("+CSCON: 1"), d += 2000); // CSCON: 1 -> signaling connection active
+            ExecuteWithDelay(() => SendString(CeregContent(true)), d += 100);
+            ExecuteWithDelay(() => SendString($"+IP: {NetworkIp}"), d += 1000); // IP URC means successfully registered
+            return Ok; // stub
+        }
+
+        // CEDRXS - eDRX Setting
+        [AtCommand("AT+CEDRXS", CommandType.Write)]
+        private Response Cedrxs(int mode = 1, int accessTechnology = 5, string requestedEdrxValue = "0010")
+        {
+            return Ok; // stub
+        }
+
+        private string CeregContent(bool urc = false)
+        {
+            var fragments = new List<string>();
+            // The URC form of CEREG does not report the type, the command response form does.
+            if(!urc)
+            {
+                fragments.Add(((int)networkRegistrationUrcType).ToString());
+            }
+
+            if(networkRegistrationUrcType >= NetworkRegistrationUrcType.StatOnly)
+            {
+                fragments.Add(((int)NetworkRegistrationState).ToString());
+            }
+            if(networkRegistrationUrcType >= NetworkRegistrationUrcType.StatLocation)
+            {
+                fragments.Add(TrackingAreaCode.SurroundWith("\""));
+                fragments.Add(CellId.PadLeft(8, '0').SurroundWith("\""));
+                fragments.Add("9"); // access technology: E-UTRAN (NB-S1 mode)
+            }
+            if(networkRegistrationUrcType >= NetworkRegistrationUrcType.StatLocationEmmCause)
+            {
+                if(networkRegistrationUrcType == NetworkRegistrationUrcType.StatLocationPsm)
+                {
+                    fragments.Add("");
+                    fragments.Add("");
+                }
+                else
+                {
+                    fragments.Add("0"); // reject cause type
+                    fragments.Add("0"); // reject cause
+                }
+            }
+            if(networkRegistrationUrcType == NetworkRegistrationUrcType.StatLocationPsm ||
+                networkRegistrationUrcType == NetworkRegistrationUrcType.StatLocationEmmCausePsm)
+            {
+                fragments.Add(ActiveTime.SurroundWith("\""));
+                fragments.Add(PeriodicTau.SurroundWith("\""));
+            }
+
+            return "+CEREG: " + string.Join(",", fragments);
+        }
+
+        // CEREG - EPS Network Registration Status
+        [AtCommand("AT+CEREG", CommandType.Write)]
+        private Response CeregWrite(NetworkRegistrationUrcType type)
+        {
+            networkRegistrationUrcType = type;
+            // Queue a CEREG URC in response to the write
+            ExecuteWithDelay(() => SendString(CeregContent(true)), 1000);
+            return Ok; // stub, should disable or enable network registration URC
+        }
+
+        [AtCommand("AT+CEREG", CommandType.Read)]
+        private Response CeregRead() => Ok.WithParameters(CeregContent());
+
+        // CESQ - Extended Signal Quality
+        [AtCommand("AT+CESQ")]
+        private Response Cesq()
+        {
+            var rscp = (int?)Misc.RemapNumber(Rscp, -120m, -25m, 0, 96) ?? 255;
+            var ecno = (int?)Misc.RemapNumber(Ecno, -24m, 0m, 0, 49) ?? 255;
+            var rsrq = (int?)Misc.RemapNumber(Rsrq, -19.5m, -3m, 0, 34) ?? 255;
+            var rsrp = (int?)Misc.RemapNumber(Rsrp, -140m, -44m, 0, 97) ?? 255;
+            return Ok.WithParameters($"+CESQ: {SignalStrength},{BitErrorRate},{rscp},{ecno},{rsrq},{rsrp}");
+        }
+
+        // CFUN - Set UE Functionality
+        [AtCommand("AT+CFUN", CommandType.Write)]
+        private Response Cfun(FunctionalityLevel functionalityLevel = FunctionalityLevel.Full, int reset = 0)
+        {
+            return Ok; // stub
+        }
+
+        // CGDCONT - Define PDP Context
+        [AtCommand("AT+CGDCONT", CommandType.Read)]
+        private Response Cgdcont() => Ok.WithParameters($"+CGDCONT: 1,\"IP\",\"{pdpContextApn}\",\"{NetworkIp}\",0,0,0,,,,0,,0,,0,0"); // stub
+
+        // CPIN - Enter PIN
+        [AtCommand("AT+CPIN", CommandType.Read)]
+        private Response Cpin()
+        {
+            return Ok.WithParameters("+CPIN: READY"); // stub
+        }
+
+        // CPSMS - Power Saving Mode Setting
+        [AtCommand("AT+CPSMS", CommandType.Write)]
+        private Response CpsmsWrite(int mode = 1, int reserved1 = 0, int reserved2 = 0,
+            string requestedPeriodicTau = "", string requestedActiveTime = "")
+        {
+            return Ok; // stub
+        }
+
+        // CSCON - Signaling Connection Status
+        [AtCommand("AT+CSCON", CommandType.Write)]
+        private Response Cscon(int enable = 0)
+        {
+            return Ok; // stub, enables +CSCON: <mode> URC
+        }
+
         // CSQ - Signal Quality Report
         [AtCommand("AT+CSQ")]
         private Response Csq() => Ok.WithParameters($"+CSQ: {SignalStrength},{BitErrorRate}");
+
+        // CGACT - PDP Context Activate/Deactivate
+        [AtCommand("AT+CGACT", CommandType.Read)]
+        private Response Cgact() => Ok.WithParameters("+CGACT: 1,1"); // stub
 
         // CGMI - Request Manufacturer Identification
         [AtCommand("AT+CGMI")]
@@ -198,6 +324,10 @@ namespace Antmicro.Renode.Peripherals.Network
         // CGMR - Request Manufacturer Revision
         [AtCommand("AT+CGMR")]
         private Response Cgmr() => Ok.WithParameters($"Revision: {ManufacturerRevision}");
+
+        // CGPADDR - Show PDP Addresses
+        [AtCommand("AT+CGPADDR", CommandType.Read)]
+        private Response Cgpaddr() => Ok.WithParameters($"+CGPADDR: 1,{NetworkIp}"); // stub
 
         // CGSN - Request Product Serial Number
         [AtCommand("AT+CGSN")]
@@ -238,6 +368,169 @@ namespace Antmicro.Renode.Peripherals.Network
 
         [AtCommand("AT+CMEE", CommandType.Read)]
         private Response CmeeRead() => Ok.WithParameters($"+CMEE: {((int)mtResultCodeMode)}");
+
+        // COPS - Operator Selection
+        [AtCommand("AT+COPS", CommandType.Write)]
+        private Response CopsWrite(int mode = 0, int operFormat = 0, string oper = "", int accessTechnology = 9)
+        {
+            return Ok; // stub
+        }
+
+        [AtCommand("AT+COPS", CommandType.Read)]
+        private Response CopsRead() => Ok.WithParameters($"+COPS: 0,2,\"{NetworkLocationArea}\",9"); // stub
+
+        // IPR - Set TE-TA Local Rate
+        [AtCommand("AT+IPR", CommandType.Write)]
+        private Response IprWrite(uint rate = 115200)
+        {
+            BaudRate = rate;
+            return Ok;
+        }
+
+        [AtCommand("AT+IPR", CommandType.Read)]
+        private Response IprRead() => Ok.WithParameters($"+IPR: {BaudRate}");
+
+        // QBAND - Get and Set Mobile Operation Band
+        [AtCommand("AT+QBAND", CommandType.Write)]
+        private Response Qband(int numberOfBands, params int[] bands)
+        {
+            if(bands.Length != numberOfBands)
+            {
+                return Error;
+            }
+            return Ok; // stub
+        }
+
+        // QCCID - USIM Card Identification
+        [AtCommand("AT+QCCID")]
+        private Response Qccid() => Ok.WithParameters($"+QCCID: {IccidNumber}");
+
+        // QCFG - System Configuration
+        [AtCommand("AT+QCFG", CommandType.Write)]
+        private Response Qcfg(string function, int value)
+        {
+            switch(function)
+            {
+                case "dsevent":
+                    deepSleepEventEnabled = value != 0;
+                    break;
+                case "initlocktime": // initial Sleep Lock duration
+                case "atlocktime":  // Sleep Lock duration after AT commands
+                default:
+                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, unsupported", function, value);
+                    break;
+            }
+            return Ok;
+        }
+
+        // QCGDEFCONT - Set Default PSD Connection Settings
+        [AtCommand("AT+QCGDEFCONT", CommandType.Write)]
+        private Response Qcgdefcont(PdpType pdpType, string apn = "", string username = "",
+            string password = "", int authenticationType = 0)
+        {
+            pdpContextApn = apn;
+            return Ok; // stub
+        }
+
+        // QEMMTIMER - Enable/Disable URC Reporting for EMM Timer
+        [AtCommand("AT+QEMMTIMER", CommandType.Write)]
+        private Response Qemmtimer(int enable = 0)
+        {
+            return Ok; // stub
+        }
+
+        // QENG - Engineering Mode
+        [AtCommand("AT+QENG", CommandType.Write)]
+        private Response Qeng(int mode)
+        {
+            return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
+        }
+
+        // QGMR - Request Modem and Application Firmware Versions
+        [AtCommand("AT+QGMR")]
+        private Response Qgmr() => Ok.WithParameters($"{ManufacturerRevision}_{SoftwareRevision}");
+
+        // QICFG - Configure Optional TCP/IP Parameters
+        [AtCommand("AT+QICFG", CommandType.Write)]
+        private Response Qicfg(string parameter, params int[] args)
+        {
+            if(args.Length < 1)
+            {
+                return Error;
+            }
+
+            switch(parameter)
+            {
+                case "echomode":
+                    echoInDataMode = args[0] != 0;
+                    break;
+                case "dataformat":
+                    if(args.Length < 2)
+                    {
+                        return Error;
+                    }
+                    // sendDataFormat only applies to sending in non-data mode, which is not
+                    // currently implemented
+                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    break;
+                case "showlength":
+                    showLength = args[0] != 0;
+                    break;
+                case "viewmode":
+                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, unsupported", parameter, args.Stringify());
+                    break;
+            }
+            return Ok;
+        }
+
+        // QNBIOTEVENT - Enable/Disable NB-IoT Related Event Report
+        [AtCommand("AT+QNBIOTEVENT", CommandType.Write)]
+        private Response Qnbiotevent(int enable = 0, int eventType = 1)
+        {
+            return Ok; // stub
+        }
+
+        // QNBIOTRAI - NB-IoT Release Assistance Indication
+        [AtCommand("AT+QNBIOTRAI", CommandType.Write)]
+        private Response Qnbiotrai(int enable = 0, int eventType = 1)
+        {
+            this.Log(LogLevel.Debug, "NB-IoT Release Assistance Indication set to {0}", enable);
+            return Ok; // stub
+        }
+
+        // QPOWD - Power Off
+        [AtCommand("AT+QPOWD", CommandType.Write)]
+        private Response QpowdWrite(PowerOffType type = PowerOffType.Normal)
+        {
+            Reset();
+            ExecuteWithDelay(EnableModem);
+            return Ok;
+        }
+
+        // QRELLOCK - Release Sleep Lock of AT Commands
+        [AtCommand("AT+QRELLOCK")]
+        private Response Qrellock()
+        {
+            return Ok;
+        }
+
+        // QRST - Module Reset
+        [AtCommand("AT+QRST", CommandType.Write)]
+        private Response QrstWrite(int mode = 1)
+        {
+            return Ok; // stub
+        }
+
+        // QSCLK - Configure Sleep Mode
+        [AtCommand("AT+QSCLK", CommandType.Write)]
+        private Response QsclkWrite(int mode = 1)
+        {
+            return Ok; // stub
+        }
 
         // QIOPEN - Open a Socket Service
         [AtCommand("AT+QIOPEN", CommandType.Write)]
@@ -298,6 +591,15 @@ namespace Antmicro.Renode.Peripherals.Network
         private Action<byte[]> dataCallback;
         private bool inReset;
         private bool echoInDataMode;
+        private NetworkRegistrationUrcType networkRegistrationUrcType;
+
+        // These fields are not affected by resets because they are automatically saved to NVRAM.
+        private string pdpContextApn = "";
+        private bool showLength = false;
+        private DataFormat sendDataFormat = DataFormat.Text;
+        private DataFormat receiveDataFormat = DataFormat.Text;
+        private string dataOutputSeparator = CrLf;
+        private bool deepSleepEventEnabled = false;
 
         private readonly string imeiNumber;
         private readonly string softwareVersionNumber;
@@ -307,6 +609,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private const string ModelName = "Quectel_BC660K-GL";
         private const string Revision = "Revision: QCX212";
         private const string ManufacturerRevision = "BC660KGLAAR01A0";
+        private const string SoftwareRevision = "01.002.01.002";
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";
         private const string DefaultSerialNumber = "<serial number>";
@@ -345,12 +648,49 @@ namespace Antmicro.Renode.Peripherals.Network
             Reset,
         }
 
+        private enum PowerOffType
+        {
+            Immediate,
+            Normal,
+        }
+
         private enum SerialNumberType
         {
             Device,
             Imei,
             ImeiSv,
             SoftwareVersionNumber,
+        }
+
+        private enum FunctionalityLevel
+        {
+            Minimum,
+            Full,
+            RfTransmitReceiveDisabled = 4,
+        }
+
+        private enum NetworkRegistrationUrcType
+        {
+            Disabled,
+            StatOnly,
+            StatLocation,
+            StatLocationEmmCause,
+            StatLocationPsm,
+            StatLocationEmmCausePsm,
+        }
+
+        private enum DataFormat
+        {
+            Text,
+            Hex,
+        }
+
+        private enum PdpType
+        {
+            Ip,
+            IpV6,
+            IpV4V6,
+            NonIp,
         }
     }
 }
