@@ -35,6 +35,8 @@ namespace Antmicro.Renode.Peripherals.Network
             base.Reset();
             mtResultCodeMode = MobileTerminationResultCodeMode.Disabled;
             dataBuffer = new MemoryStream();
+            dataBytesRemaining = null;
+            dataCallback = null;
             inReset = false;
             echoInDataMode = false;
             Enabled = false;
