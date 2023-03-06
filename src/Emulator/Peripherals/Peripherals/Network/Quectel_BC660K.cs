@@ -134,6 +134,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public int EnhancedCoverageLevel { get; set; } = 0;
         public int TransmitPower { get; set; } = 0;
         public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
+        public ulong DeepsleepOnRellock { get; set; } = 0;
 
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
 
@@ -527,6 +528,16 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QRELLOCK")]
         private Response Qrellock()
         {
+            // This command is meant to release the 10-second sleep lock timer after each
+            // AT command, not necessarily make the modem enter sleep mode immediately.
+            // We use it as a signal that the software talking to the modem expects it to
+            // enter sleep mode, so we enter sleep mode for a while and then leave it again
+            // if this was requested with the DeepsleepOnRellock property.
+            if(DeepsleepOnRellock != 0)
+            {
+                ExecuteWithDelay(EnterDeepsleep, 50);
+                ExecuteWithDelay(EnableModem, 50 + DeepsleepOnRellock);
+            }
             return Ok;
         }
 
