@@ -176,6 +176,18 @@ namespace Antmicro.Renode.Peripherals.Network
             PassthroughMode = false;
         }
 
+        private void EnterDeepsleep()
+        {
+            this.Log(LogLevel.Debug, "Entering deep sleep mode");
+            if(deepSleepEventEnabled)
+            {
+                SendString("+QNBIOTEVENT: \"ENTER DEEPSLEEP\"");
+            }
+            // Entering deep sleep is equivalent to a power off, so we do a reset here.
+            // NVRAM values will be preserved.
+            Reset();
+        }
+
         private void EnableModem()
         {
             Enabled = true;
