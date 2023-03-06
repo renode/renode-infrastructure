@@ -5,17 +5,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
-    public class Quectel_BC660K : AtCommandModem, IGPIOReceiver
+    public class Quectel_BC660K : AtCommandModem, IGPIOReceiver, INumberedGPIOOutput
     {
         public Quectel_BC660K(Machine machine, string imeiNumber = DefaultImeiNumber) : base(machine)
         {
             this.imeiNumber = imeiNumber;
+            Connections = new Dictionary<int, IGPIO>
+            {
+                {0, vddExt},
+            };
 
             Reset();
         }
@@ -27,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.Network
             dataBuffer = new MemoryStream();
             inReset = false;
             Enabled = false;
+            vddExt.Unset();
         }
 
         public override void PassthroughWriteChar(byte value)
@@ -91,6 +97,8 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         private Response MobileTerminationError(int errorCode)
         {
             switch(mtResultCodeMode)
@@ -136,6 +144,7 @@ namespace Antmicro.Renode.Peripherals.Network
             Enabled = true;
             // Notify the DTE that the modem is ready
             SendString(ModemReady);
+            vddExt.Set();
         }
 
         // CSQ - Signal Quality Report
@@ -229,6 +238,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly string imeiNumber;
         private bool inReset;
 
+        private readonly IGPIO vddExt = new GPIO();
         private const string Vendor = "Quectel_Ltd";
         private const string ModelName = "Quectel_BC660K-GL";
         private const string Revision = "Revision: QCX212";
