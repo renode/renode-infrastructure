@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -108,6 +109,30 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
+        public string IccidNumber { get; set; } = "00000000000000000000";
+        public string TrackingAreaCode { get; set; } = "0000";
+        public string NetworkLocationArea { get; set; } = "00000";
+        public string CellId { get; set; } = "0000";
+        public int CellPhysicalId { get; set; } = 0;
+        public int CellEarfcn { get; set; } = 0;
+        public int CellEarfcnOffset { get; set; } = 0;
+        public string ActiveTime { get; set; } = "00100100";
+        public string PeriodicTau { get; set; } = "01000111";
+        public string NetworkIp { get; set; } = "0.0.0.0";
+        public int BitErrorRate { get; set; } = 0;
+        public int Rsrp { get; set; } = 0;
+        public decimal Rsrq { get; set; } = 0m;
+        public int Rssi { get; set; } = 0;
+        public int Sinr { get; set; } = 0;
+        public int Rscp { get; set; } = 0;
+        public decimal Ecno { get; set; } = 0m;
+        public int Band { get; set; } = 0;
+        public int EnhancedCoverageLevel { get; set; } = 0;
+        public int TransmitPower { get; set; } = 0;
+        public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
+
+        public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
 
         private Response MobileTerminationError(int errorCode)
         {
@@ -286,6 +311,16 @@ namespace Antmicro.Renode.Peripherals.Network
         private const string DataModePrompt = ">";
         private const string SendOk = "SEND OK";
         private const string ModemReady = "RDY";
+
+        public enum NetworkRegistrationStates
+        {
+            NotRegisteredNotSearching,
+            RegisteredHomeNetwork,
+            NotRegisteredSearching,
+            RegistrationDenied,
+            Unknown,
+            RegisteredRoaming,
+        }
 
         private enum MobileTerminationResultCodeMode
         {
