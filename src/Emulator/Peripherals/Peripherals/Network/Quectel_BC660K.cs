@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // CGMR - Request Manufacturer Revision
         [AtCommand("AT+CGMR")]
-        private Response Cgmr() => Ok.WithParameters(ManufacturerRevision);
+        private Response Cgmr() => Ok.WithParameters($"Revision: {ManufacturerRevision}");
 
         // CGSN - Request Product Serial Number
         [AtCommand("AT+CGSN")]
@@ -272,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private const string Vendor = "Quectel_Ltd";
         private const string ModelName = "Quectel_BC660K-GL";
         private const string Revision = "Revision: QCX212";
-        private const string ManufacturerRevision = "Revision: BC660KGLAAR01A0";
+        private const string ManufacturerRevision = "BC660KGLAAR01A0";
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";
         private const string DefaultSerialNumber = "<serial number>";
