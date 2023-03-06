@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.Network
             base.Reset();
             mtResultCodeMode = MobileTerminationResultCodeMode.Disabled;
             dataBuffer = new MemoryStream();
+            inReset = false;
             Enabled = false;
         }
 
@@ -64,17 +65,24 @@ namespace Antmicro.Renode.Peripherals.Network
             switch((GPIOInput)number)
             {
                 case GPIOInput.Power:
-                    // We treat turning off the power as equivalent to a reset
-                    // The power input is active-low, that is false means enabled
-                    if(value)
+                    // Pulling down the Power Key pin means to turn on the modem.
+                    // The modem cannot be turned on while it is in reset.
+                    if(!value && !inReset)
                     {
-                        Reset(); // This model is disabled by a reset
+                        EnableModem();
+                    }
+                    break;
+                case GPIOInput.Reset:
+                    // We assume the reset completes immediately, and the modem is held in reset
+                    // as long as the reset pin is low.
+                    inReset = !value;
+                    if(inReset)
+                    {
+                        Reset();
                     }
                     else
                     {
-                        Enabled = true;
-                        // Notify the DTE that the modem is ready
-                        SendResponse(new Response(ModemReady));
+                        EnableModem();
                     }
                     break;
                 default:
@@ -219,6 +227,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private int? dataBytesRemaining;
         private Action<byte[]> dataCallback;
         private readonly string imeiNumber;
+        private bool inReset;
 
         private const string Vendor = "Quectel_Ltd";
         private const string ModelName = "Quectel_BC660K-GL";
@@ -247,6 +256,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private enum GPIOInput
         {
             Power,
+            Reset,
         }
     }
 }
