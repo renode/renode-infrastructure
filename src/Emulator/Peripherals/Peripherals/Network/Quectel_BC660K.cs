@@ -14,9 +14,13 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class Quectel_BC660K : AtCommandModem, IGPIOReceiver, INumberedGPIOOutput
     {
-        public Quectel_BC660K(Machine machine, string imeiNumber = DefaultImeiNumber) : base(machine)
+        public Quectel_BC660K(Machine machine, string imeiNumber = DefaultImeiNumber,
+            string softwareVersionNumber = DefaultSoftwareVersionNumber,
+            string serialNumber = DefaultSerialNumber) : base(machine)
         {
             this.imeiNumber = imeiNumber;
+            this.softwareVersionNumber = softwareVersionNumber;
+            this.serialNumber = serialNumber;
             Connections = new Dictionary<int, IGPIO>
             {
                 {0, vddExt},
@@ -165,7 +169,31 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // CGSN - Request Product Serial Number
         [AtCommand("AT+CGSN")]
-        private Response Cgsn() => Ok.WithParameters(imeiNumber);
+        private Response Cgsn() => CgsnWrite();
+
+        [AtCommand("AT+CGSN", CommandType.Write)]
+        private Response CgsnWrite(SerialNumberType serialNumberType = SerialNumberType.Device)
+        {
+            string result;
+            switch(serialNumberType)
+            {
+                case SerialNumberType.Device:
+                    result = serialNumber;
+                    break;
+                case SerialNumberType.Imei:
+                    result = imeiNumber;
+                    break;
+                case SerialNumberType.ImeiSv:
+                    result = imeiNumber.Substring(0, imeiNumber.Length - 1) + softwareVersionNumber;
+                    break;
+                case SerialNumberType.SoftwareVersionNumber:
+                    result = softwareVersionNumber;
+                    break;
+                default:
+                    return Error; // unreachable
+            }
+            return Ok.WithParameters($"+CGSN: {result}");
+        }
 
         // CMEE - Report Mobile Termination Error
         [AtCommand("AT+CMEE", CommandType.Write)]
@@ -235,15 +263,19 @@ namespace Antmicro.Renode.Peripherals.Network
         private MemoryStream dataBuffer;
         private int? dataBytesRemaining;
         private Action<byte[]> dataCallback;
-        private readonly string imeiNumber;
         private bool inReset;
 
+        private readonly string imeiNumber;
+        private readonly string softwareVersionNumber;
+        private readonly string serialNumber;
         private readonly IGPIO vddExt = new GPIO();
         private const string Vendor = "Quectel_Ltd";
         private const string ModelName = "Quectel_BC660K-GL";
         private const string Revision = "Revision: QCX212";
         private const string ManufacturerRevision = "Revision: BC660KGLAAR01A0";
         private const string DefaultImeiNumber = "866818039921444";
+        private const string DefaultSoftwareVersionNumber = "31";
+        private const string DefaultSerialNumber = "<serial number>";
         private const string DataModePrompt = ">";
         private const string SendOk = "SEND OK";
         private const string ModemReady = "RDY";
@@ -267,6 +299,14 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             Power,
             Reset,
+        }
+
+        private enum SerialNumberType
+        {
+            Device,
+            Imei,
+            ImeiSv,
+            SoftwareVersionNumber,
         }
     }
 }
