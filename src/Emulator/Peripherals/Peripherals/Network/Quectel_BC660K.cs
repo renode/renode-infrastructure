@@ -7,6 +7,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -37,6 +39,10 @@ namespace Antmicro.Renode.Peripherals.Network
             dataBuffer = new MemoryStream();
             dataBytesRemaining = null;
             dataCallback = null;
+            for(int i = 0; i < sockets.Length; i++)
+            {
+                sockets[i] = null;
+            }
             inReset = false;
             echoInDataMode = false;
             networkRegistrationUrcType = NetworkRegistrationUrcType.Disabled;
@@ -195,6 +201,34 @@ namespace Antmicro.Renode.Peripherals.Network
             // Notify the DTE that the modem is ready
             SendString(ModemReady);
             vddExt.Set();
+        }
+
+        private void BytesReceived(int connectionId, int byteCount)
+        {
+            // We do both of the sends here after a delay to accomodate software
+            // which might not expect the "instant" reply which would otherwise happen.
+            // Notify that the signaling connection is active
+            ExecuteWithDelay(() => SendString("+CSCON: 1"), 1000);
+            // Send the data received notification
+            ExecuteWithDelay(() =>
+            {
+                var recvUrc = $"+QIURC: \"recv\",{connectionId}";
+                if(showLength)
+                {
+                    recvUrc += $",{byteCount}";
+                }
+                SendString(recvUrc);
+            }, 1500);
+        }
+
+        private bool IsValidConnectionId(int connectionId, [CallerMemberName] string caller = "")
+        {
+            if(connectionId < 0 || connectionId >= sockets.Length)
+            {
+                this.Log(LogLevel.Warning, "Connection ID {0} is invalid in {1}", connectionId, caller);
+                return false;
+            }
+            return true;
         }
 
         // ATI - Display Product Identification Information
@@ -559,18 +593,91 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QIOPEN", CommandType.Write)]
         private Response Qiopen(int contextId, int connectionId, ServiceType serviceType, string host, ushort remotePort, ushort localPort = 0, int accessMode = 1)
         {
-            this.Log(LogLevel.Warning, "Context {0} connectionId {1} requested {2} connection open to {3}:{4}, not implemented",
+            if(!IsValidConnectionId(connectionId) || sockets[connectionId] != null)
+            {
+                return Error;
+            }
+
+            // The BC660K only supports contextId 0, the BC66 and BG9X only support contextId 1.
+            // We allow both for now.
+            if(contextId != 0 && contextId != 1)
+            {
+                return Error;
+            }
+
+            this.Log(LogLevel.Debug, "Context {0} connectionId {1} requested {2} connection open to {3}:{4}",
                 contextId, connectionId, serviceType, host, remotePort);
 
             // We can't just send Ok.WithTrailer because the driver won't see the URC.
-            ExecuteWithDelay(() => SendResponse(new Response($"+QIOPEN: {connectionId},0")));
+            ExecuteWithDelay(() =>
+            {
+                var service = SocketService.Open(this, connectionId, serviceType, host, remotePort);
+                if(service == null)
+                {
+                    this.Log(LogLevel.Warning, "Failed to open connection {0}", connectionId);
+                }
+                else
+                {
+                    this.Log(LogLevel.Debug, "Connection {0} opened successfully", connectionId);
+                }
+                sockets[connectionId] = service;
+                SendString($"+QIOPEN: {connectionId},{(service == null ? 1 : 0)}");
+            });
             return Ok;
+        }
+
+        [AtCommand("AT+QICLOSE", CommandType.Write)]
+        private Response Qiclose(int connectionId)
+        {
+            if(!IsValidConnectionId(connectionId))
+            {
+                return Error;
+            }
+
+            // AT+QICLOSE succeeds even if the socket was already closed.
+            sockets[connectionId]?.Dispose();
+            sockets[connectionId] = null;
+            return Ok.WithTrailer("CLOSE OK");
+        }
+
+        // QIRD - Retrieve the Received TCP/IP Data
+        [AtCommand("AT+QIRD", CommandType.Write)]
+        private Response Qird(int connectionId, int readLength)
+        {
+            if(!IsValidConnectionId(connectionId) || sockets[connectionId] == null)
+            {
+                return Error;
+            }
+
+            var readBytes = sockets[connectionId].Receive(readLength);
+            var qirdResponseHeader = $"+QIRD: {readBytes.Length}";
+            if(showLength)
+            {
+                qirdResponseHeader += $",{sockets[connectionId].BytesAvailable}";
+            }
+            qirdResponseHeader += dataOutputSeparator;
+
+            switch(receiveDataFormat)
+            {
+                case DataFormat.Hex:
+                    var hexBytes = BitConverter.ToString(readBytes).Replace("-", "");
+                    return Ok.WithParameters(qirdResponseHeader + hexBytes);
+                case DataFormat.Text:
+                    return Ok.WithParameters(StringEncoding.GetBytes(qirdResponseHeader).Concat(readBytes).ToArray());
+                default:
+                    throw new InvalidOperationException($"Invalid {nameof(receiveDataFormat)}");
+            }
         }
 
         // QISEND - Send Hex/Text String Data
         [AtCommand("AT+QISEND", CommandType.Write)]
         private Response Qisend(int connectionId, int? sendLength = null, string data = null)
         {
+            if(!IsValidConnectionId(connectionId) || sockets[connectionId] == null)
+            {
+                return Error;
+            }
+
             // Check the total lengths of data sent, acknowledged and not acknowledged
             if(sendLength == 0)
             {
@@ -586,24 +693,41 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
                 this.Log(LogLevel.Warning, "ConnectionId {0} requested send of '{1}' in non-data mode, not implemented",
                     connectionId, data);
+                return Ok.WithTrailer(SendOk);
             }
             else // Send data (fixed or variable-length) in data mode
             {
                 // We need to wait a while before sending the data mode prompt.
                 ExecuteWithDelay(() =>
                 {
-                    // We throw away the sent bytes and just return SEND OK
                     SendString(DataModePrompt);
                     EnterDataMode(sendLength, bytes =>
                     {
-                        this.Log(LogLevel.Warning, "ConnectionId {0} requested send of '{1}' in data mode, not implemented",
+                        this.Log(LogLevel.Debug, "ConnectionId {0} requested send of '{1}' in data mode",
                             connectionId, BitConverter.ToString(bytes));
-                        SendResponse(Ok.WithTrailer(SendOk));
+
+                        string sendResponse;
+                        if(sockets[connectionId].Send(bytes))
+                        {
+                            sendResponse = SendOk;
+                        }
+                        else
+                        {
+                            sendResponse = SendFailed;
+                            this.Log(LogLevel.Warning, "Failed to send data to connection {0}", connectionId);
+                        }
+                        // We can send the OK (the return value of this command) immediately,
+                        // but we have to wait before SEND OK/SEND FAIL if the network is too fast
+                        ExecuteWithDelay(() => SendString(sendResponse));
                     });
                 });
+                return null;
             }
-            return Ok;
         }
+
+        [AtCommand("AT+QISTATE", CommandType.Read)]
+        private Response QistateRead() => Ok.WithParameters(
+            sockets.Where(s => s != null).Select(s => s.Qistate).ToArray());
 
         // When this is set to Numeric or Verbose, MT-related errors are reported with "+CME ERROR: "
         // instead of the plain "ERROR". This does not apply to syntax errors, invalid parameter
@@ -628,6 +752,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly string softwareVersionNumber;
         private readonly string serialNumber;
         private readonly IGPIO vddExt = new GPIO();
+        private readonly SocketService[] sockets = new SocketService[NumberOfConnections];
         private const string Vendor = "Quectel_Ltd";
         private const string ModelName = "Quectel_BC660K-GL";
         private const string Revision = "Revision: QCX212";
@@ -638,7 +763,9 @@ namespace Antmicro.Renode.Peripherals.Network
         private const string DefaultSerialNumber = "<serial number>";
         private const string DataModePrompt = ">";
         private const string SendOk = "SEND OK";
+        private const string SendFailed = "SEND FAIL";
         private const string ModemReady = "RDY";
+        private const int NumberOfConnections = 4;
 
         public enum NetworkRegistrationStates
         {
@@ -648,6 +775,59 @@ namespace Antmicro.Renode.Peripherals.Network
             RegistrationDenied,
             Unknown,
             RegisteredRoaming,
+        }
+
+        // One SocketService corresponds to one connectionId
+        private class SocketService : IDisposable
+        {
+            public static SocketService Open(Quectel_BC660K owner, int connectionId, ServiceType type, string remoteHost, ushort remotePort)
+            {
+                var emulatedServices = EmulationManager.Instance.CurrentEmulation.ExternalsManager.GetExternalsOfType<IEmulatedNetworkService>();
+                var service = emulatedServices.FirstOrDefault(s => s.Host == remoteHost && s.Port == remotePort);
+                if(service == null)
+                {
+                    owner.Log(LogLevel.Warning, "No external service found for {0}:{1}", remoteHost, remotePort);
+                    return null;
+                }
+
+                return new SocketService(owner, connectionId, type, service, remoteHost, remotePort);
+            }
+
+            public bool Send(byte[] data) => connectedService.Send(data);
+
+            public byte[] Receive(int bytes) => connectedService.Receive(bytes);
+
+            public void Dispose()
+            {
+                connectedService.BytesReceived -= BytesReceived;
+                connectedService.Dispose();
+                Owner.SendString($"+QIURC: \"closed\",{ConnectionId}");
+            }
+
+            public int BytesAvailable => connectedService.BytesAvailable;
+
+            public string Qistate => $"+QISTATE: {ConnectionId},\"{Type.ToString().ToUpper()}\",\"{RemoteHost}\",{RemotePort}";
+
+            public ServiceType Type { get; }
+            public Quectel_BC660K Owner { get; }
+            public int ConnectionId { get; }
+            public string RemoteHost { get; }
+            public ushort RemotePort { get; }
+
+            private void BytesReceived(int byteCount) => Owner.BytesReceived(ConnectionId, byteCount);
+
+            private readonly IEmulatedNetworkService connectedService;
+
+            private SocketService(Quectel_BC660K owner, int connectionId, ServiceType type, IEmulatedNetworkService conn, string remoteHost, ushort remotePort)
+            {
+                Owner = owner;
+                ConnectionId = connectionId;
+                Type = type;
+                RemoteHost = remoteHost;
+                RemotePort = remotePort;
+                connectedService = conn;
+                connectedService.BytesReceived += BytesReceived;
+            }
         }
 
         private enum MobileTerminationResultCodeMode
