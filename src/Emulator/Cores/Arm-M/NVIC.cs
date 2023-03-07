@@ -162,6 +162,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SysTickReloadValue:
                 return (uint)systick.Limit;
             case Registers.SysTickValue:
+                cpu?.SyncTime();
                 return (uint)systick.Value;
             case Registers.SystemControlRegister:
                 return currentSevOnPending ? SevOnPending : 0x0;
