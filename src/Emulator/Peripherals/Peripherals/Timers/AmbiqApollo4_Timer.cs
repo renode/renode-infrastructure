@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -398,6 +398,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                 get => compare0Timer.Enabled;
                 set
                 {
+                    if(Enabled == value)
+                    {
+                        return;
+                    }
+
                     Value = 0;
                     compare0Timer.Enabled = value;
                     compare1Timer.Enabled = value;
