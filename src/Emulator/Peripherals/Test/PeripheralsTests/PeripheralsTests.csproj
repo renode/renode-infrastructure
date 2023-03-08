@@ -57,6 +57,7 @@
     <Compile Include="OpenTitan_SpiDeviceTest.cs" />
     <Compile Include="Cadence_TTCTests.cs" />
     <Compile Include="Cadence_UARTTests.cs" />
+    <Compile Include="EFR32_I2CControllerTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
