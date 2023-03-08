@@ -558,6 +558,7 @@
     <Compile Include="Peripherals\Timers\EFR32_RTCCCounter.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_HardwareSemaphore.cs" />
     <Compile Include="Peripherals\I2C\EFR32_GenericI2CController.cs" />
+    <Compile Include="Peripherals\I2C\EFR32xG2_I2CController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
