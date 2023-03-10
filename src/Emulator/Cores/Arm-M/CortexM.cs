@@ -23,12 +23,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class CortexM : Arm
     {
-        public CortexM(string cpuType, Machine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian) : base(cpuType, machine, id, endianness)
+        public CortexM(string cpuType, Machine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian, uint? fpuInterruptNumber = null) : base(cpuType, machine, id, endianness)
         {
             if(nvic == null)
             {
                 throw new RecoverableException(new ArgumentNullException("nvic"));
             }
+
+            tlibSetFpuInterruptNumber((int?)fpuInterruptNumber ?? -1);
 
             this.nvic = nvic;
             nvic.AttachCPU(this);
@@ -318,6 +320,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 tlibGetMpuRegionNumber;
+
+        [Import]
+        private ActionInt32 tlibSetFpuInterruptNumber;
 
         [Import]
         private FuncUInt32 tlibGetInterruptVectorBase;
