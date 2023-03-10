@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -926,13 +926,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public override bool Skip(SafeBinaryReader reader, int count)
             {
-                for(var i = 0; i < count; ++i)
+                for(var i = 0; i < count && !reader.EOF; ++i)
                 {
                     var frameLength = reader.ReadByte();
                     reader.SkipBytes(frameLength * 4);
                 }
-
-                return true;
+                return !reader.EOF;
             }
 
             private const int MaxChannels = 9;
