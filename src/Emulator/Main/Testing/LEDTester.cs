@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Testing
 
             var ev = new AutoResetEvent(false);
             var method = (Action<ILed, bool>)
-            ((led, currState) => 
+            ((led, currState) =>
             {
                 lock(locker)
                 {
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Testing
                     timeout = isHolding ? timeoutHold : timeoutAssert;
                 }
                 var timeoutEvent = GetTimeoutEvent((ulong)(timeout * 1000));
-                
+
                 do
                 {
                     var eventSrc = WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, ev } );
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)] 
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         private TimeoutEvent GetTimeoutEvent(ulong timeout)
         {
             return led.GetMachine().LocalTimeSource.EnqueueTimeoutEvent(timeout);
