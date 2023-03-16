@@ -115,12 +115,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(number)
             {
-            case 0:
-                return Interrupt.Hard;
-            case 1:
-                return Interrupt.TargetExternal1;
-            default:
-                throw InvalidInterruptNumberException;
+                case 0:
+                    return Interrupt.Hard;
+                case 1:
+                    return Interrupt.TargetExternal1;
+                default:
+                    throw InvalidInterruptNumberException;
             }
         }
 
@@ -138,14 +138,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var scus = machine.GetPeripheralsOfType<SnoopControlUnit>().ToArray();
                 switch(scus.Length)
                 {
-                case 0:
-                    this.Log(LogLevel.Warning, "Trying to read SCU address, but SCU was not found - returning 0x0.");
-                    return 0;
-                case 1:
-                    return (uint)((BusRangeRegistration)(machine.GetPeripheralRegistrationPoints(machine.SystemBus, scus[0]).Single())).Range.StartAddress;
-                default:
-                    this.Log(LogLevel.Error, "Trying to read SCU address, but more than one instance was found. Aborting.");
-                    throw new CpuAbortException();
+                    case 0:
+                        this.Log(LogLevel.Warning, "Trying to read SCU address, but SCU was not found - returning 0x0.");
+                        return 0;
+                    case 1:
+                        return (uint)((BusRangeRegistration)(machine.GetPeripheralRegistrationPoints(machine.SystemBus, scus[0]).Single())).Range.StartAddress;
+                    default:
+                        this.Log(LogLevel.Error, "Trying to read SCU address, but more than one instance was found. Aborting.");
+                        throw new CpuAbortException();
                 }
             }
             this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - op1={0}, op2={1}, crm={2}, crn={3} - returning 0x0", op1, op2, crm, crn);
@@ -201,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             /* Returns true if the oldest bit of 'abcd' field is set to 0 and the condition is met.
              * If there is no trailing one in the lower part, we are not in an IT block*/
             var MaskBit = (itState & 0x10) == 0 && ((itState & 0xF) > 0);
-            var condition = ( itState >> 4 ) & 0x0E;
+            var condition = (itState >> 4) & 0x0E;
             if(EvaluateConditionCode(condition))
             {
                 return MaskBit;
@@ -248,27 +248,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             uint result = 0;
             switch(operation)
             {
-            case 7: // SYS_READC
-                if(uart == null) break;
-                result = uart.SemihostingGetByte();
-                break;
-            case 3: // SYS_WRITEC
-            case 4: // SYS_WRITE0
-                if(uart == null) break;
-                string s = "";
-                var addr = this.TranslateAddress(r1, MpuAccess.InstructionFetch);
-                do
-                {
-                    var c = this.Bus.ReadByte(addr++);
-                    if(c == 0) break;
-                    s = s + Convert.ToChar(c);
-                    if((operation) == 3) break; // SYS_WRITEC
-                } while(true);
-                uart.SemihostingWriteString(s);
-                break;
-            default:
-                this.Log(LogLevel.Debug, "Unknown semihosting operation: 0x{0:X}", operation);
-                break;
+                case 7: // SYS_READC
+                    if(uart == null) break;
+                    result = uart.SemihostingGetByte();
+                    break;
+                case 3: // SYS_WRITEC
+                case 4: // SYS_WRITE0
+                    if(uart == null) break;
+                    string s = "";
+                    var addr = this.TranslateAddress(r1, MpuAccess.InstructionFetch);
+                    do
+                    {
+                        var c = this.Bus.ReadByte(addr++);
+                        if(c == 0) break;
+                        s = s + Convert.ToChar(c);
+                        if((operation) == 3) break; // SYS_WRITEC
+                    } while(true);
+                    uart.SemihostingWriteString(s);
+                    break;
+                default:
+                    this.Log(LogLevel.Debug, "Unknown semihosting operation: 0x{0:X}", operation);
+                    break;
             }
             return result;
         }
@@ -324,7 +324,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 #pragma warning restore 649
 
-        private readonly string[] ExceptionDescriptions = 
+        private readonly string[] ExceptionDescriptions =
         {
             "Undefined instruction",
             "Software interrupt",
