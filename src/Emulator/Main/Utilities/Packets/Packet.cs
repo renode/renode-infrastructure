@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -247,99 +247,43 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public static byte[] Encode<T>(T packet)
         {
-            var fieldsAndProperties = GetFieldsAndProperties<T>();
             var size = CalculateLength<T>();
             var result = new byte[size];
+            if(size == 0)
+            {
+                return result;
+            }
+            var fieldsAndProperties = GetFieldsAndProperties<T>();
 
             var offset = 0;
-            foreach(var element in fieldsAndProperties)
+            foreach(var field in fieldsAndProperties)
             {
-                var type = element.ElementType;
+                var type = field.ElementType;
                 if(type.IsEnum)
                 {
                     type = type.GetEnumUnderlyingType();
                 }
 
-                if(element.ByteOffset.HasValue)
+                if(field.ByteOffset.HasValue)
                 {
-                    offset = element.ByteOffset.Value;
+                    offset = field.ByteOffset.Value;
                 }
+                var bitOffset = field.BitOffset ?? 0;
 
-                var widthAttribute = element.GetAttribute<WidthAttribute>();
-                var offsetAttribute = element.GetAttribute<OffsetAttribute>();
-
-                if(widthAttribute != null && !(type == typeof(byte) || type == (typeof(byte[]))))
+                if(type == typeof(byte[]))
                 {
-                    throw new Exception("Width attribtue is currently supported only for byte/byte[] types");
-                }
-
-                if(offsetAttribute != null && type != typeof(byte))
-                {
-                    throw new Exception("Offset attribtue is currently supported only for byte type");
-                }
-
-                if(type == typeof(uint))
-                {
-                    var isLsb = element.IsLSBFirst;
-                    var value = (uint)element.GetValue(packet);
-                    result[offset] = (byte)(value >> (isLsb ? 0: 24));
-                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 16));
-                    result[offset + 2] = (byte)(value >> (isLsb ? 16 : 8));
-                    result[offset + 3] = (byte)(value >> (isLsb ? 24 : 0));
-                    offset += 4;
-                }
-                else if(type == typeof(ushort))
-                {
-                    var isLsb = element.IsLSBFirst;
-                    var value = (ushort)element.GetValue(packet);
-                    result[offset] = (byte)(value >> (isLsb ? 0: 8));
-                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 0));
-                    offset += 2;
-                }
-                else if(type == typeof(byte))
-                {
-                    var val = (byte)element.GetValue(packet);
-                    if(offsetAttribute != null)
+                    if(bitOffset != 0)
                     {
-                        var width = (int)(widthAttribute?.Value ?? 0);
-                        if(width == 0)
-                        {
-                            throw new ArgumentException("Positive width must be provided together with offset attribute");
-                        }
-
-                        if(offsetAttribute.OffsetInBytes != 0)
-                        {
-                            throw new Exception("Non-zero byte offset is currently not supported");
-                        }
-
-                        if(offsetAttribute.OffsetInBits > 7)
-                        {
-                            throw new Exception("Offset in bits can be only in range 0 to 7");
-                        }
-
-                        if(offsetAttribute.OffsetInBits + width > 8)
-                        {
-                            throw new Exception($"Offset/width combination has a wrong value: {(offsetAttribute.OffsetInBits + width)}");
-                        }
-
-                        result[offset] = result[offset].ReplaceBits(val, width, (int)offsetAttribute.OffsetInBits);
-                    }
-                    else
-                    {
-                        result[offset] = val;
+                        throw new ArgumentException("Bit offset for byte array is not supported.");
                     }
 
-                    offset++;
-                }
-                else if(type == typeof(byte[]))
-                {
-                    var width = (int)(widthAttribute?.Value ?? 0);
+                    var width = field.Width;
                     if(width == 0)
                     {
                         throw new ArgumentException("Positive width must be provided to decode byte array");
                     }
 
-                    var val = (byte[])element.GetValue(packet);
+                    var val = (byte[])field.GetValue(packet);
 
                     if(width != val.Length)
                     {
@@ -348,30 +292,58 @@ namespace Antmicro.Renode.Utilities.Packets
 
                     Array.Copy(val, 0, result, offset, width);
                     offset += width;
+                    continue;
+                }
+
+                var intermediate = 0UL;
+                var bitWidth = field.BitWidth ?? 0;
+
+                if(type == typeof(uint))
+                {
+                    var v = (uint)field.GetValue(packet);
+                    intermediate = field.IsLSBFirst ? v : BitHelper.ReverseBytes(v);
+                }
+                else if(type == typeof(ushort))
+                {
+                    var v = (ushort)field.GetValue(packet);
+                    intermediate = field.IsLSBFirst ? v : BitHelper.ReverseBytes(v);
+                }
+                else if(type == typeof(byte))
+                {
+                    intermediate = (byte)field.GetValue(packet);
                 }
                 else if(type == typeof(ulong))
                 {
-                    var isLsb = element.IsLSBFirst;
-                    var value = (ulong)element.GetValue(packet);
-                    result[offset] = (byte)(value >> (isLsb ? 0: 56));
-                    result[offset + 1] = (byte)(value >> (isLsb ? 8 : 48));
-                    result[offset + 2] = (byte)(value >> (isLsb ? 16 : 40));
-                    result[offset + 3] = (byte)(value >> (isLsb ? 24 : 32));
-                    result[offset + 4] = (byte)(value >> (isLsb ? 32 : 24));
-                    result[offset + 5] = (byte)(value >> (isLsb ? 40 : 16));
-                    result[offset + 6] = (byte)(value >> (isLsb ? 48 : 8));
-                    result[offset + 7] = (byte)(value >> (isLsb ? 56 : 0));
-                    offset += 8;
+                    var v = (ulong)field.GetValue(packet);
+                    intermediate = field.IsLSBFirst ? v : BitHelper.ReverseBytes(v);
+                }
+                else if(type == typeof(bool))
+                {
+                    intermediate = (bool)field.GetValue(packet) ? 1UL : 0UL;
                 }
                 else
                 {
-                    throw new ArgumentException($"Unsupported field type: {element.ElementType}");
+                    throw new ArgumentException($"Unsupported field type: {field.ElementType}");
                 }
-            }
 
-            if(result.Length == 0)
-            {
-                throw new ArgumentException($"It seems there was no fields in the packet of type {typeof(T).Name}");
+                // write first byte
+                result[offset] = result[offset].ReplaceBits((byte)intermediate, Math.Min(8, bitWidth), bitOffset);
+                bitWidth -= Math.Min(8 - bitOffset, bitWidth);
+                offset += 1;
+                intermediate >>= 8 - bitOffset;
+                // write next full bytes
+                for(; bitWidth > 8; bitWidth -= 8)
+                {
+                    result[offset] = (byte)intermediate;
+                    intermediate >>= 8;
+                    offset += 1;
+                }
+                // write last non-full byte if exist
+                if(bitWidth > 0)
+                {
+                    result[offset] = result[offset].ReplaceBits((byte)intermediate, bitWidth);
+                    offset += 1;
+                }
             }
 
             return result;
