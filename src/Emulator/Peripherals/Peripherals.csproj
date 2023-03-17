@@ -534,6 +534,7 @@
     <Compile Include="Peripherals\UART\MxcUart.cs" />
     <Compile Include="Peripherals\Timers\OMAP_Timer.cs" />
     <Compile Include="Peripherals\Timers\Marvell_Armada_Timer.cs" />
+    <Compile Include="Peripherals\UART\CMSDK_APB_UART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
