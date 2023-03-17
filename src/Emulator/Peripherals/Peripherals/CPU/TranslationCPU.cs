@@ -1697,6 +1697,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected ActionUInt64 TlibResetExecutedInstructions;
+
         [Import]
         private ActionUInt32 TlibSetInterruptBeginHookPresent;
 
