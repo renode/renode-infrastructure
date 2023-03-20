@@ -101,6 +101,7 @@
     <Compile Include="MiscTests.cs" />
     <Compile Include="BitHelperTests.cs" />
     <Compile Include="CRCTests.cs" />
+    <Compile Include="PacketTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
