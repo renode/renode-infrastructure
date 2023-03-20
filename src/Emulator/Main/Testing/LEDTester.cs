@@ -171,6 +171,45 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
+        public LEDTester AssertIsBlinking(float testDuration, double onDuration, double offDuration, double tolerance = 0.05)
+        {
+            var patternMismatchEvent = new ManualResetEvent(false);
+            var method = MakeStateChangeHandler((currState, dt) =>
+            {
+                // currState is after a switch, so when it's high we need to check the off duration
+                var expectedDuration = currState ? offDuration : onDuration;
+                if(!IsInRange(dt.TotalSeconds, expectedDuration, tolerance))
+                {
+                    patternMismatchEvent.Set();
+                }
+            });
+
+            try
+            {
+                led.StateChanged += method;
+
+                var timeoutEvent = GetTimeoutEvent((ulong)(testDuration * 1000));
+                WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, patternMismatchEvent } );
+
+                if(!timeoutEvent.IsTriggered)
+                {
+                    throw new InvalidOperationException("Expected blinking pattern not detected");
+                }
+            }
+            finally
+            {
+                led.StateChanged -= method;
+            }
+
+            return this;
+        }
+
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        private bool IsInRange(double actualValue, double expectedValue, double tolerance)
+        {
+            return (actualValue >= expectedValue * (1 - tolerance)) && (actualValue <= (expectedValue * (1 + tolerance)));
+        }
+
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         private TimeoutEvent GetTimeoutEvent(ulong timeout)
         {
