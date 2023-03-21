@@ -1146,6 +1146,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             CyclesPerInstruction = 1;
         }
 
+        protected override ulong SkipInstructions
+        {
+            get => base.SkipInstructions;
+            set
+            {
+                if(!OnPossessedThread)
+                {
+                    this.Log(LogLevel.Error, "Changing SkipInstructions should be only done on CPU thread, ignoring");
+                    return;
+                }
+
+                base.SkipInstructions = value;
+                // This will be imprecise when we change SkipInstructions before end of the translation block
+                // as TlibSetReturnRequest doesn't finish current translation block
+                TlibSetReturnRequest();
+            }
+        }
+
         [Transient]
         private ActionUInt64 onTranslationBlockFetch;
         private byte[] cpuState;

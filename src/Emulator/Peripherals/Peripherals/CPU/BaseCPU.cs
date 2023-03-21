@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -152,6 +152,21 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return PC;
             }
         }
+
+        public void SkipTime(TimeInterval amountOfTime)
+        {
+            var instructions = amountOfTime.ToCPUCycles(PerformanceInMips, out var residuum);
+            if(residuum > 0)
+            {
+                // We want to execute instructions for at least required amount of time, so we should add
+                // instructions += ceil(residuum / TicksPerMicrosecond) * PerformanceInMips
+                // As residuum < TicksPerMicrosecond by definition, ceiling of it will be always 1
+                instructions += PerformanceInMips;
+                var newInterval = TimeInterval.FromCPUCycles(instructions, PerformanceInMips, out var _);
+                this.Log(LogLevel.Warning, "Conversion from time to instructions is not exact, real time skipped: {0}", newInterval);
+            }
+            SkipInstructions += instructions;
+        }
         
         public virtual void Dispose()
         {
@@ -261,6 +276,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
         }
+
+        public ulong SkippedInstructions { get; private set; }
         
         public virtual ExecutionMode ExecutionMode
         {
@@ -543,13 +560,29 @@ restart:
                 // and makes timers update independent of the current quantum
                 var toExecute = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
 
-                this.Trace($"Asking CPU to execute {toExecute} instructions");
-                
-                var result = ExecuteInstructions(toExecute, out var executed);
-                this.Trace($"CPU executed {executed} instructions and returned {result}");
-                machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
+                if(skipInstructions > 0)
+                {
+                    var amountOfInstructions = Math.Min(skipInstructions, toExecute);
+                    this.Trace($"Skipping {amountOfInstructions} instructions");
 
-                ReportProgress(executed);
+                    toExecute -= amountOfInstructions;
+                    skipInstructions -= amountOfInstructions;
+                    SkippedInstructions += amountOfInstructions;
+                    ReportProgress(amountOfInstructions);
+                    // We have to update progress immidietely, as we could potentially
+                    // call SyncTime during ExecuteInstructions
+                }
+
+                var result = ExecutionResult.Ok;
+                if(toExecute > 0)
+                {
+                    this.Trace($"Asking CPU to execute {toExecute} instructions");
+
+                    result = ExecuteInstructions(toExecute, out var executed);
+                    this.Trace($"CPU executed {executed} instructions and returned {result}");
+                    machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
+                    ReportProgress(executed);
+                }
                 if(ExecutionFinished(result))
                 {
                     break;
@@ -714,6 +747,12 @@ restart:
             return true;
         }
 
+        protected virtual ulong SkipInstructions
+        {
+            get => skipInstructions;
+            set => skipInstructions = value;
+        }
+
         protected abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
 
         protected bool InDebugMode => DebuggerConnected && ShouldEnterDebugMode && IsSingleStepMode;
@@ -793,6 +832,7 @@ restart:
         private ulong executedResiduum;
         private ulong instructionsLeftThisRound;
         private ulong instructionsExecutedThisRound;
+        private ulong skipInstructions;
         
         private readonly object cpuThreadBodyLock = new object();
     }
