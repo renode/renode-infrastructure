@@ -174,9 +174,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(8, 1)
                 .WithFlag(9, out errorInterruptEnabled, FieldMode.Read | FieldMode.Set, name: "ERROR")
                 .WithReservedBits(10, 4)
-                .WithTag("BB", 14, 1)
+                .WithFlag(14, name: "BB") // this is a flag to limit warnings, we don't support the byte-boundary interrupt
                 .WithReservedBits(15, 3)
-                .WithTag("SUSPENDED", 18, 1)
+                .WithFlag(18, name: "SUSPENDED") // this is a flag to limit warnings, we don't support the suspended interrupt
                 .WithReservedBits(19, 13)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -198,9 +198,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                     writeCallback: (_, val) => { if(val) errorInterruptEnabled.Value = false; },
                     valueProviderCallback: _ => errorInterruptEnabled.Value)
                 .WithReservedBits(10, 4)
-                .WithTag("BB", 14, 1)
+                .WithFlag(14, name: "BB") // this is a flag to limit warnings, we don't support the byte-boundary interrupt
                 .WithReservedBits(15, 3)
-                .WithTag("SUSPENDED", 18, 1)
+                .WithFlag(18, name: "SUSPENDED") // this is a flag to limit warnings, we don't support the suspended interrupt
                 .WithReservedBits(19, 13)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
