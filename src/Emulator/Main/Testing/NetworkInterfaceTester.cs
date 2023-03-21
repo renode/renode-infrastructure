@@ -243,7 +243,7 @@ namespace Antmicro.Renode.Testing
                     throw new ArgumentException($"Data not in hex format at index {i * 2} (\"{data.Substring(i * 2, 2)}\")");
                 }
             }
-            
+
             return bytes;
         }
 
