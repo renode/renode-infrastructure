@@ -333,15 +333,14 @@ namespace Antmicro.Renode.Peripherals.I2C
                 return false;
             }
 
-            if(selectedSlave == null)
+            if(!masterToSlaveBuffer.Any())
             {
-                this.Log(LogLevel.Warning, "No slave is currently selected");
                 return false;
             }
 
-            if(!masterToSlaveBuffer.Any())
+            if(selectedSlave == null)
             {
-                this.Log(LogLevel.Warning, "Nothing in the buffer");
+                this.Log(LogLevel.Warning, "No slave is currently selected");
                 return false;
             }
 
