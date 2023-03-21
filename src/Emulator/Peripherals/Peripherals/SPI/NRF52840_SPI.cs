@@ -101,6 +101,16 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(20, 12)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 ;
+
+                Registers.TxDataPointer.Define(this)
+                    .WithTaggedFlag("LIST - List type", 0)
+                    .WithReservedBits(1, 31)
+                ;
+
+                Registers.RxDataPointer.Define(this)
+                    .WithTaggedFlag("LIST - List type", 0)
+                    .WithReservedBits(1, 31)
+                ;
             }
             else
             {
@@ -426,9 +436,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             RxDataPointer = 0x534,
             RxMaxDataCount = 0x538,
             RxTransferredDataAmount = 0x53C,
+            RxListType = 0x550,
             TxDataPointer = 0x544,
             TxMaxDataCount = 0x548,
             TxTransferredDataAmount = 0x54C,
+            TxListType = 0x550,
             Configuration = 0x554,
             ORC = 0x5C0,
         }
