@@ -10,12 +10,13 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
+    public class LIS2DW12 : ISPIPeripheral, II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
         public LIS2DW12()
         {
@@ -25,6 +26,69 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             accelerationFifo = new SensorSamplesFifo<Vector3DSample>();
         }
+         #region SPI_Interface
+
+        public byte Transmit(byte data)
+        {
+            byte result = 0;
+
+            switch(state)
+            {
+                case State.Idle:
+                {
+                    regAddress = (Register)BitHelper.GetValue(data, 0, 7);
+                    var isWrite = BitHelper.IsBitSet(data, 7);
+
+                    this.NoisyLog("Decoded register {0} (0x{0:X}) and isWrite bit as {1}", regAddress, isWrite);
+                    state = isWrite
+                        ? State.Writing
+                        : State.Reading;
+
+                    break;
+                }
+
+                case State.Reading:
+                    this.NoisyLog("Reading register {0} (0x{0:X})", regAddress);
+                    result = RegistersCollection.Read((long)regAddress);
+                    break;
+
+                case State.Writing:
+                    this.NoisyLog("Writing 0x{0:X} to register {1} (0x{1:X})", data, regAddress);
+                    RegistersCollection.Write((long)regAddress, data);
+                    break;
+
+                default:
+                    this.Log(LogLevel.Error, "Received byte in an unexpected state: {0}", state);
+                    break;
+            }
+
+            this.NoisyLog("Received byte 0x{0:X}, returning 0x{1:X}", data, result);
+            return result;
+        }
+
+        void ISPIPeripheral.FinishTransmission()
+        {
+            this.NoisyLog("Finishing transmission, going idle");
+            state = State.Idle;
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+            if(number != 0)
+            {
+                this.Log(LogLevel.Warning, "This model supports only CS on pin 0, but got signal on pin {0}", number);
+                return;
+            }
+
+            // value is the negated CS
+            if(chipSelected && value)
+            {
+                ((ISPIPeripheral)this).FinishTransmission();
+            }
+            chipSelected = !value;
+        }
+
+        #endregion
 
         public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
         {
@@ -67,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             this.Log(LogLevel.Noisy, "Write with {0} bytes of data: {1}", data.Length, Misc.PrettyPrintCollectionHex(data));
             if(state == State.WaitingForRegister)
             {
-                regAddress = (Registers)data[0];
+                regAddress = (Register)data[0];
                 this.Log(LogLevel.Noisy, "Preparing to access register {0} (0x{0:X})", regAddress);
                 state = State.WaitingForData;
                 data = data.Skip(1).ToArray();
@@ -171,17 +235,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void DefineRegisters()
         {
-            Registers.TemperatureOutLow.Define(this)
+            Register.TemperatureOutLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_L)",
                     valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature) << 4));
             
-            Registers.TemperatureOutHigh.Define(this)
+            Register.TemperatureOutHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_H)",
                     valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature) >> 4));
 
-            Registers.WhoAmI.Define(this, 0x44);
+            Register.WhoAmI.Define(this, 0x44);
 
-            Registers.Control1.Define(this)
+            Register.Control1.Define(this)
                 .WithEnumField(0, 2, out lowPowerModeSelection, name: "Low-power mode selection (LP_MODE)")
                 .WithEnumField(2, 2, out modeSelection, name: "Mode selection (MODE)")
                 .WithEnumField(4, 4, out outDataRate, writeCallback: (_, __) =>
@@ -223,7 +287,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         this.Log(LogLevel.Noisy, "Sampling rate set to {0}", samplingRate);
                     }, name: "Output data rate and mode selection (ODR)");
 
-            Registers.Control2.Define(this)
+            Register.Control2.Define(this)
                 .WithTaggedFlag("SPI serial interface mode selection (SIM)", 0)
                 .WithTaggedFlag("Disable I2C communication protocol (I2C_DISABLE)", 1)
                 .WithFlag(2, out autoIncrement, name: "Register address automatically incremented during multiple byte access with a serial interface (FF_ADD_INC)")
@@ -233,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Acts as reset for all control register (SOFT_RESET)", 6)
                 .WithTaggedFlag("Enables retrieving the correct trimming parameters from nonvolatile memory into registers (BOOT)", 7);
 
-            Registers.Control3.Define(this)
+            Register.Control3.Define(this)
                 .WithTaggedFlag("Single data conversion on demand mode enable (SLP_MODE_1)", 0)
                 .WithTaggedFlag("Single data conversion on demand mode selection (SLP_MODE_SEL)", 1)
                 .WithReservedBits(2, 1)
@@ -242,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Push-pull/open-drain selection on interrupt pad (PP_OD)", 5)
                 .WithTag("Self-test enable (ST)", 6, 2);
 
-            Registers.Control4.Define(this, 0x01)
+            Register.Control4.Define(this, 0x01)
                 .WithFlag(0, out readyEnabledAcceleration, name: "Data-Ready is routed to INT1 pad (INT1_DRDY)")
                 .WithTaggedFlag("FIFO threshold interrupt is routed to INT1 pad (INT1_FTH)", 1)
                 .WithTaggedFlag("FIFO full recognition is routed to INT1 pad (INT1_DIFF5)", 2)
@@ -253,7 +317,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("6D recognition is routed to INT1 pad (INT1_6D)", 7)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
-            Registers.Control5.Define(this)
+            Register.Control5.Define(this)
                 .WithTaggedFlag("Data-ready is routed to INT2 pad (INT2_DRDY)", 0)
                 .WithTaggedFlag("FIFO threshold interrupt is routed to INT2 pad (INT2_FTH)", 1)
                 .WithTaggedFlag("FIFO full recognition is routed to INT2 pad (INT2_DIFF5)", 2)
@@ -263,18 +327,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Sleep change status routed to INT2 pad (INT2_SLEEP_CHG)", 6)
                 .WithTaggedFlag("Enable routing of SLEEP_STATE on INT2 pad (INT2_SLEEP_STATE)", 7);
 
-            Registers.Control6.Define(this)
+            Register.Control6.Define(this)
                 .WithReservedBits(0, 2)
                 .WithTaggedFlag("Low-noise configuration (LOW_NOISE)", 2)
                 .WithTaggedFlag("Filtered data type selection (FDS)", 3)
                 .WithEnumField(4, 2, out fullScale, writeCallback: (_, __) => SetScaleDivider(), name: "Full-scale selection (FS)")
                 .WithTag("Bandwidth selection (BW_FILT1)", 6, 2);
 
-            Registers.TemperatureOut.Define(this)
+            Register.TemperatureOut.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 8-bit resolution (OUT_T)",
                     valueProviderCallback: _ => (byte)TwoComplementSignConvert(Temperature));
 
-            Registers.Status.Define(this)
+            Register.Status.Define(this)
                 .WithFlag(0, valueProviderCallback: _ => outDataRate.Value != DataRateConfig.PowerDown, name: "Data-ready status (DRDY)")
                 .WithTaggedFlag("Free-fall event detection status (FF_IA)", 1)
                 .WithTaggedFlag("Source of change in position portrait/landscape/face-up/face-down (6D_IA)", 2)
@@ -284,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Wakeup event detection status (WU_IA)", 6)
                 .WithTaggedFlag("FIFO threshold status flag (FIFO_THS)", 7);
 
-            Registers.DataOutXLow.Define(this)
+            Register.DataOutXLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis LSB output register (OUT_X_L)",
                     valueProviderCallback: _ => 
                     {
@@ -292,31 +356,31 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         return Convert(accelerationFifo.Sample.X, upperByte: false);
                     });
 
-            Registers.DataOutXHigh.Define(this)
+            Register.DataOutXHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis MSB output register (OUT_X_H)",
                     valueProviderCallback: _ => Convert(accelerationFifo.Sample.X, upperByte: true));
 
-            Registers.DataOutYLow.Define(this)
+            Register.DataOutYLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Y-axis LSB output register (OUT_Y_L)",
                     valueProviderCallback: _ => Convert(accelerationFifo.Sample.Y, upperByte: false));
 
-            Registers.DataOutYHigh.Define(this)
+            Register.DataOutYHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Y-axis MSB output register (OUT_Y_H)",
                     valueProviderCallback: _ => Convert(accelerationFifo.Sample.Y, upperByte: true));
 
-            Registers.DataOutZLow.Define(this)
+            Register.DataOutZLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis LSB output register (OUT_Z_L)",
                     valueProviderCallback: _ => Convert(accelerationFifo.Sample.Z, upperByte: false));
 
-            Registers.DataOutZHigh.Define(this)
+            Register.DataOutZHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis MSB output register (OUT_Z_H)",
                     valueProviderCallback: _ => Convert(accelerationFifo.Sample.Z, upperByte: true));
 
-            Registers.FifoControl.Define(this)
+            Register.FifoControl.Define(this)
                 .WithValueField(0, 5, out fifoTreshold, name: "FIFO threshold level setting (FTH)")
                 .WithEnumField(5, 3, out fifoModeSelection, name: "FIFO mode selection bits (FMode)");
 
-            Registers.FifoSamples.Define(this)
+            Register.FifoSamples.Define(this)
                 .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ =>
                     {
                         if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
@@ -329,42 +393,42 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => accelerationFifo.SamplesCount >= fifoTreshold.Value,
                     name: "FIFO threshold status flag (FIFO_FTH)");
 
-            Registers.TapThreshholdX.Define(this)
+            Register.TapThreshholdX.Define(this)
                 .WithTag("Threshold for tap recognition on X direction (TAP_THSX)", 0, 5)
                 .WithTag("Thresholds for 4D/6D function (6D_THS)", 5, 2)
                 .WithTag("4D detection portrait/landscape position enable (4D_EN)", 7, 1);
 
-            Registers.TapThreshholdY.Define(this)
+            Register.TapThreshholdY.Define(this)
                 .WithTag("Threshold for tap recognition on Y direction (TAP_THSY)", 0, 5)
                 .WithTag("Selection of priority axis for tap detection (TAP_PRIOR)", 5, 3);
 
-            Registers.TapThreshholdZ.Define(this)
+            Register.TapThreshholdZ.Define(this)
                 .WithTag("Threshold for tap recognition on Z direction (TAP_THSZ)", 0, 5)
                 .WithTag("Enables Z direction in tap recognition (TAP_Z_EN)", 5, 1)
                 .WithTag("Enables Y direction in tap recognition (TAP_Y_EN)", 6, 1)
                 .WithTag("Enables X direction in tap recognition (TAP_X_EN)", 7, 1);
 
-            Registers.InterruptDuration.Define(this)
+            Register.InterruptDuration.Define(this)
                 .WithTag("Maximum duration of over-threshold event (SHOCK)", 0, 2)
                 .WithTag("Expected quiet time after a tap detection (QUIET)", 2, 2)
                 .WithTag("Duration of maximum time gap for double-tap recognition (LATENCY)", 4, 4);
 
-            Registers.WakeupThreshhold.Define(this)
+            Register.WakeupThreshhold.Define(this)
                 .WithTag("Wakeup threshold  (WK_THS)", 0, 6)
                 .WithTag("Sleep (inactivity) enable (SLEEP_ON)", 6, 1)
                 .WithTag("Enable single/double-tap event (SINGLE_DOUBLE_TAP)", 7, 1);
 
-            Registers.WakeupAndSleepDuration.Define(this)
+            Register.WakeupAndSleepDuration.Define(this)
                 .WithTag("Duration to go in sleep mode (SLEEP_DUR)", 0, 4)
                 .WithTag("Enable stationary detection / motion detection (STATIONARY)", 4, 1)
                 .WithTag("Wakeup duration (WAKE_DUR)", 5, 2)
                 .WithTag("Free-fall duration (FF_DUR5)", 7, 1);
 
-            Registers.FreeFall.Define(this)
+            Register.FreeFall.Define(this)
                 .WithTag("Free-fall threshold (FF_THS)", 0, 3)
                 .WithTag("Free-fall duration (FF_DUR)", 3, 5);
 
-            Registers.StatusEventDetection.Define(this)
+            Register.StatusEventDetection.Define(this)
                 .WithFlag(0, valueProviderCallback: _ => outDataRate.Value != DataRateConfig.PowerDown, name: "Data-ready status (DRDY)")
                 .WithTaggedFlag("Free-fall event detection status (FF_IA)", 1)
                 .WithTaggedFlag("Source of change in position portrait/landscape/face-up/face-down (6D_IA)", 2)
@@ -374,7 +438,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(6, valueProviderCallback: _ => outDataRate.Value != DataRateConfig.PowerDown, name: "Temperature status (DRDY_T)")
                 .WithTaggedFlag("FIFO threshold status flag (OVR)", 7);
 
-            Registers.WakeupSource.Define(this)
+            Register.WakeupSource.Define(this)
                 .WithTaggedFlag("Wakeup event detection status on Z-axis (Z_WU)", 0)
                 .WithTaggedFlag("Wakeup event detection status on Y-axis (Y_WU)", 1)
                 .WithTaggedFlag("Wakeup event detection status on X-axis (X_WU)", 2)
@@ -383,7 +447,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Free-fall event detection status (FF_IA)", 5)
                 .WithReservedBits(6, 2);
 
-            Registers.TapSource.Define(this)
+            Register.TapSource.Define(this)
                 .WithTaggedFlag("Tap event detection status on Z-axis (Z_TAP)", 0)
                 .WithTaggedFlag("Tap event detection status on Y-axis (Y_TAP)", 1)
                 .WithTaggedFlag("Tap event detection status on X-axis (X_TAP)", 2)
@@ -393,7 +457,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Tap event status (TAP_IA)", 6)
                 .WithReservedBits(7, 1);
 
-            Registers.SourceOf6D.Define(this)
+            Register.SourceOf6D.Define(this)
                 .WithTaggedFlag("XL over threshold (XL)", 0)
                 .WithTaggedFlag("XH over threshold (XH)", 1)
                 .WithTaggedFlag("YL over threshold (YL)", 2)
@@ -403,7 +467,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Source of change in position portrait/landscape/face-up/face-down (6D_IA)", 6)
                 .WithReservedBits(7, 1);
 
-            Registers.InterruptReset.Define(this)
+            Register.InterruptReset.Define(this)
                 .WithTaggedFlag("Free-fall event detection status (FF_IA)", 0)
                 .WithTaggedFlag("Wakeup event detection status (WU_IA)", 1)
                 .WithTaggedFlag("Single-tap event status (SINGLE_TAP)", 2)
@@ -412,16 +476,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Sleep change status (SLEEP_CHANGE_IA)", 5)
                 .WithReservedBits(6, 2);
 
-            Registers.UserOffsetX.Define(this)
+            Register.UserOffsetX.Define(this)
                 .WithTag("Two's complement user offset value on X-axis data, used for wakeup function (X_OFS_USR)", 0, 8);
 
-            Registers.UserOffsetY.Define(this)
+            Register.UserOffsetY.Define(this)
                 .WithTag("Two's complement user offset value on Y-axis data, used for wakeup function (Y_OFS_USR)", 0, 8);
 
-            Registers.UserOffsetZ.Define(this)
+            Register.UserOffsetZ.Define(this)
                 .WithTag("Two's complement user offset value on Z-axis data, used for wakeup function (Z_OFS_USR)", 0, 8);
 
-            Registers.Control7.Define(this)
+            Register.Control7.Define(this)
                 .WithTaggedFlag("Low pass filtered data sent to 6D interrupt function (LPASS_ON6D)", 0)
                 .WithTaggedFlag("High-pass filter reference mode enable (HP_REF_MODE)", 1)
                 .WithTaggedFlag("Selects the weight of the user offset words (USR_OFF_W)", 2)
@@ -435,14 +499,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void RegistersAutoIncrement()
         {
-            if(regAddress >= Registers.DataOutXLow && regAddress < Registers.DataOutZHigh)
+            if(regAddress >= Register.DataOutXLow && regAddress < Register.DataOutZHigh)
             {
-                regAddress = (Registers)((int)regAddress + 1);
+                regAddress = (Register)((int)regAddress + 1);
                 this.Log(LogLevel.Noisy, "Auto-incrementing to the next register 0x{0:X} - {0}", regAddress);
             }
-            else if((fifoModeSelection.Value == FIFOModeSelection.FIFOMode) && (regAddress == Registers.DataOutZHigh))
+            else if((fifoModeSelection.Value == FIFOModeSelection.FIFOMode) && (regAddress == Register.DataOutZHigh))
             {
-                regAddress = Registers.DataOutXLow;
+                regAddress = Register.DataOutXLow;
             }
         }
 
@@ -578,7 +642,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IEnumRegisterField<FIFOModeSelection> fifoModeSelection;
         private IEnumRegisterField<FullScaleSelect> fullScale;
 
-        private Registers regAddress;
+        private bool chipSelected;
+        private Register regAddress;
         private State state;
         private int scaleDivider;
 
@@ -597,7 +662,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private enum State
         {
             WaitingForRegister,
-            WaitingForData
+            WaitingForData,
+            Idle,
+            Reading,
+            Writing
         }
 
         private enum FullScaleSelect : byte
@@ -650,7 +718,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             LowPowerMode4_14bitResolution = 0x03
         }
 
-        private enum Registers : byte
+        private enum Register : byte
         {
             // Reserved: 0x0 - 0xC
             TemperatureOutLow = 0xD,
