@@ -736,18 +736,24 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BinaryFingerprint(fileName);
         }
 
+         public IEnumerable<ulong> GetAllSymbolAddresses(string symbolName)
+         {
+             IReadOnlyCollection<Symbol> symbols;
+             if(!Lookup.TryGetSymbolsByName(symbolName, out symbols))
+             {
+                 throw new RecoverableException(string.Format("No symbol with name `{0}` found.", symbolName));
+             }
+            return symbols.Select(symbol => symbol.Start.RawValue);
+        }
+
         public ulong GetSymbolAddress(string symbolName)
         {
-            IReadOnlyCollection<Symbol> symbols;
-            if(!Lookup.TryGetSymbolsByName(symbolName, out symbols))
+            var addresses = GetAllSymbolAddresses(symbolName).ToArray();
+            if(addresses.Length > 1)
             {
-                throw new RecoverableException(string.Format("No symbol with name `{0}` found.", symbolName));
+                throw new RecoverableException(string.Format("Ambiguous symbol name: `{0}`. Use GetAllSymbolAddresses to get all possible addresses.", symbolName));
             }
-            if(symbols.Count > 1)
-            {
-                throw new RecoverableException(string.Format("Ambiguous symbol name: `{0}`.", symbolName));
-            }
-            return symbols.First().Start.RawValue;
+            return addresses[0];
 
         }
 
