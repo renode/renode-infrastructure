@@ -179,7 +179,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string Model { get; }
 
-        public uint PerformanceInMips { get; set; }
+        public uint PerformanceInMips
+        {
+            get => performanceInMips.Value;
+            set => performanceInMips.Value = value;
+        }
 
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
@@ -582,163 +586,167 @@ restart:
                 this.Trace();
                 return CpuResult.NothingExecuted;
             }
-            this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
-            var mmuFaultThrown = false;
-            var initialExecutedResiduum = executedResiduum;
-            var initialTotalElapsedTime = TimeHandle.TotalElapsedTime;
-            TimeInterval virtualTimeAhead;
 
-            var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
-            if(instructionsToExecuteThisRound <= executedResiduum)
+            using(performanceInMips.Seal())
             {
-                this.Trace("not enough time granted, reporting continue");
-                TimeHandle.ReportBackAndContinue(interval);
-                return CpuResult.NothingExecuted;
-            }
-            instructionsLeftThisRound = Math.Min(instructionsToExecuteThisRound - executedResiduum, singleStep ? 1 : ulong.MaxValue);
-            instructionsExecutedThisRound = executedResiduum;
+                this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
+                var mmuFaultThrown = false;
+                var initialExecutedResiduum = executedResiduum;
+                var initialTotalElapsedTime = TimeHandle.TotalElapsedTime;
+                TimeInterval virtualTimeAhead;
 
-            while(!isPaused && !currentHaltedState && instructionsLeftThisRound > 0)
-            {
-                this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
-
-                // this puts a limit on instructions to execute in one round
-                // and makes timers update independent of the current quantum
-                var toExecute = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
-
-                if(skipInstructions > 0)
+                var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
+                if(instructionsToExecuteThisRound <= executedResiduum)
                 {
-                    var amountOfInstructions = Math.Min(skipInstructions, toExecute);
-                    this.Trace($"Skipping {amountOfInstructions} instructions");
-
-                    toExecute -= amountOfInstructions;
-                    skipInstructions -= amountOfInstructions;
-                    SkippedInstructions += amountOfInstructions;
-                    ReportProgress(amountOfInstructions);
-                    // We have to update progress immidietely, as we could potentially
-                    // call SyncTime during ExecuteInstructions
+                    this.Trace("not enough time granted, reporting continue");
+                    TimeHandle.ReportBackAndContinue(interval);
+                    return CpuResult.NothingExecuted;
                 }
+                instructionsLeftThisRound = Math.Min(instructionsToExecuteThisRound - executedResiduum, singleStep ? 1 : ulong.MaxValue);
+                instructionsExecutedThisRound = executedResiduum;
 
-                // set upper limit on instructions to execute to `int.MaxValue`
-                // as otherwise it would overflow further down in ExecuteInstructions
-                toExecute = Math.Min(toExecute, int.MaxValue);
-                var result = ExecutionResult.Ok;
-                if(toExecute > 0)
+                while(!isPaused && !currentHaltedState && instructionsLeftThisRound > 0)
                 {
-                    this.Trace($"Asking CPU to execute {toExecute} instructions");
+                    this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
 
-                    result = ExecuteInstructions(toExecute, out var executed);
-                    this.Trace($"CPU executed {executed} instructions and returned {result}");
-                    machine.Profiler?.Log(new InstructionEntry(machine.SystemBus.GetCPUSlot(this), ExecutedInstructions));
-                    ReportProgress(executed);
-                }
-                if(ExecutionFinished(result))
-                {
-                    break;
-                }
+                    // this puts a limit on instructions to execute in one round
+                    // and makes timers update independent of the current quantum
+                    var toExecute = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
 
-                if(result == ExecutionResult.WaitingForInterrupt)
-                {
-                    if(!InDebugMode && !neverWaitForInterrupt)
+                    if(skipInstructions > 0)
                     {
-                        this.Trace();
-                        var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
+                        var amountOfInstructions = Math.Min(skipInstructions, toExecute);
+                        this.Trace($"Skipping {amountOfInstructions} instructions");
 
-                        virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
-                        if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0 && instructionsToSkip > 0)
+                        toExecute -= amountOfInstructions;
+                        skipInstructions -= amountOfInstructions;
+                        SkippedInstructions += amountOfInstructions;
+                        ReportProgress(amountOfInstructions);
+                        // We have to update progress immidietely, as we could potentially
+                        // call SyncTime during ExecuteInstructions
+                    }
+
+                    // set upper limit on instructions to execute to `int.MaxValue`
+                    // as otherwise it would overflow further down in ExecuteInstructions
+                    toExecute = Math.Min(toExecute, int.MaxValue);
+                    var result = ExecutionResult.Ok;
+                    if(toExecute > 0)
+                    {
+                        this.Trace($"Asking CPU to execute {toExecute} instructions");
+
+                        result = ExecuteInstructions(toExecute, out var executed);
+                        this.Trace($"CPU executed {executed} instructions and returned {result}");
+                        machine.Profiler?.Log(new InstructionEntry(machine.SystemBus.GetCPUSlot(this), ExecutedInstructions));
+                        ReportProgress(executed);
+                    }
+                    if(ExecutionFinished(result))
+                    {
+                        break;
+                    }
+
+                    if(result == ExecutionResult.WaitingForInterrupt)
+                    {
+                        if(!InDebugMode && !neverWaitForInterrupt)
                         {
-                            // Don't fall behind realtime by sleeping
-                            var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(virtualTimeAhead.Ticks);
-                            sleeper.Sleep(intervalToSleep.ToTimeSpan(out var nsResiduum), out var intervalSlept);
-                            // If we have a CPU of less than 10 MIPS, it might be the case that the interval slept (which is in units of 100 ns)
-                            // is less than 1 instruction. Just round up it in this case.
-                            instructionsToSkip = Math.Max(TimeInterval.FromTimeSpan(intervalSlept, nsResiduum).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum, 1);
-                        }
+                            this.Trace();
+                            var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
 
-                        ReportProgress(instructionsToSkip);
+                            virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
+                            if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0 && instructionsToSkip > 0)
+                            {
+                                // Don't fall behind realtime by sleeping
+                                var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(virtualTimeAhead.Ticks);
+                                sleeper.Sleep(intervalToSleep.ToTimeSpan(out var nsResiduum), out var intervalSlept);
+                                // If we have a CPU of less than 10 MIPS, it might be the case that the interval slept (which is in units of 100 ns)
+                                // is less than 1 instruction. Just round up it in this case.
+                                instructionsToSkip = Math.Max(TimeInterval.FromTimeSpan(intervalSlept, nsResiduum).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum, 1);
+                            }
+
+                            ReportProgress(instructionsToSkip);
+                        }
+                    }
+                    else if(result == ExecutionResult.ExternalMmuFault)
+                    {
+                        this.Trace(result.ToString());
+                        mmuFaultThrown = true;
+                        break;
+                    }
+                    else if(result == ExecutionResult.Aborted)
+                    {
+                        this.Trace(result.ToString());
+                        isAborted = true;
+                        break;
+                    }
+                    else if(result == ExecutionResult.Interrupted || result == ExecutionResult.StoppedAtWatchpoint)
+                    {
+                        this.Trace(result.ToString());
+                        break;
                     }
                 }
-                else if(result == ExecutionResult.ExternalMmuFault)
-                {
-                    this.Trace(result.ToString());
-                    mmuFaultThrown = true;
-                    break;
-                }
-                else if(result == ExecutionResult.Aborted)
-                {
-                    this.Trace(result.ToString());
-                    isAborted = true;
-                    break;
-                }
-                else if(result == ExecutionResult.Interrupted || result == ExecutionResult.StoppedAtWatchpoint)
-                {
-                    this.Trace(result.ToString());
-                    break;
-                }
-            }
 
-            // If AdvanceImmediately is not enabled, and virtual time has surpassed host time,
-            // sleep to make up the difference.
-            // However, if pause was requested, we want to exit as soon as possible without sleeping,
-            // because it was requested from interactive context (e.g. "pause" monitor command).
-            virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
-            if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0 && !isPaused)
-            {
-                // Ignore the return value, if the sleep is interrupted we'll make up any extra
-                // remaining difference next time. Preserve the interrupt request so that if this
-                // extra sleep is interrupted due to a CPU pause, it will be picked up by the WFI
-                // handling above.
-                sleeper.Sleep(virtualTimeAhead.ToTimeSpan(), out var _, preserveInterruptRequest: true);
-            }
-
-            this.Trace("CPU thread body finished");
-
-            if(isAborted)
-            {
-                this.Trace("aborted, reporting continue");
-                TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
-                executedResiduum = 0;
-                State = CPUState.Aborted;
-                return CpuResult.Aborted;
-            }
-            else if(currentHaltedState)
-            {
-                this.Trace("halted, reporting continue");
-                TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
-                executedResiduum = 0;
-            }
-            else
-            {
-                var instructionsLeft = instructionsToExecuteThisRound - instructionsExecutedThisRound;
-                // instructionsExecutedThisRound = reportedInstructions + executedResiduum
-                // reportedInstructions + executedResiduum + instructionsLeft = instructionsToExecuteThisRound
-                // reportedInstructions is divisible by instructionsPerTick and instructionsToExecuteThisRound is divisible by instructionsPerTick
-                // so instructionsLeft + executedResiduum is divisible by instructionsPerTick and residuum is 0
-                var timeLeft = TimeInterval.FromCPUCycles(instructionsLeft + executedResiduum, PerformanceInMips, out var residuum) + TimeInterval.FromMicroseconds(ticksResiduum);
-                DebugHelper.Assert(residuum == 0);
-                if(instructionsLeft > 0)
+                // If AdvanceImmediately is not enabled, and virtual time has surpassed host time,
+                // sleep to make up the difference.
+                // However, if pause was requested, we want to exit as soon as possible without sleeping,
+                // because it was requested from interactive context (e.g. "pause" monitor command).
+                virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
+                if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0 && !isPaused)
                 {
-                    this.Trace("reporting break");
-                    TimeHandle.ReportBackAndBreak(timeLeft);
+                    // Ignore the return value, if the sleep is interrupted we'll make up any extra
+                    // remaining difference next time. Preserve the interrupt request so that if this
+                    // extra sleep is interrupted due to a CPU pause, it will be picked up by the WFI
+                    // handling above.
+                    sleeper.Sleep(virtualTimeAhead.ToTimeSpan(), out var _, preserveInterruptRequest: true);
+                }
+
+                this.Trace("CPU thread body finished");
+
+                if(isAborted)
+                {
+                    this.Trace("aborted, reporting continue");
+                    TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
+                    executedResiduum = 0;
+                    State = CPUState.Aborted;
+                    return CpuResult.Aborted;
+                }
+                else if(currentHaltedState)
+                {
+                    this.Trace("halted, reporting continue");
+                    TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
+                    executedResiduum = 0;
                 }
                 else
                 {
-                    DebugHelper.Assert(executedResiduum == 0);
-                    // executedResiduum < instructionsPerTick so timeLeft is 0 + ticksResiduum
-                    this.Trace("finished, reporting continue");
-                    TimeHandle.ReportBackAndContinue(timeLeft);
+                    var instructionsLeft = instructionsToExecuteThisRound - instructionsExecutedThisRound;
+                    // instructionsExecutedThisRound = reportedInstructions + executedResiduum
+                    // reportedInstructions + executedResiduum + instructionsLeft = instructionsToExecuteThisRound
+                    // reportedInstructions is divisible by instructionsPerTick and instructionsToExecuteThisRound is divisible by instructionsPerTick
+                    // so instructionsLeft + executedResiduum is divisible by instructionsPerTick and residuum is 0
+                    var timeLeft = TimeInterval.FromCPUCycles(instructionsLeft + executedResiduum, PerformanceInMips, out var residuum) + TimeInterval.FromMicroseconds(ticksResiduum);
+                    DebugHelper.Assert(residuum == 0);
+                    if(instructionsLeft > 0)
+                    {
+                        this.Trace("reporting break");
+                        TimeHandle.ReportBackAndBreak(timeLeft);
+                    }
+                    else
+                    {
+                        DebugHelper.Assert(executedResiduum == 0);
+                        // executedResiduum < instructionsPerTick so timeLeft is 0 + ticksResiduum
+                        this.Trace("finished, reporting continue");
+                        TimeHandle.ReportBackAndContinue(timeLeft);
+                    }
                 }
-            }
 
-            if(mmuFaultThrown)
-            {
-                return CpuResult.MmuFault;
+                if(mmuFaultThrown)
+                {
+                    return CpuResult.MmuFault;
+                }
+                else if(executedResiduum == initialExecutedResiduum && TimeHandle.TotalElapsedTime == initialTotalElapsedTime)
+                {
+                    return CpuResult.NothingExecuted;
+                }
+                return CpuResult.ExecutedInstructions;
             }
-            else if(executedResiduum == initialExecutedResiduum && TimeHandle.TotalElapsedTime == initialTotalElapsedTime)
-            {
-                return CpuResult.NothingExecuted;
-            }
-            return CpuResult.ExecutedInstructions;
         }
 
         private void StartCPUThreadTimeHandle()
@@ -935,5 +943,6 @@ restart:
         private volatile bool pauseLockTimeHandleMarker;
 
         private readonly object cpuThreadBodyLock = new object();
+        private readonly SealableValue<uint> performanceInMips = new SealableValue<uint>();
     }
 }
