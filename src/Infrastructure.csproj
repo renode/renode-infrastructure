@@ -1811,6 +1811,7 @@
     <Compile Include="Emulator/Main/Utilities/Fraction.cs" />
     <Compile Include="Emulator/Main/Utilities/ELFUtils.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/FormattedTextBackend.cs" />
+    <Compile Include="Emulator/Main/Utilities/SealableValue.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
