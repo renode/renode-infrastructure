@@ -37,13 +37,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 case State.Idle:
                 {
                     regAddress = (Register)BitHelper.GetValue(data, 0, 7);
-                    var isWrite = BitHelper.IsBitSet(data, 7);
+                    var isWrite = !BitHelper.IsBitSet(data, 7);
 
                     this.NoisyLog("Decoded register {0} (0x{0:X}) and isWrite bit as {1}", regAddress, isWrite);
                     state = isWrite
                         ? State.Writing
                         : State.Reading;
-
                     break;
                 }
 
@@ -108,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void FinishTransmission()
         {
             regAddress = 0;
-            state = State.WaitingForRegister;
+            state = State.Idle;
             this.Log(LogLevel.Noisy, "Transmission finished");
         }
 
@@ -116,9 +115,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             RegistersCollection.Reset();
             SetScaleDivider();
-            state = State.WaitingForRegister;
+            state = State.Idle;
             regAddress = 0;
             IRQ.Set(false);
+            chipSelected = false;
         }
 
         public void Write(byte[] data)
@@ -129,14 +129,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return;
             }
             this.Log(LogLevel.Noisy, "Write with {0} bytes of data: {1}", data.Length, Misc.PrettyPrintCollectionHex(data));
-            if(state == State.WaitingForRegister)
+            if(state == State.Idle)
             {
                 regAddress = (Register)data[0];
                 this.Log(LogLevel.Noisy, "Preparing to access register {0} (0x{0:X})", regAddress);
-                state = State.WaitingForData;
+                state = State.Reading;
                 data = data.Skip(1).ToArray();
             }
-            if(state == State.WaitingForData)
+            if(state == State.Reading)
             {
                 InternalWrite(data);
             }
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public byte[] Read(int count)
         {
-            if(state == State.WaitingForRegister)
+            if(state == State.Idle)
             {
                 this.Log(LogLevel.Warning, "Unexpected read in state {0}", state);
                 return new byte[count];
@@ -661,8 +661,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private enum State
         {
-            WaitingForRegister,
-            WaitingForData,
             Idle,
             Reading,
             Writing
