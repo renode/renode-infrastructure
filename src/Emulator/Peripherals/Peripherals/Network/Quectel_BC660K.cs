@@ -48,6 +48,22 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // QIRD - Retrieve the Received TCP/IP Data
+        // Not supported
+        protected override Response Qird(int connectionId, int readLength) => Error;
+
+        // QNBIOTRAI - NB-IoT Release Assistance Indication
+        [AtCommand("AT+QNBIOTRAI", CommandType.Write)]
+        protected override Response Qnbiotrai(int raiMode = 0)
+        {
+            if(raiMode > 1)
+            {
+                return Error;
+            }
+
+            return base.Qnbiotrai(raiMode);
+        }
+
         protected override bool IsValidContextId(int id)
         {
             return id == 0;
