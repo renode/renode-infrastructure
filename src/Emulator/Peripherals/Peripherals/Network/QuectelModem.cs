@@ -654,6 +654,26 @@ namespace Antmicro.Renode.Peripherals.Network
         protected virtual Response QistateRead() => Ok.WithParameters(
             sockets.Where(s => s != null).Select(s => s.Qistate).ToArray());
 
+        protected void EnterDeepsleep()
+        {
+            this.Log(LogLevel.Debug, "Entering deep sleep mode");
+            if(deepSleepEventEnabled)
+            {
+                SendString("+QNBIOTEVENT: \"ENTER DEEPSLEEP\"");
+            }
+            // Entering deep sleep is equivalent to a power off, so we do a reset here.
+            // NVRAM values will be preserved.
+            Reset();
+        }
+
+        protected void EnableModem()
+        {
+            Enabled = true;
+            // Notify the DTE that the modem is ready
+            SendString(ModemReady);
+            vddExt.Set();
+        }
+
         protected abstract string Vendor { get; }
         protected abstract string ModelName { get; }
         protected abstract string Revision { get; }
@@ -710,26 +730,6 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             dataBuffer.SetLength(0);
             PassthroughMode = false;
-        }
-
-        private void EnterDeepsleep()
-        {
-            this.Log(LogLevel.Debug, "Entering deep sleep mode");
-            if(deepSleepEventEnabled)
-            {
-                SendString("+QNBIOTEVENT: \"ENTER DEEPSLEEP\"");
-            }
-            // Entering deep sleep is equivalent to a power off, so we do a reset here.
-            // NVRAM values will be preserved.
-            Reset();
-        }
-
-        private void EnableModem()
-        {
-            Enabled = true;
-            // Notify the DTE that the modem is ready
-            SendString(ModemReady);
-            vddExt.Set();
         }
 
         private void BytesReceived(int connectionId, int byteCount)
