@@ -320,7 +320,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // CMEE - Report Mobile Termination Error
         [AtCommand("AT+CMEE", CommandType.Write)]
-        protected virtual Response Cmee(MobileTerminationResultCodeMode mode)
+        protected virtual Response Cmee(MobileTerminationResultCodeMode mode = MobileTerminationResultCodeMode.Disabled)
         {
             mtResultCodeMode = mode;
             this.Log(LogLevel.Debug, "CMEE result mode set to {0}", mode);
