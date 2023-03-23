@@ -117,7 +117,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private Dictionary<Type, Func<string, object>> GetArgumentParsers()
         {
-            return this.GetType().GetMethodsWithAttribute<ArgumentParserAttribute>()
+            // We don't inherit the [ArgumentParser] attribute in order to allow "hiding" parsers
+            // in subclasses by overriding them and not marking them with [ArgumentParser]
+            return this.GetType().GetMethodsWithAttribute<ArgumentParserAttribute>(inheritAttribute: false)
                 .Select(ma => ma.Method)
                 .ToDictionary<MethodInfo, Type, Func<string, object>>(m => m.ReturnType, m =>
                 {

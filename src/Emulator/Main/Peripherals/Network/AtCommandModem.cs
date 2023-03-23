@@ -308,7 +308,10 @@ namespace Antmicro.Renode.Peripherals.Network
             // | - Read  -> AbcReadDerivedDerived (in subclass C <: B)
             // This relies on the fact that GetMethodsWithAttribute returns methods sorted by
             // the depth of their declaring class in the inheritance hierarchy, deepest first.
-            var commandMethods = this.GetType().GetMethodsWithAttribute<AtCommandAttribute>()
+
+            // We don't inherit the [AtCommand] attribute in order to allow "hiding" commands
+            // in subclasses by overriding them and not marking them with [AtCommand]
+            var commandMethods = this.GetType().GetMethodsWithAttribute<AtCommandAttribute>(inheritAttribute: false)
                 .SelectMany(ma => ma.Attribute.Types, (ma, type) => new { ma.Attribute.Command, type, ma.Method })
                 .GroupBy(ma => ma.Command)
                 .ToDictionary(g => g.Key, g => g.DistinctBy(h => h.type).ToDictionary(ma => ma.type, ma => ma.Method));
