@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -14,6 +15,35 @@ namespace Antmicro.Renode.Peripherals.Network
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {
+        }
+
+        // QCFG - System Configuration
+        [AtCommand("AT+QCFG", CommandType.Write)]
+        protected override Response Qcfg(string function, int value)
+        {
+            switch(function)
+            {
+                case "dsevent":
+                    deepSleepEventEnabled = value != 0;
+                    break;
+                case "activetimer": // whether to use the value of active timer or not
+                case "atlocktime": // Sleep Lock duration after AT command
+                case "autopdn": // PDN auto activation option
+                case "combinedattach": // combined attach
+                case "epco": // extended protocol configuration options
+                case "initlocktime": // initial Sleep Lock duration after reboot or deep sleep wake up
+                case "multidrb": // enable multi-DRB
+                case "ripin": // default output level for the RI pin
+                case "up": // enable user plane function
+                case "upopt": // enable user plane optimization
+                case "urc/ri/mask": // whether to trigger RI pin behavior when URC is reported
+                case "vbattimes": // voltage detection cycle for the AT+QVBATT command
+                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, value);
+                    break;
+                default:
+                    return base.Qcfg(function, value);
+            }
+            return Ok;
         }
 
         protected override bool IsValidContextId(int id)

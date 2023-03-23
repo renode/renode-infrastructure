@@ -370,18 +370,8 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected virtual Response Qcfg(string function, int value)
         {
-            switch(function)
-            {
-                case "dsevent":
-                    deepSleepEventEnabled = value != 0;
-                    break;
-                case "initlocktime": // initial Sleep Lock duration
-                case "atlocktime":  // Sleep Lock duration after AT commands
-                default:
-                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, unsupported", function, value);
-                    break;
-            }
-            return Ok;
+            this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not supported by this modem", function, value);
+            return Error;
         }
 
         // QCGDEFCONT - Set Default PSD Connection Settings

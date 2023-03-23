@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -14,6 +15,37 @@ namespace Antmicro.Renode.Peripherals.Network
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {
+        }
+
+        // QCFG - System Configuration
+        [AtCommand("AT+QCFG", CommandType.Write)]
+        protected override Response Qcfg(string function, int value)
+        {
+            switch(function)
+            {
+                case "dsevent":
+                    deepSleepEventEnabled = value != 0;
+                    break;
+                case "DataInactTimer": // inactivity timer
+                case "EPCO": // extended protocol configuration options
+                case "faultaction": // action performed by the UE after an error occurs
+                case "GPIO": // GPIO status
+                case "logbaudrate": // baud rate
+                case "MacRAI": // enable or disable RAI in MAC layer
+                case "NBcategory": // UE category
+                case "NcellMeas": // NcellMeas
+                case "OOSScheme": // network searching mechanism in OOS
+                case "relversion": // protocol release version
+                case "SimBip": // enable or disable SIMBIP
+                case "slplocktimes": // sleep duration
+                case "statisr": // report interval of the statistics URC
+                case "wakeupRXD": // whether the UE can be woken up by RXD
+                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, value);
+                    break;
+                default:
+                    return base.Qcfg(function, value);
+            }
+            return Ok;
         }
 
         protected override bool IsValidContextId(int id)

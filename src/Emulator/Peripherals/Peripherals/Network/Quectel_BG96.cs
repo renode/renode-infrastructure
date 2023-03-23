@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -14,6 +15,42 @@ namespace Antmicro.Renode.Peripherals.Network
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {
+        }
+
+        // QCFG - System Configuration
+        [AtCommand("AT+QCFG", CommandType.Write)]
+        protected override Response Qcfg(string function, int value)
+        {
+            switch(function)
+            {
+                case "apready": // AP_READY Pin
+                case "band": // band configuration
+                case "celevel": // get LTE Cat NB1 coverage enhancement level
+                case "cmux/urcport": // URC output port for CMUX
+                case "ims": // IMS function control
+                case "iotopmode": // network category to be searched under LTE RAT
+                case "ledmode": // NETLIGHT output Mode
+                case "msc": // MSC release version configuration
+                case "nb1/bandprior": // band scan priority under LTE Cat NB1
+                case "nwscanmode": // RAT(s) to be searched
+                case "nwscanseq": // RAT searching sequence
+                case "pdp/duplicatechk": // establish multi PDNs with the same APN
+                case "psm/enter": // trigger PSM immediately
+                case "psm/urc": // enable/disable PSM entry indication
+                case "risignaltype": // RI signal output carrier
+                case "roamservice": // roam service configuration
+                case "servicedomain": // service domain configuration
+                case "sgsn": // SGSN release version configuration
+                case "urc/delay": // delay URC indication
+                case "urc/ri/other": // RI behavior when other URCs are presented
+                case "urc/ri/ring": // RI behavior when RING URC is presented
+                case "urc/ri/smsincoming": // RI behavior when incoming SMS URCs are presented
+                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, value);
+                    break;
+                default:
+                    return base.Qcfg(function, value);
+            }
+            return Ok;
         }
 
         // QIACT - Activate a PDP Context
