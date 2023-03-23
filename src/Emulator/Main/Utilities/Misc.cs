@@ -102,10 +102,10 @@ namespace Antmicro.Renode.Utilities
             return t.GetMethods(DefaultBindingFlags);
         }
 
-        public static IEnumerable<MethodWithAttribute<T>> GetMethodsWithAttribute<T>(this Type type) where T : Attribute
+        public static IEnumerable<MethodWithAttribute<T>> GetMethodsWithAttribute<T>(this Type type, bool inheritAttribute = true) where T : Attribute
         {
             return type.GetAllMethods()
-                .Select(method => new MethodWithAttribute<T>(method, (T)method.GetCustomAttribute(typeof(T), true)))
+                .Select(method => new MethodWithAttribute<T>(method, (T)method.GetCustomAttribute(typeof(T), inheritAttribute)))
                 .Where(m => m.Attribute != null);
         }
 
