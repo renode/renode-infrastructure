@@ -46,6 +46,30 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // QEMMTIMER - Enable/Disable URC Reporting for EMM Timer
+        [AtCommand("AT+QEMMTIMER", CommandType.Write)]
+        protected virtual Response Qemmtimer(int enable = 0)
+        {
+            return Ok; // stub
+        }
+
+        // QRELLOCK - Release Sleep Lock of AT Commands
+        [AtCommand("AT+QRELLOCK")]
+        protected virtual Response Qrellock()
+        {
+            // This command is meant to release the 10-second sleep lock timer after each
+            // AT command, not necessarily make the modem enter sleep mode immediately.
+            // We use it as a signal that the software talking to the modem expects it to
+            // enter sleep mode, so we enter sleep mode for a while and then leave it again
+            // if this was requested with the DeepsleepOnRellock property.
+            if(DeepsleepOnRellock != 0)
+            {
+                ExecuteWithDelay(EnterDeepsleep, 50);
+                ExecuteWithDelay(EnableModem, 50 + DeepsleepOnRellock);
+            }
+            return Ok;
+        }
+
         protected override bool IsValidContextId(int id)
         {
             return id == 1;
