@@ -17,6 +17,60 @@ namespace Antmicro.Renode.Peripherals.Network
         {
         }
 
+        // CEREG - EPS Network Registration Status
+        [AtCommand("AT+CEREG", CommandType.Write)]
+        protected override Response CeregWrite(NetworkRegistrationUrcType type)
+        {
+            // EMM cause information is not supported on this modem
+            if(type == NetworkRegistrationUrcType.StatLocationEmmCause ||
+                type == NetworkRegistrationUrcType.StatLocationEmmCausePsm)
+            {
+                return Error;
+            }
+            return base.CeregWrite(type);
+        }
+
+        // CESQ - Extended Signal Quality
+        // CESQ is not supported by this modem. We override Cesq without marking it with [AtCommand]
+        // in order to remove it from the command set (including the test command, AT+CESQ=?).
+        protected override Response Cesq() => Error;
+
+        // CGDCONT - Define PDP Context
+        [AtCommand("AT+CGDCONT", CommandType.Read)]
+        protected override Response Cgdcont() => Ok.WithParameters($"+CGDCONT: 1,\"IP\",\"{pdpContextApn}\",\"{NetworkIp}\",0,0"); // stub
+
+        // CGMI - Request Manufacturer Identification
+        [AtCommand("AT+CGMI")]
+        protected override Response Cgmi() => Ok.WithParameters(Vendor);
+
+        // CGSN - Request Product Serial Number
+        // CGSN only supports reading the IMEI on this modem and is available only as an execution command
+        // Also, it returns only the IMEI itself instead of "+CGSN: <imei>"
+        [AtCommand("AT+CGSN")]
+        protected override Response Cgsn() => Ok.WithParameters(imeiNumber);
+
+        [AtCommand("AT+CGSN", CommandType.Write)]
+        protected override Response CgsnWrite(SerialNumberType serialNumberType = SerialNumberType.Device) => Error;
+
+        // CMEE - Report Mobile Termination Error
+        [AtCommand("AT+CMEE", CommandType.Write)]
+        protected override Response Cmee(MobileTerminationResultCodeMode mode = MobileTerminationResultCodeMode.Numeric)
+        {
+            return base.Cmee(mode);
+        }
+
+        // CSCON - Signaling Connection Status
+        // Not supported
+        protected override Response Cscon(int enable = 0) => Error;
+
+        // QBAND - Get and Set Mobile Operation Band
+        // Not supported
+        protected override Response Qband(int numberOfBands, params int[] bands) => Error;
+
+        // QCCID - USIM Card Identification
+        // Not supported
+        protected override Response Qccid() => Error;
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected override Response Qcfg(string function, int value)
@@ -53,6 +107,10 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // QENG - Engineering Mode
+        // Not supported
+        protected override Response Qeng(int mode) => Error;
+
         // QIACT - Activate a PDP Context
         [AtCommand("AT+QIACT", CommandType.Write)]
         protected Response Qiact(int contextId)
@@ -62,6 +120,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 return Error;
             }
             return Ok; // stub
+        }
+
+        // QICLOSE - Close a Socket Service
+        [AtCommand("AT+QICLOSE", CommandType.Write)]
+        protected /* override */ Response Qiclose(int connectionId, int timeout = 10)
+        {
+            return base.Qiclose(connectionId);
         }
 
         // QICSGP - Configure Parameters of a TCP/IP Context
@@ -87,6 +152,31 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             return Ok; // stub
         }
+
+        // QISEND - Send Hex/Text String Data
+        [AtCommand("AT+QISEND", CommandType.Write)]
+        protected override Response Qisend(int connectionId, int? sendLength = null, string data = null)
+        {
+            // The BG96 doesn't support non-data mode in AT+QISEND
+            if(data != null)
+            {
+                return Error;
+            }
+
+            return base.Qisend(connectionId, sendLength, data);
+        }
+
+        // QNBIOTEVENT - Enable/Disable NB-IoT Related Event Report
+        // Not supported
+        protected override Response Qnbiotevent(int enable = 0, int eventType = 1) => Error;
+
+        // QNBIOTRAI - NB-IoT Release Assistance Indication
+        // Not supported
+        protected override Response Qnbiotrai(int raiMode = 0) => Error;
+
+        // QRST - Module Reset
+        // Not supported
+        protected override Response QrstWrite(int mode = 1) => Error;
 
         protected override string Vendor => "Quectel";
         protected override string ModelName => "BG96";
