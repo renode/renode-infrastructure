@@ -404,6 +404,11 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QENG", CommandType.Write)]
         protected virtual Response Qeng(int mode)
         {
+            // Only mode 0 is implemented.
+            if(mode != 0)
+            {
+                return Error;
+            }
             return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
         }
 
