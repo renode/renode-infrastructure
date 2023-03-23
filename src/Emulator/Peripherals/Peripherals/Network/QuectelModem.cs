@@ -650,6 +650,19 @@ namespace Antmicro.Renode.Peripherals.Network
         protected abstract string ManufacturerRevision { get; }
         protected abstract string SoftwareRevision { get; }
 
+        protected bool echoInDataMode;
+        protected NetworkRegistrationUrcType networkRegistrationUrcType;
+
+        // These fields are not affected by resets because they are automatically saved to NVRAM.
+        protected string pdpContextApn = "";
+        protected bool showLength = false;
+        protected DataFormat sendDataFormat = DataFormat.Text;
+        protected DataFormat receiveDataFormat = DataFormat.Text;
+        protected string dataOutputSeparator = CrLf;
+        protected bool deepSleepEventEnabled = false;
+
+        protected readonly string imeiNumber;
+
         private Response MobileTerminationError(int errorCode)
         {
             switch(mtResultCodeMode)
@@ -745,18 +758,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private int? dataBytesRemaining;
         private Action<byte[]> dataCallback;
         private bool inReset;
-        private bool echoInDataMode;
-        private NetworkRegistrationUrcType networkRegistrationUrcType;
 
-        // These fields are not affected by resets because they are automatically saved to NVRAM.
-        private string pdpContextApn = "";
-        private bool showLength = false;
-        private DataFormat sendDataFormat = DataFormat.Text;
-        private DataFormat receiveDataFormat = DataFormat.Text;
-        private string dataOutputSeparator = CrLf;
-        private bool deepSleepEventEnabled = false;
-
-        private readonly string imeiNumber;
         private readonly string softwareVersionNumber;
         private readonly string serialNumber;
         private readonly IGPIO vddExt = new GPIO();
