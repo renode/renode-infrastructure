@@ -296,10 +296,22 @@ namespace Antmicro.Renode.Peripherals.Network
             // | - Write -> AbcReadWrite
             // which would come from AbcReadWrite being annotated with [AtCommand("AT+ABC", Read|Write)]
             // so we first flatten the types and then group by the command name.
+            // Also, if unrelated (i.e. not in an override hierarchy) methods in a base class
+            // and a subclass are both annotated with [AtCommand("AT+ABC", Read)], we want to use the
+            // implementation from the most derived class. This is done using DistinctBy(type), in order to turn
+            // AT+ABC
+            // | - Read  -> AbcReadDerivedDerived (in subclass C <: B)
+            // | - Read  -> AbcReadDerived (in subclass B <: A)
+            // | - Read  -> AbcRead (in base class A)
+            // into
+            // AT+ABC
+            // | - Read  -> AbcReadDerivedDerived (in subclass C <: B)
+            // This relies on the fact that GetMethodsWithAttribute returns methods sorted by
+            // the depth of their declaring class in the inheritance hierarchy, deepest first.
             var commandMethods = this.GetType().GetMethodsWithAttribute<AtCommandAttribute>()
                 .SelectMany(ma => ma.Attribute.Types, (ma, type) => new { ma.Attribute.Command, type, ma.Method })
                 .GroupBy(ma => ma.Command)
-                .ToDictionary(g => g.Key, g => g.ToDictionary(ma => ma.type, ma => ma.Method));
+                .ToDictionary(g => g.Key, g => g.DistinctBy(h => h.type).ToDictionary(ma => ma.type, ma => ma.Method));
 
             // Verify that all command methods return Response
             foreach(var typeMethod in commandMethods.Values.SelectMany(m => m))
