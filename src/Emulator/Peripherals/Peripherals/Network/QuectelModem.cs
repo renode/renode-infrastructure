@@ -780,6 +780,72 @@ namespace Antmicro.Renode.Peripherals.Network
             RegisteredRoaming,
         }
 
+        protected enum MobileTerminationResultCodeMode
+        {
+            Disabled,
+            Numeric,
+            Verbose,
+        }
+
+        protected enum ServiceType
+        {
+            Tcp,
+            Udp,
+            TcpListener,
+            UdpService,
+        }
+
+        protected enum GPIOInput
+        {
+            Power,
+            Reset,
+        }
+
+        protected enum PowerOffType
+        {
+            Immediate,
+            Normal,
+        }
+
+        protected enum SerialNumberType
+        {
+            Device,
+            Imei,
+            ImeiSv,
+            SoftwareVersionNumber,
+        }
+
+        protected enum FunctionalityLevel
+        {
+            Minimum,
+            Full,
+            RfTransmitReceiveDisabled = 4,
+        }
+
+        protected enum NetworkRegistrationUrcType
+        {
+            Disabled,
+            StatOnly,
+            StatLocation,
+            StatLocationEmmCause,
+            StatLocationPsm,
+            StatLocationEmmCausePsm,
+        }
+
+        protected enum DataFormat
+        {
+            Text,
+            Hex,
+        }
+
+        protected enum PdpType
+        {
+            Ip,
+            IpV6,
+            IpV4V6,
+            NonIp,
+        }
+
         // One SocketService corresponds to one connectionId
         private class SocketService : IDisposable
         {
@@ -830,72 +896,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 connectedService = conn;
                 connectedService.BytesReceived += BytesReceived;
             }
-        }
-
-        private enum MobileTerminationResultCodeMode
-        {
-            Disabled,
-            Numeric,
-            Verbose,
-        }
-
-        private enum ServiceType
-        {
-            Tcp,
-            Udp,
-            TcpListener,
-            UdpService,
-        }
-
-        private enum GPIOInput
-        {
-            Power,
-            Reset,
-        }
-
-        private enum PowerOffType
-        {
-            Immediate,
-            Normal,
-        }
-
-        private enum SerialNumberType
-        {
-            Device,
-            Imei,
-            ImeiSv,
-            SoftwareVersionNumber,
-        }
-
-        private enum FunctionalityLevel
-        {
-            Minimum,
-            Full,
-            RfTransmitReceiveDisabled = 4,
-        }
-
-        private enum NetworkRegistrationUrcType
-        {
-            Disabled,
-            StatOnly,
-            StatLocation,
-            StatLocationEmmCause,
-            StatLocationPsm,
-            StatLocationEmmCausePsm,
-        }
-
-        private enum DataFormat
-        {
-            Text,
-            Hex,
-        }
-
-        private enum PdpType
-        {
-            Ip,
-            IpV6,
-            IpV4V6,
-            NonIp,
         }
     }
 }
