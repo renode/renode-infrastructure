@@ -387,7 +387,7 @@ namespace Antmicro.Renode.Peripherals.Network
         // QCGDEFCONT - Set Default PSD Connection Settings
         [AtCommand("AT+QCGDEFCONT", CommandType.Write)]
         protected virtual Response Qcgdefcont(PdpType pdpType, string apn = "", string username = "",
-            string password = "", int authenticationType = 0)
+            string password = "", AuthenticationType authenticationType = AuthenticationType.None)
         {
             pdpContextApn = apn;
             return Ok; // stub
@@ -846,6 +846,13 @@ namespace Antmicro.Renode.Peripherals.Network
             IpV6,
             IpV4V6,
             NonIp,
+        }
+
+        protected enum AuthenticationType
+        {
+            None,
+            Pap,
+            Chap,
         }
 
         // One SocketService corresponds to one connectionId
