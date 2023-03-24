@@ -747,8 +747,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected enum PowerOffType
         {
-            Immediate,
             Normal,
+            Immediate,
+            Reset,
         }
 
         protected enum SerialNumberType
