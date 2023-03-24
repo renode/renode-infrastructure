@@ -462,9 +462,14 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // QNBIOTRAI - NB-IoT Release Assistance Indication
         [AtCommand("AT+QNBIOTRAI", CommandType.Write)]
-        protected virtual Response Qnbiotrai(int enable = 0, int eventType = 1)
+        protected virtual Response Qnbiotrai(int raiMode = 0)
         {
-            this.Log(LogLevel.Debug, "NB-IoT Release Assistance Indication set to {0}", enable);
+            if(raiMode < 0 || raiMode > 2)
+            {
+                return Error;
+            }
+
+            this.Log(LogLevel.Debug, "NB-IoT Release Assistance Indication set to {0}", raiMode);
             return Ok; // stub
         }
 
