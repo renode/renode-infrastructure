@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -44,6 +45,36 @@ namespace Antmicro.Renode.Peripherals.Network
                     break;
                 default:
                     return base.Qcfg(function, value);
+            }
+            return Ok;
+        }
+
+        // QICFG - Configure Optional TCP/IP Parameters
+        [AtCommand("AT+QICFG", CommandType.Write)]
+        protected override Response Qicfg(string parameter, params int[] args)
+        {
+            if(args.Length < 1)
+            {
+                return Error;
+            }
+
+            switch(parameter)
+            {
+                case "dataformat":
+                    if(args.Length < 2)
+                    {
+                        return Error;
+                    }
+                    // sendDataFormat only applies to sending in non-data mode, which is not
+                    // currently implemented
+                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    break;
+                case "showRA": // display the address of the remote end while displaying received data
+                    this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
+                    break;
+                default:
+                    return base.Qicfg(parameter, args);
             }
             return Ok;
         }

@@ -403,37 +403,9 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QICFG", CommandType.Write)]
         protected virtual Response Qicfg(string parameter, params int[] args)
         {
-            if(args.Length < 1)
-            {
-                return Error;
-            }
-
-            switch(parameter)
-            {
-                case "echomode":
-                    echoInDataMode = args[0] != 0;
-                    break;
-                case "dataformat":
-                    if(args.Length < 2)
-                    {
-                        return Error;
-                    }
-                    // sendDataFormat only applies to sending in non-data mode, which is not
-                    // currently implemented
-                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    break;
-                case "showlength":
-                    showLength = args[0] != 0;
-                    break;
-                case "viewmode":
-                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, unsupported", parameter, args.Stringify());
-                    break;
-            }
-            return Ok;
+            this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not supported by this modem",
+                parameter, args.Stringify());
+            return Error;
         }
 
         // QNBIOTEVENT - Enable/Disable NB-IoT Related Event Report

@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -120,6 +121,44 @@ namespace Antmicro.Renode.Peripherals.Network
                 return Error;
             }
             return Ok; // stub
+        }
+
+        // QICFG - Configure Optional TCP/IP Parameters
+        [AtCommand("AT+QICFG", CommandType.Write)]
+        protected override Response Qicfg(string parameter, params int[] args)
+        {
+            if(args.Length < 1)
+            {
+                return Error;
+            }
+
+            switch(parameter)
+            {
+                case "dataformat":
+                    if(args.Length < 2)
+                    {
+                        return Error;
+                    }
+                    // sendDataFormat only applies to sending in non-data mode, which is not
+                    // currently implemented
+                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    break;
+                case "viewmode":
+                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
+                    break;
+                case "transpktsize": // packet size for transparent mode
+                case "transwaittm": // wait time for transparent mode
+                case "tcp/retranscfg": //  maximum interval time and number for TCP retransmissions
+                case "dns/cache": // enable the DNS cache
+                case "qisend/timeout": // input data timeout
+                case "passiveclosed": // passive close of TCP connection when the server is closed
+                    this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
+                    break;
+                default:
+                    return base.Qicfg(parameter, args);
+            }
+            return Ok;
         }
 
         // QICLOSE - Close a Socket Service

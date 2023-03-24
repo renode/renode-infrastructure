@@ -53,6 +53,42 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok; // stub
         }
 
+        // QICFG - Configure Optional TCP/IP Parameters
+        [AtCommand("AT+QICFG", CommandType.Write)]
+        protected override Response Qicfg(string parameter, params int[] args)
+        {
+            if(args.Length < 1)
+            {
+                return Error;
+            }
+
+            switch(parameter)
+            {
+                case "echomode":
+                    echoInDataMode = args[0] != 0;
+                    break;
+                case "dataformat":
+                    if(args.Length < 2)
+                    {
+                        return Error;
+                    }
+                    // sendDataFormat only applies to sending in non-data mode, which is not
+                    // currently implemented
+                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                    break;
+                case "showlength":
+                    showLength = args[0] != 0;
+                    break;
+                case "viewmode":
+                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
+                    break;
+                default:
+                    return base.Qicfg(parameter, args);
+            }
+            return Ok;
+        }
+
         // QRELLOCK - Release Sleep Lock of AT Commands
         [AtCommand("AT+QRELLOCK")]
         protected virtual Response Qrellock()
