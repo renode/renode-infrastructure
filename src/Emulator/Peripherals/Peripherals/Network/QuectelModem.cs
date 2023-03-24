@@ -522,9 +522,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return Error;
             }
 
-            // The BC660K only supports contextId 0, the BC66 and BG9X only support contextId 1.
-            // We allow both for now.
-            if(contextId != 0 && contextId != 1)
+            if(!IsValidContextId(contextId))
             {
                 return Error;
             }
@@ -653,6 +651,11 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QISTATE", CommandType.Read)]
         protected virtual Response QistateRead() => Ok.WithParameters(
             sockets.Where(s => s != null).Select(s => s.Qistate).ToArray());
+
+        protected virtual bool IsValidContextId(int id)
+        {
+            return id >= 1 && id <= 16;
+        }
 
         protected void EnterDeepsleep()
         {

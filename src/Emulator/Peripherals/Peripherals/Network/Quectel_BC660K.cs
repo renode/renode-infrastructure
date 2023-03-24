@@ -16,6 +16,11 @@ namespace Antmicro.Renode.Peripherals.Network
         {
         }
 
+        protected override bool IsValidContextId(int id)
+        {
+            return id == 0;
+        }
+
         protected override string Vendor => "Quectel_Ltd";
         protected override string ModelName => "Quectel_BC660K-GL";
         protected override string Revision => "Revision: QCX212";
