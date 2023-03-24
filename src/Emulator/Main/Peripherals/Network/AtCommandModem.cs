@@ -390,7 +390,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 else
                 {
                     bodyRepresentation = Misc.PrettyPrintCollectionHex(BinaryBody);
-                    bodyRepresentation = $"<{bodyRepresentation}>";
                 }
 
                 var result = $"Body: {bodyRepresentation}; Status: {Status}";
