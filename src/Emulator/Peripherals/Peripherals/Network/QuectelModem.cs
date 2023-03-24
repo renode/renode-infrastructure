@@ -374,15 +374,6 @@ namespace Antmicro.Renode.Peripherals.Network
             return Error;
         }
 
-        // QCGDEFCONT - Set Default PSD Connection Settings
-        [AtCommand("AT+QCGDEFCONT", CommandType.Write)]
-        protected virtual Response Qcgdefcont(PdpType pdpType, string apn = "", string username = "",
-            string password = "", AuthenticationType authenticationType = AuthenticationType.None)
-        {
-            pdpContextApn = apn;
-            return Ok; // stub
-        }
-
         // QENG - Engineering Mode
         [AtCommand("AT+QENG", CommandType.Write)]
         protected virtual Response Qeng(int mode)

@@ -46,6 +46,14 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // QCGDEFCONT - Set Default PSD Connection Settings
+        [AtCommand("AT+QCGDEFCONT", CommandType.Write)]
+        protected virtual Response Qcgdefcont(PdpType pdpType, string apn = "", string username = "", string password = "")
+        {
+            pdpContextApn = apn;
+            return Ok; // stub
+        }
+
         // QEMMTIMER - Enable/Disable URC Reporting for EMM Timer
         [AtCommand("AT+QEMMTIMER", CommandType.Write)]
         protected virtual Response Qemmtimer(int enable = 0)

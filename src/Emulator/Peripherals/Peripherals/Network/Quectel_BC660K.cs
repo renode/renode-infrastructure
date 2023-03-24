@@ -49,6 +49,15 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // QCGDEFCONT - Set Default PSD Connection Settings
+        [AtCommand("AT+QCGDEFCONT", CommandType.Write)]
+        protected virtual Response Qcgdefcont(PdpType pdpType, string apn = "", string username = "",
+            string password = "", AuthenticationType authenticationType = AuthenticationType.None)
+        {
+            pdpContextApn = apn;
+            return Ok; // stub
+        }
+
         // QICFG - Configure Optional TCP/IP Parameters
         [AtCommand("AT+QICFG", CommandType.Write)]
         protected override Response Qicfg(string parameter, params int[] args)
