@@ -501,6 +501,12 @@ namespace Antmicro.Renode.Peripherals.Network
                 return Error;
             }
 
+            // Query the length of buffered received data
+            if(readLength == 0)
+            {
+                return Ok.WithParameters($"+QIRD: {sockets[connectionId].BytesAvailable}");
+            }
+
             var readBytes = sockets[connectionId].Receive(readLength);
             var qirdResponseHeader = $"+QIRD: {readBytes.Length}";
             if(showLength)
