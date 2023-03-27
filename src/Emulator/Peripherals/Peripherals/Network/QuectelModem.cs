@@ -803,7 +803,6 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 connectedService.BytesReceived -= BytesReceived;
                 connectedService.Dispose();
-                Owner.SendString($"+QIURC: \"closed\",{ConnectionId}");
             }
 
             public int BytesAvailable => connectedService.BytesAvailable;
