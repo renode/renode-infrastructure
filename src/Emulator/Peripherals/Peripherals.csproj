@@ -382,6 +382,7 @@
     <Compile Include="Peripherals\Sensors\ArduCAMMini2MPPlus.cs" />
     <Compile Include="Peripherals\Sensors\OV2640.cs" />
     <Compile Include="Peripherals\Sensors\LIS2DS12.cs" />
+    <Compile Include="Peripherals\Sensors\BME280.cs" />
     <Compile Include="Peripherals\Sensors\LIS2DW12.cs" />
     <Compile Include="Peripherals\Sensors\LIS2DW12_SPI.cs" />
     <Compile Include="Peripherals\Sensors\LSM303DLHC_Accelerometer.cs" />
