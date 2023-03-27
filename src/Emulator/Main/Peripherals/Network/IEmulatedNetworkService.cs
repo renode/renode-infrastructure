@@ -12,6 +12,10 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public interface IEmulatedNetworkService : IExternal, IDisposable
     {
+        // This method is called when the modem disconnects from this emulated network
+        // service, either by closing the connection explicitly or on reset.
+        void Disconnect();
+
         byte[] Receive(int bytes);
         bool Send(byte[] data);
 
