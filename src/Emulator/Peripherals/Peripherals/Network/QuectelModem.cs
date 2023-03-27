@@ -41,6 +41,7 @@ namespace Antmicro.Renode.Peripherals.Network
             dataCallback = null;
             for(int i = 0; i < sockets.Length; i++)
             {
+                sockets[i]?.Dispose();
                 sockets[i] = null;
             }
             inReset = false;
@@ -802,7 +803,7 @@ namespace Antmicro.Renode.Peripherals.Network
             public void Dispose()
             {
                 connectedService.BytesReceived -= BytesReceived;
-                connectedService.Dispose();
+                connectedService.Disconnect();
             }
 
             public int BytesAvailable => connectedService.BytesAvailable;
