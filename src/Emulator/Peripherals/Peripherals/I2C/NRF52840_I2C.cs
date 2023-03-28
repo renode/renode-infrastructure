@@ -250,7 +250,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {
                     if(selectedSlave == null)
                     {
-                        this.Log(LogLevel.Warning, "No slave is currently selected");
+                        this.Log(LogLevel.Warning, "No slave is currently attached at selected address 0x{0:X}", address.Value);
                         addressNackError.Value = true;
                         errorInterruptPending.Value = true;
                         UpdateInterrupts();
@@ -271,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {
                     if(!TryGetByAddress((int)val, out selectedSlave))
                     {
-                        this.Log(LogLevel.Warning, "Selected a not-connected slave");
+                        this.Log(LogLevel.Warning, "Tried to select a not-connected slave at address 0x{0:X}", val);
                     }
                 })
                 .WithReservedBits(8, 24)
@@ -340,7 +340,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             if(selectedSlave == null)
             {
-                this.Log(LogLevel.Warning, "No slave is currently selected");
+                this.Log(LogLevel.Warning, "No slave is currently attached at selected address 0x{0:X}", address.Value);
                 return false;
             }
 
