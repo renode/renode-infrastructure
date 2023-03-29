@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -182,7 +182,6 @@ namespace Antmicro.Renode.Utilities.Binding
         private void ResolveCallsToNative(List<FieldInfo> importFields)
         {
             classToBind.NoisyLog("Binding managed -> native calls.");
-            var staticContext = InvokeContext.CreateStatic;
 
             foreach (var field in importFields)
             {
@@ -193,7 +192,7 @@ namespace Antmicro.Renode.Utilities.Binding
                 try
                 {
                     var address = SharedLibraries.GetSymbolAddress(libraryAddress, cName);
-                    result = Dynamic.InvokeMember(staticContext(typeof(Marshal)), "GetDelegateForFunctionPointer", address, field.FieldType);
+                    result = Marshal.GetDelegateForFunctionPointer(address, field.FieldType);
                 }
                 catch
                 {
