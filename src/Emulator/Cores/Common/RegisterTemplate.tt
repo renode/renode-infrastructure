@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -299,9 +299,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import(Name = "<#=ACCESSOR_PREFIX#>set_register_value_<#=width#>")]
-        protected ActionInt32<#=RegisterTypeHelper.GetTypeName(width)#> SetRegisterValue<#=width#>;
+        protected Action<int, <#=RegisterTypeHelper.GetTypeName(width)#>> SetRegisterValue<#=width#>;
         [Import(Name = "<#=ACCESSOR_PREFIX#>get_register_value_<#=width#>")]
-        protected Func<#=RegisterTypeHelper.GetTypeName(width)#>Int32 GetRegisterValue<#=width#>;
+        protected Func<int, <#=RegisterTypeHelper.GetTypeName(width)#>> GetRegisterValue<#=width#>;
 
         #pragma warning restore 649
 
