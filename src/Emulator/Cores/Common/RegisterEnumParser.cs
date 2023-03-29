@@ -269,11 +269,11 @@ namespace Antmicro.Renode.CoresSourceParser
             switch(width)
             {
             case 64:
-                return "UInt64";
+                return "ulong";
             case 32:
-                return "UInt32";
+                return "uint";
             case 16:
-                return "UInt16";
+                return "ushort";
             case 8:
                 return "byte";
             default:

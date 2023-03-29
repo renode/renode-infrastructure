@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -277,11 +277,11 @@
             switch(width)
             {
             case 64:
-                return "UInt64";
+                return "ulong";
             case 32:
-                return "UInt32";
+                return "uint";
             case 16:
-                return "UInt16";
+                return "ushort";
             case 8:
                 return "byte";
             default:
