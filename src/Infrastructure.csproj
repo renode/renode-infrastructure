@@ -1351,7 +1351,6 @@
     <Compile Include="Emulator/Main/Core/Emulation.cs" />
     <Compile Include="Emulator/Main/Peripherals/Network/IMACInterface.cs" />
     <Compile Include="Emulator/Main/Utilities/Binding/NativeBinder.cs" />
-    <Compile Include="Emulator/Main/Utilities/Binding/BindingTypes.Generated.cs" />
     <Compile Include="Emulator/Main/Utilities/Binding/ImportAttribute.cs" />
     <Compile Include="Emulator/Main/Peripherals/SPI/ISPIPeripheral.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IRegistered.cs" />
