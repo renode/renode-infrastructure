@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -10,7 +10,7 @@
 #include "renode_imports.h"
 #include "../tlib/include/unwind.h"
 
-EXTERNAL(action_uint64, touch_host_block)
+EXTERNAL(void, touch_host_block, uint64_t)
 
 typedef struct {
   uint64_t start;
