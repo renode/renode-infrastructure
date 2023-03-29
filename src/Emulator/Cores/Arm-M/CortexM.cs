@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -407,86 +407,86 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import]
-        private ActionInt32 tlibToggleFpu;
+        private Action<int> tlibToggleFpu;
 
         [Import]
-        private FuncUInt32 tlibGetFaultStatus;
+        private Func<uint> tlibGetFaultStatus;
 
         [Import]
-        private ActionUInt32 tlibSetFaultStatus;
+        private Action<uint> tlibSetFaultStatus;
 
         [Import]
-        private FuncUInt32 tlibGetMemoryFaultAddress;
+        private Func<uint> tlibGetMemoryFaultAddress;
 
         [Import]
-        private ActionInt32 tlibEnableMpu;
+        private Action<int> tlibEnableMpu;
 
         [Import]
-        private FuncInt32 tlibIsMpuEnabled;
+        private Func<int> tlibIsMpuEnabled;
 
         [Import]
-        private ActionUInt32 tlibSetMpuRegionBaseAddress;
+        private Action<uint> tlibSetMpuRegionBaseAddress;
 
         [Import]
-        private FuncUInt32 tlibGetMpuRegionBaseAddress;
+        private Func<uint> tlibGetMpuRegionBaseAddress;
 
         [Import]
-        private ActionUInt32 tlibSetMpuRegionSizeAndEnable;
+        private Action<uint> tlibSetMpuRegionSizeAndEnable;
 
         [Import]
-        private FuncUInt32 tlibGetMpuRegionSizeAndEnable;
+        private Func<uint> tlibGetMpuRegionSizeAndEnable;
 
         [Import]
-        private ActionUInt32 tlibSetMpuRegionNumber;
+        private Action<uint> tlibSetMpuRegionNumber;
 
         [Import]
-        private FuncUInt32 tlibGetMpuRegionNumber;
+        private Func<uint> tlibGetMpuRegionNumber;
 
         [Import]
-        private ActionInt32 tlibSetFpuInterruptNumber;
+        private Action<int> tlibSetFpuInterruptNumber;
 
         [Import]
-        private FuncUInt32 tlibGetInterruptVectorBase;
+        private Func<uint> tlibGetInterruptVectorBase;
 
         [Import]
-        private ActionUInt32 tlibSetInterruptVectorBase;
+        private Action<uint> tlibSetInterruptVectorBase;
 
         [Import]
-        private FuncUInt32 tlibGetXpsr;
+        private Func<uint> tlibGetXpsr;
 
         [Import]
-        private FuncUInt32 tlibIsV8;
+        private Func<uint> tlibIsV8;
 
         /* PMSAv8 MPU */
         [Import]
-        private ActionUInt32 tlibSetPmsav8Ctrl;
+        private Action<uint> tlibSetPmsav8Ctrl;
 
         [Import]
-        private ActionUInt32 tlibSetPmsav8Rnr;
+        private Action<uint> tlibSetPmsav8Rnr;
 
         [Import]
-        private ActionUInt32 tlibSetPmsav8Rbar;
+        private Action<uint> tlibSetPmsav8Rbar;
 
         [Import]
-        private ActionUInt32 tlibSetPmsav8Rlar;
+        private Action<uint> tlibSetPmsav8Rlar;
 
         [Import]
-        private ActionUInt32UInt32 tlibSetPmsav8Mair;
+        private Action<uint, uint> tlibSetPmsav8Mair;
 
         [Import]
-        private FuncUInt32 tlibGetPmsav8Ctrl;
+        private Func<uint> tlibGetPmsav8Ctrl;
 
         [Import]
-        private FuncUInt32 tlibGetPmsav8Rnr;
+        private Func<uint> tlibGetPmsav8Rnr;
 
         [Import]
-        private FuncUInt32 tlibGetPmsav8Rbar;
+        private Func<uint> tlibGetPmsav8Rbar;
 
         [Import]
-        private FuncUInt32 tlibGetPmsav8Rlar;
+        private Func<uint> tlibGetPmsav8Rlar;
 
         [Import]
-        private FuncUInt32UInt32 tlibGetPmsav8Mair;
+        private Func<uint, uint> tlibGetPmsav8Mair;
 
         #pragma warning restore 649
     }

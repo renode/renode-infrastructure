@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -95,13 +95,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import]
-        private ActionUInt32 TlibEnableOpcodesCounting;
+        private Action<uint> TlibEnableOpcodesCounting;
         
         [Import]
-        private FuncUInt64UInt32 TlibGetOpcodeCounter;
+        private Func<uint, ulong> TlibGetOpcodeCounter;
         
         [Import]
-        private FuncUInt32UInt64UInt64 TlibInstallOpcodeCounter;
+        private Func<ulong, ulong, uint> TlibInstallOpcodeCounter;
         
         [Import]
         private Action TlibResetOpcodeCounters;

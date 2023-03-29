@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -237,10 +237,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import]
-        private ActionInt32 TlibSetSlot;
+        private Action<int> TlibSetSlot;
 
         [Import]
-        private ActionUInt32 TlibSetEntryPoint;
+        private Action<uint> TlibSetEntryPoint;
 
         [Import]
         private Action TlibClearWfi;

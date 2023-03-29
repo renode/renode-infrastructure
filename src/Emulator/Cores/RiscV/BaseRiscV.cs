@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -879,94 +879,94 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
         [Import]
-        private ActionUInt32 TlibAllowFeature;
+        private Action<uint> TlibAllowFeature;
 
         [Import]
-        private ActionUInt32 TlibAllowAdditionalFeature;
+        private Action<uint> TlibAllowAdditionalFeature;
 
         [Import]
-        private FuncUInt32UInt32 TlibIsFeatureEnabled;
+        private Func<uint, uint> TlibIsFeatureEnabled;
 
         [Import]
-        private FuncUInt32UInt32 TlibIsFeatureAllowed;
+        private Func<uint, uint> TlibIsFeatureAllowed;
 
         [Import(Name="tlib_set_privilege_architecture")]
-        private ActionInt32 TlibSetPrivilegeArchitecture;
+        private Action<int> TlibSetPrivilegeArchitecture;
 
         [Import]
-        private ActionUInt32UInt32 TlibSetMipBit;
+        private Action<uint, uint> TlibSetMipBit;
 
         [Import]
-        private ActionUInt32 TlibSetHartId;
+        private Action<uint> TlibSetHartId;
 
         [Import]
-        private FuncUInt32 TlibGetHartId;
+        private Func<uint> TlibGetHartId;
 
         [Import]
-        private ActionUInt32 TlibSetNapotGrain;
+        private Action<uint> TlibSetNapotGrain;
 
         [Import]
-        private ActionUInt32 TlibSetPmpaddrBits;
+        private Action<uint> TlibSetPmpaddrBits;
 
         [Import]
-        private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
+        private Func<ulong, ulong, ulong, ulong> TlibInstallCustomInstruction;
 
         [Import(Name="tlib_install_custom_csr")]
-        private FuncInt32UInt64 TlibInstallCustomCSR;
+        private Func<ulong, int> TlibInstallCustomCSR;
 
         [Import]
-        private ActionUInt32UInt32 TlibMarkFeatureSilent;
+        private Action<uint, uint> TlibMarkFeatureSilent;
 
         [Import]
-        private ActionUInt64UInt32 TlibSetNmiVector;
+        private Action<ulong, uint> TlibSetNmiVector;
 
         [Import]
-        private ActionInt32Int32UInt64 TlibSetNmi;
+        private Action<int, int, ulong> TlibSetNmi;
 
         [Import]
-        private ActionUInt32 TlibSetCsrValidationLevel;
+        private Action<uint> TlibSetCsrValidationLevel;
 
         [Import]
-        private FuncUInt32 TlibGetCsrValidationLevel;
+        private Func<uint> TlibGetCsrValidationLevel;
 
         [Import]
-        private ActionInt32 TlibAllowUnalignedAccesses;
+        private Action<int> TlibAllowUnalignedAccesses;
 
         [Import]
-        private ActionInt32 TlibSetInterruptMode;
+        private Action<int> TlibSetInterruptMode;
 
         [Import]
-        private FuncUInt32UInt32 TlibSetVlen;
+        private Func<uint, uint> TlibSetVlen;
 
         [Import]
-        private FuncUInt32UInt32 TlibSetElen;
+        private Func<uint, uint> TlibSetElen;
 
         [Import]
-        private FuncUInt64UInt32UInt32 TlibGetVector;
+        private Func<uint, uint, ulong> TlibGetVector;
 
         [Import]
-        private ActionUInt32UInt32UInt64 TlibSetVector;
+        private Action<uint, uint, ulong> TlibSetVector;
 
         [Import]
-        private FuncUInt32UInt32IntPtr TlibGetWholeVector;
+        private Func<uint, IntPtr, uint> TlibGetWholeVector;
 
         [Import]
-        private FuncUInt32UInt32IntPtr TlibSetWholeVector;
+        private Func<uint, IntPtr, uint> TlibSetWholeVector;
 
         [Import]
-        private ActionUInt32 TlibEnablePostOpcodeExecutionHooks;
+        private Action<uint> TlibEnablePostOpcodeExecutionHooks;
 
         [Import]
-        private FuncUInt32UInt64UInt64 TlibInstallPostOpcodeExecutionHook;
+        private Func<ulong, ulong, uint> TlibInstallPostOpcodeExecutionHook;
 
         [Import]
-        private ActionUInt32 TlibEnablePostGprAccessHooks;
+        private Action<uint> TlibEnablePostGprAccessHooks;
 
         [Import]
-        private ActionUInt32UInt32 TlibEnablePostGprAccessHookOn;
+        private Action<uint, uint> TlibEnablePostGprAccessHookOn;
 
         [Import]
-        private ActionInt32UInt32UInt32UInt32 TlibSetClicInterruptState;
+        private Action<int, uint, uint, uint> TlibSetClicInterruptState;
 
 #pragma warning restore 649
 

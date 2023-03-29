@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -492,57 +492,57 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
 
         [Import]
-        private ActionUInt32 TlibSetCpuModelId;
+        private Action<uint> TlibSetCpuModelId;
 
         [Import]
-        private FuncUInt32 TlibGetItState;
+        private Func<uint> TlibGetItState;
 
         [Import]
-        private FuncUInt32UInt32 TlibEvaluateConditionCode;
+        private Func<uint, uint> TlibEvaluateConditionCode;
 
         [Import]
-        private FuncUInt32 TlibGetCpuModelId;
+        private Func<uint> TlibGetCpuModelId;
 
         [Import]
-        private ActionInt32 TlibSetThumb;
+        private Action<int> TlibSetThumb;
 
         [Import]
-        private ActionInt32 TlibSetEventFlag;
+        private Action<int> TlibSetEventFlag;
 
         [Import]
-        private ActionInt32 TlibSetSevOnPending;
+        private Action<int> TlibSetSevOnPending;
 
         [Import]
-        private ActionUInt32 TlibSetNumberOfMpuRegions;
+        private Action<uint> TlibSetNumberOfMpuRegions;
 
         [Import]
-        private FuncUInt32 TlibGetNumberOfMpuRegions;
+        private Func<uint> TlibGetNumberOfMpuRegions;
 
         [Import]
-        private ActionUInt32UInt64UInt64 TlibRegisterTcmRegion;
+        private Action<uint, ulong, ulong> TlibRegisterTcmRegion;
 
         [Import]
-        private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
+        private Func<string, uint, uint> TlibCheckSystemRegisterAccess;
 
         [Import]
         // The arguments are: char *name, bool log_unhandled_access.
-        private FuncUInt64StringUInt32 TlibGetSystemRegister;
+        private Func<string, uint, ulong> TlibGetSystemRegister;
 
         [Import]
         // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
-        private ActionStringUInt64UInt32 TlibSetSystemRegister;
+        private Action<string, ulong, uint> TlibSetSystemRegister;
 
         [Import]
-        public ActionInt32UInt32 TlibUpdatePmuCounters;
+        public Action<int, uint> TlibUpdatePmuCounters;
 
         [Import]
-        public ActionUInt32 TlibPmuSetDebug;
+        public Action<uint> TlibPmuSetDebug;
 
         [Import]
-        public FuncUInt32 TlibGetExceptionVectorAddress;
+        public Func<uint> TlibGetExceptionVectorAddress;
 
         [Import]
-        public ActionUInt32 TlibSetExceptionVectorAddress;
+        public Action<uint> TlibSetExceptionVectorAddress;
 
 #pragma warning restore 649
 

@@ -1326,7 +1326,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Transient]
-        private ActionUInt64 onTranslationBlockFetch;
+        private Action<ulong> onTranslationBlockFetch;
         private byte[] cpuState;
 
         /// <summary>
@@ -1825,28 +1825,28 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
 
         [Import]
-        private ActionUInt64UInt64UInt64 TlibEnableReadCache;
+        private Action<ulong, ulong, ulong> TlibEnableReadCache;
 
         [Import]
-        private ActionUInt32 TlibSetChainingEnabled;
+        private Action<uint> TlibSetChainingEnabled;
 
         [Import]
-        private FuncUInt32 TlibGetChainingEnabled;
+        private Func<uint> TlibGetChainingEnabled;
 
         [Import]
-        private ActionUInt32 TlibSetTbCacheEnabled;
+        private Action<uint> TlibSetTbCacheEnabled;
 
         [Import]
-        private FuncUInt32 TlibGetTbCacheEnabled;
+        private Func<uint> TlibGetTbCacheEnabled;
 
         [Import]
-        private ActionUInt32 TlibSetSyncPcEveryInstructionDisabled;
+        private Action<uint> TlibSetSyncPcEveryInstructionDisabled;
 
         [Import]
-        private FuncUInt32 TlibGetSyncPcEveryInstructionDisabled;
+        private Func<uint> TlibGetSyncPcEveryInstructionDisabled;
 
         [Import]
-        private FuncInt32String TlibInit;
+        private Func<string, int> TlibInit;
 
         [Import]
         private Action TlibDispose;
@@ -1855,181 +1855,181 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action TlibReset;
 
         [Import]
-        private FuncInt32Int32 TlibExecute;
+        private Func<int, int> TlibExecute;
 
         [Import]
-        protected ActionInt32 TlibRequestTranslationBlockInterrupt;
+        protected Action<int> TlibRequestTranslationBlockInterrupt;
 
         [Import]
         protected Action TlibSetReturnRequest;
 
         [Import]
-        private FuncInt32IntPtrInt32 TlibAtomicMemoryStateInit;
+        private Func<IntPtr, int, int> TlibAtomicMemoryStateInit;
 
         [Import]
-        private FuncUInt32 TlibGetPageSize;
+        private Func<uint> TlibGetPageSize;
 
         [Import]
-        private ActionUInt64UInt64 TlibMapRange;
+        private Action<ulong, ulong> TlibMapRange;
 
         [Import]
-        private ActionUInt64UInt64 TlibUnmapRange;
+        private Action<ulong, ulong> TlibUnmapRange;
 
         [Import]
-        private ActionUInt64UInt64UInt32 TlibRegisterAccessFlagsForRange;
+        private Action<ulong, ulong, uint> TlibRegisterAccessFlagsForRange;
 
         [Import]
-        private FuncUInt32UInt64UInt64 TlibIsRangeMapped;
+        private Func<ulong, ulong, uint> TlibIsRangeMapped;
 
         [Import]
-        private ActionIntPtrIntPtr TlibInvalidateTranslationBlocks;
+        private Action<IntPtr, IntPtr> TlibInvalidateTranslationBlocks;
 
         [Import]
-        protected FuncUInt64UInt64UInt32 TlibTranslateToPhysicalAddress;
+        protected Func<ulong, uint, ulong> TlibTranslateToPhysicalAddress;
 
         [Import]
-        private ActionIntPtrInt32 RenodeSetHostBlocks;
+        private Action<IntPtr, int> RenodeSetHostBlocks;
 
         [Import]
         private Action RenodeFreeHostBlocks;
 
         [Import]
-        private ActionInt32Int32 TlibSetIrq;
+        private Action<int, int> TlibSetIrq;
 
         [Import]
-        private FuncUInt32 TlibIsIrqSet;
+        private Func<uint> TlibIsIrqSet;
 
         [Import]
-        private ActionUInt64 TlibAddBreakpoint;
+        private Action<ulong> TlibAddBreakpoint;
 
         [Import]
-        private ActionUInt64 TlibRemoveBreakpoint;
+        private Action<ulong> TlibRemoveBreakpoint;
 
         [Import]
-        private ActionIntPtr RenodeAttachLogTranslationBlockFetch;
+        private Action<IntPtr> RenodeAttachLogTranslationBlockFetch;
 
         [Import]
-        private ActionInt32 TlibSetOnBlockTranslationEnabled;
+        private Action<int> TlibSetOnBlockTranslationEnabled;
 
         [Import]
-        private ActionUInt64UInt64 TlibSetTranslationCacheConfiguration;
+        private Action<ulong, ulong> TlibSetTranslationCacheConfiguration;
 
         [Import]
         private Action TlibInvalidateTranslationCache;
 
         [Import]
-        private FuncUInt32UInt32 TlibSetMaximumBlockSize;
+        private Func<uint, uint> TlibSetMaximumBlockSize;
 
         [Import]
-        private ActionUInt64 TlibFlushPage;
+        private Action<ulong> TlibFlushPage;
 
         [Import]
-        private FuncUInt32 TlibGetMaximumBlockSize;
+        private Func<uint> TlibGetMaximumBlockSize;
 
         [Import]
-        private ActionUInt32 TlibSetMillicyclesPerInstruction;
+        private Action<uint> TlibSetMillicyclesPerInstruction;
 
         [Import]
-        private FuncUInt32 TlibGetMillicyclesPerInstruction;
+        private Func<uint> TlibGetMillicyclesPerInstruction;
 
         [Import]
-        private FuncInt32 TlibRestoreContext;
+        private Func<int> TlibRestoreContext;
 
         [Import]
-        private FuncIntPtr TlibExportState;
+        private Func<IntPtr> TlibExportState;
 
         [Import]
-        private FuncInt32 TlibGetStateSize;
+        private Func<int> TlibGetStateSize;
 
         [Import]
-        protected FuncUInt64 TlibGetExecutedInstructions;
+        protected Func<ulong> TlibGetExecutedInstructions;
 
         [Import]
-        private ActionUInt32 TlibSetBlockFinishedHookPresent;
+        private Action<uint> TlibSetBlockFinishedHookPresent;
 
         [Import]
-        private ActionUInt32 TlibSetBlockBeginHookPresent;
+        private Action<uint> TlibSetBlockBeginHookPresent;
 
         [Import]
-        private ActionUInt32 TlibSetInterruptBeginHookPresent;
+        private Action<uint> TlibSetInterruptBeginHookPresent;
 
         [Import]
-        private ActionUInt32 TlibSetCpuWfiStateChangeHookPresent;
+        private Action<uint> TlibSetCpuWfiStateChangeHookPresent;
 
         [Import]
-        private ActionUInt32 TlibSetInterruptEndHookPresent;
+        private Action<uint> TlibSetInterruptEndHookPresent;
 
         [Import]
-        private FuncUInt64 TlibGetTotalExecutedInstructions;
+        private Func<ulong> TlibGetTotalExecutedInstructions;
 
         [Import]
-        private ActionInt32 TlibOnMemoryAccessEventEnabled;
+        private Action<int> TlibOnMemoryAccessEventEnabled;
 
         [Import]
         private Action TlibCleanWfiProcState;
 
         [Import]
-        private ActionUInt64 TlibSetPageIoAccessed;
+        private Action<ulong> TlibSetPageIoAccessed;
 
         [Import]
-        private ActionUInt64 TlibClearPageIoAccessed;
+        private Action<ulong> TlibClearPageIoAccessed;
 
         [Import]
-        private FuncUInt32 TlibGetCurrentTbDisasFlags;
+        private Func<uint> TlibGetCurrentTbDisasFlags;
 
         [Import(UseExceptionWrapper = false)]
         private Action TlibUnwind;
 
         [Import]
-        private FuncUInt32 TlibGetMmuWindowsCount;
+        private Func<uint> TlibGetMmuWindowsCount;
 
         [Import]
-        private ActionUInt32 TlibRaiseException;
+        private Action<uint> TlibRaiseException;
 
         [Import]
-        private ActionUInt32 TlibEnableExternalWindowMmu;
+        private Action<uint> TlibEnableExternalWindowMmu;
 
         [Import]
-        private FuncInt32UInt32 TlibAcquireMmuWindow;
+        private Func<uint, int> TlibAcquireMmuWindow;
 
         [Import]
-        private ActionUInt32 TlibResetMmuWindow;
+        private Action<uint> TlibResetMmuWindow;
 
         [Import]
-        private ActionUInt32UInt64 TlibSetMmuWindowStart;
+        private Action<uint, ulong> TlibSetMmuWindowStart;
 
         [Import]
-        private ActionUInt32UInt64UInt32 TlibSetMmuWindowEnd;
+        private Action<uint, ulong, uint> TlibSetMmuWindowEnd;
 
         [Import]
-        private ActionUInt32UInt32 TlibSetWindowPrivileges;
+        private Action<uint, uint> TlibSetWindowPrivileges;
 
         [Import]
-        private ActionUInt32UInt64 TlibSetMmuWindowAddend;
+        private Action<uint, ulong> TlibSetMmuWindowAddend;
 
         [Import]
-        private FuncUInt64UInt32 TlibGetMmuWindowStart;
+        private Func<uint, ulong> TlibGetMmuWindowStart;
 
         [Import]
-        private FuncUInt64UInt32 TlibGetMmuWindowEnd;
+        private Func<uint, ulong> TlibGetMmuWindowEnd;
 
         [Import]
-        private FuncUInt32UInt32 TlibGetWindowPrivileges;
+        private Func<uint, uint> TlibGetWindowPrivileges;
 
         [Import]
-        private FuncUInt64UInt32 TlibGetMmuWindowAddend;
+        private Func<uint, ulong> TlibGetMmuWindowAddend;
 
         [Import]
-        private ActionInt32 TlibSetBroadcastDirty;
+        private Action<int> TlibSetBroadcastDirty;
 
         [Import]
         private Action TlibOnLeavingResetState;
 
         [Import]
-        private ActionIntPtr TlibBeforeSave;
+        private Action<IntPtr> TlibBeforeSave;
 
         [Import]
-        private ActionIntPtr TlibAfterLoad;
+        private Action<IntPtr> TlibAfterLoad;
 
 #pragma warning restore 649
 

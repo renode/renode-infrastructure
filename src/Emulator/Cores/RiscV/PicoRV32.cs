@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -284,7 +284,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action TlibEnterWfi;
 
         [Import]
-        private FuncInt32Int32 TlibSetReturnOnException;
+        private Func<int, int> TlibSetReturnOnException;
 
 #pragma warning restore 649
 

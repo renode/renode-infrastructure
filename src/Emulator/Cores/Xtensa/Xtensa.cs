@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -165,10 +165,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
         [Import]
-        private ActionUInt32UInt32 TlibSetIrqPendingBit;
+        private Action<uint, uint> TlibSetIrqPendingBit;
 
         [Import]
-        private ActionUInt32 TlibSetSingleStep;
+        private Action<uint> TlibSetSingleStep;
 #pragma warning restore 649
 
         private enum XtensaSimcallOperation : uint

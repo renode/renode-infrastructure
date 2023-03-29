@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -473,30 +473,30 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 #pragma warning disable 649
         [Import]
-        private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
+        private Func<string, uint, uint> TlibCheckSystemRegisterAccess;
 
         [Import]
-        private FuncUInt32IntPtr TlibCreateSystemRegistersArray;
+        private Func<IntPtr, uint> TlibCreateSystemRegistersArray;
 
         [Import]
-        private FuncUInt32String TlibIsGicOrGenericTimerSystemRegister;
+        private Func<string, uint> TlibIsGicOrGenericTimerSystemRegister;
 
         [Import]
         // The arguments are: char *name, bool log_unhandled_access.
-        private FuncUInt64StringUInt32 TlibGetSystemRegister;
+        private Func<string, uint, ulong> TlibGetSystemRegister;
 
         [Import]
-        private FuncUInt32 TlibHasEl3;
+        private Func<uint> TlibHasEl3;
 
         [Import]
-        private FuncUInt32UInt32UInt32 TlibSetAvailableEls;
+        private Func<uint, uint, uint> TlibSetAvailableEls;
 
         [Import]
-        private ActionUInt32 TlibSetCurrentEl;
+        private Action<uint> TlibSetCurrentEl;
 
         [Import]
         // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
-        private ActionStringUInt64UInt32 TlibSetSystemRegister;
+        private Action<string, ulong, uint> TlibSetSystemRegister;
 #pragma warning restore 649
     }
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using System;
 using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -114,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
 
         [Import]
-        private ActionUInt32UInt32UInt32UInt32 TlibSetCsDescriptor;
+        private Action<uint, uint, uint, uint> TlibSetCsDescriptor;
 
 #pragma warning restore 649
 

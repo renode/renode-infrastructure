@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 #pragma warning disable 649
         [Import]
-        private ActionUInt32 TlibStubSmcCalls;
+        private Action<uint> TlibStubSmcCalls;
 #pragma warning restore 649
     }
 }

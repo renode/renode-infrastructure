@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -179,10 +179,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import]
-        private FuncInt32Int32Int32 TlibSetPendingInterrupt;
+        private Func<int, int, int> TlibSetPendingInterrupt;
 
         [Import]
-        private ActionUInt32 TlibSetLittleEndianMode;
+        private Action<uint> TlibSetLittleEndianMode;
 
         #pragma warning restore 649
 
