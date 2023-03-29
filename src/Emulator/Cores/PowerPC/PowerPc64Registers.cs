@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
-            SetRegisterValue64(r.Index, checked((UInt64)value));
+            SetRegisterValue64(r.Index, checked((ulong)value));
         }
 
         public override RegisterValue GetRegister(int register)
@@ -163,9 +163,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         #pragma warning disable 649
 
         [Import(Name = "tlib_set_register_value_64")]
-        protected ActionInt32UInt64 SetRegisterValue64;
+        protected Action<int, ulong> SetRegisterValue64;
         [Import(Name = "tlib_get_register_value_64")]
-        protected FuncUInt64Int32 GetRegisterValue64;
+        protected Func<int, ulong> GetRegisterValue64;
 
         #pragma warning restore 649
 

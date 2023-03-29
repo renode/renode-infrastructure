@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
-            SetRegisterValue32(r.Index, checked((UInt32)value));
+            SetRegisterValue32(r.Index, checked((uint)value));
         }
 
         public override RegisterValue GetRegister(int register)
