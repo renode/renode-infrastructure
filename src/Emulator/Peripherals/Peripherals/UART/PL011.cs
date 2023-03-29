@@ -150,7 +150,18 @@ namespace Antmicro.Renode.Peripherals.UART
                 ;
 
             Registers.Control.Define(this, 0x300)
-                .WithFlag(0, out uartEnable, name: "UARTEN - UART enable")
+                .WithFlag(0, out uartEnable, name: "UARTEN - UART enable",
+                    changeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            // Documentation states that the Transmit interrupt should be only set upon
+                            // crossing the threshold and enabling/disabling FIFO, but some software
+                            // requires it to be set after enabling UART
+                            interruptRawStatuses[(int)Interrupts.Transmit] = true;
+                            UpdateInterrupts();
+                        }
+                    })
                 .WithTaggedFlag("SIREN - SIR enable", 1)
                 .WithTaggedFlag("SIRLP - IrDA SIR low power mode", 2)
                 // These 4 bits can be written/read by software but there's no logic associated.
@@ -294,12 +305,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            // We assume that transmission works for disabled fifo buffers so uart is constantly ready to transmit character
-            // when tx interrupt is enabled.
-            if(interruptMasks[(int)Interrupts.Transmit]) 
-            {
-                interruptRawStatuses[(int)Interrupts.Transmit] = true;
-            }
             interruptRawStatuses[(int)Interrupts.Receive] = Count >= receiveInterruptTriggerPoint;
             IRQ.Set(MaskedInterruptStatus != 0);
         }
@@ -315,6 +320,8 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 receiveFifoSize = 1;
                 this.Log(LogLevel.Debug, "FIFO buffers disabled.");
+                interruptRawStatuses[(int)Interrupts.Transmit] = true;
+                UpdateInterrupts();
             }
             UpdateReceiveInterruptTriggerPoint();
         }
@@ -341,6 +348,7 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 TransmitCharacter((byte)value);
             }
+            interruptRawStatuses[(int)Interrupts.Transmit] = true;
             UpdateInterrupts();
         }
 
