@@ -192,7 +192,15 @@ namespace Antmicro.Renode.Utilities.Binding
                 try
                 {
                     var address = SharedLibraries.GetSymbolAddress(libraryAddress, cName);
-                    result = Marshal.GetDelegateForFunctionPointer(address, field.FieldType);
+                    // Dynamically create a non-generic delegate type and make one from a function pointer
+                    var invoke = field.FieldType.GetMethod("Invoke");
+                    var delegateType = DelegateTypeFromParamsAndReturn(invoke.GetParameters().Select(p => p.ParameterType), invoke.ReturnType);
+                    var generatedDelegate = Marshal.GetDelegateForFunctionPointer(address, delegateType);
+                    // The method returned by GetDelegateForFunctionPointer is static on Mono, but not .NET
+                    var delegateTarget = generatedDelegate.Method.IsStatic ? null : generatedDelegate;
+                    // "Convert" the delegate from the dynamically-generated non-generic type
+                    // to the field type used in the bound class (which might be generic)
+                    result = Delegate.CreateDelegate(field.FieldType, delegateTarget, generatedDelegate.Method);
                 }
                 catch
                 {
@@ -293,10 +301,9 @@ namespace Antmicro.Renode.Utilities.Binding
                 var candidate  = FilterCppName(originalCandidate);
                 var parts = candidate.Split(new [] { "__" }, StringSplitOptions.RemoveEmptyEntries);
                 var cName = parts[2];
-                var shortName = parts[1];
+                var expectedTypeName = parts[1];
                 var csName = cName.StartsWith('$') ? GetCSharpName(cName.Substring(1)) : cName;
-                classToBind.NoisyLog("(NativeBinder) Binding {0} as {2} of type {1}.", cName, shortName, csName);
-                var delegateType = TypeFromShortTypeName(shortName);
+                classToBind.NoisyLog("(NativeBinder) Binding {0} as {2} of type {1}.", cName, expectedTypeName, csName);
                 // let's find the desired method
                 var desiredMethodInfo = classMethods.FirstOrDefault(x => x.Name == csName);
                 if(desiredMethodInfo == null)
@@ -310,8 +317,15 @@ namespace Antmicro.Renode.Utilities.Binding
                         string.Format("Method {0} is exported as {1} but it is not marked with the Export attribute.",
                                   desiredMethodInfo.Name, cName));
                 }
+                var parameterTypes = desiredMethodInfo.GetParameters().Select(p => p.ParameterType).ToList();
+                var actualTypeName = ShortTypeNameFromParamsAndReturn(parameterTypes, desiredMethodInfo.ReturnType);
+                if(expectedTypeName != actualTypeName)
+                {
+                    throw new InvalidOperationException($"Method {cName} has type {actualTypeName} but the native library expects {expectedTypeName}");
+                }
                 exportedMethods.Add(desiredMethodInfo);
                 // let's make the delegate instance
+                var delegateType = DelegateTypeFromParamsAndReturn(parameterTypes, desiredMethodInfo.ReturnType);
                 Delegate attachee;
                 try
                 {
@@ -330,7 +344,7 @@ namespace Antmicro.Renode.Utilities.Binding
 #endif
                 delegateStore = delegateStore.Union(new [] { attachee }).ToArray();
                 // let's make the attaching function delegate
-                var attacherType = TypeFromShortTypeName(string.Format("Attach{0}", shortName));
+                var attacherType = DelegateTypeFromParamsAndReturn(new [] { delegateType }, typeof(void), $"Attach{delegateType.Name}");
                 var address = SharedLibraries.GetSymbolAddress(libraryAddress, originalCandidate);
                 var attacher = Marshal.GetDelegateForFunctionPointer(address, attacherType);
                 // and invoke it
@@ -344,19 +358,11 @@ namespace Antmicro.Renode.Utilities.Binding
             }
         }
 
-        private static Type TypeFromShortTypeName(string shortName)
+        private static string ShortTypeNameFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType)
         {
-            if(shortName == "Action")
-            {
-                return typeof(Action);
-            }
-            var fullName = string.Format("{0}.{1}", typeof(NativeBinder).Namespace.ToString(), shortName);
-            var result = Type.GetType(fullName);
-            if(result == null)
-            {
-                throw new InvalidOperationException(string.Format("Could not find type {0}.", shortName));
-            }
-            return result;
+            var baseName = returnType == typeof(void) ? "Action" : "Func" + returnType.Name;
+            var paramNames = parameterTypes.Select(p => p.Name);
+            return string.Join("", paramNames.Prepend(baseName));
         }
 
         private static string GetCName(string name)
@@ -404,6 +410,54 @@ namespace Antmicro.Renode.Utilities.Binding
                 return result.Skip(4).ToString();
             }
             return result;
+        }
+
+        // This method and the constants used in it are inspired by MakeNewCustomDelegate from .NET itself.
+        // See https://github.com/dotnet/runtime/blob/8ca896c3f5ef8eb1317439178bf041b5f270f351/src/libraries/System.Linq.Expressions/src/System/Linq/Expressions/Compiler/DelegateHelpers.cs#L110
+        private static Type DelegateTypeFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType, string name = null)
+        {
+            if(name == null)
+            {
+                // The default naming mirrors the generic delegate types, but for functions, the return type comes first
+                // For example, Func<Int32, UInt64> becomes FuncUInt64Int32.
+                name = ShortTypeNameFromParamsAndReturn(parameterTypes, returnType);
+            }
+
+            var delegateTypeName = $"NativeBinder.Delegates.{name}";
+
+            lock(moduleBuilder)
+            {
+                var delegateType = moduleBuilder.GetType(delegateTypeName);
+
+                if(delegateType == null)
+                {
+                    var delegateTypeAttributes = TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Sealed |
+                        TypeAttributes.AnsiClass | TypeAttributes.AutoClass;
+                    var delegateConstructorAttributes = MethodAttributes.RTSpecialName | MethodAttributes.HideBySig |
+                        MethodAttributes.Public;
+                    var delegateInvokeAttributes = MethodAttributes.Public | MethodAttributes.HideBySig |
+                        MethodAttributes.NewSlot | MethodAttributes.Virtual;
+                    var delegateMethodImplAttributes = MethodImplAttributes.Runtime | MethodImplAttributes.Managed;
+
+                    var typeBuilder = moduleBuilder.DefineType(delegateTypeName, delegateTypeAttributes, typeof(MulticastDelegate));
+
+                    var constructor = typeBuilder.DefineConstructor(delegateConstructorAttributes,
+                        CallingConventions.Standard, new [] { typeof(object), typeof(IntPtr) });
+                    constructor.SetImplementationFlags(delegateMethodImplAttributes);
+
+                    var invokeMethod = typeBuilder.DefineMethod("Invoke", delegateInvokeAttributes, returnType, parameterTypes.ToArray());
+                    invokeMethod.SetImplementationFlags(delegateMethodImplAttributes);
+
+                    // Add the [UnmanagedFunctionPointer] attribute with Cdecl specified
+                    var unmanagedFnAttrCtor = typeof(UnmanagedFunctionPointerAttribute).GetConstructor(new [] { typeof(CallingConvention) });
+                    var unmanagedFnAttrBuilder = new CustomAttributeBuilder(unmanagedFnAttrCtor, new object[] { CallingConvention.Cdecl });
+                    typeBuilder.SetCustomAttribute(unmanagedFnAttrBuilder);
+
+                    delegateType = typeBuilder.CreateType();
+                }
+
+                return delegateType;
+            }
         }
 
         private static readonly ModuleBuilder moduleBuilder;
