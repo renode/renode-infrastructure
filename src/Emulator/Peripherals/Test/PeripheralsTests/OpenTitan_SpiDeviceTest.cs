@@ -10,6 +10,7 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Extensions.Mocks;
 using NUnit.Framework;
 using SPI = Antmicro.Renode.Peripherals.SPI.OpenTitan_SpiDevice;
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.PeripheralsTests
 {
