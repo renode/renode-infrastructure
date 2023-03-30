@@ -436,7 +436,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             RxDataPointer = 0x534,
             RxMaxDataCount = 0x538,
             RxTransferredDataAmount = 0x53C,
-            RxListType = 0x550,
+            RxListType = 0x540,
             TxDataPointer = 0x544,
             TxMaxDataCount = 0x548,
             TxTransferredDataAmount = 0x54C,
