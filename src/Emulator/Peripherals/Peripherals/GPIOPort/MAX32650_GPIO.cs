@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -191,9 +191,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             if(value)
                             {
                                 interruptEnabled[i].Value = true;
-                                UpdateInterrupts();
                             }
                         })
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.InterruptEnableClear, new DoubleWordRegister(this)
                     .WithFlags(0, 32,  name: "INT_EN_CLR.gpio_int_en_clr",
@@ -203,9 +203,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             if(value)
                             {
                                 interruptEnabled[i].Value = false;
-                                UpdateInterrupts();
                             }
                         })
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.InterruptStatus, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out interruptStatus, FieldMode.Read, name: "INT_STAT.gpio_int_stat")
@@ -218,9 +218,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             if(value)
                             {
                                 interruptStatus[i].Value = false;
-                                UpdateInterrupts();
                             }
                         })
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.WakeEnable, new DoubleWordRegister(this)
                     .WithTag("WAKE_EN.gpio_wake_en", 0, 32)
