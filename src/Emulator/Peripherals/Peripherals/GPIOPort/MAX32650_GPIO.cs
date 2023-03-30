@@ -17,13 +17,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             IRQ = new GPIO();
+            WakeUpIRQ = new GPIO();
         }
 
         public override void Reset()
         {
             base.Reset();
             registers.Reset();
-            IRQ.Unset();
+            UpdateInterrupts();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -46,6 +47,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size => 0x400;
 
         public GPIO IRQ { get; }
+        public GPIO WakeUpIRQ { get; }
 
         private void UpdatePinOutput(int idx, bool value)
         {
@@ -104,11 +106,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void UpdateInterrupts()
         {
             var pendingInterrupt = false;
+            var pendingWakeUp = false;
             for(var i = 0; i < NumberOfConnections; ++i)
             {
                 pendingInterrupt |= interruptEnabled[i].Value && interruptStatus[i].Value;
+                pendingWakeUp |= wakeupEnabled[i].Value && interruptStatus[i].Value;
             }
             IRQ.Set(pendingInterrupt);
+            WakeUpIRQ.Set(pendingWakeUp);
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -223,13 +228,32 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.WakeEnable, new DoubleWordRegister(this)
-                    .WithTag("WAKE_EN.gpio_wake_en", 0, 32)
+                    .WithFlags(0, 32, out wakeupEnabled, name: "WAKE_EN.gpio_wake_en")
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.WakeEnableSet, new DoubleWordRegister(this)
-                    .WithTag("WAKE_EN_SET.all", 0, 32)
+                    .WithFlags(0, 32, name: "WAKE_EN_SET.all",
+                        valueProviderCallback: (i, _) => wakeupEnabled[i].Value,
+                        writeCallback: (i, _, value) =>
+                        {
+                            if(value)
+                            {
+                                wakeupEnabled[i].Value = true;
+                            }
+                        })
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.WakeEnableClear, new DoubleWordRegister(this)
-                    .WithTag("WAKE_EN_CLR.all", 0, 32)
+                    .WithFlags(0, 32, name: "WAKE_EN_CLR.all",
+                        valueProviderCallback: (i, _) => wakeupEnabled[i].Value,
+                        writeCallback: (i, _, value) =>
+                        {
+                            if(value)
+                            {
+                                wakeupEnabled[i].Value = false;
+                            }
+                        })
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.InterruptDualEdge, new DoubleWordRegister(this)
                     .WithTag("INT_DUAL_EDGE.gpio_int_dual_edge", 0, 32)
@@ -279,6 +303,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private IFlagRegisterField[] pinInputEnabled;
         private IFlagRegisterField[] interruptEnabled;
         private IFlagRegisterField[] interruptStatus;
+        private IFlagRegisterField[] wakeupEnabled;
 
         private IEnumRegisterField<InterruptMode>[] interruptMode;
         private IEnumRegisterField<InterruptPolarity>[] interruptPolarity;
