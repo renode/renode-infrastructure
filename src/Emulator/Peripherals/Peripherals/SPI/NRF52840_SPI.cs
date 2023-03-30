@@ -102,12 +102,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 ;
 
-                Registers.TxDataPointer.Define(this)
+                Registers.TxListType.Define(this)
                     .WithTaggedFlag("LIST - List type", 0)
                     .WithReservedBits(1, 31)
                 ;
 
-                Registers.RxDataPointer.Define(this)
+                Registers.RxListType.Define(this)
                     .WithTaggedFlag("LIST - List type", 0)
                     .WithReservedBits(1, 31)
                 ;
