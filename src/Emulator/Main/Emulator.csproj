@@ -153,6 +153,7 @@
     <Compile Include="Utilities\VideoCapturer.cs" />
     <Compile Include="Core\GPIOAttribute.cs" />
     <Compile Include="Core\Extensions\ReadWriteExtensions.cs" />
+    <Compile Include="Core\Extensions\FileLoaderExtensions.cs" />
     <Compile Include="Peripherals\IHasOwnLife.cs" />
     <Compile Include="Core\Range.cs" />
     <Compile Include="Peripherals\UART\IUART.cs" />
@@ -585,6 +586,7 @@
     <Compile Include="Peripherals\Network\EmulatedNetworkService.cs" />
     <Compile Include="Peripherals\Network\IEmulatedNetworkService.cs" />
     <Compile Include="Peripherals\Network\EchoService.cs" />
+    <Compile Include="Utilities\ICanLoadFiles.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
