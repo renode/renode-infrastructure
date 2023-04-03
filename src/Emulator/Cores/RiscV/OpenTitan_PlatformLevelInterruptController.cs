@@ -19,7 +19,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     public class OpenTitan_PlatformLevelInterruptController : PlatformLevelInterruptControllerBase, IKnownSize
     {
         public OpenTitan_PlatformLevelInterruptController(int numberOfSources = 84, int numberOfContexts = 1)
-            : base(numberOfSources, numberOfContexts, prioritiesEnabled: true, extraInterrupts: (uint)numberOfContexts)
+            // we set numberOfSources + 1, because ID 0 is reserved and represents no interrupt
+            : base(numberOfSources + 1, numberOfContexts, prioritiesEnabled: true, extraInterrupts: (uint)numberOfContexts)
         {
             // OpenTitan PLIC implementation contains an additional register per hart.
             // Each of these memory mapped registers is intended to be connected to the MSIP bits
@@ -27,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // This allows interprocessor interrupts between harts.
 
             // OpenTitan PLIC implementation source is limited
-            if(numberOfSources > MaxNumberOfSources)
+            if(numberOfSources + 1 > MaxNumberOfSources)
             {
                 throw new ConstructionException($"Current {this.GetType().Name} implementation does not support more than {MaxNumberOfSources} sources");
             }
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             var registersMap = new Dictionary<long, DoubleWordRegister>();
 
-            var interruptPendingRegisterCount = (int)Math.Ceiling(numberOfSources / 32.0);
+            var interruptPendingRegisterCount = (int)Math.Ceiling((numberOfSources + 1) / 32.0);
             for(var i = 0; i < interruptPendingRegisterCount; i++)
             {
                 var interruptPendingOffset = (long)Registers.InterruptPending0 + i * 4;
@@ -54,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         }));
             }
 
-            for(uint i = 0; i < numberOfSources; i++)
+            for(uint i = 0; i <= numberOfSources; i++)
             {
                 var j = i;
                 var sourcePriorityOffset = (uint)Registers.InterruptPriority0 + (4u * i);
@@ -70,14 +71,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                      .WithReservedBits(3, 29));
             }
 
-            var contextMachineEnableCount = (int)Math.Ceiling(numberOfSources / 32.0);
-            this.Log(LogLevel.Noisy, $"ContextMachineEnableCount 0x{contextMachineEnableCount:X}");
-
             for(uint i = 0; i < numberOfContexts; i++)
             {
                 var contextMachineEnablesOffset = (long)Registers.InterruptEnable0 + (i * ContextRegistersOffset);
                 this.Log(LogLevel.Noisy, $"ContextMachineEnablesOffset for Context{i} 0x{contextMachineEnablesOffset:X}");
-                AddContextEnablesRegister(registersMap, contextMachineEnablesOffset, i, numberOfSources - 1);
+                AddContextEnablesRegister(registersMap, contextMachineEnablesOffset, i, numberOfSources);
 
                 var contextPriorityThresholdOffset = (uint) Registers.Target0Threshold + (i * GeneralContextRegistersOffset);
                 AddContextPriorityThresholdRegister(registersMap, contextPriorityThresholdOffset, i);
@@ -93,6 +91,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public long Size => 0x8000000;
+
+        protected override bool IsIrqSourceAvailable(int number)
+        {
+            // source with ID 0 is reserved and represents no interrupt
+            return number != 0 && base.IsIrqSourceAvailable(number);
+        }
 
         protected void AddContextPriorityThresholdRegister(Dictionary<long, DoubleWordRegister> registersMap, long offset, uint hartId)
         {
