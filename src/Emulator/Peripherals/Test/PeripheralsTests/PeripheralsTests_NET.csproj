@@ -3,7 +3,9 @@
     <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
     <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
     <AssemblyName>PeripheralsTests</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\..\..\output\properties.csproj</PropertiesLocation>
   </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
   <ItemGroup>
     <PackageReference Include="Moq" Version="4.18.1" />
     <PackageReference Include="NUnit" Version="3.13.1" />

@@ -3,7 +3,9 @@
     <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
     <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
     <AssemblyName>UnitTests</AssemblyName>
+    <PropertiesLocation>..\..\..\..\..\..\..\output\properties.csproj</PropertiesLocation>
   </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
   <ItemGroup>
     <!-- Do not compile. It is included as an embedded resource to test AdHocCompiler. -->
     <Compile Remove="Mocks\MockExtension.cs" />
