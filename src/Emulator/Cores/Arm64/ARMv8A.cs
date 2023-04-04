@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Utilities.Binding;
 
 using Endianess = ELFSharp.ELF.Endianess;
@@ -19,9 +20,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class ARMv8A : TranslationCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
-        public ARMv8A(Machine machine, string cpuType, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
+        public ARMv8A(Machine machine, string cpuType, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
+            gic = genericInterruptController;
             Reset();
         }
 
@@ -122,6 +124,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        protected ulong ReadSystemRegisterInterruptCPUInterface(uint offset)
+        {
+            return gic.ReadSystemRegisterCPUInterface(offset);
+        }
+
+        [Export]
+        protected void WriteSystemRegisterInterruptCPUInterface(uint offset, ulong value)
+        {
+            gic.WriteSystemRegisterCPUInterface(offset, value);
+        }
+
+        [Export]
         protected ulong ReadSystemRegisterGenericTimer(uint offset)
         {
             if(timer == null)
@@ -164,6 +178,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private ARM_GenericInterruptController gic;
         private ARM_GenericTimer timer;
 
         // These '*ReturnValue' enums have to be in sync with their counterparts in 'tlib/arch/arm64/arch_exports.c'.
