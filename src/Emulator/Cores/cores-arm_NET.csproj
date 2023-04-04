@@ -21,6 +21,7 @@
   </Target>
   <Import Project="./cores.template_NET.csproj" />
   <ItemGroup>
+    <Compile Include="Arm\ARMCommon.cs" />
     <Compile Include="Arm\Arm.cs" />
     <Compile Include="Arm\ArmRegisters.cs">
       <DependentUpon>ArmRegisters.tt</DependentUpon>
