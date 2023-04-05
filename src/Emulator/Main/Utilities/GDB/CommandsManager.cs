@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -115,14 +115,16 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             // GDB gets one feature description file and uses it for all threads.
             // This method gathers features from all cores and unifies them.
-            if(ManagedCpus.Count == 1)
-            {
-                return Cpu.GDBFeatures;
-            }
 
             // if unifiedFeatures contains any feature, it means that features were compiled and cached
             if(unifiedFeatures.Any())
             {
+                return unifiedFeatures;
+            }
+
+            if(ManagedCpus.Count == 1)
+            {
+                unifiedFeatures.AddRange(Cpu.GDBFeatures);
                 return unifiedFeatures;
             }
 
