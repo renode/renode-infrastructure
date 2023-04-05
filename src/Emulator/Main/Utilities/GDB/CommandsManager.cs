@@ -149,6 +149,25 @@ namespace Antmicro.Renode.Utilities.GDB
             return unifiedFeatures;
         }
 
+        public GDBRegisterDescriptor[] GetCompiledRegisters(int registerNumber)
+        {
+            // The GDB backend relies a lot on getting a filtered list of
+            // registers. Extracting them from all features every time is
+            // costly, so this function caches the already filtered lists for
+            // faster retrieval.
+
+            if(unifiedRegisters.TryGetValue(registerNumber, out var registers))
+            {
+                return registers;
+            }
+
+            registers = GetCompiledFeatures().SelectMany(f => f.Registers)
+                .Where(r => r.Number == registerNumber).ToArray();
+            unifiedRegisters.Add(registerNumber, registers);
+
+            return registers;
+        }
+
         public Machine Machine { get; private set; }
         public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
         public bool ShouldAutoStart { get; set; }
@@ -260,6 +279,7 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<Command> activeCommands;
         private readonly List<GDBFeatureDescriptor> unifiedFeatures = new List<GDBFeatureDescriptor>();
+        private readonly Dictionary<int, GDBRegisterDescriptor[]> unifiedRegisters = new Dictionary<int, GDBRegisterDescriptor[]>();
 
         private readonly Dictionary<string,Command> commandsCache;
         private uint selectedCpuNumber;

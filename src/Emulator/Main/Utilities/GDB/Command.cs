@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -151,8 +151,7 @@ namespace Antmicro.Renode.Utilities.GDB
             // register may have been reported with bigger Width, fill with zeros up to reported size
             var isLittleEndian = manager.Cpu.Endianness == Endianess.LittleEndian;
             var width = (end - start) * 4;
-            var reportedRegisters = manager.GetCompiledFeatures().SelectMany(f => f.Registers)
-                .Where(r => r.Number == register);
+            var reportedRegisters = manager.GetCompiledRegisters(register);
             if(reportedRegisters.Any() && reportedRegisters.First().Size > width)
             {
                 data.Insert(isLittleEndian ? end : start, "00", ((int)reportedRegisters.First().Size - width) / 8);
