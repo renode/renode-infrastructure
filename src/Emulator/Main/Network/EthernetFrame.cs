@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,13 +19,35 @@ namespace Antmicro.Renode.Network
     {
         public static bool TryCreateEthernetFrame(byte[] data, bool addCrc, out EthernetFrame frame)
         {
+            return TryCreateEthernetFrame(data, addCrc ? CRCMode.Add : CRCMode.NoOperation, out frame);
+        }
+
+        public static bool TryCreateEthernetFrame(byte[] data, CRCMode crcMode, out EthernetFrame frame)
+        {
             frame = null;
-            if(data.Length >= MinFrameSizeWithoutCRC + (addCrc ? 0 : CRCLength))
+            switch(crcMode)
             {
-                frame = addCrc ? new EthernetFrame(data, ComputeCRC(data).ToArray()) : new EthernetFrame(data);
-                return true;
+                case CRCMode.NoOperation:
+                    if(data.Length >= MinFrameSizeWithoutCRC)
+                    {
+                        frame = new EthernetFrame(data);
+                        return true;
+                    }
+                    return false;
+                case CRCMode.Add:
+                case CRCMode.Replace:
+                case CRCMode.Keep:
+                    if(data.Length >= MinFrameSizeWithoutCRC + CRCLength)
+                    {
+                        var noCrcData = crcMode == CRCMode.Add ? data : data.Take(data.Length - CRCLength).ToArray();
+                        var crc = (crcMode == CRCMode.Keep ? data.Skip(data.Length - CRCLength) : ComputeCRC(noCrcData)).ToArray();
+                        frame = new EthernetFrame(noCrcData, crc);
+                        return true;
+                    }
+                    return false;
+                default:
+                    throw new ArgumentException("Illegal value", "crcMode");
             }
-            return false;
         }
 
         public static bool CheckCRC(byte[] data)
