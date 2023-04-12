@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -152,11 +153,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public override void OnGPIO(int number, bool value)
         {
-            lock(locker)
-            {
-                base.OnGPIO(number, value);
-                SetPinValue(number, value);
-            }
+            SetPinValue(number, value);
         }
 
         public override void Reset()
@@ -170,6 +167,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public long Size => 0x1000;
 
+        /* UpdateIterrupts() sets the value of Connections[i]. */
         private void UpdateInterrupts()
         {
             lock(locker)
@@ -199,22 +197,31 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 if((pins[i].pinOperation & Operation.Write) == 0)
                 {
+                    this.Log(LogLevel.Warning, "Trying to write a pin that isn't configured for writing. Skipping.");
                     return;
                 }
 
+                var interruptsEnabled = fallInterruptEnable[i].Value || riseInterruptEnable[i].Value || highInterruptEnable[i].Value || lowInterruptEnable[i].Value;
                 var prevState = State[i];
-                State[i] = value;
-
-                if(!prevState && value)
+                base.OnGPIO(i, value);
+                if(interruptsEnabled)
                 {
-                    riseInterruptPending[i].Value = true;
+                    /* We're handling these 2 interrupts here because we need to know previous pin's state.
+                       The other two are handled in UpdateInterrupts() */
+                    if(!prevState && value)
+                    {
+                        riseInterruptPending[i].Value = true;
+                    }
+                    else if(prevState && !value)
+                    {
+                        fallInterruptPending[i].Value = true;
+                    }
+                    UpdateInterrupts();
                 }
-                else if(prevState && !value)
+                else
                 {
-                    fallInterruptPending[i].Value = true;
+                    Connections[i].Set(value);
                 }
-
-                UpdateInterrupts();
             }
         }
 
