@@ -19,8 +19,8 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public OpenTitan_Timer(Machine machine, long frequency = 24000000) : base(machine)
         {
-            IRQ = new GPIO();            
-            FatalAlert = new GPIO();            
+            IRQ = new GPIO();
+            FatalAlert = new GPIO();
             underlyingTimer = new ComparingTimer(machine.ClockSource, frequency, this, "timer", workMode: Time.WorkMode.Periodic, eventEnabled: true);
 
             underlyingTimer.CompareReached += UpdateInterrupts;
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public long Size => 0x120;
-        
+
         public ulong TimerValue => underlyingTimer.Value;
 
         public GPIO IRQ { get; }
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.AlertTest.Define(this, 0x0)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
                 .WithReservedBits(1, 31);
-                
+
             Registers.Control0.Define(this)
                 .WithFlag(0, name: "CONTROL0", writeCallback: (_, val) =>
                 {
@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         UpdateInterrupts();
                     })
             ;
-                
+
             Registers.CompareHighHart0.Define(this, 0xFFFFFFFF)
                  .WithValueField(0, 32, name: "COMPAREHI",
                     valueProviderCallback: _ => (uint)(underlyingTimer.Compare >> 32),
@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         UpdateInterrupts();
                     })
             ;
-            
+
             Registers.ConfigurationHart0.Define(this, 0x10000)
                 .WithValueField(0, 12, out prescaler, name: "PRESCALE")
                 .WithValueField(16, 8, out step, name: "STEP")
@@ -141,15 +141,15 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void UpdateInterrupts()
         {
             IRQ.Set(
-                underlyingTimer.Enabled 
-                && interruptEnabled.Value 
+                underlyingTimer.Enabled
+                && interruptEnabled.Value
                 && (underlyingTimer.Value >= underlyingTimer.Compare));
         }
 
         private IFlagRegisterField interruptEnabled;
         private IValueRegisterField prescaler;
         private IValueRegisterField step;
-        
+
         private readonly ComparingTimer underlyingTimer;
 
         private enum Registers
