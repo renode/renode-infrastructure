@@ -156,14 +156,14 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             AlertTest = 0x0,
             Control0 = 0x4,
-            ConfigurationHart0 = 0x100,
-            ValueLowHart0 = 0x104,
-            ValueHighHart0 = 0x108,
-            CompareLowHart0 = 0x10c,
-            CompareHighHart0 = 0x110,
-            InterruptEnableHart0 = 0x114,
-            InterruptStatusHart0 = 0x118,
-            InterruptTestHart0 = 0x11c
+            InterruptEnableHart0 = 0x100,
+            InterruptStatusHart0 = 0x104,
+            InterruptTestHart0 = 0x108,
+            ConfigurationHart0 = 0x10c,
+            ValueLowHart0 = 0x110,
+            ValueHighHart0 = 0x114,
+            CompareLowHart0 = 0x118,
+            CompareHighHart0 = 0x11c,
         }
     }
 }
