@@ -692,6 +692,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 owner.Log(LogLevel.Debug, "Resetting FIFO");
 
+                queue.Clear();
                 accelerationSample = null;
                 angularRateSample = null;
                 mode = FifoModes.Bypass;
