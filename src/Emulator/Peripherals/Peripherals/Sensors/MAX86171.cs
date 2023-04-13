@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             registers.Reset();
             chosenRegister = null;
             state = null;
-            circularFifo.Clear();
+            circularFifo.Reset();
             previousFifoTresholdReached = false;
             staleConfiguration = true;
 
@@ -511,9 +511,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     .WithFlag(0, name: "SYSTEM_CONF1.reset",
                         valueProviderCallback: _ => false,
                         writeCallback: (_, value) => { if(value) Reset(); })
+                    .WithFlag(1, name: "SYSTEM_CONF1.shdn",
+                        // While completely disabling clocks used for feeding samples to FIFO
+                        // would be more in line with what actual software is doing, disabling writes
+                        // to FIFO is easier to implement while also being agnostic to samples source
+                        valueProviderCallback: _ => !circularFifo.Enabled,
+                        writeCallback: (_, value) => circularFifo.Enabled = !value)
                     // Using Flag instead of TaggedFlag for persistancy of data
                     // written by software
-                    .WithFlag(1, name: "SYSTEM_CONF1.shdn")
                     .WithFlag(2, name: "SYSTEM_CONF1.ppg1_pwrdn")
                     .WithFlag(3, name: "SYSTEM_CONF1.ppg2_pwrdn")
                     .WithValueField(4, 2, name: "SYSTEM_CONF1.sync_mode")
@@ -943,6 +948,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 samples = new Queue<AFESample>();
                 this.parent = parent;
+                Reset();
             }
 
             public void EnqueueFrame(AFESampleFrame frame)
@@ -978,6 +984,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public void EnqueueSample(AFESample sample)
             {
+                if(!Enabled)
+                {
+                    return;
+                }
+
                 if(samples.Count == MaximumFIFOCount)
                 {
                     parent.Log(LogLevel.Warning, "Sample FIFO overrun");
@@ -1017,6 +1028,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 samples.Clear();
             }
 
+            public void Reset()
+            {
+                Enabled = true;
+                Rollover = false;
+                Clear();
+            }
+
             private Channel? SampleSourceToChannel(SampleSource ss)
             {
                 switch(ss)
@@ -1044,6 +1062,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 }
             }
 
+            public bool Enabled { get; set; }
             public bool Rollover { get; set; }
             public uint Count => (uint)samples.Count;
 
