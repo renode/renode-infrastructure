@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.UART;
@@ -23,9 +24,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public AtCommandModem(Machine machine)
         {
             this.machine = machine;
-            commandMethods = GetCommandMethods();
-            argumentParsers = GetArgumentParsers();
-
+            Init();
             Reset();
         }
 
@@ -330,13 +329,24 @@ namespace Antmicro.Renode.Peripherals.Network
             return commandMethods;
         }
 
+        [PostDeserialization]
+        private void Init()
+        {
+            commandMethods = GetCommandMethods();
+            argumentParsers = GetArgumentParsers();
+            defaultTestCommandMethodInfo = typeof(AtCommandModem).GetMethod(nameof(DefaultTestCommand), BindingFlags.Instance | BindingFlags.NonPublic);
+        }
+
         private bool echoEnabled;
         private StringBuilder lineBuffer;
 
-        private readonly Dictionary<string, Dictionary<CommandType, MethodInfo>> commandMethods;
-        private readonly Dictionary<Type, Func<string, object>> argumentParsers;
-        private readonly MethodInfo defaultTestCommandMethodInfo = typeof(AtCommandModem)
-            .GetMethod(nameof(DefaultTestCommand), BindingFlags.Instance | BindingFlags.NonPublic);
+        [Transient]
+        private Dictionary<string, Dictionary<CommandType, MethodInfo>> commandMethods;
+        [Transient]
+        private Dictionary<Type, Func<string, object>> argumentParsers;
+        [Transient]
+        private MethodInfo defaultTestCommandMethodInfo;
+
         private readonly object uartWriteLock = new object();
 
         [AttributeUsage(AttributeTargets.Method)]
