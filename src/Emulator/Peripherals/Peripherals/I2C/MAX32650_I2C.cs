@@ -350,10 +350,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                                 state = States.Ready;
                                 HandleTransaction();
                             }
-                            else
-                            {
-                                this.Log(LogLevel.Warning, "Tried to START new transaction before the previous one has finished - ignoring the operation");
-                            }
                         })
                     .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "MSTR_MODE.restart",
                         writeCallback: (_, value) =>
