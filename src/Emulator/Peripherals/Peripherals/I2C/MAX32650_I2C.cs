@@ -221,6 +221,21 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             var registerMap = new Dictionary<long, DoubleWordRegister>()
             {
+                {(long)Registers.Status, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Read, name: "STAT.busy",
+                        valueProviderCallback: _ => state != States.Idle)
+                    .WithFlag(1, FieldMode.Read, name: "STAT.rxe",
+                        valueProviderCallback: _ => rxQueue.Count == 0)
+                    .WithFlag(2, FieldMode.Read, name: "STAT.rxf",
+                        valueProviderCallback: _ => false)
+                    .WithFlag(3, FieldMode.Read, name: "STAT.txe",
+                        valueProviderCallback: _ => true)
+                    .WithFlag(4, FieldMode.Read, name: "STAT.txf",
+                        valueProviderCallback: _ => false)
+                    .WithFlag(5, FieldMode.Read, name: "STAT.chmd",
+                        valueProviderCallback: _ => state != States.Idle)
+                    .WithReservedBits(6, 26)
+                },
                 {(long)Registers.Control0, new DoubleWordRegister(this)
                     .WithFlag(0, name: "CTRL0.i2cen",
                         changeCallback: (_, value) =>
