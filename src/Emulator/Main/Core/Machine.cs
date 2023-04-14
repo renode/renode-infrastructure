@@ -495,7 +495,7 @@ namespace Antmicro.Renode.Core
             Action softwareRequestedReset = null;
             softwareRequestedReset = () =>
             {
-                LocalTimeSource.SinksReportedkHook -= softwareRequestedReset;
+                LocalTimeSource.SinksReportedHook -= softwareRequestedReset;
                 using(ObtainPausedState())
                 {
                     foreach(var peripheral in registeredPeripherals.Distinct().Where(p => p != this && !(unresetable?.Contains(p) ?? false)))
@@ -505,7 +505,7 @@ namespace Antmicro.Renode.Core
                 }
                 postReset?.Invoke();
             };
-            LocalTimeSource.SinksReportedkHook += softwareRequestedReset;
+            LocalTimeSource.SinksReportedHook += softwareRequestedReset;
         }
 
         public void RequestReset()

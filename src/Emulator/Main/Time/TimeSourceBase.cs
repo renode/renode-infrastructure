@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Time
             StopRequested      = null;
             SyncHook           = null;
             TimePassed         = null;
-            SinksReportedkHook = null;
+            SinksReportedHook  = null;
             using(sync.HighPriority)
             {
                 handles.LatchAllAndCollectGarbage();
@@ -355,7 +355,7 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// An event called when no sink is in progress.
         /// </summary>
-        public event Action SinksReportedkHook;
+        public event Action SinksReportedHook;
 
         /// <summary>
         /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
@@ -445,7 +445,7 @@ namespace Antmicro.Renode.Time
                 handles.UnlatchAll();
             }
 
-            SinksReportedkHook?.Invoke();
+            SinksReportedHook?.Invoke();
             if(!isBlocked)
             {
                 ExecuteSyncPhase();
