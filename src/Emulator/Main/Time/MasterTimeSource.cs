@@ -132,8 +132,14 @@ namespace Antmicro.Renode.Time
             lock(locker)
             {
                 base.Stop();
-                this.Trace("Waiting for dispatcher thread");
-                dispatcherThread?.Join();
+                // If we're on the dispatcher thread, we are currently in the process of stopping
+                // initiated by the dispatcher itself, for example as part of a hook callback.
+                // In this case we can't join our own thread.
+                if(dispatcherThread != null && dispatcherThread.ManagedThreadId != Thread.CurrentThread.ManagedThreadId)
+                {
+                    this.Trace("Waiting for dispatcher thread");
+                    dispatcherThread.Join();
+                }
                 dispatcherThread = null;
                 this.Trace("Stopped");
             }
