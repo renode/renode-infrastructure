@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
                 }
 
-                if(type == typeof(uint))
+                if(type == typeof(int) || type == typeof(uint))
                 {
                     var v = (uint)intermediate;
 
@@ -162,7 +162,14 @@ namespace Antmicro.Renode.Utilities.Packets
                         v = BitHelper.ReverseBytes(v);
                     }
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 32);
-                    field.SetValue(innerResult, v);
+                    if(type == typeof(int))
+                    {
+                        field.SetValue(innerResult, (int)v);
+                    }
+                    else
+                    {
+                        field.SetValue(innerResult, v);
+                    }
                 }
                 else if(type == typeof(short) || type == typeof(ushort))
                 {
@@ -182,13 +189,20 @@ namespace Antmicro.Renode.Utilities.Packets
                         field.SetValue(innerResult, v);
                     }
                 }
-                else if(type == typeof(byte))
+                else if(type == typeof(byte) || type == typeof(sbyte))
                 {
                     var v = (byte)intermediate;
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 8);
-                    field.SetValue(innerResult, v);
+                    if(type == typeof(sbyte))
+                    {
+                        field.SetValue(innerResult, (sbyte)v);
+                    }
+                    else
+                    {
+                        field.SetValue(innerResult, v);
+                    }
                 }
-                else if(type == typeof(ulong))
+                else if(type == typeof(long) || type == typeof(ulong))
                 {
                     var v = intermediate;
                     if(!field.IsLSBFirst)
@@ -196,7 +210,14 @@ namespace Antmicro.Renode.Utilities.Packets
                         v = BitHelper.ReverseBytes(v);
                     }
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 64);
-                    field.SetValue(innerResult, v);
+                    if(type == typeof(long))
+                    {
+                        field.SetValue(innerResult, (long)v);
+                    }
+                    else
+                    {
+                        field.SetValue(innerResult, v);
+                    }
                 }
                 else if(type == typeof(bool))
                 {
@@ -308,10 +329,20 @@ namespace Antmicro.Renode.Utilities.Packets
                 var intermediate = 0UL;
                 var bitWidth = field.BitWidth ?? 0;
 
-                if(type == typeof(uint))
+                if(type == typeof(int))
+                {
+                    var v = (int)field.GetValue(packet);
+                    intermediate = field.IsLSBFirst ? (uint)v : BitHelper.ReverseBytes((uint)v);
+                }
+                else if(type == typeof(uint))
                 {
                     var v = (uint)field.GetValue(packet);
                     intermediate = field.IsLSBFirst ? v : BitHelper.ReverseBytes(v);
+                }
+                else if(type == typeof(short))
+                {
+                    var v = (short)field.GetValue(packet);
+                    intermediate = field.IsLSBFirst ? (ushort)v : BitHelper.ReverseBytes((ushort)v);
                 }
                 else if(type == typeof(ushort))
                 {
@@ -321,6 +352,15 @@ namespace Antmicro.Renode.Utilities.Packets
                 else if(type == typeof(byte))
                 {
                     intermediate = (byte)field.GetValue(packet);
+                }
+                else if(type == typeof(sbyte))
+                {
+                    intermediate = (ulong)(sbyte)field.GetValue(packet);
+                }
+                else if(type == typeof(long))
+                {
+                    var v = (long)field.GetValue(packet);
+                    intermediate = field.IsLSBFirst ? (ulong)v : BitHelper.ReverseBytes((ulong)v);
                 }
                 else if(type == typeof(ulong))
                 {
@@ -438,19 +478,19 @@ namespace Antmicro.Renode.Utilities.Packets
                         type = type.GetEnumUnderlyingType();
                     }
 
-                    if(type == typeof(byte) || type == typeof(bool))
+                    if(type == typeof(byte) || type == typeof(bool) || type == typeof(sbyte))
                     {
                         return 1;
                     }
-                    if(type == typeof(ushort))
+                    if(type == typeof(ushort) || type == typeof(short))
                     {
                         return 2;
                     }
-                    if(type == typeof(uint))
+                    if(type == typeof(uint) || type == typeof(int))
                     {
                         return 4;
                     }
-                    if(type == typeof(ulong))
+                    if(type == typeof(ulong) || type == typeof(long))
                     {
                         return 8;
                     }
@@ -479,19 +519,19 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
 
                     int inBytes;
-                    if(type == typeof(byte))
+                    if(type == typeof(byte) || type == typeof(sbyte))
                     {
                         inBytes = sizeof(byte);
                     }
-                    else if(type == typeof(ushort))
+                    else if(type == typeof(ushort) || type == typeof(short))
                     {
                         inBytes = sizeof(ushort);
                     }
-                    else if(type == typeof(uint))
+                    else if(type == typeof(uint) || type == typeof(int))
                     {
                         inBytes = sizeof(uint);
                     }
-                    else if(type == typeof(ulong))
+                    else if(type == typeof(ulong) || type == typeof(long))
                     {
                         inBytes = sizeof(ulong);
                     }
