@@ -13,7 +13,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public class ARMv7A : Arm, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
+    public class ARMv7A : Arm, IARMSingleSecurityStateCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
         public ARMv7A(Machine machine, string cpuType, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
             : base(cpuType, machine, cpuId, endianness) { }
@@ -33,6 +33,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             genericTimer = null;
             machine.UnregisterAsAChildOf(this, peripheral);
         }
+
+        public byte Affinity0 => (byte)Id;
+        public SecurityState SecurityState => SecurityState.Secure;
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
         {
