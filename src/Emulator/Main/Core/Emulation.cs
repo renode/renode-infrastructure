@@ -262,9 +262,9 @@ namespace Antmicro.Renode.Core
         {
             lock(machLock)
             {
-                IsStarted = true;
                 InnerStartAll();
                 MasterTimeSource.Start();
+                IsStarted = true;
             }
 
             System.Threading.Thread.Sleep(100);
