@@ -1123,11 +1123,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 else if(type == GroupTypeRegister.Group1)
                 {
-                    if(SecurityState == ARM_SecurityState.NonSecure)
+                    if(SecurityState == SecurityState.NonSecure)
                     {
                         return GroupType.Group1NonSecure;
                     }
-                    else if(SecurityState == ARM_SecurityState.Secure)
+                    else if(SecurityState == SecurityState.Secure)
                     {
                         return GroupType.Group1Secure;
                     }
@@ -1147,7 +1147,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public InterruptPriority PriorityMask { get; set; }
             public GPIO IRQ { get; } = new GPIO();
 
-            public ARM_SecurityState SecurityState => ARM_SecurityState.Secure;
+            public SecurityState SecurityState => SecurityState.Secure;
 
             private readonly IEmulationElement parent;
         }
