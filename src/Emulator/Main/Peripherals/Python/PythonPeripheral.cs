@@ -1,21 +1,17 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.IO;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
-using IronPython.Runtime;
-using Microsoft.Scripting;
 
 namespace Antmicro.Renode.Peripherals.Python
 {
