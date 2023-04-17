@@ -17,6 +17,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities.Collections;
+using System.Threading;
 
 namespace Antmicro.Renode.Core
 {
@@ -306,6 +307,32 @@ namespace Antmicro.Renode.Core
         public IDisposable ObtainPausedState()
         {
             return new PausedState(this);
+        }
+
+        public AutoResetEvent GetStartedStateChangedEvent(bool requiredStartedState, bool waitForTransition = true)
+        {
+            var evt = new AutoResetEvent(false);
+            lock(machLock)
+            {
+                if(IsStarted == requiredStartedState && !waitForTransition)
+                {
+                    evt.Set();
+                    return evt;
+                }
+
+                Action<Emulation, bool> startedChanged = null;
+                startedChanged = (e, started) =>
+                {
+                    if(started == requiredStartedState)
+                    {
+                        e.IsStartedChanged -= startedChanged;
+                        evt.Set();
+                    }
+                };
+
+                IsStartedChanged += startedChanged;
+                return evt;
+            }
         }
 
         public ILogger CurrentLogger { get; private set; }
