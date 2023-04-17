@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Python
     }
 
     [Icon("python")]
-    public class PythonPeripheral : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IAbsoluteAddressAware
+    public class PythonPeripheral : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IKnownSize, IAbsoluteAddressAware
     {
         public PythonPeripheral(int size, bool initable = false, string script = null, string filename = null)
         {
@@ -88,12 +88,25 @@ namespace Antmicro.Renode.Peripherals.Python
         {
             pythonRunner.Request.length = 4;
             HandleRead(offset);
-            return unchecked(pythonRunner.Request.value);
+            return unchecked((uint)pythonRunner.Request.value);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
             pythonRunner.Request.length = 4;
+            HandleWrite(offset, value);
+        }
+
+        public ulong ReadQuadWord(long offset)
+        {
+            pythonRunner.Request.length = 8;
+            HandleRead(offset);
+            return unchecked(pythonRunner.Request.value);
+        }
+
+        public void WriteQuadWord(long offset, ulong value)
+        {
+            pythonRunner.Request.length = 8;
             HandleWrite(offset, value);
         }
 
@@ -110,13 +123,13 @@ namespace Antmicro.Renode.Peripherals.Python
             HandleWrite(offset, value);
         }
 
-        public void ControlWrite(long command, uint value)
+        public void ControlWrite(long command, ulong value)
         {
             // ignoring the return value
             ControlRead(command, value);
         }
 
-        public uint ControlRead(long command, uint value)
+        public ulong ControlRead(long command, ulong value)
         {
             EnsureInit();
 
@@ -124,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.Python
             pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.USER;
             pythonRunner.Request.offset = command;
             pythonRunner.Request.value = value;
-            pythonRunner.Request.length = 4;
+            pythonRunner.Request.length = 8;
             Execute();
             return unchecked(pythonRunner.Request.value);
         }
@@ -182,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Python
             Execute();
         }
 
-        private void HandleWrite(long offset, uint value)
+        private void HandleWrite(long offset, ulong value)
         {
             EnsureInit();
 

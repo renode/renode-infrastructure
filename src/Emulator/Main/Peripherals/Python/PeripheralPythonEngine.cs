@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Python
         // naming convention here is pythonic
         public class PythonRequest
         {
-            public uint value { get; set; }
+            public ulong value { get; set; }
             public byte length { get; set; }
             public RequestType type { get; set; }
             public long offset { get; set; }
