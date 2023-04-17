@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Testing
         public TimeInterval GlobalTimeout { get; set; }
         public TimeSpan WriteCharDelay { get; set; }
 
-        private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> matchResult, TimeInterval timeout)
+        private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> resultMatcher, TimeInterval timeout)
         {
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)timeout.TotalMilliseconds);
             var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Testing
                 TerminalTesterResult result;
                 lock(lines)
                 {
-                    result = matchResult.Invoke();
+                    result = resultMatcher.Invoke();
                 }
 #if DEBUG_EVENTS
                 this.Log(LogLevel.Noisy, "Matching result: {0}", result);
