@@ -108,7 +108,16 @@ namespace Antmicro.Renode.Core
         public bool IsStarted
         {
             get { return isStarted; }
-            private set { isStarted = value; }
+            private set
+            {
+                if(isStarted == value)
+                {
+                    return;
+                }
+
+                isStarted = value;
+                IsStartedChanged?.Invoke(this, value);
+            }
         }
 
         [Transient]
@@ -608,6 +617,9 @@ namespace Antmicro.Renode.Core
         public event Action<Machine> MachineAdded;
         [field: Transient]
         public event Action<Machine> MachineRemoved;
+
+        [field: Transient]
+        public event Action<Emulation, bool> IsStartedChanged;
 
         [Constructor]
         private CachingFileFetcher fileFetcher;
