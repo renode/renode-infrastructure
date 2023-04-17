@@ -33,22 +33,40 @@ namespace Antmicro.Renode.Testing
             this.defaultTimeout = defaultTimeout;
         }
 
-        public LEDTester AssertState(bool state, float? timeout = null)
+        public LEDTester AssertState(bool state, float? timeout = null, bool pauseEmulation = false)
         {
             timeout = timeout ?? defaultTimeout;
 
+            var emulation = EmulationManager.Instance.CurrentEmulation;
             var timeoutEvent = GetTimeoutEvent((ulong)(timeout * 1000));
+            AutoResetEvent emulationPausedEvent = null;
 
             var ev = new ManualResetEvent(false);
-            var method = (Action<ILed, bool>)((s, o) => ev.Set());
+            var method = (Action<ILed, bool>)
+            ((led, currState) =>
+            {
+                if(pauseEmulation && currState == state)
+                {
+                    machine.PauseAndRequestEmulationPause(precise: true);
+                }
+                ev.Set();
+            });
 
             try
             {
                 led.StateChanged += method;
+                // Don't start the emulation if the assert would succeed instantly
+                // or regardless of the LED state if the timeout is 0
+                if(led.State != state && timeout != 0)
+                {
+                    emulationPausedEvent = StartEmulationAndGetPausedEvent(emulation, pauseEmulation);
+                }
+
                 do
                 {
                     if(led.State == state)
                     {
+                        emulationPausedEvent?.WaitOne();
                         return this;
                     }
 
@@ -64,34 +82,44 @@ namespace Antmicro.Renode.Testing
             throw new InvalidOperationException("LED assertion not met.");
         }
 
-        public LEDTester AssertAndHoldState(bool initialState, float timeoutAssert, float timeoutHold)
+        public LEDTester AssertAndHoldState(bool initialState, float timeoutAssert, float timeoutHold, bool pauseEmulation = false)
         {
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            AutoResetEvent emulationPausedEvent = null;
             var locker = new Object();
             int numberOfStateChanges = 0;
-            bool isHolding;
+            bool isHolding = false;
 
             var ev = new AutoResetEvent(false);
+            TimeoutEvent timeoutEvent;
             var method = (Action<ILed, bool>)
             ((led, currState) =>
             {
                 lock(locker)
                 {
                     ++numberOfStateChanges;
+                    if(!isHolding && numberOfStateChanges == 1)
+                    {
+                        // Create a new event for holding at the precise moment that the LED state changed
+                        timeoutEvent = GetTimeoutEvent((ulong)(timeoutHold * 1000), MakePauseRequest(emulation, pauseEmulation));
+                    }
                     ev.Set();
                 }
             });
 
             try
             {
-                float timeout;
                 // this needs to be treated as atomic block so the state doesn't change during initialization
                 lock(locker)
                 {
                     led.StateChanged += method;
                     isHolding = initialState == led.State;
-                    timeout = isHolding ? timeoutHold : timeoutAssert;
+                    var timeout = isHolding ? timeoutHold : timeoutAssert;
+                    // If we're already holding, make the first timeout event pause the emulation
+                    timeoutEvent = GetTimeoutEvent((ulong)(timeout * 1000),
+                        MakePauseRequest(emulation, pauseEmulation && isHolding));
+                    emulationPausedEvent = StartEmulationAndGetPausedEvent(emulation, pauseEmulation);
                 }
-                var timeoutEvent = GetTimeoutEvent((ulong)(timeout * 1000));
 
                 do
                 {
@@ -111,7 +139,6 @@ namespace Antmicro.Renode.Testing
                             if(numberOfStateChanges == 1)
                             {
                                 isHolding = true;
-                                timeoutEvent = GetTimeoutEvent((ulong)(timeoutHold * 1000));
                                 --numberOfStateChanges;
                             }
                             else if(eventSrc == 0)
@@ -133,11 +160,15 @@ namespace Antmicro.Renode.Testing
                 ev.Dispose();
             }
 
+            emulationPausedEvent?.WaitOne();
+
             return this;
         }
 
-        public LEDTester AssertDutyCycle(float testDuration, double expectedDutyCycle, double tolerance = 0.05)
+        public LEDTester AssertDutyCycle(float testDuration, double expectedDutyCycle, double tolerance = 0.05, bool pauseEmulation = false)
         {
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            AutoResetEvent emulationPausedEvent = null;
             ulong lowTicks = 0;
             ulong highTicks = 0;
 
@@ -157,8 +188,9 @@ namespace Antmicro.Renode.Testing
             try
             {
                 led.StateChanged += method;
+                var timeoutEvent = GetTimeoutEvent((ulong)(testDuration * 1000), MakePauseRequest(emulation, pauseEmulation));
+                emulationPausedEvent = StartEmulationAndGetPausedEvent(emulation, pauseEmulation);
 
-                var timeoutEvent = GetTimeoutEvent((ulong)(testDuration * 1000));
                 timeoutEvent.WaitHandle.WaitOne();
 
                 var highPercentage = (double)highTicks / (highTicks + lowTicks) * 100;
@@ -172,11 +204,15 @@ namespace Antmicro.Renode.Testing
                 led.StateChanged -= method;
             }
 
+            emulationPausedEvent?.WaitOne();
+
             return this;
         }
 
-        public LEDTester AssertIsBlinking(float testDuration, double onDuration, double offDuration, double tolerance = 0.05)
+        public LEDTester AssertIsBlinking(float testDuration, double onDuration, double offDuration, double tolerance = 0.05, bool pauseEmulation = false)
         {
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            AutoResetEvent emulationPausedEvent = null;
             var patternMismatchEvent = new ManualResetEvent(false);
             var method = MakeStateChangeHandler((currState, dt) =>
             {
@@ -191,8 +227,8 @@ namespace Antmicro.Renode.Testing
             try
             {
                 led.StateChanged += method;
-
-                var timeoutEvent = GetTimeoutEvent((ulong)(testDuration * 1000));
+                var timeoutEvent = GetTimeoutEvent((ulong)(testDuration * 1000), MakePauseRequest(emulation, pauseEmulation));
+                emulationPausedEvent = StartEmulationAndGetPausedEvent(emulation, pauseEmulation);
                 WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, patternMismatchEvent } );
 
                 if(!timeoutEvent.IsTriggered)
@@ -205,6 +241,8 @@ namespace Antmicro.Renode.Testing
                 led.StateChanged -= method;
             }
 
+            emulationPausedEvent?.WaitOne();
+
             return this;
         }
 
@@ -215,9 +253,9 @@ namespace Antmicro.Renode.Testing
         }
 
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        private TimeoutEvent GetTimeoutEvent(ulong timeout)
+        private TimeoutEvent GetTimeoutEvent(ulong timeout, Action callback = null)
         {
-            return machine.LocalTimeSource.EnqueueTimeoutEvent(timeout);
+            return machine.LocalTimeSource.EnqueueTimeoutEvent(timeout, callback);
         }
 
         private Action<ILed, bool> MakeStateChangeHandler(Action<bool, TimeInterval> stateChanged)
@@ -256,6 +294,24 @@ namespace Antmicro.Renode.Testing
 
                 previousEventTimestamp = vts;
             });
+        }
+
+        private Action MakePauseRequest(Emulation emulation, bool pause)
+        {
+            return pause ? (Action)(() =>
+            {
+                emulation.PauseAll();
+            }) : null;
+        }
+
+        private AutoResetEvent StartEmulationAndGetPausedEvent(Emulation emulation, bool pause)
+        {
+            var emulationPausedEvent = pause ? emulation.GetStartedStateChangedEvent(false) : null;
+            if(!emulation.IsStarted)
+            {
+                emulation.StartAll();
+            }
+            return emulationPausedEvent;
         }
 
         private readonly ILed led;
