@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -45,9 +46,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public override void Register(IUART uart, NullRegistrationPoint registrationPoint)
         {
             base.Register(uart, registrationPoint);
-
-            this.CharReceived += uart.WriteChar;
-            uart.CharReceived += this.WriteChar;
+            ConnectEvents();
         }
 
         public override void Unregister(IUART uart)
@@ -117,6 +116,16 @@ namespace Antmicro.Renode.Peripherals.UART
         public abstract uint BaudRate { get; }
 
         protected virtual bool IsReceiveEnabled => true;
+
+        [PostDeserialization]
+        private void ConnectEvents()
+        {
+            if(RegisteredPeripheral != null)
+            {
+                this.CharReceived += RegisteredPeripheral.WriteChar;
+                RegisteredPeripheral.CharReceived += this.WriteChar;
+            }
+        }
     }
 }
 
