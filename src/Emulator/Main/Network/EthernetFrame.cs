@@ -55,14 +55,17 @@ namespace Antmicro.Renode.Network
             return CompareCRC(GetCRCFromPacket(data), CalculateCRCFromPayload(data));
         }
 
-        public void FillWithChecksums(EtherType[] supportedEtherTypes, IPProtocolType[] supportedIpProtocolTypes)
+        public void FillWithChecksums(EtherType[] supportedEtherTypes, IPProtocolType[] supportedIpProtocolTypes, bool updateEthernetCrc = true)
         {
             var packetNetIpProtocols = supportedIpProtocolTypes.Select(x => (PacketDotNet.IPProtocolType)x).ToArray();
             var packetNetEtherTypes = supportedEtherTypes.Select(x => (EthernetPacketType)x).ToArray();
             UnderlyingPacket.RecursivelyUpdateCalculatedValues(packetNetEtherTypes, packetNetIpProtocols);
 
-            var data = UnderlyingPacket.Bytes.ToArray();
-            crc = ComputeCRC(data).ToArray();
+            if(updateEthernetCrc)
+            {
+                var data = UnderlyingPacket.Bytes.ToArray();
+                crc = ComputeCRC(data).ToArray();
+            }
         }
 
         public EthernetFrame Clone()
