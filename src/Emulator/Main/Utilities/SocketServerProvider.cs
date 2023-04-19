@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -31,6 +31,12 @@ namespace Antmicro.Renode.Utilities
         public void Start(int port)
         {
             server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            // Opt out of optimizing TCP traffic by combining multiple smaller
+            // packets into larger ones. The default behavior caused massive
+            // delays in outgoing GDBStub communication.
+            server.NoDelay = true;
+
             try
             {
                 server.Bind(new IPEndPoint(IPAddress.Any, port));
