@@ -131,6 +131,8 @@ namespace Antmicro.Renode.Peripherals.I2C
                             txQueue.Clear();
                         }
                     }
+
+                    TryReadingToBuffer();
                     break;
 
                 case States.WaitForAddress:
@@ -145,6 +147,12 @@ namespace Antmicro.Renode.Peripherals.I2C
                         state = States.Idle;
                         txQueue.Clear();
                     }
+
+                    TryReadingToBuffer();
+                    break;
+
+                case States.ReadingFromBuffer:
+                    this.Log(LogLevel.Warning, "Writing data to FIFO while in reading state, ignoring incoming data.");
                     break;
 
                 default:
@@ -163,44 +171,43 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
 
             byte result = DefaultReturnValue;
-
-            switch(state)
+            if(rxQueue.TryDequeue(out var data))
             {
-                case States.Reading:
-                    if(rxQueue.Count > 0)
-                    {
-                        this.Log(LogLevel.Warning, "Receiving new data with non-empty RX queue");
-                    }
-
-                    var receivedBytes = CurrentSlave.Read(bytesToReceive);
-                    if(receivedBytes.Length != bytesToReceive)
-                    {
-                        this.Log(LogLevel.Warning, "Requested {0} bytes, but received {1}", bytesToReceive, rxQueue.Count);
-                    }
-
-                    foreach(var value in receivedBytes)
-                    {
-                        rxQueue.Enqueue(value);
-                    }
-
-                    state = States.ReadingFromBuffer;
-                    goto case States.ReadingFromBuffer;
-
-                case States.ReadingFromBuffer:
-                    if(rxQueue.TryDequeue(out var data))
-                    {
-                        result = data;
-                        break;
-                    }
-                    interruptDonePending.Value = true;
-                    break;
-
-                default:
-                    throw new Exception($"Unhandled state in HandleReadByte: {state}");
+                result = data;
+            }
+            else
+            {
+                interruptDonePending.Value = true;
             }
 
             UpdateInterrupts();
             return result;
+        }
+
+        private void TryReadingToBuffer()
+        {
+            if(state != States.Reading)
+            {
+                return;
+            }
+
+            if(rxQueue.Count > 0)
+            {
+                this.Log(LogLevel.Warning, "Receiving new data with non-empty RX queue");
+            }
+
+            var receivedBytes = CurrentSlave.Read(bytesToReceive);
+            if(receivedBytes.Length != bytesToReceive)
+            {
+                this.Log(LogLevel.Warning, "Requested {0} bytes, but received {1}", bytesToReceive, rxQueue.Count);
+            }
+
+            foreach(var value in receivedBytes)
+            {
+                rxQueue.Enqueue(value);
+            }
+
+            state = States.ReadingFromBuffer;
         }
 
         private void UpdateInterrupts()
