@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public PacketData Execute()
         {
             var command = new StringBuilder();
-            command.Append(string.Format("PacketSize={0:x4};qXfer:features:read+;swbreak+;hwbreak+", 4096));
+            command.Append(string.Format("PacketSize={0};qXfer:features:read+;swbreak+;hwbreak+", 1024));
             if(manager.Machine.SystemBus.IsMultiCore)
             {
                 command.Append(";qXfer:threads:read+;vContSupported+");
