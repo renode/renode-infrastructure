@@ -152,7 +152,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override Interrupt DecodeInterrupt(int number)
         {
-            return Interrupt.Hard;
+            switch((InterruptSignalType)number)
+            {
+                case InterruptSignalType.IRQ:
+                    return Interrupt.Hard;
+                case InterruptSignalType.FIQ:
+                    return Interrupt.TargetExternal1;
+                default:
+                    throw InvalidInterruptNumberException;
+            }
         }
 
         [Export]
