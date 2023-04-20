@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Testing
         public LEDTester(ILed led)
         {
             this.led = led;
+            this.machine = led.GetMachine();
         }
 
         public LEDTester AssertState(bool state, float timeout = 0)
@@ -213,7 +214,7 @@ namespace Antmicro.Renode.Testing
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         private TimeoutEvent GetTimeoutEvent(ulong timeout)
         {
-            return led.GetMachine().LocalTimeSource.EnqueueTimeoutEvent(timeout);
+            return machine.LocalTimeSource.EnqueueTimeoutEvent(timeout);
         }
 
         private Action<ILed, bool> MakeStateChangeHandler(Action<bool, TimeInterval> stateChanged)
@@ -255,6 +256,7 @@ namespace Antmicro.Renode.Testing
         }
 
         private readonly ILed led;
+        private readonly Machine machine;
     }
 }
 
