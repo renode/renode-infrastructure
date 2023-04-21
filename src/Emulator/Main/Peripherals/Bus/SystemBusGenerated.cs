@@ -52,7 +52,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -98,7 +101,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -142,7 +148,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -188,7 +197,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -232,7 +244,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -278,7 +293,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -322,7 +340,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
@@ -368,7 +389,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             var lockTaken = false;
             try
             {
-                accessMethods.Lock.Enter(ref lockTaken);
+                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                {
+                    accessMethods.Lock.Enter(ref lockTaken);
+                }
                 if(accessMethods.SetAbsoluteAddress != null)
                 {
                     accessMethods.SetAbsoluteAddress(address);
