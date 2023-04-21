@@ -14,6 +14,17 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public IbexRiscV32(Machine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imcu", bool allowUnalignedAccesses = true) : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, endianness, allowUnalignedAccesses: allowUnalignedAccesses, interruptMode: InterruptMode.Vectored)
         {
+            RegisterCustomCSRs();
+        }
+
+        private void RegisterCustomCSRs()
+        {
+            RegisterCSR((ulong)CSRs.CpuControl, () => 0ul, _ => {});
+        }
+
+        private enum CSRs
+        {
+            CpuControl = 0x7c0,
         }
     }
 }
