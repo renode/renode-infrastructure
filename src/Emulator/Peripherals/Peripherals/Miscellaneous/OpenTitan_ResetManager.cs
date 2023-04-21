@@ -70,7 +70,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             
             hardwareResetRequest.Value = resetReason;
             lowPowerExitFlag.Value = lowPower;
-            nonDebugModuleResetFlag.Value = false;
             powerOnResetFlag.Value = false;
             softwareResetFlag.Value = false;
         }
@@ -104,7 +103,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case GPIOInput.NonDebugModeReset:
                     if(value)
                     {
-                        nonDebugModuleResetFlag.Value = true;
                         SystemReset();
                     }
                     break;
@@ -240,9 +238,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.DeviceResetReason.Define(this, 0x1)
                 .WithFlag(0, out powerOnResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "POR")
                 .WithFlag(1, out lowPowerExitFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "LOW_POWER_EXIT")
-                .WithFlag(2, out nonDebugModuleResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "NDM_RESET")
-                .WithFlag(3, out softwareResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "SW_RESET")
-                .WithEnumField(4, 4, out hardwareResetRequest, FieldMode.Read | FieldMode.WriteOneToClear, name: "HW_REQ")
+                .WithFlag(2, out softwareResetFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "SW_RESET")
+                .WithEnumField(3, 5, out hardwareResetRequest, FieldMode.Read | FieldMode.WriteOneToClear, name: "HW_REQ")
                 .WithReservedBits(8, 24);
             Registers.AlertWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("EN", 0);
@@ -284,7 +281,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField resetRequest;
         private IFlagRegisterField powerOnResetFlag;
         private IFlagRegisterField lowPowerExitFlag;
-        private IFlagRegisterField nonDebugModuleResetFlag;
         private IFlagRegisterField softwareResetFlag;
         private IEnumRegisterField<HardwareResetReason> hardwareResetRequest;
         private IValueRegisterField softwareControllableResetsWriteEnableMask;
@@ -309,10 +305,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public enum HardwareResetReason
         {
-            SystemResetControl = 0b0001,
-            Watchdog = 0b0010,
-            PowerUnstable = 0b0100,
-            Escalation = 0b1000,
+            SystemResetControl = 0b00001,
+            Watchdog = 0b00010,
+            PowerUnstable = 0b00100,
+            Escalation = 0b01000,
+            NonDebugModule = 0b10000,
         }
 
         private enum Registers
