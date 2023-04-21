@@ -554,6 +554,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void EngineReseed(uint[] data)
         {
+            if(drbgEngine == null)
+            {
+                ReinstantiateInternal();
+            }
             var dataAsBytes = Misc.AsBytes(data);
             drbgEngine.Reseed(dataAsBytes);
         }
