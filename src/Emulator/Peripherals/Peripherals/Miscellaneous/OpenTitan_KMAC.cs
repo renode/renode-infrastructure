@@ -332,8 +332,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithReservedBits(27, 5)
                 },
                 {(long)Registers.Command, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, Command>(0, 4, writeCallback: (_, val) => { RunCommand(val); }, valueProviderCallback: _ => 0x0, name: "cmd")
-                    .WithReservedBits(4, 4)
+                    .WithEnumField<DoubleWordRegister, Command>(0, 6, writeCallback: (_, val) => { RunCommand(val); }, valueProviderCallback: _ => 0x0, name: "cmd")
+                    .WithReservedBits(6, 2)
                     .WithTaggedFlag("entropy_req", 8)
                     .WithTaggedFlag("hash_cnt_clr", 9)
                     .WithReservedBits(10, 22)
@@ -838,11 +838,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum Command
         {
-            None    = 0b0000,
-            Start   = 0b0001,
-            Process = 0b0010,
-            Run     = 0b0100,
-            Done    = 0b1000
+            None    = 0x0,
+            Start   = 0x1d,
+            Process = 0x2e,
+            Run     = 0x31,
+            Done    = 0x16
         }
 
         private enum ErrorCode
