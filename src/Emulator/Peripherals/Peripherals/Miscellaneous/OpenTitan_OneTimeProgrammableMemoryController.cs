@@ -297,6 +297,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("SECRET2_DIGEST0", 0, 32);
             Registers.Secret2Digest1.Define(this)
                 .WithTag("SECRET2_DIGEST1", 0, 32);
+            Registers.SoftwareConfiguredWindowStart.Define32Many(this, 512, (register, index) =>
+                {
+                    register
+                        .WithFlag(0, valueProviderCallback: _ => true)
+                        .WithReservedBits(1, 31)
+                        ;
+                });
         }
 
         private void ExecuteDirectRead()
