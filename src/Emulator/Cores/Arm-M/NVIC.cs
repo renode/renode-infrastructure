@@ -769,7 +769,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(result != SpuriousInterrupt)
                 {
                     maskedInterruptPresent = true;
-                    if(cpu.PRIMASK == 0)
+                    if(result == NonMaskableInterruptIRQ || (cpu.PRIMASK == 0 && cpu.FAULTMASK == 0))
                     {
                         IRQ.Set(true);
                     }
@@ -935,6 +935,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const uint SevOnPending        = 0x10;
 
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
+        private const uint NonMaskableInterruptIRQ = 2;
     }
 }
 
