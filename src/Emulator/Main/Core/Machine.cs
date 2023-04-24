@@ -29,6 +29,7 @@ using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.GDB;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace Antmicro.Renode.Core
 {
@@ -1007,6 +1008,33 @@ namespace Antmicro.Renode.Core
             };
 
             ClockSource.AddClockEntry(new ClockEntry(delay.Ticks, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
+        }
+
+        // This method should only be called on the CPU thread
+        public bool TryRestartTranslationBlockOnCurrentCpu()
+        {
+            if(!SystemBus.TryGetCurrentCPU(out var icpu))
+            {
+                this.Log(LogLevel.Error, "Couldn't find the CPU requesting translation block restart.");
+                return false;
+            }
+
+            try
+            {
+                var cpu = (dynamic)icpu;
+                if(!cpu.RequestTranslationBlockRestart())
+                {
+                    Logger.LogAs(icpu, LogLevel.Error, "Failed to restart translation block.");
+                    return false;
+                }
+            }
+            catch(RuntimeBinderException)
+            {
+                Logger.LogAs(icpu, LogLevel.Warning, "Translation block restarting is not supported by '{0}'", icpu.GetType().FullName);
+                return false;
+            }
+
+            return true;
         }
 
         public Profiler Profiler { get; private set; }
