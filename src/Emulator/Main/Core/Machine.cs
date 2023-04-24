@@ -468,6 +468,41 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void PauseAndRequestEmulationPause(bool precise = false)
+        {
+            lock(pausingSync)
+            {
+                // Nothing to do if the emulation is already paused
+                if(!EmulationManager.Instance.CurrentEmulation.IsStarted)
+                {
+                    return;
+                }
+
+                // Precise mode is only available when this method is run on the CPU thread
+                // We only attempt to prepare the CPU for a precise pause if the machine is currently running
+                if(precise && !IsPaused)
+                {
+                    if(!TryRestartTranslationBlockOnCurrentCpu())
+                    {
+                        this.Log(LogLevel.Warning, "Failed to restart translation block for precise pause, " +
+                            "the pause will happen at the end of the current block");
+                    }
+                }
+
+                // We will pause this machine right now, but the whole emulation at the next sync point
+                Action pauseEmulation = null;
+                pauseEmulation = () =>
+                {
+                    EmulationManager.Instance.CurrentEmulation.PauseAll();
+                    LocalTimeSource.SinksReportedHook -= pauseEmulation;
+                };
+                LocalTimeSource.SinksReportedHook += pauseEmulation;
+
+                // Pause is harmless to call even if the machine is already paused
+                Pause();
+            }
+        }
+
         public void Reset()
         {
             lock(pausingSync)
