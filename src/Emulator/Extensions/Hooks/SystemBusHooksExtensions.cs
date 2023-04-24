@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Hooks
         {
             var runner = new BusPeripheralsHooksPythonEngine(sysbus, peripheral, null, pythonScript);
             sysbus.SetHookBeforePeripheralWrite<ulong>(peripheral, runner.WriteHook, subrange);
-            sysbus.SetHookBeforePeripheralWrite<ulong>(peripheral, (valueToWrite, offset) => (uint)runner.WriteHook(valueToWrite, offset), subrange);
+            sysbus.SetHookBeforePeripheralWrite<uint>(peripheral, (valueToWrite, offset) => (uint)runner.WriteHook(valueToWrite, offset), subrange);
             sysbus.SetHookBeforePeripheralWrite<ushort>(peripheral, (valueToWrite, offset) => (ushort)runner.WriteHook(valueToWrite, offset), subrange);
             sysbus.SetHookBeforePeripheralWrite<byte>(peripheral, (valueToWrite, offset) => (byte)runner.WriteHook(valueToWrite, offset), subrange);
         }
