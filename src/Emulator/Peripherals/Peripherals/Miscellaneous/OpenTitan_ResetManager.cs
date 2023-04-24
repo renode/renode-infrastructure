@@ -149,24 +149,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void ExecuteResetWithSkipped(ICollection<IPeripheral> toSkip)
         {
             // This method is intended to run only as a result of memory access from translated code.
-            if(!machine.SystemBus.TryGetCurrentCPU(out var icpu))
-            {
-                this.Log(LogLevel.Error, "Couldn't find the cpu requesting reset.");
-                return;
-            }
-            var cpu = icpu as TranslationCPU;
-            if(cpu == null)
-            {
-                this.Log(LogLevel.Error, "Resetting for non TranslationCPU based CPUs is not implemented.");
-                return;
-            }
-            this.Log(LogLevel.Info, "Software reset started.");
-
-            if(!cpu.RequestTranslationBlockRestart())
+            if(!machine.TryRestartTranslationBlockOnCurrentCpu())
             {
                 this.Log(LogLevel.Error, "Software reset failed.");
                 return;
             }
+
+            // If the translation block restart succeeded, we know GetCurrentCPU is safe
+            var cpu = machine.SystemBus.GetCurrentCPU();
 
             machine.RequestResetInSafeState(() =>
             {
