@@ -260,6 +260,10 @@ namespace Antmicro.Renode.Testing
             var waitHandles = new [] { matchEvent, timeoutEvent.WaitHandle };
 
             var emulationPausedEvent = emulation.GetStartedStateChangedEvent(false);
+            if(!emulation.IsStarted)
+            {
+                emulation.StartAll();
+            }
 
             do
             {
