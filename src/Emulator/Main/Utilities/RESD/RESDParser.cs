@@ -98,13 +98,14 @@ namespace Antmicro.Renode.Utilities.RESD
             return RESDStreamStatus.AfterStream;
         }
 
-        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, ulong sampleOffsetTime = 0)
+        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, long sampleOffsetTime = 0)
         {
             var machine = owner.GetMachine();
             Action feedSample = () =>
             {
                 var timestamp = machine.ClockSource.CurrentValue;
-                var timestampInNanoseconds = sampleOffsetTime + timestamp.TotalMicroseconds * 1000;
+                var timestampInNanoseconds = timestamp.TotalMicroseconds * 1000;
+                timestampInNanoseconds = sampleOffsetTime > 0 ? timestampInNanoseconds + (ulong)sampleOffsetTime : timestampInNanoseconds - (ulong)(-sampleOffsetTime);
                 var status = TryGetSample(timestampInNanoseconds, out var sample);
                 newSampleCallback(sample, timestamp, status);
             };
