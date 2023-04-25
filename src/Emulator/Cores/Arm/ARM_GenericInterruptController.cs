@@ -35,13 +35,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // So it is impossible to enable security for the GIC that doesn't support two security states
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
 
-            // These properties are used only to properly identify a GIC
-            // They don't change the behaviour or the map of registers
-            this.architectureVersion = architectureVersion;
-            this.productIdentifier = productIdentifier;
-            cpuInterfaceRevisionNumber = cpuInterfaceRevision;
-            cpuInterfaceImplementerIdentification = cpuInterfaceImplementer;
-
             var irqIds = InterruptId.GetRange(InterruptId.SharedPeripheralFirst, InterruptId.SharedPeripheralLast)
                 .Concat(InterruptId.GetRange(InterruptId.ExtendedSharedPeripheralFirst, InterruptId.ExtendedSharedPeripheralLast));
             sharedInterrupts = new ReadOnlyDictionary<InterruptId, SharedInterrupt>(irqIds.ToDictionary(id => id, id => new SharedInterrupt(id)));
@@ -80,6 +73,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
+                    ArchitectureVersion = DefaultArchitectureVersion;
+                    ProductIdentifier = DefaultProductIdentifier;
+                    CPUInterfaceRevision = DefaultRevisionNumber;
+                    CPUInterfaceImplementer = DefaultImplementerIdentification;
+                    DistributorVariant = DefaultVariantNumber;
+                    DistributorRevision = DefaultRevisionNumber;
+                    DistributorImplementer = DefaultImplementerIdentification;
+
                     enableFIQ = false;
                     disabledSecurity = false;
                     foreach(var irq in sharedInterrupts.Values)
@@ -490,6 +491,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithValueField(0, 5, name: "SharedPeripheralInterruptsCount",
                         valueProviderCallback: _ => ((uint)InterruptId.SharedPeripheralLast + 1) / 32 - 1
                     )
+                },
+                {(long)DistributorRegisters.ImplementerIdentification, new DoubleWordRegister(this)
+                    .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => ProductIdentifier, name: "ProductIdentifier")
+                    .WithReservedBits(20, 4)
+                    .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => DistributorVariant, name: "VariantNumber")
+                    .WithValueField(12, 4, FieldMode.Read, valueProviderCallback: _ => DistributorRevision, name: "RevisionNumber")
+                    .WithValueField(0, 12, FieldMode.Read, valueProviderCallback: _ => DistributorImplementer, name: "ImplementerIdentification")
+                },
+                {(long)DistributorRegisters.PeripheralIdentification2, new DoubleWordRegister(this)
+                    .WithReservedBits(8, 24)
+                    .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
+                        valueProviderCallback: _ => ArchitectureVersion
+                    )
+                    .WithTag("ImplementiationDefinedIdentificator", 0, 4)
                 }
             };
 
@@ -649,6 +664,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => false
                     )
                     .WithTaggedFlag("WakeImplementationDefined", 0)
+                },
+                {(long)RedistributorRegisters.PeripheralIdentification2, new DoubleWordRegister(this)
+                    .WithReservedBits(8, 24)
+                    .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
+                        valueProviderCallback: _ => ArchitectureVersion
+                    )
+                    .WithTag("ImplementiationDefinedIdentificator", 0, 4)
                 }
             };
 
@@ -1323,13 +1345,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly QuadWordRegisterCollection cpuInterfaceSystemRegisters;
 
         private readonly bool supportsTwoSecurityStates;
-        private readonly ARM_GenericInterruptControllerVersion architectureVersion;
-        private readonly uint productIdentifier;
-        private readonly byte cpuInterfaceRevisionNumber;
-        private readonly uint cpuInterfaceImplementerIdentification;
 
         private const ARM_GenericInterruptControllerVersion DefaultArchitectureVersion = ARM_GenericInterruptControllerVersion.GICv3;
         private const uint DefaultProductIdentifier = 0x0;
+        private const byte DefaultVariantNumber = 0x0;
         private const byte DefaultRevisionNumber = 0x0;
         private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer 
 
@@ -1869,6 +1888,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SharedPeripheralInterruptExtendedNonMaskable_0 = 0x3B00, // GICD_INMIR<n>E
             InterruptRouting_0 = 0x6100, // GICD_IROUTER<n>
             SharedPeripheralInterruptExtendedRouting_0 = 0x8000, // GICD_IROUTER<n>E
+            PeripheralIdentification2 = 0xFFE8, // GICD_PIDR2
         }
 
         private enum RedistributorRegisters : long
@@ -1887,6 +1907,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InvalidateLocalitySpecificPeripheralInterrupt = 0x00A0, // GICR_INVLPIR
             InvalidateAll = 0x00B0, // GICR_INVALLR
             Synchronize = 0x00C0, // GICR_SYNCR
+            PeripheralIdentification2 = 0xFFE8, // GICR_PIDR2
 
             // Registers from the SGI_base frame
             InterruptGroup_0 = 0x0080 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGROUPR0 
