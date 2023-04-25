@@ -185,15 +185,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         private enum SetAvailableElsReturnValue
         {
             SimulationAlreadyStarted = 1,
-            EL2OrEL3EnablingFailed   = 2,
-            Success                  = 3,
+            EL2OrEL3EnablingFailed = 2,
+            Success = 3,
         }
 
         private enum SystemRegisterCheckReturnValue
         {
             RegisterNotFound = 1,
             AccessorNotFound = 2,
-            AccessValid      = 3,
+            AccessValid = 3,
         }
 
 #pragma warning disable 649
