@@ -287,6 +287,12 @@ namespace Antmicro.Renode.Testing
 #if DEBUG_EVENTS
             this.Log(LogLevel.Noisy, "Matching timeout");
 #endif
+
+            lock(lines)
+            {
+                // Clear the saved matcher in the case of a timeout
+                this.resultMatcher = null;
+            }
             return null;
         }
 
