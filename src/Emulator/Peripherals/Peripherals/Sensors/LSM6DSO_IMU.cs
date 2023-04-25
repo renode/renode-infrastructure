@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, ulong sampleOffsetTime = 0)
+        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
         {
             accelerometerResdStream = this.CreateRESDStream<AccelerationSample>(path, channel);
             accelerometerFeederThread?.Stop();
@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedAngularRateSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, ulong sampleOffsetTime = 0)
+        public void FeedAngularRateSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
         {
             gyroResdStream = this.CreateRESDStream<AngularRateSample>(path, channel);
             gyroFeederThread?.Stop();
