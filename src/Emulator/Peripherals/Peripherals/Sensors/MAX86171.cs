@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             registers = new ByteRegisterCollection(this, BuildRegisterMap());
         }
 
-        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0, ulong startTimestamp = 0, ulong sampleOffsetTime = 0)
+        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0, ulong startTimestamp = 0, long sampleOffsetTime = 0)
         {
             lock(feederThreadLock)
             {
