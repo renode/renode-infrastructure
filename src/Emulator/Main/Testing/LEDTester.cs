@@ -18,22 +18,25 @@ namespace Antmicro.Renode.Testing
 {
     public static class LEDTesterExtenions
     {
-        public static void CreateLEDTester(this Emulation emulation, string name, ILed led)
+        public static void CreateLEDTester(this Emulation emulation, string name, ILed led, float defaultTimeout = 0)
         {
-            emulation.ExternalsManager.AddExternal(new LEDTester(led), name);
+            emulation.ExternalsManager.AddExternal(new LEDTester(led, defaultTimeout), name);
         }
     }
 
     public class LEDTester : IExternal
     {
-        public LEDTester(ILed led)
+        public LEDTester(ILed led, float defaultTimeout = 0)
         {
             this.led = led;
             this.machine = led.GetMachine();
+            this.defaultTimeout = defaultTimeout;
         }
 
-        public LEDTester AssertState(bool state, float timeout = 0)
+        public LEDTester AssertState(bool state, float? timeout = null)
         {
+            timeout = timeout ?? defaultTimeout;
+
             var timeoutEvent = GetTimeoutEvent((ulong)(timeout * 1000));
 
             var ev = new ManualResetEvent(false);
@@ -257,6 +260,7 @@ namespace Antmicro.Renode.Testing
 
         private readonly ILed led;
         private readonly Machine machine;
+        private readonly float defaultTimeout;
     }
 }
 
