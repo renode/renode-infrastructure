@@ -68,6 +68,11 @@ namespace Antmicro.Renode.Utilities
             return atags;
         }
 
+        public static bool Is<T>(this Type type)
+        {
+            return type == typeof(T);
+        }
+
         public static bool IsPeripheral(object o)
         {
             return o is IPeripheral;
