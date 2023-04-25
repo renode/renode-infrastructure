@@ -75,7 +75,14 @@ namespace Antmicro.Renode.Network
 
         public override string ToString()
         {
-            return UnderlyingPacket.ToString();
+            try
+            {
+                return UnderlyingPacket.ToString();
+            }
+            catch
+            {
+                return "<failed to decode frame>";
+            }
         }
 
         public EthernetPacket UnderlyingPacket { get; }
