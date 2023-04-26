@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Network
         {
             get
             {
-                    return (crc != null) ? UnderlyingPacket.Bytes.Concat(crc).ToArray() : UnderlyingPacket.Bytes.ToArray();
+                return (crc != null) ? UnderlyingPacket.Bytes.Concat(crc).ToArray() : UnderlyingPacket.Bytes.ToArray();
             }
         }
 
