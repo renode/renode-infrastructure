@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
-            physicalPinState = new IFlagRegisterField[NumberOfPins];
             DefineRegisters();
         }
 
@@ -54,10 +53,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public override void OnGPIO(int number, bool value)
         {
-            base.OnGPIO(number, value);
             if(CheckPinNumber(number))
             {
-                PinChanged?.Invoke(Pins[number], value);
+                Pins[number].InputValue = value;
             }
         }
 
@@ -72,39 +70,38 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void DefineRegisters()
         {
             Registers.Out.Define(this)
-                .WithFlags(0, NumberOfPins, out physicalPinState,
-                    writeCallback: (id, _, val) => Pins[id].Value = val)
+                .WithFlags(0, NumberOfPins,
+                    valueProviderCallback: (id, _) => Pins[id].OutputValue,
+                    writeCallback: (id, _, val) => Pins[id].OutputValue = val)
             ;
 
             Registers.OutSet.Define(this)
                 .WithFlags(0, NumberOfPins,
-                    valueProviderCallback: (id, _) => physicalPinState[id].Value,
+                    valueProviderCallback: (id, _) => Pins[id].OutputValue,
                     writeCallback: (id, _, val) =>
                     {
                         if(val)
                         {
-                            Pins[id].Value = true;
-                            physicalPinState[id].Value = true;
+                            Pins[id].OutputValue = true;
                         }
                     })
             ;
 
             Registers.OutClear.Define(this)
                 .WithFlags(0, NumberOfPins,
-                    valueProviderCallback: (id, _) => physicalPinState[id].Value,
+                    valueProviderCallback: (id, _) => Pins[id].OutputValue,
                     writeCallback: (id, _, val) =>
                     {
                         if(val)
                         {
-                            Pins[id].Value = false;
-                            physicalPinState[id].Value = false;
+                            Pins[id].OutputValue = false;
                         }
                     })
             ;
 
             Registers.In.Define(this)
                 .WithFlags(0, NumberOfPins, FieldMode.Read,
-                    valueProviderCallback: (id, _) => Pins[id].Value)
+                    valueProviderCallback: (id, _) => Pins[id].InputValue)
             ;
 
             Registers.Direction.Define(this)
@@ -144,7 +141,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             if(newValue != Pins[idx].Direction)
                             {
                                 Pins[idx].Direction = newValue;
-                                Pins[idx].Value = physicalPinState[idx].Value;
                             }
                         },
                         valueProviderCallback: _ => Pins[idx].Direction == PinDirection.Output)
@@ -158,10 +154,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             switch(val)
                             {
                                 case PullMode.PullUp:
-                                    Pins[idx].RawValue = true;
+                                    Pins[idx].DefaultValue = true;
                                     break;
                                 case PullMode.PullDown:
-                                    Pins[idx].RawValue = false;
+                                    Pins[idx].DefaultValue = false;
                                     break;
                                 default:
                                     break;
@@ -203,7 +199,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         private bool detectState;
-        private IFlagRegisterField[] physicalPinState;
 
         private const int NumberOfPins = 32;
 
@@ -218,47 +213,51 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             public void Reset()
             {
                 Parent.Connections[Id].Set(false);
-                Direction = PinDirection.Input;
                 InputOverride = false;
+                everSet = false;
+                bufferedInputValue = false;
+                bufferedOutputValue = false;
+                direction = PinDirection.Input;
             }
 
-            public bool Value
+            public bool OutputValue
             {
-                get
-                {
-                    if(Direction != PinDirection.Input && !InputOverride)
-                    {
-                        Parent.Log(LogLevel.Noisy, "Trying to read pin #{0} that is not configured as input", Id);
-                        return false;
-                    }
+                get => GetCurrentValue();
 
-                    switch(DriveMode)
-                    {
-                        case DriveMode.OpenZeroStandardOne:
-                        case DriveMode.OpenZeroHighDriveOne:
-                            // Open-source aka. wired-or
-                            return (RawValue | PullMode == PullMode.PullUp);
-                        case DriveMode.StandardZeroOpenOne:
-                        case DriveMode.HighDriveZeroOpenOne:
-                            // Open-drain aka. wired-and
-                            return (RawValue & PullMode == PullMode.PullUp);
-                        default:
-                            return RawValue;
-                    }
-                }
                 set
                 {
                     if(Direction != PinDirection.Output)
                     {
-                        if(value)
-                        {
-                            Parent.Log(LogLevel.Warning, "Trying to write pin #{0} that is not configured as output", Id);
-                        }
+                        bufferedOutputValue = value;
                         return;
                     }
 
-                    Parent.NoisyLog("Setting pin {0} to {1}", Id, value);
+                    Parent.NoisyLog("Setting pin {0} output to {1}", Id, value);
                     Parent.Connections[Id].Set(value);
+                }
+            }
+
+            public bool InputValue
+            {
+                get => GetCurrentValue();
+
+                set
+                {
+                    everSet = true;
+
+                    if(Direction != PinDirection.Input)
+                    {
+                        // buffer the value so that it can be used on a next direction change
+                        bufferedInputValue = value;
+                        return;
+                    }
+
+                    if(value == Parent.State[Id])
+                    {
+                        return;
+                    }
+
+                    Parent.NoisyLog("Setting pin {0} input to {1}", Id, value);
                     Parent.State[Id] = value;
                     Parent.PinChanged(this, value);
                     Parent.UpdateDetect();
@@ -267,19 +266,30 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             // This property is needed as the pull-up and pull-down should be
             // able to override Pin state not matter Direction it is set to.
-            public bool RawValue
+            public bool DefaultValue { get; set; }
+
+            public PinDirection Direction
             {
-                get
-                {
-                    return Parent.State[Id];
-                }
+                get => direction;
+
                 set
                 {
-                    Parent.State[Id] = value;
+                    if(direction == value)
+                    {
+                        return;
+                    }
+
+                    direction = value;
+                    if(direction == PinDirection.Input)
+                    {
+                        InputValue = bufferedInputValue;
+                    }
+                    else
+                    {
+                        OutputValue = bufferedOutputValue;
+                    }
                 }
             }
-
-            public PinDirection Direction { get; set; }
 
             public bool InputOverride { set; get; }
 
@@ -298,12 +308,30 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         return false;
                     }
 
-                    return (SenseMode == SenseMode.High && Value) || (SenseMode == SenseMode.Low && !Value);
+                    return (SenseMode == SenseMode.High && InputValue) || (SenseMode == SenseMode.Low && !InputValue);
                 }
             }
 
             public NRF52840_GPIO Parent { get; }
             public int Id { get; }
+
+            // returns the pin value depending on the currently set direction
+            private bool GetCurrentValue()
+            {
+                if(Direction == PinDirection.Output)
+                {
+                    return Parent.Connections[Id].IsSet;
+                }
+                else
+                {
+                    return everSet ? Parent.State[Id] : DefaultValue;
+                }
+            }
+
+            private bool everSet;
+            private bool bufferedInputValue;
+            private bool bufferedOutputValue;
+            private PinDirection direction;
         }
 
         public enum SenseMode

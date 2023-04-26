@@ -318,8 +318,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
 
                 pin.Direction = NRF52840_GPIO.PinDirection.Output;
-                pin.Value = toggle
-                    ? !pin.Value
+                pin.OutputValue = toggle
+                    ? !pin.OutputValue
                     : value;
             }
 
