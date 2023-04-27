@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,6 +9,7 @@ using System.Threading;
 using Antmicro.Renode.Time;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using System;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -23,7 +24,8 @@ namespace Antmicro.Renode.Utilities
         // be triggered immediately);
         // technically the event is triggered in the synchronization phase,
         // so it might be delayed maximally by the size of the quantum
-        public static TimeoutEvent EnqueueTimeoutEvent(this TimeSourceBase timeSource, ulong virtualMilliseconds)
+        public static TimeoutEvent EnqueueTimeoutEvent(this TimeSourceBase timeSource, ulong virtualMilliseconds,
+            Action callback = null)
         {
             var timeoutEvent = new TimeoutEvent();
 
@@ -36,6 +38,7 @@ namespace Antmicro.Renode.Utilities
                 var when = timeSource.ElapsedVirtualTime + TimeInterval.FromMilliseconds(virtualMilliseconds);
                 timeSource.ExecuteInSyncedState(_ =>
                 {
+                    callback?.Invoke();
                     timeoutEvent.Trigger();
                 }, new TimeStamp(when, timeSource.Domain));
             }
