@@ -1,0 +1,17 @@
+﻿<#
+//
+// Copyright (c) 2010-2023 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
+<#
+    CLASS_NAME = "ARMv8R";
+    HEADER_FILE = "Emulator/Cores/tlib/arch/arm64/cpu_registers.h";
+
+    GENERAL_REGISTERS.AddRange(new[] { "R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15" });
+#>
+<#@ include file="../Common/RegisterTemplate.tt" #>

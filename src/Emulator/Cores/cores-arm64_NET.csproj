@@ -25,11 +25,19 @@
     <Compile Include="Arm64\ARMv8ARegisters.cs">
       <DependentUpon>ARMv8ARegisters.tt</DependentUpon>
     </Compile>
+    <Compile Include="Arm64\ARMv8R.cs" />
+    <Compile Include="Arm64\ARMv8RRegisters.cs">
+      <DependentUpon>ARMv8RRegisters.tt</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Arm64\ARMv8ARegisters.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>ARMv8ARegisters.cs</LastGenOutput>
+    </None>
+    <None Include="Arm64\ARMv8RRegisters.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ARMv8RRegisters.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>

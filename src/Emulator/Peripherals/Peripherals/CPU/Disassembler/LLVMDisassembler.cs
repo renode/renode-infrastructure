@@ -78,9 +78,15 @@ namespace Antmicro.Renode.Disassembler.LLVM
             {
                 triple = "thumb";
             }
+
             if(!ModelTranslations.TryGetValue(cpu.Model, out model))
             {
                 model = cpu.Model;
+            }
+
+            if(model == "cortex-r52")
+            {
+                triple = "arm";
             }
         }
         
