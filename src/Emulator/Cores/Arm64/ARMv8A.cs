@@ -176,8 +176,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             gic.WriteSystemRegisterCPUInterface(offset, value);
         }
 
+
         [Export]
-        protected ulong ReadSystemRegisterGenericTimer(uint offset)
+        protected uint ReadSystemRegisterGenericTimer32(uint offset)
+        {
+            this.Log(LogLevel.Error, "Reading 32-bit registers of the ARM Generic Timer is not allowed in 64bit version of the CPU");
+            return 0;
+        }
+
+        [Export]
+        protected void WriteSystemRegisterGenericTimer32(uint offset, uint value)
+        {
+            this.Log(LogLevel.Error, "Writing 32-bit registers of the ARM Generic Timer is not allowed in 64bit version of the CPU");
+            return;
+
+        }
+
+        [Export]
+        protected ulong ReadSystemRegisterGenericTimer64(uint offset)
         {
             if(timer == null)
             {
@@ -188,7 +204,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void WriteSystemRegisterGenericTimer(uint offset, ulong value)
+        protected void WriteSystemRegisterGenericTimer64(uint offset, ulong value)
         {
             if(timer == null)
             {
