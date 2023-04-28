@@ -13,3 +13,5 @@ EXTERNAL_AS(action_uint32_uint64, WriteSystemRegisterInterruptCPUInterface, tlib
 
 EXTERNAL_AS(func_uint64_uint32, ReadSystemRegisterGenericTimer, tlib_read_system_register_generic_timer)
 EXTERNAL_AS(action_uint32_uint64, WriteSystemRegisterGenericTimer, tlib_write_system_register_generic_timer)
+
+EXTERNAL_AS(action_uint32_uint32, OnExecutionModeChanged, tlib_on_execution_mode_changed)

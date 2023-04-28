@@ -18,13 +18,23 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class ARMv8A : TranslationCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
+    public partial class ARMv8A : TranslationCPU, IARMTwoSecurityStatesCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
         public ARMv8A(Machine machine, string cpuType, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
             gic = genericInterruptController;
             Reset();
+            HasSingleSecurityState = TlibHasEl3() == 0;
+        }
+
+        public void GetAtomicExceptionLevelAndSecurityState(out ExceptionLevel exceptionLevel, out SecurityState securityState)
+        {
+            lock(elAndSecurityLock)
+            {
+                exceptionLevel = this.exceptionLevel;
+                securityState = this.securityState;
+            }
         }
 
         public ulong GetSystemRegisterValue(string name)
@@ -45,6 +55,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             switch((SetAvailableElsReturnValue)returnValue)
             {
             case SetAvailableElsReturnValue.Success:
+                HasSingleSecurityState = el3Enabled;
                 return;
             case SetAvailableElsReturnValue.EL2OrEL3EnablingFailed:
                 throw new RecoverableException($"The '{Model}' core doesn't support all the enabled Exception Levels.");
@@ -110,13 +121,34 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public uint ExceptionLevel
+        public ExceptionLevel ExceptionLevel
         {
-            get => TlibGetCurrentEl();
-            set => TlibSetCurrentEl(value);
+            get
+            {
+                lock(elAndSecurityLock)
+                {
+                    return exceptionLevel;
+                }
+            }
+            set => TlibSetCurrentEl((uint)value);
         }
 
-        public bool IsSecureState => ExceptionLevel == 3 || TlibIsSecureBelowEl3() == 1;
+        public SecurityState SecurityState
+        {
+            get
+            {
+                lock(elAndSecurityLock)
+                {
+                    return securityState;
+                }
+            }
+        }
+
+        public byte Affinity0 => (byte)Id;
+        public bool IsEL3UsingAArch32State => false; // ARM8vA currently supports only AArch64 execution
+        public bool HasSingleSecurityState { get; private set; }
+
+        public event Action<ExceptionLevel, SecurityState> ExecutionModeChanged;
 
         protected override Interrupt DecodeInterrupt(int number)
         {
@@ -157,6 +189,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             timer.WriteRegisterAArch64(offset, value);
         }
 
+        [Export]
+        private void OnExecutionModeChanged(uint el, uint isSecure)
+        {
+            lock(elAndSecurityLock)
+            {
+                exceptionLevel = (ExceptionLevel)el;
+                securityState = isSecure != 0 ? SecurityState.Secure : SecurityState.NonSecure;
+            }
+            ExecutionModeChanged?.Invoke(ExceptionLevel, SecurityState);
+        }
+
         private void ValidateSystemRegisterAccess(string name, bool isWrite)
         {
             if(name.ToLower().Equals("nzcv"))
@@ -178,8 +221,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private ARM_GenericInterruptController gic;
+        private ExceptionLevel exceptionLevel;
+        private SecurityState securityState;
         private ARM_GenericTimer timer;
+
+        private readonly object elAndSecurityLock = new object();
+        private readonly ARM_GenericInterruptController gic;
 
         // These '*ReturnValue' enums have to be in sync with their counterparts in 'tlib/arch/arm64/arch_exports.c'.
         private enum SetAvailableElsReturnValue
@@ -201,13 +248,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
 
         [Import]
-        private FuncUInt32 TlibGetCurrentEl;
-
-        [Import]
         private FuncUInt64String TlibGetSystemRegister;
 
         [Import]
-        private FuncUInt32 TlibIsSecureBelowEl3;
+        private FuncUInt32 TlibHasEl3;
 
         [Import]
         private FuncUInt32UInt32UInt32 TlibSetAvailableEls;
