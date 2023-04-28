@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -15,8 +16,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class ARMv7A : Arm, IARMSingleSecurityStateCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
-        public ARMv7A(Machine machine, string cpuType, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
-            : base(cpuType, machine, cpuId, endianness) { }
+        public ARMv7A(Machine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian)
+            : base(cpuType, machine, cpuId, endianness)
+        {
+            if(genericInterruptController != null)
+            {
+                genericInterruptController.AttachCPU(cpuId, this);
+            }
+        }
 
         public void Register(ARM_GenericTimer peripheral, NullRegistrationPoint registrationPoint)
         {
