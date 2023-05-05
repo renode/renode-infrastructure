@@ -154,7 +154,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("CN.pwmsync", 9)
                     .WithTaggedFlag("CN.nolhpol", 10)
                     .WithTaggedFlag("CN.nollpol", 11)
-                    .WithTaggedFlag("CN.pwmckbd", 12)
+                    // We are using flag instead of tagged flag to hush down unnecessary log messages
+                    .WithFlag(12, name: "CN.pwmckbd")
                     .WithReservedBits(13, 19)
                     .WithChangeCallback((_, __) => RequestReturnOnAllCPUs())
                 }
