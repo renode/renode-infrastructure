@@ -293,7 +293,8 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithTaggedFlag("INT_FL0.dnreri", 12)
                     .WithTaggedFlag("INT_FL0.strteri", 13)
                     .WithTaggedFlag("INT_FL0.stoperi", 14)
-                    .WithTaggedFlag("INT_FL0.txloi", 15)
+                    // We are using flag instead of tagged flag to hush down unnecessary logs
+                    .WithFlag(15, FieldMode.WriteOneToClear, name: "INT_FL0.txloi")
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
