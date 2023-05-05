@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class MAX32650_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public MAX32650_SPI(Machine machine, int numberOfSlaves) : base(machine)
+        public MAX32650_SPI(Machine machine, int numberOfSlaves, bool hushTxFifoLevelWarnings = false) : base(machine)
         {
             if(numberOfSlaves < 0 || numberOfSlaves > MaximumNumberOfSlaves)
             {
@@ -33,6 +33,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             rxQueue = new Queue<byte>();
             txQueue = new Queue<byte>();
             shouldDeassert = new bool[numberOfSlaves];
+
+            this.hushTxFifoLevelWarnings = hushTxFifoLevelWarnings;
         }
 
         public override void Reset()
@@ -293,12 +295,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                         writeCallback: (_, __, value) => TxEnqueue((byte)value))
                 },
                 {(long)Registers.MasterSignalsControl, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "CTRL0.spi_en",
+                    .WithFlag(0, out var spiEnabled, name: "CTRL0.spi_en",
                         writeCallback: (_, value) => { if(!value) TryDeassert(); })
                     .WithFlag(1, name: "CTRL0.mm_en",
                         changeCallback: (_, value) =>
                         {
-                            if(!value)
+                            if(!value && spiEnabled.Value)
                             {
                                 this.Log(LogLevel.Warning, "CTRL0.mm_en has been unset, but only Master mode is supported");
                             }
@@ -355,27 +357,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("CTRL2.ss_pol", 16, 4)
                     .WithReservedBits(20, 12)
                 },
-                {(long)Registers.DMAControl, new DoubleWordRegister(this)
-                    .WithValueField(0, 5, out txFIFOThreshold, name: "DMA.tx_fifo_level")
-                    .WithReservedBits(5, 1)
-                    .WithFlag(6, out txFIFOEnabled, name: "DMA.tx_fifo_en")
-                    .WithFlag(7, FieldMode.WriteOneToClear, name: "DMA.tx_fifo_clear",
-                        writeCallback: (_, value) => { if(value) txQueue.Clear(); })
-                    .WithValueField(8, 6, FieldMode.Read, name: "DMA.tx_fifo_cnt",
-                        valueProviderCallback: _ => (uint)txQueue.Count)
-                    .WithReservedBits(14, 1)
-                    .WithTaggedFlag("DMA.tx_dma_en", 15)
-                    .WithValueField(16, 5, out rxFIFOThreshold, name: "DMA.rx_fifo_level")
-                    .WithReservedBits(21, 1)
-                    .WithFlag(22, out rxFIFOEnabled, name: "DMA.rx_fifo_en")
-                    .WithFlag(23, FieldMode.WriteOneToClear, name: "DMA.rx_fifo_clear",
-                        writeCallback: (_, value) => { if(value) rxQueue.Clear(); })
-                    .WithValueField(24, 6, FieldMode.Read, name: "DMA.rx_fifo_cnt",
-                        valueProviderCallback: _ => (uint)rxQueue.Count)
-                    .WithReservedBits(30, 1)
-                    .WithTag("DMA.rx_dma_en", 31, 1)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
                 {(long)Registers.InterruptStatusFlags, new DoubleWordRegister(this)
                     .WithFlag(0, out interruptTxLevelPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.tx_level")
                     .WithFlag(1, out interruptTxEmptyPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL.tx_empty")
@@ -419,6 +400,41 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(1, 31)
                 }
             };
+
+            {
+                var constructedRegister = new DoubleWordRegister(this)
+                    .WithValueField(0, 5, out txFIFOThreshold, name: "DMA.tx_fifo_level")
+                    // NOTE: 5th bit covered in if statement
+                    .WithFlag(6, out txFIFOEnabled, name: "DMA.tx_fifo_en")
+                    .WithFlag(7, FieldMode.WriteOneToClear, name: "DMA.tx_fifo_clear",
+                        writeCallback: (_, value) => { if(value) txQueue.Clear(); })
+                    .WithValueField(8, 6, FieldMode.Read, name: "DMA.tx_fifo_cnt",
+                        valueProviderCallback: _ => (uint)txQueue.Count)
+                    .WithReservedBits(14, 1)
+                    .WithTaggedFlag("DMA.tx_dma_en", 15)
+                    .WithValueField(16, 5, out rxFIFOThreshold, name: "DMA.rx_fifo_level")
+                    .WithReservedBits(21, 1)
+                    .WithFlag(22, out rxFIFOEnabled, name: "DMA.rx_fifo_en")
+                    .WithFlag(23, FieldMode.WriteOneToClear, name: "DMA.rx_fifo_clear",
+                        writeCallback: (_, value) => { if(value) rxQueue.Clear(); })
+                    .WithValueField(24, 6, FieldMode.Read, name: "DMA.rx_fifo_cnt",
+                        valueProviderCallback: _ => (uint)rxQueue.Count)
+                    .WithReservedBits(30, 1)
+                    .WithTag("DMA.rx_dma_en", 31, 1)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                ;
+                // Depending on the peripheral constructor argument, treat writes to reserved field as error or don't.
+                if(hushTxFifoLevelWarnings)
+                {
+                    constructedRegister.WithFlag(5, name: "RESERVED");
+                }
+                else
+                {
+                    constructedRegister.WithReservedBits(5, 1);
+                }
+                registerMap.Add((long)Registers.DMAControl, constructedRegister);
+            }
+
             return registerMap;
         }
 
@@ -446,6 +462,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private bool[] shouldDeassert;
         private bool transactionInProgress;
+        private bool hushTxFifoLevelWarnings;
         private uint charactersToTransmit;
 
         private IValueRegisterField slaveSelect;
