@@ -310,8 +310,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
-                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault_err") // FieldMode.Write
-                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name: "recov_operation_err") // FieldMode.Write
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name: "recov_operation_err") // FieldMode.Write
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault_err") // FieldMode.Write
                 .WithIgnoredBits(2, 30);
 
             Registers.ConfigurationWriteEnable.Define(this, 0x1)
