@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             FatalMacroAlert = new GPIO();
             FatalCheckErrorAlert = new GPIO();
             FatalBusAlert = new GPIO();
+            FatalPrimitiveOtpAlert = new GPIO();
+            RecoverablePrimitiveOtpAlert = new GPIO();
 
             aValues = new ushort[ABValuesWordsCount];
             bValues = new ushort[ABValuesWordsCount];
@@ -47,6 +49,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             FatalMacroAlert.Unset();
             FatalCheckErrorAlert.Unset();
             FatalBusAlert.Unset();
+            FatalPrimitiveOtpAlert.Unset();
+            RecoverablePrimitiveOtpAlert.Unset();
 
             daiIdleFlag.Value = true;
             cachedLifeCycleState = null;
@@ -104,6 +108,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public GPIO FatalMacroAlert { get; }
         public GPIO FatalCheckErrorAlert { get; }
         public GPIO FatalBusAlert { get; }
+        public GPIO FatalPrimitiveOtpAlert { get; }
+        public GPIO RecoverablePrimitiveOtpAlert { get; }
 
         public string AValuesChain
         {
@@ -190,7 +196,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalMacroAlert.Blink(); }, name: "fatal_macro_error")
                 .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalCheckErrorAlert.Blink(); }, name: "fatal_check_error")
                 .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalBusAlert.Blink(); }, name: "fatal_bus_integ_error")
-                .WithIgnoredBits(3, 29);
+                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalPrimitiveOtpAlert.Blink(); }, name: "fatal_prim_otp_alert")
+                .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverablePrimitiveOtpAlert.Blink(); }, name: "recov_prim_otp_alert")
+                .WithIgnoredBits(5, 27);
             Registers.Status.Define(this)
                 .WithFlag(0, out vendorPartitionErrorFlag, FieldMode.Read, name: "VENDOR_TEST_ERROR")
                 .WithFlag(1, out creatorPartitionErrorFlag, FieldMode.Read, name: "CREATOR_SW_CFG_ERROR")
