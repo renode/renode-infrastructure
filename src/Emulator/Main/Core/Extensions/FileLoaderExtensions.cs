@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Core.Extensions
                             case HexRecordType.ExtendedLinearAddress:
                                 if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedTargetAddress))
                                 {
-                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse address");
+                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse extended linear address");
                                 }
                                 break;
 
