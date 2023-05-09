@@ -31,6 +31,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             RecoverableAlert = new GPIO();
             FatalStandardAlert = new GPIO();
             FatalAlert = new GPIO();
+            FatalPrimitiveFlashAlert = new GPIO();
+            RecoverablePrimitiveFlashAlert = new GPIO();
 
             mpRegionEnabled = new IEnumRegisterField<MultiBitBool4>[NumberOfMpRegions];
             mpRegionBase = new IValueRegisterField[NumberOfMpRegions];
@@ -105,7 +107,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name:"recov_err")
                 .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalStandardAlert.Blink(); }, name:"fatal_std_err")
                 .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name:"fatal_err")
-                .WithReservedBits(3, 29);
+                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalPrimitiveFlashAlert.Blink(); }, name:"fatal_prim_flash_alert")
+                .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverablePrimitiveFlashAlert.Blink(); }, name:"recov_prim_flash_alert")
+                .WithReservedBits(5, 27);
 
             Registers.DisableFlashFunctionality.Define(this)
                 .WithTag("VAL", 0, 4)
@@ -436,6 +440,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             RecoverableAlert.Unset();
             FatalStandardAlert.Unset();
             FatalAlert.Unset();
+            FatalPrimitiveFlashAlert.Unset();
+            RecoverablePrimitiveFlashAlert.Unset();
             UpdateInterrupts();
         }
 
@@ -485,6 +491,8 @@ namespace Antmicro.Renode.Peripherals.MTD
         public GPIO RecoverableAlert { get; }
         public GPIO FatalStandardAlert { get; }
         public GPIO FatalAlert { get; }
+        public GPIO FatalPrimitiveFlashAlert { get; }
+        public GPIO RecoverablePrimitiveFlashAlert { get; }
 
         private void StartOperation()
         {
