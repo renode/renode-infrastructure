@@ -7,6 +7,7 @@
 //
 using System;
 using System.Collections.Generic;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -26,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Each of these memory mapped registers is intended to be connected to the MSIP bits
             // within the MIP CSR registers of the individial harts.
             // This allows interprocessor interrupts between harts.
+
+            FatalAlert = new GPIO();
 
             // OpenTitan PLIC implementation source is limited
             if(numberOfSources + 1 > MaxNumberOfSources)
@@ -88,9 +91,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
+
+            Registers.AlertTestRegister.Define(registers)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault") // FieldMode.Write
+                .WithIgnoredBits(1, 31);
         }
 
         public long Size => 0x8000000;
+
+        public GPIO FatalAlert { get; }
 
         protected override bool IsIrqSourceAvailable(int number)
         {
