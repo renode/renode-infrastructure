@@ -38,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             Key = key;
             Nonce = nonce;
+            FatalAlert = new GPIO();
 
             digest = new byte[NumberOfDigestRegisters * 4];
             expectedDigest = new byte[NumberOfDigestRegisters * 4];
@@ -80,9 +81,12 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             // do not clear ROM
             registers.Reset();
             CheckDigest();
+            FatalAlert.Unset();
         }
 
         public long Size => 0x1000;
+
+        public GPIO FatalAlert { get; }
 
         public IEnumerable<byte> Digest => digest;
 
@@ -129,6 +133,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                         {
                             checkerError.Value |= value;
                             integrityError.Value |= value;
+                            if(value)
+                            {
+                                FatalAlert.Blink();
+                            }
                         }, name: "fatal")
                     .WithReservedBits(1, 31)
                 },
