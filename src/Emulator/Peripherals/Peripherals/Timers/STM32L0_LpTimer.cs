@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,20 +26,25 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 this.Log(LogLevel.Debug, "Limit reached");
                 autoReloadMatchInterruptStatus.Value = true;
+                compareMatchInterruptStatus.Value = true;
                 UpdateInterrupts();
             };
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                  {(long)Registers.InterruptAndStatus, new DoubleWordRegister(this)
-                    .WithTaggedFlag("Compare match (CMPM)", 0)
+                    .WithFlag(0, out compareMatchInterruptStatus, FieldMode.Read, name:"Compare match (CMPM)")
                     .WithFlag(1, out autoReloadMatchInterruptStatus, FieldMode.Read, name: "Autoreload match (ARRM)")
                     .WithTaggedFlag("External trigger edge event (EXTTRIG)", 2)
-                    .WithFlag(3, out compareRegisterUpdateOkStatus, FieldMode.Read, name: "Compare register update OK (CMPOK)")
+                    .WithFlag(3, out compareRegisterUpdateOkStatus, FieldMode.Read, name: "Compare register update OK (CMPOK/CMP1OK)")
                     .WithFlag(4, out autoReloadRegisterUpdateOkStatus, FieldMode.Read, name: "Autoreload register update OK (ARROK)")
                     .WithTaggedFlag("Counter direction change down to up (UP)", 5)
                     .WithTaggedFlag("Counter direction change up to down (DOWN)", 6)
-                    .WithReservedBits(7, 25)
+                    .WithReservedBits(7, 1)
+                    .WithFlag(8, out repetitionUpdateOkStatus, FieldMode.Read, name: "Repetition register update OK (REPOK)")
+                    .WithReservedBits(9, 15)
+                    .WithFlag(24, out interruptEnableRegisterUpdateOkStatus, FieldMode.Read, name: "Interrupt enable register update OK (DIEROK)")
+                    .WithReservedBits(25, 7)
                   },
 
                   {(long)Registers.InterruptClear, new DoubleWordRegister(this)
@@ -53,7 +58,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
 
                             autoReloadMatchInterruptStatus.Value = false;
-                            UpdateInterrupts();
                         },
                         name: "Autoreload match clear flag (ARRMCF)")
                     .WithTaggedFlag("External trigger edge event clear flag (EXTTRIGCF)", 2)
@@ -65,7 +69,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 return;
                             }
                             compareRegisterUpdateOkStatus.Value = false;
-                            UpdateInterrupts();
                         },
                         name: "Compare register update OK clear flag (CMPOKCF)")
                     .WithFlag(4, FieldMode.WriteOneToClear,
@@ -76,24 +79,48 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 return;
                             }
                             autoReloadRegisterUpdateOkStatus.Value = false;
-                            UpdateInterrupts();
                         },
                         name: "Autoreload register update OK clear flag (ARROKCF)")
                     .WithTaggedFlag("Counter direction change down to up clear flag (UPCF)", 5)
                     .WithTaggedFlag("Counter direction change up to down clear flag (DOWNCF)", 6)
-                    .WithReservedBits(7, 25)
+                    .WithReservedBits(7, 1)
+                    .WithFlag(8, FieldMode.WriteOneToClear,
+                         writeCallback: (_, val) =>
+                         {
+                            if(!val)
+                            {
+                                return;
+                            }
+                            repetitionUpdateOkStatus.Value = false;
+                         },
+                         name: "Repetition register update OK clear flag (REPOKCF)")
+                    .WithReservedBits(9, 15)
+                    .WithFlag(24, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) => 
+                        {
+                            if(!val)
+                            {
+                                return;
+                            }
+                            interruptEnableRegisterUpdateOkStatus.Value = false;
+                        },
+                        name: "Interrupt enable register update OK clear flag (DIEROKCF)")
+                    .WithWriteCallback( (_, __) => UpdateInterrupts())
                 },
 
                 // Caution: The LPTIM_IER register must only be modified when the LPTIM is disabled (ENABLE bit reset to '0')
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
-                    .WithTaggedFlag("Compare match interrupt enable (CMPMIE)", 0)
+                    .WithFlag(0, out compareMatchInterruptEnable, name:"Compare match interrupt enable (CMPMIE)")
                     .WithFlag(1, out autoReloadMatchInterruptEnable, name: "Autoreload match interrupt enable (ARRMIE)")
                     .WithTaggedFlag("External trigger edge event interrupt enable (EXTTRIGIE)", 2)
                     .WithFlag(3, out compareRegisterUpdateOkEnable, name: "Compare register update OK interrupt enable (CMPOKIE)")
                     .WithFlag(4, out autoReloadRegisterUpdateOkEnable, name: "Autoreload register update OK interrupt enable (ARROKIE)")
                     .WithFlag(5, name: "Counter direction change down to up interrupt enable (UPIE)")
                     .WithFlag(6, name: "Counter direction change up to down interrupt enable (DOWNIE)")
-                    .WithReservedBits(7, 25)
+                    .WithReservedBits(7, 1)
+                    .WithFlag(8, out repetitionUpdateOkEnable, name: "Repetition register update OK interrupt Enable (REPOKIE)")
+                    .WithReservedBits(9, 23)
+                    .WithWriteCallback((_, __) => {interruptEnableRegisterUpdateOkStatus.Value = true;})
                 },
 
                 // Caution: The LPTIM_CFGR register must only be modified when the LPTIM is disabled (ENABLE bit reset to '0')
@@ -168,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             {
                                 this.Limit = val;
                                 this.Value = 0;
-                                compareRegisterUpdateOkEnable.Value = true;
+                                compareRegisterUpdateOkStatus.Value = true;
                                 UpdateInterrupts();
                             })
                     .WithReservedBits(16, 16)
@@ -192,7 +219,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(0, 16, FieldMode.Read, name: "Counter value (CNT)",
                             valueProviderCallback: _ => (uint)this.Value)
                     .WithReservedBits(16, 16)
-                }
+                },
+
+                {(long)Registers.Repetition, new DoubleWordRegister(this)
+                    .WithTag("Repetition register value (REP)", 0, 8)
+                    .WithReservedBits(8, 24)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        repetitionUpdateOkStatus.Value = true;
+                        UpdateInterrupts();
+                    })
+                },
             };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
@@ -227,6 +264,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             flag |= autoReloadMatchInterruptEnable.Value && autoReloadMatchInterruptStatus.Value;
             flag |= autoReloadRegisterUpdateOkEnable.Value && autoReloadRegisterUpdateOkStatus.Value;
             flag |= compareRegisterUpdateOkEnable.Value && compareRegisterUpdateOkStatus.Value;
+            flag |= compareMatchInterruptEnable.Value && compareMatchInterruptStatus.Value;
+            flag |= repetitionUpdateOkStatus.Value && repetitionUpdateOkEnable.Value;
 
             this.Log(LogLevel.Debug, "Setting IRQ to {0}", flag);
             IRQ.Set(flag);
@@ -240,6 +279,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IFlagRegisterField autoReloadRegisterUpdateOkStatus;
         private readonly IFlagRegisterField compareRegisterUpdateOkEnable;
         private readonly IFlagRegisterField compareRegisterUpdateOkStatus;
+        private readonly IFlagRegisterField compareMatchInterruptEnable;
+        private readonly IFlagRegisterField compareMatchInterruptStatus;
+        private readonly IFlagRegisterField interruptEnableRegisterUpdateOkStatus;
+        private readonly IFlagRegisterField repetitionUpdateOkStatus;
+        private readonly IFlagRegisterField repetitionUpdateOkEnable;
         private readonly IFlagRegisterField enabled;
 
         private enum Registers : long
@@ -260,6 +304,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             AutoReload = 0x18,
             // LPTIM_CNT
             Counter = 0x1C,
+            // LPTIM_RCR
+            Repetition = 0x28,
         }
     }
 }
