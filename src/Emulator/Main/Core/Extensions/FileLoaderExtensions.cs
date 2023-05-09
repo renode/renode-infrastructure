@@ -52,6 +52,7 @@ namespace Antmicro.Renode.Core.Extensions
             string line;
             int lineNum = 1;
             ulong extendedTargetAddress = 0;
+            ulong extendedSegmentAddress = 0;
             bool endOfFileReached = false;
             List<FileChunk> chunks = new List<FileChunk>();
 
@@ -87,7 +88,7 @@ namespace Antmicro.Renode.Core.Extensions
                         switch((HexRecordType)type)
                         {
                             case HexRecordType.Data:
-                                var targetAddr = (extendedTargetAddress << 16) | address;
+                                var targetAddr = (extendedTargetAddress << 16) | (extendedSegmentAddress << 4) | address;
                                 var pos = 9;
                                 var buffer = new byte[length];
                                 for(var i = 0; i < length; i++, pos += 2)
@@ -116,6 +117,26 @@ namespace Antmicro.Renode.Core.Extensions
                                 if(cpu != null)
                                 {
                                     cpu.PC = startingAddress;
+                                }
+                                break;
+
+                            case HexRecordType.ExtendedSegmentAddress:
+                                if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedSegmentAddress))
+                                {
+                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse extended segment address");
+                                }
+                                break;
+
+                            case HexRecordType.StartSegmentAddress:
+                                if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingSegment)
+                                   || !ulong.TryParse(line.Substring(13, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingSegmentAddress))
+                                {
+                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse starting segment/address");
+                                }
+
+                                if(cpu != null)
+                                {
+                                    cpu.PC = (startingSegment << 4) + startingSegmentAddress;
                                 }
                                 break;
 
