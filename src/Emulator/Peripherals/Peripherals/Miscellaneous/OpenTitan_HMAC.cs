@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             this.Log(LogLevel.Debug, "Received a 'hash_process' command");
 
-            var message = packer.DataToArray(!endianSwap.Value);
+            var message = packer.DataToArray(endianSwap.Value);
             byte[] hash;
 
             if(hmacEnabled.Value)
