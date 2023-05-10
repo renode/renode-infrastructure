@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Testing
     {
         public LEDTester(ILed led, float defaultTimeout = 0)
         {
+            ValidateArgument(defaultTimeout, nameof(defaultTimeout), allowZero: true);
             this.led = led;
             this.machine = led.GetMachine();
             this.defaultTimeout = defaultTimeout;
@@ -36,6 +37,7 @@ namespace Antmicro.Renode.Testing
         public LEDTester AssertState(bool state, float? timeout = null, bool pauseEmulation = false)
         {
             timeout = timeout ?? defaultTimeout;
+            ValidateArgument(timeout.Value, nameof(timeout), allowZero: true);
 
             var emulation = EmulationManager.Instance.CurrentEmulation;
             var timeoutEvent = GetTimeoutEvent((ulong)(timeout * 1000));
@@ -84,6 +86,8 @@ namespace Antmicro.Renode.Testing
 
         public LEDTester AssertAndHoldState(bool initialState, float timeoutAssert, float timeoutHold, bool pauseEmulation = false)
         {
+            ValidateArgument(timeoutAssert, nameof(timeoutAssert), allowZero: true);
+            ValidateArgument(timeoutHold, nameof(timeoutHold));
             var emulation = EmulationManager.Instance.CurrentEmulation;
             AutoResetEvent emulationPausedEvent = null;
             var locker = new Object();
@@ -167,6 +171,9 @@ namespace Antmicro.Renode.Testing
 
         public LEDTester AssertDutyCycle(float testDuration, double expectedDutyCycle, double tolerance = 0.05, bool pauseEmulation = false)
         {
+            ValidateArgument(testDuration, nameof(testDuration));
+            ValidateArgument(expectedDutyCycle, nameof(expectedDutyCycle), min: 0, max: 1);
+            ValidateArgument(tolerance, nameof(tolerance), min: 0, max: 1);
             var emulation = EmulationManager.Instance.CurrentEmulation;
             AutoResetEvent emulationPausedEvent = null;
             ulong lowTicks = 0;
@@ -211,6 +218,9 @@ namespace Antmicro.Renode.Testing
 
         public LEDTester AssertIsBlinking(float testDuration, double onDuration, double offDuration, double tolerance = 0.05, bool pauseEmulation = false)
         {
+            ValidateArgument(testDuration, nameof(testDuration));
+            ValidateArgument(onDuration, nameof(onDuration));
+            ValidateArgument(offDuration, nameof(offDuration));
             var emulation = EmulationManager.Instance.CurrentEmulation;
             AutoResetEvent emulationPausedEvent = null;
             var patternMismatchEvent = new ManualResetEvent(false);
@@ -312,6 +322,25 @@ namespace Antmicro.Renode.Testing
                 emulation.StartAll();
             }
             return emulationPausedEvent;
+        }
+
+        // If no min or max is provided, this function checks whether the argument is not negative
+        // (if allowZero) or positive (otherwise)
+        private static void ValidateArgument(double value, string name, bool allowZero = false,
+            double? min = null, double? max = null)
+        {
+            if(min != null || max != null)
+            {
+                if(value < min || value > max)
+                {
+                    throw new ArgumentException($"Value must be in range [{min}; {max}], but was {value}", name);
+                }
+            }
+            else if(value < 0 || !allowZero && value == 0)
+            {
+                var explanation = allowZero ? "not be negative" : "be positive";
+                throw new ArgumentException($"Value must {explanation}, but was {value}", name);
+            }
         }
 
         private readonly ILed led;
