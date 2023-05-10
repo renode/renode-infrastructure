@@ -416,6 +416,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             else if(value == UnlockKey2 && firstStageUnlocked)
                             {
                                 registersUnlocked = true;
+                                firstStageUnlocked = false;
                             }
                             else
                             {
