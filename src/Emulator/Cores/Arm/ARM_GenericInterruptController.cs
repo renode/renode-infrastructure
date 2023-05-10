@@ -714,7 +714,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => GetAskingCPU().Affinity.AllLevels
                     )
                     .WithValueField(27, 5, FieldMode.Read, name: "MaximumPrivatePeripheralInterruptIdentifier",
-                        valueProviderCallback: _ => 0b10 // This value indicates the highest identifier equal to 1119
+                        valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI 
                     )
                     .WithFlag(26, FieldMode.Read, name: "DirectSoftwareGEenratedInterruptInjectionSupport",
                         valueProviderCallback: _ => false
