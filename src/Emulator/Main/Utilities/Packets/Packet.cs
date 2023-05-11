@@ -16,54 +16,60 @@ namespace Antmicro.Renode.Utilities.Packets
     {
         public static int CalculateLength<T>()
         {
-            return cache.Get(typeof(T), _ =>
+            lock(cache)
             {
-                var fieldsAndProperties = GetFieldsAndProperties<T>();
-
-                var maxOffset = 0;
-                var offset = 0;
-                foreach(var element in fieldsAndProperties)
+                return cache.Get(typeof(T), _ =>
                 {
-                    var bytesRequired = element.BytesRequired;
-                    offset = element.ByteOffset ?? offset;
+                    var fieldsAndProperties = GetFieldsAndProperties<T>();
 
-                    var co = offset + bytesRequired;
-                    maxOffset = Math.Max(co, maxOffset);
-                    offset += bytesRequired;
-                }
+                    var maxOffset = 0;
+                    var offset = 0;
+                    foreach(var element in fieldsAndProperties)
+                    {
+                        var bytesRequired = element.BytesRequired;
+                        offset = element.ByteOffset ?? offset;
 
-                return maxOffset;
-            });
+                        var co = offset + bytesRequired;
+                        maxOffset = Math.Max(co, maxOffset);
+                        offset += bytesRequired;
+                    }
+
+                    return maxOffset;
+                });
+            }
         }
 
         public static int CalculateOffset<T>(string fieldName)
         {
-            return cache.Get(Tuple.Create(typeof(T), fieldName), _ =>
+            lock(cache)
             {
-                var fieldsAndProperties = GetFieldsAndProperties<T>();
-
-                var maxOffset = 0;
-                var offset = 0;
-                foreach(var element in fieldsAndProperties)
+                return cache.Get(Tuple.Create(typeof(T), fieldName), _ =>
                 {
-                    if(element.ElementName == fieldName)
+                    var fieldsAndProperties = GetFieldsAndProperties<T>();
+
+                    var maxOffset = 0;
+                    var offset = 0;
+                    foreach(var element in fieldsAndProperties)
                     {
-                        return maxOffset;
+                        if(element.ElementName == fieldName)
+                        {
+                            return maxOffset;
+                        }
+
+                        if(element.ByteOffset.HasValue)
+                        {
+                            offset = element.ByteOffset.Value;
+                        }
+
+                        var bytesRequired = element.BytesRequired;
+                        var co = offset + bytesRequired;
+                        maxOffset = Math.Max(co, maxOffset);
+                        offset += bytesRequired;
                     }
 
-                    if(element.ByteOffset.HasValue)
-                    {
-                        offset = element.ByteOffset.Value;
-                    }
-
-                    var bytesRequired = element.BytesRequired;
-                    var co = offset + bytesRequired;
-                    maxOffset = Math.Max(co, maxOffset);
-                    offset += bytesRequired;
-                }
-
-                return -1;
-            });
+                    return -1;
+                });
+            }
         }
 
         public static T Decode<T>(IList<byte> data, int dataOffset = 0)
@@ -401,16 +407,19 @@ namespace Antmicro.Renode.Utilities.Packets
 
         private static FieldPropertyInfoWrapper[] GetFieldsAndProperties<T>()
         {
-            return cache.Get(typeof(T), _ =>
+            lock(cache)
             {
-                return typeof(T).GetFields()
-                    .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
-                    .Select(x => new FieldPropertyInfoWrapper(x))
-                    .Union(typeof(T).GetProperties()
+                return cache.Get(typeof(T), _ =>
+                {
+                    return typeof(T).GetFields()
                         .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
                         .Select(x => new FieldPropertyInfoWrapper(x))
-                    ).OrderBy(x => x.Order).ToArray();
-            });
+                        .Union(typeof(T).GetProperties()
+                            .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
+                            .Select(x => new FieldPropertyInfoWrapper(x))
+                        ).OrderBy(x => x.Order).ToArray();
+                });
+            }
         }
 
         private static readonly SimpleCache cache = new SimpleCache();
