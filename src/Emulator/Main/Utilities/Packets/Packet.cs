@@ -77,13 +77,18 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public static bool TryDecode<T>(IList<byte> data, out T result, int dataOffset = 0)
         {
+            var offset = dataOffset;
+            if(offset < 0)
+            {
+                throw new ArgumentException("Data offset cannot be less than zero", "dataOffset");
+            }
+
             // we need to do the casting as otherwise setting value would not work on structs
             var innerResult = (object)default(T);
             result = default(T);
 
             var fieldsAndProperties = GetFieldsAndProperties<T>();
 
-            var offset = dataOffset;
             foreach(var field in fieldsAndProperties)
             {
                 var type = field.ElementType;
