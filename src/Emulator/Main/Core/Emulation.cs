@@ -106,9 +106,10 @@ namespace Antmicro.Renode.Core
             get { lock (machLock) { return machs.Rights.Any(x => !x.IsPaused); } }
         }
 
+        // This property should only be set while holding `machLock`
         public bool IsStarted
         {
-            get { return isStarted; }
+            get { lock (machLock) { return isStarted; } }
             private set
             {
                 if(isStarted == value)
@@ -121,6 +122,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        // Do not access this field directly, use the IsStarted property setter
         [Transient]
         private bool isStarted;
 
