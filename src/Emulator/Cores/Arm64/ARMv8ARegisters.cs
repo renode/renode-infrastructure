@@ -60,30 +60,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
-        public RegisterValue LR
-        {
-            get
-            {
-                return GetRegisterValue64((int)ARMv8ARegisters.LR);
-            }
-            set
-            {
-                SetRegisterValue64((int)ARMv8ARegisters.LR, value);
-            }
-        }
-        [Register]
-        public RegisterValue SP
-        {
-            get
-            {
-                return GetRegisterValue64((int)ARMv8ARegisters.SP);
-            }
-            set
-            {
-                SetRegisterValue64((int)ARMv8ARegisters.SP, value);
-            }
-        }
-        [Register]
         public override RegisterValue PC
         {
             get
@@ -105,18 +81,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 SetRegisterValue32((int)ARMv8ARegisters.PSTATE, value);
-            }
-        }
-        [Register]
-        public RegisterValue CPSR
-        {
-            get
-            {
-                return GetRegisterValue32((int)ARMv8ARegisters.CPSR);
-            }
-            set
-            {
-                SetRegisterValue32((int)ARMv8ARegisters.CPSR, value);
             }
         }
         [Register]
@@ -143,7 +107,20 @@ namespace Antmicro.Renode.Peripherals.CPU
                 SetRegisterValue32((int)ARMv8ARegisters.FPCR, value);
             }
         }
+        [Register]
+        public RegisterValue CPSR
+        {
+            get
+            {
+                return GetRegisterValue32((int)ARMv8ARegisters.CPSR);
+            }
+            set
+            {
+                SetRegisterValue32((int)ARMv8ARegisters.CPSR, value);
+            }
+        }
         public RegistersGroup X { get; private set; }
+        public RegistersGroup R { get; private set; }
 
         protected override void InitializeRegisters()
         {
@@ -186,6 +163,30 @@ namespace Antmicro.Renode.Peripherals.CPU
                 indexValueMapX.Keys,
                 i => GetRegisterUnsafe((int)indexValueMapX[i]),
                 (i, v) => SetRegisterUnsafe((int)indexValueMapX[i], v));
+
+            var indexValueMapR = new Dictionary<int, ARMv8ARegisters>
+            {
+                { 0, ARMv8ARegisters.R0 },
+                { 1, ARMv8ARegisters.R1 },
+                { 2, ARMv8ARegisters.R2 },
+                { 3, ARMv8ARegisters.R3 },
+                { 4, ARMv8ARegisters.R4 },
+                { 5, ARMv8ARegisters.R5 },
+                { 6, ARMv8ARegisters.R6 },
+                { 7, ARMv8ARegisters.R7 },
+                { 8, ARMv8ARegisters.R8 },
+                { 9, ARMv8ARegisters.R9 },
+                { 10, ARMv8ARegisters.R10 },
+                { 11, ARMv8ARegisters.R11 },
+                { 12, ARMv8ARegisters.R12 },
+                { 13, ARMv8ARegisters.R13 },
+                { 14, ARMv8ARegisters.R14 },
+                { 15, ARMv8ARegisters.R15 },
+            };
+            R = new RegistersGroup(
+                indexValueMapR.Keys,
+                i => GetRegisterUnsafe((int)indexValueMapR[i]),
+                (i, v) => SetRegisterUnsafe((int)indexValueMapR[i], v));
 
         }
 
@@ -241,24 +242,39 @@ namespace Antmicro.Renode.Peripherals.CPU
             { ARMv8ARegisters.X27,  new CPURegister(27, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.X28,  new CPURegister(28, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.X29,  new CPURegister(29, 64, isGeneral: true, isReadonly: false) },
-            { ARMv8ARegisters.LR,  new CPURegister(30, 64, isGeneral: true, isReadonly: false) },
-            { ARMv8ARegisters.SP,  new CPURegister(31, 64, isGeneral: true, isReadonly: false) },
+            { ARMv8ARegisters.X30,  new CPURegister(30, 64, isGeneral: true, isReadonly: false) },
+            { ARMv8ARegisters.X31,  new CPURegister(31, 64, isGeneral: false, isReadonly: false) },
             { ARMv8ARegisters.PC,  new CPURegister(32, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.PSTATE,  new CPURegister(33, 32, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.FPSR,  new CPURegister(66, 32, isGeneral: false, isReadonly: false) },
             { ARMv8ARegisters.FPCR,  new CPURegister(67, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R0,  new CPURegister(100, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R1,  new CPURegister(101, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R2,  new CPURegister(102, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R3,  new CPURegister(103, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R4,  new CPURegister(104, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R5,  new CPURegister(105, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R6,  new CPURegister(106, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R7,  new CPURegister(107, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R8,  new CPURegister(108, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R9,  new CPURegister(109, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R10,  new CPURegister(110, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R11,  new CPURegister(111, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R12,  new CPURegister(112, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R13,  new CPURegister(113, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R14,  new CPURegister(114, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.R15,  new CPURegister(115, 32, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.CPSR,  new CPURegister(125, 32, isGeneral: false, isReadonly: false) },
         };
     }
 
     public enum ARMv8ARegisters
     {
-        LR = 30,
-        SP = 31,
         PC = 32,
         PSTATE = 33,
-        CPSR = 33,
         FPSR = 66,
         FPCR = 67,
+        CPSR = 125,
         X0 = 0,
         X1 = 1,
         X2 = 2,
@@ -291,5 +307,21 @@ namespace Antmicro.Renode.Peripherals.CPU
         X29 = 29,
         X30 = 30,
         X31 = 31,
+        R0 = 100,
+        R1 = 101,
+        R2 = 102,
+        R3 = 103,
+        R4 = 104,
+        R5 = 105,
+        R6 = 106,
+        R7 = 107,
+        R8 = 108,
+        R9 = 109,
+        R10 = 110,
+        R11 = 111,
+        R12 = 112,
+        R13 = 113,
+        R14 = 114,
+        R15 = 115,
     }
 }
