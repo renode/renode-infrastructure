@@ -1628,6 +1628,15 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public static ulong CastToULong(dynamic number)
+        {
+            if(new Type[] { typeof(byte), typeof(ushort), typeof(uint), typeof(ulong)}.Any((t) => number.GetType() == t))
+            {
+                return (ulong)number;
+            }
+            throw new ArgumentException($"Can't cast {number.GetType()} to ulong", "number");
+        }
+
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 
