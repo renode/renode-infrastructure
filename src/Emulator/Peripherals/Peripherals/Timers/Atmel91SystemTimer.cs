@@ -76,12 +76,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; private set; }
 
-        // TODO: usuń to programisto!
-        public void ResetIRQ()
-        {
-            IRQ.Unset();
-        }
-
         #region IPeripheral implementation
 
         public void Reset()
