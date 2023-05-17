@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// 64 bit <see cref="PeripheralRegister"/>.
     /// </summary>
-    public sealed class QuadWordRegister : PeripheralRegister
+    public sealed class QuadWordRegister : PeripheralRegister, IPeripheralRegister<ulong>
     {
         /// <summary>
         /// Creates a register with one field, serving a purpose of read and write register.
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// 32 bit <see cref="PeripheralRegister"/>.
     /// </summary>
-    public sealed class DoubleWordRegister : PeripheralRegister
+    public sealed class DoubleWordRegister : PeripheralRegister, IPeripheralRegister<uint>
     {
         /// <summary>
         /// Creates a register with one field, serving a purpose of read and write register.
@@ -223,7 +223,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// 16 bit <see cref="PeripheralRegister"/>.
     /// </summary>
-    public sealed class WordRegister : PeripheralRegister
+    public sealed class WordRegister : PeripheralRegister, IPeripheralRegister<ushort>
     {
         /// <summary>
         /// Creates a register with one field, serving a purpose of read and write register.
@@ -326,7 +326,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// <summary>
     /// 8 bit <see cref="PeripheralRegister"/>.
     /// </summary>
-    public sealed class ByteRegister : PeripheralRegister
+    public sealed class ByteRegister : PeripheralRegister, IPeripheralRegister<byte>
     {
         /// <summary>
         /// Creates a register with one field, serving a purpose of read and write register.
@@ -425,6 +425,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
         private List<Action<byte, byte>> writeCallbacks = new List<Action<byte, byte>>();
         private List<Action<byte, byte>> changeCallbacks = new List<Action<byte, byte>>();
 
+    }
+
+    public interface IPeripheralRegister<T>
+    {
+        T Read();
+        void Write(long offset, T value);
     }
 
     /// <summary>

@@ -8,407 +8,67 @@
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 using System;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
-    /// <summary>
-    /// Quad word register collection, allowing to write and read from specified offsets.
-    /// </summary>
-    public class QuadWordRegisterCollection : IRegisterCollection
+    public sealed class QuadWordRegisterCollection : BaseRegisterCollection<ulong, QuadWordRegister>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.QuadWordRegisterCollection"/> class.
-        /// </summary>
-        /// <param name="parent">Parent peripheral (for logging purposes).</param>
-        /// <param name="registersMap">Map of register offsets and registers.</param>
-        public QuadWordRegisterCollection(IPeripheral parent, IDictionary<long, QuadWordRegister> registersMap = null)
+        public QuadWordRegisterCollection(IPeripheral parent, IDictionary<long, QuadWordRegister> registersMap = null) : base(parent, registersMap)
         {
-            this.parent = parent;
-            this.registers = (registersMap != null)
-                ? new Dictionary<long, QuadWordRegister>(registersMap)
-                : new Dictionary<long, QuadWordRegister>();
         }
-
-        /// <summary>
-        /// Returns the value of a register in a specified offset. If no such register is found, a logger message is issued.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        public ulong Read(long offset)
-        {
-            ulong result;
-            if(TryRead(offset, out result))
-            {
-                return result;
-            }
-            parent.LogUnhandledRead(offset);
-            return 0;
-        }
-
-        /// <summary>
-        /// Tries to read from a register in a specified offset.
-        /// </summary>
-        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="result">Read value.</param>
-        public bool TryRead(long offset, out ulong result)
-        {
-            QuadWordRegister register;
-            if(registers.TryGetValue(offset, out register))
-            {
-                result = register.Read();
-                return true;
-            }
-            result = 0;
-            return false;
-        }
-
-        /// <summary>
-        /// Writes to a register in a specified offset. If no such register is found, a logger message is issued.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="value">Value to write.</param>
-        public void Write(long offset, ulong value)
-        {
-            if(!TryWrite(offset, value))
-            {
-                parent.LogUnhandledWrite(offset, value);
-            }
-        }
-
-        /// <summary>
-        /// Tries to write to a register in a specified offset.
-        /// </summary>
-        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="value">Value to write.</param>
-        public bool TryWrite(long offset, ulong value)
-        {
-            QuadWordRegister register;
-            if(registers.TryGetValue(offset, out register))
-            {
-                register.Write(offset, value);
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Resets all registers in this collection.
-        /// </summary>
-        public void Reset()
-        {
-            foreach(var register in registers.Values)
-            {
-                register.Reset();
-            }
-        }
-
-        /// <summary>
-        /// Defines a new register and adds it to the collection.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="resetValue">Register reset value.</param>
-        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
-        /// <returns>Newly added register.</returns>
-        public QuadWordRegister DefineRegister(long offset, ulong resetValue = 0, bool softResettable = true)
-        {
-            var reg = new QuadWordRegister(parent, resetValue, softResettable);
-            registers.Add(offset, reg);
-            return reg;
-        }
-
-        /// <summary>
-        /// Adds an existing register to the collection.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="register">Register to add.</param>
-        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
-        public QuadWordRegister AddRegister(long offset, QuadWordRegister register)
-        {
-            registers.Add(offset, register);
-            return register;
-        }
-
-        private readonly IPeripheral parent;
-        private readonly IDictionary<long, QuadWordRegister> registers;
     }
 
-    /// <summary>
-    /// Double word register collection, allowing to write and read from specified offsets.
-    /// </summary>
-    public class DoubleWordRegisterCollection : IRegisterCollection
+    public sealed class DoubleWordRegisterCollection : BaseRegisterCollection<uint, DoubleWordRegister>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.DoubleWordRegisterCollection"/> class.
-        /// </summary>
-        /// <param name="parent">Parent peripheral (for logging purposes).</param>
-        /// <param name="registersMap">Map of register offsets and registers.</param>
-        public DoubleWordRegisterCollection(IPeripheral parent, IDictionary<long, DoubleWordRegister> registersMap = null)
+        public DoubleWordRegisterCollection(IPeripheral parent, IDictionary<long, DoubleWordRegister> registersMap = null) : base(parent, registersMap)
         {
-            this.parent = parent;
-            this.registers = (registersMap != null)
-                ? new Dictionary<long, DoubleWordRegister>(registersMap)
-                : new Dictionary<long, DoubleWordRegister>();
         }
-
-        /// <summary>
-        /// Returns the value of a register in a specified offset. If no such register is found, a logger message is issued.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        public uint Read(long offset)
-        {
-            uint result;
-            if(TryRead(offset, out result))
-            {
-                return result;
-            }
-            parent.LogUnhandledRead(offset);
-            return 0;
-        }
-
-        /// <summary>
-        /// Tries to read from a register in a specified offset.
-        /// </summary>
-        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="result">Read value.</param>
-        public bool TryRead(long offset, out uint result)
-        {
-            DoubleWordRegister register;
-            if(registers.TryGetValue(offset, out register))
-            {
-                result = register.Read();
-                return true;
-            }
-            result = 0;
-            return false;
-        }
-
-        /// <summary>
-        /// Writes to a register in a specified offset. If no such register is found, a logger message is issued.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="value">Value to write.</param>
-        public void Write(long offset, uint value)
-        {
-            if(!TryWrite(offset, value))
-            {
-                parent.LogUnhandledWrite(offset, value);
-            }
-        }
-
-        /// <summary>
-        /// Tries to write to a register in a specified offset.
-        /// </summary>
-        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="value">Value to write.</param>
-        public bool TryWrite(long offset, uint value)
-        {
-            DoubleWordRegister register;
-            if(registers.TryGetValue(offset, out register))
-            {
-                register.Write(offset, value);
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Resets all registers in this collection.
-        /// </summary>
-        public void Reset()
-        {
-            foreach(var register in registers.Values)
-            {
-                register.Reset();
-            }
-        }
-
-        /// <summary>
-        /// Defines a new register and adds it to the collection.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="resetValue">Register reset value.</param>
-        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
-        /// <returns>Newly added register.</returns>
-        public DoubleWordRegister DefineRegister(long offset, uint resetValue = 0, bool softResettable = true)
-        {
-            var reg = new DoubleWordRegister(parent, resetValue, softResettable);
-            registers.Add(offset, reg);
-            return reg;
-        }
-
-        /// <summary>
-        /// Adds an existing register to the collection.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="register">Register to add.</param>
-        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
-        public DoubleWordRegister AddRegister(long offset, DoubleWordRegister register)
-        {
-            registers.Add(offset, register);
-            return register;
-        }
-
-        private readonly IPeripheral parent;
-        private readonly IDictionary<long, DoubleWordRegister> registers;
     }
 
-    /// <summary>
-    /// Word register collection, allowing to write and read from specified offsets.
-    /// </summary>
-    public class WordRegisterCollection : IRegisterCollection
+    public sealed class WordRegisterCollection : BaseRegisterCollection<ushort, WordRegister>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.WordRegisterCollection"/> class.
-        /// </summary>
-        /// <param name="parent">Parent peripheral (for logging purposes).</param>
-        /// <param name="registersMap">Map of register offsets and registers.</param>
-        public WordRegisterCollection(IPeripheral parent, IDictionary<long, WordRegister> registersMap = null)
+        public WordRegisterCollection(IPeripheral parent, IDictionary<long, WordRegister> registersMap = null) : base(parent, registersMap)
         {
-            this.parent = parent;
-            this.registers = (registersMap != null)
-                ? new Dictionary<long, WordRegister>(registersMap)
-                : new Dictionary<long, WordRegister>();
         }
-
-        /// <summary>
-        /// Returns the value of a register in a specified offset. If no such register is found, a logger message is issued.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        public ushort Read(long offset)
-        {
-            ushort result;
-            if(TryRead(offset, out result))
-            {
-                return result;
-            }
-            parent.LogUnhandledRead(offset);
-            return 0;
-        }
-
-        /// <summary>
-        /// Tries to read from a register in a specified offset.
-        /// </summary>
-        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="result">Read value.</param>
-        public bool TryRead(long offset, out ushort result)
-        {
-            WordRegister register;
-            if(registers.TryGetValue(offset, out register))
-            {
-                result = register.Read();
-                return true;
-            }
-            result = 0;
-            return false;
-        }
-
-        /// <summary>
-        /// Writes to a register in a specified offset. If no such register is found, a logger message is issued.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="value">Value to write.</param>
-        public void Write(long offset, ushort value)
-        {
-            if(!TryWrite(offset, value))
-            {
-                parent.LogUnhandledWrite(offset, value);
-            }
-        }
-
-        /// <summary>
-        /// Tries to write to a register in a specified offset.
-        /// </summary>
-        /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="value">Value to write.</param>
-        public bool TryWrite(long offset, ushort value)
-        {
-            WordRegister register;
-            if(registers.TryGetValue(offset, out register))
-            {
-                register.Write(offset, value);
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Resets all registers in this collection.
-        /// </summary>
-        public void Reset()
-        {
-            foreach(var register in registers.Values)
-            {
-                register.Reset();
-            }
-        }
-
-        /// <summary>
-        /// Defines a new register and adds it to the collection.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="resetValue">Register reset value.</param>
-        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
-        /// <returns>Newly added register.</returns>
-        public WordRegister DefineRegister(long offset, ushort resetValue = 0, bool softResettable = true)
-        {
-            var reg = new WordRegister(parent, resetValue, softResettable);
-            registers.Add(offset, reg);
-            return reg;
-        }
-
-        /// <summary>
-        /// Adds an existing register to the collection.
-        /// </summary>
-        /// <param name="offset">Register offset.</param>
-        /// <param name="register">Register to add.</param>
-        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
-        public WordRegister AddRegister(long offset, WordRegister register)
-        {
-            registers.Add(offset, register);
-            return register;
-        }
-
-        private readonly IPeripheral parent;
-        private readonly IDictionary<long, WordRegister> registers;
     }
 
-    /// <summary>
-    /// Byte register collection, allowing to write and read from specified offsets.
-    /// </summary>
-    public class ByteRegisterCollection : IRegisterCollection
+    public sealed class ByteRegisterCollection : BaseRegisterCollection<byte, ByteRegister>
+    {
+        public ByteRegisterCollection(IPeripheral parent, IDictionary<long, ByteRegister> registersMap = null) : base(parent, registersMap)
+        {
+        }
+    }
+
+    public abstract class BaseRegisterCollection<T, R> : IRegisterCollection where R: PeripheralRegister, IPeripheralRegister<T>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.ByteRegisterCollection"/> class.
         /// </summary>
         /// <param name="parent">Parent peripheral (for logging purposes).</param>
         /// <param name="registersMap">Map of register offsets and registers.</param>
-        public ByteRegisterCollection(IPeripheral parent, IDictionary<long, ByteRegister> registersMap = null)
+        public BaseRegisterCollection(IPeripheral parent, IDictionary<long, R> registersMap = null)
         {
             this.parent = parent;
             this.registers = (registersMap != null)
-                ? new Dictionary<long, ByteRegister>(registersMap)
-                : new Dictionary<long, ByteRegister>();
+                ? new Dictionary<long, R>(registersMap)
+                : new Dictionary<long, R>();
         }
 
         /// <summary>
         /// Returns the value of a register in a specified offset. If no such register is found, a logger message is issued.
         /// </summary>
         /// <param name="offset">Register offset.</param>
-        public byte Read(long offset)
+        public T Read(long offset)
         {
-            byte result;
+            T result;
             if(TryRead(offset, out result))
             {
                 return result;
             }
             parent.LogUnhandledRead(offset);
-            return 0;
+            return default(T);
         }
 
         /// <summary>
@@ -417,15 +77,15 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
         /// <param name="offset">Register offset.</param>
         /// <param name="result">Read value.</param>
-        public bool TryRead(long offset, out byte result)
+        public bool TryRead(long offset, out T result)
         {
-            ByteRegister register;
+            R register;
             if(registers.TryGetValue(offset, out register))
             {
                 result = register.Read();
                 return true;
             }
-            result = 0;
+            result = default(T);
             return false;
         }
 
@@ -434,11 +94,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// </summary>
         /// <param name="offset">Register offset.</param>
         /// <param name="value">Value to write.</param>
-        public void Write(long offset, byte value)
+        public void Write(long offset, T value)
         {
             if(!TryWrite(offset, value))
             {
-                parent.LogUnhandledWrite(offset, value);
+                parent.LogUnhandledWrite(offset, Misc.CastToULong(value));
             }
         }
 
@@ -448,9 +108,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
         /// <param name="offset">Register offset.</param>
         /// <param name="value">Value to write.</param>
-        public bool TryWrite(long offset, byte value)
+        public bool TryWrite(long offset, T value)
         {
-            ByteRegister register;
+            R register;
             if(registers.TryGetValue(offset, out register))
             {
                 register.Write(offset, value);
@@ -477,9 +137,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="resetValue">Register reset value.</param>
         /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
         /// <returns>Newly added register.</returns>
-        public ByteRegister DefineRegister(long offset, byte resetValue = 0, bool softResettable = true)
+        public R DefineRegister(long offset, T resetValue = default(T), bool softResettable = true)
         {
-            var reg = new ByteRegister(parent, resetValue, softResettable);
+            var constructor = typeof(R).GetConstructor(new Type[] { typeof(IPeripheral), typeof(ulong), typeof(bool) });
+            var reg = (R)constructor.Invoke(new object[] { parent, Misc.CastToULong(resetValue), softResettable });
             registers.Add(offset, reg);
             return reg;
         }
@@ -490,14 +151,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="offset">Register offset.</param>
         /// <param name="register">Register to add.</param>
         /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
-        public ByteRegister AddRegister(long offset, ByteRegister register)
+        public R AddRegister(long offset, R register)
         {
             registers.Add(offset, register);
             return register;
         }
 
         private readonly IPeripheral parent;
-        private readonly IDictionary<long, ByteRegister> registers;
+        private readonly IDictionary<long, R> registers;
     }
 
     public interface IRegisterCollection
