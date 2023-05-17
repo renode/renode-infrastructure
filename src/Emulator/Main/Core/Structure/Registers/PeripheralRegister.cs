@@ -136,7 +136,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return register;
         }
 
-        public DoubleWordRegister(IPeripheral parent, uint resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 32)
+        public DoubleWordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 32)
         {
         }
 
@@ -239,7 +239,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return register;
         }
 
-        public WordRegister(IPeripheral parent, uint resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 16)
+        public WordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 16)
         {
         }
 
@@ -342,7 +342,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return register;
         }
 
-        public ByteRegister(IPeripheral parent, uint resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 8)
+        public ByteRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 8)
         {
         }
 
