@@ -29,7 +29,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public override void Reset()
         {
-            packetSent = false;
             macConfiguration = 0x8000;
             macFrameFilter = 0x0;
             macMiiAddress = 0x0;
@@ -194,11 +193,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 if((dmaStatus & ReceiveStatus) != 0)
                 {
                     queue.Enqueue(frame);
-                    return;
-                }
-                if(!packetSent)
-                {
-                    this.Log(LogLevel.Error, "Dropping - no packets sent.");
                     return;
                 }
                 if(frame.Bytes.Length < 14)
@@ -389,7 +383,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     this.Log(LogLevel.Debug, Misc.DumpPacket(frame, true, machine));
 
-                    packetSent = true;
                     FrameReady?.Invoke(frame);
                 }
                 transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);
@@ -419,7 +412,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private bool automaticPadCRCStripping;
         private bool crcStrippingForTypeFrames;
-        private bool packetSent;
         private uint macConfiguration;
         private uint macFrameFilter;
         private uint macMiiAddress;
