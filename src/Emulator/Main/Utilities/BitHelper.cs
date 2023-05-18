@@ -521,9 +521,9 @@ namespace Antmicro.Renode.Utilities
             return GetValueFromBitsArray((IEnumerable<bool>)array);
         }
 
-        public static uint ToUInt32(byte[] data, int index, int length, bool reverse)
+        public static ulong ToUInt64(byte[] data, int index, int length, bool reverse)
         {
-            uint result = 0;
+            ulong result = 0;
             if(index + length > data.Length)
             {
                 throw new ArgumentException("index/length combination exceeds buffer length");
@@ -533,6 +533,11 @@ namespace Antmicro.Renode.Utilities
                 result = (result << 8) | data[index + (reverse ? length - 1 - i : i)];
             }
             return result;
+        }
+
+        public static uint ToUInt32(byte[] data, int index, int length, bool reverse)
+        {
+            return (uint)ToUInt64(data, index, length, reverse);
         }
 
         public static ushort ToUInt16(byte[] data, int index, bool reverse)
