@@ -96,9 +96,15 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     offset = dataOffset + field.ByteOffset.Value;
                 }
+                var bitOffset = field.BitOffset ?? 0;
 
                 if(type == typeof(byte[]))
                 {
+                    if(bitOffset != 0)
+                    {
+                        throw new ArgumentException("Bit offset for byte array is not supported.");
+                    }
+
                     var width = field.Width;
                     if(offset + width > data.Count)
                     {
@@ -120,7 +126,6 @@ namespace Antmicro.Renode.Utilities.Packets
                     continue;
                 }
 
-                var bitOffset = field.BitOffset ?? 0;
                 var bytesRequired = field.BytesRequired;
                 if(offset + bytesRequired > data.Count)
                 {
