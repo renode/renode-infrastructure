@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             this.resetPC = resetPC;
             skippedOnLifeCycleReset = new HashSet<IPeripheral>();
             skippedOnSystemReset = new HashSet<IPeripheral>();
+            skippedOnLowPowerExitReset = new HashSet<IPeripheral>();
             modules = new IPeripheral[numberOfModules];
 
             // Outputs
@@ -58,6 +59,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        public void MarkAsSkippedOnLowPowerExitReset(IPeripheral peripheral)
+        {
+            if(!skippedOnLowPowerExitReset.Contains(peripheral))
+            {
+                skippedOnLowPowerExitReset.Add(peripheral);
+            }
+        }
+
         public void LifeCycleReset()
         {
             ExecuteResetWithSkipped(skippedOnLifeCycleReset);
@@ -70,6 +79,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             
             hardwareResetRequest.Value = resetReason;
             lowPowerExitFlag.Value = lowPower;
+            powerOnResetFlag.Value = false;
+            softwareResetFlag.Value = false;
+        }
+        
+        public void LowPowerExitReset()
+        {
+            ExecutePeripheralInitiatedResetWithSkipped(skippedOnLowPowerExitReset);
+            
+            hardwareResetRequest.Value = 0;
+            lowPowerExitFlag.Value = true;
             powerOnResetFlag.Value = false;
             softwareResetFlag.Value = false;
         }
@@ -277,6 +296,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ulong resetPC;
         private readonly HashSet<IPeripheral> skippedOnLifeCycleReset;
         private readonly HashSet<IPeripheral> skippedOnSystemReset;
+        private readonly HashSet<IPeripheral> skippedOnLowPowerExitReset;
         private readonly IPeripheral[] modules;
 
         private const int numberOfModules = 8;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,8 +13,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_PowerManager : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_PowerManager(Machine machine) : base(machine)
+        public OpenTitan_PowerManager(Machine machine, OpenTitan_ResetManager resetManager) : base(machine)
         {
+            this.resetManager = resetManager;
             IRQ = new GPIO();
             FatalAlert = new GPIO();
             DefineRegisters();
@@ -33,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // Wakeup level signal from peripheral is active
                 OnLowPowerStateChange(false);
                 lowPowerHint.Value = false;
+                resetManager.LowPowerExitReset();
             }
         }
 
@@ -169,6 +171,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IFlagRegisterField[] wakeupEnableFlags;
         private IFlagRegisterField[] wakeStatusFlags;
+
+        private readonly OpenTitan_ResetManager resetManager;
         private const int NumberOfWakeupSources = 6;
 
         private enum Registers
