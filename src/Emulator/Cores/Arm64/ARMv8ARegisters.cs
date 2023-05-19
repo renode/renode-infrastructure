@@ -60,6 +60,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue SP
+        {
+            get
+            {
+                return GetRegisterValue64((int)ARMv8ARegisters.SP);
+            }
+            set
+            {
+                SetRegisterValue64((int)ARMv8ARegisters.SP, value);
+            }
+        }
+        [Register]
         public override RegisterValue PC
         {
             get
@@ -157,7 +169,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 { 28, ARMv8ARegisters.X28 },
                 { 29, ARMv8ARegisters.X29 },
                 { 30, ARMv8ARegisters.X30 },
-                { 31, ARMv8ARegisters.X31 },
             };
             X = new RegistersGroup(
                 indexValueMapX.Keys,
@@ -243,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { ARMv8ARegisters.X28,  new CPURegister(28, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.X29,  new CPURegister(29, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.X30,  new CPURegister(30, 64, isGeneral: true, isReadonly: false) },
-            { ARMv8ARegisters.X31,  new CPURegister(31, 64, isGeneral: false, isReadonly: false) },
+            { ARMv8ARegisters.SP,  new CPURegister(31, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.PC,  new CPURegister(32, 64, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.PSTATE,  new CPURegister(33, 32, isGeneral: true, isReadonly: false) },
             { ARMv8ARegisters.FPSR,  new CPURegister(66, 32, isGeneral: false, isReadonly: false) },
@@ -270,6 +281,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public enum ARMv8ARegisters
     {
+        SP = 31,
         PC = 32,
         PSTATE = 33,
         FPSR = 66,
@@ -306,7 +318,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         X28 = 28,
         X29 = 29,
         X30 = 30,
-        X31 = 31,
         R0 = 100,
         R1 = 101,
         R2 = 102,
