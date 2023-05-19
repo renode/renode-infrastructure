@@ -592,6 +592,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     return 3330;
                 case DataRates._6_66kHz:
                     return 6660;
+                case DataRates.Disabled:
+                    return 0;
                 default:
                     throw new Exception($"Unexpected data rate: {dr}");
             }
@@ -911,6 +913,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private IManagedThread CreateAccelerationDefaultSampleFeeder()
         {
+            if(accelerometerFifoBatchingDataRateSelection.Value == DataRates.Disabled)
+            {
+                return null;
+            }
+
             return CreateDefaultSampleFeeder(
                 () => commonFifo.FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ),
                 DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value),
@@ -919,6 +926,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private IManagedThread CreateAngularRateDefaultSampleFeeder()
         {
+            if(gyroscopeFifoBatchingDataRateSelection.Value == DataRates.Disabled)
+            {
+                return null;
+            }
+
             return CreateDefaultSampleFeeder(
                 () => commonFifo.FeedAngularRateSample(DefaultAngularRateX, DefaultAngularRateY, DefaultAngularRateZ),
                 DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value),
@@ -936,19 +948,39 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void UpdateAccelerationSampleFrequency()
         {
-            if(accelerometerFifoBatchingDataRateSelection.Value != DataRates.Disabled && accelerometerFeederThread != null)
+            if(accelerometerFeederThread == null)
+            {
+                return;
+            }
+
+            if(accelerometerFifoBatchingDataRateSelection.Value != DataRates.Disabled)
             {
                 var freq = DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value);
                 accelerometerFeederThread.Frequency = freq;
+                accelerometerFeederThread.Start();
+            }
+            else
+            {
+                accelerometerFeederThread.Stop();
             }
         }
 
         private void UpdateAngularRateSampleFrequency()
         {
-            if(gyroscopeFifoBatchingDataRateSelection.Value != DataRates.Disabled && gyroFeederThread != null)
+            if(gyroFeederThread == null)
+            {
+                return;
+            }
+
+            if(gyroscopeFifoBatchingDataRateSelection.Value != DataRates.Disabled)
             {
                 var freq = DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value);
                 gyroFeederThread.Frequency = freq;
+                gyroFeederThread.Start();
+            }
+            else
+            {
+                accelerometerFeederThread.Stop();
             }
         }
 
