@@ -521,6 +521,7 @@
     <Compile Include="Peripherals\MTD\STM32_FlashController.cs" />
     <Compile Include="Peripherals\MTD\STM32H7_FlashController.cs" />
     <Compile Include="Peripherals\MTD\STM32F4_FlashController.cs" />
+    <Compile Include="Peripherals\MTD\STM32WBA_FlashController.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_EGU.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Timer.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_RCC.cs" />
