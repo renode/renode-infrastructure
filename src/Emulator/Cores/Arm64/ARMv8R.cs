@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var features = new List<GDBFeatureDescriptor>();
 
                 var coreFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.core");
-                for(var index = 0u; index <= 13; index++)
+                for(var index = 0u; index <= 12; index++)
                 {
                     var cpuRegisterIdx = (uint)ARMv8RRegisters.R0 + index;
                     coreFeature.Registers.Add(new GDBRegisterDescriptor(cpuRegisterIdx, 32, $"r{index}", "uint32", "general"));
@@ -106,7 +106,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return features;
             }
         }
-
 
         public byte Affinity0 => (byte)Id;
         public SecurityState SecurityState { get; private set; }
