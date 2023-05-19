@@ -91,6 +91,7 @@
     <Compile Include="Peripherals\IRQControllers\STM32F4_EXTI.cs" />
     <Compile Include="Peripherals\IRQControllers\STM32_EXTICore.cs" />
     <Compile Include="Peripherals\IRQControllers\STM32H7_EXTI.cs" />
+    <Compile Include="Peripherals\IRQControllers\STM32WBA_EXTI.cs" />
     <Compile Include="Peripherals\DMA\STM32DMA.cs" />
     <Compile Include="Peripherals\DMA\UDMA.cs" />
     <Compile Include="Peripherals\DMA\MPFS_PDMA.cs" />
