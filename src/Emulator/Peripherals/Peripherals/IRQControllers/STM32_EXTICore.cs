@@ -12,11 +12,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class STM32_EXTICore
     {
-        public STM32_EXTICore(IPeripheral parent, ulong lineConfigurableMask, bool treatOutOfRangeLinesAsDirect = false, bool allowMaskingDirectLines = true)
+        public STM32_EXTICore(IPeripheral parent, ulong lineConfigurableMask, bool treatOutOfRangeLinesAsDirect = false,
+                              bool separateConfigs = false, bool allowMaskingDirectLines = true)
         {
             this.parent = parent;
             this.treatOutOfRangeLinesAsDirect = treatOutOfRangeLinesAsDirect;
             this.allowMaskingDirectLines = allowMaskingDirectLines;
+            this.separateConfigs = separateConfigs;
             LineConfigurableMask = lineConfigurableMask;
         }
 
@@ -29,7 +31,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return treatOutOfRangeLinesAsDirect;
             }
 
-            if(!BitHelper.IsBitSet(InterruptMask.Value, lineNumber))
+            // When using separeteConfigs the 'InterruptMask' is not used
+            if(!separateConfigs && !BitHelper.IsBitSet(InterruptMask.Value, lineNumber))
             {
                 if(isLineConfigurable || allowMaskingDirectLines)
                 {
@@ -65,18 +68,31 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void UpdatePendingValue(byte bit, bool value)
         {
-            var reg = PendingInterrupts.Value;
-            BitHelper.SetBit(ref reg, bit, value);
-            PendingInterrupts.Value = reg;
+            IValueRegisterField registerField;
+            if(separateConfigs)
+            {
+                var isRaising = (value != true);
+                registerField = isRaising ? PendingRaisingInterrupts : PendingFallingInterrupts;
+            }
+            else
+            {
+                registerField = PendingInterrupts;
+            }
+            var reg = registerField.Value;
+            BitHelper.SetBit(ref reg, (byte)bit, value);
+            registerField.Value = reg;
         }
 
         // Those fields have to be public, as they should be used as out parameters
         // You could use ref properties instead, but mono may generate bad IL for them
 
         public IValueRegisterField InterruptMask;
+        public IValueRegisterField PendingInterrupts;
         public IValueRegisterField RisingEdgeMask;
         public IValueRegisterField FallingEdgeMask;
-        public IValueRegisterField PendingInterrupts;
+        // Below fields are used only when the 'separateConfigs' is set
+        public IValueRegisterField PendingRaisingInterrupts;
+        public IValueRegisterField PendingFallingInterrupts;
 
         public ulong LineConfigurableMask { get; }
 
@@ -84,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly bool treatOutOfRangeLinesAsDirect;
         private readonly bool allowMaskingDirectLines;
+        private readonly bool separateConfigs;
 
         // Max number is 64 due to using ulongs as backing values
         private const byte MaxLineNumber = 64;
