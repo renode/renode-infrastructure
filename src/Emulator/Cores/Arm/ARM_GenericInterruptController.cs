@@ -1679,7 +1679,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public bool IsTargetingCPU(CPUEntry cpu)
             {
-                return (TargetCPU & cpu.Affinity.TargetFieldFlag) != 0;
+                return true;
+                // TODO: Instead of always returning true
+                // (which in this case means broadcasting the interrupt to every core available)
+                // uncomment line below once affinity routing is properly implemented
+                // return (TargetCPU & cpu.Affinity.TargetFieldFlag) != 0;
             }
 
             public byte TargetCPU { get; set; }
