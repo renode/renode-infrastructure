@@ -105,10 +105,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     coreFeature.Registers.Add(new GDBRegisterDescriptor(index, 64, $"x{index}", "uint64", "general"));
                 }
-                coreFeature.Registers.Add(new GDBRegisterDescriptor(31, 64, "sp", "data_ptr", "general"));
-                coreFeature.Registers.Add(new GDBRegisterDescriptor(32, 64, "pc", "code_ptr", "general"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ARMv8ARegisters.SP, 64, "sp", "data_ptr", "general"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ARMv8ARegisters.PC, 64, "pc", "code_ptr", "general"));
                 // CPSR name is in line with GDB's 'G.5.1 AArch64 Features' manual page though it should be named PSTATE.
-                coreFeature.Registers.Add(new GDBRegisterDescriptor(33, 32, "cpsr", "uint32", "general"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ARMv8ARegisters.PSTATE, 32, "cpsr", "uint32", "general"));
                 features.Add(coreFeature);
 
                 /*
