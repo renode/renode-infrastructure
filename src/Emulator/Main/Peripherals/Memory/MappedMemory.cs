@@ -333,6 +333,12 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
         }
 
+        public void ZeroRange(long rangeStart, long rangeLength)
+        {
+            var array = new byte[rangeLength];
+            WriteBytes(rangeStart, array);
+        }
+
         public void Dispose()
         {
             Free();
