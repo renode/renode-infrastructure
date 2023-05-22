@@ -25,11 +25,13 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         protected class LockRegister
         {
-            public LockRegister(STM32_FlashController owner, string name, uint[] keys)
+            public LockRegister(STM32_FlashController owner, string name, uint[] keys, bool unlockedAfterReset = false)
             {
                 this.owner = owner;
                 this.name = name;
                 this.keys = keys;
+                this.unlockedAfterReset = unlockedAfterReset;
+                IsLocked = this.unlockedAfterReset ? false : true;
             }
 
             public void ConsumeValue(uint value)
@@ -71,12 +73,20 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             public void Reset()
             {
-                Lock();
+                if(unlockedAfterReset)
+                {
+                    IsLocked = false;
+                }
+                else
+                {
+                    Lock();
+                }
                 DisabledUntilReset = false;
             }
 
-            public bool IsLocked { get; private set; } = true;
+            public bool IsLocked { get; private set; }
             public bool DisabledUntilReset { get; private set; }
+            private readonly bool unlockedAfterReset;
             public event Action Locked;
 
             private readonly STM32_FlashController owner;
