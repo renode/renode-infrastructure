@@ -74,6 +74,21 @@ namespace Antmicro.Renode.Logging
             Log(null, type, message, args);
         }
 
+        public static void Error(string message)
+        {
+            Log(LogLevel.Error, message);
+        }
+
+        public static void Warning(string message)
+        {
+            Log(LogLevel.Warning, message);
+        }
+
+        public static void Info(string message)
+        {
+            Log(LogLevel.Info, message);
+        }
+
         public static void Debug(string message)
         {
             Log(LogLevel.Debug, message);
@@ -82,6 +97,36 @@ namespace Antmicro.Renode.Logging
         public static void Noisy(string message)
         {
             Log(LogLevel.Noisy, message);
+        }
+
+        public static void ErrorLog(this IEmulationElement e, string message)
+        {
+            Log(e, LogLevel.Error, message);
+        }
+
+        public static void ErrorLog(this IEmulationElement e, string message, params object[] args)
+        {
+            ErrorLog(e, string.Format(message, args));
+        }
+
+        public static void WarningLog(this IEmulationElement e, string message)
+        {
+            Log(e, LogLevel.Warning, message);
+        }
+
+        public static void WarningLog(this IEmulationElement e, string message, params object[] args)
+        {
+            WarningLog(e, string.Format(message, args));
+        }
+
+        public static void InfoLog(this IEmulationElement e, string message)
+        {
+            Log(e, LogLevel.Info, message);
+        }
+
+        public static void InfoLog(this IEmulationElement e, string message, params object[] args)
+        {
+            InfoLog(e, string.Format(message, args));
         }
 
         public static void DebugLog(this IEmulationElement e, string message)
