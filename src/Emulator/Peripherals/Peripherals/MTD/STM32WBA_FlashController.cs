@@ -67,6 +67,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             Registers.NonSecureStatus.Define(this)
                 .WithFlag(0, out operationCompletedInterruptStatus, FieldMode.WriteOneToClear, name: "EOP")
                 .WithFlag(1, out operationErrorInterruptStatus, FieldMode.WriteOneToClear, name: "OPERR")
+                .WithReservedBits(2, 1)
                 .WithTaggedFlag("PROGERR", 3)
                 .WithTaggedFlag("WRPERR", 4)
                 .WithTaggedFlag("PGAERR", 5)
@@ -81,6 +82,19 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTaggedFlag("OEM2LOCK", 19)
                 .WithTaggedFlag("PD", 20)
                 .WithReservedBits(21, 11);
+            Registers.SecureStatus.Define(this)
+                .WithTaggedFlag("EOP", 0)
+                .WithTaggedFlag("OPERR", 1)
+                .WithReservedBits(2, 1)
+                .WithTaggedFlag("PROGERR", 3)
+                .WithTaggedFlag("WRPERR", 4)
+                .WithTaggedFlag("PGAERR", 5)
+                .WithTaggedFlag("SIZERR", 6)
+                .WithTaggedFlag("PGSERR", 7)
+                .WithReservedBits(8, 8)
+                .WithTaggedFlag("BSY", 16)
+                .WithTaggedFlag("WDW", 17)
+                .WithReservedBits(18, 14);
             Registers.NonSecureControl1.Define(this)
                 .WithTaggedFlag("PG", 0)
                 .WithFlag(1, out nonSecurePageEraseEnabled, name: "PER")
@@ -111,6 +125,127 @@ namespace Antmicro.Renode.Peripherals.MTD
                         EraseMemory();
                     }
                 });
+            Registers.SecureControl1.Define(this)
+                .WithTaggedFlag("PG", 0)
+                .WithTaggedFlag("PER", 1)
+                .WithTaggedFlag("MER", 2)
+                .WithTag("PNB", 3, 7)
+                .WithReservedBits(10, 4)
+                .WithTaggedFlag("BWR", 14)
+                .WithReservedBits(15, 1)
+                .WithTaggedFlag("STRT", 16)
+                .WithReservedBits(17, 7)
+                .WithTaggedFlag("EOPIE", 24)
+                .WithTaggedFlag("ERRIE", 25)
+                .WithReservedBits(26, 3)
+                .WithTaggedFlag("INV", 29)
+                .WithReservedBits(30, 1)
+                .WithTaggedFlag("LOCK", 31);
+            Registers.Ecc.Define(this)
+                .WithTag("ADDR_ECC", 0, 20)
+                .WithReservedBits(20, 2)
+                .WithTaggedFlag("SYSF_ECC", 22)
+                .WithReservedBits(23, 1)
+                .WithTaggedFlag("ECCIE", 24)
+                .WithReservedBits(25, 5)
+                .WithTaggedFlag("ECCC", 30)
+                .WithTaggedFlag("ECCD", 31);
+            Registers.Opsr.Define(this)
+                .WithTag("ADDR_OP", 0, 20)
+                .WithReservedBits(20, 2)
+                .WithTaggedFlag("SYSF_OP", 22)
+                .WithReservedBits(23, 6)
+                .WithTag("CODE_OP", 29, 3);
+            Registers.NonSecureControl2.Define(this)
+                .WithTaggedFlag("PS", 0)
+                .WithTaggedFlag("ES", 1)
+                .WithReservedBits(2, 30);
+            Registers.SecureControl2.Define(this)
+                .WithTaggedFlag("PS", 0)
+                .WithTaggedFlag("ES", 1)
+                .WithReservedBits(2, 30);
+            Registers.OptionControl.Define(this)
+                .WithTag("RDP", 0, 8)
+                .WithTag("BOR_LEV", 8, 3)
+                .WithReservedBits(11, 1)
+                .WithTaggedFlag("NRST_STOP", 12)
+                .WithTaggedFlag("NRST_STDBY", 13)
+                .WithReservedBits(14, 1)
+                .WithTaggedFlag("SRAM1_RST", 15)
+                .WithTaggedFlag("IWDG_SW", 16)
+                .WithTaggedFlag("IWDG_STOP", 17)
+                .WithTaggedFlag("IWDG_STDBY", 18)
+                .WithTaggedFlag("WWDG_SW", 19)
+                .WithReservedBits(20, 4)
+                .WithTaggedFlag("SRAM2_PE", 24)
+                .WithTaggedFlag("SRAM2_RST", 25)
+                .WithTaggedFlag("NSWBOOT0", 26)
+                .WithTaggedFlag("NBOOT0", 27)
+                .WithReservedBits(28, 3)
+                .WithTaggedFlag("TZEN", 31);
+            Registers.NonSecureBootAddress0.Define(this)
+                .WithReservedBits(0, 7)
+                .WithTag("NSBOOTADD0", 7, 25);
+            Registers.NonSecureBootAddress1.Define(this)
+                .WithReservedBits(0, 7)
+                .WithTag("NSBOOTADD1", 7, 25);
+            Registers.SecureBootAddress0.Define(this)
+                .WithTaggedFlag("BOOT_LOCK", 0)
+                .WithReservedBits(1, 6)
+                .WithTag("SECBOOTADD0", 7, 25);
+            Registers.SecureWatermark11.Define(this)
+                .WithTag("SECWM_PSTRT", 0, 7)
+                .WithReservedBits(7, 9)
+                .WithTag("SECWM_PEND", 16, 7)
+                .WithReservedBits(23, 9);
+            Registers.SecureWatermark12.Define(this)
+                .WithReservedBits(0, 16)
+                .WithTag("HDP_PEND", 16, 7)
+                .WithReservedBits(23, 8)
+                .WithTaggedFlag("HDPEN", 31);
+            Registers.WrpAreaAAddress.Define(this)
+                .WithTag("WRPA_PSTRT", 0, 7)
+                .WithReservedBits(7, 9)
+                .WithTag("WRPA_PEND", 16, 7)
+                .WithReservedBits(23, 8)
+                .WithTaggedFlag("UNLOCK", 31);
+            Registers.WrpAreaBAddress.Define(this)
+                .WithTag("WRPB_PSTRT", 0, 7)
+                .WithReservedBits(7, 9)
+                .WithTag("WRPB_PEND", 16, 7)
+                .WithReservedBits(23, 8)
+                .WithTaggedFlag("UNLOCK", 31);
+            Registers.Oem1Key1.Define(this)
+                .WithTag("OEM1KEY", 0, 32);
+            Registers.Oem1Key2.Define(this)
+                .WithTag("OEM1KEY", 0, 32);
+            Registers.Oem2Key1.Define(this)
+                .WithTag("OEM2KEY", 0, 32);
+            Registers.Oem2Key2.Define(this)
+                .WithTag("OEM2KEY", 0, 32);
+            Registers.SecureBlockBank1.Define(this)
+                .WithTag("SECBB", 0, 32);
+            Registers.SecureBlockBank2.Define(this)
+                .WithTag("SECBB", 0, 32);
+            Registers.SecureBlockBank3.Define(this)
+                .WithTag("SECBB", 0, 32);
+            Registers.SecureBlockBank4.Define(this)
+                .WithTag("SECBB", 0, 32);
+            Registers.SecureHdpControl.Define(this)
+                .WithTaggedFlag("HDP_ACCDIS", 0)
+                .WithReservedBits(1, 31);
+            Registers.PrivilegeConfiguration.Define(this)
+                .WithTaggedFlag("SPRIV", 0)
+                .WithTaggedFlag("NSPRIV", 1)
+                .WithReservedBits(2, 30);
+            Registers.PrivilegeBlockBank1.Define(this)
+                .WithTag("PRIVBB", 0, 32);
+            Registers.PrivilegeBlockBank2.Define(this)
+                .WithTag("PRIVBB", 0, 32);
+            Registers.PrivilegeBlockBank3.Define(this)
+                .WithTag("PRIVBB", 0, 32);
+            Registers.PrivilegeBlockBank4.Define(this)
+                .WithTag("PRIVBB", 0, 32);
         }
 
         private void EraseMemory()
@@ -206,8 +341,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             SecureBootAddress0     = 0x4C, // SECBOOTADD0R     
             SecureWatermark11      = 0x50, // SECWMR1          
             SecureWatermark12      = 0x54, // SECWMR2          
-            WrpAreaAaDdress        = 0x58, // WRPAR            
-            wrpAreaBaDdress        = 0x5C, // WRPBR            
+            WrpAreaAAddress        = 0x58, // WRPAR            
+            WrpAreaBAddress        = 0x5C, // WRPBR            
             //Intentional gap
             Oem1Key1               = 0x70, // OEM1KEYR1        
             Oem1Key2               = 0x74, // OEM1KEYR2        
