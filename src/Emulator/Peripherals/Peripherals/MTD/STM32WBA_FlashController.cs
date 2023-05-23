@@ -89,13 +89,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(10, 4) // 13:10 Reserved, must be kept at reset value.
                 .WithTaggedFlag("BWR", 14)
                 .WithReservedBits(15, 1) // 15 Reserved, must be kept at reset value.
-                .WithFlag(16, FieldMode.WriteOneToClear, writeCallback: (_, val) =>
-                {
-                    if (val)
-                    {
-                        EraseMemory();
-                    }
-                }, name: "STRT")
+                .WithFlag(16, out nonSecureOperationStartEnabled, name: "STRT")
                 .WithTaggedFlag("OPTSTRT", 17)
                 .WithReservedBits(18, 6) // 23:18 Reserved, must be kept at reset value.
                 .WithFlag(24, out operationCompletedInterruptEnable, name: "EOPIE")
@@ -109,12 +103,20 @@ namespace Antmicro.Renode.Peripherals.MTD
                     writeCallback: (_, val) =>
                     {
                         if (val) controlLock.Lock();
-                    }, name: "LOCK");
+                    }, name: "LOCK")
+                .WithWriteCallback((_, __) =>
+                {
+                    if (nonSecureOperationStartEnabled.Value)
+                    {
+                        EraseMemory();
+                    }
+                });
         }
 
         private void EraseMemory()
         {
-            if (!nonSecureMassEraseEnabled.Value && !nonSecureMassEraseEnabled.Value)
+            nonSecureOperationStartEnabled.Value = false;
+            if (!nonSecurePageEraseEnabled.Value && !nonSecureMassEraseEnabled.Value)
             {
                 this.Log(LogLevel.Warning, "Running erase while neither PER nor MER are selected is forbidden");
                 secureProgrammingSequenceError.Value = true;
@@ -164,6 +166,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private IFlagRegisterField nonSecurePageEraseEnabled;
         private IFlagRegisterField nonSecureMassEraseEnabled;
+        private IFlagRegisterField nonSecureOperationStartEnabled;
         private IFlagRegisterField secureProgrammingSequenceError;
         private IValueRegisterField nonSecureErasePageSelection;
         private IFlagRegisterField operationCompletedInterruptEnable;
