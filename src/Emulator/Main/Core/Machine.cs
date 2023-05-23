@@ -915,7 +915,7 @@ namespace Antmicro.Renode.Core
             StartGdbServer(port, autostartEmulation, null, blockOnStep);
         }
 
-        public void StartGdbServer(int port, bool autostartEmulation = false, ICpuSupportingGdb cpu = null, bool blockOnStep = true)
+        public void StartGdbServer(int port, bool autostartEmulation = true, ICpuSupportingGdb cpu = null, bool blockOnStep = true)
         {
             try
             {
