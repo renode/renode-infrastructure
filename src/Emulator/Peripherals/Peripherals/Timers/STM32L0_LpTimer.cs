@@ -48,7 +48,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                   },
 
                   {(long)Registers.InterruptClear, new DoubleWordRegister(this)
-                    .WithTaggedFlag("Compare match clear flag (CMPMCF)", 0)
+                    .WithFlag(0, FieldMode.WriteOneToClear,
+                        writeCallback: (_, val) =>
+                        {
+                            if(!val)
+                            {
+                                return;
+                            }
+
+                            compareMatchInterruptStatus.Value = false;
+                        },
+                        name: "Compare match clear flag (CMPMCF)")
                     .WithFlag(1, FieldMode.WriteOneToClear,
                         writeCallback: (_, val) =>
                         {
