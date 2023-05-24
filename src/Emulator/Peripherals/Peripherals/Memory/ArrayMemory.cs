@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,7 +14,7 @@ using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral
+    public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral, IQuadWordPeripheral
     {		
         public ArrayMemory(byte[] source)
         {
@@ -26,7 +26,19 @@ namespace Antmicro.Renode.Peripherals.Memory
             array = new byte[size];
         }
 
-      
+        public virtual ulong ReadQuadWord(long offset)
+        {
+            var intOffset = (int)offset;
+            var result = BitConverter.ToUInt64(array, intOffset);
+            return result;
+        }
+
+        public virtual void WriteQuadWord(long offset, ulong value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            bytes.CopyTo(array, offset);
+        }
+
         public uint ReadDoubleWord(long offset)
         {
             var intOffset = (int)offset;
