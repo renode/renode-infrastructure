@@ -15,7 +15,7 @@ using System.Collections.Generic;
 namespace Antmicro.Renode.Peripherals.Memory
 {
     public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral, IQuadWordPeripheral
-    {		
+    {
         public ArrayMemory(byte[] source)
         {
             array = source;
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         public virtual void WriteDoubleWord(long offset, uint value)
-        {		
+        {
             var bytes = BitConverter.GetBytes(value);
             bytes.CopyTo(array, offset);
 
@@ -107,4 +107,3 @@ namespace Antmicro.Renode.Peripherals.Memory
         protected byte[] array;
     }
 }
-
