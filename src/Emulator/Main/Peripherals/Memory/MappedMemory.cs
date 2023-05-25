@@ -336,6 +336,10 @@ namespace Antmicro.Renode.Peripherals.Memory
         public void ZeroRange(long rangeStart, long rangeLength)
         {
             var array = new byte[rangeLength];
+            for (long i = 0; i < rangeLength; ++i)
+            {
+                array[i] = ResetByte;
+            }
             WriteBytes(rangeStart, array);
         }
 
