@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         public STM32WBA_FlashController(Machine machine, MappedMemory flash) : base(machine)
         {
             bank = flash;
+            bank.ResetByte = ResetByte;
 
             controlLock = new LockRegister(this, nameof(controlLock), NonSecureLockKey, unlockedAfterReset: true);
 
@@ -271,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
             else
             {
-                this.Log(LogLevel.Warning, "Erasing memory page {0}", nonSecureErasePageSelection.Value);
+                this.DebugLog("Erasing memory page {0}", nonSecureErasePageSelection.Value);
                 ErasePage(nonSecureErasePageSelection.Value);
             }
 
@@ -313,6 +314,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly LockRegister controlLock;
 
         // Per spec the flash memory page size is 8kBytes
+        private const byte ResetByte = 0xff;
         private const long PageSize = 8 * 1024;
         private static readonly uint[] NonSecureLockKey = { 0x45670123, 0xCDEF89AB };
 
