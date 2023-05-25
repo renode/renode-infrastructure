@@ -22,10 +22,23 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             IRQ = new GPIO();
 
+            compareTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(compareTimer), 0x1, Direction.Ascending, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
+
             LimitReached += () =>
             {
-                this.Log(LogLevel.Debug, "Limit reached");
+                this.Log(LogLevel.Debug, "AutoReload reached");
                 autoReloadMatchInterruptStatus.Value = true;
+                if(Mode == WorkMode.Periodic)
+                {
+                    TryEnableCompareTimer(compareValue.Value);
+                }
+                UpdateInterrupts();
+            };
+
+            compareTimer.LimitReached += () =>
+            {
+                this.Log(LogLevel.Debug, "Compare reached");
+                compareTimer.Enabled = false;
                 compareMatchInterruptStatus.Value = true;
                 UpdateInterrupts();
             };
@@ -142,7 +155,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTag("Configurable digital filter for trigger (TRGFLT)", 6, 2)
                     .WithReservedBits(8, 1)
                     .WithValueField(9, 3,
-                        writeCallback: (_, val) => Divider = (int)Math.Pow(2, val),
+                        writeCallback: (_, val) =>
+                        {
+                            var divider = (int)Math.Pow(2, val);
+                            Divider = divider;
+                            compareTimer.Divider = divider;
+                        },
                         valueProviderCallback: _ => (uint)Math.Log(Divider, 2),
                         name: "Clock prescaler (PSC)")
                     .WithReservedBits(12, 1)
@@ -180,6 +198,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Debug, "Enabling timer in the single shot mode");
                                 Mode = WorkMode.OneShot;
                                 Enabled = true;
+                                TryEnableCompareTimer(compareValue.Value);
                             }
 
                             if(continousStart.Value)
@@ -187,24 +206,24 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Debug, "Enabling timer in the continous mode");
                                 Mode = WorkMode.Periodic;
                                 Enabled = true;
+                                TryEnableCompareTimer(compareValue.Value);
                             }
                         }
                         else
                         {
                             this.Log(LogLevel.Debug, "Disabling timer");
                             this.Enabled = false;
+                            compareTimer.Enabled = false;
                         }
                     })
                 },
 
                 // Caution: The LPTIM_CMP register must only be modified when the LPTIM is enabled (ENABLE bit set to '1').
                 {(long)Registers.Compare, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, name: "Compare value (CMP)",
-                            valueProviderCallback: _ => (uint)this.Limit,
+                    .WithValueField(0, 16, out compareValue, name: "Compare value (CMP)",
                             writeCallback: (_, val) =>
                             {
-                                this.Limit = val;
-                                this.Value = 0;
+                                TryEnableCompareTimer(val);
                                 compareRegisterUpdateOkStatus.Value = true;
                                 UpdateInterrupts();
                             })
@@ -281,7 +300,37 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(flag);
         }
 
+        private void TryEnableCompareTimer(ulong compareValue)
+        {
+            if(compareValue == 0)
+            {
+                this.Log(LogLevel.Debug, "Compare value cannot be 0. Timer will not be set");
+                return;
+            }
+
+            var autoReloadValue = GetValueAndLimit(out var autoReloadLimit);
+            if(compareValue >= autoReloadLimit)
+            {
+                this.Log(LogLevel.Warning, "Compare value ({0}) cannot be greater than auto reload limit ({1}). Compare value will be ignored", compareValue, autoReloadLimit);
+                compareTimer.Enabled = false;
+                return;
+            }
+
+            // We only want to enable the compare timer if there is still a chance that it will trigger
+            // If the timer is periodic then compare timer will be enabled on auto reload
+            // If the timer is one shot then there is not need to enable this timer
+            if(compareValue > autoReloadValue)
+            {
+                compareTimer.Limit = compareValue - autoReloadValue;
+                compareTimer.Enabled = true;
+            }
+        }
+
+        private readonly LimitTimer compareTimer;
+
         private readonly DoubleWordRegisterCollection registers;
+
+        private readonly IValueRegisterField compareValue;
 
         private readonly IFlagRegisterField autoReloadMatchInterruptEnable;
         private readonly IFlagRegisterField autoReloadMatchInterruptStatus;
