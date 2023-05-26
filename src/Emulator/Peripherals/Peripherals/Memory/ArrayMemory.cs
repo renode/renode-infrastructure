@@ -104,6 +104,6 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
         }
 
-        protected byte[] array;
+        protected readonly byte[] array;
     }
 }
