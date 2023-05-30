@@ -436,6 +436,8 @@
     <Compile Include="Peripherals\MemoryControllers\OpenTitan_SRAMController.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\ExecutionTracer.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceWriter.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer\TraceBinaryWriter.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer\TraceTextWriter.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceFormat.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceWriterBuilder.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\LLVMDisassembler.cs" />
