@@ -45,6 +45,9 @@
     <Reference Include="ProtobufNet">
       <HintPath>../../../../../lib/resources/libraries/protobuf-net.dll</HintPath>
     </Reference>
+    <Reference Include="FlatBuffers">
+      <HintPath>../../../../../lib/resources/libraries/FlatBuffers.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Peripherals\Timers\EFR32_RTCC.cs" />
@@ -438,8 +441,12 @@
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceWriter.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceBinaryWriter.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceTextWriter.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer\TraceBasedModelFlatBufferWriter.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceFormat.cs" />
     <Compile Include="Peripherals\CPU\ExecutionTracer\TraceWriterBuilder.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer\FBInstruction\Instruction.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer\FBInstruction\Instructions.cs" />
+    <Compile Include="Peripherals\CPU\ExecutionTracer\TBMRiscVHelper.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\LLVMDisassembler.cs" />
     <Compile Include="Peripherals\Miscellaneous\ISideloadableKey.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_KMAC.cs" />

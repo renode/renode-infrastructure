@@ -13,6 +13,9 @@
     <Reference Include="ProtobufNet">
       <HintPath>../../../../../lib/resources/libraries/protobuf-net.dll</HintPath>
     </Reference>
+    <Reference Include="FlatBuffers">
+      <HintPath>../../../../../lib/resources/libraries/FlatBuffers.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Test\**\*"/>

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -30,6 +30,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public TraceWriter CreateWriter()
         {
+            if(format == TraceFormat.TraceBasedModel)
+            {
+                return new TraceBasedModelFlatBufferWriter(cpu, path, format, compress);
+            }
             if(isBinary)
             {
                 return new TraceBinaryWriter(cpu, path, format, compress);
@@ -42,6 +46,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool AreArgumentsValid()
         {
+            if(format == TraceFormat.TraceBasedModel)
+            {
+                return true;
+            }
             if(isBinary)
             {
                 return TraceBinaryWriter.SupportedFormats.Contains(this.format);

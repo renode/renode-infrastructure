@@ -1,0 +1,24 @@
+namespace FBInstruction;
+
+table Instruction {
+  addr : uint64;
+  opcode: uint32;
+  mnemonic: string;
+  operands: [string];
+  inputs: [string];
+  outputs: [string];
+  is_nop: bool;
+  is_branch: bool;
+  branch_target: uint64; // 0 means not set
+  is_flush: bool;
+  is_vctrl: bool;
+  loads: [uint64];
+  stores: [uint64];
+  lmul: float32; // valid values: 1/8, 1/4, 1/2, 1, 2, 4, 8, and 0 which means not set
+  sew: uint8; // 0 means not set
+  vl: int16; // -1 means not set
+}
+
+table Instructions { instructions:[Instruction]; }
+
+root_type Instructions;

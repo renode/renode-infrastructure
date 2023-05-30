@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,6 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         Opcode,
         PCAndOpcode,
         Disassembly,
+        TraceBasedModel,
     }
 
     public enum AdditionalDataType : byte
@@ -42,13 +43,13 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public MemoryAccessAdditionalData(ulong pc, MemoryOperation operationType, ulong operationTarget) : base(pc, AdditionalDataType.MemoryAccess)
         {
-            this.operationType = operationType;
-            this.operationTarget = operationTarget;
+            this.OperationType = operationType;
+            this.OperationTarget = operationTarget;
         }
 
         public override string GetStringRepresentation()
         {
-            return $"{operationType} with address 0x{operationTarget:X}";
+            return $"{OperationType} with address 0x{OperationTarget:X}";
         }
 
         public override byte[] GetBinaryRepresentation()
@@ -66,13 +67,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             */
             var byteLength = sizeof(ulong) + 1;
             var output = new byte[byteLength];
-            output[0] = (byte)operationType;
-            BitHelper.GetBytesFromValue(output, 1, operationTarget, sizeof(ulong), true);
+            output[0] = (byte)OperationType;
+            BitHelper.GetBytesFromValue(output, 1, OperationTarget, sizeof(ulong), true);
             return output;
         }
 
-        private readonly ulong operationTarget;
-        private readonly MemoryOperation operationType;
+        public ulong OperationTarget { get; }
+        public MemoryOperation OperationType { get; }
     }
 
     public class RiscVVectorConfigurationData : AdditionalData
