@@ -1,10 +1,9 @@
 //
 // Copyright (c) 2010-2023 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -37,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         public override void WriteDoubleWord(long offset, uint value)
         {
-            if ((offset == (long)Registers.NonSecureControl1) && controlLock.IsLocked)
+            if((offset == (long)Registers.NonSecureControl1) && controlLock.IsLocked)
             {
                 this.Log(LogLevel.Warning, "Trying to write to a locked register");
                 return;
@@ -117,11 +116,11 @@ namespace Antmicro.Renode.Peripherals.MTD
                     valueProviderCallback: (_) => controlLock.IsLocked,
                     writeCallback: (_, val) =>
                     {
-                        if (val) controlLock.Lock();
+                        if(val) controlLock.Lock();
                     }, name: "LOCK")
                 .WithWriteCallback((_, __) =>
                 {
-                    if (nonSecureOperationStartEnabled.Value)
+                    if(nonSecureOperationStartEnabled.Value)
                     {
                         EraseMemory();
                     }
@@ -252,11 +251,11 @@ namespace Antmicro.Renode.Peripherals.MTD
         private void EraseMemory()
         {
             nonSecureOperationStartEnabled.Value = false;
-            if (!nonSecurePageEraseEnabled.Value && !nonSecureMassEraseEnabled.Value)
+            if(!nonSecurePageEraseEnabled.Value && !nonSecureMassEraseEnabled.Value)
             {
                 this.Log(LogLevel.Warning, "Running erase while neither PER nor MER are selected is forbidden");
                 secureProgrammingSequenceError.Value = true;
-                if (operationErrorInterruptEnable.Value)
+                if(operationErrorInterruptEnable.Value)
                 {
                     // Spec states that this bit can be set only if the interrupt is enabled
                     operationErrorInterruptStatus.Value = true;
@@ -265,7 +264,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            if (nonSecureMassEraseEnabled.Value)
+            if(nonSecureMassEraseEnabled.Value)
             {
                 this.DebugLog("Erasing whole flash memory");
                 bank.ZeroAll();
@@ -276,7 +275,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 ErasePage(nonSecureErasePageSelection.Value);
             }
 
-            if (operationCompletedInterruptEnable.Value)
+            if(operationCompletedInterruptEnable.Value)
             {
                 // Spec states that this bit can be set only if the interrupt is enabled
                 operationCompletedInterruptStatus.Value = true;
@@ -298,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         }
 
         public long Size => 0x1000;
-        public GPIO NonSecureInterrupt { get; private set; }
+        public GPIO NonSecureInterrupt { get; }
 
         private IFlagRegisterField nonSecurePageEraseEnabled;
         private IFlagRegisterField nonSecureMassEraseEnabled;

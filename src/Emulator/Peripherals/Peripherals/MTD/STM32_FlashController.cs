@@ -86,12 +86,12 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             public bool IsLocked { get; private set; }
             public bool DisabledUntilReset { get; private set; }
-            private readonly bool unlockedAfterReset;
             public event Action Locked;
 
             private readonly STM32_FlashController owner;
             private readonly string name;
             private readonly uint[] keys;
+            private readonly bool unlockedAfterReset;
             private int keyIndex;
         }
     }
