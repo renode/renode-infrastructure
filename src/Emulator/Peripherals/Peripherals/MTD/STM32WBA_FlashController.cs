@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private void DefineRegisters()
         {
             Registers.AccessControl.Define(this, 0x1)
-                .WithTag("LATENCY", 0, 4)
+                .WithValueField(0, 4, name: "LATENCY") // Software expects this field to retain the written value
                 .WithReservedBits(4, 4)
                 .WithTaggedFlag("PRFTEN", 8)
                 .WithReservedBits(9, 2)
