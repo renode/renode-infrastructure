@@ -80,6 +80,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public GPIO DMARecieve { get; }
 
+        protected virtual bool IsWba { get; } = false;
+
         private void DefineRegisters()
         {
             Registers.Control1.Define(registers)
