@@ -6,11 +6,33 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
     public static class PeripheralRegisterExtensions
     {
+        /// <summary>
+        /// Creates a fluent conditional wrapper for conditionally executing actions on a register.
+        /// </summary>
+        /// <param name="condition">The condition to evaluate.</param>
+        /// <returns>An <see cref="IfWrapper{T}"/> object wrapping the register.</returns>
+        /// <example>
+        /// This example demonstrates how to use the <c>If</c> and <c>Else</c> methods
+        /// of <see cref="IfWrapper{T}"/> to conditionally define a field on a register:
+        /// <code>
+        /// Registers.Control.Define(this)
+        ///     .WithValueField(0, 4, out transmissionSize, name: "TXSIZE")
+        ///     .If(SupportsEncryption)
+        ///         .Then(r => r.WithValueField(4, 12, out transmissionKey, name: "TXKEY"))
+        ///         .Else(r => r.WithReservedBits(4, 12));
+        /// </code>
+        /// </example>
+        public static IfWrapper<T> If<T>(this T register, bool condition) where T : PeripheralRegister
+        {
+            return new IfWrapper<T>(register, condition);
+        }
+
         /// <summary>
         /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
         /// </summary>
