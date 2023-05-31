@@ -20,19 +20,25 @@ namespace Antmicro.Renode.UserInterface.Commands
     {
         public CoverageCommand(Monitor monitor) : base(monitor, "gcov", "starts tracing for gcov coverage")
         {
+            sourcePrefixes = new List<string>();
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("start", "stop")] LiteralToken operation, PathToken elfPath)
+        public void Run(ICommandInteraction writer, [Values("start")] LiteralToken operation, PathToken elfPath)
         {
-            if(operation.Value == "start")
-            {
-                StartGcov(writer, elfPath);
-            }
-            else
-            {
-                StopGcov(writer, elfPath);
-            }
+            StartGcov(writer, elfPath);
+        }
+
+        [Runnable]
+        public void AddSourcePrefix(ICommandInteraction writer, [Values("add-source-prefix")] LiteralToken operation, StringToken sourcePrefix)
+        {
+            this.sourcePrefixes.Add(sourcePrefix.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("stop")] LiteralToken operation)
+        {
+            StopGcov(writer);
         }
 
         private void StartGcov(ICommandInteraction writer, PathToken elfPath)
@@ -67,6 +73,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
 
             gcovParsers = new List<Gcov.Parser>();
+            this.elfPath = elfPath.Value;
 
             var cpus = monitor.Machine.GetPeripheralsOfType<CPU.ICPUWithHooks>();
             foreach(var cpu in cpus)
@@ -78,7 +85,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
         }
 
-        private void StopGcov(ICommandInteraction writer, PathToken path)
+        private void StopGcov(ICommandInteraction writer)
         {
             if(gcovParsers == null)
             {
@@ -89,22 +96,24 @@ namespace Antmicro.Renode.UserInterface.Commands
             var graphs = Gcov.Parser.CompileFunctionExecutions(gcovParsers);
             var functions = graphs.Select(g => new Gcov.Function(g, dwarf)).ToList();
 
-            var gcnoPath = path.Value + ".gcno";
+            var gcnoPath = elfPath + ".gcno";
             using(var f = new Gcov.Writer(new FileStream(gcnoPath, FileMode.Create, FileAccess.Write)))
             {
-                Gcov.File.WriteGCNO(f, functions);
+                Gcov.File.WriteGCNO(f, functions, sourcePrefixes);
             }
 
-            var gcdaPath = path.Value + ".gcda";
+            var gcdaPath = elfPath + ".gcda";
             using(var f = new Gcov.Writer(new FileStream(gcdaPath, FileMode.Create, FileAccess.Write)))
             {
                 Gcov.File.WriteGCDA(f, functions);
             }
 
-            writer.WriteLine($"Coverage data has been saved into {path.Value}.gcno, {path.Value}.gcda");
+            writer.WriteLine($"Coverage data has been saved into {elfPath}.gcno, {elfPath}.gcda");
 
             dwarf = null;
             gcovParsers = null;
+            elfPath = null;
+            sourcePrefixes.Clear();
         }
 
         [Runnable]
@@ -124,9 +133,8 @@ namespace Antmicro.Renode.UserInterface.Commands
                         {
                             foreach(var line in cu.Lines.Lines.Where(x => x.Address == symbolAddress))
                             {
-                                var file = cu.Lines.Files[(int)line.GetFileIdx()];
-                                var directory = cu.Lines.Directories[file.DirectoryIndex - 1];
-                                writer.WriteLine($"PC 0x{symbolAddress:X} maps to {directory.Path}/{file.Path}:{line.LineNumber}|{line.Column}");
+                                var path = line.FilePath;
+                                writer.WriteLine($"PC 0x{symbolAddress:X} maps to {path}:{line.LineNumber}|{line.Column}");
                             }
                         }
                     }
@@ -190,8 +198,11 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine(" gcov stop @program_1 \"old:new,wrong/path4:correct/path\"");
         }
 
+        private string elfPath;
         private DWARF.DWARFReader dwarf;
         private List<Gcov.Parser> gcovParsers;
+
+        private readonly List<string> sourcePrefixes;
     }
 }
 
