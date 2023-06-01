@@ -127,6 +127,18 @@ namespace Antmicro.Renode.Utilities
             return t.GetFields(DefaultBindingFlags);
         }
 
+        public static IEnumerable<Type> GetAllNestedTypes(this Type t, bool recursive = true)
+        {
+            if(t == null)
+            {
+                return Enumerable.Empty<Type>();
+            }
+            if(recursive)
+            {
+                return t.GetNestedTypes(DefaultBindingFlags).Union(t.BaseType.GetAllNestedTypes());
+            }
+            return t.GetNestedTypes(DefaultBindingFlags);
+        }
 
         public static byte[] ReadBytes(this Stream stream, int count, bool throwIfEndOfStream = false)
         {
