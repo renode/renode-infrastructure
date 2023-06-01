@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public STM32H7_SPI(Machine machine) : base(machine)
         {
             registers = new DoubleWordRegisterCollection(this);
+            IRQ = new GPIO();
             DMARecieve = new GPIO();
 
             transmitFifo = new Queue<uint>();
@@ -32,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public override void Reset()
         {
+            IRQ.Unset();
             DMARecieve.Unset();
             iolockValue = false;
             transmittedPackets = 0;
@@ -78,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public long Size => 0x400;
 
+        public GPIO IRQ { get; }
         public GPIO DMARecieve { get; }
 
         protected virtual bool IsWba { get; } = false;
@@ -187,6 +190,23 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("SSOM", 30)
                 .WithTaggedFlag("AFCNTR", 31);
 
+            Registers.InterruptEnable.Define(registers)
+                .WithFlag(0, out receiveFifoThresholdInterruptEnable, name: "RXPIE")
+                .WithFlag(1, out transmitFifoThresholdInterruptEnable, name: "TXPIE")
+                .WithTaggedFlag("DXPIE", 2)
+                .WithFlag(3, out endOfTransferInterruptEnable, name: "EOTIE")
+                .WithTaggedFlag("TXTFIE", 4)
+                .WithTaggedFlag("UDRIE", 5)
+                .WithTaggedFlag("OVRIE", 6)
+                .WithTaggedFlag("CRCEIE", 7)
+                .WithTaggedFlag("TIFREIE", 8)
+                .WithTaggedFlag("MODFIE", 9)
+                .If(IsWba)
+                    .Then(r => r.WithReservedBits(10, 1))
+                    .Else(r => r.WithTaggedFlag("TSERFIE", 10))
+                .WithReservedBits(11, 21)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
+
             Registers.Status.Define(registers)
                 .WithFlag(0, FieldMode.Read, name: "RXP", valueProviderCallback: _ => receiveFifo.Count > 0)
                 // We always report that there is space for additional packets
@@ -247,6 +267,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                             this.Log(LogLevel.Error, "Receive data FIFO is empty. Returning 0");
                             return 0;
                         }
+                        UpdateInterrupts();
                         return value;
                     });
 
@@ -339,6 +360,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 endOfTransfer.Value = true;
                 startTransmission.Value = false;
             }
+
+            UpdateInterrupts();
+        }
+
+        private void UpdateInterrupts()
+        {
+            var rxp = receiveFifo.Count > 0 && receiveFifoThresholdInterruptEnable.Value;
+            var eot = endOfTransfer.Value && endOfTransferInterruptEnable.Value;
+
+            var irqValue = transmitFifoThresholdInterruptEnable.Value || rxp || eot;
+            this.Log(LogLevel.Debug, "Setting IRQ to {0}", irqValue);
+            IRQ.Set(irqValue);
         }
 
         private void ResetTransmissionState()
@@ -346,6 +379,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             endOfTransfer.Value = false;
             startTransmission.Value = false;
             transmittedPackets = 0;
+            UpdateInterrupts();
         }
 
         private readonly DoubleWordRegisterCollection registers;
@@ -353,6 +387,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly Queue<uint> receiveFifo;
 
         private bool iolockValue;
+        private IFlagRegisterField receiveFifoThresholdInterruptEnable;
+        private IFlagRegisterField transmitFifoThresholdInterruptEnable;
+        private IFlagRegisterField endOfTransferInterruptEnable;
         private IFlagRegisterField endOfTransfer;
         private IFlagRegisterField peripheralEnabled;
         private IFlagRegisterField receiveDMAEnabled;
