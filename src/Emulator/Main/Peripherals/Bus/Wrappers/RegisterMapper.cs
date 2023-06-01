@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,6 +9,7 @@ using System;
 using System.Reflection;
 using System.Linq;
 using System.Collections.Generic;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {
@@ -16,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
     {
         public RegisterMapper(Type peripheralType)
         {
-            var types = peripheralType.GetNestedTypes(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            var types = peripheralType.GetAllNestedTypes();
             var interestingEnums = new List<Type>();
 
             var enumsWithAttribute = types.Where(t => t.GetCustomAttributes(false).Any(x => x is RegistersDescriptionAttribute));
