@@ -39,8 +39,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             if(isLineConfigurable)
             {
-                return (BitHelper.IsBitSet(RisingEdgeMask.Value, lineNumber) && value) ||  // rising edge
-                       (BitHelper.IsBitSet(FallingEdgeMask.Value, lineNumber) && !value);  // falling edge
+                var raisingEvent = (BitHelper.IsBitSet(RisingEdgeMask.Value, lineNumber) && value);
+                var fallingEvent = (BitHelper.IsBitSet(FallingEdgeMask.Value, lineNumber) && !value);
+
+                return raisingEvent || fallingEvent;
             }
 
             return true;
