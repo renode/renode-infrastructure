@@ -25,10 +25,12 @@
       <CompilationFlags Include="-DTARGET_INSN_START_EXTRA_WORDS=$(TargetInsnStartExtraWords)" />
       <CompilationFlags Include="-I $(TcgDirectory)/$(Architecture)" />
       <CompilationFlags Include="-I $(TcgDirectory) " />
-      <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release'" />
+      <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release' and $(TlibProfilingBuild) != 'true'" />
+      <CompilationFlags Include="-fno-omit-frame-pointer" Condition="$(TlibProfilingBuild) == 'true'" />
+      <CompilationFlags Include="-DTLIB_PROFILING_BUILD=1" Condition="$(TlibProfilingBuild) == 'true'" />
       <CompilationFlags Include="-O3" Condition="$(Configuration) == 'Release'" />
       <CompilationFlags Include="-fPIC " Condition=" $(CurrentPlatform) != 'Windows'" />
-      <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug'" />
+      <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug' or $(TlibProfilingBuild) == 'true'" />
 
       <CSources Include="$(TcgDirectory)/tcg.c" />
       <CSources Include="$(TcgDirectory)/tcg-runtime.c" />
