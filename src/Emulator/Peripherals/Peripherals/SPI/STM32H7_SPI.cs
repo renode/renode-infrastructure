@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             DMARecieve = new GPIO();
 
             transmitFifo = new Queue<uint>();
-            recieveFifo = new Queue<uint>();
+            receiveFifo = new Queue<uint>();
 
             DefineRegisters();
             Reset();
@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             iolockValue = false;
             transmittedPackets = 0;
             transmitFifo.Clear();
-            recieveFifo.Clear();
+            receiveFifo.Clear();
             registers.Reset();
         }
 
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         {
                             ResetTransmissionState();
                             transmitFifo.Clear();
-                            recieveFifo.Clear();
+                            receiveFifo.Clear();
                             transmissionSize.Value = 0;
                         }
                     })
@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTag("UDRCFG", 9, 2)
                 .WithTag("UDRDET", 11, 2)
                 .WithReservedBits(13, 1)
-                .WithFlag(14, out recieveDMAEnabled, name: "RXDMAEN")
+                .WithFlag(14, out receiveDMAEnabled, name: "RXDMAEN")
                 // Software expects this value to be as it was set. Transmitting with DMA doesn't require any special logic
                 .WithFlag(15, name: "TXDMAEN")
                 .WithTag("CRCSIZE", 16, 5)
@@ -172,11 +172,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("AFCNTR", 31);
 
             Registers.Status.Define(registers)
-                .WithFlag(0, FieldMode.Read, name: "RXP", valueProviderCallback: _ => recieveFifo.Count > 0)
+                .WithFlag(0, FieldMode.Read, name: "RXP", valueProviderCallback: _ => receiveFifo.Count > 0)
                 // We always report that there is space for additional packets
                 .WithFlag(1, FieldMode.Read, name: "TXP", valueProviderCallback: _ => true)
                 // This flag is equal to RXP && TXP. Since TXP is always true this flag is equal to RXP
-                .WithFlag(2, FieldMode.Read, name: "DXP", valueProviderCallback: _ => recieveFifo.Count > 0)
+                .WithFlag(2, FieldMode.Read, name: "DXP", valueProviderCallback: _ => receiveFifo.Count > 0)
                 .WithFlag(3, out endOfTransfer, FieldMode.Read, name: "EOT")
                 .WithTaggedFlag("TXTF", 4)
                 // Overrun and underrun never occur in this model
@@ -219,12 +219,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                         TryTransmitData();
                     });
 
-            Registers.RecieveData.Define(registers)
+            Registers.ReceiveData.Define(registers)
                 .WithValueField(0, 32, FieldMode.Read, name: "SPI_RXDR", valueProviderCallback: _ =>
                     {
-                        if(!recieveFifo.TryDequeue(out var value))
+                        if(!receiveFifo.TryDequeue(out var value))
                         {
-                            this.Log(LogLevel.Error, "Recieve data FIFO is empty. Returning 0");
+                            this.Log(LogLevel.Error, "Receive data FIFO is empty. Returning 0");
                             return 0;
                         }
                         return value;
@@ -296,12 +296,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     bytes[i] = RegisteredPeripheral?.Transmit(bytes[i]) ?? 0;
                 }
 
-                recieveFifo.Enqueue(BitHelper.ToUInt32(bytes, 0, byteCount, reverseBytes));
+                receiveFifo.Enqueue(BitHelper.ToUInt32(bytes, 0, byteCount, reverseBytes));
 
-                if(recieveDMAEnabled.Value)
+                if(receiveDMAEnabled.Value)
                 {
                     // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
-                    // Without this signal DMA will never move data from the recieve FIFO to memory
+                    // Without this signal DMA will never move data from the receive FIFO to memory
                     // See STM32DMA:OnGPIO
                     DMARecieve.Blink();
                 }
@@ -327,12 +327,12 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly Queue<uint> transmitFifo;
-        private readonly Queue<uint> recieveFifo;
+        private readonly Queue<uint> receiveFifo;
 
         private bool iolockValue;
         private IFlagRegisterField endOfTransfer;
         private IFlagRegisterField peripheralEnabled;
-        private IFlagRegisterField recieveDMAEnabled;
+        private IFlagRegisterField receiveDMAEnabled;
         private IFlagRegisterField startTransmission;
         private IFlagRegisterField leastSignificantByteFirst;
 
@@ -353,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Status = 0x14,                      // SPI_SR
             InterruptStatusFlagsClear = 0x18,   // SPI_IFCR
             TransmitData = 0x20,                // SPI_TXDR
-            RecieveData = 0x30,                 // SPI_RXDR
+            ReceiveData = 0x30,                 // SPI_RXDR
             CRCPolynomial = 0x40,               // SPI_CRCPOLY
             TransmitterCRC = 0x44,              // SPI_TXCRC
             ReceiverCRC = 0x48,                 // SPI_RXCRC
