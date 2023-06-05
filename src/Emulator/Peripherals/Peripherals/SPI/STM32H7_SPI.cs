@@ -348,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Control1 = 0x00,                    // SPI_CR1
             Control2 = 0x04,                    // SPI_CR2
             Configuration1 = 0x08,              // SPI_CFG1
-            Configuration2 = 0x0C,              // SPI_CFG1
+            Configuration2 = 0x0C,              // SPI_CFG2
             InterruptEnable = 0x10,             // SPI_IER
             Status = 0x14,                      // SPI_SR
             InterruptStatusFlagsClear = 0x18,   // SPI_IFCR
