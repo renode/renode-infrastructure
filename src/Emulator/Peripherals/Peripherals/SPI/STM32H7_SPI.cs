@@ -205,7 +205,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .Then(r => r.WithReservedBits(10, 1))
                     .Else(r => r.WithTaggedFlag("TSERFIE", 10))
                 .WithReservedBits(11, 21)
-                .WithWriteCallback((_, __) => UpdateInterrupts());
+                .WithWriteCallback((_, __) =>
+                {
+                    UpdateInterrupts();
+                    // We clear EOT here to be compatible with the Zephyr driver: it
+                    // waits for EOT to become *0* instead of 1 like the HAL does.
+                    // See https://github.com/zephyrproject-rtos/zephyr/blob/a8ed28ab6fc86/drivers/spi/spi_ll_stm32.h#L180
+                    endOfTransfer.Value = false;
+                });
 
             Registers.Status.Define(registers)
                 .WithFlag(0, FieldMode.Read, name: "RXP", valueProviderCallback: _ => receiveFifo.Count > 0)
