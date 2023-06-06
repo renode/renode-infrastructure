@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -621,7 +621,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             else
             {
-                if(((lowPart << 127) & 0b1) == 1)
+                if(((lowPart >> 127) & 0b1) == 1)
                 {
                     newFlags |= CustomFlags.Msb;
                 }
