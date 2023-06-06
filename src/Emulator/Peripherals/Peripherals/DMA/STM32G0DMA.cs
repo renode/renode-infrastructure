@@ -13,7 +13,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public class STM32G0DMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
+    public class STM32G0DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
     {
         public STM32G0DMA(Machine machine, int numberOfChannels)
         {
@@ -138,6 +138,27 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.Log(LogLevel.Error, "Could not write to offset 0x{0:X} nor write to channel {1}, the channel has to be in range 0-{2}", offset, channelNo, numberOfChannels);
         }
 
+        public void OnGPIO(int number, bool value)
+        {
+            if(number == 0 || number > channels.Length)
+            {
+                this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [1; {1}]", number, channels.Length);
+                return;
+            }
+
+            if(!value)
+            {
+                return;
+            }
+
+            this.Log(LogLevel.Debug, "DMA peripheral request on channel {0}", number);
+            if(!channels[number - 1].TryTriggerTransfer())
+            {
+                this.Log(LogLevel.Warning, "DMA peripheral request on channel {0} ignored - channel is disabled "
+                    + "or has data count set to 0", number);
+            }
+        }
+
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long Size => 0x100;
@@ -179,14 +200,17 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 var registersMap = new Dictionary<long, DoubleWordRegister>();
                 registersMap.Add((long)ChannelRegisters.ChannelConfiguration + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithFlag(0,
+                    .WithFlag(0, out channelEnable,
                         writeCallback: (_, val) =>
                         {
                             if(!val)
                             {
                                 return;
                             }
-                            InitTransfer();
+                            if(memoryToMemory.Value || transferDirection.Value == TransferDirection.MemoryToPeripheral)
+                            {
+                                DoTransfer();
+                            }
                         },
                         valueProviderCallback: _ => false, name: "Channel enable (EN)")
                     .WithFlag(1, out transferCompleteInterruptEnable, name: "Transfer complete interrupt enable (TCIE)")
@@ -234,6 +258,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                 HalfTransfer = false;
             }
 
+            public bool TryTriggerTransfer()
+            {
+                if(!Enabled || dataCount.Value == 0)
+                {
+                    return false;
+                }
+
+                DoTransfer();
+                parent.Update();
+                return true;
+            }
+
             public bool GlobalInterrupt
             {
                 get
@@ -251,6 +287,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public bool Enabled => channelEnable.Value;
+
             public bool HalfTransfer { get; set; }
 
             public bool TransferComplete { get; set; }
@@ -259,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public bool TransferCompleteInterruptEnable => transferCompleteInterruptEnable.Value;
 
-            private void InitTransfer()
+            private void DoTransfer()
             {
                 // This value is still valid in memory-to-memory mode, "peripheral" means
                 // "the address specified by the peripheralAddress field" and not necessarily
@@ -278,7 +316,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 HalfTransfer = true;
                 TransferComplete = true;
-                // Explicitly no parent.Update - this is called by the register write anyway.
+                // No parent.Update - this is called by the register write and TryTriggerTransfer
+                // to avoid calling it twice in the former case
             }
 
             private void IssueCopy(ulong sourceAddress, ulong destinationAddress, uint size,
@@ -319,6 +358,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IValueRegisterField dataCount;
             private IValueRegisterField memoryAddress;
             private IValueRegisterField peripheralAddress;
+            private IFlagRegisterField channelEnable;
             private IFlagRegisterField transferCompleteInterruptEnable;
             private IFlagRegisterField halfTransferInterruptEnable;
             private IEnumRegisterField<TransferSize> memoryTransferType;
