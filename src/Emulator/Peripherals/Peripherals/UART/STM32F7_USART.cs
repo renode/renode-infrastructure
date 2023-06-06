@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public STM32F7_USART(Machine machine, uint frequency, bool lowPowerMode = false) : base(machine)
         {
             IRQ = new GPIO();
+            ReceiveDmaRequest = new GPIO();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             this.frequency = frequency;
             this.lowPowerMode = lowPowerMode;
@@ -31,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
             RegistersCollection.Reset();
             IRQ.Unset();
+            ReceiveDmaRequest.Unset();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -91,13 +93,16 @@ namespace Antmicro.Renode.Peripherals.UART
                     return;
                 }
                 bufferState = value;
+                UpdateInterrupt();
                 BufferStateChanged?.Invoke(value);
+                ReceiveDmaRequest.Set(receiveDmaEnabled.Value && value != BufferState.Empty);
             }
         }
 
         public event Action<BufferState> BufferStateChanged;
 
         public GPIO IRQ { get; }
+        public GPIO ReceiveDmaRequest { get; }
 
         public long Size => 0x400;
 
@@ -106,13 +111,11 @@ namespace Antmicro.Renode.Peripherals.UART
         protected override void CharWritten()
         {
             BufferState = BufferState.Ready;
-            UpdateInterrupt();
         }
 
         protected override void QueueEmptied()
         {
             BufferState = BufferState.Empty;
-            UpdateInterrupt();
         }
 
         protected override bool IsReceiveEnabled => receiveEnabled.Value && enabled.Value;
@@ -156,8 +159,8 @@ namespace Antmicro.Renode.Peripherals.UART
             var cr3 = Registers.ControlRegister3.Define(RegistersCollection)
                 .WithTaggedFlag("EIE", 0)
                 .WithTaggedFlag("HDSEL", 3)
-                .WithTaggedFlag("DMAR", 6)
-                .WithTaggedFlag("DMAT", 7)
+                .WithFlag(6, out receiveDmaEnabled, name: "DMAR")
+                .WithFlag(7, name: "DMAT")
                 .WithTaggedFlag("RTSE", 8)
                 .WithTaggedFlag("CTSE", 9)
                 .WithTaggedFlag("CTSIE", 10)
@@ -369,6 +372,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField readRegisterNotEmptyInterruptEnabled;
         private IFlagRegisterField transmitEnabled;
         private IFlagRegisterField receiveEnabled;
+        private IFlagRegisterField receiveDmaEnabled;
         private IFlagRegisterField enabled;
         private IValueRegisterField baudRateDivisor;
         private IValueRegisterField stopBits;
