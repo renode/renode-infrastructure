@@ -4,6 +4,7 @@
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Renode.Core;
@@ -228,8 +229,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithWriteCallback(
                             (_, __) => parent.Update()));
 
+                // The ChannelDataCount register stores the currently remaining number of data units to copy.
+                // It is decremented on each transfer. The originalDataCount field stores the original value
+                // written by software in order to implement the half transfer interrupt.
                 registersMap.Add((long)ChannelRegisters.ChannelDataCount + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithValueField(0, 16, out dataCount, name: "Number of data to transfer (NDT)")
+                    .WithValueField(0, 16, out dataCount, name: "Number of data to transfer (NDT)",
+                        writeCallback: (_, val) => originalDataCount = val)
                     .WithReservedBits(16, 16));
 
                 registersMap.Add((long)ChannelRegisters.ChannelPeripheralAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
@@ -304,23 +309,40 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // a peripheral.
                 if(transferDirection.Value == TransferDirection.PeripheralToMemory)
                 {
-                    IssueCopy(peripheralAddress.Value, memoryAddress.Value, (uint)dataCount.Value,
+                    var toCopy = (uint)dataCount.Value;
+                    // In peripheral-to-memory mode, only copy one data unit. Otherwise, do the whole block.
+                    if(!memoryToMemory.Value)
+                    {
+                        toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
+                            (uint)SizeToType(peripheralTransferType.Value));
+                        dataCount.Value -= 1;
+                    }
+                    else
+                    {
+                        dataCount.Value = 0;
+                    }
+                    var response = IssueCopy(peripheralAddress.Value, memoryAddress.Value, toCopy,
                         peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                         memoryTransferType.Value);
+                    peripheralAddress.Value = response.ReadAddress.Value;
+                    memoryAddress.Value = response.WriteAddress.Value;
+                    HalfTransfer = dataCount.Value <= originalDataCount / 2;
+                    TransferComplete = dataCount.Value == 0;
                 }
                 else // 1-bit field, so we handle both possible values
                 {
                     IssueCopy(memoryAddress.Value, peripheralAddress.Value, (uint)dataCount.Value,
                         memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
                         peripheralTransferType.Value);
+                    dataCount.Value = 0;
+                    HalfTransfer = true;
+                    TransferComplete = true;
                 }
-                HalfTransfer = true;
-                TransferComplete = true;
                 // No parent.Update - this is called by the register write and TryTriggerTransfer
                 // to avoid calling it twice in the former case
             }
 
-            private void IssueCopy(ulong sourceAddress, ulong destinationAddress, uint size,
+            private Response IssueCopy(ulong sourceAddress, ulong destinationAddress, uint size,
                 bool incrementReadAddress, bool incrementWriteAddress, TransferSize sourceTransferType,
                 TransferSize destinationTransferType)
             {
@@ -333,7 +355,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     incrementReadAddress,
                     incrementWriteAddress
                 );
-                parent.engine.IssueCopy(request);
+                return parent.engine.IssueCopy(request);
             }
 
             private TransferType SizeToType(TransferSize size)
@@ -363,6 +385,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField halfTransferInterruptEnable;
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
+            private ulong originalDataCount;
 
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32G0DMA parent;
