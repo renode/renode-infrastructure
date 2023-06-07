@@ -15,7 +15,7 @@ using Antmicro.Migrant;
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public sealed class STM32F7_USART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public sealed class STM32F7_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
         public STM32F7_USART(Machine machine, uint frequency, bool lowPowerMode = false) : base(machine)
         {
@@ -77,6 +77,26 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public BufferState BufferState
+        {
+            get
+            {
+                return bufferState;
+            }
+
+            private set
+            {
+                if(bufferState == value)
+                {
+                    return;
+                }
+                bufferState = value;
+                BufferStateChanged?.Invoke(value);
+            }
+        }
+
+        public event Action<BufferState> BufferStateChanged;
+
         public GPIO IRQ { get; }
 
         public long Size => 0x400;
@@ -85,11 +105,13 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
+            BufferState = BufferState.Ready;
             UpdateInterrupt();
         }
 
         protected override void QueueEmptied()
         {
+            BufferState = BufferState.Empty;
             UpdateInterrupt();
         }
 
@@ -351,6 +373,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField baudRateDivisor;
         private IValueRegisterField stopBits;
         private IFlagRegisterField over8;
+
+        private BufferState bufferState;
 
         private readonly uint frequency;
         private readonly bool lowPowerMode;
