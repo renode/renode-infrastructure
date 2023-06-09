@@ -502,6 +502,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
     public interface IRegisterCollection
     {
+        void Reset();
     }
 
     public interface IProvidesRegisterCollection<T> where T : IRegisterCollection
