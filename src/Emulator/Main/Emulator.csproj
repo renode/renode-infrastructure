@@ -251,6 +251,7 @@
     <Compile Include="Peripherals\CAN\ICAN.cs" />
     <Compile Include="Utilities\ConvertibleAttribute.cs" />
     <Compile Include="Peripherals\DMA\Request.cs" />
+    <Compile Include="Peripherals\DMA\Response.cs" />
     <Compile Include="Peripherals\DMA\TransferType.cs" />
     <Compile Include="Peripherals\DMA\IDMA.cs" />
     <Compile Include="Peripherals\Bus\Silencer.cs" />

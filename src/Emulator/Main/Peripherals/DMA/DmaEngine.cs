@@ -19,8 +19,14 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.machine = machine;
         }
 
-        public void IssueCopy(Request request)
+        public Response IssueCopy(Request request)
         {
+            var response = new Response
+            {
+                ReadAddress = request.Source.Address,
+                WriteAddress = request.Destination.Address,
+            };
+
             // some sanity checks
             if((request.Size % (int)request.ReadTransferType) != 0 || (request.Size % (int)request.WriteTransferType) != 0)
             {
@@ -44,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     if(request.IncrementReadAddress)
                     {
                         sysbus.ReadBytes(sourceAddress, request.Size, buffer, 0);
+                        response.ReadAddress += (ulong)request.Size;
                     }
                     else
                     {
@@ -75,6 +82,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         if(request.IncrementReadAddress)
                         {
                             offset += request.SourceIncrementStep;
+                            response.ReadAddress += request.SourceIncrementStep;
                         }
                     }
                 }
@@ -93,6 +101,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     if(request.IncrementWriteAddress)
                     {
                         sysbus.WriteBytes(buffer, destinationAddress);
+                        response.WriteAddress += (ulong)request.Size;
                     }
                     else
                     {
@@ -124,10 +133,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                         if(request.IncrementWriteAddress)
                         {
                             offset += request.DestinationIncrementStep;
+                            response.WriteAddress += request.DestinationIncrementStep;
                         }
                     }
                 }
             }
+
+            return response;
         }
 
         private readonly Machine machine;
