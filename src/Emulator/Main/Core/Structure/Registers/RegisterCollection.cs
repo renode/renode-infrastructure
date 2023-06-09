@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Looks for a register in a specified offset.
+        /// Tries to read from a register in a specified offset.
         /// </summary>
         /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
         /// <param name="offset">Register offset.</param>
@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Looks for a register in a specified offset.
+        /// Tries to read from a register in a specified offset.
         /// </summary>
         /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
         /// <param name="offset">Register offset.</param>
@@ -290,7 +290,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Looks for a register in a specified offset.
+        /// Tries to read from a register in a specified offset.
         /// </summary>
         /// <returns><c>true</c>, if register was found, <c>false</c> otherwise.</returns>
         /// <param name="offset">Register offset.</param>
