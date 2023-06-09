@@ -56,16 +56,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                     var offset = 0UL;
                     while(transferred < request.Size)
                     {
+                        var readAddress = sourceAddress + offset;
                         switch(request.ReadTransferType)
                         {
                         case TransferType.Byte:
-                            buffer[transferred] = sysbus.ReadByte(sourceAddress + offset);
+                            buffer[transferred] = sysbus.ReadByte(readAddress);
                             break;
                         case TransferType.Word:
-                            BitConverter.GetBytes(sysbus.ReadWord(sourceAddress + offset)).CopyTo(buffer, transferred);
+                            BitConverter.GetBytes(sysbus.ReadWord(readAddress)).CopyTo(buffer, transferred);
                             break;
                         case TransferType.DoubleWord:
-                            BitConverter.GetBytes(sysbus.ReadDoubleWord(sourceAddress + offset)).CopyTo(buffer, transferred);
+                            BitConverter.GetBytes(sysbus.ReadDoubleWord(readAddress)).CopyTo(buffer, transferred);
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();
