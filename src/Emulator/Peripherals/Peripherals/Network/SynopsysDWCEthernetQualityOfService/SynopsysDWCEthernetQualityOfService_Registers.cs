@@ -1520,6 +1520,13 @@ namespace Antmicro.Renode.Peripherals.Network
             ChannelMissedFrameCount = 0x16C,
         }
 
+        private enum MIIOperation : byte
+        {
+            Write = 0b01,
+            PostReadAddressIncrement = 0b10,
+            Read = 0b11,
+        }
+
         private enum DMATxProcessState
         {
             Stopped             = 0b000, // Reset or Stop Receive Command issued

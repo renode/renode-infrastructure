@@ -679,12 +679,5 @@ namespace Antmicro.Renode.Peripherals.Network
             None           = 0b10,
             ReplaceCRC     = 0b11,
         }
-
-        private enum MIIOperation : byte
-        {
-            Write = 0b01,
-            PostReadAddressIncrement = 0b10,
-            Read = 0b11,
-        }
     }
 }
