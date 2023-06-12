@@ -301,6 +301,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     TriggerRxWatchdog();
                 }
                 earlyRxInterrupt.Value = false;
+                UpdateRxCounters(frame, writeBackStructure);
                 this.Log(LogLevel.Noisy, "Receive: Frame fully processed.");
             }
             if(!rxEnable.Value || !startRx.Value)
@@ -325,7 +326,24 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendFrame(EthernetFrame frame)
         {
             FrameReady?.Invoke(frame);
-            txGoodPacketCounter.Value += 1;
+            IncrementPacketCounter(txGoodPacketCounter, txGoodPacketCounterInterrupt);
+            IncrementPacketCounter(txPacketCounter, txPacketCounterInterrupt);
+            // one added to account for Start of Frame Delimiter (SFD)
+            var byteCount = 1 + (uint)frame.Bytes.Length;
+            IncrementByteCounter(txByteCounter, txByteCounterInterrupt, byteCount);
+            IncrementByteCounter(txGoodByteCounter, txGoodByteCounterInterrupt, byteCount);
+            if(frame.DestinationMAC.IsBroadcast)
+            {
+                IncrementPacketCounter(txBroadcastPacketCounter, txBroadcastPacketCounterInterrupt);
+            }
+            else if(frame.DestinationMAC.IsMulticast)
+            {
+                IncrementPacketCounter(txMulticastPacketCounter, txMulticastPacketCounterInterrupt);
+            }
+            else
+            {
+                IncrementPacketCounter(txUnicastPacketCounter, txUnicastPacketCounterInterrupt);
+            }
 #if DEBUG
             this.Log(LogLevel.Noisy, "Transmission: frame {0}", Misc.PrettyPrintCollectionHex(frame.Bytes));
             this.Log(LogLevel.Debug, "Transmission: frame {0}", frame);
@@ -525,10 +543,88 @@ namespace Antmicro.Renode.Peripherals.Network
             UpdateInterrupts();
         }
 
+        private void UpdateRxCounters(EthernetFrame frame, RxDescriptor.NormalWriteBackDescriptor writeBackStructure)
+        {
+            if(writeBackStructure.crcError)
+            {
+                IncrementPacketCounter(rxCrcErrorPacketCounter, rxCrcErrorPacketCounterInterrupt);
+            }
+            IncrementPacketCounter(rxPacketCounter, rxPacketCounterInterrupt);
+            // byte count excludes preamble, one added to account for Start of Frame Delimiter (SFD)
+            var byteCount = 1 + writeBackStructure.packetLength;
+            IncrementByteCounter(rxByteCounter, rxByteCounterInterrupt, byteCount);
+
+            var isRuntPacket = writeBackStructure.packetLength <= EthernetFrame.RuntPacketMaximumSize;
+            var lengthOutOfRange = frame.Length > EthernetFrame.MaximumFrameSize;
+            var isNontypePacket = (writeBackStructure.lengthTypeField != PacketKind.TypePacket);
+            var lengthMismatch = (frame.Length != writeBackStructure.packetLength);
+
+            var lengthError = isNontypePacket && lengthMismatch;
+            var outOfRange = isNontypePacket && lengthOutOfRange;
+            if(writeBackStructure.crcError || isRuntPacket || lengthError || outOfRange)
+            {
+                return;
+            }
+
+            IncrementByteCounter(rxGoodByteCounter, rxGoodByteCounterInterrupt, byteCount);
+            if(frame.DestinationMAC.IsBroadcast)
+            {
+                IncrementPacketCounter(rxBroadcastPacketCounter, rxBroadcastPacketCounterInterrupt);
+            }
+            else if(frame.DestinationMAC.IsMulticast)
+            {
+                IncrementPacketCounter(rxMulticastPacketCounter, rxMulticastPacketCounterInterrupt);
+            }
+            else
+            {
+                IncrementPacketCounter(rxUnicastPacketCounter, rxUnicastPacketCounterInterrupt);
+            }
+        }
+
+        private void IncrementPacketCounter(IValueRegisterField counter, IFlagRegisterField status)
+        {
+            counter.Value += 1;
+            status.Value |= EqualsHalfOrMaximumCounterValue(counter);
+        }
+
+        private void IncrementByteCounter(IValueRegisterField counter, IFlagRegisterField status, uint increment)
+        {
+            status.Value |= WouldExceedHalfOrMaximumCounterValue(counter, increment);
+            counter.Value += increment;
+        }
+
         private void TriggerRxWatchdog()
         {
             rxWatchdog.Value = rxWatchdogCounter.Value;
             rxWatchdog.Enabled = rxWatchdogCounter.Value != 0 || rxWatchdogCounterUnit.Value != 0;
+        }
+
+        private bool EqualsHalfOrMaximumCounterValue(IValueRegisterField counter)
+        {
+            return (counter.Value == CounterMaxValue) || (counter.Value == (CounterMaxValue / 2));
+        }
+
+        private bool WouldExceedHalfOrMaximumCounterValue(IValueRegisterField counter, uint increment)
+        {
+            return (counter.Value < CounterMaxValue && counter.Value + increment >= CounterMaxValue)
+                || (counter.Value < CounterMaxValue / 2 && counter.Value + increment >= CounterMaxValue / 2);
+        }
+
+        private void UpdateInterrupts()
+        {
+            normalInterruptSummary.Value |= NormalInterruptSummary;
+            abnormalInterruptSummary.Value |= AbnormalInterruptSummary;
+
+            var irq = (ptpMessageTypeInterrupt.Value && ptpMessageTypeInterruptEnable.Value)   ||
+                      (lowPowerIdleInterrupt.Value && lowPowerIdleInterruptEnable.Value)       ||
+                      (timestampInterrupt.Value && timestampInterruptEnable.Value)             ||
+                      (rxWatchdogTimeout.Value && rxWatchdogTimeoutEnable.Value)               ||
+                      (abnormalInterruptSummary.Value && abnormalInterruptSummaryEnable.Value) ||
+                      (normalInterruptSummary.Value && normalInterruptSummaryEnable.Value)     ||
+                      MMCTxInterruptStatus                                                     ||
+                      MMCRxInterruptStatus;
+            this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irq);
+            IRQ.Set(irq);
         }
 
         private IBusController Bus { get; }
@@ -562,24 +658,22 @@ namespace Antmicro.Renode.Peripherals.Network
             (contextDescriptorError.Value && contextDescriptorErrorEnable.Value);
 
         private bool MMCTxInterruptStatus =>
-            (txGoodPacketCounterThresholdInterrupt.Value && txGoodPacketCounterThresholdInterruptEnable.Value);
+            (txGoodPacketCounterInterrupt.Value && txGoodPacketCounterInterruptEnable.Value)           ||
+            (txGoodByteCounterInterrupt.Value && txGoodByteCounterInterruptEnable.Value)               ||
+            (txBroadcastPacketCounterInterrupt.Value && txBroadcastPacketCounterInterruptEnable.Value) ||
+            (txMulticastPacketCounterInterrupt.Value && txMulticastPacketCounterInterruptEnable.Value) ||
+            (txUnicastPacketCounterInterrupt.Value && txUnicastPacketCounterInterruptEnable.Value)     ||
+            (txPacketCounterInterrupt.Value && txPacketCounterInterruptEnable.Value)                   ||
+            (txByteCounterInterrupt.Value && txByteCounterInterruptEnable.Value);
 
-        private void UpdateInterrupts()
-        {
-            txGoodPacketCounterThresholdInterrupt.Value |= txGoodPacketCounter.Value == TxGoodPacketCounterMaxValue || txGoodPacketCounter.Value == TxGoodPacketCounterMaxValue / 2;
-            normalInterruptSummary.Value |= NormalInterruptSummary;
-            abnormalInterruptSummary.Value |= AbnormalInterruptSummary;
-            var irq = false;
-            irq |= ptpMessageTypeInterrupt.Value && ptpMessageTypeInterruptEnable.Value;
-            irq |= lowPowerIdleInterrupt.Value && lowPowerIdleInterruptEnable.Value;
-            irq |= timestampInterrupt.Value && timestampInterruptEnable.Value;
-            irq |= txGoodPacketCounterThresholdInterrupt.Value && txGoodPacketCounterThresholdInterruptEnable.Value;
-            irq |= rxWatchdogTimeout.Value && rxWatchdogTimeoutEnable.Value;
-            irq |= abnormalInterruptSummary.Value && abnormalInterruptSummaryEnable.Value;
-            irq |= normalInterruptSummary.Value && normalInterruptSummaryEnable.Value;
-            this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irq);
-            IRQ.Set(irq);
-        }
+        private bool MMCRxInterruptStatus =>
+            (rxUnicastPacketCounterInterrupt.Value && rxUnicastPacketCounterInterruptEnable.Value)     ||
+            (rxCrcErrorPacketCounterInterrupt.Value && rxCrcErrorPacketCounterInterruptEnable.Value)   ||
+            (rxMulticastPacketCounterInterrupt.Value && rxMulticastPacketCounterInterruptEnable.Value) ||
+            (rxBroadcastPacketCounterInterrupt.Value && rxBroadcastPacketCounterInterruptEnable.Value) ||
+            (rxGoodByteCounterInterrupt.Value && rxGoodByteCounterInterruptEnable.Value)               ||
+            (rxByteCounterInterrupt.Value && rxByteCounterInterruptEnable.Value)                       ||
+            (rxPacketCounterInterrupt.Value && rxPacketCounterInterruptEnable.Value);
 
         private ulong RxBuffer1Size => alternateRxBufferSize.Value == 0 ? rxBufferSize.Value : alternateRxBufferSize.Value;
         private ulong RxBuffer2Size => rxBufferSize.Value;
@@ -600,7 +694,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly Queue<EthernetFrame> incomingFrames;
         private readonly LimitTimer rxWatchdog;
 
-        private const ulong TxGoodPacketCounterMaxValue = 1UL << 31;
+        private const ulong CounterMaxValue = UInt32.MaxValue;
         private const int RxWatchdogDivider = 256;
         private const uint EtherTypeMinimalValue = 0x600;
 

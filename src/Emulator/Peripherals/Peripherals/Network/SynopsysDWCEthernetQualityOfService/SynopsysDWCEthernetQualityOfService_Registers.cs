@@ -188,12 +188,12 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)RegistersMacAndMmc.InterruptStatus, new DoubleWordRegister(this)
                     .WithReservedBits(0, 3)
                     .WithTaggedFlag("MACISR.PHYIS (PHYIS)", 3)
-                    .WithFlag(4, out ptpMessageTypeInterrupt, name: "MACISR.PMTIS (PMTIS)")
-                    .WithFlag(5, out lowPowerIdleInterrupt, name: "MACISR.LPIIS (LPIIS)")
+                    .WithFlag(4, out ptpMessageTypeInterrupt, FieldMode.Read, name: "MACISR.PMTIS (PMTIS)")
+                    .WithFlag(5, out lowPowerIdleInterrupt, FieldMode.Read, name: "MACISR.LPIIS (LPIIS)")
                     .WithReservedBits(6, 2)
                     .WithTaggedFlag("MACISR.MMCIS (MMCIS)", 8)
-                    .WithTaggedFlag("MACISR.MMCRXIS (MMCRXIS)", 9)
-                    .WithFlag(10, valueProviderCallback: _ => MMCTxInterruptStatus, name: "MACISR.MMCTXIS (MMCTXIS)")
+                    .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => MMCRxInterruptStatus, name: "MACISR.MMCRXIS (MMCRXIS)")
+                    .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => MMCTxInterruptStatus, name: "MACISR.MMCTXIS (MMCTXIS)")
                     .WithReservedBits(11, 1)
                     .WithFlag(12, out timestampInterrupt, FieldMode.ReadToClear, name: "MACISR.TSIS (TSIS)")
                     .WithTaggedFlag("MACISR.TXSTSIS (TXSTSIS)", 13)
@@ -446,68 +446,185 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(9, 23)
                 },
                 {(long)RegistersMacAndMmc.MMCRxInterrupt, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 5)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXCRCERPIS (RXCRCERPIS)", 5)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXALGNERPIS (RXALGNERPIS)", 6)
-                    .WithReservedBits(7, 10)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXUCGPIS (RXUCGPIS)", 17)
-                    .WithReservedBits(18, 8)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXLPIUSCIS (RXLPIUSCIS)", 26)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXLPITRCIS (RXLPITRCIS)", 27)
+                    .WithFlag(0, out rxPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXGBPKTIS (MMC Receive Good Bad Packet Counter Interrupt Status)")
+                    .WithFlag(1, out rxByteCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXGBOCTIS (MMC Receive Good Bad Octet Counter Interrupt Status)")
+                    .WithFlag(2, out rxGoodByteCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXGOCTIS (MMC Receive Good Octet Counter Interrupt Status)")
+                    .WithFlag(3, out rxBroadcastPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXBCGPIS (MMC Receive Broadcast Good Packet Counter Interrupt Status)")
+                    .WithFlag(4, out rxMulticastPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXMCGPIS (MMC Receive Multicast Good Packet Counter Interrupt Status)")
+                    .WithFlag(5, out rxCrcErrorPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXCRCERPIS (MMC Receive CRC Error Packet Counter Interrupt Status)")
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXALGNERPIS (MMC Receive Alignment Error Packet Counter Interrupt Status)", 6)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXRUNTPIS (MMC Receive Runt Packet Counter Interrupt Status)", 7)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXJABERPIS (MMC Receive Jabber Error Packet Counter Interrupt Status)", 8)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXUSIZEGPIS (MMC Receive Undersize Good Packet Counter Interrupt Status)", 9)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXOSIZEGPIS (MMC Receive Oversize Good Packet Counter Interrupt Status)", 10)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RX64OCTGBPIS (MMC Receive 64 Octet Good Bad Packet Counter Interrupt Status)", 11)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RX65T127OCTGBPIS (MMC Receive Broadcast Good Bad Packet Counter Interrupt Status)", 12)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RX128T255OCTGBPIS (MMC Receive 128 to 255 Octet Good Bad Packet Counter Interrupt Status)", 13)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RX256T511OCTGBPIS (MMC Receive 256 to 511 Octet Good Bad Packet Counter Interrupt Status)", 14)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RX512T1023OCTGBPIS (MMC Receive 512 to 1023 Octet Good Bad Packet Counter Interrupt Status)", 15)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RX1024TMAXOCTGBPIS (MMC Receive 1024 to Maximum Octet Good Bad Packet Counter Interrupt Status)", 16)
+                    .WithFlag(17, out rxUnicastPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXUCGPIS (MMC Receive Unicast Good Packet Counter Interrupt Status)")
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXLENERPIS (MMC Receive Length Error Packet Counter Interrupt Status)", 18)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXORANGEPIS (MMC Receive Out Of Range Error Packet Counter Interrupt Status)", 19)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXPAUSPIS (MMC Receive Pause Packet Counter Interrupt Status)", 20)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXFOVPIS (MMC Receive FIFO Overflow Packet Counter Interrupt Status)", 21)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXVLANGBPIS (MMC Receive VLAN Good Bad Packet Counter Interrupt Status)", 22)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXWDOGPIS (MMC Receive Watchdog Error Packet Counter Interrupt Status)", 23)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXRCVERRPIS (MMC Receive Error Packet Counter Interrupt Status)", 24)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXCTRLPIS (MMC Receive Control Packet Counter Interrupt Status)", 25)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXLPIUSCIS (MMC Receive LPI Microsecond Counter Interrupt Status)", 26)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXLPITRCIS (MMC Receive LPI Transition Counter Interrupt Status)", 27)
                     .WithReservedBits(28, 4)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)RegistersMacAndMmc.MMCTxInterrupt, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 14)
-                    .WithFlag(14, out txGoodPacketCounterThresholdInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXSCOLGPIS (TXSCOLGPIS)")
-                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXMCOLGPIS (TXMCOLGPIS)", 15)
-                    .WithReservedBits(16, 5)
-                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXGPKTIS (TXGPKTIS)", 21)
-                    .WithReservedBits(22, 4)
-                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXLPIUSCIS (TXLPIUSCIS)", 26)
-                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXLPITRCIS (TXLPITRCIS)", 27)
+                    .WithFlag(0, out txByteCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXGBOCTIS (MMC Transmit Good Bad Octet Counter Interrupt Status)")
+                    .WithFlag(1, out txPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXGBPKTIS (MMC Transmit Good Bad Packet Counter Interrupt Status)")
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXBCGPIS (MMC Transmit Broadcast Good Packet Counter Interrupt Status)", 2)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXMCGPIS (MMC Transmit Multicast Good Packet Counter Interrupt Status)", 3)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TX64OCTGBPIS (MMC Transmit 64 Octet Good Bad Packet Counter Interrupt Status)", 4)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TX65T127OCTGBPIS (MMC Transmit 65 to 127 Octet Good Bad Packet Counter Interrupt Status)", 5)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TX128T255OCTGBPIS (MMC Transmit 128 to 255 Octet Good Bad Packet Counter Interrupt Status)", 6)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TX256T511OCTGBPIS (MMC Transmit 256 to 511 Octet Good Bad Packet Counter Interrupt Status)", 7)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TX512T1023OCTGBPIS (MMC Transmit 512 to 1023 Octet Good Bad Packet Counter Interrupt Status)", 8)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TX1024TMAXOCTGBPIS (MMC Transmit 1024 to Maximum Octet Good Bad Packet Counter Interrupt Status)", 9)
+                    .WithFlag(10, out txUnicastPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXUCGBPIS (MMC Transmit Unicast Good Bad Packet Counter Interrupt Status)")
+                    .WithFlag(11, out txMulticastPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXMCGBPIS (MMC Transmit Multicast Good Bad Packet Counter Interrupt Status)")
+                    .WithFlag(12, out txBroadcastPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXBCGBPIS (MMC Transmit Broadcast Good Bad Packet Counter Interrupt Status)")
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXUFLOWERPIS (MMC Transmit Underflow Error Packet Counter Interrupt Status)", 13)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXSCOLGPIS (MMC Transmit Single Collision Good Packet Counter Interrupt Status)", 14)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXMCOLGPIS (MMC Transmit Multiple Collision Good Packet Counter Interrupt Status)", 15)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXDEFPIS (MMC Transmit Deferred Packet Counter Interrupt Status)", 16)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXLATCOLPIS (MMC Transmit Late Collision Packet Counter Interrupt Status)", 17)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXEXCOLPIS (MMC Transmit Excessive Collision Packet Counter Interrupt Status)", 18)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXCARERPIS (MMC Transmit Carrier Error Packet Counter Interrupt Status)", 19)
+                    .WithFlag(20, out txGoodByteCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXGOCTIS (MMC Transmit Good Octet Counter Interrupt Status)")
+                    .WithFlag(21, out txGoodPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_TX_INTERRUPT.TXGPKTIS (MMC Transmit Good Packet Counter Interrupt Status)")
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXEXDEFPIS (MMC Transmit Excessive Deferral Packet Counter Interrupt Status)", 22)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXPAUSPIS (MMC Transmit Pause Packet Counter Interrupt Status)", 23)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXVLANGPIS (MMC Transmit VLAN Good Packet Counter Interrupt Status)", 24)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXOSIZEGPIS (MMC Transmit Oversize Good Packet Counter Interrupt Status)", 25)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXLPIUSCIS (MMC Transmit LPI Microsecond Counter Interrupt Status)", 26)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT.TXLPITRCIS (MMC Transmit LPI Transition Counter Interrupt Status)", 27)
                     .WithReservedBits(28, 4)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)RegistersMacAndMmc.MMCRxInterruptMask, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 5)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXCRCERPIM (RXCRCERPIM)", 5)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXALGNERPIM (RXALGNERPIM)", 6)
-                    .WithReservedBits(7, 10)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXUCGPIM (RXUCGPIM)", 17)
-                    .WithReservedBits(18, 8)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXLPIUSCIM (RXLPIUSCIM)", 26)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXLPITRCIM (RXLPITRCIM)", 27)
-                    .WithReservedBits(28, 4)
-                },
-                {(long)RegistersMacAndMmc.MMCTxInterruptMask, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 14)
-                    .WithFlag(14, out txGoodPacketCounterThresholdInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXSCOLGPIM (TXSCOLGPIM)")
-                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXMCOLGPIM (TXMCOLGPIM)", 15)
-                    .WithReservedBits(16, 5)
-                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXGPKTIM (TXGPKTIM)", 21)
-                    .WithReservedBits(22, 4)
-                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXLPIUSCIM (TXLPIUSCIM)", 26)
-                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXLPITRCIM (TXLPITRCIM)", 27)
+                    .WithFlag(0, out rxPacketCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXGBPKTIM (MMC Receive Good Bad Packet Counter Interrupt Mask)")
+                    .WithFlag(1, out rxByteCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXGBOCTIM (MMC Receive Good Bad Octet Counter Interrupt Mask)")
+                    .WithFlag(2, out rxGoodByteCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXGOCTIM (MMC Receive Good Octet Counter Interrupt Mask)")
+                    .WithFlag(3, out rxBroadcastPacketCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXBCGPIM (MMC Receive Broadcast Good Packet Counter Interrupt Mask)")
+                    .WithFlag(4, out rxMulticastPacketCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXMCGPIM (MMC Receive Multicast Good Packet Counter Interrupt Mask)")
+                    .WithFlag(5, out rxCrcErrorPacketCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXCRCERPIM (MMC Receive CRC Error Packet Counter Interrupt Mask)")
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXALGNERPIM (MMC Receive Alignment Error Packet Counter Interrupt Mask)", 6)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXRUNTPIM (MMC Receive Runt Packet Counter Interrupt Mask)", 7)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXJABERPIM (MMC Receive Jabber Error Packet Counter Interrupt Mask)", 8)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXUSIZEGPIM (MMC Receive Undersize Good Packet Counter Interrupt Mask)", 9)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXOSIZEGPIM (MMC Receive Oversize Good Packet Counter Interrupt Mask)", 10)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RX64OCTGBPIM (MMC Receive 64 Octet Good Bad Packet Counter Interrupt Mask)", 11)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RX65T127OCTGBPIM (MMC Receive Broadcast Good Bad Packet Counter Interrupt Mask)", 12)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RX128T255OCTGBPIM (MMC Receive 128 to 255 Octet Good Bad Packet Counter Interrupt Mask)", 13)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RX256T511OCTGBPIM (MMC Receive 256 to 511 Octet Good Bad Packet Counter Interrupt Mask)", 14)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RX512T1023OCTGBPIM (MMC Receive 512 to 1023 Octet Good Bad Packet Counter Interrupt Mask)", 15)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RX1024TMAXOCTGBPIM (MMC Receive 1024 to Maximum Octet Good Bad Packet Counter Interrupt Mask)", 16)
+                    .WithFlag(17, out rxUnicastPacketCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXUCGPIM (MMC Receive Unicast Good Packet Counter Interrupt Mask)")
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXLENERPIM (MMC Receive Length Error Packet Counter Interrupt Mask)", 18)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXORANGEPIM (MMC Receive Out Of Range Error Packet Counter Interrupt Mask)", 19)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXPAUSPIM (MMC Receive Pause Packet Counter Interrupt Mask)", 20)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXFOVPIM (MMC Receive FIFO Overflow Packet Counter Interrupt Mask)", 21)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXVLANGBPIM (MMC Receive VLAN Good Bad Packet Counter Interrupt Mask)", 22)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXWDOGPIM (MMC Receive Watchdog Error Packet Counter Interrupt Mask)", 23)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXRCVERRPIM (MMC Receive Error Packet Counter Interrupt Mask)", 24)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXCTRLPIM (MMC Receive Control Packet Counter Interrupt Mask)", 25)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXLPIUSCIM (MMC Receive LPI Microsecond Counter Interrupt Mask)", 26)
+                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXLPITRCIM (MMC Receive LPI Transition Counter Interrupt Mask)", 27)
                     .WithReservedBits(28, 4)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
+                {(long)RegistersMacAndMmc.MMCTxInterruptMask, new DoubleWordRegister(this)
+                    .WithFlag(0, out txByteCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXGBOCTIM (MMC Transmit Good Bad Octet Counter Interrupt Mask)")
+                    .WithFlag(1, out txPacketCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXGBPKTIM (MMC Transmit Good Bad Packet Counter Interrupt Mask)")
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXBCGPIM (MMC Transmit Broadcast Good Packet Counter Interrupt Mask)", 2)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXMCGPIM (MMC Transmit Multicast Good Packet Counter Interrupt Mask)", 3)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TX64OCTGBPIM (MMC Transmit 64 Octet Good Bad Packet Counter Interrupt Mask)", 4)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TX65T127OCTGBPIM (MMC Transmit 65 to 127 Octet Good Bad Packet Counter Interrupt Mask)", 5)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TX128T255OCTGBPIM (MMC Transmit 128 to 255 Octet Good Bad Packet Counter Interrupt Mask)", 6)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TX256T511OCTGBPIM (MMC Transmit 256 to 511 Octet Good Bad Packet Counter Interrupt Mask)", 7)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TX512T1023OCTGBPIM (MMC Transmit 512 to 1023 Octet Good Bad Packet Counter Interrupt Mask)", 8)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TX1024TMAXOCTGBPIM (MMC Transmit 1024 to Maximum Octet Good Bad Packet Counter Interrupt Mask)", 9)
+                    .WithFlag(10, out txUnicastPacketCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXUCGBPIM (MMC Transmit Unicast Good Bad Packet Counter Interrupt Mask)")
+                    .WithFlag(11, out txMulticastPacketCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXMCGBPIM (MMC Transmit Multicast Good Bad Packet Counter Interrupt Mask)")
+                    .WithFlag(12, out txBroadcastPacketCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXBCGBPIM (MMC Transmit Broadcast Good Bad Packet Counter Interrupt Mask)")
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXUFLOWERPIM (MMC Transmit Underflow Error Packet Counter Interrupt Mask)", 13)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXSCOLGPIM (MMC Transmit Single Collision Good Packet Counter Interrupt Mask)", 14)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXMCOLGPIM (MMC Transmit Multiple Collision Good Packet Counter Interrupt Mask)", 15)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXDEFPIM (MMC Transmit Deferred Packet Counter Interrupt Mask)", 16)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXLATCOLPIM (MMC Transmit Late Collision Packet Counter Interrupt Mask)", 17)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXEXCOLPIM (MMC Transmit Excessive Collision Packet Counter Interrupt Mask)", 18)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXCARERPIM (MMC Transmit Carrier Error Packet Counter Interrupt Mask)", 19)
+                    .WithFlag(20, out txGoodByteCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXGOCTIM (MMC Transmit Good Octet Counter Interrupt Mask)")
+                    .WithFlag(21, out txGoodPacketCounterInterruptEnable, name: "MMC_TX_INTERRUPT_MASK.TXGPKTIM (MMC Transmit Good Packet Counter Interrupt Mask)")
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXEXDEFPIM (MMC Transmit Excessive Deferral Packet Counter Interrupt Mask)", 22)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXPAUSPIM (MMC Transmit Pause Packet Counter Interrupt Mask)", 23)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXVLANGPIM (MMC Transmit VLAN Good Packet Counter Interrupt Mask)", 24)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXOSIZEGPIM (MMC Transmit Oversize Good Packet Counter Interrupt Mask)", 25)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXLPIUSCIM (MMC Transmit LPI Microsecond Counter Interrupt Mask)", 26)
+                    .WithTaggedFlag("MMC_TX_INTERRUPT_MASK.TXLPITRCIM (MMC Transmit LPI Transition Counter Interrupt Mask)", 27)
+                    .WithReservedBits(28, 4)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)RegistersMacAndMmc.TxOctetCountGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out txByteCounter, FieldMode.Read, name: "TX_OCTET_COUNT_GOOD_BAD.TXOCTGB (TXOCTGB)")
+                },
+                {(long)RegistersMacAndMmc.TxPacketCountGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out txPacketCounter, FieldMode.Read, name: "TX_PACKET_COUNT_GOOD_BAD.TXPKTGB (TXPKTGB)")
+                },
+                {(long)RegistersMacAndMmc.TxUnicastPacketsGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out txUnicastPacketCounter, FieldMode.Read, name: "TX_UNICAST_PACKETS_GOOD_BAD.TXUCASTGB (TXUCASTGB)")
+                },
+                {(long)RegistersMacAndMmc.TxMulticastPacketsGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out txMulticastPacketCounter, FieldMode.Read, name: "TX_MULTICAST_PACKETS_GOOD_BAD.TXMCASTGB (TXMCASTGB)")
+                },
+                {(long)RegistersMacAndMmc.TxBroadcastPacketsGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out txBroadcastPacketCounter, FieldMode.Read, name: "TX_BROADCAST_PACKETS_GOOD_BAD.TXBCASTGB (TXBCASTGB)")
+                },
                 {(long)RegistersMacAndMmc.TxSingleCollisionGoodPackets, new DoubleWordRegister(this)
-                    .WithTag("TX_SINGLE_COLLISION_GOOD_PACKETS.TXSNGLCOLG (TXSNGLCOLG)", 0, 32)
+                    // collisions are impossible
+                    .WithValueField(0, 32, FieldMode.Read, name: "TX_SINGLE_COLLISION_GOOD_PACKETS.TXSNGLCOLG (TXSNGLCOLG)")
                 },
                 {(long)RegistersMacAndMmc.TxMultipleCollisionGoodPackets, new DoubleWordRegister(this)
-                    .WithTag("TX_MULTIPLE_COLLISION_GOOD_PACKETS.TXMULTCOLG (TXMULTCOLG)", 0, 32)
+                    // collisions are impossible
+                    .WithValueField(0, 32, FieldMode.Read, name: "TX_MULTIPLE_COLLISION_GOOD_PACKETS.TXMULTCOLG (TXMULTCOLG)")
+                },
+                {(long)RegistersMacAndMmc.TxOctetCountGood, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out txGoodByteCounter, FieldMode.Read, name: "TX_OCTET_COUNT_GOOD.TXOCTG (TXOCTG)")
                 },
                 {(long)RegistersMacAndMmc.TxPacketCountGood, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out txGoodPacketCounter, FieldMode.Read, name: "TX_PACKET_COUNT_GOOD.TXPKTG (TXPKTG)")
                 },
+                {(long)RegistersMacAndMmc.RxPacketsCountGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxPacketCounter, FieldMode.Read, name: "RX_PACKETS_COUNT_GOOD_BAD.RXPKTGB (RXPKTGB)")
+                },
+                {(long)RegistersMacAndMmc.RxOctetCountGoodBad, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxByteCounter, FieldMode.Read, name: "RX_OCTET_COUNT_GOOD_BAD.RXOCTGB (RXOCTGB)")
+                },
+                {(long)RegistersMacAndMmc.RxOctetCountGood, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxGoodByteCounter, FieldMode.Read, name: "RX_OCTET_COUNT_GOOD.RXOCTG (RXOCTG)")
+                },
+                {(long)RegistersMacAndMmc.RxBroadcastPacketsGood, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxBroadcastPacketCounter, FieldMode.Read, name: "RX_BROADCAST_PACKETS_GOOD.RXBCASTG (RXBCASTG)")
+                },
+                {(long)RegistersMacAndMmc.RxMulticastPacketsGood, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxMulticastPacketCounter, FieldMode.Read, name: "RX_MULTICAST_PACKETS_GOOD.RXMCASTG (RXMCASTG)")
+                },
                 {(long)RegistersMacAndMmc.RxCRCErrorPackets, new DoubleWordRegister(this)
-                    .WithTag("RX_CRC_ERROR_PACKETS.RXCRCERR (RXCRCERR)", 0, 32)
+                    .WithValueField(0, 32, out rxCrcErrorPacketCounter, FieldMode.Read, name: "RX_CRC_ERROR_PACKETS.RXCRCERR (RXCRCERR)")
                 },
                 {(long)RegistersMacAndMmc.RxAlignmentErrorPackets, new DoubleWordRegister(this)
                     .WithTag("RX_ALIGNMENT_ERROR_PACKETS.RXALGNERR (RXALGNERR)", 0, 32)
                 },
                 {(long)RegistersMacAndMmc.RxUnicastPacketsGood, new DoubleWordRegister(this)
-                    .WithTag("RX_UNICAST_PACKETS_GOOD.RXUCASTG (RXUCASTG)", 0, 32)
+                    .WithValueField(0, 32, out rxUnicastPacketCounter, FieldMode.Read, name: "RX_UNICAST_PACKETS_GOOD.RXUCASTG (RXUCASTG)")
                 },
                 {(long)RegistersMacAndMmc.TxLPIMicrodecondTimer, new DoubleWordRegister(this)
                     .WithTag("TX_LPI_USEC_CNTR.TXLPIUSC (TXLPIUSC)", 0, 32)
@@ -1148,9 +1265,48 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField miiPhy;
         private IValueRegisterField miiData;
         private IValueRegisterField miiAddress;
-        private IFlagRegisterField txGoodPacketCounterThresholdInterrupt;
-        private IFlagRegisterField txGoodPacketCounterThresholdInterruptEnable;
+        private IFlagRegisterField rxUnicastPacketCounterInterrupt;
+        private IFlagRegisterField rxCrcErrorPacketCounterInterrupt;
+        private IFlagRegisterField rxMulticastPacketCounterInterrupt;
+        private IFlagRegisterField rxBroadcastPacketCounterInterrupt;
+        private IFlagRegisterField rxGoodByteCounterInterrupt;
+        private IFlagRegisterField rxByteCounterInterrupt;
+        private IFlagRegisterField rxPacketCounterInterrupt;
+        private IFlagRegisterField txGoodPacketCounterInterrupt;
+        private IFlagRegisterField txGoodByteCounterInterrupt;
+        private IFlagRegisterField txBroadcastPacketCounterInterrupt;
+        private IFlagRegisterField txMulticastPacketCounterInterrupt;
+        private IFlagRegisterField txUnicastPacketCounterInterrupt;
+        private IFlagRegisterField txPacketCounterInterrupt;
+        private IFlagRegisterField txByteCounterInterrupt;
+        private IFlagRegisterField rxUnicastPacketCounterInterruptEnable;
+        private IFlagRegisterField rxCrcErrorPacketCounterInterruptEnable;
+        private IFlagRegisterField rxMulticastPacketCounterInterruptEnable;
+        private IFlagRegisterField rxBroadcastPacketCounterInterruptEnable;
+        private IFlagRegisterField rxGoodByteCounterInterruptEnable;
+        private IFlagRegisterField rxByteCounterInterruptEnable;
+        private IFlagRegisterField rxPacketCounterInterruptEnable;
+        private IFlagRegisterField txGoodPacketCounterInterruptEnable;
+        private IFlagRegisterField txGoodByteCounterInterruptEnable;
+        private IFlagRegisterField txBroadcastPacketCounterInterruptEnable;
+        private IFlagRegisterField txMulticastPacketCounterInterruptEnable;
+        private IFlagRegisterField txUnicastPacketCounterInterruptEnable;
+        private IFlagRegisterField txPacketCounterInterruptEnable;
+        private IFlagRegisterField txByteCounterInterruptEnable;
+        private IValueRegisterField txByteCounter;
+        private IValueRegisterField txPacketCounter;
+        private IValueRegisterField txUnicastPacketCounter;
+        private IValueRegisterField txMulticastPacketCounter;
+        private IValueRegisterField txBroadcastPacketCounter;
+        private IValueRegisterField txGoodByteCounter;
         private IValueRegisterField txGoodPacketCounter;
+        private IValueRegisterField rxPacketCounter;
+        private IValueRegisterField rxByteCounter;
+        private IValueRegisterField rxGoodByteCounter;
+        private IValueRegisterField rxBroadcastPacketCounter;
+        private IValueRegisterField rxMulticastPacketCounter;
+        private IValueRegisterField rxCrcErrorPacketCounter;
+        private IValueRegisterField rxUnicastPacketCounter;
         private IFlagRegisterField enableTimestamp;
         private IFlagRegisterField enableTimestampForAll;
 
@@ -1256,9 +1412,20 @@ namespace Antmicro.Renode.Peripherals.Network
             MMCTxInterrupt = 0x708,
             MMCRxInterruptMask = 0x70C,
             MMCTxInterruptMask = 0x710,
+            TxOctetCountGoodBad = 0x714,
+            TxPacketCountGoodBad = 0x718,
+            TxUnicastPacketsGoodBad = 0x73C,
+            TxMulticastPacketsGoodBad = 0x740,
+            TxBroadcastPacketsGoodBad = 0x744,
             TxSingleCollisionGoodPackets = 0x74C,
             TxMultipleCollisionGoodPackets = 0x750,
+            TxOctetCountGood = 0x764,
             TxPacketCountGood = 0x768,
+            RxPacketsCountGoodBad = 0x780,
+            RxOctetCountGoodBad = 0x784,
+            RxOctetCountGood = 0x788,
+            RxBroadcastPacketsGood = 0x78C,
+            RxMulticastPacketsGood = 0x790,
             RxCRCErrorPackets = 0x794,
             RxAlignmentErrorPackets = 0x798,
             RxUnicastPacketsGood = 0x7C4,
