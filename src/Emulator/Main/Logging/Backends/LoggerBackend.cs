@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,14 +15,13 @@ namespace Antmicro.Renode.Logging
         public virtual bool IsControllable { get { return true; } }
 
         public abstract void Log(LogEntry entry);
-        
+
         public virtual void Flush()
         {
         }
 
         public virtual void Dispose()
         {
-            
         }
 
         public virtual void SetLogLevel(LogLevel level, int sourceId = -1)
