@@ -154,6 +154,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     IncreaseRxDescriptorPointer();
                     continue;
                 }
+                rxCurrentBuffer.Value = bufferAddress;
 
                 if(isFirst)
                 {
@@ -405,7 +406,8 @@ namespace Antmicro.Renode.Peripherals.Network
                         this.Log(LogLevel.Warning, "Transmission: Building new frame without clearing last frame.");
                     }
 
-                    var buffer1 = structure.FetchBuffer1OrHeader(Bus);
+                    var buffer = structure.FetchBuffer1OrHeader(Bus);
+                    txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
                     if(structure.firstDescriptor)
                     {
                         var tsoEnabled = structure.tcpSegmentationEnable && tcpSegmentationEnable.Value;
@@ -413,12 +415,14 @@ namespace Antmicro.Renode.Peripherals.Network
                         {
                             frameAssembler = new FrameAssembler(
                                 this,
-                                buffer1,
+                                buffer,
                                 (uint)maximumSegmentSize.Value,
                                 latestTxContext,
                                 checksumOffloadEnable.Value,
                                 SendFrame
                             );
+                            buffer = structure.FetchBuffer2OrBuffer1(Bus);
+                            txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
                         }
                         else
                         {
@@ -430,12 +434,8 @@ namespace Antmicro.Renode.Peripherals.Network
                                 SendFrame
                             );
                         }
-                        frameAssembler.PushPayload(tsoEnabled ? structure.FetchBuffer2OrBuffer1(Bus) : buffer1);
                     }
-                    else
-                    {
-                        frameAssembler.PushPayload(buffer1);
-                    }
+                    frameAssembler.PushPayload(buffer);
                     earlyTxInterrupt.Value = true;
 
                     if(!structure.lastDescriptor)
