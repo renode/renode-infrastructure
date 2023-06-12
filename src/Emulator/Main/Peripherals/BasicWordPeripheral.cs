@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -44,22 +44,17 @@ namespace Antmicro.Renode.Peripherals
 
     public static class BasicWordPeripheralExtensions
     {
-        public static void Tag16(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        public static void Tag16(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
         {
         }
 
-        public static void Define16Many(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, string name = "")
+        public static void Define16Many(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, string name = "")
         {
             DefineMany(o, p, count, setup, stepInBytes, resetValue, name);
         }
 
-        public static void DefineMany(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, string name = "")
+        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, string name = "")
         {
-            if(!o.GetType().IsEnum)
-            {
-                throw new ArgumentException("This method should be called on enumerated type");
-            }
-
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
@@ -68,39 +63,23 @@ namespace Antmicro.Renode.Peripherals
             }
         }
 
-        public static WordRegister Define16(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        public static WordRegister Define16(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
         {
             return Define(o, p, resetValue);
         }
 
-        // this method should be visible for enums only, but... it's not possible in C#
-        public static WordRegister Define(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        public static WordRegister Define(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
         {
-            if(!o.GetType().IsEnum)
-            {
-                throw new ArgumentException("This method should be called on enumerated type");
-            }
-
             return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue);
         }
 
-        public static WordRegister Bind(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, WordRegister reg, string name = "")
+        public static WordRegister Bind(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, WordRegister reg, string name = "")
         {
-            if(!o.GetType().IsEnum)
-            {
-                throw new ArgumentException("This method should be called on enumerated type");
-            }
-
             return p.RegistersCollection.AddRegister(Convert.ToInt64(o), reg);
         }
 
-        public static void BindMany(this IConvertible o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Func<int, WordRegister> setup, uint stepInBytes = 4)
+        public static void BindMany(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Func<int, WordRegister> setup, uint stepInBytes = 4)
         {
-            if(!o.GetType().IsEnum)
-            {
-                throw new ArgumentException("This method should be called on enumerated type");
-            }
-
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
