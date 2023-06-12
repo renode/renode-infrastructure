@@ -975,9 +975,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)RegistersDMA.DebugStatus, new DoubleWordRegister(this)
                     .WithTaggedFlag("DMADSR.AXWHSTS (AHB Master Write Channel)", 0)
                     .WithReservedBits(1, 7)
-                    .WithTag("DMADSR.RPS0 (DMA Channel Receive Process State)", 8, 4)
-                    .WithTag("DMADSR.TPS0 (DMA Channel Transmit Process State)", 12, 4)
-                    .WithReservedBits(16, 16)
+                    .WithEnumField<DoubleWordRegister, DMARxProcessState>(8, 4, FieldMode.Read,
+                        valueProviderCallback: _ => DmaRxState, name: "DMADSR.RPS0 (DMA Channel 0 Receive Process State)")
+                    .WithEnumField<DoubleWordRegister, DMATxProcessState>(12, 4, FieldMode.Read,
+                        valueProviderCallback: _ => DmaTxState, name: "DMADSR.TPS0 (DMA Channel 0 Transmit Process State)")
+                    .WithTag("DMADSR.RPS1 (DMA Channel 1 Receive Process State)", 16, 4)
+                    .WithTag("DMADSR.TPS1 (DMA Channel 1 Transmit Process State)", 20, 4)
+                    .WithReservedBits(24, 7)
                 },
                 {(long)RegistersDMA.ChannelControl, new DoubleWordRegister(this)
                     .WithValueField(0, 14, out maximumSegmentSize, name: "DMACCR.MSS (Maximum Segment Size)")
@@ -1248,6 +1252,10 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        private DMATxProcessState DmaTxState => (txState == DMAState.Stopped) ? DMATxProcessState.Stopped : DMATxProcessState.Suspended;
+        private DMARxProcessState DmaRxState => (rxState == DMAState.Stopped) ? DMARxProcessState.Stopped :
+                                        ((incomingFrames.Count == 0) ? DMARxProcessState.WaitingForPacket : DMARxProcessState.Suspended);
+
         private IFlagRegisterField rxEnable;
         private IFlagRegisterField txEnable;
         private IFlagRegisterField checksumOffloadEnable;
@@ -1510,6 +1518,30 @@ namespace Antmicro.Renode.Peripherals.Network
             ChannelCurrentApplicationReceiveBuffer = 0x15C,
             ChannelStatus = 0x160,
             ChannelMissedFrameCount = 0x16C,
+        }
+
+        private enum DMATxProcessState
+        {
+            Stopped             = 0b000, // Reset or Stop Receive Command issued
+            FetchingDescriptor  = 0b001, // Fetching Tx Transfer Descriptor
+            WaitingForStatus    = 0b010, // Waiting for status
+            FetchingBufferData  = 0b011, // Reading Data from system memory buffer and queuing it to the Tx buffer (Tx FIFO)
+            TimestampWriteState = 0b100, // Timestamp write state
+            // Reserved         = 0b101, // Reserved for future use
+            Suspended           = 0b110, // Tx Descriptor Unavailable or Tx Buffer Underflow
+            ClosingDescriptor   = 0b111, // Closing Tx Descriptor
+        }
+
+        private enum DMARxProcessState
+        {
+            Stopped             = 0b000, // Reset or Stop Receive Command issued
+            FetchingDescriptor  = 0b001, // Fetching Rx Transfer Descriptor
+            // Reserved         = 0b010, // Reserved for future use
+            WaitingForPacket    = 0b011, // Waiting for Rx packet
+            Suspended           = 0b100, // Rx Descriptor Unavailable
+            ClosingDescriptor   = 0b101, // Closing the Rx Descriptor
+            TimestampWriteState = 0b110, // Timestamp write state
+            WritingBufferData   = 0b111, // Transferring the received packet data from the Rx buffer to the system memory
         }
     }
 }
