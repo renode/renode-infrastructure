@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>Newly added register.</returns>
         public QuadWordRegister DefineRegister(long offset, ulong resetValue = 0, bool softResettable = true)
         {
-            var reg = new QuadWordRegister(parent, resetValue);
+            var reg = new QuadWordRegister(parent, resetValue, softResettable);
             registers.Add(offset, reg);
             return reg;
         }
@@ -235,7 +235,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>Newly added register.</returns>
         public DoubleWordRegister DefineRegister(long offset, uint resetValue = 0, bool softResettable = true)
         {
-            var reg = new DoubleWordRegister(parent, resetValue);
+            var reg = new DoubleWordRegister(parent, resetValue, softResettable);
             registers.Add(offset, reg);
             return reg;
         }
