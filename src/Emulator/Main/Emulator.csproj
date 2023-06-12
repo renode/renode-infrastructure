@@ -589,6 +589,7 @@
     <Compile Include="Utilities\ICanLoadFiles.cs" />
     <Compile Include="Peripherals\Network\Clause45Address.cs" />
     <Compile Include="Network\CRCMode.cs" />
+    <Compile Include="Utilities\IfWrapper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
