@@ -424,7 +424,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly OpenTitan_ScrambledMemory dataMemory;
         private readonly OpenTitan_ScrambledMemory instructionsMemory;
 
-        private const int DataMemoryWindowsCount = 512;
+        private const int DataMemoryWindowsCount = 1024;
         private const int InstructionsMemoryWindowsCount = 1024;
 
         private enum Command
