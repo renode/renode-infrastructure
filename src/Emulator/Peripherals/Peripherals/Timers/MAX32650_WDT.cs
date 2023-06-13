@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Miscellaneous;
@@ -26,6 +27,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             resetTimer = new LimitTimer(machine.ClockSource, gcr.SysClk / 2, this, "reset_timer", InitialLimit, eventEnabled: true);
             resetTimer.LimitReached += () =>
             {
+                if(BeforeReset?.Invoke() ?? false)
+                {
+                    return;
+                }
+
                 systemReset = true;
                 machine.RequestReset();
             };
@@ -55,6 +61,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x400;
 
         public GPIO IRQ { get; }
+
+        public Func<bool> BeforeReset { get; set; }
 
         private void UpdateInterrupts()
         {
