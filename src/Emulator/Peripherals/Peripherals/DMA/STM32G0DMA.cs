@@ -237,11 +237,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                         writeCallback: (_, val) => originalDataCount = val)
                     .WithReservedBits(16, 16));
 
+                // The ChannelPeripheralAddress and ChannelMemoryAddress registers retain the value written
+                // by software. The incremented address is stored in the currentAddress fields.
                 registersMap.Add((long)ChannelRegisters.ChannelPeripheralAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithValueField(0, 32, out peripheralAddress, name: "Peripheral address (PA)"));
+                    .WithValueField(0, 32, out peripheralAddress,
+                        writeCallback: (_, val) => currentPeripheralAddress = val, name: "Peripheral address (PA)"));
 
                 registersMap.Add((long)ChannelRegisters.ChannelMemoryAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithValueField(0, 32, out memoryAddress, name: "Memory address (MA)"));
+                    .WithValueField(0, 32, out memoryAddress,
+                        writeCallback: (_, val) => currentMemoryAddress = val, name: "Memory address (MA)"));
 
                 registers = new DoubleWordRegisterCollection(parent, registersMap);
             }
@@ -321,11 +325,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     {
                         dataCount.Value = 0;
                     }
-                    var response = IssueCopy(peripheralAddress.Value, memoryAddress.Value, toCopy,
+                    var response = IssueCopy(currentPeripheralAddress, currentMemoryAddress, toCopy,
                         peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                         memoryTransferType.Value);
-                    peripheralAddress.Value = response.ReadAddress.Value;
-                    memoryAddress.Value = response.WriteAddress.Value;
+                    currentPeripheralAddress = response.ReadAddress.Value;
+                    currentMemoryAddress = response.WriteAddress.Value;
                     HalfTransfer = dataCount.Value <= originalDataCount / 2;
                     TransferComplete = dataCount.Value == 0;
                 }
@@ -385,6 +389,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField halfTransferInterruptEnable;
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
+            private ulong currentPeripheralAddress;
+            private ulong currentMemoryAddress;
             private ulong originalDataCount;
 
             private readonly DoubleWordRegisterCollection registers;
