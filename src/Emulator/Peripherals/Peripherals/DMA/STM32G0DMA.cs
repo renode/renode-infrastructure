@@ -218,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(2, out halfTransferInterruptEnable, name: "Half transfer interrupt enable (HTIE)")
                     .WithTag("Transfer error interrupt enable (TEIE)", 3, 1)
                     .WithEnumField(4, 1, out transferDirection, name: "Data transfer direction (DIR)")
-                    .WithTag("Circular mode (CIRC)", 5, 1)
+                    .WithFlag(5, out circularMode, name: "Circular mode (CIRC)")
                     .WithFlag(6, out peripheralIncrementMode, name: "Peripheral increment mode (PINC)")
                     .WithFlag(7, out memoryIncrementMode, name: "Memory increment mode (MINC)")
                     .WithEnumField(8, 2, out peripheralTransferType, name: "Peripheral size (PSIZE)")
@@ -238,7 +238,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(16, 16));
 
                 // The ChannelPeripheralAddress and ChannelMemoryAddress registers retain the value written
-                // by software. The incremented address is stored in the currentAddress fields.
+                // by software. This value is read by the model during circular mode wraparound.
+                // The incremented address is stored in the currentAddress fields.
                 registersMap.Add((long)ChannelRegisters.ChannelPeripheralAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithValueField(0, 32, out peripheralAddress,
                         writeCallback: (_, val) => currentPeripheralAddress = val, name: "Peripheral address (PA)"));
@@ -342,6 +343,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                     HalfTransfer = true;
                     TransferComplete = true;
                 }
+
+                // Loop around if circular mode is enabled
+                if(circularMode.Value && !memoryToMemory.Value && dataCount.Value == 0)
+                {
+                    dataCount.Value = originalDataCount;
+                    currentPeripheralAddress = peripheralAddress.Value;
+                    currentMemoryAddress = memoryAddress.Value;
+                }
                 // No parent.Update - this is called by the register write and TryTriggerTransfer
                 // to avoid calling it twice in the former case
             }
@@ -378,6 +387,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
 
             private IEnumRegisterField<TransferDirection> transferDirection;
+            private IFlagRegisterField circularMode;
             private IFlagRegisterField peripheralIncrementMode;
             private IFlagRegisterField memoryIncrementMode;
             private IFlagRegisterField memoryToMemory;
