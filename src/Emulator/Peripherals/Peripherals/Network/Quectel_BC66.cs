@@ -17,6 +17,21 @@ namespace Antmicro.Renode.Peripherals.Network
         {
         }
 
+        // QCCLK - Set and Get Current Date and UTC
+        [AtCommand("AT+QCCLK", CommandType.Read)]
+        protected virtual Response QcclkRead()
+        {
+            return Ok.WithParameters(machine.RealTimeClockDateTime.ToString("yy/MM/dd,HH:mm:sszz"));
+        }
+
+        // QCCLK - Set and Get Current Date and UTC
+        [AtCommand("AT+QCCLK", CommandType.Write)]
+        protected virtual Response QcclkWrite(string dateTime)
+        {
+            this.Log(LogLevel.Warning, "Ignoring attempt to set date/time to '{0}'", dateTime);
+            return Ok; // stub
+        }
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected override Response Qcfg(string function, int value)
