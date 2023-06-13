@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,7 +23,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
         protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, Machine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
                 : base(hartId, cpuType, machine, endianness, bitness)
@@ -34,23 +34,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             shouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
-            this.NMIVectorLength = nmiVectorLength;
-            this.NMIVectorAddress = nmiVectorAddress;
+            this.nmiVectorLength = nmiVectorLength;
+            this.nmiVectorAddress = nmiVectorAddress;
 
             ArchitectureSets = DecodeArchitecture(cpuType);
             EnableArchitectureVariants();
 
-            if(this.NMIVectorAddress.HasValue && this.NMIVectorLength.HasValue && this.NMIVectorLength > 0)
-            {
-                this.Log(LogLevel.Noisy, "Non maskable interrupts enabled with paramters: {0} = {1}, {2} = {3}",
-                        nameof(this.NMIVectorAddress), this.NMIVectorAddress, nameof(this.NMIVectorLength), this.NMIVectorLength);
-                TlibSetNmiVector(this.NMIVectorAddress.Value, this.NMIVectorLength.Value);
-            }
-            else
-            {
-                this.Log(LogLevel.Noisy, "Non maskable interrupts disabled");
-                TlibSetNmiVector(0, 0);
-            }
+            UpdateNMIVector();
 
             TlibAllowUnalignedAccesses(allowUnalignedAccesses ? 1 : 0);
 
@@ -114,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public virtual void OnNMI(int number, bool value)
+        public virtual void OnNMI(int number, bool value, ulong? mcause = null)
         {
             if(this.NMIVectorLength == null || this.NMIVectorAddress == null)
             {
@@ -123,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             else
             {
-                TlibSetNmi(number, value ? 1 : 0);
+                TlibSetNmi(number, value ? 1 : 0, mcause ?? (ulong)number);
             }
         }
 
@@ -338,9 +328,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public ulong? NMIVectorAddress { get; }
+        public ulong? NMIVectorAddress
+        {
+            get
+            {
+                return nmiVectorAddress;
+            }
 
-        public uint? NMIVectorLength { get; }
+            set
+            {
+                nmiVectorAddress = value;
+                UpdateNMIVector();
+            }
+        }
+
+        public uint? NMIVectorLength
+        {
+            get
+            {
+                return nmiVectorLength;
+            }
+
+            set
+            {
+                nmiVectorLength = value;
+                UpdateNMIVector();
+            }
+        }
 
         public event Action<ulong> MipChanged;
 
@@ -537,6 +551,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             return RiscVRegisterDescription.StartOfVRegisters <= register && register < RiscVRegisterDescription.StartOfVRegisters + RiscVRegisterDescription.NumberOfVRegisters;
         }
 
+        private void UpdateNMIVector()
+        {
+            if(NMIVectorAddress.HasValue && NMIVectorLength.HasValue && NMIVectorLength > 0)
+            {
+                this.Log(LogLevel.Noisy, "Non maskable interrupts enabled with parameters: {0} = {1}, {2} = {3}",
+                        nameof(NMIVectorAddress), NMIVectorAddress, nameof(NMIVectorLength), NMIVectorLength);
+                TlibSetNmiVector(NMIVectorAddress.Value, NMIVectorLength.Value);
+            }
+            else
+            {
+                this.Log(LogLevel.Noisy, "Non maskable interrupts disabled");
+                TlibSetNmiVector(0, 0);
+            }
+        }
+
         [Export]
         private ulong GetCPUTime()
         {
@@ -627,6 +656,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public readonly Dictionary<int, ICFU> ChildCollection;
 
+        private ulong? nmiVectorAddress;
+        private uint? nmiVectorLength;
+
         private bool pcWrittenFlag;
 
         private readonly IRiscVTimeProvider timeProvider;
@@ -683,7 +715,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt64UInt32 TlibSetNmiVector;
 
         [Import]
-        private ActionInt32Int32 TlibSetNmi;
+        private ActionInt32Int32UInt64 TlibSetNmi;
 
         [Import]
         private ActionUInt32 TlibSetCsrValidationLevel;

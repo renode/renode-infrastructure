@@ -296,6 +296,7 @@
     <Compile Include="Utilities\IInterestingType.cs" />
     <Compile Include="Peripherals\CPU\ICPU.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMetrics.cs" />
+    <Compile Include="Peripherals\CPU\ICPUWithNMI.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithExternalMmu.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMappedMemory.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithRegisters.cs" />
