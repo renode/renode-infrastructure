@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -79,9 +79,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(wasCleared && !writtenOffsets.Contains(offset))
             {
-                if(machine.SystemBus.TryGetCurrentCPU(out var cpu) && cpu is TranslationCPU translationCPU)
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu) && cpu is ICPUWithNMI ibexCPU)
                 {
-                    translationCPU.RaiseException(0x5);
+                    // https://github.com/lowRISC/opentitan/blob/f243e6802143374741739d2c164c4f2f61697669/sw/device/lib/runtime/ibex.h#LL48C5-L48C5
+                    ibexCPU.OnNMI(0, true, 0xffffffe0); // Load integrity error internal interrupt
                 }
                 return false;
             }
