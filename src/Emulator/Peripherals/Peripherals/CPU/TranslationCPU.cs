@@ -189,6 +189,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetReturnRequest();
         }
 
+        public void FlushTlbPage(UInt64 address)
+        {
+            TlibFlushPage(address);
+        }
+
         public void ClearTranslationCache()
         {
             using(machine?.ObtainPausedState())
@@ -1685,6 +1690,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32UInt32 TlibSetMaximumBlockSize;
+
+        [Import]
+        private ActionUInt64 TlibFlushPage;
 
         [Import]
         private FuncUInt32 TlibGetMaximumBlockSize;
