@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Logging
 
             public void Dispose()
             {
-                if(!useSynchronousLogging)
+                if(!SynchronousLogging)
                 {
                     StopLoggingThread();
                 }
@@ -330,7 +330,7 @@ namespace Antmicro.Renode.Logging
 
                 var entry = new LogEntry(CustomDateTime.Now, type, message, sourceId, alwaysAppendMachineName, Thread.CurrentThread.ManagedThreadId);
 
-                if(useSynchronousLogging)
+                if(SynchronousLogging)
                 {
                     lock(innerLock)
                     {
@@ -346,7 +346,7 @@ namespace Antmicro.Renode.Logging
 
             public void Flush()
             {
-                if(useSynchronousLogging)
+                if(SynchronousLogging)
                 {
                     FlushBackends();
                     return;
@@ -368,6 +368,28 @@ namespace Antmicro.Renode.Logging
 
                 FlushBackends();
                 StartLoggingThread();
+            }
+
+            public bool SynchronousLogging
+            {
+                get => useSynchronousLogging;
+                set
+                {
+                    if(useSynchronousLogging == value)
+                    {
+                        return;
+                    }
+
+                    useSynchronousLogging = value;
+                    if(value)
+                    {
+                        StopLoggingThread();
+                    }
+                    else
+                    {
+                        StartLoggingThread();
+                    }
+                }
             }
 
             private void LoggingThreadBody()
@@ -415,10 +437,11 @@ namespace Antmicro.Renode.Logging
                 nextNameId = 0;
 
                 innerLock = new object();
-                useSynchronousLogging = ConfigurationManager.Instance.Get("general", "use-synchronous-logging", false);
 
+                SynchronousLogging = ConfigurationManager.Instance.Get("general", "use-synchronous-logging", false);
                 alwaysAppendMachineName = ConfigurationManager.Instance.Get("general", "always-log-machine-name", false);
-                if(!useSynchronousLogging)
+
+                if(!SynchronousLogging)
                 {
                     entries = new BlockingCollection<LogEntry>(10000);
 
@@ -442,9 +465,15 @@ namespace Antmicro.Renode.Logging
             {
                 lock(innerLock)
                 {
+                    if(loggingThread == null)
+                    {
+                        return;
+                    }
+
                     stopThread = true;
                     cancellationToken.Cancel();
                     loggingThread.Join();
+                    loggingThread = null;
                 }
             }
 
