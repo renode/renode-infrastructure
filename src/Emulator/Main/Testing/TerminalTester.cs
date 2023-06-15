@@ -116,12 +116,14 @@ namespace Antmicro.Renode.Testing
 
                 // Stop matching if we have already matched something
                 resultMatcher = null;
+
+                if(pauseEmulation)
+                {
+                    machine.PauseAndRequestEmulationPause(precise: true);
+                    pauseEmulation = false;
+                }
             }
 
-            if(pauseEmulation)
-            {
-                machine.PauseAndRequestEmulationPause(precise: true);
-            }
             matchEvent.Set();
         }
 
