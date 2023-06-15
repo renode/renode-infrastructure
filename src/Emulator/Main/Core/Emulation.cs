@@ -11,6 +11,7 @@ using Antmicro.Migrant.Hooks;
 using Antmicro.Migrant;
 using System.Linq;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
@@ -168,6 +169,22 @@ namespace Antmicro.Renode.Core
         public IEnumerable<string> Names
         {
             get { return machs.Lefts; }
+        }
+
+        public bool TryGetExecutionContext(out Machine machine, out ICPU cpu)
+        {
+            foreach(var m in Machines)
+            {
+                if(m.SystemBus.TryGetCurrentCPU(out cpu))
+                {
+                    machine = m;
+                    return true;
+                }
+            }
+
+            machine = null;
+            cpu = null;
+            return false;
         }
 
         /// <summary>
