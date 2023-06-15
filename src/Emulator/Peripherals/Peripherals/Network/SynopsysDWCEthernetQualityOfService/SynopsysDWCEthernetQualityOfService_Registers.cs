@@ -881,15 +881,17 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(12, 20)
                 },
                 {(long)RegistersMTL.TxQueueDebug, new DoubleWordRegister(this)
-                    .WithTaggedFlag("MTLTxQDR.TXQPAUSED (TXQPAUSED)", 0)
-                    .WithTag("MTLTxQDR.TRCSTS (TRCSTS)", 1, 2)
-                    .WithTaggedFlag("MTLTxQDR.TWCSTS (TWCSTS)", 3)
-                    .WithTaggedFlag("MTLTxQDR.TXQSTS (TXQSTS)", 4)
-                    .WithTaggedFlag("MTLTxQDR.TXSTSFSTS (TXSTSFSTS)", 5)
+                    // values are intentionally empty because we send packets immediately
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "MTLTxQDR.TXQPAUSED (TXQPAUSED)")
+                    .WithEnumField<DoubleWordRegister, MTLTxQueueReadControllerStatus>(1, 2, FieldMode.Read,
+                        valueProviderCallback: _ => MTLTxQueueReadControllerStatus.Idle, name: "MTLTxQDR.TRCSTS (TRCSTS)")
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => false, name: "MTLTxQDR.TWCSTS (TWCSTS)")
+                    .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => false, name: "MTLTxQDR.TXQSTS (TXQSTS)")
+                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => false, name: "MTLTxQDR.TXSTSFSTS (TXSTSFSTS)")
                     .WithReservedBits(6, 10)
-                    .WithTag("MTLTxQDR.PTXQ (PTXQ)", 16, 3)
+                    .WithValueField(16, 3, FieldMode.Read, valueProviderCallback: _ => 0, name: "MTLTxQDR.PTXQ (PTXQ)")
                     .WithReservedBits(19, 1)
-                    .WithTag("MTLTxQDR.STXSTSF (STXSTSF)", 20, 3)
+                    .WithValueField(20, 3, FieldMode.Read, valueProviderCallback: _ => 0, name: "MTLTxQDR.STXSTSF (STXSTSF)")
                     .WithReservedBits(23, 9)
                 },
                 {(long)RegistersMTL.QueueInterruptControlStatus, new DoubleWordRegister(this)
@@ -1525,6 +1527,14 @@ namespace Antmicro.Renode.Peripherals.Network
             Write = 0b01,
             PostReadAddressIncrement = 0b10,
             Read = 0b11,
+        }
+
+        private enum MTLTxQueueReadControllerStatus
+        {
+            Idle = 0b00,
+            Read = 0b01,
+            Waiting = 0b10,
+            Flushing = 0b11,
         }
 
         private enum DMATxProcessState
