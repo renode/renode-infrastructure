@@ -843,6 +843,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private Dictionary<long, DoubleWordRegister> BuildCPUInterfaceRegistersMap()
         {
+            Func<GroupTypeRegister> getRegisterGroupType = () => (DisabledSecurity || GetAskingCPU().IsStateSecure) ? GroupTypeRegister.Group0 : GroupTypeRegister.Group1;
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)CPUInterfaceRegisters.InterfaceIdentification, new DoubleWordRegister(this)
@@ -867,13 +868,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {(long)CPUInterfaceRegisters.InterruptAcknowledge, new DoubleWordRegister(this)
                     .WithReservedBits(24, 8)
                     .WithValueField(0, 24, FieldMode.Read, name: "InterruptAcknowledge",
-                        valueProviderCallback: _ => (ulong)GetAskingCPU().AcknowledgeBestPending(GroupTypeRegister.Group0)
+                        valueProviderCallback: _ => (ulong)GetAskingCPU().AcknowledgeBestPending(getRegisterGroupType())
                     )
                 },
                 {(long)CPUInterfaceRegisters.InterruptEnd, new DoubleWordRegister(this)
                     .WithReservedBits(24, 8)
                     .WithValueField(0, 24, FieldMode.Write, name: "InterruptEnd",
-                        writeCallback: (_, val) => GetAskingCPU().CompleteRunning(new InterruptId((uint)val), GroupTypeRegister.Group0)
+                        writeCallback: (_, val) => GetAskingCPU().CompleteRunning(new InterruptId((uint)val), getRegisterGroupType())
                     )
                 },
             };
@@ -937,7 +938,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)CPUInterfaceRegisters.Control, controlRegister}
+                {(long)CPUInterfaceRegisters.Control, controlRegister},
+
+                // Aliases for acknowledging/ending non-secure interrupts in secure state.
+                {(long)CPUInterfaceRegisters.InterruptAcknowledgeAlias, new DoubleWordRegister(this)
+                    .WithReservedBits(24, 8)
+                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptAcknowledgeAlias",
+                        valueProviderCallback: _ => (ulong)GetAskingCPU().AcknowledgeBestPending(GroupTypeRegister.Group1)
+                    )
+                },
+                {(long)CPUInterfaceRegisters.InterruptEndAlias, new DoubleWordRegister(this)
+                    .WithReservedBits(24, 8)
+                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptEndAlias",
+                        writeCallback: (_, val) => GetAskingCPU().CompleteRunning(new InterruptId((uint)val), GroupTypeRegister.Group1)
+                    )
+                },
             };
             return registersMap;
         }
