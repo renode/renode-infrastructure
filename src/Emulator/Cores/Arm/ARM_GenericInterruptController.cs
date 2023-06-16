@@ -81,6 +81,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     DistributorRevision = DefaultRevisionNumber;
                     DistributorImplementer = DefaultImplementerIdentification;
 
+                    ackControl = false;
                     enableFIQ = false;
                     disabledSecurity = false;
                     foreach(var irq in sharedInterrupts.Values)
@@ -334,8 +335,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        // These properties are used only to properly identify a GIC
-        // They don't change the behaviour or the map of registers
         public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; set; }
         public uint ProductIdentifier { get; set; }
         public byte CPUInterfaceRevision { get; set; }
@@ -897,7 +896,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         writeCallback: (_, val) => enableFIQ = val,
                         valueProviderCallback: _ => enableFIQ
                     )
-                    .WithReservedBits(2, 1)
+                    .WithFlag(2, name: "AcknowledgementControl",
+                        writeCallback: (_, val) => { if(val) this.Log(LogLevel.Warning, "Setting deprecated GICC_CTLR.AckCtl flag!"); ackControl = val; },
+                        valueProviderCallback: _ => ackControl
+                    )
                     .WithFlag(1, name: "EnableGroup1",
                         writeCallback: (_, val) => GetAskingCPU().Groups[GroupType.Group1].Enabled = val,
                         valueProviderCallback: _ => GetAskingCPU().Groups[GroupType.Group1].Enabled
@@ -1339,6 +1341,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (long)RedistributorRegisters.InterruptPriority_0 <= offset && offset <= (long)RedistributorRegisters.InterruptPriority_7 + maxByteOffset;
         }
 
+        private bool ackControl;
         private bool enableFIQ;
         private bool disabledSecurity;
 
@@ -1424,8 +1427,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var groupType = GetGroupTypeForRegister(groupTypeRegister);
                 if(pendingIrq.GroupType != groupType)
                 {
-                    gic.Log(LogLevel.Warning, "Trying to acknowledge pending interrupt using register of an incorrect interrupt group ({0}), expected {1}.", groupType, pendingIrq.GroupType);
-                    return InterruptId.NoPending;
+                    // In GICv2, Secure (Group 0) access can acknowledge Group 1 interrupt if GICC_CTLR.AckCtl is set. Otherwise, the returned Interrupt ID is 1022 (NoPending=1023).
+                    if(gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
+                    {
+                        if(!gic.ackControl)
+                        {
+                            gic.Log(LogLevel.Warning, "Trying to acknowledge pending Group 1 interrupt (#{0}) with secure GIC access while GICC_CTLR.AckCtl isn't set", (uint)pendingIrq.Identifier);
+                            return InterruptId.NonMaskableInterruptOrGICv2GroupMismatch;
+                        }
+                    }
+                    else
+                    {
+                        gic.Log(LogLevel.Warning, "Trying to acknowledge pending interrupt using register of an incorrect interrupt group ({0}), expected {1}.", groupType, pendingIrq.GroupType);
+                        return InterruptId.NoPending;
+                    }
                 }
                 pendingIrq.Acknowledge();
                 RunnningInterrupts.Push(pendingIrq);
@@ -1445,8 +1460,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var groupType = GetGroupTypeForRegister(groupTypeRegister);
                 if(runningIrq.GroupType != groupType)
                 {
-                    gic.Log(LogLevel.Warning, "Trying to complete the running interrupt using the register of an incorrect interrupt group ({0}), expected {1}, request ignored.", groupType, runningIrq.GroupType);
-                    return;
+                    // In GICv2, Secure (Group 0) access can affect Group 1 interrupts if GICC_CTLR.AckCtl is set.
+                    if(gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
+                    {
+                        if(!gic.ackControl)
+                        {
+                            gic.Log(LogLevel.Warning, "Trying to complete the running Group 1 interrupt (#{0}) with secure GIC access while GICC_CTLR.AckCtl isn't set, request ignored.", (uint)runningIrq.Identifier);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        gic.Log(LogLevel.Warning, "Trying to complete the running interrupt using the register of an incorrect interrupt group ({0}), expected {1}, request ignored.", groupType, runningIrq.GroupType);
+                        return;
+                    }
                 }
                 if(!runningIrq.Identifier.Equals(id))
                 {
@@ -1787,7 +1814,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public static readonly InterruptId SharedPeripheralLast = new InterruptId((uint)SharedPeripheralFirst + SharedPeripheralCount - 1);
             public static readonly InterruptId ExpectedToHandleAtSecure = new InterruptId(1020);
             public static readonly InterruptId ExpectedToHandleAtNonSecure = new InterruptId(1021);
-            public static readonly InterruptId IndicateNonMaskableInterrupt = new InterruptId(1022);
+            public static readonly InterruptId NonMaskableInterruptOrGICv2GroupMismatch = new InterruptId(1022);
             public static readonly InterruptId NoPending = new InterruptId(1023);
             public static readonly InterruptId ExtendedPrivatePeripheralFirst = new InterruptId(1056);
             public static readonly InterruptId ExtendedPrivatePeripheralLast = new InterruptId(1119);
