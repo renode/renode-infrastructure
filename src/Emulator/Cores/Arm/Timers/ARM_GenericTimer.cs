@@ -25,10 +25,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             Frequency = (long)frequency;
             clockSource = machine.ClockSource;
 
-            physicalTimer = new TimerUnit(clockSource, this, "physicalTimer", PhysicalTimerIRQ, Frequency);
-            nonSecurePhysicalTimer = new TimerUnit(clockSource, this, "nonSecurePhysicalTimer", NonSecurePhysicalTimerIRQ, Frequency);
-            virtualTimer = new TimerUnit(clockSource, this, "virtualTimer", VirtualTimerIRQ, Frequency);
-            hypervisorPhysicalTimer = new TimerUnit(clockSource, this, "hypervisorPhysicalTimer", HypervisorPhysicalTimerIRQ, Frequency);
+            // The names used are based on Generic Timer documentation: https://developer.arm.com/documentation/102379/0101/The-processor-timers
+            el1PhysicalTimer = new TimerUnit(clockSource, this, "EL1PhysicalTimer", EL1PhysicalTimerIRQ, Frequency);
+            el1VirtualTimer = new TimerUnit(clockSource, this, "EL1VirtualTimer", EL1VirtualTimerIRQ, Frequency);
+            el3PhysicalTimer = new TimerUnit(clockSource, this, "EL3PhysicalTimer", EL3PhysicalTimerIRQ, Frequency);
+            nonSecureEL2PhysicalTimer = new TimerUnit(clockSource, this, "NonSecureEL2PhysicalTimer", NonSecureEL2PhysicalTimerIRQ, Frequency);
 
             registersAArch64 = new QuadWordRegisterCollection(this, BuildRegisterAArch64Map());
             doubleWordRegistersAArch32 = new DoubleWordRegisterCollection(this, BuildDoubleWordRegisterAArch32Map());
@@ -70,10 +71,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public void Reset()
         {
-            physicalTimer.Reset();
-            nonSecurePhysicalTimer.Reset();
-            virtualTimer.Reset();
-            hypervisorPhysicalTimer.Reset();
+            el1PhysicalTimer.Reset();
+            el1VirtualTimer.Reset();
+            el3PhysicalTimer.Reset();
+            nonSecureEL2PhysicalTimer.Reset();
 
             CounterFrequencyRegister = 0;
             registersAArch64.Reset();
@@ -86,15 +87,15 @@ namespace Antmicro.Renode.Peripherals.Timers
         // In the model we allow to preset it using the `CounterFrequencyRegister` property to support simulation scenarios without a bootloader.
         public uint CounterFrequencyRegister { set; get; }
 
-        public GPIO PhysicalTimerIRQ { get; } = new GPIO();
-        public GPIO NonSecurePhysicalTimerIRQ { get; } = new GPIO();
-        public GPIO VirtualTimerIRQ { get; } = new GPIO();
-        public GPIO HypervisorPhysicalTimerIRQ { get; } = new GPIO();
+        public GPIO EL1PhysicalTimerIRQ { get; } = new GPIO();
+        public GPIO EL1VirtualTimerIRQ { get; } = new GPIO();
+        public GPIO EL3PhysicalTimerIRQ { get; } = new GPIO();
+        public GPIO NonSecureEL2PhysicalTimerIRQ { get; } = new GPIO();
+
         // Some physical timers names in the ARMv7 specification are different than names in the ARMv8-A specification.
-        // We added mapping for them in order to make the model generic.
-        // The virtual timer has same name in both specifications, so in this case additional mapping isn't needed.
-        public GPIO PL1PhysicalTimerIRQ => PhysicalTimerIRQ;
-        public GPIO PL2PhysicalTimerIRQ => NonSecurePhysicalTimerIRQ;
+        public GPIO PL1PhysicalTimerIRQ => EL1PhysicalTimerIRQ;
+        public GPIO PL2PhysicalTimerIRQ => NonSecureEL2PhysicalTimerIRQ;
+        public GPIO VirtualTimerIRQ => EL1VirtualTimerIRQ;
 
         private Dictionary<long, QuadWordRegister> BuildRegisterAArch64Map()
         {
@@ -105,56 +106,56 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
 
                 {(long)RegistersAArch64.PhysicalCount,
-                    BuildTimerCountValueRegister(physicalTimer, "Physical")
+                    BuildTimerCountValueRegister(el1PhysicalTimer, "EL1Physical")
                 },
                 {(long)RegistersAArch64.VirtualCount,
-                    BuildTimerCountValueRegister(virtualTimer, "Virtual")
+                    BuildTimerCountValueRegister(el1VirtualTimer, "EL1Virtual")
                 },
             
                 // There is no implementation of the PhysicalTimerOffset register, because it require the Enhanced Counter Virtualization support.
 
                 {(long)RegistersAArch64.VirtualOffset,
-                    BuildTimerOffsetRegister(virtualTimer, "Virtual")
+                    BuildTimerOffsetRegister(el1VirtualTimer, "EL1Virtual")
                 },
 
-                {(long)RegistersAArch64.PhysicalTimerControl,
-                    BuildTimerControlRegister(new QuadWordRegister(this), physicalTimer, "PhysicalTimer")
+                {(long)RegistersAArch64.EL1PhysicalTimerControl,
+                    BuildTimerControlRegister(new QuadWordRegister(this), el1PhysicalTimer, "EL1PhysicalTimer")
                 },
-                {(long)RegistersAArch64.NonSecurePhysicalTimerControl,
-                    BuildTimerControlRegister(new QuadWordRegister(this), nonSecurePhysicalTimer, "NonSecurePhysicalTimer")
+                {(long)RegistersAArch64.EL1VirtualTimerControl,
+                    BuildTimerControlRegister(new QuadWordRegister(this), el1VirtualTimer, "EL1VirtualTimer")
                 },
-                {(long)RegistersAArch64.VirtualTimerControl,
-                    BuildTimerControlRegister(new QuadWordRegister(this), virtualTimer, "VirtualTimer")
+                {(long)RegistersAArch64.EL3PhysicalTimerControl,
+                    BuildTimerControlRegister(new QuadWordRegister(this), el3PhysicalTimer, "EL3PhysicalTimer")
                 },
-                {(long)RegistersAArch64.HypervisorPhysicalTimerControl,
-                    BuildTimerControlRegister(new QuadWordRegister(this), hypervisorPhysicalTimer, "HypervisorPhysicalTimer")
-                },
-
-                {(long)RegistersAArch64.PhysicalTimerCompareValue,
-                    BuildTimerCompareValueRegister(physicalTimer, "PhysicalTimer")
-                },
-                {(long)RegistersAArch64.NonSecurePhysicalTimerCompareValue,
-                    BuildTimerCompareValueRegister(nonSecurePhysicalTimer, "NonSecurePhysicalTimer")
-                },
-                {(long)RegistersAArch64.VirtualTimerCompareValue,
-                    BuildTimerCompareValueRegister(virtualTimer, "VirtualTimer")
-                },
-                {(long)RegistersAArch64.HypervisorPhysicalTimerCompareValue,
-                    BuildTimerCompareValueRegister(hypervisorPhysicalTimer, "HypervisorPhysicalTimer")
+                {(long)RegistersAArch64.NonSecureEL2PhysicalTimerControl,
+                    BuildTimerControlRegister(new QuadWordRegister(this), nonSecureEL2PhysicalTimer, "NonSecureEL2PhysicalTimer")
                 },
 
-                {(long)RegistersAArch64.PhysicalTimerValue,
-                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), physicalTimer, "PhysicalTimer", 64)
+                {(long)RegistersAArch64.EL1PhysicalTimerCompareValue,
+                    BuildTimerCompareValueRegister(el1PhysicalTimer, "EL1PhysicalTimer")
                 },
-                {(long)RegistersAArch64.NonSecurePhysicalTimerValue,
-                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), nonSecurePhysicalTimer, "NonSecurePhysicalTimer", 64)
+                {(long)RegistersAArch64.EL1VirtualTimerCompareValue,
+                    BuildTimerCompareValueRegister(el1VirtualTimer, "EL1VirtualTimer")
                 },
-                {(long)RegistersAArch64.VirtualTimerValue,
-                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), virtualTimer, "VirtualTimer", 64)
+                {(long)RegistersAArch64.EL3PhysicalTimerCompareValue,
+                    BuildTimerCompareValueRegister(el3PhysicalTimer, "EL3PhysicalTimer")
                 },
-                {(long)RegistersAArch64.HypervisorPhysicalTimerValue,
-                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), hypervisorPhysicalTimer, "HypervisorPhysicalTimer", 64)
-                }
+                {(long)RegistersAArch64.NonSecureEL2PhysicalTimerCompareValue,
+                    BuildTimerCompareValueRegister(nonSecureEL2PhysicalTimer, "NonSecureEL2PhysicalTimer")
+                },
+
+                {(long)RegistersAArch64.EL1PhysicalTimerValue,
+                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), el1PhysicalTimer, "EL1PhysicalTimer", 64)
+                },
+                {(long)RegistersAArch64.EL1VirtualTimerValue,
+                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), el1VirtualTimer, "EL1VirtualTimer", 64)
+                },
+                {(long)RegistersAArch64.EL3PhysicalTimerValue,
+                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), el3PhysicalTimer, "EL3PhysicalTimer", 64)
+                },
+                {(long)RegistersAArch64.NonSecureEL2PhysicalTimerValue,
+                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), nonSecureEL2PhysicalTimer, "NonSecureEL2PhysicalTimer", 64)
+                },
             };
 
             // Specultative access doesn't occure in Renode.
@@ -176,23 +177,23 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
 
                 {(long)DoubleWordRegistersAArch32.PL1PhysicalTimerControl,
-                    BuildTimerControlRegister(new DoubleWordRegister(this), physicalTimer, "PL1PhysicalTimer")
+                    BuildTimerControlRegister(new DoubleWordRegister(this), el1PhysicalTimer, "PL1PhysicalTimer")
                 },
                 {(long)DoubleWordRegistersAArch32.PL2PhysicalTimerControl,
-                    BuildTimerControlRegister(new DoubleWordRegister(this), nonSecurePhysicalTimer, "PL2PhysicalTimer")
+                    BuildTimerControlRegister(new DoubleWordRegister(this), nonSecureEL2PhysicalTimer, "PL2PhysicalTimer")
                 },
                 {(long)DoubleWordRegistersAArch32.VirtualTimerControl,
-                    BuildTimerControlRegister(new DoubleWordRegister(this), virtualTimer, "VirtualTimer")
+                    BuildTimerControlRegister(new DoubleWordRegister(this), el1VirtualTimer, "VirtualTimer")
                 },
 
                 {(long)DoubleWordRegistersAArch32.PL1PhysicalTimerValue,
-                    BuildTimerCountDownValueRegister(new DoubleWordRegister(this), physicalTimer, "PL1PhysicalTimer", 32)
+                    BuildTimerCountDownValueRegister(new DoubleWordRegister(this), el1PhysicalTimer, "PL1PhysicalTimer", 32)
                 },
                 {(long)DoubleWordRegistersAArch32.PL2PhysicalTimerValue,
-                    BuildTimerCountDownValueRegister(new DoubleWordRegister(this), nonSecurePhysicalTimer, "PL2PhysicalTimer", 32)
+                    BuildTimerCountDownValueRegister(new DoubleWordRegister(this), nonSecureEL2PhysicalTimer, "PL2PhysicalTimer", 32)
                 },
                 {(long)DoubleWordRegistersAArch32.VirtualTimerValue,
-                    BuildTimerCountDownValueRegister(new DoubleWordRegister(this), virtualTimer, "VirtualTimer", 32)
+                    BuildTimerCountDownValueRegister(new DoubleWordRegister(this), el1VirtualTimer, "VirtualTimer", 32)
                 }
             };
             return registersMap;
@@ -203,24 +204,24 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registersMap = new Dictionary<long, QuadWordRegister>
             {
                 {(long)QuadWordRegistersAArch32.PhysicalCount,
-                    BuildTimerCountValueRegister(physicalTimer, "Physical")
+                    BuildTimerCountValueRegister(el1PhysicalTimer, "Physical")
                 },
                 {(long)QuadWordRegistersAArch32.VirtualCount,
-                    BuildTimerCountValueRegister(virtualTimer, "Virtual")
+                    BuildTimerCountValueRegister(el1VirtualTimer, "Virtual")
                 },
 
                 {(long)QuadWordRegistersAArch32.VirtualOffset,
-                    BuildTimerOffsetRegister(virtualTimer, "Virtual")
+                    BuildTimerOffsetRegister(el1VirtualTimer, "Virtual")
                 },
 
                 {(long)QuadWordRegistersAArch32.PL1PhysicalTimerCompareValue,
-                    BuildTimerCompareValueRegister(physicalTimer, "PL1PhysicalTimer")
+                    BuildTimerCompareValueRegister(el1PhysicalTimer, "PL1PhysicalTimer")
                 },
                 {(long)QuadWordRegistersAArch32.PL2PhysicalTimerCompareValue,
-                    BuildTimerCompareValueRegister(nonSecurePhysicalTimer, "PL2PhysicalTimer")
+                    BuildTimerCompareValueRegister(nonSecureEL2PhysicalTimer, "PL2PhysicalTimer")
                 },
                 {(long)QuadWordRegistersAArch32.VirtualTimerCompareValue,
-                    BuildTimerCompareValueRegister(virtualTimer, "VirtualTimer")
+                    BuildTimerCompareValueRegister(el1VirtualTimer, "VirtualTimer")
                 }
             };
             return registersMap;
@@ -322,10 +323,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 );
         }
 
-        private readonly TimerUnit physicalTimer;
-        private readonly TimerUnit nonSecurePhysicalTimer;
-        private readonly TimerUnit virtualTimer;
-        private readonly TimerUnit hypervisorPhysicalTimer;
+        private readonly TimerUnit el1PhysicalTimer;
+        private readonly TimerUnit el1VirtualTimer;
+        private readonly TimerUnit el3PhysicalTimer;
+        private readonly TimerUnit nonSecureEL2PhysicalTimer;
         private readonly QuadWordRegisterCollection registersAArch64;
         private readonly DoubleWordRegisterCollection doubleWordRegistersAArch32;
         private readonly QuadWordRegisterCollection quadWordRegistersAArch32;
@@ -337,33 +338,33 @@ namespace Antmicro.Renode.Peripherals.Timers
             Frequency = 0xdf00, // CNTFRQ_EL0 
             VirtualOffset = 0xe703, // CNTVOFF_EL2 
             HypervisorControl = 0xe708, // CNTHCTL_EL2 
-            NonSecurePhysicalTimerControl = 0xe711, // CNTHP_CTL_EL2 
-            VirtualTimerCompareValue = 0xdf1a, // CNTV_CVAL_EL0 
+            NonSecureEL2PhysicalTimerControl = 0xe711, // CNTHP_CTL_EL2 
+            EL1VirtualTimerCompareValue = 0xdf1a, // CNTV_CVAL_EL0 
             VirtualCount = 0xdf02, // CNTVCT_EL0 
-            VirtualTimerControl = 0xdf19, // CNTV_CTL_EL0 
-            SecurePhysicalTimerControl = 0xe729, // CNTHPS_CTL_EL2 
-            SecurePhysicalTimerCompareValue = 0xe72a, // CNTHPS_CVAL_EL2 
-            SecurePhysicalTimerValue = 0xe728, // CNTHPS_TVAL_EL2 
-            NonSecurePhysicalTimerCompareValue = 0xe712, // CNTHP_CVAL_EL2 
-            NonSecurePhysicalTimerValue = 0xe710, // CNTHP_TVAL_EL2 
-            SecureVirtualTimerControl = 0xe721, // CNTHVS_CTL_EL2 
-            SecureVirtualTimerCompareValue = 0xe722, // CNTHVS_CVAL_EL2 
-            SecureVirtualTimerValue = 0xe720, // CNTHVS_TVAL_EL2 
-            NonSecureVirtualTimerControl = 0xe719, // CNTHV_CTL_EL2 
-            NonSecureVirtualTimerCompareValue = 0xe71a, // CNTHV_CVAL_EL2 
-            NonSecureVirtualTimerValue = 0xe718, // CNTHV_TVAL_EL2 
+            EL1VirtualTimerControl = 0xdf19, // CNTV_CTL_EL0 
+            SecureEL2PhysicalTimerControl = 0xe729, // CNTHPS_CTL_EL2 
+            SecureEL2PhysicalTimerCompareValue = 0xe72a, // CNTHPS_CVAL_EL2 
+            SecureEL2PhysicalTimerValue = 0xe728, // CNTHPS_TVAL_EL2 
+            NonSecureEL2PhysicalTimerCompareValue = 0xe712, // CNTHP_CVAL_EL2 
+            NonSecureEL2PhysicalTimerValue = 0xe710, // CNTHP_TVAL_EL2 
+            SecureEL2VirtualTimerControl = 0xe721, // CNTHVS_CTL_EL2 
+            SecureEL2VirtualTimerCompareValue = 0xe722, // CNTHVS_CVAL_EL2 
+            SecureEL2VirtualTimerValue = 0xe720, // CNTHVS_TVAL_EL2 
+            NonSecureEL2VirtualTimerControl = 0xe719, // CNTHV_CTL_EL2 
+            NonSecureEL2VirtualTimerCompareValue = 0xe71a, // CNTHV_CVAL_EL2 
+            NonSecureEL2VirtualTimerValue = 0xe718, // CNTHV_TVAL_EL2 
             KernelControl = 0xc708, // CNTKCTL_EL1 
             PhysicalSelfSynchronizedCount = 0xdf05, // CNTPCTSS_EL0 
             PhysicalCount = 0xdf01, // CNTPCT_EL0 
             PhysicalOffset = 0xe706, // CNTPOFF_EL2 
-            HypervisorPhysicalTimerControl = 0xff11, // CNTPS_CTL_EL1 
-            HypervisorPhysicalTimerCompareValue = 0xff12, // CNTPS_CVAL_EL1 
-            HypervisorPhysicalTimerValue = 0xff10, // CNTPS_TVAL_EL1 
-            PhysicalTimerControl = 0xdf11, // CNTP_CTL_EL0 
-            PhysicalTimerCompareValue = 0xdf12, // CNTP_CVAL_EL0 
-            PhysicalTimerValue = 0xdf10, // CNTP_TVAL_EL0 
+            EL3PhysicalTimerControl = 0xff11, // CNTPS_CTL_EL1 
+            EL3PhysicalTimerCompareValue = 0xff12, // CNTPS_CVAL_EL1 
+            EL3PhysicalTimerValue = 0xff10, // CNTPS_TVAL_EL1 
+            EL1PhysicalTimerControl = 0xdf11, // CNTP_CTL_EL0 
+            EL1PhysicalTimerCompareValue = 0xdf12, // CNTP_CVAL_EL0 
+            EL1PhysicalTimerValue = 0xdf10, // CNTP_TVAL_EL0 
             VirtualSelfSynchronizedCount = 0xdf06, // CNTVCTSS_EL0 
-            VirtualTimerValue = 0xdf18 // CNTV_TVAL_EL0 
+            EL1VirtualTimerValue = 0xdf18 // CNTV_TVAL_EL0 
         }
 
         private enum DoubleWordRegistersAArch32 : uint
