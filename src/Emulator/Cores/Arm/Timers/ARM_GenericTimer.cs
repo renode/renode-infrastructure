@@ -355,35 +355,42 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             // Enum values are created from op0, op1, CRn, CRm and op2 fields of the MRS instruction.
             Frequency = 0xdf00, // CNTFRQ_EL0
-            VirtualOffset = 0xe703, // CNTVOFF_EL2
             HypervisorControl = 0xe708, // CNTHCTL_EL2
-            NonSecureEL2PhysicalTimerControl = 0xe711, // CNTHP_CTL_EL2
-            EL1VirtualTimerCompareValue = 0xdf1a, // CNTV_CVAL_EL0
-            VirtualCount = 0xdf02, // CNTVCT_EL0
-            EL1VirtualTimerControl = 0xdf19, // CNTV_CTL_EL0
-            SecureEL2PhysicalTimerControl = 0xe729, // CNTHPS_CTL_EL2
-            SecureEL2PhysicalTimerCompareValue = 0xe72a, // CNTHPS_CVAL_EL2
-            SecureEL2PhysicalTimerValue = 0xe728, // CNTHPS_TVAL_EL2
-            NonSecureEL2PhysicalTimerCompareValue = 0xe712, // CNTHP_CVAL_EL2
-            NonSecureEL2PhysicalTimerValue = 0xe710, // CNTHP_TVAL_EL2
-            SecureEL2VirtualTimerControl = 0xe721, // CNTHVS_CTL_EL2
-            SecureEL2VirtualTimerCompareValue = 0xe722, // CNTHVS_CVAL_EL2
-            SecureEL2VirtualTimerValue = 0xe720, // CNTHVS_TVAL_EL2
-            NonSecureEL2VirtualTimerControl = 0xe719, // CNTHV_CTL_EL2
-            NonSecureEL2VirtualTimerCompareValue = 0xe71a, // CNTHV_CVAL_EL2
-            NonSecureEL2VirtualTimerValue = 0xe718, // CNTHV_TVAL_EL2
             KernelControl = 0xc708, // CNTKCTL_EL1
-            PhysicalSelfSynchronizedCount = 0xdf05, // CNTPCTSS_EL0
+
             PhysicalCount = 0xdf01, // CNTPCT_EL0
             PhysicalOffset = 0xe706, // CNTPOFF_EL2
-            EL3PhysicalTimerControl = 0xff11, // CNTPS_CTL_EL1
-            EL3PhysicalTimerCompareValue = 0xff12, // CNTPS_CVAL_EL1
-            EL3PhysicalTimerValue = 0xff10, // CNTPS_TVAL_EL1
+            PhysicalSelfSynchronizedCount = 0xdf05, // CNTPCTSS_EL0
+
+            VirtualCount = 0xdf02, // CNTVCT_EL0
+            VirtualOffset = 0xe703, // CNTVOFF_EL2
+            VirtualSelfSynchronizedCount = 0xdf06, // CNTVCTSS_EL0
+
+            EL1PhysicalTimerValue = 0xdf10, // CNTP_TVAL_EL0
             EL1PhysicalTimerControl = 0xdf11, // CNTP_CTL_EL0
             EL1PhysicalTimerCompareValue = 0xdf12, // CNTP_CVAL_EL0
-            EL1PhysicalTimerValue = 0xdf10, // CNTP_TVAL_EL0
-            VirtualSelfSynchronizedCount = 0xdf06, // CNTVCTSS_EL0
-            EL1VirtualTimerValue = 0xdf18 // CNTV_TVAL_EL0
+            EL1VirtualTimerValue = 0xdf18, // CNTV_TVAL_EL0
+            EL1VirtualTimerControl = 0xdf19, // CNTV_CTL_EL0
+            EL1VirtualTimerCompareValue = 0xdf1a, // CNTV_CVAL_EL0
+
+            EL3PhysicalTimerValue = 0xff10, // CNTPS_TVAL_EL1
+            EL3PhysicalTimerControl = 0xff11, // CNTPS_CTL_EL1
+            EL3PhysicalTimerCompareValue = 0xff12, // CNTPS_CVAL_EL1
+
+            NonSecureEL2PhysicalTimerValue = 0xe710, // CNTHP_TVAL_EL2
+            NonSecureEL2PhysicalTimerControl = 0xe711, // CNTHP_CTL_EL2
+            NonSecureEL2PhysicalTimerCompareValue = 0xe712, // CNTHP_CVAL_EL2
+            NonSecureEL2VirtualTimerValue = 0xe718, // CNTHV_TVAL_EL2
+            NonSecureEL2VirtualTimerControl = 0xe719, // CNTHV_CTL_EL2
+            NonSecureEL2VirtualTimerCompareValue = 0xe71a, // CNTHV_CVAL_EL2
+
+            // Secure EL2 timers are added by ARMv8.4-SecEL2 extension.
+            SecureEL2PhysicalTimerValue = 0xe728, // CNTHPS_TVAL_EL2
+            SecureEL2PhysicalTimerControl = 0xe729, // CNTHPS_CTL_EL2
+            SecureEL2PhysicalTimerCompareValue = 0xe72a, // CNTHPS_CVAL_EL2
+            SecureEL2VirtualTimerValue = 0xe720, // CNTHVS_TVAL_EL2
+            SecureEL2VirtualTimerControl = 0xe721, // CNTHVS_CTL_EL2
+            SecureEL2VirtualTimerCompareValue = 0xe722, // CNTHVS_CVAL_EL2
         }
 
         private enum DoubleWordRegistersAArch32 : uint
