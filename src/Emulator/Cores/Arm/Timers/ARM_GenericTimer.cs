@@ -38,34 +38,52 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public void WriteRegisterAArch64(uint offset, ulong value)
         {
+            this.Log(LogLevel.Debug, "Write to {0} (0x{1:X}) AArch64 register, value 0x{2:X}", (RegistersAArch64)offset, offset, value);
             registersAArch64.Write(offset, value);
         }
 
         public ulong ReadRegisterAArch64(uint offset)
         {
+            var register = (RegistersAArch64)offset;
             var value = registersAArch64.Read(offset);
+
+            // There can be lots and lots of '*Count' register reads.
+            if((register != RegistersAArch64.PhysicalCount && register != RegistersAArch64.VirtualCount) || EnableCountReadLogs)
+            {
+                this.Log(LogLevel.Debug, "Read from {0} (0x{1:X}) AArch64 register, value 0x{2:X}", register, offset, value);
+            }
             return value;
         }
 
         public void WriteDoubleWordRegisterAArch32(uint offset, uint value)
         {
+            this.Log(LogLevel.Debug, "Write to {0} (0x{1:X}) AArch32 register, value 0x{2:X}", (DoubleWordRegistersAArch32)offset, offset, value);
             doubleWordRegistersAArch32.Write(offset, value);
         }
 
         public uint ReadDoubleWordRegisterAArch32(uint offset)
         {
             var value = doubleWordRegistersAArch32.Read(offset);
+            this.Log(LogLevel.Debug, "Read from {0} (0x{1:X}) AArch32 register, value 0x{2:X}", (DoubleWordRegistersAArch32)offset, offset, value);
             return value;
         }
 
         public void WriteQuadWordRegisterAArch32(uint offset, ulong value)
         {
+            this.Log(LogLevel.Debug, "Write to {0} (0x{1:X}) AArch32 64-bit register, value 0x{2:X}", (QuadWordRegistersAArch32)offset, offset, value);
             quadWordRegistersAArch32.Write(offset, value);
         }
 
         public ulong ReadQuadWordRegisterAArch32(uint offset)
         {
+            var register = (QuadWordRegistersAArch32)offset;
             var value = quadWordRegistersAArch32.Read(offset);
+
+            // There can be lots and lots of '*Count' register reads.
+            if((register != QuadWordRegistersAArch32.PhysicalCount && register != QuadWordRegistersAArch32.VirtualCount) || EnableCountReadLogs)
+            {
+                this.Log(LogLevel.Debug, "Read from {0} (0x{1:X}) AArch32 64-bit register, value 0x{2:X}", register, offset, value);
+            }
             return value;
         }
 
@@ -82,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             quadWordRegistersAArch32.Reset();
         }
 
+        public bool EnableCountReadLogs { get; set; }
         public long Frequency { get; }
         // There is the counter frequency register used by a software to discover a frequency of a timer
         // In the model we allow to preset it using the `CounterFrequencyRegister` property to support simulation scenarios without a bootloader.
@@ -394,12 +413,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class TimerUnit
         {
-            public TimerUnit(IClockSource clockSource, IPeripheral parent, string timerName, GPIO irq, long frequency)
+            public TimerUnit(IClockSource clockSource, IPeripheral parent, string name, GPIO irq, long frequency)
             {
                 this.clockSource = clockSource;
+                this.name = name;
+                this.parent = parent;
                 IRQ = irq;
 
-                timer = new ComparingTimer(clockSource, frequency, parent, timerName, limit: ulong.MaxValue, compare: ulong.MaxValue, enabled: true, eventEnabled: true);
+                timer = new ComparingTimer(clockSource, frequency, parent, name, limit: ulong.MaxValue, compare: ulong.MaxValue, enabled: true, eventEnabled: true);
                 timer.CompareReached += OnCompareReached;
             }
 
@@ -416,7 +437,12 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public void UpdateInterrupt()
             {
-                IRQ.Set(InterruptStatus && !InterruptMask && InterruptEnable);
+                var value = InterruptStatus && !InterruptMask && InterruptEnable;
+                if(value != IRQ.IsSet)
+                {
+                    parent.Log(LogLevel.Debug, "{0}: {1} IRQ", name, value ? "setting" : "unsetting");
+                    IRQ.Set(value);
+                }
             }
 
             public GPIO IRQ { get; }
@@ -493,6 +519,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             private ulong offset;
 
             private readonly IClockSource clockSource;
+            private readonly string name;
+            private readonly IPeripheral parent;
             private readonly ComparingTimer timer;
         }
     }
