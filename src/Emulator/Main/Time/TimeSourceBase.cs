@@ -517,7 +517,7 @@ namespace Antmicro.Renode.Time
             if(isBlocked)
             {
                 // value of 'isBlocked' will be reevaluated in 'ExecuteInner' method
-                blockingEvent.WaitOne(100);
+                blockingEvent.WaitOne(10);
                 // this parameter here is kind of a hack:
                 // in theory we could use an overload without timeout,
                 // but there is a bug and sometimes it blocks forever;
