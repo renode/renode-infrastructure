@@ -332,7 +332,7 @@ namespace Antmicro.Renode.Logging
 
                 if(useSynchronousLogging)
                 {
-                    lock(synchronousLoggingLock)
+                    lock(innerLock)
                     {
                         entry.Id = Logger.nextEntryId++;
                         WriteLogEntryToBackends(entry);
@@ -414,13 +414,11 @@ namespace Antmicro.Renode.Logging
                 logSourcesMap = new LogSourcesMap();
                 nextNameId = 0;
 
+                innerLock = new object();
                 useSynchronousLogging = ConfigurationManager.Instance.Get("general", "use-synchronous-logging", false);
+
                 alwaysAppendMachineName = ConfigurationManager.Instance.Get("general", "always-log-machine-name", false);
-                if(useSynchronousLogging)
-                {
-                    synchronousLoggingLock = new object();
-                }
-                else
+                if(!useSynchronousLogging)
                 {
                     entries = new BlockingCollection<LogEntry>(10000);
 
@@ -430,18 +428,24 @@ namespace Antmicro.Renode.Logging
 
             private void StartLoggingThread()
             {
-                cancellationToken = new CancellationTokenSource();
-                loggingThread = new Thread(LoggingThreadBody);
-                loggingThread.IsBackground = true;
-                loggingThread.Name = "Logging thread";
-                loggingThread.Start();
+                lock(innerLock)
+                {
+                    cancellationToken = new CancellationTokenSource();
+                    loggingThread = new Thread(LoggingThreadBody);
+                    loggingThread.IsBackground = true;
+                    loggingThread.Name = "Logging thread";
+                    loggingThread.Start();
+                }
             }
 
             private void StopLoggingThread()
             {
-                stopThread = true;
-                cancellationToken.Cancel();
-                loggingThread.Join();
+                lock(innerLock)
+                {
+                    stopThread = true;
+                    cancellationToken.Cancel();
+                    loggingThread.Join();
+                }
             }
 
             [Transient]
@@ -451,7 +455,7 @@ namespace Antmicro.Renode.Logging
             private bool useSynchronousLogging;
 
             [Transient]
-            private object synchronousLoggingLock;
+            private object innerLock;
 
             [Transient]
             private Thread loggingThread;
