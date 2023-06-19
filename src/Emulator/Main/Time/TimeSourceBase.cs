@@ -510,6 +510,7 @@ namespace Antmicro.Renode.Time
         /// </remarks>
         protected void WaitIfBlocked()
         {
+            return;
             // this 'if' statement and 'canBeBlocked' variable are here for performance only
             // calling `WaitOne` in every iteration can cost a lot of time;
             // waiting on 'blockingEvent' is not required for the time framework to work properly,
