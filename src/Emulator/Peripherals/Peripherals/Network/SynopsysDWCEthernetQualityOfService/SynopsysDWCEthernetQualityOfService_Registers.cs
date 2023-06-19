@@ -467,7 +467,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MMC_RX_INTERRUPT.RXLENERPIS (MMC Receive Length Error Packet Counter Interrupt Status)", 18)
                     .WithTaggedFlag("MMC_RX_INTERRUPT.RXORANGEPIS (MMC Receive Out Of Range Error Packet Counter Interrupt Status)", 19)
                     .WithTaggedFlag("MMC_RX_INTERRUPT.RXPAUSPIS (MMC Receive Pause Packet Counter Interrupt Status)", 20)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT.RXFOVPIS (MMC Receive FIFO Overflow Packet Counter Interrupt Status)", 21)
+                    .WithFlag(21, out rxFifoPacketCounterInterrupt, FieldMode.ReadToClear, name: "MMC_RX_INTERRUPT.RXFOVPIS (MMC Receive FIFO Overflow Packet Counter Interrupt Status)")
                     .WithTaggedFlag("MMC_RX_INTERRUPT.RXVLANGBPIS (MMC Receive VLAN Good Bad Packet Counter Interrupt Status)", 22)
                     .WithTaggedFlag("MMC_RX_INTERRUPT.RXWDOGPIS (MMC Receive Watchdog Error Packet Counter Interrupt Status)", 23)
                     .WithTaggedFlag("MMC_RX_INTERRUPT.RXRCVERRPIS (MMC Receive Error Packet Counter Interrupt Status)", 24)
@@ -531,7 +531,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXLENERPIM (MMC Receive Length Error Packet Counter Interrupt Mask)", 18)
                     .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXORANGEPIM (MMC Receive Out Of Range Error Packet Counter Interrupt Mask)", 19)
                     .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXPAUSPIM (MMC Receive Pause Packet Counter Interrupt Mask)", 20)
-                    .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXFOVPIM (MMC Receive FIFO Overflow Packet Counter Interrupt Mask)", 21)
+                    .WithFlag(21, out rxFifoPacketCounterInterruptEnable, name: "MMC_RX_INTERRUPT_MASK.RXFOVPIM (MMC Receive FIFO Overflow Packet Counter Interrupt Mask)")
                     .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXVLANGBPIM (MMC Receive VLAN Good Bad Packet Counter Interrupt Mask)", 22)
                     .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXWDOGPIM (MMC Receive Watchdog Error Packet Counter Interrupt Mask)", 23)
                     .WithTaggedFlag("MMC_RX_INTERRUPT_MASK.RXRCVERRPIM (MMC Receive Error Packet Counter Interrupt Mask)", 24)
@@ -625,6 +625,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
                 {(long)RegistersMacAndMmc.RxUnicastPacketsGood, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out rxUnicastPacketCounter, FieldMode.Read, name: "RX_UNICAST_PACKETS_GOOD.RXUCASTG (RXUCASTG)")
+                },
+                {(long)RegistersMacAndMmc.RxFifoOverflowPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxFifoPacketCounter, name: "Rx_FIFO_Overflow_Packets.RXFIFOOVFL (RXFIFOOVFL)")
                 },
                 {(long)RegistersMacAndMmc.TxLPIMicrodecondTimer, new DoubleWordRegister(this)
                     .WithTag("TX_LPI_USEC_CNTR.TXLPIUSC (TXLPIUSC)", 0, 32)
@@ -904,16 +907,20 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MTLQICSR.RXOIE (RXOIE)", 24)
                     .WithReservedBits(25, 7)
                 },
-                {(long)RegistersMTL.RxQueueOperatingMode, new DoubleWordRegister(this, 0x700000)
+                {(long)RegistersMTL.RxQueueOperatingMode, new DoubleWordRegister(this)
                     .WithTag("MTLRxQOMR.RTC (RTC)", 0, 2)
                     .WithReservedBits(2, 1)
                     .WithTaggedFlag("MTLRxQOMR.FUP (FUP)", 3)
                     .WithTaggedFlag("MTLRxQOMR.FEP (FEP)", 4)
                     .WithTaggedFlag("MTLRxQOMR.RSF (RSF)", 5)
                     .WithTaggedFlag("MTLRxQOMR.DIS_TCP_EF (DIS_TCP_EF)", 6)
-                    .WithReservedBits(7, 13)
-                    .WithValueField(20, 3, FieldMode.Read, name: "MTLRxQOMR.RQS (RQS)")
-                    .WithReservedBits(23, 9)
+                    .WithTaggedFlag("MTLRxQOMR.EHFC (EHFC)", 7)
+                    .WithTag("MTLRxQOMR.RFA (RFA)", 8, 4)
+                    .WithReservedBits(12, 2)
+                    .WithTag("MTLRxQOMR.RFD (RFD)", 14, 4)
+                    .WithReservedBits(18, 2)
+                    .WithValueField(20, 5, FieldMode.Read, valueProviderCallback: _ => 0b11111, name: "MTLRxQOMR.RQS (RQS)")
+                    .WithReservedBits(25, 7)
                 },
                 {(long)RegistersMTL.RxQueueMissedPacketAndOverflowCounter, new DoubleWordRegister(this)
                     .WithTag("MTLRxQMPOCR.OVFPKTCNT (OVFPKTCNT)", 0, 11)
@@ -1276,6 +1283,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField miiData;
         private IValueRegisterField miiAddress;
         private IFlagRegisterField rxUnicastPacketCounterInterrupt;
+        private IFlagRegisterField rxFifoPacketCounterInterrupt;
         private IFlagRegisterField rxCrcErrorPacketCounterInterrupt;
         private IFlagRegisterField rxMulticastPacketCounterInterrupt;
         private IFlagRegisterField rxBroadcastPacketCounterInterrupt;
@@ -1290,6 +1298,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IFlagRegisterField txPacketCounterInterrupt;
         private IFlagRegisterField txByteCounterInterrupt;
         private IFlagRegisterField rxUnicastPacketCounterInterruptEnable;
+        private IFlagRegisterField rxFifoPacketCounterInterruptEnable;
         private IFlagRegisterField rxCrcErrorPacketCounterInterruptEnable;
         private IFlagRegisterField rxMulticastPacketCounterInterruptEnable;
         private IFlagRegisterField rxBroadcastPacketCounterInterruptEnable;
@@ -1317,6 +1326,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField rxMulticastPacketCounter;
         private IValueRegisterField rxCrcErrorPacketCounter;
         private IValueRegisterField rxUnicastPacketCounter;
+        private IValueRegisterField rxFifoPacketCounter;
         private IFlagRegisterField enableTimestamp;
         private IFlagRegisterField enableTimestampForAll;
 
@@ -1439,6 +1449,7 @@ namespace Antmicro.Renode.Peripherals.Network
             RxCRCErrorPackets = 0x794,
             RxAlignmentErrorPackets = 0x798,
             RxUnicastPacketsGood = 0x7C4,
+            RxFifoOverflowPackets = 0x7D4,
             TxLPIMicrodecondTimer = 0x7EC,
             TxLPITransitionCounter = 0x7F0,
             RxLPIMicrosecondCounter = 0x7F4,

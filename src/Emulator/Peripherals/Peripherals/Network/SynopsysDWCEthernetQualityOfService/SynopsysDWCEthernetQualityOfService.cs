@@ -51,8 +51,16 @@ namespace Antmicro.Renode.Peripherals.Network
                 this.Log(LogLevel.Debug, "Receive: Dropping frame {0}", frame);
                 return;
             }
+            if(rxQueueLength + frame.Length > RxQueueSize)
+            {
+                IncrementPacketCounter(rxFifoPacketCounter, rxFifoPacketCounterInterrupt);
+                this.Log(LogLevel.Debug, "Receive: Dropping overflow frame {0}", frame);
+                UpdateInterrupts();
+                return;
+            }
             this.Log(LogLevel.Debug, "Receive: Incoming frame {0}", frame);
             incomingFrames.Enqueue(frame);
+            rxQueueLength += frame.Bytes.Length;
             StartRxDMA();
         }
 
@@ -66,6 +74,7 @@ namespace Antmicro.Renode.Peripherals.Network
             latestTxContext = null;
             rxWatchdog.Reset();
             incomingFrames.Clear();
+            rxQueueLength = 0;
             frameAssembler = null;
             ResetRegisters();
             UpdateInterrupts();
@@ -179,6 +188,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     rxOffset = 0;
                     incomingFrames.Dequeue();
+                    rxQueueLength -= bytes.Length;
 
                     if(incomingFrames.Count == 0)
                     {
@@ -667,6 +677,7 @@ namespace Antmicro.Renode.Peripherals.Network
             (txByteCounterInterrupt.Value && txByteCounterInterruptEnable.Value);
 
         private bool MMCRxInterruptStatus =>
+            (rxFifoPacketCounterInterrupt.Value && rxFifoPacketCounterInterruptEnable.Value)           ||
             (rxUnicastPacketCounterInterrupt.Value && rxUnicastPacketCounterInterruptEnable.Value)     ||
             (rxCrcErrorPacketCounterInterrupt.Value && rxCrcErrorPacketCounterInterruptEnable.Value)   ||
             (rxMulticastPacketCounterInterrupt.Value && rxMulticastPacketCounterInterruptEnable.Value) ||
@@ -690,6 +701,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private DMAState rxState = DMAState.Stopped;
         private ulong rxOffset;
         private TxDescriptor.ContextDescriptor? latestTxContext;
+        private int rxQueueLength;
 
         private readonly Queue<EthernetFrame> incomingFrames;
         private readonly LimitTimer rxWatchdog;
@@ -697,6 +709,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private const ulong CounterMaxValue = UInt32.MaxValue;
         private const int RxWatchdogDivider = 256;
         private const uint EtherTypeMinimalValue = 0x600;
+        private const int RxQueueSize = 8192;
 
         private enum DMAState
         {
