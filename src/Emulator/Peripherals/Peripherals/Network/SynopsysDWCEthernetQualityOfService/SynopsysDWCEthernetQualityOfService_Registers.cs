@@ -641,6 +641,154 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)RegistersMacAndMmc.RxLPITransitionCounter, new DoubleWordRegister(this)
                     .WithTag("RX_LPI_TRAN_CNTR.RXLPITRC (RXLPITRC)", 0, 32)
                 },
+                {(long)RegistersMacAndMmc.MmcIpcRxInterruptMask, new DoubleWordRegister(this)
+                    .WithFlag(0, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV4Good], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4GPIM (RXIPV4GPIM)")
+                    .WithFlag(1, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV4HeaderError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4HERPIM (RXIPV4HERPIM)")
+                    .WithFlag(2, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV4NoPayload], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4NOPAYPIM (RXIPV4NOPAYPIM)")
+                    .WithFlag(3, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV4Fragmented], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4FRAGPIM (RXIPV4FRAGPIM)")
+                    .WithFlag(4, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV4UDPChecksumDisabled], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4UDSBLPIM (RXIPV4UDSBLPIM)")
+                    .WithFlag(5, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV6Good], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV6GPIM (RXIPV6GPIM)")
+                    .WithFlag(6, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV6HeaderError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV6HERPIM (RXIPV6HERPIM)")
+                    .WithFlag(7, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IpV6NoPayload], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV6NOPAYPIM (RXIPV6NOPAYPIM)")
+                    .WithFlag(8, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.UdpGood], name: "MMC_IPC_RX_INTERRUPT_MASK.RXUDPGPIM (RXUDPGPIM)")
+                    .WithFlag(9, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.UdpError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXUDPERPIM (RXUDPERPIM)")
+                    .WithFlag(10, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.TcpGood], name: "MMC_IPC_RX_INTERRUPT_MASK.RXTCPGPIM (RXTCPGPIM)")
+                    .WithFlag(11, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.TcpError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXTCPERPIM (RXTCPERPIM)")
+                    .WithFlag(12, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IcmpGood], name: "MMC_IPC_RX_INTERRUPT_MASK.RXICMPGPIM (RXICMPGPIM)")
+                    .WithFlag(13, out rxIpcPacketCounterInterruptEnable[(int)IpcCounter.IcmpError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXICMPERPIM (RXICMPERPIM)")
+                    .WithReservedBits(14, 2)
+                    .WithFlag(16, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV4Good], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4GOIM (RXIPV4GOIM)")
+                    .WithFlag(17, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV4HeaderError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4HEROIM (RXIPV4HEROIM)")
+                    .WithFlag(18, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV4NoPayload], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4NOPAYOIM (RXIPV4NOPAYOIM)")
+                    .WithFlag(19, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV4Fragmented], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4FRAGOIM (RXIPV4FRAGOIM)")
+                    .WithFlag(20, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV4UDPChecksumDisabled], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV4UDSBLOIM (RXIPV4UDSBLOIM)")
+                    .WithFlag(21, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV6Good], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV6GOIM (RXIPV6GOIM)")
+                    .WithFlag(22, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV6HeaderError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV6HEROIM (RXIPV6HEROIM)")
+                    .WithFlag(23, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IpV6NoPayload], name: "MMC_IPC_RX_INTERRUPT_MASK.RXIPV6NOPAYOIM (RXIPV6NOPAYOIM)")
+                    .WithFlag(24, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.UdpGood], name: "MMC_IPC_RX_INTERRUPT_MASK.RXUDPGOIM (RXUDPGOIM)")
+                    .WithFlag(25, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.UdpError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXUDPEROIM (RXUDPEROIM)")
+                    .WithFlag(26, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.TcpGood], name: "MMC_IPC_RX_INTERRUPT_MASK.RXTCPGOIM (RXTCPGOIM)")
+                    .WithFlag(27, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.TcpError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXTCPEROIM (RXTCPEROIM)")
+                    .WithFlag(28, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IcmpGood], name: "MMC_IPC_RX_INTERRUPT_MASK.RXICMPGOIM (RXICMPGOIM)")
+                    .WithFlag(29, out rxIpcByteCounterInterruptEnable[(int)IpcCounter.IcmpError], name: "MMC_IPC_RX_INTERRUPT_MASK.RXICMPEROIM (RXICMPEROIM)")
+                    .WithReservedBits(30, 2)
+                },
+                {(long)RegistersMacAndMmc.MmcIpcRxInterrupt, new DoubleWordRegister(this)
+                    .WithFlag(0, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV4Good], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4GPIS (RXIPV4GPIS)")
+                    .WithFlag(1, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV4HeaderError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4HERPIS (RXIPV4HERPIS)")
+                    .WithFlag(2, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV4NoPayload], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4NOPAYPIS (RXIPV4NOPAYPIS)")
+                    .WithFlag(3, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV4Fragmented], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4FRAGPIS (RXIPV4FRAGPIS)")
+                    .WithFlag(4, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV4UDPChecksumDisabled], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4UDSBLPIS (RXIPV4UDSBLPIS)")
+                    .WithFlag(5, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV6Good], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV6GPIS (RXIPV6GPIS)")
+                    .WithFlag(6, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV6HeaderError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV6HERPIS (RXIPV6HERPIS)")
+                    .WithFlag(7, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IpV6NoPayload], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV6NOPAYPIS (RXIPV6NOPAYPIS)")
+                    .WithFlag(8, out rxIpcPacketCounterInterrupt[(int)IpcCounter.UdpGood], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXUDPGPIS (RXUDPGPIS)")
+                    .WithFlag(9, out rxIpcPacketCounterInterrupt[(int)IpcCounter.UdpError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXUDPERPIS (RXUDPERPIS)")
+                    .WithFlag(10, out rxIpcPacketCounterInterrupt[(int)IpcCounter.TcpGood], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXTCPGPIS (RXTCPGPIS)")
+                    .WithFlag(11, out rxIpcPacketCounterInterrupt[(int)IpcCounter.TcpError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXTCPERPIS (RXTCPERPIS)")
+                    .WithFlag(12, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IcmpGood], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXICMPGPIS (RXICMPGPIS)")
+                    .WithFlag(13, out rxIpcPacketCounterInterrupt[(int)IpcCounter.IcmpError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXICMPERPIS (RXICMPERPIS)")
+                    .WithReservedBits(14, 2)
+                    .WithFlag(16, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV4Good], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4GOIS (RXIPV4GOIS)")
+                    .WithFlag(17, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV4HeaderError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4HEROIS (RXIPV4HEROIS)")
+                    .WithFlag(18, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV4NoPayload], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4NOPAYOIS (RXIPV4NOPAYOIS)")
+                    .WithFlag(19, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV4Fragmented], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4FRAGOIS (RXIPV4FRAGOIS)")
+                    .WithFlag(20, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV4UDPChecksumDisabled], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV4UDSBLOIS (RXIPV4UDSBLOIS)")
+                    .WithFlag(21, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV6Good], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV6GOIS (RXIPV6GOIS)")
+                    .WithFlag(22, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV6HeaderError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV6HEROIS (RXIPV6HEROIS)")
+                    .WithFlag(23, out rxIpcByteCounterInterrupt[(int)IpcCounter.IpV6NoPayload], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXIPV6NOPAYOIS (RXIPV6NOPAYOIS)")
+                    .WithFlag(24, out rxIpcByteCounterInterrupt[(int)IpcCounter.UdpGood], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXUDPGOIS (RXUDPGOIS)")
+                    .WithFlag(25, out rxIpcByteCounterInterrupt[(int)IpcCounter.UdpError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXUDPEROIS (RXUDPEROIS)")
+                    .WithFlag(26, out rxIpcByteCounterInterrupt[(int)IpcCounter.TcpGood], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXTCPGOIS (RXTCPGOIS)")
+                    .WithFlag(27, out rxIpcByteCounterInterrupt[(int)IpcCounter.TcpError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXTCPEROIS (RXTCPEROIS)")
+                    .WithFlag(28, out rxIpcByteCounterInterrupt[(int)IpcCounter.IcmpGood], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXICMPGOIS (RXICMPGOIS)")
+                    .WithFlag(29, out rxIpcByteCounterInterrupt[(int)IpcCounter.IcmpError], FieldMode.ReadToClear, name: "MMC_IPC_RX_INTERRUPT.RXICMPEROIS (RXICMPEROIS)")
+                    .WithReservedBits(30, 2)
+                },
+                {(long)RegistersMacAndMmc.RxIpv4GoodPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV4Good], FieldMode.Read, name: "RXIPV4_GOOD_PACKETS.RXIPV4GDPKT (RXIPV4GDPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4HeaderErrorPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV4HeaderError], FieldMode.Read, name: "RXIPV4_HEADER_ERROR_PACKETS.RXIPV4HDRERRPKT (RXIPV4HDRERRPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4NoPayloadPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV4NoPayload], FieldMode.Read, name: "RXIPV4_NO_PAYLOAD_PACKETS.RXIPV4NOPAYPKT (RXIPV4NOPAYPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4FragmentedPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV4Fragmented], FieldMode.Read, name: "RXIPV4_FRAGMENTED_PACKETS.RXIPV4FRAGPKT (RXIPV4FRAGPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4UdpChecksumDisabledPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV4UDPChecksumDisabled], FieldMode.Read, name: "RXIPV4_UDP_CHECKSUM_DISABLED_PACKETS.RXIPV4UDSBLPKT (RXIPV4UDSBLPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv6GoodPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV6Good], FieldMode.Read, name: "RXIPV6_GOOD_PACKETS.RXIPV6GDPKT (RXIPV6GDPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv6HeaderErrorPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV6HeaderError], FieldMode.Read, name: "RXIPV6_HEADER_ERROR_PACKETS.RXIPV6HDRERRPKT (RXIPV6HDRERRPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv6NoPayloadPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IpV6NoPayload], FieldMode.Read, name: "RXIPV6_NO_PAYLOAD_PACKETS.RXIPV6NOPAYPKT (RXIPV6NOPAYPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxUdpGoodPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.UdpGood], FieldMode.Read, name: "RXUDP_GOOD_PACKETS.RXUDPGDPKT (RXUDPGDPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxUdpErrorPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.UdpError], FieldMode.Read, name: "RXUDP_ERROR_PACKETS.RXUDPERRPKT (RXUDPERRPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxTcpGoodPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.TcpGood], FieldMode.Read, name: "RXTCP_GOOD_PACKETS.RXTCPGDPKT (RXTCPGDPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxTcpErrorPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.TcpError], FieldMode.Read, name: "RXTCP_ERROR_PACKETS.RXTCPERRPKT (RXTCPERRPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIcmpGoodPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IcmpGood], FieldMode.Read, name: "RXICMP_GOOD_PACKETS.RXICMPGDPKT (RXICMPGDPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIcmpErrorPackets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcPacketCounter[(int)IpcCounter.IcmpError], FieldMode.Read, name: "RXICMP_ERROR_PACKETS.RXICMPERRPKT (RXICMPERRPKT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4GoodOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV4Good], FieldMode.Read, name: "RXIPV4_GOOD_OCTETS.RXIPV4GDOCT (RXIPV4GDOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4HeaderErrorOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV4HeaderError], FieldMode.Read, name: "RXIPV4_HEADER_ERROR_OCTETS.RXIPV4HDRERROCT (RXIPV4HDRERROCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4NoPayloadOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV4NoPayload], FieldMode.Read, name: "RXIPV4_NO_PAYLOAD_OCTETS.RXIPV4NOPAYOCT (RXIPV4NOPAYOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4FragmentedOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV4Fragmented], FieldMode.Read, name: "RXIPV4_FRAGMENTED_OCTETS.RXIPV4FRAGOCT (RXIPV4FRAGOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv4UdpChecksumDisableOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV4UDPChecksumDisabled], FieldMode.Read, name: "RXIPV4_UDP_CHECKSUM_DISABLE_OCTETS.RXIPV4UDSBLOCT (RXIPV4UDSBLOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv6GoodOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV6Good], FieldMode.Read, name: "RXIPV6_GOOD_OCTETS.RXIPV6GDOCT (RXIPV6GDOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv6HeaderErrorOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV6HeaderError], FieldMode.Read, name: "RXIPV6_HEADER_ERROR_OCTETS.RXIPV6HDRERROCT (RXIPV6HDRERROCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIpv6NoPayloadOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IpV6NoPayload], FieldMode.Read, name: "RXIPV6_NO_PAYLOAD_OCTETS.RXIPV6NOPAYOCT (RXIPV6NOPAYOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxUdpGoodOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.UdpGood], FieldMode.Read, name: "RXUDP_GOOD_OCTETS.RXUDPGDOCT (RXUDPGDOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxUdpErrorOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.UdpError], FieldMode.Read, name: "RXUDP_ERROR_OCTETS.RXUDPERROCT (RXUDPERROCT)")
+                },
+                {(long)RegistersMacAndMmc.RxTcpGoodOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.TcpGood], FieldMode.Read, name: "RXTCP_GOOD_OCTETS.RXTCPGDOCT (RXTCPGDOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxTcpErrorOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.TcpError], FieldMode.Read, name: "RXTCP_ERROR_OCTETS.RXTCPERROCT (RXTCPERROCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIcmpGoodOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IcmpGood], FieldMode.Read, name: "RXICMP_GOOD_OCTETS.RXICMPGDOCT (RXICMPGDOCT)")
+                },
+                {(long)RegistersMacAndMmc.RxIcmpErrorOctets, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out rxIpcByteCounter[(int)IpcCounter.IcmpError], FieldMode.Read, name: "RXICMP_ERROR_OCTETS.RXICMPERROCT (RXICMPERROCT)")
+                },
                 {(long)RegistersMacAndMmc.Layer3And4Control0, new DoubleWordRegister(this)
                     .WithTaggedFlag("MACL3L4C0R.L3PEN0 (L3PEN0)", 0)
                     .WithReservedBits(1, 1)
@@ -1381,10 +1529,19 @@ namespace Antmicro.Renode.Peripherals.Network
         private IFlagRegisterField abnormalInterruptSummary;
         private IFlagRegisterField normalInterruptSummary;
 
+        private readonly IFlagRegisterField[] rxIpcPacketCounterInterruptEnable;
+        private readonly IFlagRegisterField[] rxIpcByteCounterInterruptEnable;
+        private readonly IFlagRegisterField[] rxIpcPacketCounterInterrupt;
+        private readonly IFlagRegisterField[] rxIpcByteCounterInterrupt;
+        private readonly IValueRegisterField[] rxIpcPacketCounter;
+        private readonly IValueRegisterField[] rxIpcByteCounter;
+
         private readonly DoubleWordRegisterCollection macAndMmcRegisters;
         // MAC Transaction Layer
         private readonly DoubleWordRegisterCollection mtlRegisters;
         private readonly DoubleWordRegisterCollection dmaRegisters;
+
+        private readonly int NumberOfIpcCounters = Enum.GetNames(typeof(IpcCounter)).Length;
 
         public enum RegistersMacAndMmc : long
         {
@@ -1454,6 +1611,36 @@ namespace Antmicro.Renode.Peripherals.Network
             TxLPITransitionCounter = 0x7F0,
             RxLPIMicrosecondCounter = 0x7F4,
             RxLPITransitionCounter = 0x7F8,
+            MmcIpcRxInterruptMask = 0x800,
+            MmcIpcRxInterrupt = 0x808,
+            RxIpv4GoodPackets = 0x810,
+            RxIpv4HeaderErrorPackets = 0x814,
+            RxIpv4NoPayloadPackets = 0x818,
+            RxIpv4FragmentedPackets = 0x81C,
+            RxIpv4UdpChecksumDisabledPackets = 0x820,
+            RxIpv6GoodPackets = 0x824,
+            RxIpv6HeaderErrorPackets = 0x828,
+            RxIpv6NoPayloadPackets = 0x82C,
+            RxUdpGoodPackets = 0x830,
+            RxUdpErrorPackets = 0x834,
+            RxTcpGoodPackets = 0x838,
+            RxTcpErrorPackets = 0x83C,
+            RxIcmpGoodPackets = 0x840,
+            RxIcmpErrorPackets = 0x844,
+            RxIpv4GoodOctets = 0x850,
+            RxIpv4HeaderErrorOctets = 0x854,
+            RxIpv4NoPayloadOctets = 0x858,
+            RxIpv4FragmentedOctets = 0x85C,
+            RxIpv4UdpChecksumDisableOctets = 0x860,
+            RxIpv6GoodOctets = 0x864,
+            RxIpv6HeaderErrorOctets = 0x868,
+            RxIpv6NoPayloadOctets = 0x86C,
+            RxUdpGoodOctets = 0x870,
+            RxUdpErrorOctets = 0x874,
+            RxTcpGoodOctets = 0x878,
+            RxTcpErrorOctets = 0x87C,
+            RxIcmpGoodOctets = 0x880,
+            RxIcmpErrorOctets = 0x884,
             Layer3And4Control0 = 0x900,
             Layer4AddressFilter0 = 0x904,
             Layer3Address0Filter0 = 0x910,
@@ -1538,6 +1725,24 @@ namespace Antmicro.Renode.Peripherals.Network
             Write = 0b01,
             PostReadAddressIncrement = 0b10,
             Read = 0b11,
+        }
+
+        private enum IpcCounter : int
+        {
+            IpV4Good,
+            IpV4HeaderError,
+            IpV4NoPayload,
+            IpV4Fragmented,
+            IpV4UDPChecksumDisabled,
+            IpV6Good,
+            IpV6HeaderError,
+            IpV6NoPayload,
+            UdpGood,
+            UdpError,
+            TcpGood,
+            TcpError,
+            IcmpGood,
+            IcmpError,
         }
 
         private enum MTLTxQueueReadControllerStatus

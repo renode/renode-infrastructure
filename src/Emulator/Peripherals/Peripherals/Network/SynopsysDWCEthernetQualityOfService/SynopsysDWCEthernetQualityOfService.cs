@@ -32,6 +32,12 @@ namespace Antmicro.Renode.Peripherals.Network
             Bus = machine.GetSystemBus(this);
 
             incomingFrames = new Queue<EthernetFrame>();
+            rxIpcPacketCounterInterruptEnable = new IFlagRegisterField[NumberOfIpcCounters];
+            rxIpcByteCounterInterruptEnable = new IFlagRegisterField[NumberOfIpcCounters];
+            rxIpcPacketCounterInterrupt = new IFlagRegisterField[NumberOfIpcCounters];
+            rxIpcByteCounterInterrupt = new IFlagRegisterField[NumberOfIpcCounters];
+            rxIpcPacketCounter = new IValueRegisterField[NumberOfIpcCounters];
+            rxIpcByteCounter = new IValueRegisterField[NumberOfIpcCounters];
             macAndMmcRegisters = new DoubleWordRegisterCollection(this, CreateRegisterMap());
             mtlRegisters = new DoubleWordRegisterCollection(this, CreateMTLRegisterMap());
             dmaRegisters = new DoubleWordRegisterCollection(this, CreateDMARegisterMap());
@@ -589,6 +595,35 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 IncrementPacketCounter(rxUnicastPacketCounter, rxUnicastPacketCounterInterrupt);
             }
+
+            if(writeBackStructure.ipv4HeaderPresent)
+            {
+                IncreaseIpcCounter(IpcCounter.IpV4Good, byteCount);
+                if(writeBackStructure.ipHeaderError)
+                {
+                    IncreaseIpcCounter(IpcCounter.IpV4HeaderError, byteCount);
+                }
+            }
+            if(writeBackStructure.ipv6HeaderPresent)
+            {
+                IncreaseIpcCounter(IpcCounter.IpV6Good, byteCount);
+                if(writeBackStructure.ipHeaderError)
+                {
+                    IncreaseIpcCounter(IpcCounter.IpV6HeaderError, byteCount);
+                }
+            }
+            if(writeBackStructure.payloadType ==  PayloadType.UDP)
+            {
+                IncreaseIpcCounter(IpcCounter.UdpGood, byteCount);
+            }
+            else if(writeBackStructure.payloadType == PayloadType.TCP)
+            {
+                IncreaseIpcCounter(IpcCounter.TcpGood, byteCount);
+            }
+            else if(writeBackStructure.payloadType == PayloadType.ICMP)
+            {
+                IncreaseIpcCounter(IpcCounter.IcmpGood, byteCount);
+            }
         }
 
         private void IncrementPacketCounter(IValueRegisterField counter, IFlagRegisterField status)
@@ -601,6 +636,25 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             status.Value |= WouldExceedHalfOrMaximumCounterValue(counter, increment);
             counter.Value += increment;
+        }
+
+        private void IncreaseIpcCounter(IpcCounter type, uint byteCount)
+        {
+            var index = (int)type;
+            IncrementPacketCounter(rxIpcPacketCounter[index], rxIpcPacketCounterInterrupt[index]);
+            IncrementByteCounter(rxIpcByteCounter[index], rxIpcByteCounterInterrupt[index], byteCount);
+        }
+
+        private bool CheckAnySetIpcCounterInterrupts()
+        {
+            for(var i = 0; i < NumberOfIpcCounters; i++)
+            {
+                if((rxIpcPacketCounterInterrupt[i].Value && rxIpcPacketCounterInterruptEnable[i].Value) || (rxIpcByteCounterInterrupt[i].Value && rxIpcByteCounterInterruptEnable[i].Value))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void TriggerRxWatchdog()
@@ -632,7 +686,8 @@ namespace Antmicro.Renode.Peripherals.Network
                       (abnormalInterruptSummary.Value && abnormalInterruptSummaryEnable.Value) ||
                       (normalInterruptSummary.Value && normalInterruptSummaryEnable.Value)     ||
                       MMCTxInterruptStatus                                                     ||
-                      MMCRxInterruptStatus;
+                      MMCRxInterruptStatus                                                     ||
+                      CheckAnySetIpcCounterInterrupts();
             this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irq);
             IRQ.Set(irq);
         }
