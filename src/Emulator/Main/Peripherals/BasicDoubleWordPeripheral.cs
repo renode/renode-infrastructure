@@ -55,11 +55,6 @@ namespace Antmicro.Renode.Peripherals
 
         public static void DefineMany(this System.Enum o, DoubleWordRegisterCollection c, uint count, Action<DoubleWordRegister, int> setup, uint stepInBytes = 4, uint resetValue = 0, bool softResettable = true, string name = "")
         {
-            if(!o.GetType().IsEnum)
-            {
-                throw new ArgumentException("This method should be called on enumerated type");
-            }
-
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
