@@ -23,8 +23,8 @@ namespace Antmicro.Renode.Peripherals.I2C
     {
         public LiteX_I2C(Machine machine) : base(machine)
         {
-            // 0 - clock, 1 - data
-            i2cDecoder = new BitPatternDetector(new [] { true, true }, this);
+            // 0 - clock, 1 - data, 2 - direction
+            i2cDecoder = new BitPatternDetector(new [] { true, true, true }, this);
             i2cDecoder.RegisterPatternHandler((prev, curr) => !prev[ClockSignal] && curr[ClockSignal], name: "clockRising", action: HandleClockRising);
             i2cDecoder.RegisterPatternHandler((prev, curr) => prev[ClockSignal] && !curr[ClockSignal], name: "clockFalling", action: HandleClockFalling);
             i2cDecoder.RegisterPatternHandler((prev, curr) => prev[ClockSignal] && curr[ClockSignal] && prev[DataSignal] && !curr[DataSignal], name: "start", action: HandleStartCondition);
@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(0, out var clockSignal, name: "SCL")
                     .WithFlag(1, out var directionSignal, name: "OE")
                     .WithFlag(2, out var dataSignal, name: "SDA")
-                    .WithWriteCallback((_, val) => i2cDecoder.AcceptState(new [] { clockSignal.Value, dataSignal.Value }))
+                    .WithWriteCallback((_, val) => i2cDecoder.AcceptState(new [] { clockSignal.Value, dataSignal.Value, directionSignal.Value }))
                 },
 
                 {(long)Registers.Data, new DoubleWordRegister(this)
@@ -234,7 +234,10 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void HandleClockFalling(bool[] signals)
         {
-            bufferFromDevice.TryDequeue(out var unused);
+            if(!signals[DirectionSignal])
+            {
+                bufferFromDevice.TryDequeue(out var unused);
+            }
         }
 
         private void ResetBuffers()
@@ -281,6 +284,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private const int ClockSignal = 0;
         private const int DataSignal = 1;
+        private const int DirectionSignal = 2;
 
         private enum Registers
         {
