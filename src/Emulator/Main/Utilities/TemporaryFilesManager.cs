@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -17,7 +18,21 @@ namespace Antmicro.Renode.Utilities
     {
         static TemporaryFilesManager()
         {
-            Initialize(Path.GetTempPath(), DefaultDirectoryPrefix, !EmulationManager.DisableEmulationFilesCleanup);
+            var defaultPath = Path.GetTempPath();
+            var configuredPath = ConfigurationManager.Instance.Get<string>("general", "temporary-path", defaultPath);
+            if(configuredPath != defaultPath && !Directory.Exists(configuredPath))
+            {
+                try 
+                {
+                    Directory.CreateDirectory(configuredPath);
+                }
+                catch(Exception e)
+                {
+                    Logger.Log(LogLevel.Error, "Unable to create the temporary directory {0}: {1}. Using the system default: {2}", configuredPath, e.Message, defaultPath);
+                    configuredPath = defaultPath;
+                }
+            }
+            Initialize(configuredPath, DefaultDirectoryPrefix, !EmulationManager.DisableEmulationFilesCleanup);
         }
 
         public static TemporaryFilesManager Instance { get; private set; }
