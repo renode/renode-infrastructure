@@ -579,11 +579,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
             this.parent = parent;
             this.MaxRegisterLength = maxLength;
             this.resetValue = resetValue;
+            // We want to reset the register before setting the resettableMask. If we don't do that then
+            // the register will not be initialized to the resetValue, instead it will hold the default value of 0
+            Reset();
             if(!softResettable)
             {
                 resettableMask = 0;
             }
-            Reset();
         }
 
         protected ulong ReadInner()
