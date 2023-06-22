@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -95,12 +95,12 @@ namespace Antmicro.Renode.UserInterface
             return true;
         }
 
-        public void ExecutePythonCommand(string command, ICommandInteraction writer)
+        public object ExecutePythonCommand(string command, ICommandInteraction writer)
         {
             try
             {
                 var script = Engine.CreateScriptSourceFromString(command);
-                ExecutePythonScriptInner(script, writer);
+                return ExecutePythonScriptInner(script, writer);
             }
             catch(Microsoft.Scripting.SyntaxErrorException e)
             {
@@ -108,12 +108,12 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private void ExecutePythonScriptInner(ScriptSource script, ICommandInteraction writer)
+        private object ExecutePythonScriptInner(ScriptSource script, ICommandInteraction writer)
         {
             ConfigureOutput(writer);
             try
             {
-                script.Execute(Scope);
+                return script.Execute(Scope);
             }
             catch(Exception e)
             {

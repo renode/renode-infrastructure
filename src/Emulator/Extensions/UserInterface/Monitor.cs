@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -234,7 +234,7 @@ namespace Antmicro.Renode.UserInterface
                 DisableStringEater, () => stringEaterMode, GetVariableName));
             Commands.Add(new SetCommand(this, "alias", "ALIAS", (x, y) => SetVariable(x, y, aliases), (x, y) => EnableStringEater(x, y, VariableType.Alias),
 	        DisableStringEater, () => stringEaterMode, GetVariableName));
-            Commands.Add(new PythonExecuteCommand(this, x => ExpandVariable(x, variables), pythonRunner.ExecutePythonCommand));
+            Commands.Add(new PythonExecuteCommand(this, x => ExpandVariable(x, variables), (x, y) => pythonRunner.ExecutePythonCommand(x, y)));
             Commands.Add(new ExecuteCommand(this, "execute", "VARIABLE", x => ExpandVariable(x, variables), () => variables.Keys));
             Commands.Add(new ExecuteCommand(this, "runMacro", "MACRO", x => ExpandVariable(x, macros), () => macros.Keys));
             Commands.Add(new MachCommand(this, () => currentMachine, x => currentMachine = x));
