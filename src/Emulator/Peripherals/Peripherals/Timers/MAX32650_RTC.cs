@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MAX32650_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_RTC(Machine machine, bool subSecondsMSBOverwrite = false, string baseDateTime = null) : base(machine)
+        public MAX32650_RTC(Machine machine, bool subSecondsMSBOverwrite = false, string baseDateTime = null, bool secondsTickOnOneSubSecond = false) : base(machine)
         {
             BaseDateTime = Misc.UnixEpoch;
             if(baseDateTime != null)
@@ -35,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             internalClock.LimitReached += SubsecondTick;
 
             this.subSecondsMSBOverwrite = subSecondsMSBOverwrite;
+            this.secondsTickOnOneSubSecond = secondsTickOnOneSubSecond;
 
             IRQ = new GPIO();
 
@@ -168,10 +169,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             lock(countersLock)
             {
                 subSecondsCounter += 1;
+                if(secondsTickOnOneSubSecond)
+                {
+                    if(subSecondsCounter == 1)
+                    {
+                        secondsCounter += 1;
+                    }
+                }
+
                 if(subSecondsCounter >= SubSecondCounterResolution)
                 {
                     subSecondsCounter = 0;
-                    secondsCounter += 1;
+                    if(!secondsTickOnOneSubSecond)
+                    {
+                        secondsCounter += 1;
+                    }
 
                     if(timeOfDayAlarmEnabled.Value && (secondsCounter & TimeOfDayAlarmMask) == timeOfDayAlarm.Value)
                     {
@@ -222,6 +234,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const ulong SubSecondAlarmMaxValue = 0xFFFFFFFF;
         private const uint SubSecondCounterResolution = 4096;
         private const ulong TimeOfDayAlarmMask = 0xFFFFF;
+        // Some revisions of this peripheral have HW bug that makes
+        // RTC to increase seconds counter when subseconds are 1 instead on 0.
+        // This flag allows to enable this behavior.
+        private bool secondsTickOnOneSubSecond;
 
         private enum Registers
         {
