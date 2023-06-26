@@ -268,6 +268,7 @@
     <Compile Include="Peripherals\UART\EFR32_USART.cs" />
     <Compile Include="Peripherals\Sensors\MAX6682MUA.cs" />
     <Compile Include="Peripherals\Sensors\SI70xx.cs" />
+    <Compile Include="Peripherals\Sensors\SI7210.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_OpcodesCounting.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_Profiler.cs" />
