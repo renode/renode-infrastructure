@@ -39,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {(long)Registers.TransmitBufferDoubleData, GenerateTransmitBufferDoubleDataRegister()},
                 {(long)Registers.InterruptFlag, GenerateInterruptFlagRegister()},
                 {(long)Registers.InterruptEnable, GenerateInterruptEnableRegister()},
+                {(long)Registers.InterruptFlagClear, GenerateInterruptFlagClearRegister()},
             };
             registers = new DoubleWordRegisterCollection(this, map);
         }
@@ -80,6 +81,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             TransmitBufferDoubleData = 0x38,
             InterruptFlag = 0x3C,
             InterruptEnable = 0x40,
+            InterruptFlagClear = 0x203C
         }
     }
 }
