@@ -140,21 +140,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
-        protected Range lockedRange;
-
-        protected readonly int SectorSize = 64.KB();
-        protected readonly ByteRegister statusRegister;
-        protected readonly WordRegister configurationRegister;
-
-        private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
-        {
-            if(currentOperation.TryAccumulateAddress(addressByte))
-            {
-                this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
-                currentOperation.State = nextState;
-            }
-        }
-
         protected virtual byte GetCapacityCode()
         {
             // capacity code:
@@ -194,6 +179,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return 1;
                 default:
                     return 0;
+            }
+        }
+
+        protected Range lockedRange;
+
+        protected readonly int SectorSize = 64.KB();
+        protected readonly ByteRegister statusRegister;
+        protected readonly WordRegister configurationRegister;
+
+        private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
+        {
+            if(currentOperation.TryAccumulateAddress(addressByte))
+            {
+                this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
+                currentOperation.State = nextState;
             }
         }
 
