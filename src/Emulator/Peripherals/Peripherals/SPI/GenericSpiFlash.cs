@@ -445,7 +445,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.Log(LogLevel.Noisy, "Handled command: {0}, returning 0x{1:X}", currentOperation, result);
             return result;
         }
-        
+
         private byte GetSFDPByte()
         {
             if(currentOperation.ExecutionAddress >= SFDPSignature.Length)
@@ -453,7 +453,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Warning, "Tried to read SFDP signature byte out of range at position {0}", currentOperation.ExecutionAddress);
                 return 0;
             }
-            
+
             var output = SFDPSignature[currentOperation.ExecutionAddress];
             currentOperation.ExecutionAddress = (currentOperation.ExecutionAddress + 1) % (uint)SFDPSignature.Length;
             return output;
