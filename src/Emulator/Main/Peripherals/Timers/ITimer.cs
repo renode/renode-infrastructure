@@ -10,9 +10,8 @@ using Antmicro.Renode.UserInterface;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [Icon("clock")]
-    public interface ITimer
+    public interface ITimer : IHasFrequency
     {
-        long Frequency { get; set; }
         ulong Value { get; set; }
         bool Enabled { get; set; }
     }
