@@ -30,8 +30,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         private sealed class ValueRegisterField : RegisterField<ulong>, IValueRegisterField
         {
             public ValueRegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<ulong, ulong> readCallback,
-                Action<ulong, ulong> writeCallback, Action<ulong, ulong> changeCallback, Func<ulong, ulong> valueProviderCallback)
-                : base(parent, position, width, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback)
+                Action<ulong, ulong> writeCallback, Action<ulong, ulong> changeCallback, Func<ulong, ulong> valueProviderCallback, string name)
+                : base(parent, position, width, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback, name)
             {
             }
 
@@ -49,8 +49,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         private sealed class EnumRegisterField<TEnum> : RegisterField<TEnum>, IEnumRegisterField<TEnum> where TEnum : struct, IConvertible
         {
             public EnumRegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<TEnum, TEnum> readCallback,
-                Action<TEnum, TEnum> writeCallback, Action<TEnum, TEnum> changeCallback, Func<TEnum, TEnum> valueProviderCallback)
-                : base(parent, position, width, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback)
+                Action<TEnum, TEnum> writeCallback, Action<TEnum, TEnum> changeCallback, Func<TEnum, TEnum> valueProviderCallback, string name)
+                : base(parent, position, width, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback, name)
             {
             }
 
@@ -68,8 +68,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         private sealed class FlagRegisterField : RegisterField<bool>, IFlagRegisterField
         {
             public FlagRegisterField(PeripheralRegister parent, int position, FieldMode fieldMode, Action<bool, bool> readCallback,
-                Action<bool, bool> writeCallback, Action<bool, bool> changeCallback, Func<bool, bool> valueProviderCallback)
-                : base(parent, position, 1, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback)
+                Action<bool, bool> writeCallback, Action<bool, bool> changeCallback, Func<bool, bool> valueProviderCallback, string name)
+                : base(parent, position, 1, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback, name)
             {
             }
 
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
 
             protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<T, T> readCallback,
-                Action<T, T> writeCallback, Action<T, T> changeCallback, Func<T, T> valueProviderCallback) : base(parent, position, width, fieldMode)
+                Action<T, T> writeCallback, Action<T, T> changeCallback, Func<T, T> valueProviderCallback, string name) : base(parent, position, width, fieldMode, name)
             {
                 if(!fieldMode.IsReadable() && valueProviderCallback != null)
                 {
@@ -186,9 +186,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
             public readonly int position;
             public readonly int width;
+            public readonly string name;
             public readonly FieldMode fieldMode;
 
-            protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode)
+            protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, string name)
             {
                 if(!fieldMode.IsValid())
                 {
@@ -198,6 +199,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 this.position = position;
                 this.fieldMode = fieldMode;
                 this.width = width;
+                this.name = name;
             }
 
             protected ulong FilterValue(ulong value)

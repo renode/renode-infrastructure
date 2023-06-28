@@ -499,7 +499,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             string name = null)
         {
             ThrowIfRangeIllegal(position, 1, name);
-            var field = new FlagRegisterField(this, position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
+            var field = new FlagRegisterField(this, position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
@@ -531,7 +531,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             ThrowIfRangeIllegal(position, width, name);
             ThrowIfZeroWidth(position, width, name);
-            var field = new ValueRegisterField(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
+            var field = new ValueRegisterField(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
@@ -564,7 +564,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             ThrowIfRangeIllegal(position, width, name);
             ThrowIfZeroWidth(position, width, name);
-            var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback);
+            var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
