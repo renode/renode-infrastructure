@@ -21,7 +21,9 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType,
             bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID,
-            byte deviceConfiguration = DefaultDeviceConfiguration, byte remainingIdBytes = DefaultRemainingIDBytes)
+            byte deviceConfiguration = DefaultDeviceConfiguration, byte remainingIdBytes = DefaultRemainingIDBytes,
+            // "Sector" here is the largest erasable memory unit. It's also named "block" by many flash memory vendors.
+            int sectorSizeKB = DefaultSectorSizeKB)
         {
             if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
@@ -48,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(3, 1)
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "ProgramOrErase");
 
+            sectorSize = sectorSizeKB.KB();
             this.underlyingMemory = underlyingMemory;
             underlyingMemory.ResetByte = EmptySegment;
 
@@ -184,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         protected Range lockedRange;
 
-        protected readonly int sectorSize = 64.KB();
+        protected readonly int sectorSize;
         protected readonly ByteRegister statusRegister;
         protected readonly WordRegister configurationRegister;
 
@@ -679,6 +682,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const byte DefaultRemainingIDBytes = 0x10;
         private const byte DefaultExtendedDeviceID = DeviceGeneration << 6;
         private const byte DefaultDeviceConfiguration = 0x0;   // standard
+        private const int DefaultSectorSizeKB = 64;
 
         // Dummy SFDP header: 0 parameter tables, one empty required
         private readonly byte[] DefaultSFDPSignature = new byte[]
