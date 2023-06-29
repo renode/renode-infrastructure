@@ -16,7 +16,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         public Cypress_S25H(MappedMemory underlyingMemory, S25HxFamily memoryFamily = S25HxFamily.HS_T)
             : base(underlyingMemory, manufacturerId: ManufacturerId, memoryType: (byte)memoryFamily,
                    writeStatusCanSetWriteEnable: true, extendedDeviceId: ExtendedDeviceID,
-                   remainingIdBytes: RemainingIDBytes, deviceConfiguration: DeviceConfiguration)
+                   remainingIdBytes: RemainingIDBytes, deviceConfiguration: DeviceConfiguration,
+                   sectorSizeKB: SectorSizeKB)
         {
             if(underlyingMemory.Size < 32.MB() || underlyingMemory.Size > 128.MB())
             {
@@ -97,6 +98,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const byte RemainingIDBytes = 0x0F;
         private const byte ExtendedDeviceID = 0x03;
         private const byte DeviceConfiguration = 0x90;
+        private const int SectorSizeKB = 256;
 
         private readonly byte[] DefaultSFDPSignature = new byte[]
         {
