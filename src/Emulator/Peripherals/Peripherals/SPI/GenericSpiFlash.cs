@@ -184,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         protected Range lockedRange;
 
-        protected readonly int SectorSize = 64.KB();
+        protected readonly int sectorSize = 64.KB();
         protected readonly ByteRegister statusRegister;
         protected readonly WordRegister configurationRegister;
 
@@ -559,7 +559,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                                 EraseSegment(32.KB());
                                 break;
                             case DecodedOperation.OperationEraseSize.Sector:
-                                EraseSegment(SectorSize);
+                                EraseSegment(sectorSize);
                                 break;
                             case DecodedOperation.OperationEraseSize.Die:
                                 EraseDie();

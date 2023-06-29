@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             var protectedSectorCount = 1 << protectedSectorShift;
 
             // Protected sectors can cover the whole flash.
-            var protectedSize = Math.Min(SectorSize * protectedSectorCount, UnderlyingMemory.Size);
+            var protectedSize = Math.Min(sectorSize * protectedSectorCount, UnderlyingMemory.Size);
             var start = topBottom.Value ? 0 : UnderlyingMemory.Size - protectedSize;
             lockedRange = new Range((ulong)start, (ulong)protectedSize);
         }
