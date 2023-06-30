@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -595,9 +595,10 @@ namespace Antmicro.Renode.Core.Extensions
         private static void LogNotTranslated(IBusPeripheral peripheral, SysbusAccessWidth operationWidth, long address, ulong? value = null)
         {
             var strBldr = new StringBuilder();
-            strBldr.AppendFormat("Attempt to {0} {1} from peripheral that doesn't support {1} interface.", value.HasValue ? "write" : "read", operationWidth);
+            var isWrite = value.HasValue;
+            strBldr.AppendFormat("Attempted {0} {1} isn't supported by the peripheral.", operationWidth, isWrite ? "write" : "read");
             strBldr.AppendFormat(" Offset 0x{0:X}", address);
-            if(value.HasValue)
+            if(isWrite)
             {
                 strBldr.AppendFormat(", value 0x{0:X}", value.Value);
             }
