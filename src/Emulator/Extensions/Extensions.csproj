@@ -179,6 +179,7 @@
     <Compile Include="Hooks\InterruptPythonEngine.cs" />
     <Compile Include="UserInterface\InlineImage.cs" />
     <Compile Include="HostInterfaces\Camera\HostCamera.cs" />
+    <Compile Include="Utilities\GDB\Commands\DetachCommand.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
