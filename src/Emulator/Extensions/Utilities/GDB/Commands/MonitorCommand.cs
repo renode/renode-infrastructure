@@ -59,9 +59,15 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 output = null;
                 ok = true;
 
-                switch(input)
+                var argv = input.Split(new [] { ' ' });
+                switch(argv.FirstOrDefault())
                 {
-                case "reset init":
+                case "reset":
+                    if(argv.ElementAtOrDefault(1) != "init")
+                    {
+                        ok = false;
+                        return true;
+                    }
                     manager.Machine.Pause();
                     manager.Machine.Reset();
                     break;
