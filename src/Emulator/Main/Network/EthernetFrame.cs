@@ -138,6 +138,9 @@ namespace Antmicro.Renode.Network
         // padding the selected value is a compromise
         public static int MinFrameSizeWithoutCRC = 18;
         public static int CRCLength = 4;
+        // 1500 byte upper layer IP packet with 14 byte frame header and 4 byte frame trailer
+        public static readonly int MaximumFrameSize = 1518;
+        public static readonly int RuntPacketMaximumSize = 63;
 
         private EthernetFrame(byte[] data, byte[] crc = null)
         {
