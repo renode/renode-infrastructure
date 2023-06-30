@@ -18,14 +18,28 @@ namespace Antmicro.Renode.Utilities.GDB
 {
     public abstract class Command : IAutoLoadType
     {
-        public static PacketData Execute(Command command, Packet packet)
+        public static IEnumerable<PacketData> Execute(Command command, Packet packet)
         {
             var executeMethod = GetExecutingMethod(command, packet);
             var mnemonic = packet.Data.Mnemonic;
             var parsingContext = new ParsingContext(packet, mnemonic.Length);
             var parameters = executeMethod.GetParameters().Select(x => HandleArgumentNotResolved(parsingContext, x)).ToArray();
 
-            return (PacketData)executeMethod.Invoke(command, parameters);
+            var result = executeMethod.Invoke(command, parameters);
+            if(result == null)
+            {
+                return Enumerable.Empty<PacketData>();
+            }
+            else if(result is IEnumerable<PacketData> resultPackets)
+            {
+                return resultPackets;
+            }
+            else if(result is PacketData resultPacket)
+            {
+                return new [] { resultPacket };
+            }
+            throw new ArgumentOutOfRangeException("result",
+                $"Result of GDB command method was of invalid type '{result.GetType().FullName}'");
         }
 
         public static MethodInfo[] GetExecutingMethods(Type t)

@@ -188,10 +188,10 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
                 else
                 {
-                    PacketData packetData;
+                    IEnumerable<PacketData> packetDatas;
                     try
                     {
-                        packetData = Command.Execute(command, result.Packet);
+                        packetDatas = Command.Execute(command, result.Packet);
                     }
                     catch(Exception e)
                     {
@@ -210,8 +210,8 @@ namespace Antmicro.Renode.Utilities.GDB
                         ctx.Send(new Packet(PacketData.ErrorReply(Error.Unknown)));
                         return;
                     }
-                    // null means that we will respond later with Stop Reply Response
-                    if(packetData != null)
+                    // If there is no data here, we will respond later with Stop Reply Response
+                    foreach(var packetData in packetDatas)
                     {
                         ctx.Send(new Packet(packetData));
                     }
