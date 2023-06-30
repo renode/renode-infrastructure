@@ -9,6 +9,7 @@ using Antmicro.Renode.UserInterface;
 using ELFSharp.ELF;
 using System.Text;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -20,7 +21,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
 
         [Execute("qRcmd,")]
-        public PacketData Run([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexString)]string arg)
+        public IEnumerable<PacketData> Run([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexString)]string arg)
         {
             if(!openOcdOverlay.TryProcess(arg, out var result))
             {
@@ -32,7 +33,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     : eater.GetContents();
             }
 
-            return (string.IsNullOrEmpty(result)) ? PacketData.Success : new PacketData(string.Join(string.Empty, Encoding.UTF8.GetBytes(result).Select(x => x.ToString("X2"))));
+            var consoleOutput = string.IsNullOrEmpty(result) ? null : string.Join(string.Empty, Encoding.UTF8.GetBytes(result).Select(x => x.ToString("X2")).Prepend("O"));
+            if(consoleOutput != null)
+            {
+                return new [] { new PacketData(consoleOutput), PacketData.Success };
+            }
+            return new [] { PacketData.Success };
         }
 
         private readonly OpenOcdOverlay openOcdOverlay;
