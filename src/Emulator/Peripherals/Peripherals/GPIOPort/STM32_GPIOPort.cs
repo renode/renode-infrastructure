@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,13 +10,14 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
-    public class STM32_GPIOPort : BaseGPIOPort, IDoubleWordPeripheral
+    public class STM32_GPIOPort : BaseGPIOPort, IDoubleWordPeripheral, ILocalGPIOReceiver
     {
         public STM32_GPIOPort(Machine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0) : base(machine, NumberOfPins)
         {
@@ -27,6 +28,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             this.modeResetValue = modeResetValue;
             this.outputSpeedResetValue = outputSpeedResetValue;
             this.pullUpPullDownResetValue = pullUpPullDownResetValue;
+
+            alternateFunctionOutputs = new GPIOAlternateFunction[NumberOfPins];
+            for(var i = 0; i < NumberOfPins; i++)
+            {
+                alternateFunctionOutputs[i] = new GPIOAlternateFunction(this, i);
+            }
 
             registers = CreateRegisters();
             Reset();
@@ -39,7 +46,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             for(var i = 0; i < NumberOfPins; i++)
             {
-                mode[i] = (Mode)BitHelper.GetValue(modeResetValue, 2 * i, 2);
+                // Reset AF outputs before resetting pin modes as changing pin mode can affect whether AF is connected or not.
+                alternateFunctionOutputs[i].Reset();
+                ChangeMode(i, (Mode)BitHelper.GetValue(modeResetValue, 2 * i, 2));
                 outputSpeed[i] = (OutputSpeed)BitHelper.GetValue(outputSpeedResetValue, 2 * i, 2);
                 pullUpPullDown[i] = (PullUpPullDown)BitHelper.GetValue(pullUpPullDownResetValue, 2 * i, 2);
             }
@@ -61,24 +70,37 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Connections[number].Set(value);
         }
 
+        public IGPIOReceiver GetLocalReceiver(int pin)
+        {
+            if(pin < 0 || pin >= NumberOfPins)
+            {
+                throw new RecoverableException($"This peripheral supports GPIO inputs from 0 to {NumberOfPins}, but {pin} was called.");
+            }
+
+            return alternateFunctionOutputs[pin];
+        }
+
+        private void WritePin(int number, bool value)
+        {
+            State[number] = value;
+            Connections[number].Set(value);
+        }
+
         private void WriteState(ushort value)
         {
             for(var i = 0; i < NumberOfPins; i++)
             {
                 var state = ((value & 1u) == 1);
-
-                State[i] = state;
-                if(state)
-                {
-                    Connections[i].Set();
-                }
-                else
-                {
-                    Connections[i].Unset();
-                }
+                WritePin(i, state);
 
                 value >>= 1;
             }
+        }
+
+        private void ChangeMode(int number, Mode newMode)
+        {
+            mode[number] = newMode;
+            alternateFunctionOutputs[number].IsConnected = newMode == Mode.AlternateFunction;
         }
 
         private DoubleWordRegisterCollection CreateRegisters()
@@ -88,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.Mode, new DoubleWordRegister(this)
                     .WithEnumFields<DoubleWordRegister, Mode>(0, 2, NumberOfPins, name: "MODER",
                         valueProviderCallback: (idx, _) => mode[idx],
-                        writeCallback: (idx, _, val) => { mode[idx] = val; })
+                        writeCallback: (idx, _, val) => ChangeMode(idx, val))
                 },
                 {(long)Registers.OutputType, new DoubleWordRegister(this)
                     .WithTaggedFlag("OT0", 0)
@@ -156,24 +178,72 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(17, 15)
                 },
                 {(long)Registers.AlternateFunctionLow, new DoubleWordRegister(this)
-                    .WithTag("AFSEL0", 0, 4)
-                    .WithTag("AFSEL1", 4, 4)
-                    .WithTag("AFSEL2", 8, 4)
-                    .WithTag("AFSEL3", 12, 4)
-                    .WithTag("AFSEL4", 16, 4)
-                    .WithTag("AFSEL5", 20, 4)
-                    .WithTag("AFSEL6", 24, 4)
-                    .WithTag("AFSEL7", 28, 4)
+                    .WithValueField(0, 4, name: "AFSEL0",
+                            writeCallback: (_, val) => alternateFunctionOutputs[0].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[0].ActiveFunction
+                        )
+                    .WithValueField(4, 4, name: "AFSEL1",
+                            writeCallback: (_, val) => alternateFunctionOutputs[1].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[1].ActiveFunction
+                        )
+                    .WithValueField(8, 4, name: "AFSEL2",
+                            writeCallback: (_, val) => alternateFunctionOutputs[2].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[2].ActiveFunction
+                        )
+                    .WithValueField(12, 4, name: "AFSEL3",
+                            writeCallback: (_, val) => alternateFunctionOutputs[3].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[3].ActiveFunction
+                        )
+                    .WithValueField(16, 4, name: "AFSEL4",
+                            writeCallback: (_, val) => alternateFunctionOutputs[4].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[4].ActiveFunction
+                        )
+                    .WithValueField(20, 4, name: "AFSEL5",
+                            writeCallback: (_, val) => alternateFunctionOutputs[5].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[5].ActiveFunction
+                        )
+                    .WithValueField(24, 4, name: "AFSEL6",
+                            writeCallback: (_, val) => alternateFunctionOutputs[6].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[6].ActiveFunction
+                        )
+                    .WithValueField(28, 4, name: "AFSEL7",
+                            writeCallback: (_, val) => alternateFunctionOutputs[7].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[7].ActiveFunction
+                        )
                 },
                 {(long)Registers.AlternateFunctionHigh, new DoubleWordRegister(this)
-                    .WithTag("AFSEL8", 0, 4)
-                    .WithTag("AFSEL9", 4, 4)
-                    .WithTag("AFSEL10", 8, 4)
-                    .WithTag("AFSEL11", 12, 4)
-                    .WithTag("AFSEL12", 16, 4)
-                    .WithTag("AFSEL13", 20, 4)
-                    .WithTag("AFSEL14", 24, 4)
-                    .WithTag("AFSEL15", 28, 4)
+                    .WithValueField(0, 4, name: "AFSEL8",
+                            writeCallback: (_, val) => alternateFunctionOutputs[8].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[8].ActiveFunction
+                        )
+                    .WithValueField(4, 4, name: "AFSEL9",
+                            writeCallback: (_, val) => alternateFunctionOutputs[9].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[9].ActiveFunction
+                        )
+                    .WithValueField(8, 4, name: "AFSEL10",
+                            writeCallback: (_, val) => alternateFunctionOutputs[10].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[10].ActiveFunction
+                        )
+                    .WithValueField(12, 4, name: "AFSEL11",
+                            writeCallback: (_, val) => alternateFunctionOutputs[11].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[11].ActiveFunction
+                        )
+                    .WithValueField(16, 4, name: "AFSEL12",
+                            writeCallback: (_, val) => alternateFunctionOutputs[12].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[12].ActiveFunction
+                        )
+                    .WithValueField(20, 4, name: "AFSEL13",
+                            writeCallback: (_, val) => alternateFunctionOutputs[13].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[13].ActiveFunction
+                        )
+                    .WithValueField(24, 4, name: "AFSEL14",
+                            writeCallback: (_, val) => alternateFunctionOutputs[14].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[14].ActiveFunction
+                        )
+                    .WithValueField(28, 4, name: "AFSEL15",
+                            writeCallback: (_, val) => alternateFunctionOutputs[15].ActiveFunction = val,
+                            valueProviderCallback: _ => alternateFunctionOutputs[15].ActiveFunction
+                        )
                 },
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Write, 
@@ -195,7 +265,74 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private readonly DoubleWordRegisterCollection registers;
 
+        // NOTE: This array holds connections from AFs to specific GPIO pins.
+        // From the PoV of this peripheral they're inputs,
+        // however they represent the output pins of this peripheral hence the name.
+        private readonly GPIOAlternateFunction[] alternateFunctionOutputs;
+        // TODO: AF inputs
+
         private const int NumberOfPins = 16;
+        private const int NumberOfAFs = 8;
+
+        private class GPIOAlternateFunction : IGPIOReceiver
+        {
+            public GPIOAlternateFunction(STM32_GPIOPort port, int pin)
+            {
+                this.port = port;
+                this.pin = pin;
+
+                Reset();
+            }
+
+            public void Reset()
+            {
+                IsConnected = false;
+                ActiveFunction = 0;
+            }
+
+            public void OnGPIO(int number, bool value)
+            {
+                if(!CheckAFNumber(number) || !IsConnected || number != activeFunction)
+                {
+                    // Don't emit any log as it is valid to receive signals from AFs when they are not active.
+                    // All alternate function sources are always connected and always sending signals.
+                    // The GPIO configuration then decides whether those are connected
+                    // to GPIO input/output or are simply ingored.
+                    return;
+                }
+
+                port.WritePin(pin, value);
+            }
+
+            public bool IsConnected { get; set; }
+            public ulong ActiveFunction
+            {
+                get => (ulong)activeFunction;
+                set
+                {
+                    var val = (int)value;
+
+                    if(CheckAFNumber(val))
+                    {
+                        activeFunction = val;
+                    }
+                }
+            }
+
+            private bool CheckAFNumber(int number)
+            {
+                if(number < 0 || number >= NumberOfAFs)
+                {
+                    this.Log(LogLevel.Error, "Alternate function number must be between 0 and {0}, but {1} was given instead.", NumberOfAFs, number);
+                    return false;
+                }
+                return true;
+            }
+
+            private readonly STM32_GPIOPort port;
+            private readonly int pin;
+            private int activeFunction;
+        }
 
         private enum Mode
         {
