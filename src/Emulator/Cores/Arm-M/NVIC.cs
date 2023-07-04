@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
-        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8)
+        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8, bool haltSystickOnDeepSleep = true)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.priorityMask = priorityMask;
             this.cpuId = cpuId;
             this.numberOfMPURegions = numberOfMPURegions;
+            this.haltSystickOnDeepSleep = haltSystickOnDeepSleep;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
             resetMachine = machine.RequestReset;
@@ -274,9 +275,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     this.Log(LogLevel.Warning, "Unhandled value written to System Control Register: 0x{0:X}.", unknownFlags);
                 }
-                if(deepSleep)
+                if(deepSleep && haltSystickOnDeepSleep)
                 {
                     systick.Enabled = false;
+                    // Clean Pending Status of SysTick IRQ when it is set,
+                    // otherwise, we would be instantly waken up.
+                    // This SysTick IRQ status isn't restored on exit from deep-sleep,
+                    // system needs to account for this.
+                    var sysTickIRQ = irqs[15];
+                    if((sysTickIRQ & IRQState.Pending) > 0)
+                    {
+                        sysTickIRQ &= ~IRQState.Pending;
+                        pendingIRQs.Remove(15);
+                        // call 'FindPendingInterrupt' to update 'maskedInterruptPresent'
+                        // this variable is used to wake up CPU in tlib
+                        FindPendingInterrupt();
+                    }
                     this.NoisyLog("Entering deep sleep");
                 }
 
@@ -893,6 +907,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint ccr = 0x10000;
 
         private bool eventEnabled;
+        private readonly bool haltSystickOnDeepSleep;
         private bool countFlag;
         private byte priorityMask;
         private bool currentSevOnPending;
