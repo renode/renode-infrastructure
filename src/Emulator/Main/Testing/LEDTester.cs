@@ -223,9 +223,11 @@ namespace Antmicro.Renode.Testing
             ValidateArgument(offDuration, nameof(offDuration));
             var emulation = EmulationManager.Instance.CurrentEmulation;
             AutoResetEvent emulationPausedEvent = null;
+            var stateChanged = false;
             var patternMismatchEvent = new ManualResetEvent(false);
             var method = MakeStateChangeHandler((currState, dt) =>
             {
+                stateChanged = true;
                 // currState is after a switch, so when it's high we need to check the off duration
                 var expectedDuration = currState ? offDuration : onDuration;
                 if(!IsInRange(dt.TotalSeconds, expectedDuration, tolerance))
@@ -239,11 +241,15 @@ namespace Antmicro.Renode.Testing
                 led.StateChanged += method;
                 var timeoutEvent = GetTimeoutEvent((ulong)(testDuration * 1000), MakePauseRequest(emulation, pauseEmulation));
                 emulationPausedEvent = StartEmulationAndGetPausedEvent(emulation, pauseEmulation);
-                WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, patternMismatchEvent } );
+                var eventIdx = WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, patternMismatchEvent } );
 
-                if(!timeoutEvent.IsTriggered)
+                if(!stateChanged)
                 {
-                    throw new InvalidOperationException("Expected blinking pattern not detected");
+                    throw new InvalidOperationException("Expected blinking pattern not detected (LED state never changed)");
+                }
+                if(eventIdx == 1)
+                {
+                    throw new InvalidOperationException("Expected blinking pattern not detected (State duration was out of specified range)");
                 }
             }
             finally
