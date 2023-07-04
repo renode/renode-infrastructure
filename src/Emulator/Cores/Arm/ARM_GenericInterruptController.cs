@@ -563,6 +563,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var controlRegister = new DoubleWordRegister(this)
                 .WithFlag(31, FieldMode.Read, name: "RegisterWritePending", valueProviderCallback: _ => false);
 
+            Action<bool, bool> warnOnEnablingAffinityRouting = (_, newValue) => { if(newValue) this.Log(LogLevel.Warning, "Affinity routing isn't currently supported"); };
+
             if(accessForDisabledSecurity)
             {
                 controlRegister
@@ -571,7 +573,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithFlag(7, FieldMode.Read, name: "Enable1ofNWakeup", valueProviderCallback: _ => false) // There is no support for waking up
                     .WithFlag(6, FieldMode.Read, name: "DisableSecurity", valueProviderCallback: _ => true)
                     .WithReservedBits(5, 1)
-                    .WithTaggedFlag("EnableAffinityRouting", 4)
+                    // Bit 4 is a flag only to support read-after-write behaviour in software.
+                    .WithFlag(4, name: "EnableAffinityRouting", writeCallback: warnOnEnablingAffinityRouting)
                     .WithReservedBits(2, 2)
                     .WithFlag(1, name: "EnableGroup1",
                         writeCallback: (_, val) => groups[GroupType.Group1].Enabled = val,
@@ -590,8 +593,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithFlag(6, name: "DisableSecurity",
                         writeCallback: (_, val) => DisabledSecurity = val,
                         valueProviderCallback: _ => DisabledSecurity)
-                    .WithTaggedFlag("EnableAffinityRoutingNonSecure", 5)
-                    .WithTaggedFlag("EnableAffinityRoutingSecure", 4)
+                    // Bits 4-5 are flags only to support read-after-write behaviour in software.
+                    .WithFlag(5, name: "EnableAffinityRoutingNonSecure", writeCallback: warnOnEnablingAffinityRouting)
+                    .WithFlag(4, name: "EnableAffinityRoutingSecure", writeCallback: warnOnEnablingAffinityRouting)
                     .WithReservedBits(3, 1)
                     .WithFlag(2, name: "EnableGroup1Secure",
                         writeCallback: (_, val) => groups[GroupType.Group1Secure].Enabled = val,
@@ -610,7 +614,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 controlRegister
                     .WithReservedBits(5, 26)
-                    .WithTaggedFlag("EnableAffinityRoutingNonSecure", 4)
+                    // Bit 4 is a flag only to support read-after-write behaviour in software.
+                    .WithFlag(4, name: "EnableAffinityRoutingNonSecure", writeCallback: warnOnEnablingAffinityRouting)
                     .WithReservedBits(2, 2)
                     .WithFlag(1, name: "EnableGroup1NonSecureAlias",
                         writeCallback: (_, val) => groups[GroupType.Group1NonSecure].Enabled = val,
