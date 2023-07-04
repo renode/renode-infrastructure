@@ -658,16 +658,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                     .WithTaggedFlag("LocalitySpecificInterruptEnable", 0)
                 },
-                {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this)
-                    .WithTaggedFlag("WakeImplementationDefined", 31)
+                {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this, 0x3)
+                    // "There is only one GICR_WAKER.Sleep and one GICR_WAKER.Quiescent bit that can be read and written through the GICR_WAKER register of any Redistributor."
+                    .WithTaggedFlag("Quiescent", 31)
                     .WithReservedBits(3, 28)
                     .WithFlag(2, FieldMode.Read, name: "ChildrenAsleep",
-                        valueProviderCallback: _ => false
+                        valueProviderCallback: _ => processorSleep.Value
                     )
-                    .WithFlag(1, FieldMode.Read, name: "ProcessorSleep",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithTaggedFlag("WakeImplementationDefined", 0)
+                    .WithFlag(1, out processorSleep, name: "ProcessorSleep")
+                    .WithTaggedFlag("Sleep", 0)
                 },
                 {(long)RedistributorRegisters.PeripheralIdentification2, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
@@ -1349,6 +1348,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool ackControl;
         private bool enableFIQ;
         private bool disabledSecurity;
+
+        // This field should be redistributor-specific.
+        private IFlagRegisterField processorSleep;
 
         private readonly Object locker = new Object();
         private readonly Dictionary<uint, CPUEntry> cpuEntries;
