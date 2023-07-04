@@ -649,6 +649,11 @@ namespace Antmicro.Renode.UserInterface
             return success;
         }
 
+        public object ExecutePythonCommand(string command)
+        {
+            return pythonRunner.ExecutePythonCommand(command, Interaction);
+        }
+
         private bool TryGetFilenameFromAvailablePaths(string fileName, out string fullPath)
         {
             fullPath = String.Empty;
