@@ -187,7 +187,7 @@ namespace Antmicro.Renode.Utilities.Binding
             foreach (var field in importFields)
             {
                 var attribute = (ImportAttribute)field.GetCustomAttributes(false).First(x => x is ImportAttribute);
-                var cName = attribute.Name ?? GetCName(field.Name, attribute.UseExceptionWrapper);
+                var cName = GetWrappedName(attribute.Name ?? GetCName(field.Name), attribute.UseExceptionWrapper);
                 classToBind.NoisyLog(string.Format("(NativeBinder) Binding {1} as {0}.", field.Name, cName));
                 Delegate result = null;
                 try
@@ -360,7 +360,7 @@ namespace Antmicro.Renode.Utilities.Binding
             return result;
         }
 
-        private static string GetCName(string name, bool useExceptionWrapper)
+        private static string GetCName(string name)
         {
             var lastCapitalChar = 0;
             var cName = name.GroupBy(x =>
@@ -373,12 +373,17 @@ namespace Antmicro.Renode.Utilities.Binding
             }).Select(x => x.Aggregate(string.Empty, (y, z) => y + char.ToLower(z))).
                 Aggregate((x, y) => x + "_" + y);
 
+            return cName;
+        }
+
+        private static string GetWrappedName(string name, bool useExceptionWrapper)
+        {
             if(useExceptionWrapper)
             {
-                cName += "_ex"; // Bind to exception wrapper instead of inner function
+                return name + "_ex"; // Bind to exception wrapper instead of inner function
             }
 
-            return cName;
+            return name;
         }
 
         private static string GetCSharpName(string name)
