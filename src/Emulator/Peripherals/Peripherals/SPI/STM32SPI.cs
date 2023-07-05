@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.Control2.Define(registers)
                 .WithFlag(0, out rxDmaEnable, name: "RXDMAEN")
-                .WithFlag(1, out txDmaEnable, name: "TXDMAEN")
+                .WithTaggedFlag("TXDMAEN", 1)
                 .WithTaggedFlag("SSOE", 2)
                 .WithReservedBits(3, 1)
                 .WithTaggedFlag("FRF", 4)
@@ -237,7 +237,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private DoubleWordRegisterCollection registers;
-        private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, txDmaEnable, rxDmaEnable;
+        private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
 
         private readonly CircularBuffer<byte> receiveBuffer;
 
