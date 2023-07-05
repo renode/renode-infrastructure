@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("BIDIMODE", 15);
 
             Registers.Control2.Define(registers)
-                .WithFlag(0, out rxDmaEnable, writeCallback: (_, __) => Update(), name: "RXDMAEN")
+                .WithFlag(0, out rxDmaEnable, name: "RXDMAEN")
                 .WithFlag(1, out txDmaEnable, name: "TXDMAEN")
                 .WithTaggedFlag("SSOE", 2)
                 .WithReservedBits(3, 1)
@@ -179,7 +179,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("ERRIE", 5)
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
                 .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE")
-                .WithReservedBits(8, 24);
+                .WithReservedBits(8, 24)
+                .WithWriteCallback((_, __) => Update());
 
             Registers.Status.Define(registers, 2)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RXNE")
