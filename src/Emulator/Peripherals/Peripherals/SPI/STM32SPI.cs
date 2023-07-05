@@ -88,11 +88,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        public GPIO IRQ
-        {    
-            get;
-            private set;
-        }
+        public GPIO IRQ { get; }
 
         private uint HandleDataRead()
         {
