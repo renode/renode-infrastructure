@@ -10,6 +10,8 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -47,6 +49,35 @@ namespace Antmicro.Renode.Peripherals.Network
         public void WriteDoubleWordToDMA(long offset, uint value)
         {
             Write<RegistersDMA>(dmaRegisters, "DMA", offset, value);
+        }
+
+        [UiAccessible]
+        public string[,] GetCoutersInfo()
+        {
+            var table = new Table();
+            table.AddRow("Name", "Value");
+            table.AddRow(nameof(txByteCounter), Convert.ToString(txByteCounter.Value));
+            table.AddRow(nameof(txPacketCounter), Convert.ToString(txPacketCounter.Value));
+            table.AddRow(nameof(txUnicastPacketCounter), Convert.ToString(txUnicastPacketCounter.Value));
+            table.AddRow(nameof(txMulticastPacketCounter), Convert.ToString(txMulticastPacketCounter.Value));
+            table.AddRow(nameof(txBroadcastPacketCounter), Convert.ToString(txBroadcastPacketCounter.Value));
+            table.AddRow(nameof(txGoodByteCounter), Convert.ToString(txGoodByteCounter.Value));
+            table.AddRow(nameof(txGoodPacketCounter), Convert.ToString(txGoodPacketCounter.Value));
+            table.AddRow(nameof(rxPacketCounter), Convert.ToString(rxPacketCounter.Value));
+            table.AddRow(nameof(rxByteCounter), Convert.ToString(rxByteCounter.Value));
+            table.AddRow(nameof(rxGoodByteCounter), Convert.ToString(rxGoodByteCounter.Value));
+            table.AddRow(nameof(rxBroadcastPacketCounter), Convert.ToString(rxBroadcastPacketCounter.Value));
+            table.AddRow(nameof(rxMulticastPacketCounter), Convert.ToString(rxMulticastPacketCounter.Value));
+            table.AddRow(nameof(rxCrcErrorPacketCounter), Convert.ToString(rxCrcErrorPacketCounter.Value));
+            table.AddRow(nameof(rxUnicastPacketCounter), Convert.ToString(rxUnicastPacketCounter.Value));
+            table.AddRow(nameof(rxFifoPacketCounter), Convert.ToString(rxFifoPacketCounter.Value));
+            for(var i = 0; i < NumberOfIpcCounters; i++)
+            {
+                var name = (IpcCounter)i;
+                table.AddRow($"IPC {name} Packets", Convert.ToString(rxIpcPacketCounter[i].Value));
+                table.AddRow($"IPC {name} Bytes", Convert.ToString(rxIpcByteCounter[i].Value));
+            }
+            return table.ToArray();
         }
 
         // This property works similar to `sysbus LogPeripheralAccess` command,
