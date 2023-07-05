@@ -241,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.Network
                             writeBackStructure.payloadType = PayloadType.TCP;
                             break;
                         case IPProtocolType.ICMP:
+                        case IPProtocolType.ICMPV6:
                             writeBackStructure.payloadType = PayloadType.ICMP;
                             break;
                         case IPProtocolType.IGMP:
