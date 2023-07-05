@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
+            DMARecieve = new GPIO();
             registers = new DoubleWordRegisterCollection(this);
             SetupRegisters();
             Reset();
@@ -74,6 +75,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public override void Reset()
         {
             IRQ.Unset();
+            DMARecieve.Unset();
             lock(receiveBuffer)
             {
                 receiveBuffer.Clear();
@@ -90,6 +92,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public GPIO IRQ { get; }
+
+        public GPIO DMARecieve { get; }
 
         private uint HandleDataRead()
         {
@@ -122,6 +126,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }
                 var response = peripheral.Transmit((byte)value); // currently byte mode is the only one we support
                 receiveBuffer.Enqueue(response);
+                if(rxDmaEnable.Value)
+                {
+                    // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
+                    // Without this signal DMA will never move data from the receive buffer to memory
+                    // See STM32DMA:OnGPIO
+                    DMARecieve.Blink();
+                }
                 this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
             }
             Update();
