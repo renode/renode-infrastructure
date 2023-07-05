@@ -132,8 +132,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             var rxBufferNotEmpty = receiveBuffer.Count != 0;
             var rxBufferNotEmptyInterruptFlag = rxBufferNotEmpty && rxBufferNotEmptyInterruptEnable.Value;
 
-            // TODO: verify the DMA conditions
-            IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptFlag || txDmaEnable.Value || rxDmaEnable.Value);
+            IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptFlag);
         }
 
         private void SetupRegisters()
