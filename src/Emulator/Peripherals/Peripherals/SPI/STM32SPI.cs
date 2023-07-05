@@ -73,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public override void Reset()
         {
+            IRQ.Unset();
             lock(receiveBuffer)
             {
                 receiveBuffer.Clear();
