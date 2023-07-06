@@ -196,6 +196,14 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // AT&W - Save Current Parameters to NVRAM
+        [AtCommand("AT&W")]
+        protected virtual Response Atw()
+        {
+            EchoEnabledAtReset = echoEnabled;
+            return Ok;
+        }
+
         protected bool Enabled { get; set; }
         protected bool PassthroughMode { get; set; }
 

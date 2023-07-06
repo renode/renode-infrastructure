@@ -151,13 +151,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // AT&W - Save Current Parameters to NVRAM
         [AtCommand("AT&W")]
-        protected virtual Response Atw()
+        protected override Response Atw()
         {
             var d = 200UL;
             ExecuteWithDelay(() => SendString("+CSCON: 1"), d += 2000); // CSCON: 1 -> signaling connection active
             ExecuteWithDelay(() => SendString(CeregContent(true)), d += 100);
             ExecuteWithDelay(() => SendString($"+IP: {NetworkIp}"), d += 1000); // IP URC means successfully registered
-            return Ok; // stub
+            return base.Atw();
         }
 
         // CEDRXS - eDRX Setting
