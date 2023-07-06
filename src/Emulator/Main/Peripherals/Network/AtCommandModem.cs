@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             Enabled = true;
             PassthroughMode = false;
-            echoEnabled = true;
+            echoEnabled = EchoEnabledAtReset;
             lineBuffer = new StringBuilder();
         }
 
@@ -96,6 +96,8 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public abstract void PassthroughWriteChar(byte value);
+
+        public bool EchoEnabledAtReset { get; set; } = true;
 
         public virtual uint BaudRate { get; protected set; } = 115200;
 
