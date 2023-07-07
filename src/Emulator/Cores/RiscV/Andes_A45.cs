@@ -101,6 +101,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             */
         }
 
+        /*
         private ulong LogUnhandledCSRRead(string name)
         {
             this.Log(LogLevel.Error, "Reading from an unsupported CSR {0}", name);
@@ -450,5 +451,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             HardwareLoop1End = 0x7d5,
             HardwareLoop1Counter = 0x7d6
         }
+        */
     }
 }
