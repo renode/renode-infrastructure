@@ -62,6 +62,7 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             if(timestamp < currentBlock.StartTime)
             {
+                Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns, before the start time of the current block", timestamp);
                 sample = null;
                 return RESDStreamStatus.BeforeStream;
             }
@@ -80,13 +81,16 @@ namespace Antmicro.Renode.Utilities.RESD
                 switch(currentBlock.TryGetSample(timestamp, out sample))
                 {
                     case RESDStreamStatus.BeforeStream:
+                        Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns, before the first sample in the block", timestamp);
                         sample = null;
                         return RESDStreamStatus.BeforeStream;
                     case RESDStreamStatus.OK:
                         // Just return sample
+                        Owner?.Log(LogLevel.Debug, "RESD: Getting sample at timestamp {0}ns: {1}", timestamp, sample);
                         return RESDStreamStatus.OK;
                     case RESDStreamStatus.AfterStream:
                         // Find next block
+                        Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns after the last sample of the current block", timestamp);
                         currentBlock = null;
                         continue;
                 }
@@ -94,6 +98,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 return RESDStreamStatus.OK;
             }
 
+            Owner?.Log(LogLevel.Debug, "RESD: That was the last block of the file");
             sample = null;
             return RESDStreamStatus.AfterStream;
         }
@@ -107,6 +112,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 var timestampInNanoseconds = timestamp.TotalMicroseconds * 1000;
                 timestampInNanoseconds = sampleOffsetTime > 0 ? timestampInNanoseconds + (ulong)sampleOffsetTime : timestampInNanoseconds - (ulong)(-sampleOffsetTime);
                 var status = TryGetSample(timestampInNanoseconds, out var sample);
+                Owner?.Log(LogLevel.Debug, "RESD: Feeding sample at timestamp {0}us", timestamp);
                 newSampleCallback(sample, timestamp, status);
             };
 
@@ -114,13 +120,16 @@ namespace Antmicro.Renode.Utilities.RESD
             {
                 if(reader.EOF)
                 {
+                    Owner?.Log(LogLevel.Debug, "RESD: End of sample feeding thread detected");
                     newSampleCallback(null, TimeInterval.Empty, RESDStreamStatus.AfterStream);
                 }
                 return reader.EOF;
             };
 
             var thread = machine.ObtainManagedThread(feedSample, frequency, "RESD stream thread", owner, stopCondition);
-            thread.StartDelayed(TimeInterval.FromMicroseconds(startTime / 1000));
+            var delayInterval = TimeInterval.FromMicroseconds(startTime / 1000);
+            Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at frequency {0}Hz delayed by {0}us", frequency, delayInterval);
+            thread.StartDelayed(delayInterval);
             managedThreads.Add(thread);
             return thread;
         }
@@ -135,6 +144,10 @@ namespace Antmicro.Renode.Utilities.RESD
             reader.Dispose();
         }
 
+        // The `Owner` property is used to log detailed messages
+        // about the process of the RESD file parsing.
+        // If it's not set (set to `null`, by default) no log messages
+        // will be generated.
         public IEmulationElement Owner { get; set; }
 
         public T CurrentSample => currentBlock?.CurrentSample;
@@ -159,6 +172,8 @@ namespace Antmicro.Renode.Utilities.RESD
             {
                 throw new RESDException($"Invalid padding in RESD header (expected {HeaderPaddingLength} zeros, got {Misc.PrettyPrintCollectionHex(padding)})");
             }
+
+            Owner?.Log(LogLevel.Debug, "RESD: Read header succesfully");
         }
 
         private void PrereadFirstBlock()
@@ -167,7 +182,7 @@ namespace Antmicro.Renode.Utilities.RESD
             {
                 throw new RESDException($"Provided RESD file doesn't contain data for {typeof(T)}");
             }
-            Logger.Log(Owner, LogLevel.Debug, "First sample has timestamp {0}", currentBlock.StartTime);
+            Owner?.Log(LogLevel.Debug, "RESD: First sample of the file has timestamp {0}ns", currentBlock.StartTime);
         }
 
         private bool TryGetNextBlock(out DataBlock<T> block)
@@ -177,22 +192,24 @@ namespace Antmicro.Renode.Utilities.RESD
                 var dataBlockHeader = DataBlockHeader.ReadFromStream(reader);
                 if(dataBlockHeader.SampleType != sampleType || dataBlockHeader.ChannelId != channel)
                 {
-                    Logger.Log(Owner, LogLevel.Debug, "Skipping block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
+                    Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
                     reader.SkipBytes((int)dataBlockHeader.Size);
                     continue;
                 }
 
+                Owner?.Log(LogLevel.Debug, "RESD: Reading block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
                 var limitedReader = reader.WithLength(reader.BaseStream.Position + (long)dataBlockHeader.Size);
 
                 switch(dataBlockHeader.BlockType)
                 {
                     case BlockType.ConstantFrequencySamples:
                         block = ConstantFrequencySamplesDataBlock<T>.ReadFromStream(dataBlockHeader, limitedReader);
+                        Owner?.Log(LogLevel.Debug, "RESD: Constant frequency block: period is {0}ns, frequency is {1}Hz, start time is {2}ns", ((ConstantFrequencySamplesDataBlock<T>)block).Period, ((ConstantFrequencySamplesDataBlock<T>)block).Frequency, block.StartTime);
                         return true;
 
                     default:
                         // skip the rest of the unsupported block
-                        Logger.Log(Owner, LogLevel.Warning, "Skipping unupported block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
+                        Owner?.Log(LogLevel.Warning, "RESD: Skipping unupported block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
                         reader.SkipBytes((int)dataBlockHeader.Size);
                         break;
                 }
