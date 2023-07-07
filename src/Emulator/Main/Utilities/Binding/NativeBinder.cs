@@ -189,10 +189,21 @@ namespace Antmicro.Renode.Utilities.Binding
                 var attribute = (ImportAttribute)field.GetCustomAttributes(false).First(x => x is ImportAttribute);
                 var cName = attribute.Name ?? GetCName(field.Name, attribute.UseExceptionWrapper);
                 classToBind.NoisyLog(string.Format("(NativeBinder) Binding {1} as {0}.", field.Name, cName));
-                var address = SharedLibraries.GetSymbolAddress(libraryAddress, cName);
-                var result = Dynamic.InvokeMember(staticContext(typeof(Marshal)), "GetDelegateForFunctionPointer", address, field.FieldType);
+                Delegate result = null;
+                try
+                {
+                    var address = SharedLibraries.GetSymbolAddress(libraryAddress, cName);
+                    result = Dynamic.InvokeMember(staticContext(typeof(Marshal)), "GetDelegateForFunctionPointer", address, field.FieldType);
+                }
+                catch
+                {
+                    if(!attribute.Optional)
+                    {
+                        throw;
+                    }
+                }
 
-                if(attribute.UseExceptionWrapper)
+                if(attribute.UseExceptionWrapper && result != null)
                 {
                     var innerField = wrappersType.GetField(field.Name);
                     innerField.SetValue(wrappersObj, result);
