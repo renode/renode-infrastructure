@@ -933,7 +933,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(newAddressesCount > 0)
             {
-                dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, newAddressesCount * 8);
+                dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, new IntPtr(newAddressesCount * 8));
                 Marshal.Copy(dirtyAddressesList, 0, dirtyAddressesPtr, newAddressesCount);
             }      
             Marshal.WriteInt64(size, newAddressesCount);
@@ -1211,7 +1211,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var hostBlocks = currentMappings.Where(x => x.Touched).Select(x => x.Segment)
                     .Select(x => new HostMemoryBlock { Start = x.StartingOffset, Size = x.Size, HostPointer = x.Pointer })
                     .OrderBy(x => x.HostPointer.ToInt64()).ToArray();
-                var blockBuffer = memoryManager.Allocate(Marshal.SizeOf(typeof(HostMemoryBlock))*hostBlocks.Length);
+                var blockBuffer = memoryManager.Allocate(new IntPtr(Marshal.SizeOf(typeof(HostMemoryBlock)) * hostBlocks.Length));
                 BlitArray(blockBuffer, hostBlocks.OrderBy(x => x.HostPointer.ToInt64()).Cast<dynamic>().ToArray());
                 RenodeSetHostBlocks(blockBuffer, hostBlocks.Length);
                 memoryManager.Free(blockBuffer);
@@ -1259,13 +1259,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         #region Memory trampolines
 
         [Export]
-        private IntPtr Allocate(int size)
+        private IntPtr Allocate(IntPtr size)
         {
             return memoryManager.Allocate(size);
         }
 
         [Export]
-        private IntPtr Reallocate(IntPtr oldPointer, int newSize)
+        private IntPtr Reallocate(IntPtr oldPointer, IntPtr newSize)
         {
             return memoryManager.Reallocate(oldPointer, newSize);
         }
@@ -1298,50 +1298,48 @@ namespace Antmicro.Renode.Peripherals.CPU
             public SimpleMemoryManager(TranslationCPU parent)
             {
                 this.parent = parent;
-                ourPointers = new ConcurrentDictionary<IntPtr, int>();
+                ourPointers = new ConcurrentDictionary<IntPtr, long>();
             }
 
-            public IntPtr Allocate(int size)
+            public IntPtr Allocate(IntPtr size)
             {
                 var ptr = Marshal.AllocHGlobal(size);
-                var sizeNormalized = Misc.NormalizeBinary(size);
-                if(!ourPointers.TryAdd(ptr, size))
+                var sizeNormalized = Misc.NormalizeBinary((double)size);
+                if(!ourPointers.TryAdd(ptr, (long)size))
                 {
                     throw new InvalidOperationException($"Trying to allocate a {sizeNormalized}B pointer that already exists is the memory database.");
                 }
-                Interlocked.Add(ref allocated, size);
+                Interlocked.Add(ref allocated, (long)size);
                 parent.NoisyLog("Allocated {0}B pointer at 0x{1:X}.", sizeNormalized, ptr);
                 PrintAllocated();
                 return ptr;
             }
 
-            public IntPtr Reallocate(IntPtr oldPointer, int newSize)
+            public IntPtr Reallocate(IntPtr oldPointer, IntPtr newSize)
             {
                 if(oldPointer == IntPtr.Zero)
                 {
                     return Allocate(newSize);
                 }
-                if(newSize == 0)
+                if(newSize == IntPtr.Zero)
                 {
                     Free(oldPointer);
                     return IntPtr.Zero;
                 }
-                int oldSize;
-                if(!ourPointers.TryRemove(oldPointer, out oldSize))
+                if(!ourPointers.TryRemove(oldPointer, out var oldSize))
                 {
                     throw new InvalidOperationException($"Trying to reallocate a pointer at 0x{oldPointer:X} which wasn't allocated by this memory manager.");
                 }
-                var ptr = Marshal.ReAllocHGlobal(oldPointer, (IntPtr)newSize); // before asking WTF here look at msdn
-                parent.NoisyLog("Reallocated a pointer: old size {0}B at 0x{1:X}, new size {2}B at 0x{3:X}.", Misc.NormalizeBinary(oldSize), oldPointer, Misc.NormalizeBinary(newSize), ptr);
-                Interlocked.Add(ref allocated, newSize - oldSize);
-                ourPointers.TryAdd(ptr, newSize);
+                var ptr = Marshal.ReAllocHGlobal(oldPointer, newSize);
+                parent.NoisyLog("Reallocated a pointer: old size {0}B at 0x{1:X}, new size {2}B at 0x{3:X}.", Misc.NormalizeBinary(oldSize), oldPointer, Misc.NormalizeBinary((double)newSize), ptr);
+                Interlocked.Add(ref allocated, (long)newSize - oldSize);
+                ourPointers.TryAdd(ptr, (long)newSize);
                 return ptr;
             }
 
             public void Free(IntPtr ptr)
             {
-                int oldSize;
-                if(!ourPointers.TryRemove(ptr, out oldSize))
+                if(!ourPointers.TryRemove(ptr, out var oldSize))
                 {
                     throw new InvalidOperationException($"Trying to free a pointer at 0x{ptr:X} which wasn't allocated by this memory manager.");
                 }
@@ -1375,7 +1373,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 parent.NoisyLog("Allocated is now {0}B.", Misc.NormalizeBinary(Interlocked.Read(ref allocated)));
             }
 
-            private ConcurrentDictionary<IntPtr, int> ourPointers;
+            private ConcurrentDictionary<IntPtr, long> ourPointers;
             private long allocated;
             private readonly TranslationCPU parent;
         }

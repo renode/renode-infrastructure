@@ -48,15 +48,15 @@ EXTERNAL_AS(func_uint32_uint64_uint32, OnBlockBegin, tlib_on_block_begin)
 
 EXTERNAL_AS(action_uint64_uint32, OnBlockFinished, tlib_on_block_finished)
 
-EXTERNAL_AS(func_intptr_int32, Allocate, tlib_allocate)
+EXTERNAL_AS(func_intptr_intptr, Allocate, tlib_allocate)
 void *tlib_malloc(size_t size)
 {
-  return tlib_allocate(size);
+  return tlib_allocate((void *)size);
 }
-EXTERNAL_AS(func_intptr_intptr_int32, Reallocate, tlib_reallocate)
+EXTERNAL_AS(func_intptr_intptr_intptr, Reallocate, tlib_reallocate)
 void *tlib_realloc(void *ptr, size_t size)
 {
-  return tlib_reallocate(ptr, size);
+  return tlib_reallocate(ptr, (void *)size);
 }
 EXTERNAL_AS(action_intptr, Free, tlib_free)
 EXTERNAL_AS(action_uint64, OnTranslationCacheSizeChange, tlib_on_translation_cache_size_change)
