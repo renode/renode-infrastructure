@@ -1,0 +1,140 @@
+<#
+//
+// Copyright (c) 2010-2023 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#
+Dictionary<string, string> types = new Dictionary<string, string>();
+types.Add("byte", "Byte");
+types.Add("ushort", "Word");
+types.Add("uint", "DoubleWord");
+types.Add("ulong", "QuadWord");
+#>
+/********************************************************
+*
+* Warning!
+* This file was generated automatically.
+* Please do not edit. Changes should be made in the
+* appropriate *.tt file.
+*
+*/
+
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
+
+namespace Antmicro.Renode.Hooks
+{
+    public static class RegisterCollectionHookExtensions
+    {
+<#
+    foreach(var entry in types)
+    {
+        var type = entry.Key;
+        var suffix = entry.Value;
+#>
+        public static void AddBeforeRead<#= suffix #>Hook(this IPeripheral @this, long offset, string script)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+
+            var engine = new RegisterCollectionHookPythonEngine<<#= type #>>(@this, script);
+            registerColectionProvider.AddBeforeReadHook<<#= type #>, <#= suffix #>RegisterCollection>(offset, (addr) =>
+            {
+                engine.Hook(addr, null);
+                return engine.Value;
+            });
+        }
+
+        public static void AddAfterRead<#= suffix #>Hook(this IPeripheral @this, long offset, string script)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+
+            var engine = new RegisterCollectionHookPythonEngine<<#= type #>>(@this, script);
+            registerColectionProvider.AddAfterReadHook<<#= type #>, <#= suffix #>RegisterCollection>(offset, (addr, value) =>
+            {
+                engine.Hook(addr, value);
+                return engine.Value;
+            });
+        }
+
+        public static void AddBeforeWrite<#= suffix #>Hook(this IPeripheral @this, long offset, string script)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+
+            var engine = new RegisterCollectionHookPythonEngine<<#= type #>>(@this, script);
+            registerColectionProvider.AddBeforeWriteHook<<#= type #>, <#= suffix #>RegisterCollection>(offset, (addr, value) =>
+            {
+                engine.Hook(addr, value);
+                return engine.Value;
+            });
+        }
+
+        public static void AddAfterWrite<#= suffix #>Hook(this IPeripheral @this, long offset, string script)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+
+            var engine = new RegisterCollectionHookPythonEngine<<#= type #>>(@this, script);
+            registerColectionProvider.AddAfterWriteHook<<#= type #>, <#= suffix #>RegisterCollection>(offset, (addr, value) =>
+            {
+                engine.Hook(addr, value);
+            });
+        }
+
+        public static void RemoveBeforeRead<#= suffix #>Hook(this IPeripheral @this, long offset)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+            registerColectionProvider.RemoveBeforeReadHook(offset);
+        }
+
+        public static void RemoveAfterRead<#= suffix #>Hook(this IPeripheral @this, long offset)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+            registerColectionProvider.RemoveAfterReadHook(offset);
+        }
+
+        public static void RemoveBeforeWrite<#= suffix #>Hook(this IPeripheral @this, long offset)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+            registerColectionProvider.RemoveBeforeWriteHook(offset);
+        }
+
+        public static void RemoveAfterWrite<#= suffix #>Hook(this IPeripheral @this, long offset)
+        {
+            if(!(@this is IProvidesRegisterCollection<<#= suffix #>RegisterCollection> registerColectionProvider))
+            {
+                throw new RecoverableException($"{@this.GetName()} is not a <#= suffix #> peripheral");
+            }
+            registerColectionProvider.RemoveAfterWriteHook(offset);
+        }
+
+<#
+    }
+#>
+    }
+}

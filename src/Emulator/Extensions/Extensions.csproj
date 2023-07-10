@@ -180,6 +180,16 @@
     <Compile Include="UserInterface\InlineImage.cs" />
     <Compile Include="HostInterfaces\Camera\HostCamera.cs" />
     <Compile Include="Utilities\GDB\Commands\DetachCommand.cs" />
+    <Compile Include="Hooks\RegisterCollectionHookPythonEngine.cs" />
+    <Compile Include="Hooks\RegisterCollectionHookExtensions.cs">
+      <DependentUpon>RegisterCollectionHookExtensions.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Hooks\RegisterCollectionHookExtensions.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>RegisterCollectionHookExtensions.cs</LastGenOutput>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
