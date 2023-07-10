@@ -258,7 +258,7 @@ namespace Antmicro.Renode.Utilities.Binding
                 il.Emit(OpCodes.Ldarg_0);
                 il.Emit(OpCodes.Ldfld, exceptionKeeperField);
                 il.EmitCall(OpCodes.Call, printExceptions, null); // call ExceptionKeeper.PrintExceptions
-                
+
                 il.Emit(OpCodes.Ldc_I4_1);
                 il.EmitCall(OpCodes.Call, typeof(Environment).GetMethod(nameof(Environment.Exit)), null);
             }
