@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
 <PropertyGroup>
-  <CompilerPath>/usr/bin/gcc</CompilerPath>
-  <LinkerPath>/usr/bin/gcc</LinkerPath>
-  <ArPath>/usr/bin/ar</ArPath>
+  <CompilerPath Condition=" '$(CompilerPath)' == '' ">/usr/bin/gcc</CompilerPath>
+  <LinkerPath Condition=" '$(LinkerPath)' == '' ">/usr/bin/gcc</LinkerPath>
+  <ArPath Condition=" '$(ArPath)' == '' ">/usr/bin/ar</ArPath>
   <CurrentPlatform>Linux</CurrentPlatform>
   <DefineConstants>$(DefineConstants);PLATFORM_LINUX</DefineConstants>
 </PropertyGroup>

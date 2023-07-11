@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
 <PropertyGroup>
-  <CompilerPath>gcc</CompilerPath>
-  <LinkerPath>gcc</LinkerPath>
-  <ArPath>ar</ArPath>
+  <CompilerPath Condition=" '$(CompilerPath)' == '' ">gcc</CompilerPath>
+  <LinkerPath Condition=" '$(LinkerPath)' == '' ">gcc</LinkerPath>
+  <ArPath Condition=" '$(ArPath)' == '' ">ar</ArPath>
   <CurrentPlatform>Windows</CurrentPlatform>
   <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
 </PropertyGroup>

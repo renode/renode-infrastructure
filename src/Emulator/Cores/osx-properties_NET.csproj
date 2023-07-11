@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
-    <CompilerPath>/usr/bin/clang</CompilerPath>
-    <LinkerPath>/usr/bin/clang</LinkerPath>
-    <ArPath>/usr/bin/ar</ArPath>
+    <CompilerPath Condition=" '$(CompilerPath)' == '' ">/usr/bin/clang</CompilerPath>
+    <LinkerPath Condition=" '$(LinkerPath)' == '' ">/usr/bin/clang</LinkerPath>
+    <ArPath Condition=" '$(ArPath)' == '' ">/usr/bin/ar</ArPath>
     <CurrentPlatform>OSX</CurrentPlatform>
     <DefineConstants>$(DefineConstants);PLATFORM_OSX</DefineConstants>
   </PropertyGroup>
