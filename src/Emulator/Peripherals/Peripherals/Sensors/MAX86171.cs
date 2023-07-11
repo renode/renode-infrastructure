@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         circularFifo.EnqueueFrame(defaultMeasurements);
                     }
-                }, sampleOffsetTime: sampleOffsetTime);
+                }, sampleOffsetTime: sampleOffsetTime, startTime: startTimestamp);
                 this.Log(LogLevel.Info, "Started feeding samples from RESD file at {0}Hz", CalculateCurrentFrequency());
             }
         }
