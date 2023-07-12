@@ -121,7 +121,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // It seems that on real HW, semantic of the READY bit is inverted, that is
                 // when RTC_CTRL.ready is set to false, then software is able to read
                 // correct data from RTC_SEC and RTC_SSEC registers.
-                .WithFlag(4, name: "RTC_CTRL.ready", valueProviderCallback: _ => false)
+                .WithFlag(4, name: "RTC_CTRL.ready",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        // SW sets the bit to false to force registers values synchronization
+                        if(value == false)
+                        {
+                            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                            {
+                                cpu.SyncTime();
+                            }
+                        }
+                    })
                 .WithFlag(5, out readyInterruptEnabled, name: "RTC_CTRL.ready_int_en")
                 .WithFlag(6, out timeOfDayAlarmFlag, name: "RTC_CTRL.tod_alarm_fl")
                 .WithFlag(7, out subSecondAlarmFlag, name: "RTC_CTRL.ssec_alarm_fl")
