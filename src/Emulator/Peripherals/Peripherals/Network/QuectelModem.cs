@@ -148,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public int EnhancedCoverageLevel { get; set; } = 0;
         public int TransmitPower { get; set; } = 0;
         public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
-        public ulong DeepsleepOnRellock { get; set; } = 0;
+        public bool DeepsleepOnRellock { get; set; } = false;
         // These timers should in theory be automatically updated when we enter deep sleep,
         // receive or transmit something. This is a basic implementation that only supports
         // setting them manually.
