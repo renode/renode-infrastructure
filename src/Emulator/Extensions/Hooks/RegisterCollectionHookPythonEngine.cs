@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Hooks
 
         public Action<long, T?> Hook { get; }
 
-        public T? Value => Scope.GetVariable("value");
+        public T? Value => (T?)Scope.GetVariable("value");
 
         [PostDeserialization]
         private void InnerInit()
