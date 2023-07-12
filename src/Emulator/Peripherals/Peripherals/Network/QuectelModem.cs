@@ -142,6 +142,12 @@ namespace Antmicro.Renode.Peripherals.Network
         public int TransmitPower { get; set; } = 0;
         public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
         public ulong DeepsleepOnRellock { get; set; } = 0;
+        // These timers should in theory be automatically updated when we enter deep sleep,
+        // receive or transmit something. This is a basic implementation that only supports
+        // setting them manually.
+        public decimal SleepDuration { get; set; } = 0m;
+        public decimal RxTime { get; set; } = 0m;
+        public decimal TxTime { get; set; } = 0m;
 
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
 
@@ -378,12 +384,17 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QENG", CommandType.Write)]
         protected virtual Response Qeng(int mode)
         {
-            // Only mode 0 is implemented.
-            if(mode != 0)
+            // Only modes 0 and 2 are implemented.
+            switch(mode)
             {
-                return Error;
+                case 0:
+                    return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
+                case 2:
+                    // The 3 here is not a typo, it matches real modem output and the AT command manual
+                    return Ok.WithParameters($"+QENG: 3,{SleepDuration * 10:0},{RxTime * 10:0},{TxTime * 10:0}");
+                default:
+                    return Error;
             }
-            return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
         }
 
         // QGMR - Request Modem and Application Firmware Versions
