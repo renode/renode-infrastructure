@@ -112,6 +112,13 @@ namespace Antmicro.Renode.Peripherals.Network
                         EnableModem();
                     }
                     break;
+                case GPIOInput.PsmEint:
+                    // If we are sleeping (and not held in reset) we should wake up on a falling edge.
+                    if(!Enabled && !inReset && !value)
+                    {
+                        EnableModem();
+                    }
+                    break;
                 default:
                     this.Log(LogLevel.Error, "Got GPIO state {0} for unknown input {1}", value, number);
                     break;
@@ -760,6 +767,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             Power,
             Reset,
+            PsmEint,
         }
 
         protected enum PowerOffType
