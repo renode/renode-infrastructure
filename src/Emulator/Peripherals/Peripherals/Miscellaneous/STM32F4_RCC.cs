@@ -15,7 +15,7 @@ using Antmicro.Renode.Peripherals.Timers;
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public sealed class STM32F4_RCC : IDoubleWordPeripheral, IKnownSize
+    public sealed class STM32F4_RCC : IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
         public STM32F4_RCC(Machine machine, STM32F4_RTC rtcPeripheral)
         {
@@ -335,27 +335,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 },
             };
 
-            registers = new DoubleWordRegisterCollection(this, registersMap);
+            RegistersCollection = new DoubleWordRegisterCollection(this, registersMap);
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);
+            return RegistersCollection.Read(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            registers.Write(offset, value);
+            RegistersCollection.Write(offset, value);
         }
 
         public void Reset()
         {
-            registers.Reset();
+            RegistersCollection.Reset();
         }
 
         public long Size => 0x400;
 
-        private readonly DoubleWordRegisterCollection registers;
+        public DoubleWordRegisterCollection RegistersCollection { get; }
 
         private enum Registers
         {
