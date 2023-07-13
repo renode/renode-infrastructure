@@ -315,6 +315,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
             masterMode = false;
             stopDetection.Value = true;
+            currentSlave?.FinishTransmission();
         }
 
         private uint ReceiveDataRead(uint oldValue)
