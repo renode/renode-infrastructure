@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -223,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         this.Log(LogLevel.Noisy, "Sampling rate set to {0}", samplingRate);
                     }, name: "Output data rate and mode selection (ODR)");
 
-            Registers.Control2.Define(this)
+            Registers.Control2.Define(this, 0x4)
                 .WithTaggedFlag("SPI serial interface mode selection (SIM)", 0)
                 .WithTaggedFlag("Disable I2C communication protocol (I2C_DISABLE)", 1)
                 .WithFlag(2, out autoIncrement, name: "Register address automatically incremented during multiple byte access with a serial interface (FF_ADD_INC)")
