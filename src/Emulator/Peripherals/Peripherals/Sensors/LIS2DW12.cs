@@ -435,7 +435,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void RegistersAutoIncrement()
         {
-            if(regAddress >= Registers.DataOutXLow && regAddress < Registers.DataOutZHigh)
+            if(regAddress >= Registers.DataOutXLow && regAddress < Registers.DataOutZHigh
+                || regAddress == Registers.TemperatureOutLow)
             {
                 regAddress = (Registers)((int)regAddress + 1);
                 this.Log(LogLevel.Noisy, "Auto-incrementing to the next register 0x{0:X} - {0}", regAddress);
