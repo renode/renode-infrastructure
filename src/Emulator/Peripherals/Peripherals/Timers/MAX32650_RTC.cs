@@ -51,6 +51,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             secondsCounter = 0;
             subSecondAlarmCounter = 0;
             subSecondsCounter = 0;
+            secondsCounterCache = 0;
+            subSecondsCounterCache = 0;
+            secondsCounterReadFlag = false;
+            subSecondsCounterReadFlag = false;
+
 
             SetDateTimeFromMachine(hushLog: true);
         }
@@ -83,16 +88,62 @@ namespace Antmicro.Renode.Peripherals.Timers
             return (uint)(subSecondFraction * SubSecondCounterResolution);
         }
 
+        private void UpdateCounterCacheIfInvalid()
+        {
+            // MAX32650_RTC datasheet says that RTC_SEC.sec and RTC_SSEC.ssec registers should
+            // be stable for 120us after RTC_CTRL.ready is set.
+            // As we are always setting RTC_CTRL.ready, in order to simulate
+            // this behavior, we are caching both registers when one of them is read
+            // and returning cached value when another is read.
+            // It might provide invalid result when there is intentionally large
+            // delay between registers read.
+            if(secondsCounterReadFlag && subSecondsCounterReadFlag)
+            {
+                // return cached value
+                secondsCounterReadFlag = false;
+                subSecondsCounterReadFlag = false;
+            }
+            else
+            {
+                secondsCounterCache = secondsCounter;
+                subSecondsCounterCache = subSecondsCounter;
+            }
+        }
+
         private void DefineRegisters()
         {
             Registers.Seconds.Define(this)
                 .WithValueField(0, 32, name: "RTC_SEC.sec",
-                    valueProviderCallback: _ => secondsCounter,
-                    writeCallback: (_, value) => { lock(countersLock) secondsCounter = (uint)value; });
+                    valueProviderCallback: _ =>
+                    {
+                        secondsCounterReadFlag = true;
+                        UpdateCounterCacheIfInvalid();
+                        return secondsCounterCache;
+                    },
+                    writeCallback: (_, value) =>
+                    {
+                        lock(countersLock)
+                        {
+                            secondsCounter = (uint)value;
+                            UpdateCounterCacheIfInvalid();
+                        }
+                    });
             Registers.SubSeconds.Define(this)
                 .WithValueField(0, 8, name: "RTC_SSEC.ssec",
-                    valueProviderCallback: _ => (byte)subSecondsCounter,
-                    writeCallback: (_, value) => { lock(countersLock) subSecondsCounter = (subSecondsMSBOverwrite ? 0xF00 : (subSecondsCounter & 0xF00)) | (uint)value; })
+                    valueProviderCallback: _ =>
+                    {
+                        subSecondsCounterReadFlag = true;
+                        UpdateCounterCacheIfInvalid();
+                        return (byte)subSecondsCounterCache;
+                    },
+                    writeCallback: (_, value) =>
+                    {
+                        lock(countersLock)
+                        {
+                            subSecondsCounter = (subSecondsMSBOverwrite ? 0xF00 : (subSecondsCounter & 0xF00)) | (uint)value;
+                            UpdateCounterCacheIfInvalid();
+                        }
+                    })
                 .WithReservedBits(8, 24);
             Registers.TimeOfDayAlarm.Define(this)
                 .WithValueField(0, 20, out timeOfDayAlarm, name: "RTC_TODA.tod_alarm")
@@ -228,6 +279,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint secondsCounter;
         private ulong subSecondAlarmCounter;
         private uint subSecondsCounter;
+        private uint secondsCounterCache;
+        private uint subSecondsCounterCache;
+        private bool secondsCounterReadFlag;
+        private bool subSecondsCounterReadFlag;
 
         private IFlagRegisterField canBeToggled;
         private IFlagRegisterField readyInterruptEnabled;
