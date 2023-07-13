@@ -12,6 +12,8 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -219,15 +221,57 @@ namespace Antmicro.Renode.Utilities.RESD
             return false;
         }
 
+        [PreSerialization]
+        private void BeforeSerialization()
+        {
+            var currentOffset = reader.BaseStream.Seek(0, SeekOrigin.Current);
+            reader.BaseStream.Seek(0, SeekOrigin.Begin);
+
+            serializationContext.fileData = reader.ReadBytes((int)reader.Length);
+            serializationContext.timeStamp = currentBlock.CurrentTimestamp;
+
+            reader.BaseStream.Seek(currentOffset, SeekOrigin.Begin);
+        }
+
+        [PostSerialization]
+        private void AfterSerialization()
+        {
+            serializationContext.fileData = null;
+            serializationContext.timeStamp = 0;
+        }
+
+        [PostDeserialization]
+        private void AfterDeserialization()
+        {
+            reader = new SafeBinaryReader(new MemoryStream(serializationContext.fileData));
+            reader.EndOfStreamEvent += (message) =>
+            {
+                throw new RESDException($"RESD file ended while reading data: {message} ({reader.BaseStream.Position} > {reader.BaseStream.Length})");
+            };
+
+            ReadHeader();
+            PrereadFirstBlock();
+            TryGetSample(serializationContext.timeStamp, out _);
+        }
+
+        [Transient]
         private DataBlock<T> currentBlock;
+        [Transient]
+        private SafeBinaryReader reader;
+        private BinaryReaderSerializationContext serializationContext;
 
         private readonly SampleType sampleType;
         private readonly uint channel;
-        private readonly SafeBinaryReader reader;
         private readonly IList<IManagedThread> managedThreads;
 
         private const byte SupportedVersion = 0x1;
         private const int HeaderPaddingLength = 3;
         private static readonly byte[] MagicValue = new byte[] { (byte)'R', (byte)'E', (byte)'S', (byte)'D' };
+
+        private struct BinaryReaderSerializationContext
+        {
+            public byte[] fileData;
+            public ulong timeStamp;
+        }
     }
 }

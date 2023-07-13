@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public abstract ulong StartTime { get; }
         public abstract T CurrentSample { get; }
+        public abstract ulong CurrentTimestamp { get; }
     }
 
     public class DataBlockHeader
@@ -86,6 +87,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override ulong StartTime { get; }
         public override T CurrentSample => samplesData.GetCurrentSample();
+        public override ulong CurrentTimestamp => currentSampleTimestamp;
 
         private ConstantFrequencySamplesDataBlock(DataBlockHeader header, ulong startTime, ulong period, SafeBinaryReader reader) : base(header)
         {
