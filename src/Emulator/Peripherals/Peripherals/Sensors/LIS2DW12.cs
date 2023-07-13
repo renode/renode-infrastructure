@@ -240,7 +240,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Interrupt active high, low (HL_ACTIVE)", 3)
                 .WithTaggedFlag("Latched Interrupt (LIR)", 4)
                 .WithTaggedFlag("Push-pull/open-drain selection on interrupt pad (PP_OD)", 5)
-                .WithTag("Self-test enable (ST)", 6, 2);
+                .WithEnumField(6, 2, out selfTestMode, name: "Self-test enable (ST)");
 
             Registers.Control4.Define(this, 0x01)
                 .WithFlag(0, out readyEnabledAcceleration, name: "Data-Ready is routed to INT1 pad (INT1_DRDY)")
@@ -289,28 +289,28 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     valueProviderCallback: _ => 
                     {
                         LoadNextSample();
-                        return Convert(accelerationFifo.Sample.X, upperByte: false);
+                        return Convert(ReportedAccelerationX, upperByte: false);
                     });
 
             Registers.DataOutXHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis MSB output register (OUT_X_H)",
-                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.X, upperByte: true));
+                    valueProviderCallback: _ => Convert(ReportedAccelerationX, upperByte: true));
 
             Registers.DataOutYLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Y-axis LSB output register (OUT_Y_L)",
-                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Y, upperByte: false));
+                    valueProviderCallback: _ => Convert(ReportedAccelerationY, upperByte: false));
 
             Registers.DataOutYHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Y-axis MSB output register (OUT_Y_H)",
-                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Y, upperByte: true));
+                    valueProviderCallback: _ => Convert(ReportedAccelerationY, upperByte: true));
 
             Registers.DataOutZLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis LSB output register (OUT_Z_L)",
-                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Z, upperByte: false));
+                    valueProviderCallback: _ => Convert(ReportedAccelerationZ, upperByte: false));
 
             Registers.DataOutZHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Z-axis MSB output register (OUT_Z_H)",
-                    valueProviderCallback: _ => Convert(accelerationFifo.Sample.Z, upperByte: true));
+                    valueProviderCallback: _ => Convert(ReportedAccelerationZ, upperByte: true));
 
             Registers.FifoControl.Define(this)
                 .WithValueField(0, 5, out fifoTreshold, name: "FIFO threshold level setting (FTH)")
@@ -567,6 +567,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private decimal SelfTestAccelerationOffset =>
+            SelfTestAcceleration * (selfTestMode.Value == SelfTestMode.PositiveSign ? 1 : selfTestMode.Value == SelfTestMode.NegativeSign ? -1 : 0);
+        private decimal ReportedAccelerationX => AccelerationX + SelfTestAccelerationOffset;
+        private decimal ReportedAccelerationY => AccelerationY + SelfTestAccelerationOffset;
+        private decimal ReportedAccelerationZ => AccelerationZ + SelfTestAccelerationOffset;
+
         private IFlagRegisterField autoIncrement;
         private IFlagRegisterField readyEnabledAcceleration;
         private IFlagRegisterField readyEnabledTemperature;
@@ -577,6 +583,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IEnumRegisterField<ModeSelection> modeSelection;
         private IEnumRegisterField<FIFOModeSelection> fifoModeSelection;
         private IEnumRegisterField<FullScaleSelect> fullScale;
+        private IEnumRegisterField<SelfTestMode> selfTestMode;
 
         private Registers regAddress;
         private State state;
@@ -590,6 +597,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const decimal MaxTemperature = 85.0m;
         private const decimal MinAcceleration = -16m;
         private const decimal MaxAcceleration = 16m;
+        private const decimal SelfTestAcceleration = 1m;
         private const int MaxFifoSize = 32;
         private const int MaxValue14Bit = 0x3FFF;
         private const int MaxValue12Bit = 0x0FFF;
@@ -648,6 +656,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
             LowPowerMode2_14bitResolution = 0x01,
             LowPowerMode3_14bitResolution = 0x02,
             LowPowerMode4_14bitResolution = 0x03
+        }
+
+        private enum SelfTestMode : byte
+        {
+            Disabled = 0x00,
+            PositiveSign = 0x01,
+            NegativeSign = 0x02,
+            // Reserved: 0x03
         }
 
         private enum Registers : byte
