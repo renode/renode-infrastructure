@@ -539,13 +539,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private ushort TwoComplementSignConvert(decimal temp)
         {
-            var tempAsUshort = Decimal.ToUInt16(temp);
+            var tempAsUshort = Decimal.ToUInt16(Math.Abs(temp));
             if(temp < 0)
             {
                 var twoComplementTemp = (ushort)(~tempAsUshort + 1);
                 return twoComplementTemp;
             }
-            UpdateInterrupts();
             return tempAsUshort;
         }
 
