@@ -173,11 +173,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             Registers.TemperatureOutLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_L)",
-                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature) << 4));
+                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature * TemperatureLsbsPerDegree) << 4));
             
             Registers.TemperatureOutHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_H)",
-                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature) >> 4));
+                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature * TemperatureLsbsPerDegree) >> 4));
 
             Registers.WhoAmI.Define(this, 0x44);
 
@@ -602,6 +602,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const int MaxFifoSize = 32;
         private const int MaxValue14Bit = 0x3FFF;
         private const int MaxValue12Bit = 0x0FFF;
+        private const int TemperatureLsbsPerDegree = 16;
 
         private enum State
         {
