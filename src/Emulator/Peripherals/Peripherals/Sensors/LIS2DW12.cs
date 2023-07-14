@@ -173,11 +173,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             Registers.TemperatureOutLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_L)",
-                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature * TemperatureLsbsPerDegree) << 4));
+                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(ReportedTemperature * TemperatureLsbsPerDegree) << 4));
             
             Registers.TemperatureOutHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_H)",
-                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(Temperature * TemperatureLsbsPerDegree) >> 4));
+                    valueProviderCallback: _ => (byte)(TwoComplementSignConvert(ReportedTemperature * TemperatureLsbsPerDegree) >> 4));
 
             Registers.WhoAmI.Define(this, 0x44);
 
@@ -272,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.TemperatureOut.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 8-bit resolution (OUT_T)",
-                    valueProviderCallback: _ => (byte)TwoComplementSignConvert(Temperature));
+                    valueProviderCallback: _ => (byte)TwoComplementSignConvert(ReportedTemperature));
 
             Registers.Status.Define(this)
                 .WithFlag(0, valueProviderCallback: _ => outDataRate.Value != DataRateConfig.PowerDown, name: "Data-ready status (DRDY)")
@@ -574,6 +574,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private decimal ReportedAccelerationY => AccelerationY + SelfTestAccelerationOffset;
         private decimal ReportedAccelerationZ => AccelerationZ + SelfTestAccelerationOffset;
 
+        private decimal ReportedTemperature => Temperature - TemperatureBias;
+
         private IFlagRegisterField autoIncrement;
         private IFlagRegisterField readyEnabledAcceleration;
         private IFlagRegisterField readyEnabledTemperature;
@@ -595,6 +597,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private decimal temperature;
 
         private const decimal MinTemperature = -40.0m;
+        // The temperature register has the value 0 at this temperature
+        private const decimal TemperatureBias = 25.0m;
         private const decimal MaxTemperature = 85.0m;
         private const decimal MinAcceleration = -16m;
         private const decimal MaxAcceleration = 16m;
