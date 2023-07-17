@@ -16,7 +16,7 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class MAX86171 : ISPIPeripheral
+    public class MAX86171 : ISPIPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>
     {
         public MAX86171(Machine machine)
         {
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             ledRange = new IValueRegisterField[MeasurementRegisterCount];
 
-            registers = new ByteRegisterCollection(this, BuildRegisterMap());
+            RegistersCollection = new ByteRegisterCollection(this, BuildRegisterMap());
         }
 
         public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0, ulong startTimestamp = 0, long sampleOffsetTime = 0)
@@ -83,12 +83,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void WriteByte(long offset, byte value)
         {
-            registers.Write(offset, value);
+            RegistersCollection.Write(offset, value);
         }
 
         public byte ReadByte(long offset)
         {
-            return registers.Read(offset);
+            return RegistersCollection.Read(offset);
         }
 
         public void FinishTransmission()
@@ -99,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void Reset()
         {
-            registers.Reset();
+            RegistersCollection.Reset();
             chosenRegister = null;
             state = null;
             circularFifo.Reset();
@@ -158,6 +158,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             return output;
         }
+
+        public ByteRegisterCollection RegistersCollection { get; }
 
         public GPIO Interrupt1 { get; }
         public GPIO Interrupt2 { get; }
@@ -805,7 +807,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             (MaximumFIFOCount - circularFifo.Count) <= fifoFullThreshold.Value;
 
         private readonly Machine machine;
-        private readonly ByteRegisterCollection registers;
         private readonly AFESampleFIFO circularFifo;
         private readonly bool[] measurementEnabled;
         private readonly object feederThreadLock = new object();
