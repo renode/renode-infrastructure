@@ -460,6 +460,11 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QSCLK", CommandType.Write)]
         protected virtual Response QsclkWrite(int mode = 1)
         {
+            if(mode == 1)
+            {
+                // The signaling connection goes inactive when sleep mode is enabled.
+                ExecuteWithDelay(() => SendSignalingConnectionStatus(false), CsconDelay);
+            }
             return Ok; // stub
         }
 
@@ -510,6 +515,11 @@ namespace Antmicro.Renode.Peripherals.Network
             // AT+QICLOSE succeeds even if the socket was already closed.
             sockets[connectionId]?.Dispose();
             sockets[connectionId] = null;
+            // If all sockets are closed the signaling connection goes inactive.
+            if(sockets.All(s => s == null))
+            {
+                SendSignalingConnectionStatus(false);
+            }
             return Ok.WithTrailer("CLOSE OK");
         }
 
@@ -597,7 +607,11 @@ namespace Antmicro.Renode.Peripherals.Network
                         }
                         // We can send the OK (the return value of this command) immediately,
                         // but we have to wait before SEND OK/SEND FAIL if the network is too fast
-                        ExecuteWithDelay(() => SendString(sendResponse));
+                        ExecuteWithDelay(() => SendString(sendResponse), 50);
+                        // A successful send means the signaling connection became active, but this
+                        // happens after the actual send notification hence the additional delay on
+                        // top of CsconDelay.
+                        ExecuteWithDelay(() => SendSignalingConnectionStatus(true), CsconDelay + 50);
                     });
                 });
                 return null;
