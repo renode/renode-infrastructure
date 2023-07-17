@@ -149,6 +149,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public int TransmitPower { get; set; } = 0;
         public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
         public bool DeepsleepOnRellock { get; set; } = false;
+        // The delay before sending the +CSCON URC in virtual milliseconds
+        public ulong CsconDelay { get; set; } = 500;
         // These timers should in theory be automatically updated when we enter deep sleep,
         // receive or transmit something. This is a basic implementation that only supports
         // setting them manually.
@@ -166,8 +168,8 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT&W")]
         protected override Response Atw()
         {
-            var d = 200UL;
-            ExecuteWithDelay(() => SendString("+CSCON: 1"), d += 2000); // CSCON: 1 -> signaling connection active
+            var d = 0UL;
+            ExecuteWithDelay(() => SendSignalingConnectionStatus(true), d += CsconDelay);
             ExecuteWithDelay(() => SendString(CeregContent(true)), d += 100);
             ExecuteWithDelay(() => SendString($"+IP: {NetworkIp}"), d += 1000); // IP URC means successfully registered
             return base.Atw();
@@ -630,6 +632,12 @@ namespace Antmicro.Renode.Peripherals.Network
             vddExt.Set();
         }
 
+        protected void SendSignalingConnectionStatus(bool active)
+        {
+            var activeAsInt = active ? 1 : 0;
+            SendString($"+CSCON: {activeAsInt}");
+        }
+
         protected abstract string Vendor { get; }
         protected abstract string ModelName { get; }
         protected abstract string Revision { get; }
@@ -693,8 +701,9 @@ namespace Antmicro.Renode.Peripherals.Network
             // We do both of the sends here after a delay to accomodate software
             // which might not expect the "instant" reply which would otherwise happen.
             // Notify that the signaling connection is active
-            ExecuteWithDelay(() => SendString("+CSCON: 1"), 1000);
-            // Send the data received notification
+            ExecuteWithDelay(() => SendSignalingConnectionStatus(true), CsconDelay);
+            // Send the data received notification. This needs to happen after the signaling
+            // connection active notification, so we add a delay on top of CsconDelay.
             ExecuteWithDelay(() =>
             {
                 var recvUrc = $"+QIURC: \"recv\",{connectionId}";
@@ -703,7 +712,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     recvUrc += $",{byteCount}";
                 }
                 SendString(recvUrc);
-            }, 1500);
+            }, CsconDelay + 500);
         }
 
         private bool IsValidConnectionId(int connectionId, [CallerMemberName] string caller = "")
