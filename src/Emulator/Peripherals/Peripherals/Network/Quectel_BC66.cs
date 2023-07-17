@@ -123,6 +123,8 @@ namespace Antmicro.Renode.Peripherals.Network
             // DeepsleepOnRellock property.
             if(DeepsleepOnRellock)
             {
+                // The signaling connection goes inactive before entering sleep mode.
+                SendSignalingConnectionStatus(false);
                 ExecuteWithDelay(EnterDeepsleep, 50);
             }
             return Ok;
