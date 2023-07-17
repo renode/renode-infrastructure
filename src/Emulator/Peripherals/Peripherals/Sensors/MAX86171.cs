@@ -252,11 +252,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        public event Action OnFifoFull;
 
         private void UpdateStatus()
         {
             statusFifoFull.Value |= FifoThresholdReached && (!fifoAssertThresholdOnce.Value || (previousFifoTresholdReached == FifoThresholdReached));
             previousFifoTresholdReached = FifoThresholdReached;
+
+            if(statusFifoFull.Value)
+            {
+                OnFifoFull?.Invoke();
+            }
         }
 
         private void UpdateInterrupts()
