@@ -177,9 +177,20 @@ namespace Antmicro.Renode.Testing
             return result;
         }
 
-        public bool IsIdle(TimeInterval? timeout = null)
+        public bool IsIdle(TimeInterval? timeout = null, bool pauseEmulation = true)
         {
-            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)((timeout ?? GlobalTimeout).TotalMilliseconds));
+            this.pauseEmulation = pauseEmulation;
+            var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent(
+                (ulong)(timeout ?? GlobalTimeout).TotalMilliseconds,
+                () =>
+                {
+                    if(this.pauseEmulation)
+                    {
+                        EmulationManager.Instance.CurrentEmulation.PauseAll();
+                        this.pauseEmulation = false;
+                    }
+                }
+            );
             var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
 
             charEvent.Reset();
@@ -189,6 +200,7 @@ namespace Antmicro.Renode.Testing
             {
                 HandleFailure("Terminal is idle");
             }
+            this.pauseEmulation = false;
             return result;
         }
 
