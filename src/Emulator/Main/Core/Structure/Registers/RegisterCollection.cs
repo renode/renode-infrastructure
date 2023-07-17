@@ -111,6 +111,30 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             @this.RegistersCollection.RemoveAfterWriteHook(offset);
         }
+
+        public static bool HasAfterWriteHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
+            where R: IRegisterCollection
+        {
+            return @this.RegistersCollection.HasAfterWriteHook(offset);
+        }
+
+        public static bool HasAfterReadHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
+            where R: IRegisterCollection
+        {
+            return @this.RegistersCollection.HasAfterReadHook(offset);
+        }
+        
+        public static bool HasBeforeWriteHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
+            where R: IRegisterCollection
+        {
+            return @this.RegistersCollection.HasBeforeWriteHook(offset);
+        }
+
+        public static bool HasBeforeReadHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
+            where R: IRegisterCollection
+        {
+            return @this.RegistersCollection.HasBeforeReadHook(offset);
+        }
     }
 
     public abstract class BaseRegisterCollection<T, R> : IRegisterCollection where R: PeripheralRegister, IPeripheralRegister<T> where T: struct
@@ -359,6 +383,26 @@ namespace Antmicro.Renode.Core.Structure.Registers
             afterWriteHooks.Remove(offset);
         }
 
+        public bool HasAfterWriteHook(long offset)
+        {
+            return afterWriteHooks.ContainsKey(offset);
+        }
+
+        public bool HasAfterReadHook(long offset)
+        {
+            return afterReadHooks.ContainsKey(offset);
+        }
+
+        public bool HasBeforeWriteHook(long offset)
+        {
+            return beforeWriteHooks.ContainsKey(offset);
+        }
+
+        public bool HasBeforeReadHook(long offset)
+        {
+            return beforeReadHooks.ContainsKey(offset);
+        }
+
         /// <summary>
         /// Defines a new register and adds it to the collection.
         /// </summary>
@@ -402,6 +446,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         void RemoveAfterReadHook(long offset);
         void RemoveBeforeWriteHook(long offset);
         void RemoveAfterWriteHook(long offset);
+
+        bool HasBeforeReadHook(long offset);
+        bool HasAfterReadHook(long offset);
+        bool HasBeforeWriteHook(long offset);
+        bool HasAfterWriteHook(long offset);
     }
 
     public interface IRegisterCollection<T> : IRegisterCollection where T: struct

@@ -29,6 +29,7 @@ using Antmicro.Renode.Core.Extensions;
 using System.Reflection;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Utilities.BitObserver;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -45,6 +46,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         internal SystemBus(Machine machine)
         {
             this.machine = machine;
+            this.bitObserver = new BitObserver(machine);
             cpuSync = new object();
             binaryFingerprints = new List<BinaryFingerprint>();
             cpuById = new Dictionary<int, ICPU>();
@@ -955,6 +957,31 @@ namespace Antmicro.Renode.Peripherals.Bus
             return builder.ToString();
         }
 
+        public void ObserveBit(string entryName, IPeripheral peripheral, long offset, byte bit, bool enabled = false)
+        {
+            bitObserver.ObserveBit(entryName, peripheral, offset, bit, enabled);
+        }
+
+        public void StopObservingBit(string entryName)
+        {
+            bitObserver.StopObservingBit(entryName);
+        }
+
+        public bool GetObservedBitState(string entryName)
+        {
+            return bitObserver.GetObservedBitState(entryName);
+        }
+
+        public string[,] GetAllObservedBitsStates()
+        {
+            return bitObserver.GetAllObservedBitsStates();
+        }
+
+        public List<string> GetAllObservedBitsNames()
+        {
+            return bitObserver.GetAllObservedBitsNames();
+        }
+
         public Machine Machine
         {
             get
@@ -1707,6 +1734,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private HashSet<string> pausingTags;
         private readonly List<BinaryFingerprint> binaryFingerprints;
         private readonly Machine machine;
+        private readonly BitObserver bitObserver;
         private const string NonExistingRead = "Read{1} from non existing peripheral at 0x{0:X}.";
         private const string NonExistingWrite = "Write{2} to non existing peripheral at 0x{0:X}, value 0x{1:X}.";
         private const string IOExceptionMessage = "I/O error while loading ELF: {0}.";

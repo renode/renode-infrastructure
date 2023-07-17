@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -13,6 +13,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Logging.Profiling
 {
@@ -81,7 +82,7 @@ namespace Antmicro.Renode.Logging.Profiling
         {
             headerWritten = true;
             var header = new ProfilerHeader();
-            header.RegisterPeripherals(machine);
+            header.PrepareHeader(machine);
             output.Write(header.Bytes, 0, header.Bytes.Length);
         }
 

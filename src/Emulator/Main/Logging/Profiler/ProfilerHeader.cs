@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -20,11 +20,12 @@ namespace Antmicro.Renode.Logging.Profiling
         {
             buffer = new List<byte>();
         }
-
-        public void RegisterPeripherals(Machine machine)
+        
+        public void PrepareHeader(Machine machine)
         {
             var peripherals = machine.GetRegisteredPeripherals();
             var cpus = peripherals.Where(x => x.Peripheral is ICPU).ToList();
+            var bits = machine.SystemBus.GetAllObservedBitsNames();
 
             buffer.AddRange(BitConverter.GetBytes(cpus.Count));
 
@@ -49,6 +50,13 @@ namespace Antmicro.Renode.Logging.Profiling
                 var registrationPoint = peripheral.RegistrationPoint as BusRangeRegistration;
                 buffer.AddRange(BitConverter.GetBytes(registrationPoint.Range.StartAddress));
                 buffer.AddRange(BitConverter.GetBytes(registrationPoint.Range.EndAddress));
+            }
+
+            buffer.AddRange(BitConverter.GetBytes(bits.Count));
+            for(var i = 0; i < bits.Count; i++)
+            {
+                buffer.AddRange(BitConverter.GetBytes(bits[i].Length));
+                buffer.AddRange(Encoding.ASCII.GetBytes(bits[i]));
             }
         }
 
