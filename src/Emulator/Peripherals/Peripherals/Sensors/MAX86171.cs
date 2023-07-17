@@ -252,7 +252,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public event Action FifoFlushed;
 
         private void UpdateStatus()
         {
@@ -504,7 +503,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
                                 statusFifoFull.Value = false;
                                 UpdateInterrupts();
-                                FifoFlushed?.Invoke();
                             }
                         })
                     .WithReservedBits(5, 3)
