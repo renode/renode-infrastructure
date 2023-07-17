@@ -191,11 +191,10 @@ namespace Antmicro.Renode.Testing
                     }
                 }
             );
-            var waitHandles = new [] { charEvent, timeoutEvent.WaitHandle };
 
             charEvent.Reset();
-            WaitHandle.WaitAny(waitHandles);
-            var result = timeoutEvent.IsTriggered;
+            var eventIdx = WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, charEvent } );
+            var result = eventIdx == 0;
             if(!result)
             {
                 HandleFailure("Terminal is idle");
