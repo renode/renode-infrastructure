@@ -19,8 +19,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class STM32_GPIOPort : BaseGPIOPort, IDoubleWordPeripheral, ILocalGPIOReceiver
     {
-        public STM32_GPIOPort(Machine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0) : base(machine, NumberOfPins)
+        public STM32_GPIOPort(Machine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0,
+            uint numberOfAFs = 16) : base(machine, NumberOfPins)
         {
+            if(numberOfAFs < 1 || numberOfAFs > 16)
+            {
+                throw new ConstructionException("Number of alternate functions can't be lower than 1 or higher than 16");
+            }
+
             mode = new Mode[NumberOfPins];
             outputSpeed = new OutputSpeed[NumberOfPins];
             pullUpPullDown = new PullUpPullDown[NumberOfPins];
@@ -28,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             this.modeResetValue = modeResetValue;
             this.outputSpeedResetValue = outputSpeedResetValue;
             this.pullUpPullDownResetValue = pullUpPullDownResetValue;
+            this.numberOfAFs = numberOfAFs;
 
             alternateFunctionOutputs = new GPIOAlternateFunction[NumberOfPins];
             for(var i = 0; i < NumberOfPins; i++)
@@ -265,6 +272,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private readonly DoubleWordRegisterCollection registers;
 
+        private readonly uint numberOfAFs;
         // NOTE: This array holds connections from AFs to specific GPIO pins.
         // From the PoV of this peripheral they're inputs,
         // however they represent the output pins of this peripheral hence the name.
@@ -272,7 +280,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         // TODO: AF inputs
 
         private const int NumberOfPins = 16;
-        private const int NumberOfAFs = 8;
 
         private class GPIOAlternateFunction : IGPIOReceiver
         {
@@ -321,9 +328,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             private bool CheckAFNumber(int number)
             {
-                if(number < 0 || number >= NumberOfAFs)
+                if(number < 0 || number >= port.numberOfAFs)
                 {
-                    this.Log(LogLevel.Error, "Alternate function number must be between 0 and {0}, but {1} was given instead.", NumberOfAFs, number);
+                    this.Log(LogLevel.Error, "Alternate function number must be between 0 and {0}, but {1} was given instead.", port.numberOfAFs, number);
                     return false;
                 }
                 return true;
