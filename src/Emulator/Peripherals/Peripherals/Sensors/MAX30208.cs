@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             // Interrupt1 (pin=1) is used as input to start temperature conversion
             if(gpio1Mode.Value == GPIOMode.IntConv && !value)
             {
-                MeassureTemperature();
+                MeasureTemperature();
             }
         }
 
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        private void MeassureTemperature()
+        private void MeasureTemperature()
         {
             if(samplesFifo.Count == FIFOSize)
             {
@@ -334,7 +334,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                             var measurementFinishTimeStamp = new TimeStamp(measurementFinishTime, timeSource.Domain);
                             timeSource.ExecuteInSyncedState(__ =>
                             {
-                                MeassureTemperature();
+                                MeasureTemperature();
                             }, measurementFinishTimeStamp);
                         }
                     })
