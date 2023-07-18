@@ -76,6 +76,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 stopDetection.Value = true;
                 transmitInterruptStatus = false;
                 addressMatched.Value = false;
+                Update();
             }
             else
             {
@@ -142,14 +143,46 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithFlag(10, out isReadTransfer, name: "RD_WRN")
                         .WithFlag(11, out use10BitAddressing, name: "ADD10")
                         .WithTag("HEAD10R", 12, 1)
-                        .WithFlag(13, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: StartWrite, name: "START")
-                        .WithFlag(14, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: StopWrite, name: "STOP")
+                        .WithFlag(13, out start, name: "START")
+                        .WithFlag(14, out stop, name: "STOP")
                         .WithTag("NACK", 15, 1)
                         .WithValueField(16, 8, out bytesToTransfer, name: "NBYTES")
                         .WithFlag(24, out reload, name: "RELOAD")
                         .WithFlag(25, out autoEnd, name: "AUTOEND")
                         .WithTag("PECBYTE", 26, 1)
                         .WithReservedBits(27, 5)
+                        .WithWriteCallback((oldVal, newVal) =>
+                        {
+                            uint oldBytesToTransfer = (oldVal >> 16) & 0xFF;
+
+                            if(start.Value && stop.Value)
+                            {
+                                this.Log(LogLevel.Warning, "Setting START and STOP at the same time, ignoring the transfer");
+                            }
+                            else if(start.Value)
+                            {
+                                StartTransfer();
+                            }
+                            else if(stop.Value)
+                            {
+                                StopTransfer();
+                            }
+
+                            if(!start.Value)
+                            {
+                                if(bytesToTransfer.Value > 0 && masterMode && transferCompleteReload.Value && currentSlave != null)
+                                {
+                                    ExtendTransfer();
+                                }
+                            }
+                            else if(oldBytesToTransfer != bytesToTransfer.Value)
+                            {
+                                this.Log(LogLevel.Error, "Changing NBYTES when START is set is not permitted");
+                            }
+
+                            start.Value = false;
+                            stop.Value = false;
+                        })
                         .WithChangeCallback((_,__) => Update())
                 }, {
                     (long)Registers.OwnAddress1, new DoubleWordRegister(this)
@@ -275,14 +308,24 @@ namespace Antmicro.Renode.Peripherals.I2C
             transmitInterruptStatus = false;
         }
 
-        private void StartWrite(bool oldValue, bool newValue)
+        private void ExtendTransfer()
         {
-            if(!newValue)
+            //in case of reads we can fetch data from peripheral immediately, but in case of writes we have to wait until something is written to TXDATA
+            if(isReadTransfer.Value)
             {
-                return;
+                var data = currentSlave.Read((int)bytesToTransfer.Value);
+                foreach(var item in data)
+                {
+                    rxData.Enqueue(item);
+                }
             }
+            transferCompleteReload.Value = false;
+            Update();
+        }
+
+        private void StartTransfer()
+        {
             masterMode = true;
-            transmitInterruptStatus = true;
             transferComplete.Value = false;
 
             currentSlave = null;
@@ -298,24 +341,26 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             if(isReadTransfer.Value)
             {
+                transmitInterruptStatus = false;
                 var data = currentSlave.Read((int)bytesToTransfer.Value);
                 foreach(var item in data)
                 {
                     rxData.Enqueue(item);
                 }
-                SetTransferCompleteFlags();
             }
+            else
+            {
+                transmitInterruptStatus = true;
+            }
+            Update();
         }
 
-        private void StopWrite(bool oldValue, bool newValue)
+        private void StopTransfer()
         {
-            if(!newValue)
-            {
-                return;
-            }
             masterMode = false;
             stopDetection.Value = true;
             currentSlave?.FinishTransmission();
+            Update();
         }
 
         private uint ReceiveDataRead(uint oldValue)
@@ -323,7 +368,10 @@ namespace Antmicro.Renode.Peripherals.I2C
             if(rxData.Count > 0)
             {
                 var value = rxData.Dequeue();
-                Update();
+                if(rxData.Count == 0)
+                {
+                    SetTransferCompleteFlags(); //TC/TCR is set when NBYTES data have been transfered
+                }
                 return value;
             }
             this.Log(LogLevel.Warning, "Receive buffer underflow!");
@@ -355,7 +403,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                 currentSlave.Write(txData.ToArray());
                 txData.Clear();
                 SetTransferCompleteFlags();
-                Update();
             }
         }
 
@@ -384,6 +431,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 transmitInterruptStatus = false; //this is a guess based on a driver
             }
+            Update();
         }
 
         private void Update()
@@ -420,6 +468,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField transferCompleteReload;
         private IFlagRegisterField stopDetection;
         private IFlagRegisterField addressMatched;
+        private IFlagRegisterField start;
+        private IFlagRegisterField stop;
 
         private DoubleWordRegisterCollection registers;
 
@@ -447,4 +497,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-
