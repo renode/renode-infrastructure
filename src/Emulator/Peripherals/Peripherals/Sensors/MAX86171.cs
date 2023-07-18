@@ -55,7 +55,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 feedingSamplesFromFile = true;
                 feederThread?.Stop();
-                circularFifo.Clear();
                 resdStream?.Dispose();
                 resdStream = this.CreateRESDStream<MAX86171_AFESample>(filePath, channelId);
                 resdStream.MetadataChanged += () =>
