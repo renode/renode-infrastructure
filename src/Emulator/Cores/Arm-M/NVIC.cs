@@ -487,11 +487,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             number += 16; // because this is HW interrupt
             this.NoisyLog("External IRQ {0}: {1}", number, value);
+            var pendingInterrupt = SpuriousInterrupt;
             lock(irqs)
             {
                 if(value)
                 {
-                    this.NoisyLog("Waking up from deep sleep");
                     irqs[number] |= IRQState.Running;
                     // let's latch it if not active
                     if((irqs[number] & IRQState.Active) == 0)
@@ -503,9 +503,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     irqs[number] &= ~IRQState.Running;
                 }
-                FindPendingInterrupt();
+                pendingInterrupt = FindPendingInterrupt();
             }
-            systick.Enabled |= value;
+            if(pendingInterrupt != SpuriousInterrupt && value)
+            {
+                if(systick.Enabled == false)
+                {
+                    this.NoisyLog("Waking up from deep sleep");
+                }
+                systick.Enabled |= value;
+            }
         }
 
         public void SetSevOnPendingOnAllCPUs(bool value)
