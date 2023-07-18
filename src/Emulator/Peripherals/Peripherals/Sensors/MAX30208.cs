@@ -8,9 +8,11 @@ using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
@@ -317,7 +319,25 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.TempSensorSetup.Define(this, 0xC0)
                 .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, name: "TEMP_SENS_SETUP.convert_t",
-                    writeCallback: (_, value) => { if(value) MeassureTemperature(); })
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+			    if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                            {
+                                cpu.SyncTime();
+                            }
+                            var timeSource = machine.LocalTimeSource;
+                            var now = timeSource.ElapsedVirtualTime;
+                            // about 15ms (typ value)
+                            var measurementFinishTime = now + TimeInterval.FromMilliseconds(15);
+                            var measurementFinishTimeStamp = new TimeStamp(measurementFinishTime, timeSource.Domain);
+                            timeSource.ExecuteInSyncedState(__ =>
+                            {
+                                MeassureTemperature();
+                            }, measurementFinishTimeStamp);
+                        }
+                    })
                 .WithReservedBits(1, 5)
                 .WithTag("TEMP_SENS_SETUP.rfu", 6, 2)
             ;
