@@ -45,6 +45,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 sockets[i] = null;
             }
             inReset = false;
+            signalingConnectionActive = false;
             echoInDataMode = false;
             networkRegistrationUrcType = NetworkRegistrationUrcType.Disabled;
             Enabled = false;
@@ -634,6 +635,12 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected void SendSignalingConnectionStatus(bool active)
         {
+            if(signalingConnectionActive == active)
+            {
+                return;
+            }
+
+            signalingConnectionActive = active;
             var activeAsInt = active ? 1 : 0;
             SendString($"+CSCON: {activeAsInt}");
         }
@@ -733,6 +740,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private int? dataBytesRemaining;
         private Action<byte[]> dataCallback;
         private bool inReset;
+        private bool signalingConnectionActive;
 
         private readonly string softwareVersionNumber;
         private readonly string serialNumber;
