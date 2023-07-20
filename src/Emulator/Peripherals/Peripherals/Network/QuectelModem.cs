@@ -468,7 +468,18 @@ namespace Antmicro.Renode.Peripherals.Network
             if(mode == 1)
             {
                 // The signaling connection goes inactive when sleep mode is enabled.
-                ExecuteWithDelay(() => SendSignalingConnectionStatus(false), CsconDelay);
+                ExecuteWithDelay(() =>
+                {
+                    SendSignalingConnectionStatus(false);
+
+                    // Also, if we are configured to enter deep sleep when the sleep
+                    // lock is released, we also use sleep mode being enabled as our
+                    // cue to enter it.
+                    if(DeepsleepOnRellock)
+                    {
+                        EnterDeepsleep();
+                    }
+                }, CsconDelay);
             }
             return Ok; // stub
         }
