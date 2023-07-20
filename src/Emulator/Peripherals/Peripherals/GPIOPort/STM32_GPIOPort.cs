@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             if(pin < 0 || pin >= NumberOfPins)
             {
-                throw new RecoverableException($"This peripheral supports GPIO inputs from 0 to {NumberOfPins}, but {pin} was called.");
+                throw new RecoverableException($"This peripheral supports GPIO inputs from 0 to {NumberOfPins - 1}, but {pin} was called.");
             }
 
             return alternateFunctionOutputs[pin];
@@ -274,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 if(number < 0 || number >= port.numberOfAFs)
                 {
-                    this.Log(LogLevel.Error, "Alternate function number must be between 0 and {0}, but {1} was given instead.", port.numberOfAFs, number);
+                    this.Log(LogLevel.Error, "Alternate function number must be between 0 and {0}, but {1} was given instead.", port.numberOfAFs - 1, number);
                     return false;
                 }
                 return true;
