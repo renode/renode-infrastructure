@@ -173,7 +173,6 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             var d = 0UL;
             ExecuteWithDelay(() => SendSignalingConnectionStatus(true), d += CsconDelay);
-            ExecuteWithDelay(() => SendString(CeregContent(true)), d += CeregDelay);
             ExecuteWithDelay(() => SendString($"+IP: {NetworkIp}"), d += 1000); // IP URC means successfully registered
             return base.Atw();
         }
