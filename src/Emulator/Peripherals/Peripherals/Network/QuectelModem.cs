@@ -255,6 +255,10 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+CFUN", CommandType.Write)]
         protected virtual Response Cfun(FunctionalityLevel functionalityLevel = FunctionalityLevel.Full, int reset = 0)
         {
+            // Notify the DTE about the registration status to emulate the behavior
+            // of a real modem where it might change in response to the functionality
+            // level being changed.
+            ExecuteWithDelay(() => SendString(CeregContent(true)), CeregDelay);
             return Ok; // stub
         }
 
