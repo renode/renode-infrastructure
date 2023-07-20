@@ -185,71 +185,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(17, 15)
                 },
                 {(long)Registers.AlternateFunctionLow, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, name: "AFSEL0",
-                            writeCallback: (_, val) => alternateFunctionOutputs[0].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[0].ActiveFunction
-                        )
-                    .WithValueField(4, 4, name: "AFSEL1",
-                            writeCallback: (_, val) => alternateFunctionOutputs[1].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[1].ActiveFunction
-                        )
-                    .WithValueField(8, 4, name: "AFSEL2",
-                            writeCallback: (_, val) => alternateFunctionOutputs[2].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[2].ActiveFunction
-                        )
-                    .WithValueField(12, 4, name: "AFSEL3",
-                            writeCallback: (_, val) => alternateFunctionOutputs[3].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[3].ActiveFunction
-                        )
-                    .WithValueField(16, 4, name: "AFSEL4",
-                            writeCallback: (_, val) => alternateFunctionOutputs[4].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[4].ActiveFunction
-                        )
-                    .WithValueField(20, 4, name: "AFSEL5",
-                            writeCallback: (_, val) => alternateFunctionOutputs[5].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[5].ActiveFunction
-                        )
-                    .WithValueField(24, 4, name: "AFSEL6",
-                            writeCallback: (_, val) => alternateFunctionOutputs[6].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[6].ActiveFunction
-                        )
-                    .WithValueField(28, 4, name: "AFSEL7",
-                            writeCallback: (_, val) => alternateFunctionOutputs[7].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[7].ActiveFunction
+                    .WithValueFields(0, 4, 8, name: "AFSEL_LO",
+                            writeCallback: (i, _, val) => alternateFunctionOutputs[i].ActiveFunction = val,
+                            valueProviderCallback: (i, _) => alternateFunctionOutputs[i].ActiveFunction
                         )
                 },
                 {(long)Registers.AlternateFunctionHigh, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, name: "AFSEL8",
-                            writeCallback: (_, val) => alternateFunctionOutputs[8].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[8].ActiveFunction
-                        )
-                    .WithValueField(4, 4, name: "AFSEL9",
-                            writeCallback: (_, val) => alternateFunctionOutputs[9].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[9].ActiveFunction
-                        )
-                    .WithValueField(8, 4, name: "AFSEL10",
-                            writeCallback: (_, val) => alternateFunctionOutputs[10].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[10].ActiveFunction
-                        )
-                    .WithValueField(12, 4, name: "AFSEL11",
-                            writeCallback: (_, val) => alternateFunctionOutputs[11].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[11].ActiveFunction
-                        )
-                    .WithValueField(16, 4, name: "AFSEL12",
-                            writeCallback: (_, val) => alternateFunctionOutputs[12].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[12].ActiveFunction
-                        )
-                    .WithValueField(20, 4, name: "AFSEL13",
-                            writeCallback: (_, val) => alternateFunctionOutputs[13].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[13].ActiveFunction
-                        )
-                    .WithValueField(24, 4, name: "AFSEL14",
-                            writeCallback: (_, val) => alternateFunctionOutputs[14].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[14].ActiveFunction
-                        )
-                    .WithValueField(28, 4, name: "AFSEL15",
-                            writeCallback: (_, val) => alternateFunctionOutputs[15].ActiveFunction = val,
-                            valueProviderCallback: _ => alternateFunctionOutputs[15].ActiveFunction
+                    .WithValueFields(0, 4, 8, name: "AFSEL_HI",
+                            writeCallback: (i, _, val) => alternateFunctionOutputs[i + 8].ActiveFunction = val,
+                            valueProviderCallback: (i, _) => alternateFunctionOutputs[i + 8].ActiveFunction
                         )
                 },
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
