@@ -152,6 +152,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public bool DeepsleepOnRellock { get; set; } = false;
         // The delay before sending the +CSCON URC in virtual milliseconds
         public ulong CsconDelay { get; set; } = 500;
+        // The delay before sending the +CEREG URC in virtual milliseconds
+        public ulong CeregDelay { get; set; } = 500;
         // These timers should in theory be automatically updated when we enter deep sleep,
         // receive or transmit something. This is a basic implementation that only supports
         // setting them manually.
@@ -171,7 +173,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             var d = 0UL;
             ExecuteWithDelay(() => SendSignalingConnectionStatus(true), d += CsconDelay);
-            ExecuteWithDelay(() => SendString(CeregContent(true)), d += 100);
+            ExecuteWithDelay(() => SendString(CeregContent(true)), d += CeregDelay);
             ExecuteWithDelay(() => SendString($"+IP: {NetworkIp}"), d += 1000); // IP URC means successfully registered
             return base.Atw();
         }
@@ -231,7 +233,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             networkRegistrationUrcType = type;
             // Queue a CEREG URC in response to the write
-            ExecuteWithDelay(() => SendString(CeregContent(true)), 1000);
+            ExecuteWithDelay(() => SendString(CeregContent(true)), CeregDelay);
             return Ok; // stub, should disable or enable network registration URC
         }
 
