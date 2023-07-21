@@ -577,7 +577,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
             {
-                return machine.SystemBus.ReadByte(offset);
+                return machine.SystemBus.ReadByte(offset, this);
             }
         }
 
@@ -590,7 +590,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
             {
-                return machine.SystemBus.ReadWord(offset);
+                return machine.SystemBus.ReadWord(offset, this);
             }
         }
 
@@ -603,7 +603,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
             {
-                return machine.SystemBus.ReadDoubleWord(offset);
+                return machine.SystemBus.ReadDoubleWord(offset, this);
             }
         }
 
@@ -616,7 +616,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
             {
-                return machine.SystemBus.ReadQuadWord(offset);
+                return machine.SystemBus.ReadQuadWord(offset, this);
             }
         }
 
@@ -629,7 +629,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
             {
-                machine.SystemBus.WriteByte(offset, unchecked((byte)value));
+                machine.SystemBus.WriteByte(offset, unchecked((byte)value), this);
             }
         }
 
@@ -642,7 +642,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
             {
-                machine.SystemBus.WriteWord(offset, unchecked((ushort)value));
+                machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this);
             }
         }
 
@@ -655,7 +655,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
             {
-                machine.SystemBus.WriteDoubleWord(offset, (uint)value);
+                machine.SystemBus.WriteDoubleWord(offset, (uint)value, this);
             }
         }
 
@@ -668,7 +668,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
             {
-                machine.SystemBus.WriteQuadWord(offset, value);
+                machine.SystemBus.WriteQuadWord(offset, value, this);
             }
         }
 
