@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             el1VirtualTimer = new TimerUnit(clockSource, this, "EL1VirtualTimer", EL1VirtualTimerIRQ, Frequency);
             el3PhysicalTimer = new TimerUnit(clockSource, this, "EL3PhysicalTimer", EL3PhysicalTimerIRQ, Frequency);
             nonSecureEL2PhysicalTimer = new TimerUnit(clockSource, this, "NonSecureEL2PhysicalTimer", NonSecureEL2PhysicalTimerIRQ, Frequency);
+            nonSecureEL2VirtualTimer = new TimerUnit(clockSource, this, "NonSecureEL2VirtualTimer", NonSecureEL2VirtualTimerIRQ, Frequency);
 
             registersAArch64 = new QuadWordRegisterCollection(this, BuildRegisterAArch64Map());
             doubleWordRegistersAArch32 = new DoubleWordRegisterCollection(this, BuildDoubleWordRegisterAArch32Map());
@@ -93,6 +94,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             el1VirtualTimer.Reset();
             el3PhysicalTimer.Reset();
             nonSecureEL2PhysicalTimer.Reset();
+            nonSecureEL2VirtualTimer.Reset();
 
             CounterFrequencyRegister = 0;
             registersAArch64.Reset();
@@ -110,6 +112,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO EL1VirtualTimerIRQ { get; } = new GPIO();
         public GPIO EL3PhysicalTimerIRQ { get; } = new GPIO();
         public GPIO NonSecureEL2PhysicalTimerIRQ { get; } = new GPIO();
+        public GPIO NonSecureEL2VirtualTimerIRQ { get; } = new GPIO();
 
         // Some physical timers names in the ARMv7 specification are different than names in the ARMv8-A specification.
         public GPIO PL1PhysicalTimerIRQ => EL1PhysicalTimerIRQ;
@@ -149,6 +152,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)RegistersAArch64.NonSecureEL2PhysicalTimerControl,
                     BuildTimerControlRegister(new QuadWordRegister(this), nonSecureEL2PhysicalTimer, "NonSecureEL2PhysicalTimer")
                 },
+                {(long)RegistersAArch64.NonSecureEL2VirtualTimerControl,
+                    BuildTimerControlRegister(new QuadWordRegister(this), nonSecureEL2VirtualTimer, "NonSecureEL2VirtualTimer")
+                },
 
                 {(long)RegistersAArch64.EL1PhysicalTimerCompareValue,
                     BuildTimerCompareValueRegister(el1PhysicalTimer, "EL1PhysicalTimer")
@@ -162,6 +168,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)RegistersAArch64.NonSecureEL2PhysicalTimerCompareValue,
                     BuildTimerCompareValueRegister(nonSecureEL2PhysicalTimer, "NonSecureEL2PhysicalTimer")
                 },
+                {(long)RegistersAArch64.NonSecureEL2VirtualTimerCompareValue,
+                    BuildTimerCompareValueRegister(nonSecureEL2VirtualTimer, "NonSecureEL2VirtualTimer")
+                },
 
                 {(long)RegistersAArch64.EL1PhysicalTimerValue,
                     BuildTimerCountDownValueRegister(new QuadWordRegister(this), el1PhysicalTimer, "EL1PhysicalTimer", 64)
@@ -174,6 +183,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 {(long)RegistersAArch64.NonSecureEL2PhysicalTimerValue,
                     BuildTimerCountDownValueRegister(new QuadWordRegister(this), nonSecureEL2PhysicalTimer, "NonSecureEL2PhysicalTimer", 64)
+                },
+                {(long)RegistersAArch64.NonSecureEL2VirtualTimerValue,
+                    BuildTimerCountDownValueRegister(new QuadWordRegister(this), nonSecureEL2VirtualTimer, "NonSecureEL2VirtualTimer", 64)
                 },
             };
 
@@ -346,6 +358,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly TimerUnit el1VirtualTimer;
         private readonly TimerUnit el3PhysicalTimer;
         private readonly TimerUnit nonSecureEL2PhysicalTimer;
+        private readonly TimerUnit nonSecureEL2VirtualTimer;
         private readonly QuadWordRegisterCollection registersAArch64;
         private readonly DoubleWordRegisterCollection doubleWordRegistersAArch32;
         private readonly QuadWordRegisterCollection quadWordRegistersAArch32;
