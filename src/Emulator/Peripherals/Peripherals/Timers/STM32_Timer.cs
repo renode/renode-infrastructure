@@ -459,6 +459,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             ccOutputEnable[i] = value;
             UpdateCaptureCompareTimer(i);
+            if(!value)
+            {
+                Connections[i].Unset();
+            }
             this.Log(LogLevel.Noisy, "cctimer{0}: Output Enable set to {1}", i + 1, value);
         }
 
