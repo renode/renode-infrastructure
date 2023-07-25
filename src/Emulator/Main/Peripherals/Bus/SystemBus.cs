@@ -147,12 +147,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(cpu is ICPUWithMappedMemory memoryMappedCpu)
                 {
                     foreach(var mapping in mappingsForPeripheral.SelectMany(x => x.Value)
-                            .Where(x => x.Context == null || x.Context == cpu)
-                            // Start from the highest address to reduce the number of reallocations in CPU.
-                            // Tlib tracks pages in the phys_dirty structure that covers the whole memory range.
-                            // This structure is reallocated whenever a segment at a higher address is registered.
-                            // Thus, when starting with the highest offset, we don't need to reallocate.
-                            .OrderByDescending(x => x.StartingOffset))
+                            .Where(x => x.Context == null || x.Context == cpu))
                     {
                         memoryMappedCpu.MapMemory(mapping);
                     }
@@ -1581,8 +1576,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         mappingsForPeripheral[owner] = mappingsList;
                     }
                     // Old mappings are given to the CPU in the moment of its registration.
-                    // Starting from the highest offset to reduce the number of reallocations on the CPU side.
-                    foreach(var mapping in mappingsList.OrderByDescending(x => x.StartingOffset))
+                    foreach(var mapping in mappingsList)
                     {
                         if(mapping.Context != null)
                         {
