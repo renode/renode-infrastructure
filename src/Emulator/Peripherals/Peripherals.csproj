@@ -586,6 +586,7 @@
     <Compile Include="Peripherals\Miscellaneous\STM32WBA_RCC.cs" />
     <Compile Include="Peripherals\Timers\EFR32xG2_BURTC.cs" />
     <Compile Include="Peripherals\I2C\SHT45.cs" />
+    <Compile Include="Peripherals\I2C\BME280.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
