@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -25,7 +25,15 @@ namespace Antmicro.Renode.UserInterface.Commands
         public void Run(ICommandInteraction writer, VariableToken variable)
         {
             var value = GetVariable(variable);
-            Run(writer, (StringToken)value);
+
+            if(value is StringToken stringValue)
+            {
+                Run(writer, stringValue);
+            }
+            else
+            {
+                writer.WriteError("Variable type has to be a string.");
+            }
         }
 
         [Runnable]
