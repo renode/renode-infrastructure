@@ -1299,7 +1299,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Interrupt1Enable1 = 0x78,
             Interrupt1Enable2,
             Interrupt1Enable3,
-            Interrupt2Enable1,
+            Interrupt2Enable1 = 0x7C,
             Interrupt2Enable2,
             Interrupt2Enable3,
 
