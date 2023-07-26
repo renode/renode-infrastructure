@@ -801,7 +801,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         private IEnumerable<Channel> ActiveChannels =>
-            measurementEnabled.Where((active, idx) => active).Select((_, idx) => (Channel)idx);
+            measurementEnabled.Select((active, idx) => active ? idx : -1).Where(x => x != -1).Select(x => (Channel)x);
 
         private bool FifoThresholdReached =>
             (MaximumFIFOCount - circularFifo.Count) <= fifoFullThreshold.Value;
