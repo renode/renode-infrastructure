@@ -38,6 +38,9 @@
       <CSources Include="$(TcgDirectory)/optimize.c" />
       <CSources Include="$(TcgDirectory)/additional.c" />
       <CSources Include="$(TcgDirectory)/host-utils.c" />
+      <CSources Include="$(TcgDirectory)/tcg-op-gvec.c" />
+      <CSources Include="$(TcgDirectory)/tcg-op-vec.c" />
+      <CSources Include="$(TcgDirectory)/tcg-runtime-gvec.c" />
 
       <InputFiles Include="$(TcgDirectory)/**" Exclude="$(TcgDirectory)/bin/**;$(TcgDirectory)/obj/**;$(TcgDirectory)/**/.*;$(TcgDirectory)/*.a" />
     </ItemGroup>
