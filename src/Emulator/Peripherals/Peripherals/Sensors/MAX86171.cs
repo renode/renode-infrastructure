@@ -258,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void UpdateStatus()
         {
-            statusFifoFull.Value |= FifoThresholdReached && (!fifoAssertThresholdOnce.Value || (previousFifoTresholdReached == FifoThresholdReached));
+            statusFifoFull.Value |= FifoThresholdReached && (!fifoAssertThresholdOnce.Value || (previousFifoTresholdReached != FifoThresholdReached));
             previousFifoTresholdReached = FifoThresholdReached;
 
             if(statusFifoFull.Value)
