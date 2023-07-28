@@ -827,6 +827,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => (ulong)GetAskingCPU().AcknowledgeBestPending(GroupTypeRegister.Group1)
                     )
                 },
+                {(long)CPUInterfaceSystemRegisters.InterruptDeactivate, new QuadWordRegister(this)
+                    .WithReservedBits(24, 40)
+                    // EOI mode with priority drop separated from deactivation is yet to be implemented.
+                    // Currently both happen after writing InterruptEnd register which has to be done before InterruptDeactivate nevertheless.
+                    // This field just prevents logging an unhandled write warning with every interrupt.
+                    .WithValueField(0, 24, FieldMode.Write, name: "INTID")
+                    .WithWriteCallback((_, __) => this.Log(LogLevel.Noisy, "Separate interrupt deactivation isn't currently supported."))
+                },
                 {(long)CPUInterfaceSystemRegisters.InterruptEndGroup0, new QuadWordRegister(this)
                     .WithReservedBits(24, 40)
                     .WithValueField(0, 24, FieldMode.Write, name: "InterruptEndGroup0",
