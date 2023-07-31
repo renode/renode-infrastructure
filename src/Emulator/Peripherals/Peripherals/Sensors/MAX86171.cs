@@ -611,7 +611,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 },
                 {(long)Registers.Interrupt2Enable2, CreateDummyRegister("INT2_ENABLE2.data")},
                 {(long)Registers.Interrupt2Enable3, CreateDummyRegister("INT2_ENABLE3.data")},
-                {(long)Registers.PartID, CreateDummyRegister("PART_ID.part_id", 0x2C)}
+                {(long)Registers.PartID, new ByteRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, name: "PART_ID.part_id",
+                        valueProviderCallback: _ => 0x2C)
+                }
             };
 
             for(var i = 0; i < MeasurementRegisterCount; ++i)
