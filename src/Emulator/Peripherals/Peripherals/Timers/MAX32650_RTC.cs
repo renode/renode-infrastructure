@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -31,8 +32,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             DefineRegisters();
 
-            internalClock = new LimitTimer(machine.ClockSource, SubSecondCounterResolution, this, "rtc_tick", limit: 1, enabled: false, eventEnabled: true);
-            internalClock.LimitReached += SubsecondTick;
+            internalTimer = new LimitTimer(machine.ClockSource, SubSecondCounterResolution, this, "timer", limit: SubSecondCounterResolution, direction: Direction.Ascending, enabled: false, eventEnabled: true);
+            internalTimer.LimitReached += SecondTick;
+            subSecondAlarmTimer = new LimitTimer(machine.ClockSource, SubSecondCounterResolution, this, "ss_alarm", limit: SubSecondAlarmMaxValue, direction: Direction.Ascending, enabled: false, eventEnabled: true);
+            subSecondAlarmTimer.LimitReached += SubSecondAlarm;
 
             this.subSecondsMSBOverwrite = subSecondsMSBOverwrite;
             this.secondsTickOnOneSubSecond = secondsTickOnOneSubSecond;
@@ -46,11 +49,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             base.Reset();
             IRQ.Unset();
-            internalClock.Reset();
+
+            internalTimer.Reset();
+            subSecondAlarmTimer.Reset();
 
             secondsCounter = 0;
-            subSecondAlarmCounter = 0;
-            subSecondsCounter = 0;
             secondsCounterCache = 0;
             subSecondsCounterCache = 0;
             secondsCounterReadFlag = false;
@@ -78,9 +81,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x400;
 
-        public byte SubSecondsSignificantBits => (byte)(subSecondsCounter >> 8);
+        public byte SubSecondsSignificantBits => (byte)(subSecondsCounterCache >> 8);
 
-        public TimeSpan TimePassedSinceBaseDateTime => TimeSpan.FromSeconds(secondsCounter + ((double)subSecondsCounter / SubSecondCounterResolution));
+        public TimeSpan TimePassedSinceBaseDateTime => TimeSpan.FromSeconds(CurrentSecond + ((double)CurrentSubSecond / SubSecondCounterResolution));
 
         private static uint CalculateSubSeconds(double seconds)
         {
@@ -105,8 +108,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             else
             {
-                secondsCounterCache = secondsCounter;
-                subSecondsCounterCache = subSecondsCounter;
+                secondsCounterCache = (uint)CurrentSecond;
+                subSecondsCounterCache = (uint)CurrentSubSecond;
             }
         }
 
@@ -140,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         lock(countersLock)
                         {
-                            subSecondsCounter = (subSecondsMSBOverwrite ? 0xF00 : (subSecondsCounter & 0xF00)) | (uint)value;
+                            internalTimer.Value = (ulong)((subSecondsMSBOverwrite ? 0xF00 : (CurrentSubSecond & 0xF00)) | (uint)value);
                             UpdateCounterCacheIfInvalid();
                         }
                     })
@@ -149,10 +152,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithValueField(0, 20, out timeOfDayAlarm, name: "RTC_TODA.tod_alarm")
                 .WithReservedBits(20, 12);
             Registers.SubSecondAlarm.Define(this)
-                .WithValueField(0, 32, out subSecondAlarm, name: "RTC_SSECA.ssec_alarm");
+                .WithValueField(0, 32, out subSecondAlarm, name: "RTC_SSECA.ssec_alarm",
+                    writeCallback: (_, value) => subSecondAlarmTimer.Value = value);
             Registers.Control.Define(this)
                 .WithFlag(0, name: "RTC_CTRL.enable",
-                    valueProviderCallback: _ => internalClock.Enabled,
+                    valueProviderCallback: _ => internalTimer.Enabled,
                     changeCallback: (_, value) =>
                     {
                         if(!canBeToggled.Value)
@@ -160,14 +164,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                             this.Log(LogLevel.Warning, "Tried to write RTC_CTRL.enable with RTC_CTRL.write_en disabled");
                             return;
                         }
-                        internalClock.Enabled = value;
+                        internalTimer.Enabled = value;
                     })
                 .WithFlag(1, out timeOfDayAlarmEnabled, name: "RTC_CTRL.tod_alarm_en")
-                .WithFlag(2, out subSecondAlarmEnabled, name: "RTC_CTRL.ssec_alarm_en",
-                    writeCallback: (_, value) =>
-                    {
-                        subSecondAlarmCounter = subSecondAlarm.Value;
-                    })
+                .WithFlag(2, name: "RTC_CTRL.ssec_alarm_en",
+                    valueProviderCallback: _ => subSecondAlarmTimer.Enabled,
+                    writeCallback: (_, value) => subSecondAlarmTimer.Enabled = value)
                 .WithFlag(3, name: "RTC_CTRL.busy", valueProviderCallback: _ => false)
                 // It seems that on real HW, semantic of the READY bit is inverted, that is
                 // when RTC_CTRL.ready is set to false, then software is able to read
@@ -213,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             lock(countersLock)
             {
                 secondsCounter = (uint)sinceBaseDateTime.TotalSeconds;
-                subSecondsCounter = CalculateSubSeconds(sinceBaseDateTime.TotalSeconds);
+                internalTimer.Value = CalculateSubSeconds(sinceBaseDateTime.TotalSeconds);
 
                 if(!hushLog)
                 {
@@ -227,58 +229,68 @@ namespace Antmicro.Renode.Peripherals.Timers
             SetDateTime(machine.RealTimeClockDateTime, hushLog);
         }
 
-        private void SubsecondTick()
+        private void SecondTick()
         {
             lock(countersLock)
             {
-                subSecondsCounter += 1;
-                if(secondsTickOnOneSubSecond)
+                secondsCounter += 1;
+                if(timeOfDayAlarmEnabled.Value && (secondsCounter & TimeOfDayAlarmMask) == timeOfDayAlarm.Value)
                 {
-                    if(subSecondsCounter == 1)
-                    {
-                        secondsCounter += 1;
-                    }
-                }
-
-                if(subSecondsCounter >= SubSecondCounterResolution)
-                {
-                    subSecondsCounter = 0;
-                    if(!secondsTickOnOneSubSecond)
-                    {
-                        secondsCounter += 1;
-                    }
-
-                    if(timeOfDayAlarmEnabled.Value && (secondsCounter & TimeOfDayAlarmMask) == timeOfDayAlarm.Value)
-                    {
-                        timeOfDayAlarmFlag.Value = true;
-                    }
-                }
-
-                if(subSecondAlarmEnabled.Value)
-                {
-                    subSecondAlarmCounter += 1;
-                    if(subSecondAlarmCounter > SubSecondAlarmMaxValue)
-                    {
-                        subSecondAlarmCounter = subSecondAlarm.Value;
-                        subSecondAlarmFlag.Value = true;
-                    }
+                    timeOfDayAlarmFlag.Value = true;
                 }
 
                 UpdateInterrupts();
             }
         }
 
+        private void SubSecondAlarm()
+        {
+            subSecondAlarmTimer.Value = subSecondAlarm.Value;
+            subSecondAlarmFlag.Value = true;
+            UpdateInterrupts();
+        }
+
         private void UpdateInterrupts()
         {
             var interruptPending = readyInterruptEnabled.Value;
             interruptPending |= timeOfDayAlarmEnabled.Value && timeOfDayAlarmFlag.Value;
-            interruptPending |= subSecondAlarmEnabled.Value && subSecondAlarmFlag.Value;
+            interruptPending |= subSecondAlarmTimer.Enabled && subSecondAlarmFlag.Value;
             IRQ.Set(interruptPending);
+        }
+
+        private ulong CurrentSecond
+        {
+            get
+            {
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+                // On some revisions of the HW the seconds counter won't tick on subseconds
+                // counter overflow, but rather after first tick on value=1. This enables
+                // this behaviour when secondsTickOnOneSubSecond is set.
+                if(secondsTickOnOneSubSecond && internalTimer.Value == 0)
+                {
+                    return secondsCounter > 0 ? secondsCounter - 1 : secondsCounter;
+                }
+                return secondsCounter;
+            }
+        }
+
+        private ulong CurrentSubSecond
+        {
+            get
+            {
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+                return internalTimer.Value;
+            }
         }
 
         private uint secondsCounter;
         private ulong subSecondAlarmCounter;
-        private uint subSecondsCounter;
         private uint secondsCounterCache;
         private uint subSecondsCounterCache;
         private bool secondsCounterReadFlag;
@@ -286,7 +298,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private IFlagRegisterField canBeToggled;
         private IFlagRegisterField readyInterruptEnabled;
-        private IFlagRegisterField subSecondAlarmEnabled;
         private IFlagRegisterField subSecondAlarmFlag;
         private IFlagRegisterField timeOfDayAlarmEnabled;
         private IFlagRegisterField timeOfDayAlarmFlag;
@@ -294,11 +305,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IValueRegisterField subSecondAlarm;
         private IValueRegisterField timeOfDayAlarm;
 
+        private readonly LimitTimer internalTimer;
+        private readonly LimitTimer subSecondAlarmTimer;
         private readonly object countersLock = new object();
-        private readonly LimitTimer internalClock;
         private readonly bool subSecondsMSBOverwrite;
 
-        private const ulong SubSecondAlarmMaxValue = 0xFFFFFFFF;
+        private const long SubSecondAlarmMaxValue = 0xFFFFFFFF;
         private const uint SubSecondCounterResolution = 4096;
         private const ulong TimeOfDayAlarmMask = 0xFFFFF;
         // Some revisions of this peripheral have HW bug that makes
