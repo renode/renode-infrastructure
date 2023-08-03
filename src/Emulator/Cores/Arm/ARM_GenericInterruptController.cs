@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // The behaviour of the GIC doesn't directly depend on the suppportsTwoSecurityState field
             // The disabledSecurity field corresponds to the GICD_CTRL.DS flag described in the GICv3 Architecture Specification
             // The GIC without support for two security states has disabled security
-            // Changing the disabledSecurity field affects the behaviour and register map of a GIC 
+            // Changing the disabledSecurity field affects the behaviour and register map of a GIC
             // Once security is disabled it's impossible to enable it
             // So it is impossible to enable security for the GIC that doesn't support two security states
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
@@ -290,9 +290,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         // Private Peripheral Interrupts are connected using the ILocalGPIOReceiver interface
-        // Every CPUEntry class implements the IGPIOReceiver interface used to connect PPIs to each CPU 
+        // Every CPUEntry class implements the IGPIOReceiver interface used to connect PPIs to each CPU
         // The CPUEntry provides event for handling received interrupts by an external action
-        // It's expected to handle all of these interrupts by OnPrivateInterrupt method 
+        // It's expected to handle all of these interrupts by OnPrivateInterrupt method
         public IGPIOReceiver GetLocalReceiver(int cpuConnectionId)
         {
             return GetCPUByConnectionId((uint)cpuConnectionId);
@@ -717,7 +717,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => GetAskingCPU().Affinity.AllLevels
                     )
                     .WithValueField(27, 5, FieldMode.Read, name: "MaximumPrivatePeripheralInterruptIdentifier",
-                        valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI 
+                        valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI
                     )
                     .WithFlag(26, FieldMode.Read, name: "DirectSoftwareGEenratedInterruptInjectionSupport",
                         valueProviderCallback: _ => false
@@ -802,7 +802,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 },
                 {(long)CPUInterfaceSystemRegisters.RunningPriority, new QuadWordRegister(this)
                     .WithTaggedFlag("PriorityFromNonMaskableInterrupt", 63) // Requires FEAT_GICv3_NMI extension
-                    .WithTaggedFlag("PriorityFromNonSecureNonMaskableInterrupt", 62) // Requires FEAT_GICv3_NMI extension 
+                    .WithTaggedFlag("PriorityFromNonSecureNonMaskableInterrupt", 62) // Requires FEAT_GICv3_NMI extension
                     .WithReservedBits(8, 54)
                     .WithEnumField<QuadWordRegister, InterruptPriority>(0, 8, FieldMode.Read, name: "RunningPriority",
                         valueProviderCallback: _ => GetAskingCPU().RunningPriority
@@ -1389,7 +1389,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const uint DefaultProductIdentifier = 0x0;
         private const byte DefaultVariantNumber = 0x0;
         private const byte DefaultRevisionNumber = 0x0;
-        private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer 
+        private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer
 
         private const int CPUsCountWithoutAffinityRouting = 1;
         private const int BytesPerDoubleWordRegister = 4;
@@ -1753,7 +1753,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         // This class will be extended at least for the Binary Point register support
-        // It may be needed to separate it for CPUInterface and Distributor 
+        // It may be needed to separate it for CPUInterface and Distributor
         private class InterruptGroup
         {
             public void Reset()
@@ -1910,15 +1910,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private enum DistributorRegisters : long
         {
-            Control = 0x0000, // GICD_CTLR 
-            ControllerType = 0x0004, // GICD_TYPER 
-            ImplementerIdentification = 0x0008, // GICD_IIDR 
-            ControllerType2 = 0x000C2, // GICD_TYPER2 
-            ErrorReportingStatus = 0x0010, // GICD_STATUSR 
-            SharedPeripheralInterruptSetNonSecure = 0x0040, // GICD_SETSPI_NSR 
-            SharedPeripheralInterruptClearNonSecure = 0x0048, // GICD_CLRSPI_NSR 
-            SharedPeripheralInterruptSetSecure = 0x0050, // GICD_SETSPI_SR 
-            SharedPeripheralInterruptClearSecure = 0x0058, // GICD_CLRSPI_SR 
+            Control = 0x0000, // GICD_CTLR
+            ControllerType = 0x0004, // GICD_TYPER
+            ImplementerIdentification = 0x0008, // GICD_IIDR
+            ControllerType2 = 0x000C2, // GICD_TYPER2
+            ErrorReportingStatus = 0x0010, // GICD_STATUSR
+            SharedPeripheralInterruptSetNonSecure = 0x0040, // GICD_SETSPI_NSR
+            SharedPeripheralInterruptClearNonSecure = 0x0048, // GICD_CLRSPI_NSR
+            SharedPeripheralInterruptSetSecure = 0x0050, // GICD_SETSPI_SR
+            SharedPeripheralInterruptClearSecure = 0x0058, // GICD_CLRSPI_SR
             InterruptGroup_0 = 0x0080, // GICD_IGROUPR<n>
             InterruptSetEnable_0 = 0x0100, // GICD_ISENABLER<n>
             InterruptClearEnable_0 = 0x0180, // GICD_ICENABLER<n>
@@ -1935,7 +1935,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptConfiguration_1 = 0x0C04, // GICD_ICFGR<n>
             InterruptGroupModifier_0 = 0x0D00, // GICD_IGRPMODR<n>
             NonSecureAccessControl_0 = 0x0E00, // GICD_NSACR<n>
-            SoftwareGeneratedInterruptControl = 0x0F00, // GICD_SGI 
+            SoftwareGeneratedInterruptControl = 0x0F00, // GICD_SGI
             SoftwareGeneratedIntrruptClearPending_0 = 0x0F10, // GICD_CPENDSGIR<n>
             SoftwareGeneratedIntrruptClearPending_3 = 0x0F1C, // GICD_CPENDSGIR<n>
             SoftwareGeneratedIntrruptSetPending_0 = 0x0F20, // GICD_SPENDSGIR<n>
@@ -1978,31 +1978,31 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             PeripheralIdentification2_v1v2 = 0xFE8, // GICR_PIDR2 for GICv1 and GICv2
 
             // Registers from the SGI_base frame
-            InterruptGroup_0 = 0x0080 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGROUPR0 
-            PrivatePeripheralInterruptExtendedGroup_0 = 0x0084 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGROUPR<n>E 
-            InterruptSetEnable_0 = 0x0100 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISENABLER0 
-            PrivatePeripheralInterruptExtendedSetEnable_0 = 0x0104 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISENABLER<n>E 
-            PrivatePeripheralInterruptExtendedClearEnable_0 = 0x0184 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICENABLER<n>E 
-            InterruptClearEnable_0 = 0x0180 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICENABLER0 
-            InterruptSetPending0 = 0x0200 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISPENDR0 
-            PrivatePeripheralInterruptExtendedSetPending_0 = 0x0204 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISPENDR<n>E 
-            InterruptClearPending_0 = 0x0280 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICPENDR0 
-            PrivatePeripheralInterruptExtendedClearPending_0 = 0x0284 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICPENDR<n>E 
-            InterruptSetActive_0 = 0x0300 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISACTIVER0 
-            PrivatePeripheralInterruptExtendedSetActive_0 = 0x0304 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISACTIVER<n>E 
-            InterruptClearActive_0 = 0x0380 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICACTIVER0 
-            PrivatePeripheralInterruptExtendedClearActive_0 = 0x0384 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICACTIVER<n>E 
-            InterruptPriority_0 = 0x0400 + RedistributorPrivateInterruptsFrameOffset, // GICR_IPRIORITYR<n> 
-            InterruptPriority_7 = 0x041C + RedistributorPrivateInterruptsFrameOffset, // GICR_IPRIORITYR<n> 
-            PrivatePeripheralInterruptExtendedPriority_0 = 0x0420 + RedistributorPrivateInterruptsFrameOffset, // GICR_IPRIORITYR<n>E 
-            SoftwareGeneratedInterruptConfiguration = 0x0C00 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICFGR0 
-            PrivatePeripheralInterruptConfiguration = 0x0C04 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICFGR1 
-            PrivatePeripheralInterruptExtendedConfiguration_0 = 0x0C08 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICFGR<n>E 
-            InterruptGroupModifier_0 = 0x0D00 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGRPMODR0 
-            PrivatePeripheralInterruptExtendedGroupModifier_0 = 0x0D04 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGRPMODR<n>E 
-            NonSecureAccessControl = 0x0E00 + RedistributorPrivateInterruptsFrameOffset, // GICR_NSACR 
-            PrivatePeripheralInterruptNonMaskable = 0x0F80 + RedistributorPrivateInterruptsFrameOffset, // GICR_INMIR0 
-            PrivatePeripheralInterruptExtendeNonMaskable_0 = 0x0F84 + RedistributorPrivateInterruptsFrameOffset, // GICR_INMIR<n>E 
+            InterruptGroup_0 = 0x0080 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGROUPR0
+            PrivatePeripheralInterruptExtendedGroup_0 = 0x0084 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGROUPR<n>E
+            InterruptSetEnable_0 = 0x0100 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISENABLER0
+            PrivatePeripheralInterruptExtendedSetEnable_0 = 0x0104 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISENABLER<n>E
+            PrivatePeripheralInterruptExtendedClearEnable_0 = 0x0184 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICENABLER<n>E
+            InterruptClearEnable_0 = 0x0180 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICENABLER0
+            InterruptSetPending0 = 0x0200 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISPENDR0
+            PrivatePeripheralInterruptExtendedSetPending_0 = 0x0204 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISPENDR<n>E
+            InterruptClearPending_0 = 0x0280 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICPENDR0
+            PrivatePeripheralInterruptExtendedClearPending_0 = 0x0284 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICPENDR<n>E
+            InterruptSetActive_0 = 0x0300 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISACTIVER0
+            PrivatePeripheralInterruptExtendedSetActive_0 = 0x0304 + RedistributorPrivateInterruptsFrameOffset, // GICR_ISACTIVER<n>E
+            InterruptClearActive_0 = 0x0380 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICACTIVER0
+            PrivatePeripheralInterruptExtendedClearActive_0 = 0x0384 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICACTIVER<n>E
+            InterruptPriority_0 = 0x0400 + RedistributorPrivateInterruptsFrameOffset, // GICR_IPRIORITYR<n>
+            InterruptPriority_7 = 0x041C + RedistributorPrivateInterruptsFrameOffset, // GICR_IPRIORITYR<n>
+            PrivatePeripheralInterruptExtendedPriority_0 = 0x0420 + RedistributorPrivateInterruptsFrameOffset, // GICR_IPRIORITYR<n>E
+            SoftwareGeneratedInterruptConfiguration = 0x0C00 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICFGR0
+            PrivatePeripheralInterruptConfiguration = 0x0C04 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICFGR1
+            PrivatePeripheralInterruptExtendedConfiguration_0 = 0x0C08 + RedistributorPrivateInterruptsFrameOffset, // GICR_ICFGR<n>E
+            InterruptGroupModifier_0 = 0x0D00 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGRPMODR0
+            PrivatePeripheralInterruptExtendedGroupModifier_0 = 0x0D04 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGRPMODR<n>E
+            NonSecureAccessControl = 0x0E00 + RedistributorPrivateInterruptsFrameOffset, // GICR_NSACR
+            PrivatePeripheralInterruptNonMaskable = 0x0F80 + RedistributorPrivateInterruptsFrameOffset, // GICR_INMIR0
+            PrivatePeripheralInterruptExtendeNonMaskable_0 = 0x0F84 + RedistributorPrivateInterruptsFrameOffset, // GICR_INMIR<n>E
             PeripheralIdentification2_v3v4 = 0xFFE8, // GICR_PIDR2 for GICv3 and GICv4
         }
 
@@ -2019,11 +2019,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptAcknowledgeAlias = 0x0020, // GICC_AIAR
             InterruptEndAlias = 0x0024, // GICC_AEOIR
             HighestPriorityPendingInterruptAlias = 0x0028, // GICC_AHPPIR
-            ErrorReportingStatus = 0x002C, // GICC_STATUSR 
-            ActivePriorities_0 = 0x00D0, // GICC_APR<n> 
-            ActivePrioritiesNonSecure_0 = 0x00E0, // GICC_NSAPR<n> 
-            InterfaceIdentification = 0x00FC, // GICC_IIDR 
-            InterruptDeactivate = 0x1000, // GICC_DIR  
+            ErrorReportingStatus = 0x002C, // GICC_STATUSR
+            ActivePriorities_0 = 0x00D0, // GICC_APR<n>
+            ActivePrioritiesNonSecure_0 = 0x00E0, // GICC_NSAPR<n>
+            InterfaceIdentification = 0x00FC, // GICC_IIDR
+            InterruptDeactivate = 0x1000, // GICC_DIR
         }
 
         private enum CPUInterfaceSystemRegisters : long
