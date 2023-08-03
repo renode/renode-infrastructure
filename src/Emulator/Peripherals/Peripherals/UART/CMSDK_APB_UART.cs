@@ -82,7 +82,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
             };
 
-            IRQ = new GPIO();
+            TxInterrupt = new GPIO();
+            RxInterrupt = new GPIO();
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
@@ -113,11 +114,13 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             bool txInterrupt = txInterruptEnabled.Value && txInterruptPending.Value;
             bool rxInterrupt = rxInterruptEnabled.Value && rxInterruptPending.Value;
-            IRQ.Set(txInterrupt || rxInterrupt);
+            TxInterrupt.Set(txInterrupt);
+            RxInterrupt.Set(rxInterrupt);
         }
 
         public long Size => 0x1000;
-        public GPIO IRQ { get; }
+        public GPIO TxInterrupt { get; }
+        public GPIO RxInterrupt { get; }
 
         public override uint BaudRate => (baudRateDivValue.Value == 0) ? 0 : (uint)(frequency / baudRateDivValue.Value); 
         public override Bits StopBits => Bits.None;
