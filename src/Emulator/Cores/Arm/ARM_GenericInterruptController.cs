@@ -20,11 +20,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class ARM_GenericInterruptController : IBusPeripheral, ILocalGPIOReceiver, INumberedGPIOOutput, IIRQController
     {
-        public ARM_GenericInterruptController(uint numberOfCPUs = 1, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = DefaultArchitectureVersion)
+        public ARM_GenericInterruptController(uint numberOfCPUs = 1, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = DefaultArchitectureVersion, uint sharedPeripheralCount = 960)
         {
             if(numberOfCPUs < 1)
             {
                 throw new ConstructionException($"The numberOfCPUs can't be lower than 1, given {numberOfCPUs}.");
+            }
+            if(sharedPeripheralCount > InterruptsDecoder.MaximumSharedPeripheralCount)
+            {
+                throw new ConstructionException($"The number of shared peripherals {sharedPeripheralCount} is larger than supported {(InterruptsDecoder.MaximumSharedPeripheralCount)}");
             }
 
             // The behaviour of the GIC doesn't directly depend on the suppportsTwoSecurityState field
@@ -36,8 +40,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
             this.ArchitectureVersion = architectureVersion;
 
-            var irqIds = InterruptId.GetRange(InterruptId.SharedPeripheralFirst, InterruptId.SharedPeripheralLast)
-                .Concat(InterruptId.GetRange(InterruptId.ExtendedSharedPeripheralFirst, InterruptId.ExtendedSharedPeripheralLast));
+            this.irqsDecoder = new InterruptsDecoder(sharedPeripheralCount, identifierBits: 14);
+
+            var irqIds = InterruptId.GetRange(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast)
+                .Concat(InterruptId.GetRange(irqsDecoder.ExtendedSharedPeripheralFirst, irqsDecoder.ExtendedSharedPeripheralLast));
             sharedInterrupts = new ReadOnlyDictionary<InterruptId, SharedInterrupt>(irqIds.ToDictionary(id => id, id => new SharedInterrupt(id)));
 
             var groupTypes = new[]
@@ -277,8 +283,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void OnGPIO(int number, bool value)
         {
-            var irqId = new InterruptId((uint)number + (uint)InterruptId.SharedPeripheralFirst);
-            if(!irqId.IsSharedPeripheral)
+            var irqId = new InterruptId((uint)number + (uint)irqsDecoder.SharedPeripheralFirst);
+            if(!irqsDecoder.IsSharedPeripheral(irqId))
             {
                 this.Log(LogLevel.Warning, "Generated interrupt isn't a Shared Peripheral Interrupt, interrupt identifier: {0}", irqId);
                 return;
@@ -346,7 +352,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private void OnPrivateInterrupt(CPUEntry cpu, int id, bool value)
         {
             var irqId = new InterruptId((uint)id);
-            if(!irqId.IsPrivatePeripheral)
+            if(!irqsDecoder.IsPrivatePeripheral(irqId))
             {
                 this.Log(LogLevel.Warning, "Generated interrupt isn't a Private Peripheral Interrupt, interrupt identifier: {0}", irqId);
                 return;
@@ -451,7 +457,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 {(long)DistributorRegisters.ControllerType, new DoubleWordRegister(this)
                     .WithValueField(27, 5, name: "SharedPeripheralInterruptsExtendedCount",
-                        valueProviderCallback: _ => InterruptId.SharedPeripheralExtendedCount / 32 - 1
+                        valueProviderCallback: _ => irqsDecoder.SharedPeripheralExtendedCount / 32 - 1
                     )
                     .WithFlag(26, name: "AffinityLevel0RangeSupport",
                         valueProviderCallback: _ => false
@@ -463,7 +469,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => false
                     )
                     .WithValueField(19, 5, name: "SupportedInterruptIdentifierBits",
-                        valueProviderCallback: _ => InterruptId.SupportedIdentifierBits - 1
+                        valueProviderCallback: _ => irqsDecoder.IdentifierBits - 1
                     )
                     .WithFlag(18, name: "DirectVirtualLocalitySpecificPeripheralInterruptInjectionSupport",
                         valueProviderCallback: _ => false
@@ -488,7 +494,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => CPUsCountWithoutAffinityRouting - 1
                     )
                     .WithValueField(0, 5, name: "SharedPeripheralInterruptsCount",
-                        valueProviderCallback: _ => ((uint)InterruptId.SharedPeripheralLast + 1) / 32 - 1
+                        valueProviderCallback: _ => ((uint)irqsDecoder.SharedPeripheralLast + 1) / 32 - 1
                     )
                 },
                 {(long)DistributorRegisters.ImplementerIdentification, new DoubleWordRegister(this)
@@ -510,49 +516,49 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // All BuildInterrupt*Registers methods create registers with respect for Security State
             // There is no separate view (RegistersCollection) for this kind of registers, because their layout are independent of Security State
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetEnable_0,
-                BuildInterruptSetEnableRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptSetEnable")
+                BuildInterruptSetEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptSetEnable")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearEnable_0,
-                BuildInterruptClearEnableRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptClearEnable")
+                BuildInterruptClearEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearEnable")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptPriority_0,
-                BuildInterruptPriorityRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptPriority")
+                BuildInterruptPriorityRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptPriority")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptProcessorTargets_0,
-                BuildPrivateInterruptTargetsRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptProcessorTargets")
+                BuildPrivateInterruptTargetsRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptProcessorTargets")
             );
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptProcessorTargets_8,
-                BuildSharedInterruptTargetsRegisters(InterruptId.SharedPeripheralFirst, InterruptId.SharedPeripheralLast, "InterruptProcessorTargets")
+                BuildSharedInterruptTargetsRegisters(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast, "InterruptProcessorTargets")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptConfiguration_0,
-                BuildInterruptConfigurationRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SoftwareGeneratedLast, "InterruptConfiguration", isReadonly: true)
+                BuildInterruptConfigurationRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SoftwareGeneratedLast, "InterruptConfiguration", isReadonly: true)
             );
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptConfiguration_1,
-                BuildInterruptConfigurationRegisters(InterruptId.PrivatePeripheralFirst, InterruptId.SharedPeripheralLast, "InterruptConfiguration")
+                BuildInterruptConfigurationRegisters(irqsDecoder.PrivatePeripheralFirst, irqsDecoder.SharedPeripheralLast, "InterruptConfiguration")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetActive_0,
-                BuildInterruptSetActiveRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptSetActive")
+                BuildInterruptSetActiveRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptSetActive")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearActive_0,
-                BuildInterruptClearActiveRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptClearActive")
+                BuildInterruptClearActiveRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearActive")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearPending_0,
-                BuildInterruptClearPendingRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptClearPending")
+                BuildInterruptClearPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearPending")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroup_0,
-                BuildInterruptGroupRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptGroup")
+                BuildInterruptGroupRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroup")
             );
 
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0,
-                BuildInterruptGroupModifierRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.SharedPeripheralLast, "InterruptGroupModifier")
+                BuildInterruptGroupModifierRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroupModifier")
             );
 
             return registersMap;
@@ -678,31 +684,31 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             };
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptSetEnable_0,
-                BuildInterruptSetEnableRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptSetEnable")
+                BuildInterruptSetEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptSetEnable")
             );
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptClearEnable_0,
-                BuildInterruptClearEnableRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptClearEnable")
+                BuildInterruptClearEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptClearEnable")
             );
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptClearPending_0,
-                BuildInterruptClearPendingRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptClearPending")
+                BuildInterruptClearPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptClearPending")
             );
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptPriority_0,
-                BuildInterruptPriorityRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptPriority")
+                BuildInterruptPriorityRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptPriority")
             );
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.PrivatePeripheralInterruptConfiguration,
-                BuildInterruptConfigurationRegisters(InterruptId.PrivatePeripheralFirst, InterruptId.PrivatePeripheralLast, "PrivatePeripheralInterruptConfiguration")
+                BuildInterruptConfigurationRegisters(irqsDecoder.PrivatePeripheralFirst, irqsDecoder.PrivatePeripheralLast, "PrivatePeripheralInterruptConfiguration")
             );
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptGroup_0,
-                BuildInterruptGroupRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptGroup")
+                BuildInterruptGroupRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptGroup")
             );
 
             AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptGroupModifier_0,
-                BuildInterruptGroupModifierRegisters(InterruptId.SoftwareGeneratedFirst, InterruptId.PrivatePeripheralLast, "InterruptGroupModifier")
+                BuildInterruptGroupModifierRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptGroupModifier")
             );
 
             return registersMap;
@@ -1197,11 +1203,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 foreach(var irqId in InterruptId.GetRange(registerFirstIrqId, new InterruptId((uint)registerFirstIrqId + (uint)fieldsCount - 1)))
                 {
                     var inRegisterIndex = fieldIndex % fieldsPerRegister;
-                    if(irqId.Type == InterruptType.Reserved)
+                    if(irqsDecoder.Type(irqId) == InterruptType.Reserved)
                     {
                         fieldPlaceholderAction(register, inRegisterIndex);
                     }
-                    else if(irqId.IsSoftwareGenerated || irqId.IsPrivatePeripheral)
+                    else if(irqsDecoder.IsSoftwareGenerated(irqId) || irqsDecoder.IsPrivatePeripheral(irqId))
                     {
                         fieldAction(register, () => GetAskingCPU().Interrupts[irqId], irqId, inRegisterIndex);
                     }
@@ -1384,6 +1390,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly QuadWordRegisterCollection cpuInterfaceSystemRegisters;
 
         private readonly bool supportsTwoSecurityStates;
+        private readonly InterruptsDecoder irqsDecoder;
 
         private const ARM_GenericInterruptControllerVersion DefaultArchitectureVersion = ARM_GenericInterruptControllerVersion.GICv3;
         private const uint DefaultProductIdentifier = 0x0;
@@ -1407,9 +1414,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 Name = $"cpu{Affinity.Level0}";
                 interruptSignals = interruptConnections;
 
-                var irqIds = InterruptId.GetRange(InterruptId.SoftwareGeneratedFirst, InterruptId.SoftwareGeneratedLast)
-                    .Concat(InterruptId.GetRange(InterruptId.PrivatePeripheralFirst, InterruptId.PrivatePeripheralLast))
-                    .Concat(InterruptId.GetRange(InterruptId.ExtendedPrivatePeripheralFirst, InterruptId.ExtendedPrivatePeripheralLast));
+                var irqIds = InterruptId.GetRange(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.SoftwareGeneratedLast)
+                    .Concat(InterruptId.GetRange(gic.irqsDecoder.PrivatePeripheralFirst, gic.irqsDecoder.PrivatePeripheralLast))
+                    .Concat(InterruptId.GetRange(gic.irqsDecoder.ExtendedPrivatePeripheralFirst, gic.irqsDecoder.ExtendedPrivatePeripheralLast));
                 Interrupts = new ReadOnlyDictionary<InterruptId, Interrupt>(irqIds.ToDictionary(id => id, id => new Interrupt(id)));
 
                 Groups = new ReadOnlyDictionary<GroupType, InterruptGroup>(groupTypes.ToDictionary(type => type, _ => new InterruptGroup()));
@@ -1443,7 +1450,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var pendingIrq = BestPending;
                 if(pendingIrq == null)
                 {
-                    return InterruptId.NoPending;
+                    return gic.irqsDecoder.NoPending;
                 }
                 var groupType = GetGroupTypeForRegister(groupTypeRegister);
                 if(pendingIrq.GroupType != groupType)
@@ -1454,13 +1461,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         if(!gic.ackControl)
                         {
                             gic.Log(LogLevel.Warning, "Trying to acknowledge pending Group 1 interrupt (#{0}) with secure GIC access while GICC_CTLR.AckCtl isn't set", (uint)pendingIrq.Identifier);
-                            return InterruptId.NonMaskableInterruptOrGICv2GroupMismatch;
+                            return gic.irqsDecoder.NonMaskableInterruptOrGICv2GroupMismatch;
                         }
                     }
                     else
                     {
                         gic.Log(LogLevel.Warning, "Trying to acknowledge pending interrupt using register of an incorrect interrupt group ({0}), expected {1}.", groupType, pendingIrq.GroupType);
-                        return InterruptId.NoPending;
+                        return gic.irqsDecoder.NoPending;
                     }
                 }
                 pendingIrq.Acknowledge();
@@ -1592,11 +1599,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(BestPending.GroupType == GroupType.Group1Secure)
                     {
-                        return InterruptId.ExpectedToHandleAtSecure;
+                        return gic.irqsDecoder.ExpectedToHandleAtSecure;
                     }
                     else if(BestPending.GroupType == GroupType.Group1NonSecure)
                     {
-                        return InterruptId.ExpectedToHandleAtNonSecure;
+                        return gic.irqsDecoder.ExpectedToHandleAtNonSecure;
                     }
                 }
                 return base.AcknowledgeBestPending(groupTypeRegister);
@@ -1782,72 +1789,101 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 id = interruptId;
             }
 
-            public InterruptType Type
-            {
-                get
-                {
-                    if(IsSoftwareGenerated)
-                    {
-                        return InterruptType.SoftwareGenerated;
-                    }
-                    else if(IsPrivatePeripheral)
-                    {
-                        return InterruptType.PrivatePeripheral;
-                    }
-                    else if(IsSharedPeripheral)
-                    {
-                        return InterruptType.SharedPeripheral;
-                    }
-                    else if(IsSpecial)
-                    {
-                        return InterruptType.SpecialIdentifier;
-                    }
-                    else if(IsLocalitySpecificPeripheral)
-                    {
-                        return InterruptType.LocalitySpecificPeripheral;
-                    }
-                    return InterruptType.Reserved;
-                }
-            }
-
             public override string ToString()
             {
-                return $"{id} ({Type})";
+                return $"{id}";
             }
 
-            public bool IsSoftwareGenerated => id <= (uint)InterruptId.SoftwareGeneratedLast;
-
-            public bool IsPrivatePeripheral => ((uint)InterruptId.PrivatePeripheralFirst <= id && id <= (uint)InterruptId.PrivatePeripheralLast)
-                || ((uint)InterruptId.ExtendedPrivatePeripheralFirst <= id && id <= (uint)InterruptId.ExtendedPrivatePeripheralLast);
-
-            public bool IsSharedPeripheral => ((uint)InterruptId.SharedPeripheralFirst <= id && id <= (uint)InterruptId.SharedPeripheralLast)
-                || ((uint)InterruptId.ExtendedSharedPeripheralFirst <= id && id <= (uint)InterruptId.ExtendedSharedPeripheralLast);
-
-            public bool IsSpecial => (uint)InterruptId.ExpectedToHandleAtSecure <= id && id <= (uint)InterruptId.NoPending;
-
-            public bool IsLocalitySpecificPeripheral => id <= (uint)InterruptId.LocalitySpecificPeripheralFirst;
-
-            public static readonly InterruptId SoftwareGeneratedFirst = new InterruptId(0);
-            public static readonly InterruptId SoftwareGeneratedLast = new InterruptId(15);
-            public static readonly InterruptId PrivatePeripheralFirst = new InterruptId(16);
-            public static readonly InterruptId PrivatePeripheralLast = new InterruptId(31);
-            public static readonly InterruptId SharedPeripheralFirst = new InterruptId(32);
-            public static readonly InterruptId SharedPeripheralLast = new InterruptId((uint)SharedPeripheralFirst + SharedPeripheralCount - 1);
-            public static readonly InterruptId ExpectedToHandleAtSecure = new InterruptId(1020);
-            public static readonly InterruptId ExpectedToHandleAtNonSecure = new InterruptId(1021);
-            public static readonly InterruptId NonMaskableInterruptOrGICv2GroupMismatch = new InterruptId(1022);
-            public static readonly InterruptId NoPending = new InterruptId(1023);
-            public static readonly InterruptId ExtendedPrivatePeripheralFirst = new InterruptId(1056);
-            public static readonly InterruptId ExtendedPrivatePeripheralLast = new InterruptId(1119);
-            public static readonly InterruptId ExtendedSharedPeripheralFirst = new InterruptId(4096);
-            public static readonly InterruptId ExtendedSharedPeripheralLast = new InterruptId((uint)ExtendedSharedPeripheralFirst + SharedPeripheralExtendedCount - 1);
-            public static readonly InterruptId LocalitySpecificPeripheralFirst = new InterruptId(819);
-
-            public const uint SharedPeripheralExtendedCount = 1024;
-            public const uint SharedPeripheralCount = 988;
-            public const uint SupportedIdentifierBits = 14;
-
             private readonly uint id;
+        }
+
+        private class InterruptsDecoder
+        {
+            public InterruptsDecoder(uint sharedPeripheralCount, uint identifierBits)
+            {
+                this.sharedPeripheralCount = sharedPeripheralCount;
+                this.identifierBits = identifierBits;
+
+                sharedPeripheralLast = new InterruptId((uint)SharedPeripheralFirst + sharedPeripheralCount - 1);
+                extendedSharedPeripheralLast = new InterruptId((uint)extendedSharedPeripheralFirst + SharedPeripheralExtendedCount - 1);
+            }
+
+            public InterruptType Type(InterruptId id)
+            {
+                if(IsSoftwareGenerated(id))
+                {
+                    return InterruptType.SoftwareGenerated;
+                }
+                else if(IsPrivatePeripheral(id))
+                {
+                    return InterruptType.PrivatePeripheral;
+                }
+                else if(IsSharedPeripheral(id))
+                {
+                    return InterruptType.SharedPeripheral;
+                }
+                else if(IsSpecial(id))
+                {
+                    return InterruptType.SpecialIdentifier;
+                }
+                else if(IsLocalitySpecificPeripheral(id))
+                {
+                    return InterruptType.LocalitySpecificPeripheral;
+                }
+                return InterruptType.Reserved;
+            }
+
+            public bool IsSoftwareGenerated(InterruptId id) => (uint)id <= (uint)SoftwareGeneratedLast;
+
+            public bool IsPrivatePeripheral(InterruptId id) => ((uint)PrivatePeripheralFirst <= (uint)id && (uint)id <= (uint)PrivatePeripheralLast)
+                || ((uint)ExtendedPrivatePeripheralFirst <= (uint)id && (uint)id <= (uint)ExtendedPrivatePeripheralLast);
+
+            public bool IsSharedPeripheral(InterruptId id) => ((uint)SharedPeripheralFirst <= (uint)id && (uint)id <= (uint)SharedPeripheralLast)
+                || ((uint)ExtendedSharedPeripheralFirst <= (uint)id && (uint)id <= (uint)ExtendedSharedPeripheralLast);
+
+            public bool IsSpecial(InterruptId id) => (uint)ExpectedToHandleAtSecure <= (uint)id && (uint)id <= (uint)NoPending;
+
+            public bool IsLocalitySpecificPeripheral(InterruptId id) => (uint)id <= (uint)LocalitySpecificPeripheralFirst;
+
+            public InterruptId SoftwareGeneratedFirst => softwareGeneratedFirst;
+            public InterruptId SoftwareGeneratedLast => softwareGeneratedLast;
+            public InterruptId PrivatePeripheralFirst => privatePeripheralFirst;
+            public InterruptId PrivatePeripheralLast => privatePeripheralLast;
+            public InterruptId SharedPeripheralFirst => sharedPeripheralFirst;
+            public InterruptId SharedPeripheralLast => sharedPeripheralLast;
+            public InterruptId ExpectedToHandleAtSecure => expectedToHandleAtSecure;
+            public InterruptId ExpectedToHandleAtNonSecure => expectedToHandleAtNonSecure;
+            public InterruptId NonMaskableInterruptOrGICv2GroupMismatch => nonMaskableInterruptOrGICv2GroupMismatch;
+            public InterruptId NoPending => noPending;
+            public InterruptId ExtendedPrivatePeripheralFirst => extendedPrivatePeripheralFirst;
+            public InterruptId ExtendedPrivatePeripheralLast => extendedPrivatePeripheralLast;
+            public InterruptId ExtendedSharedPeripheralFirst => extendedSharedPeripheralFirst;
+            public InterruptId ExtendedSharedPeripheralLast => extendedSharedPeripheralLast;
+            public InterruptId LocalitySpecificPeripheralFirst => localitySpecificPeripheralFirst;
+            public uint IdentifierBits => identifierBits;
+
+            public readonly uint SharedPeripheralExtendedCount = 1024;
+
+            private readonly InterruptId softwareGeneratedFirst = new InterruptId(0);
+            private readonly InterruptId softwareGeneratedLast = new InterruptId(15);
+            private readonly InterruptId privatePeripheralFirst = new InterruptId(16);
+            private readonly InterruptId privatePeripheralLast = new InterruptId(31);
+            private readonly InterruptId sharedPeripheralFirst = new InterruptId(32);
+            private readonly InterruptId sharedPeripheralLast; // set in the constructor
+            private readonly InterruptId expectedToHandleAtSecure = new InterruptId(1020);
+            private readonly InterruptId expectedToHandleAtNonSecure = new InterruptId(1021);
+            private readonly InterruptId nonMaskableInterruptOrGICv2GroupMismatch = new InterruptId(1022);
+            private readonly InterruptId noPending = new InterruptId(1023);
+            private readonly InterruptId extendedPrivatePeripheralFirst = new InterruptId(1056);
+            private readonly InterruptId extendedPrivatePeripheralLast = new InterruptId(1119);
+            private readonly InterruptId extendedSharedPeripheralFirst = new InterruptId(4096);
+            private readonly InterruptId extendedSharedPeripheralLast; // set in the constructor
+            private readonly InterruptId localitySpecificPeripheralFirst = new InterruptId(819);
+
+            private readonly uint sharedPeripheralCount;
+            private readonly uint identifierBits;
+
+            public const uint MaximumSharedPeripheralCount = 988;
         }
 
         private struct CPUAffinity
