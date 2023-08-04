@@ -498,7 +498,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithValueField(12, 4, FieldMode.Read, valueProviderCallback: _ => DistributorRevision, name: "RevisionNumber")
                     .WithValueField(0, 12, FieldMode.Read, valueProviderCallback: _ => DistributorImplementer, name: "ImplementerIdentification")
                 },
-                {(long)DistributorRegisters.PeripheralIdentification2, new DoubleWordRegister(this)
+                {GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
                         valueProviderCallback: _ => ArchitectureVersion
@@ -668,7 +668,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithFlag(1, out processorSleep, name: "ProcessorSleep")
                     .WithTaggedFlag("Sleep", 0)
                 },
-                {(long)RedistributorRegisters.PeripheralIdentification2, new DoubleWordRegister(this)
+                {GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
                         valueProviderCallback: _ => ArchitectureVersion
@@ -1219,6 +1219,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 yield return register;
             }
+        }
+
+        private long GetPeripheralIdentificationOffset()
+        {
+            return (ArchitectureVersion <= ARM_GenericInterruptControllerVersion.GICv2) ?
+                (long)RedistributorRegisters.PeripheralIdentification2_v1v2 : (long)RedistributorRegisters.PeripheralIdentification2_v3v4;
         }
 
         private CPUEntry GetAskingCPU()
@@ -1935,6 +1941,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SoftwareGeneratedIntrruptSetPending_0 = 0x0F20, // GICD_SPENDSGIR<n>
             SoftwareGeneratedIntrruptSetPending_3 = 0x0F2C, // GICD_SPENDSGIR<n>
             NonMaskableInterrupt_0 = 0x0F80, // GICD_INMIR<n>
+            PeripheralIdentification2_v1v2 = 0xFE8, // GICD_PIDR2 for GICv1 and GICv2
             SharedPeripheralInterruptExtendedGroup_0 = 0x1000, // GICD_IGROUPR<n>E
             SharedPeripheralInterruptExtendedSetEnable_0 = 0x1200, // GICD_ISENABLER<n>E
             SharedPeripheralInterruptExtendedClearEnable_0 = 0x1400, // GICD_ICENABLER<n>E
@@ -1949,7 +1956,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SharedPeripheralInterruptExtendedNonMaskable_0 = 0x3B00, // GICD_INMIR<n>E
             InterruptRouting_0 = 0x6100, // GICD_IROUTER<n>
             SharedPeripheralInterruptExtendedRouting_0 = 0x8000, // GICD_IROUTER<n>E
-            PeripheralIdentification2 = 0xFFE8, // GICD_PIDR2
+            PeripheralIdentification2_v3v4 = 0xFFE8, // GICD_PIDR2 for GICv3 and GICv4
         }
 
         private enum RedistributorRegisters : long
@@ -1968,7 +1975,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InvalidateLocalitySpecificPeripheralInterrupt = 0x00A0, // GICR_INVLPIR
             InvalidateAll = 0x00B0, // GICR_INVALLR
             Synchronize = 0x00C0, // GICR_SYNCR
-            PeripheralIdentification2 = 0xFFE8, // GICR_PIDR2
+            PeripheralIdentification2_v1v2 = 0xFE8, // GICR_PIDR2 for GICv1 and GICv2
 
             // Registers from the SGI_base frame
             InterruptGroup_0 = 0x0080 + RedistributorPrivateInterruptsFrameOffset, // GICR_IGROUPR0 
@@ -1996,6 +2003,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             NonSecureAccessControl = 0x0E00 + RedistributorPrivateInterruptsFrameOffset, // GICR_NSACR 
             PrivatePeripheralInterruptNonMaskable = 0x0F80 + RedistributorPrivateInterruptsFrameOffset, // GICR_INMIR0 
             PrivatePeripheralInterruptExtendeNonMaskable_0 = 0x0F84 + RedistributorPrivateInterruptsFrameOffset, // GICR_INMIR<n>E 
+            PeripheralIdentification2_v3v4 = 0xFFE8, // GICR_PIDR2 for GICv3 and GICv4
         }
 
         private enum CPUInterfaceRegisters : long
