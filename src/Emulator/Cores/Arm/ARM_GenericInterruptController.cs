@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class ARM_GenericInterruptController : IBusPeripheral, ILocalGPIOReceiver, INumberedGPIOOutput, IIRQController
     {
-        public ARM_GenericInterruptController(uint numberOfCPUs = 1, bool supportsTwoSecurityStates = true)
+        public ARM_GenericInterruptController(uint numberOfCPUs = 1, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = DefaultArchitectureVersion)
         {
             if(numberOfCPUs < 1)
             {
@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Once security is disabled it's impossible to enable it
             // So it is impossible to enable security for the GIC that doesn't support two security states
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
+            this.ArchitectureVersion = architectureVersion;
 
             var irqIds = InterruptId.GetRange(InterruptId.SharedPeripheralFirst, InterruptId.SharedPeripheralLast)
                 .Concat(InterruptId.GetRange(InterruptId.ExtendedSharedPeripheralFirst, InterruptId.ExtendedSharedPeripheralLast));
@@ -73,7 +74,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
-                    ArchitectureVersion = DefaultArchitectureVersion;
                     ProductIdentifier = DefaultProductIdentifier;
                     CPUInterfaceRevision = DefaultRevisionNumber;
                     CPUInterfaceImplementer = DefaultImplementerIdentification;
@@ -335,7 +335,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; set; }
+        public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; }
         public uint ProductIdentifier { get; set; }
         public byte CPUInterfaceRevision { get; set; }
         public uint CPUInterfaceImplementer { get; set; }
