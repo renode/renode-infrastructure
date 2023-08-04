@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Warning, "Interrupt {0} not supported since Privileged ISA v1.10", (IrqType)number);
                 return;
             }
-            else if(IsUniplementedInterrupt(number) && value)
+            else if(IsUnimplementedInterrupt(number) && value)
             {
                 this.Log(LogLevel.Warning, "Interrupt {0} not supported", (IrqType)number);
                 return;
@@ -887,7 +887,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         /* User-level interrupts support extension (N) is not implemented */
-        private static bool IsUniplementedInterrupt(int irq)
+        private static bool IsUnimplementedInterrupt(int irq)
         {
             return irq == (int)IrqType.UserExternalInterrupt
                 || irq == (int)IrqType.UserSoftwareInterrupt
