@@ -69,11 +69,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             Run(writer, null, peripheral, analyzerTypeName);
         }
 
-        public ShowBackendAnalyzerCommand(Monitor monitor) : base(monitor, "showAnalyzer", "opens a peripheral backend analyzer.", "sa")
-        {
-        }
-
-        private IAnalyzableBackendAnalyzer GetAnalyzer(string peripheralName, string analyzerTypeName)
+        public IAnalyzableBackendAnalyzer GetAnalyzer(string peripheralName, string analyzerTypeName)
         {
             var emu = EmulationManager.Instance.CurrentEmulation;
             IPeripheral p;
@@ -125,6 +121,10 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
 
             return analyzer;
+        }
+
+        public ShowBackendAnalyzerCommand(Monitor monitor) : base(monitor, "showAnalyzer", "opens a peripheral backend analyzer.", "sa")
+        {
         }
     }
 }
