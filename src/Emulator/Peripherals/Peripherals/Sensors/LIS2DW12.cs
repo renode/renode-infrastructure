@@ -40,11 +40,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 accelerationFifo.FeedSample(sample);
             }
+            UpdateInterrupts();
         }
 
         public void FeedAccelerationSample(string path)
         {
             accelerationFifo.FeedSamplesFromFile(path);
+            UpdateInterrupts();
         }
 
         public void FinishTransmission()
