@@ -295,7 +295,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Push-pull/open-drain selection on interrupt pad (PP_OD)", 5)
                 .WithEnumField(6, 2, out selfTestMode, name: "Self-test enable (ST)");
 
-            Registers.Control4.Define(this, 0x01)
+            Registers.Control4.Define(this)
                 .WithFlag(0, out readyEnabledAcceleration, name: "Data-Ready is routed to INT1 pad (INT1_DRDY)")
                 .WithTaggedFlag("FIFO threshold interrupt is routed to INT1 pad (INT1_FTH)", 1)
                 .WithTaggedFlag("FIFO full recognition is routed to INT1 pad (INT1_DIFF5)", 2)
