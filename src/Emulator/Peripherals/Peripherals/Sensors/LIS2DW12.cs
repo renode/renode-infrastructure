@@ -486,7 +486,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Selects the weight of the user offset words (USR_OFF_W)", 2)
                 .WithTaggedFlag("Enable application of user offset value on XL data for wakeup function only (USR_OFF_ON_WU)", 3)
                 .WithTaggedFlag("Enable application of user offset value on XL output data registers (USR_OFF_ON_OUT)", 4)
-                .WithFlag(5, out interruptEnable, name: "Enable interrupts (INTERRUPTS_ENABLE)")
+                .WithFlag(5, out eventInterruptEnable, name: "Enable interrupts (INTERRUPTS_ENABLE)")
                 .WithTaggedFlag("Signal routing (INT2_ON_INT1)", 6)
                 .WithTaggedFlag("Switches between latched and pulsed mode for data ready interrupt (DRDY_PULSED)", 7)
                 .WithChangeCallback((_,__) => UpdateInterrupts());
@@ -508,7 +508,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void UpdateInterrupts()
         {
-            if(!interruptEnable.Value || outDataRate.Value == DataRateConfig.PowerDown)
+            if(outDataRate.Value == DataRateConfig.PowerDown)
             {
                 Interrupt1.Unset();
                 Interrupt2.Unset();
@@ -656,7 +656,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField[] fifoThresholdEnabled;
         private IFlagRegisterField[] fifoFullEnabled;
         private IFlagRegisterField readyEnabledTemperature;
-        private IFlagRegisterField interruptEnable;
+        // This flag controls whether 6D, tap, fall, etc. interrupts are enabled and is not a global
+        // flag for all interrupts (FIFO and others)
+        private IFlagRegisterField eventInterruptEnable;
         private IValueRegisterField fifoThreshold;
         private IEnumRegisterField<LowPowerModeSelection> lowPowerModeSelection;
         private IEnumRegisterField<DataRateConfig> outDataRate;
