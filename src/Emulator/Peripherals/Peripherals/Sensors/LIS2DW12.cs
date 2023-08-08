@@ -366,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     valueProviderCallback: _ => Convert(ReportedAccelerationZ, upperByte: true));
 
             Registers.FifoControl.Define(this)
-                .WithValueField(0, 5, out fifoTreshold, name: "FIFO threshold level setting (FTH)")
+                .WithValueField(0, 5, out fifoThreshold, name: "FIFO threshold level setting (FTH)")
                 .WithEnumField(5, 3, out fifoModeSelection, name: "FIFO mode selection bits (FMode)");
 
             Registers.FifoSamples.Define(this)
@@ -380,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     }, name: "Number of unread samples stored in FIFO (DIFF)")
                 .WithTag("FIFO overrun status (FIFO_OVR)", 6, 1)
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ =>
-                    fifoTreshold.Value != 0 && accelerationFifo.SamplesCount >= fifoTreshold.Value,
+                    fifoThreshold.Value != 0 && accelerationFifo.SamplesCount >= fifoThreshold.Value,
                     name: "FIFO threshold status flag (FIFO_FTH)");
 
             Registers.TapThreshholdX.Define(this)
@@ -633,7 +633,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField readyEnabledAcceleration;
         private IFlagRegisterField readyEnabledTemperature;
         private IFlagRegisterField interruptEnable;
-        private IValueRegisterField fifoTreshold;
+        private IValueRegisterField fifoThreshold;
         private IEnumRegisterField<LowPowerModeSelection> lowPowerModeSelection;
         private IEnumRegisterField<DataRateConfig> outDataRate;
         private IEnumRegisterField<ModeSelection> modeSelection;
