@@ -383,8 +383,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         return Math.Min(accelerationFifo.SamplesCount, MaxFifoSize);
                     }, name: "Number of unread samples stored in FIFO (DIFF)")
                 .WithTag("FIFO overrun status (FIFO_OVR)", 6, 1)
-                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ =>
-                    fifoThreshold.Value != 0 && accelerationFifo.SamplesCount >= fifoThreshold.Value,
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => FifoThresholdReached,
                     name: "FIFO threshold status flag (FIFO_FTH)");
 
             Registers.TapThreshholdX.Define(this)
@@ -639,6 +638,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private decimal ReportedAccelerationZ => AccelerationZ + SelfTestAccelerationOffset;
 
         private decimal ReportedTemperature => Temperature - TemperatureBias;
+
+        private bool FifoThresholdReached => fifoThreshold.Value != 0 &&
+            accelerationFifo.SamplesCount >= fifoThreshold.Value;
 
         private IFlagRegisterField autoIncrement;
         private IFlagRegisterField[] readyEnabledAcceleration;
