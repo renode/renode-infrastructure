@@ -23,6 +23,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Interrupt1 = new GPIO();
             Interrupt2 = new GPIO();
             readyEnabledAcceleration = new IFlagRegisterField[2];
+            fifoThresholdEnabled = new IFlagRegisterField[2];
+            fifoFullEnabled = new IFlagRegisterField[2];
             DefineRegisters();
 
             accelerationFifo = new SensorSamplesFifo<Vector3DSample>();
@@ -301,8 +303,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.Control4.Define(this)
                 .WithFlag(0, out readyEnabledAcceleration[0], name: "Data-Ready is routed to INT1 pad (INT1_DRDY)")
-                .WithTaggedFlag("FIFO threshold interrupt is routed to INT1 pad (INT1_FTH)", 1)
-                .WithTaggedFlag("FIFO full recognition is routed to INT1 pad (INT1_DIFF5)", 2)
+                .WithFlag(1, out fifoThresholdEnabled[0], name: "FIFO threshold interrupt is routed to INT1 pad (INT1_FTH)")
+                .WithFlag(2, out fifoFullEnabled[0], name: "FIFO full recognition is routed to INT1 pad (INT1_DIFF5)")
                 .WithTaggedFlag("Double-tap recognition is routed to INT1 pad (INT1_TAP)", 3)
                 .WithTaggedFlag("Free-fall recognition is routed to INT1 pad (INT1_FF)", 4)
                 .WithTaggedFlag("Wakeup recognition is routed to INT1 pad (INT1_WU)", 5)
@@ -312,8 +314,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.Control5.Define(this)
                 .WithFlag(0, out readyEnabledAcceleration[1], name: "Data-ready is routed to INT2 pad (INT2_DRDY)")
-                .WithTaggedFlag("FIFO threshold interrupt is routed to INT2 pad (INT2_FTH)", 1)
-                .WithTaggedFlag("FIFO full recognition is routed to INT2 pad (INT2_DIFF5)", 2)
+                .WithFlag(1, out fifoThresholdEnabled[1], name: "FIFO threshold interrupt is routed to INT2 pad (INT2_FTH)")
+                .WithFlag(2, out fifoFullEnabled[1], name: "FIFO full recognition is routed to INT2 pad (INT2_DIFF5)")
                 .WithTaggedFlag("FIFO overrun interrupt is routed to INT2 pad (INT2_OVR)", 3)
                 .WithFlag(4, out readyEnabledTemperature, name: "Temperature data-ready is routed to INT2 (INT2_DRDY_T)")
                 .WithTaggedFlag("Boot state routed to INT2 pad (INT2_BOOT)", 5)
@@ -513,8 +515,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return;
             }
 
-            var int1Status = readyEnabledAcceleration[0].Value;
-            var int2Status = readyEnabledAcceleration[1].Value || readyEnabledTemperature.Value;
+            var int1Status =
+                readyEnabledAcceleration[0].Value ||
+                fifoThresholdEnabled[0].Value && FifoThresholdReached ||
+                fifoFullEnabled[0].Value && FifoFull;
+            var int2Status =
+                readyEnabledAcceleration[1].Value ||
+                fifoThresholdEnabled[1].Value && FifoThresholdReached ||
+                fifoFullEnabled[1].Value && FifoFull;
 
             this.Log(LogLevel.Noisy, "Setting interrupts: INT1 = {0}, INT2 = {1}", int1Status, int2Status);
             Interrupt1.Set(int1Status);
@@ -641,9 +649,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private bool FifoThresholdReached => fifoThreshold.Value != 0 &&
             accelerationFifo.SamplesCount >= fifoThreshold.Value;
+        private bool FifoFull => accelerationFifo.SamplesCount >= MaxFifoSize;
 
         private IFlagRegisterField autoIncrement;
         private IFlagRegisterField[] readyEnabledAcceleration;
+        private IFlagRegisterField[] fifoThresholdEnabled;
+        private IFlagRegisterField[] fifoFullEnabled;
         private IFlagRegisterField readyEnabledTemperature;
         private IFlagRegisterField interruptEnable;
         private IValueRegisterField fifoThreshold;
