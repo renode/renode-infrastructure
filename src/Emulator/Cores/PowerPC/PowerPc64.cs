@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 1)]
     public partial class PowerPc64 : TranslationCPU, ICPUWithHooks
     {
-        public PowerPc64(Machine machine, string cpuType = "620", Endianess endianness = Endianess.BigEndian) : base(cpuType, machine,
+        public PowerPc64(IMachine machine, string cpuType = "620", Endianess endianness = Endianess.BigEndian) : base(cpuType, machine,
             /* hardcoded to big endian, controlable via TlibSetLittleEndianMode */ Endianess.BigEndian, CpuBitness.Bits64)
         {
             initialEndianess = endianness;

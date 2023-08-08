@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class LiteX_I2C_Zephyr : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_I2C_Zephyr(Machine machine) : base(machine)
+        public LiteX_I2C_Zephyr(IMachine machine) : base(machine)
         {
             // 0 - clock, 1 - data
             i2cDecoder = new BitPatternDetector(new [] { true, true }, this);

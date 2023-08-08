@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void SetHook<#=when#>Peripheral<#=operation#><T>(IBusPeripheral peripheral, Func<T, long, T> hook, Range? subrange = null)
         {
-            if(!machine.IsRegistered(peripheral))
+            if(!Machine.IsRegistered(peripheral))
             {
                 throw new RecoverableException(string.Format("Cannot set hook on peripheral {0}, it is not registered.", peripheral));
             }

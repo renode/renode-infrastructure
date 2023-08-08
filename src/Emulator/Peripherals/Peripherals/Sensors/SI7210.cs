@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class SI7210 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
-        public SI7210(Machine machine, byte offset = 0, byte gain = 0)
+        public SI7210(IMachine machine, byte offset = 0, byte gain = 0)
         {
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();

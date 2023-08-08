@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
-        public SynopsysDWCEthernetQualityOfService(Machine machine, long systemClockFrequency) : base(machine)
+        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency) : base(machine)
         {
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();

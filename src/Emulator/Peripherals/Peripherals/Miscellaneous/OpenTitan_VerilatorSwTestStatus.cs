@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_VerilatorSwTestStatus : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_VerilatorSwTestStatus(Machine machine) : base(machine)
+        public OpenTitan_VerilatorSwTestStatus(IMachine machine) : base(machine)
         {
             DefineRegisters();
         }

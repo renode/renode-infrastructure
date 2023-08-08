@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         //TODO: Stop timer on debug stop.
         //TODO: Use RCC to set restart cause.
-        public STM32_IndependentWatchdog(Machine machine, long frequency, bool windowOption = true, uint defaultPrescaler = 0) : base(machine)
+        public STM32_IndependentWatchdog(IMachine machine, long frequency, bool windowOption = true, uint defaultPrescaler = 0) : base(machine)
         {
             watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, "STM32_IWDG", DefaultReloadValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true, divider: DefaultPrescalerValue);
             watchdogTimer.LimitReached += TimerLimitReachedCallback;

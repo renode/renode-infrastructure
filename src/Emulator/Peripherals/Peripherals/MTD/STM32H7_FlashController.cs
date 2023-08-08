@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32H7_FlashController : STM32_FlashController, IKnownSize
     {
-        public STM32H7_FlashController(Machine machine, MappedMemory flash1, MappedMemory flash2) : base(machine)
+        public STM32H7_FlashController(IMachine machine, MappedMemory flash1, MappedMemory flash2) : base(machine)
         {
             bank1 = flash1;
             bank2 = flash2;

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class LiteX_GPIO : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_GPIO(Machine machine, Type type, bool enableIrq = false) : base(machine, NumberOfPins)
+        public LiteX_GPIO(IMachine machine, Type type, bool enableIrq = false) : base(machine, NumberOfPins)
         {
             this.type = type;
             this.enableIrq = enableIrq;

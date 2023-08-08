@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals
 {
     public class HiFive_PWM : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>
     {
-        public HiFive_PWM(Machine machine, uint frequency = 16000000)
+        public HiFive_PWM(IMachine machine, uint frequency = 16000000)
         {
             connections = new Dictionary<int, IGPIO>
             {
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals
         private readonly ComparingTimer[] timers;
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> connections;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private enum Registers
         {

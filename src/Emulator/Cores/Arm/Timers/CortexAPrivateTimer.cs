@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class CortexAPrivateTimer : LimitTimer, IDoubleWordPeripheral
     {
-        public CortexAPrivateTimer(Machine machine) : base(machine.ClockSource, 667 * 1000000, direction: Direction.Descending, limit: 0xffffffff, enabled: false)
+        public CortexAPrivateTimer(IMachine machine) : base(machine.ClockSource, 667 * 1000000, direction: Direction.Descending, limit: 0xffffffff, enabled: false)
         {
             IRQ = new GPIO();
             LimitReached += IRQ.Set;

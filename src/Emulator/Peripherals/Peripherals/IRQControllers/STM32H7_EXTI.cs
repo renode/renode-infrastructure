@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class STM32H7_EXTI : BasicDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        public STM32H7_EXTI(Machine machine) : base(machine)
+        public STM32H7_EXTI(IMachine machine) : base(machine)
         {
             var innerConnections = new Dictionary<int, IGPIO>();
             for(var i = 0; i < CoreCount * LinesPerCore; i++)

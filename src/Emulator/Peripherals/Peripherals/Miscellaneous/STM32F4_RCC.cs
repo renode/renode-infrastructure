@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32F4_RCC : IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public STM32F4_RCC(Machine machine, STM32F4_RTC rtcPeripheral)
+        public STM32F4_RCC(IMachine machine, STM32F4_RTC rtcPeripheral)
         {
             // Renode, in general, does not include clock control peripherals.
             // While this is doable, it seldom benefits real software development

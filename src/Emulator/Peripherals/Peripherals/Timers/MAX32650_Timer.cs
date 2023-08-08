@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MAX32650_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_Timer(Machine machine, MAX32650_GCR gcr) : base(machine.ClockSource, gcr.SysClk / 2, eventEnabled: true, direction: Direction.Ascending)
+        public MAX32650_Timer(IMachine machine, MAX32650_GCR gcr) : base(machine.ClockSource, gcr.SysClk / 2, eventEnabled: true, direction: Direction.Ascending)
         {
             registers = new DoubleWordRegisterCollection(this, DefineRegisters());
             this.machine = machine;
@@ -166,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private IFlagRegisterField interruptPending;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly DoubleWordRegisterCollection registers;
 
         private enum TimerMode : byte

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.UserInterface
 {
     public static class MonitorExecutorExtensions
     {
-        public static void ExecutePythonEvery(this Machine machine, string name, int milliseconds, string script)
+        public static void ExecutePythonEvery(this IMachine machine, string name, int milliseconds, string script)
         {
             var engine = new ExecutorPythonEngine(machine, script);
             var clockEntry = new ClockEntry((ulong)milliseconds, 1000, engine.Action, machine, name);
@@ -27,13 +27,13 @@ namespace Antmicro.Renode.UserInterface
             machine.StateChanged += (m, s) => UnregisterEvent(m, name, s);
         }
 
-        public static void StopPythonExecution(this Machine machine, string name)
+        public static void StopPythonExecution(this IMachine machine, string name)
         {
             machine.ClockSource.TryRemoveClockEntry(events.WithdrawAction(machine, name));
             events.Remove(machine, name);
         }
 
-        private static void UnregisterEvent(Machine machine, String name, MachineStateChangedEventArgs state)
+        private static void UnregisterEvent(IMachine machine, String name, MachineStateChangedEventArgs state)
         {
             if(state.CurrentState == MachineStateChangedEventArgs.State.Disposed)
             {
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.UserInterface
 
         private sealed class ExecutorPythonEngine : PythonEngine
         {
-            public ExecutorPythonEngine(Machine machine, string script)
+            public ExecutorPythonEngine(IMachine machine, string script)
             {
                 Scope.SetVariable(Machine.MachineKeyword, machine);
                 Scope.SetVariable("self", machine);
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.UserInterface
 
         private sealed class PeriodicEventsRegister
         {
-            public void Add(Machine machine, string name, Action action)
+            public void Add(IMachine machine, string name, Action action)
             {
                 lock(periodicEvents)
                 {
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
 
-            public Action WithdrawAction(Machine machine, string name)
+            public Action WithdrawAction(IMachine machine, string name)
             {
                 lock(periodicEvents)
                 {
@@ -84,7 +84,7 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
 
-            public void Remove(Machine machine, String name)
+            public void Remove(IMachine machine, String name)
             {
                 lock(periodicEvents)
                 {
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
 
-            public bool HasEvent(Machine machine, String name)
+            public bool HasEvent(IMachine machine, String name)
             {
                 lock(periodicEvents)
                 {
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
 
-            private static readonly Dictionary<Tuple<Machine, string>, Action> periodicEvents = new Dictionary<Tuple<Machine, string>, Action>();
+            private static readonly Dictionary<Tuple<IMachine, string>, Action> periodicEvents = new Dictionary<Tuple<IMachine, string>, Action>();
         }
     }
 }

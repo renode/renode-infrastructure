@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class HiFive_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public HiFive_SPI(Machine machine, bool isFlashEnabled = false, int numberOfSupportedSlaves = 1) : base(machine)
+        public HiFive_SPI(IMachine machine, bool isFlashEnabled = false, int numberOfSupportedSlaves = 1) : base(machine)
         {
             if(numberOfSupportedSlaves < 1 || numberOfSupportedSlaves > 32)
             {

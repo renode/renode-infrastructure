@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Backends.Terminals
         private readonly object innerLock = new object();
 
         private IUART uart;
-        private Machine machine;
+        private IMachine machine;
         private bool pendingTimeDomainEvent;
     }
 }

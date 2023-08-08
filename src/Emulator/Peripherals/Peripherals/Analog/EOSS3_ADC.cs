@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class EOSS3_ADC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EOSS3_ADC(Machine machine) : base(machine)
+        public EOSS3_ADC(IMachine machine) : base(machine)
         {
             channels = new Channel[] { new Channel(this, 0), new Channel(this, 1) };
             DefineRegisters();

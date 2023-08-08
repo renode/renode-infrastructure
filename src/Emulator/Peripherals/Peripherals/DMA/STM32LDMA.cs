@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class STM32LDMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public STM32LDMA(Machine machine)
+        public STM32LDMA(IMachine machine)
         {
             engine = new DmaEngine(machine.GetSystemBus(this));
             channels = new Channel[8];

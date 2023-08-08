@@ -155,7 +155,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         private const uint MemoryOffset = 0x1000;
         private CommandInteractionEater commandEater;
         private Monitor monitor;
-        private Machine machine;
+        private IMachine machine;
     }
 }
 

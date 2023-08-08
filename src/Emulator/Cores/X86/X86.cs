@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         const Endianess endianness = Endianess.LittleEndian;
 
-        public X86(string cpuType, Machine machine, LAPIC lapic): base(cpuType, machine, endianness)
+        public X86(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, endianness)
         {
             this.lapic = lapic;
         }

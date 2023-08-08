@@ -541,7 +541,7 @@ namespace Antmicro.Renode.Testing
             report.AppendFormat("([host: {2}, virt: {3, 7}] {0} event: {1})\n", eventName, what, CustomDateTime.Now, virtMs);
         }
 
-        private Machine machine;
+        private IMachine machine;
         private SGRDecodingState sgrDecodingState;
         private string generatedReport;
         private Func<TerminalTesterResult> resultMatcher;

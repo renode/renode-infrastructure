@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
     // This model is a stub, roughly compatible with TMP103
     public class TMP108 : TMP103
     {
-        public TMP108(Machine machine) : base(machine)
+        public TMP108(IMachine machine) : base(machine)
         {
         }
     }

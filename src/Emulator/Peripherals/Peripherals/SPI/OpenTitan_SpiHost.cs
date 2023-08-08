@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class OpenTitan_SpiHost: SimpleContainer<ISPIPeripheral>, IWordPeripheral, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_SpiHost(Machine machine, int numberOfCSLines) : base(machine)
+        public OpenTitan_SpiHost(IMachine machine, int numberOfCSLines) : base(machine)
         {
             this.numberOfCSLines = numberOfCSLines;
 

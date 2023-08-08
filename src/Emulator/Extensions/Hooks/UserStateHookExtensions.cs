@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Hooks
 {
     public static class UserStateHookExtensions
     {
-        public static void AddUserStateHook(this Machine machine, string stateName, string pythonScript)
+        public static void AddUserStateHook(this IMachine machine, string stateName, string pythonScript)
         {
             var engine = new UserStatePythonEngine(machine, pythonScript);
             machine.AddUserStateHook(x => x == stateName, engine.Hook);

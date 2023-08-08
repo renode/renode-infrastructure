@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class NRF52840_RNG : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_RNG(Machine machine) : base(machine)
+        public NRF52840_RNG(IMachine machine) : base(machine)
         {
             rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             IRQ = new GPIO();

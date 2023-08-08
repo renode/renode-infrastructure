@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class MiV_CoreUART : UARTBase, IBytePeripheral, IKnownSize
     {
-        public MiV_CoreUART(Machine machine, ulong clockFrequency) : base(machine)
+        public MiV_CoreUART(IMachine machine, ulong clockFrequency) : base(machine)
         {
             this.clockFrequency = clockFrequency;
             var registersMap = new Dictionary<long, ByteRegister>

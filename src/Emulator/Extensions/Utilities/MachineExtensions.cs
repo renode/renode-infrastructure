@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Utilities
 {
     public static class MachineExtensions
     {
-        public static void LoadPeripheralsFromJSONFile(this Machine machine, String fileName)
+        public static void LoadPeripheralsFromJSONFile(this IMachine machine, String fileName)
         {
             if(!File.Exists(fileName))
             {
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Utilities
             new DevicesConfig(File.ReadAllText(fileName), machine);
         }
 
-        public static void LoadPeripheralsFromJSONString(this Machine machine, String text)
+        public static void LoadPeripheralsFromJSONString(this IMachine machine, String text)
         {
             new DevicesConfig(text, machine);
         }
@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Utilities
             sysbus.WriteBytes(fdtBlob, address, true);
         }
 
-        public static Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>> GetPeripheralsWithAllRegistrationPoints(this Machine machine)
+        public static Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>> GetPeripheralsWithAllRegistrationPoints(this IMachine machine)
         {
             var result = new Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>>();
 

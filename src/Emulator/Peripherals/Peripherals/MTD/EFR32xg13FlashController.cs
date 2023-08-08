@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 {
     public class EFR32xg13FlashController : IDoubleWordPeripheral, IKnownSize
     {
-        public EFR32xg13FlashController(Machine machine, MappedMemory flash)
+        public EFR32xg13FlashController(IMachine machine, MappedMemory flash)
         {
             this.flash = flash;
             if(flash.Size < PageNumber * PageSize)

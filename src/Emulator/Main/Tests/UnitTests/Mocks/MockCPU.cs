@@ -13,7 +13,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class MockCPU : EmptyCPU
     {
-        public MockCPU(Machine machine) : base(machine, "mock")
+        public MockCPU(IMachine machine) : base(machine, "mock")
         {
         }
 

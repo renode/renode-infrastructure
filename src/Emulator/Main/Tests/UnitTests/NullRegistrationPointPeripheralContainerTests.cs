@@ -114,7 +114,7 @@ namespace Antmicro.Renode.UnitTests
             machine.SystemBus.Register(container, sysbusRegistrationPoint);
         }
 
-        private Machine machine;
+        private IMachine machine;
         private PeripheralMock peripheral;
         private PeripheralMock peripheral2;
         private NullRegistrationPointPeripheralContainerMock container;
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.UnitTests
             NullRegistrationPointPeripheralContainer<PeripheralMock>,
         IDoubleWordPeripheral
         {
-            public NullRegistrationPointPeripheralContainerMock(Machine machine) : base(machine) {}
+            public NullRegistrationPointPeripheralContainerMock(IMachine machine) : base(machine) {}
             public override void Reset(){}
             public void WriteDoubleWord(long offset, uint value){}
             public uint ReadDoubleWord(long offset)

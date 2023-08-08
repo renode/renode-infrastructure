@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32H7_HardwareSemaphore : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32H7_HardwareSemaphore(Machine machine) : base(machine)
+        public STM32H7_HardwareSemaphore(IMachine machine) : base(machine)
         {
             this.IRQ = new GPIO();
 

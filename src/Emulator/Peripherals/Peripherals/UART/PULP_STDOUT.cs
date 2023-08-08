@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class PULP_STDOUT : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public PULP_STDOUT(Machine machine) : base(machine)
+        public PULP_STDOUT(IMachine machine) : base(machine)
         {
             CreateRegisters();
         }

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MPFS_Timer : IDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_Timer(Machine machine, long frequency = 100000000)
+        public MPFS_Timer(IMachine machine, long frequency = 100000000)
         {
             Timer1IRQ = new GPIO();
             Timer2IRQ = new GPIO();

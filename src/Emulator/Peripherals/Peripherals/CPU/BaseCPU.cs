@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseCPU : CPUCore, ICPU, IDisposable, ITimeSink, IInitableCPU
     {
-        protected BaseCPU(uint id, string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+        protected BaseCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
             : base(id)
         {
             if(cpuType == null)
@@ -775,7 +775,7 @@ restart:
         
         protected readonly Sleeper sleeper = new Sleeper();
         protected readonly CpuBitness bitness;
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
         
         protected enum CpuResult
         {

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class MPFS_PDMA : IKnownSize, IDoubleWordPeripheral, INumberedGPIOOutput
     {
-        public MPFS_PDMA(Machine machine)
+        public MPFS_PDMA(IMachine machine)
         {
             this.machine = machine;
             dmaEngine = new DmaEngine(this.machine.GetSystemBus(this));
@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
         public long Size => 0x4000;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly DmaEngine dmaEngine;
         private readonly Channel[] channels;
 

@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        protected BaseGPIOPort(Machine machine, int numberOfConnections)
+        protected BaseGPIOPort(IMachine machine, int numberOfConnections)
         {
             var innerConnections = new Dictionary<int, IGPIO>();
             this.NumberOfConnections = numberOfConnections;
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         protected readonly int NumberOfConnections;
         protected bool[] State;
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
     }
 }
 

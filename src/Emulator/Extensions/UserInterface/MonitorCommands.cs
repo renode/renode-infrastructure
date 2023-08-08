@@ -1053,7 +1053,7 @@ namespace Antmicro.Renode.UserInterface
             result = new List<object>();
             int autoFilledCount = 0;
             //this might be expanded - try all parameters with the attribute, try to fill from factory based on it's type
-            if(parameters.Count > 0 && parameters[0].ParameterType == typeof(Machine)
+            if(parameters.Count > 0 && typeof(IMachine).IsAssignableFrom(parameters[0].ParameterType)
                 && Attribute.IsDefined(parameters[0], typeof(AutoParameterAttribute)))
             {
                 result.Add(currentMachine);

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class STM32F4_EXTI : BasicDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        public STM32F4_EXTI(Machine machine, int numberOfOutputLines = 14, int firstDirectLine = DefaultFirstDirectLine) : base(machine)
+        public STM32F4_EXTI(IMachine machine, int numberOfOutputLines = 14, int firstDirectLine = DefaultFirstDirectLine) : base(machine)
         {
             var innerConnections = new Dictionary<int, IGPIO>();
             for(var i = 0; i < numberOfOutputLines; ++i)

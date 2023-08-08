@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class EOSS3_SystemDMABridge : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EOSS3_SystemDMABridge(Machine machine, UDMA systemDma) : base(machine)
+        public EOSS3_SystemDMABridge(IMachine machine, UDMA systemDma) : base(machine)
         {
             this.systemDma = systemDma;
             DefineRegisters();

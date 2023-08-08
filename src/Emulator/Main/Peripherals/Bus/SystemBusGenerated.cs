@@ -415,7 +415,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void SetHookAfterPeripheralRead<T>(IBusPeripheral peripheral, Func<T, long, T> hook, Range? subrange = null)
         {
-            if(!machine.IsRegistered(peripheral))
+            if(!Machine.IsRegistered(peripheral))
             {
                 throw new RecoverableException(string.Format("Cannot set hook on peripheral {0}, it is not registered.", peripheral));
             }
@@ -504,7 +504,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void SetHookBeforePeripheralWrite<T>(IBusPeripheral peripheral, Func<T, long, T> hook, Range? subrange = null)
         {
-            if(!machine.IsRegistered(peripheral))
+            if(!Machine.IsRegistered(peripheral))
             {
                 throw new RecoverableException(string.Format("Cannot set hook on peripheral {0}, it is not registered.", peripheral));
             }

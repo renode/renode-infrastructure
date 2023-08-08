@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class STM32LTDC : AutoRepaintingVideo, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32LTDC(Machine machine) : base(machine)
+        public STM32LTDC(IMachine machine) : base(machine)
         {
             Reconfigure(format: PixelFormat.RGBX8888);
 
@@ -190,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly DoubleWordRegisterCollection registers;
 
         private readonly object internalLock;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         [Transient]
         private IPixelBlender blender;

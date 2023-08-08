@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class PL110 : AutoRepaintingVideo, IDoubleWordPeripheral
     {
-        public PL110(Machine machine, int? screenWidth = null, int? screenHeight = null) : base(machine)
+        public PL110(IMachine machine, int? screenWidth = null, int? screenHeight = null) : base(machine)
         {
             Reconfigure(screenWidth ?? DefaultWidth, screenHeight ?? DefaultHeight, PixelFormat.RGB565);
             this.machine = machine;
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private uint bufferAddress = 0xFFFFFFFF;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
        
         private const int DefaultWidth = 640;
         private const int DefaultHeight = 480;

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // OpenTitan ResetManager as per https://docs.opentitan.org/hw/ip/rstmgr/doc/ (sha: f4e3845)
     public class OpenTitan_ResetManager : BasicDoubleWordPeripheral, IGPIOReceiver, IKnownSize
     {
-        public OpenTitan_ResetManager(Machine machine, ulong resetPC) : base(machine)
+        public OpenTitan_ResetManager(IMachine machine, ulong resetPC) : base(machine)
         {
             DefineRegisters();
             this.resetPC = resetPC;

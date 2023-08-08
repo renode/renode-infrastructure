@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class PicoRV_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public PicoRV_SPI(Machine machine) : base(machine)
+        public PicoRV_SPI(IMachine machine) : base(machine)
         {
             bbHelper = new BitBangHelper(8, loggingParent: this, outputMsbFirst: true);
 

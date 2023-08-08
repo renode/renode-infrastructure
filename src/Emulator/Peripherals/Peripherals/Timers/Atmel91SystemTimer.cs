@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Atmel91SystemTimer : IDoubleWordPeripheral, IKnownSize
     {
-        public Atmel91SystemTimer(Machine machine)
+        public Atmel91SystemTimer(IMachine machine)
         {
             IRQ = new GPIO();
 
@@ -238,7 +238,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public event Action OnUpdate;
 
-            public AT91_InterruptibleTimer(Machine machine, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
+            public AT91_InterruptibleTimer(IMachine machine, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
             {
                 timer = new LimitTimer(machine.ClockSource, frequency, owner, localName, limit, direction, enabled);
                 timer.LimitReached += () => { if (OnUpdate != null) OnUpdate(); };

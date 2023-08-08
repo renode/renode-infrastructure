@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32WBA_FlashController : STM32_FlashController, IKnownSize
     {
-        public STM32WBA_FlashController(Machine machine, MappedMemory flash) : base(machine)
+        public STM32WBA_FlashController(IMachine machine, MappedMemory flash) : base(machine)
         {
             bank = flash;
             bank.ResetByte = ResetByte;

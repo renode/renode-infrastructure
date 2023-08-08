@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 {
     public abstract class STM32_FlashController : BasicDoubleWordPeripheral
     {
-        public STM32_FlashController(Machine machine) : base(machine)
+        public STM32_FlashController(IMachine machine) : base(machine)
         {
         }
 

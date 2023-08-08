@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class LiteX_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_I2C(Machine machine) : base(machine)
+        public LiteX_I2C(IMachine machine) : base(machine)
         {
             // 0 - clock, 1 - data, 2 - direction
             i2cDecoder = new BitPatternDetector(new [] { true, true, true }, this);

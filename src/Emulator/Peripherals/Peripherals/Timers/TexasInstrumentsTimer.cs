@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class TexasInstrumentsTimer : IDoubleWordPeripheral, IKnownSize
     {
-        public TexasInstrumentsTimer(Machine machine)
+        public TexasInstrumentsTimer(IMachine machine)
         {
             IRQ12 = new GPIO();
             IRQ34 = new GPIO();

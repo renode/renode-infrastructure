@@ -36,13 +36,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class TranslationCPUHooksExtensions
     {
-        public static void SetHookAtBlockBegin(this TranslationCPU cpu, [AutoParameter]Machine m, string pythonScript)
+        public static void SetHookAtBlockBegin(this TranslationCPU cpu, [AutoParameter]IMachine m, string pythonScript)
         {
             var engine = new BlockPythonEngine(m, cpu, pythonScript);
             cpu.SetHookAtBlockBegin(engine.HookWithSize);
         }
 
-        public static void SetHookAtBlockEnd(this TranslationCPU cpu, [AutoParameter]Machine m, string pythonScript)
+        public static void SetHookAtBlockEnd(this TranslationCPU cpu, [AutoParameter]IMachine m, string pythonScript)
         {
             var engine = new BlockPythonEngine(m, cpu, pythonScript);
             cpu.SetHookAtBlockEnd(engine.HookWithSize);
@@ -51,12 +51,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public abstract partial class TranslationCPU : BaseCPU, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks
     {
-        protected TranslationCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+        protected TranslationCPU(string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
         : this(0, cpuType, machine, endianness, bitness)
         {
         }
 
-        protected TranslationCPU(uint id, string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+        protected TranslationCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
             : base(id, cpuType, machine, endianness, bitness)
         {
             this.translationCacheSize = DefaultTranslationCacheSize;

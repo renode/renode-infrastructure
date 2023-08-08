@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ARM_GenericTimer : IPeripheral
     {
-        public ARM_GenericTimer(Machine machine, ulong frequency)
+        public ARM_GenericTimer(IMachine machine, ulong frequency)
         {
             if(frequency > long.MaxValue)
             {

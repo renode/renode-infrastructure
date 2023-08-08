@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class PULP_uDMA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public PULP_uDMA_I2C(Machine machine) : base(machine)
+        public PULP_uDMA_I2C(IMachine machine) : base(machine)
         {
             outputBuffer = new Queue<byte>();
             RegistersCollection = new DoubleWordRegisterCollection(this);

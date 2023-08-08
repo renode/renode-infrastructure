@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class GaislerAPBController : IDoubleWordPeripheral, IGaislerAHB
     {
-        public GaislerAPBController(Machine machine)
+        public GaislerAPBController(IMachine machine)
         {
             this.machine = machine;
             Reset();
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
         
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private List<GaislerAPBPlugAndPlayRecord> records;
         private bool recordsCached;
         private GaislerAPBPlugAndPlayRecord emptyRecord;

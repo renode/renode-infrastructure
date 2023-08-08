@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class STM32F4_RNG : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_RNG(Machine machine)
+        public STM32F4_RNG(IMachine machine)
         {
             IRQ = new GPIO();
 

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_RCC(Machine machine, IPeripheral rtc = null, ITimer lptimer = null, long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency) : base(machine)
+        public STM32L0_RCC(IMachine machine, IPeripheral rtc = null, ITimer lptimer = null, long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency) : base(machine)
         {
             this.rtc = rtc;
             this.lptimer = lptimer;

@@ -158,7 +158,7 @@ namespace Antmicro.Renode.PeripheralsTests
             return peripheral.ReadDoubleWord((long)OpenTitan_KeyManager.Registers.Status);
         }
 
-        private Machine machine;
+        private IMachine machine;
         private OpenTitan_KeyManager peripheral;
     }
 }

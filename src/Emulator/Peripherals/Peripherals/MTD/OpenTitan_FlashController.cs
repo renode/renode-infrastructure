@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 {
     public class OpenTitan_FlashController : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_FlashController(Machine machine, MappedMemory flash) : base(machine)
+        public OpenTitan_FlashController(IMachine machine, MappedMemory flash) : base(machine)
         {
             ProgramEmptyIRQ = new GPIO();
             ProgramLevelIRQ = new GPIO();

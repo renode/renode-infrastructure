@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class Quark_SystemControlSubsystem : IDoubleWordPeripheral
     {
-        public Quark_SystemControlSubsystem(Machine machine, Quark_GPIOController gpioPort)
+        public Quark_SystemControlSubsystem(IMachine machine, Quark_GPIOController gpioPort)
         {
             this.gpioPort = gpioPort;
             this.alwaysOnCounter = new LimitTimer(machine.ClockSource, 32000, this, nameof(alwaysOnCounter), direction: Time.Direction.Ascending, enabled: true);

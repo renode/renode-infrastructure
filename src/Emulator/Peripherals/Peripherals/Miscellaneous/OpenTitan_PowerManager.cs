@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_PowerManager : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_PowerManager(Machine machine, OpenTitan_ResetManager resetManager) : base(machine)
+        public OpenTitan_PowerManager(IMachine machine, OpenTitan_ResetManager resetManager) : base(machine)
         {
             this.resetManager = resetManager;
             IRQ = new GPIO();

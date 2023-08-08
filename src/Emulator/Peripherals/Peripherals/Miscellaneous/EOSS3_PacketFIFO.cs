@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class EOSS3_PacketFIFO : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EOSS3_PacketFIFO(Machine machine) : base(machine)
+        public EOSS3_PacketFIFO(IMachine machine) : base(machine)
         {
             queueNames = new Dictionary<long, string>()
             {

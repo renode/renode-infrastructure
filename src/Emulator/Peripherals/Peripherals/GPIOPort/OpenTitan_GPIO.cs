@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class OpenTitan_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_GPIO(Machine machine) : base(machine, numberOfPins)
+        public OpenTitan_GPIO(IMachine machine) : base(machine, numberOfPins)
         {
             locker = new object();
             IRQ = new GPIO();

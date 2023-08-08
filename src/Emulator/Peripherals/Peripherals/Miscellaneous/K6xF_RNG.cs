@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class K6xF_RNG : IDoubleWordPeripheral, IKnownSize
     {
-        public K6xF_RNG(Machine machine)
+        public K6xF_RNG(IMachine machine)
         {
             IRQ = new GPIO();
 

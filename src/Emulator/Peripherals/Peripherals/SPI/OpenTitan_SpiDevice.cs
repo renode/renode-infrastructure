@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     [AllowedTranslations(AllowedTranslation.DoubleWordToByte)]
     public class OpenTitan_SpiDevice : BasicDoubleWordPeripheral, IBytePeripheral, ISPIPeripheral, IKnownSize
     {
-        public OpenTitan_SpiDevice(Machine machine) : base(machine)
+        public OpenTitan_SpiDevice(IMachine machine) : base(machine)
         {
             underlyingSramMemory = new ArrayMemory((int)BufferWindowSizeInDoublewords * 4);
 

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Testing
 {
     public static class SysbusTesterExtensions
     {
-        public static void CreateSysbusTester(this Machine machine, string name)
+        public static void CreateSysbusTester(this IMachine machine, string name)
         {
             var tester = new SysbusTester(machine);
             EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(tester, name);
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Testing
 
     public class SysbusTester : IExternal
     {
-        public SysbusTester(Machine machine)
+        public SysbusTester(IMachine machine)
         {
             this.machine = machine;
         }
@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Testing
             throw new InvalidOperationException("Sysbus write assertion not met.");
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private readonly AutoResetEvent newWriteEvent = new AutoResetEvent(false);
         private readonly HashSet<ulong> observedAddresses = new HashSet<ulong>();

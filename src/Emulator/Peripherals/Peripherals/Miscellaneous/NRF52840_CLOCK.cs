@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class NRF52840_CLOCK : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_CLOCK(Machine machine) : base(machine)
+        public NRF52840_CLOCK(IMachine machine) : base(machine)
         {
             // Renode, in general, does not include clock control peripherals.
             // While this is doable, it seldom benefits real software development

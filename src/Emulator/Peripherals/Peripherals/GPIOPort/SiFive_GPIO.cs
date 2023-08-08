@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class SiFive_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public SiFive_GPIO(Machine machine) : base(machine, NumberOfPins)
+        public SiFive_GPIO(IMachine machine) : base(machine, NumberOfPins)
         {
             locker = new object();
             pins = new Pin[NumberOfPins];

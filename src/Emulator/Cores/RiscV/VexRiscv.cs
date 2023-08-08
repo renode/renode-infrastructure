@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, string cpuType = "rv32im", bool builtInIrqController = true) : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
+        public VexRiscv(Core.IMachine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, string cpuType = "rv32im", bool builtInIrqController = true) : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, Endianess.LittleEndian)
         {
             this.builtInIrqController = builtInIrqController;
             if(builtInIrqController)

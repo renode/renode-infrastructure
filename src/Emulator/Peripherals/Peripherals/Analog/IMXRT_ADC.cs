@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class IMXRT_ADC : BasicDoubleWordPeripheral, IGPIOReceiver, IKnownSize
     {
-        public IMXRT_ADC(Machine machine) : base(machine)
+        public IMXRT_ADC(IMachine machine) : base(machine)
         {
             samplesFifos = new SensorSamplesFifo<ScalarSample>[NumberOfChannels];
             for(var i = 0; i < samplesFifos.Length; i++)

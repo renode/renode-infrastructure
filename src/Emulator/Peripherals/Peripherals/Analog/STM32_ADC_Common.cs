@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral
     {
-        public STM32_ADC_Common(Machine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
+        public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
             bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null)
         {
@@ -637,7 +637,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly IManagedThread samplingThread;
         private readonly SensorSamplesFifo<ScalarSample>[] sampleProvider;
         private readonly DoubleWordRegisterCollection registers;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private readonly int ChannelCount;
         private readonly int WatchdogCount;

@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class PicoSoC_SimpleUART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public PicoSoC_SimpleUART(Machine machine) : base(machine)
+        public PicoSoC_SimpleUART(IMachine machine) : base(machine)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_EntropySource: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_EntropySource(Machine machine): base(machine)
+        public OpenTitan_EntropySource(IMachine machine): base(machine)
         {
             entropySource = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             sha3Conditioner = new Sha3Conditioner();

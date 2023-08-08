@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class XilinxGPIOPS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public XilinxGPIOPS(Machine machine) : base (machine, 54 + 64) //54 MIO + 64 EMIO
+        public XilinxGPIOPS(IMachine machine) : base (machine, 54 + 64) //54 MIO + 64 EMIO
         {
             portContorllers = new GPIOController[4];
             for(uint i=0;i<4;i++)

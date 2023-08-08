@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class LiteX_MMCM_CSR32 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_MMCM_CSR32(Machine machine) : base(machine)
+        public LiteX_MMCM_CSR32(IMachine machine) : base(machine)
         {
             mmcmRegisters = new uint[RegistersCount];
 

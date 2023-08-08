@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class MPFS_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<ByteRegisterCollection>, II2CPeripheral, IBytePeripheral, IKnownSize
     {
-        public MPFS_I2C(Machine machine) : base(machine)
+        public MPFS_I2C(IMachine machine) : base(machine)
         {
             transferBuffer = new Queue<byte>();
             receiveBuffer = new Queue<byte>();

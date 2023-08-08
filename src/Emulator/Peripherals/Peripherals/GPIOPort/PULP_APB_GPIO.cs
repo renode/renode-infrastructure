@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     // This model currently does not support interrupts
     public class PULP_APB_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public PULP_APB_GPIO(Machine machine) : base(machine, NumberOfGPIOs)
+        public PULP_APB_GPIO(IMachine machine) : base(machine, NumberOfGPIOs)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

@@ -14,21 +14,21 @@ namespace Antmicro.Renode.Peripherals.SD
 {
     public static class SDCardExtensions
     {
-        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<DeprecatedSDCard, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
+        public static void SdCardFromFile(this IMachine machine, string file, IPeripheralRegister<DeprecatedSDCard, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
         {
             var card = new DeprecatedSDCard(file, size, persistent);
             attachTo.Register(card, NullRegistrationPoint.Instance);
             machine.SetLocalName(card, name ?? "sdCard");
         }
 
-        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<SDCard, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
+        public static void SdCardFromFile(this IMachine machine, string file, IPeripheralRegister<SDCard, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
         {
             var card = new SDCard(file, size, persistent);
             attachTo.Register(card, NullRegistrationPoint.Instance);
             machine.SetLocalName(card, name ?? "sdCard");
         }
 
-        public static void SdCardFromFile(this Machine machine, string file, IPeripheralRegister<ISPIPeripheral, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
+        public static void SdCardFromFile(this IMachine machine, string file, IPeripheralRegister<ISPIPeripheral, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
         {
             var card = new SDCard(file, size, persistent, spiMode: true);
             attachTo.Register(card, NullRegistrationPoint.Instance);

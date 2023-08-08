@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class Murax_UART : UARTBase, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public Murax_UART(Machine machine) : base(machine)
+        public Murax_UART(IMachine machine) : base(machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();

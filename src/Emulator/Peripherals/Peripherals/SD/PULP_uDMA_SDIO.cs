@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.SD
 {
     public class PULP_uDMA_SDIO : NullRegistrationPointPeripheralContainer<SDCard>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public PULP_uDMA_SDIO(Machine machine) : base(machine)
+        public PULP_uDMA_SDIO(IMachine machine) : base(machine)
         {
             response = new IValueRegisterField[ResponseBytes / 4];
             DefineRegisters();

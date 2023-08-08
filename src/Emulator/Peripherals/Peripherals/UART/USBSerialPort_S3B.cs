@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class USBSerialPort_S3B : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public USBSerialPort_S3B(Machine machine) : base(machine)
+        public USBSerialPort_S3B(IMachine machine) : base(machine)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

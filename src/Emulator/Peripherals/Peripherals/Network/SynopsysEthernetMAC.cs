@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Network
     //TODO: Might be Word/BytePeripheral as well
     public sealed class SynopsysEthernetMAC : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
-        public SynopsysEthernetMAC(Machine machine) : base(machine)
+        public SynopsysEthernetMAC(IMachine machine) : base(machine)
         {
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             IRQ = new GPIO();

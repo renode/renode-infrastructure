@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class EFR32_CMU : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32_CMU(Machine machine) : base(machine)
+        public EFR32_CMU(IMachine machine) : base(machine)
         {
             DefineRegisters();
         }

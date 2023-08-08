@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class K6xF_Ethernet : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
-        public K6xF_Ethernet(Machine machine) : base(machine)
+        public K6xF_Ethernet(IMachine machine) : base(machine)
         {
             RxIRQ = new GPIO();
             TxIRQ = new GPIO();

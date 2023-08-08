@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public abstract class QuectelModem : AtCommandModem, IGPIOReceiver, INumberedGPIOOutput
     {
-        public QuectelModem(Machine machine, string imeiNumber = DefaultImeiNumber,
+        public QuectelModem(IMachine machine, string imeiNumber = DefaultImeiNumber,
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine)
         {

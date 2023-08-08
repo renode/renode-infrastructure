@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             remove {}
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         public event Action <uint> Connected ;
         public event Action <uint,uint> Disconnected ;
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             return DeviceAddress;
         }
 
-        public UsbHub(Machine machine)
+        public UsbHub(IMachine machine)
         {
             this.machine = machine;
             registeredDevices = new Dictionary<byte, IUSBPeripheral>();
@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
         }
 
-        public UsbHub(Machine machine, byte nrPorts)
+        public UsbHub(IMachine machine, byte nrPorts)
         {
             this.machine = machine;
             registeredDevices = new Dictionary<byte, IUSBPeripheral>();

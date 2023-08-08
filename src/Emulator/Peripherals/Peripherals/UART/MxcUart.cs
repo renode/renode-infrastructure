@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class MxcUart : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public MxcUart(Machine machine) : base(machine)
+        public MxcUart(IMachine machine) : base(machine)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

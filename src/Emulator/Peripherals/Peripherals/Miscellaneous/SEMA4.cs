@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class SEMA4 : IBytePeripheral, IKnownSize, IDoubleWordPeripheral
     {
-        public SEMA4(Machine machine)
+        public SEMA4(IMachine machine)
         {
             sysbus = machine.GetSystemBus(this);
             irqLock = new object();

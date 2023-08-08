@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class NRF52840_RTC : IDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_RTC(Machine machine, int numberOfEvents)
+        public NRF52840_RTC(IMachine machine, int numberOfEvents)
         {
             IRQ = new GPIO();
 

@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class PL011 : UARTBase, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public PL011(Machine machine, uint fifoSize = 1) : base(machine)
+        public PL011(IMachine machine, uint fifoSize = 1) : base(machine)
         {
             hardwareFifoSize = fifoSize;
 

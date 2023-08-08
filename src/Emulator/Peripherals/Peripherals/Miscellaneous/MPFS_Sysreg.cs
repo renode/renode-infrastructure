@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class MPFS_Sysreg : IDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_Sysreg(Machine machine)
+        public MPFS_Sysreg(IMachine machine)
         {
             sysbus = machine.GetSystemBus(this);
 

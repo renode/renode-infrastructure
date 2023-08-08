@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class STM32F1GPIOPort : BaseGPIOPort, IDoubleWordPeripheral
     {
-        public STM32F1GPIOPort(Machine machine) : base(machine, NumberOfPorts)
+        public STM32F1GPIOPort(IMachine machine) : base(machine, NumberOfPorts)
         {
             pins = new PinMode[NumberOfPorts];
 

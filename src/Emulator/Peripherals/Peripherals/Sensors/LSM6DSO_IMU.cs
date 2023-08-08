@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class LSM6DSO_IMU : BasicBytePeripheral, ISPIPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
-        public LSM6DSO_IMU(Machine machine) : base(machine)
+        public LSM6DSO_IMU(IMachine machine) : base(machine)
         {
             Interrupt1 = new GPIO();
 
@@ -642,7 +642,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private class LSM6DSO_FIFO
         {
-            public LSM6DSO_FIFO(Machine machine, LSM6DSO_IMU owner, string name, uint capacity)
+            public LSM6DSO_FIFO(IMachine machine, LSM6DSO_IMU owner, string name, uint capacity)
             {
                 Capacity = capacity;
                 this.machine = machine;
@@ -810,7 +810,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             private readonly object locker;
             private readonly Queue<LSM6DSO_Vector3DSample> queue;
-            private readonly Machine machine;
+            private readonly IMachine machine;
             private readonly string name;
             private readonly LSM6DSO_IMU owner;
         }

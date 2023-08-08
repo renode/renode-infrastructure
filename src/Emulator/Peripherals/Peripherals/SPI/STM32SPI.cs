@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public sealed class STM32SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IWordPeripheral, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public STM32SPI(Machine machine, int bufferCapacity = DefaultBufferCapacity) : base(machine)
+        public STM32SPI(IMachine machine, int bufferCapacity = DefaultBufferCapacity) : base(machine)
         {
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();

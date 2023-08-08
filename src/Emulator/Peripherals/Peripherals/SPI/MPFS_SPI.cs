@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class MPFS_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize, ISPIPeripheral
     {
-        public MPFS_SPI(Machine machine) : base(machine)
+        public MPFS_SPI(IMachine machine) : base(machine)
         {
             locker = new object();
             receiveBuffer = new Queue<byte>();

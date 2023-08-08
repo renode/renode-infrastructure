@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Marvell_Armada_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public Marvell_Armada_Timer(Machine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, limit: uint.MaxValue, enabled: true)
+        public Marvell_Armada_Timer(IMachine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, limit: uint.MaxValue, enabled: true)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

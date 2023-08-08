@@ -20,7 +20,7 @@ namespace Antmicro.Renode.EventRecording
     [Transient]
     public sealed class Recorder : IDisposable
     {
-        public Recorder(FileStream stream, Machine machine, RecordingBehaviour recordingBehaviour)
+        public Recorder(FileStream stream, IMachine machine, RecordingBehaviour recordingBehaviour)
         {
             this.stream = stream;
             this.machine = machine;
@@ -99,7 +99,7 @@ namespace Antmicro.Renode.EventRecording
         private readonly Dictionary<Delegate, Delegate> nullifiedHandlersCache;
         private readonly RecordingBehaviour recordingBehaviour;
         private readonly FileStream stream;
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }
 

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32_Timer(Machine machine, long frequency, TimerWidth width) : base(machine)
+        public EFR32_Timer(IMachine machine, long frequency, TimerWidth width) : base(machine)
         {
             IRQ = new GPIO();
             this.width = width;

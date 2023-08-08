@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class NRF52840_Watchdog : LimitTimer, IDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_Watchdog(Machine machine) : base(machine.ClockSource, InitialFrequency, eventEnabled: true)
+        public NRF52840_Watchdog(IMachine machine) : base(machine.ClockSource, InitialFrequency, eventEnabled: true)
         {
             IRQ = new GPIO();
 
@@ -233,7 +233,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private bool interruptEnabled;
         private bool readyToReset;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private const int InitialFrequency = 32768;
         private const int NumberOfRegisters = 8;

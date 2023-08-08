@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         //private uint ControlRegister;
         //private uint ErrorRegister;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly DmaEngine engine;
 
         public GPIO IRQ { get; private set; }

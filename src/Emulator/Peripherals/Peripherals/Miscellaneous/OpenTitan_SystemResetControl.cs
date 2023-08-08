@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_SystemResetControl : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
-        public OpenTitan_SystemResetControl(Machine machine, OpenTitan_ResetManager resetManager) : base(machine)
+        public OpenTitan_SystemResetControl(IMachine machine, OpenTitan_ResetManager resetManager) : base(machine)
         {
             DefineRegisters();
             IRQ = new GPIO();

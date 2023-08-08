@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class EmulatorController : IDoubleWordPeripheral, IKnownSize
     {
-        public EmulatorController(Machine machine)
+        public EmulatorController(IMachine machine)
         {
             this.machine = machine;
             stopwatch = new Stopwatch();
@@ -457,7 +457,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private string currentKeyToSet;
         private int? keyListPosition;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly Stopwatch stopwatch;
         private readonly byte[] stringRegister;
         private readonly byte[] fileRegister;

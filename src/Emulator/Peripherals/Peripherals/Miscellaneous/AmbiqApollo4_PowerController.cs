@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class AmbiqApollo4_PowerController : BasicDoubleWordPeripheral, IKnownSize
     {
-        public AmbiqApollo4_PowerController(Machine machine) : base(machine)
+        public AmbiqApollo4_PowerController(IMachine machine) : base(machine)
         {
             DefineRegisters();
         }

@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.USB
 {
     public class MPFS_USB : SimpleContainer<IUSBDevice>, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>, IKnownSize
     {
-        public MPFS_USB(Machine machine, ControllerMode mode = ControllerMode.Host) : base(machine)
+        public MPFS_USB(IMachine machine, ControllerMode mode = ControllerMode.Host) : base(machine)
         {
             this.mode = mode;
 

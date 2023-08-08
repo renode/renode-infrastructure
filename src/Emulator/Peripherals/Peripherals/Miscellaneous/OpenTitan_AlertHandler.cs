@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_AlertHandler: BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
-        public OpenTitan_AlertHandler(Machine machine) : base(machine)
+        public OpenTitan_AlertHandler(IMachine machine) : base(machine)
         {
             alertCause = new IFlagRegisterField[AlertsCount];
             alertEnabled = new IFlagRegisterField[AlertsCount];

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class SP804 : IDoubleWordPeripheral, IKnownSize
     {
 
-        public SP804(Machine machine, int size = 0x1000)
+        public SP804(IMachine machine, int size = 0x1000)
         {
             IRQ = new GPIO();
             this.machine = machine;
@@ -155,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private InnerTimer[] timers;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly int size;
         private readonly PrimeCellIDHelper idHelper;
 

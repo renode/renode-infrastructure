@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
     public class STM32_UART : BasicDoubleWordPeripheral, IUART
     {
-        public STM32_UART(Machine machine, uint frequency = 8000000) : base(machine)
+        public STM32_UART(IMachine machine, uint frequency = 8000000) : base(machine)
         {
             this.frequency = frequency;
             DefineRegisters();

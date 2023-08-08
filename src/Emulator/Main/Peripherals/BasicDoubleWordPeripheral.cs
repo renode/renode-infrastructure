@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals
 {
     public abstract class BasicDoubleWordPeripheral : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public BasicDoubleWordPeripheral(Machine machine)
+        public BasicDoubleWordPeripheral(IMachine machine)
         {
             this.machine = machine;
             RegistersCollection = new DoubleWordRegisterCollection(this);
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals
 
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }
 
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
     }
 
     public static class BasicDoubleWordPeripheralExtensions

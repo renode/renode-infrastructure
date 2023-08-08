@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class SAM_TRNG : BasicDoubleWordPeripheral, IKnownSize
     {
-        public SAM_TRNG(Machine machine) : base(machine)
+        public SAM_TRNG(IMachine machine) : base(machine)
         {
             DefineRegisters();
         }

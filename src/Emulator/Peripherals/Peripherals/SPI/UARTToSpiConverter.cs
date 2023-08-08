@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class UARTToSpiConverter : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IUART
     {
-        public UARTToSpiConverter(Machine machine) : base(machine)
+        public UARTToSpiConverter(IMachine machine) : base(machine)
         {
         }
 

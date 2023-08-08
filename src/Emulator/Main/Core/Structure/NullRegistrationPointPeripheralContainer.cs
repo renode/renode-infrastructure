@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Core.Structure
     {
         public abstract void Reset();
 
-        protected NullRegistrationPointPeripheralContainer(Machine machine)
+        protected NullRegistrationPointPeripheralContainer(IMachine machine)
         {
             Machine = machine;
         }
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-        protected readonly Machine Machine;
+        protected readonly IMachine Machine;
         protected TPeripheral RegisteredPeripheral;
     }
 }

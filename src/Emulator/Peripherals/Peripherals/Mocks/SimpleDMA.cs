@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals
 {
     public class SimpleDMA : IDoubleWordPeripheral, IKnownSize
     {
-        public SimpleDMA(Machine machine)
+        public SimpleDMA(IMachine machine)
         {
             sysbus = machine.GetSystemBus(this);
 

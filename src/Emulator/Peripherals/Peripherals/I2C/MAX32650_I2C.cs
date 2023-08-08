@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class MAX32650_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_I2C(Machine machine) : base(machine)
+        public MAX32650_I2C(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
 

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Hooks
 {
     public class InterruptPythonEngine : PythonEngine
     {
-        public InterruptPythonEngine(Machine machine, ICPUWithHooks cpu, string script)
+        public InterruptPythonEngine(IMachine machine, ICPUWithHooks cpu, string script)
         {
             this.script = script;
             this.machine = machine;
@@ -51,6 +51,6 @@ namespace Antmicro.Renode.Hooks
         private CompiledCode code;
         private readonly string script;
         private readonly ICPUWithHooks cpu;
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }

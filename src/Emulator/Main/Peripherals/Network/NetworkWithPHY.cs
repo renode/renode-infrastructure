@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public abstract class NetworkWithPHY: IPeripheral, IPeripheralContainer<IPhysicalLayer, PHYRegistrationPoint>
     {
-        protected NetworkWithPHY(Machine machine)
+        protected NetworkWithPHY(IMachine machine)
         {
             phys = new Dictionary<uint, IPhysicalLayer>();
             this.machine = machine;
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         protected Dictionary<uint, IPhysicalLayer> phys;
-        protected Machine machine;
+        protected IMachine machine;
 
         public abstract void Reset();
     }

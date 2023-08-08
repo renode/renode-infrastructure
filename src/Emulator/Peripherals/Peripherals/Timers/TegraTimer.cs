@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class TegraTimer : IDoubleWordPeripheral, IKnownSize
     {
-        public TegraTimer(Machine machine)
+        public TegraTimer(IMachine machine)
         {
             IRQ = new GPIO();
             sync = new object();

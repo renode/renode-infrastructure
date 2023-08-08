@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     // This only implements I2C master operation
     public abstract class EFR32_GenericI2CController : SimpleContainer<II2CPeripheral>
     {
-        public EFR32_GenericI2CController(Machine machine) : base(machine)
+        public EFR32_GenericI2CController(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             txBuffer = new Queue<byte>();

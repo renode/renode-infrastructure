@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
     public sealed class Redirector : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IMultibyteWritePeripheral
     {
-        public Redirector(Machine machine, ulong redirectedAddress)
+        public Redirector(IMachine machine, ulong redirectedAddress)
         {
             this.redirectedAddress = redirectedAddress;
             systemBus = machine.GetSystemBus(this);

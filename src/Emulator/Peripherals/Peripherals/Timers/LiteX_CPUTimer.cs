@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class LiteX_CPUTimer : BasicDoubleWordPeripheral, IKnownSize, IRiscVTimeProvider
     {
-        public LiteX_CPUTimer(Machine machine, long frequency) : base(machine)
+        public LiteX_CPUTimer(IMachine machine, long frequency) : base(machine)
         {
             IRQ = new GPIO();
 

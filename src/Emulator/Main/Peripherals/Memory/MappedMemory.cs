@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 #endif
 
-        public MappedMemory(Machine machine, long size, int? segmentSize = null)
+        public MappedMemory(IMachine machine, long size, int? segmentSize = null)
         {
             if(segmentSize == null)
             {
@@ -583,7 +583,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         private bool disposed;
         private long size;
         private List<long> registrationPointsCached;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private const uint Magic = 0xABCD6366;
         private const int Alignment = 0x1000;

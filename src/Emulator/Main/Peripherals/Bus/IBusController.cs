@@ -14,7 +14,6 @@ using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
 using ELFSharp.ELF;
 
-using Machine = Antmicro.Renode.Core.Machine;
 using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -80,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null);
         void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IInitableCPU cpu = null);
 
-        Machine Machine { get; }
+        IMachine Machine { get; }
 
         bool IsMultiCore { get; }
 

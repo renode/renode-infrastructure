@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LiteX_Timer64 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_Timer64(Machine machine, long frequency) : base(machine)
+        public LiteX_Timer64(IMachine machine, long frequency) : base(machine)
         {
             innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);
             innerTimer.LimitReached += delegate

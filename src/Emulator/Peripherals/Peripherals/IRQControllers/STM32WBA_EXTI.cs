@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class STM32WBA_EXTI : BasicDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
-        public STM32WBA_EXTI(Machine machine, int numberOfOutputLines): base(machine)
+        public STM32WBA_EXTI(IMachine machine, int numberOfOutputLines): base(machine)
         {
             this.numberOfLines = numberOfOutputLines;
             core = new STM32_EXTICore(this, lineConfigurableMask: 0x1FFFF, separateConfigs: true);

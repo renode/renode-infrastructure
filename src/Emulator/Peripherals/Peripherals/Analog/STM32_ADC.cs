@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Analog
    // * Multi-ADC (i.e. Dual/Triple) mode
    public class STM32_ADC : BasicDoubleWordPeripheral, IKnownSize
    {
-      public STM32_ADC(Machine machine) : base(machine)
+      public STM32_ADC(IMachine machine) : base(machine)
       {
          channels = Enumerable.Range(0, NumberOfChannels).Select(x => new ADCChannel(this, x)).ToArray();
 

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class CC2538FlashController : IDoubleWordPeripheral, IKnownSize
     {
-        public CC2538FlashController(Machine machine, MappedMemory flash)
+        public CC2538FlashController(IMachine machine, MappedMemory flash)
         {
             this.flash = flash;
             var registersMap = new Dictionary<long, DoubleWordRegister>

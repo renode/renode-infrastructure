@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_ScrambledMemory
     {
-        public OpenTitan_ScrambledMemory(Machine machine, long size)
+        public OpenTitan_ScrambledMemory(IMachine machine, long size)
         {
             if(size % PageSize != 0)
             {
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private bool wasCleared;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly MappedMemory underlyingMemory;
         private readonly HashSet<long> writtenOffsets;
 

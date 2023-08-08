@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class OpenTitan_AonTimer: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_AonTimer(Machine machine, OpenTitan_PowerManager powerManager, OpenTitan_ResetManager resetManager, long frequency = 200000): base(machine)
+        public OpenTitan_AonTimer(IMachine machine, OpenTitan_PowerManager powerManager, OpenTitan_ResetManager resetManager, long frequency = 200000): base(machine)
         {
             this.powerManager = powerManager;
             this.resetManager = resetManager;

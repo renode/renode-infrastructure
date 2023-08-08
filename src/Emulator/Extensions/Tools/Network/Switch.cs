@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Tools.Network
             AttachTo(iface, null);
         }
 
-        public void AttachTo(IMACInterface iface, Machine machine)
+        public void AttachTo(IMACInterface iface, IMachine machine)
         {
             lock(innerLock)
             {
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Tools.Network
 
         private class InterfaceDescriptor
         {
-            public Machine Machine;
+            public IMachine Machine;
             public IMACInterface Interface;
             public bool PromiscuousMode;
             public Action<EthernetFrame> Delegate;

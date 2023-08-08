@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class TegraDmaHost1X : IDoubleWordPeripheral, IKnownSize
     {
-        public TegraDmaHost1X(Machine machine)
+        public TegraDmaHost1X(IMachine machine)
         {
             dmaEngine = new DmaEngine(machine.GetSystemBus(this));
             sysbus = machine.GetSystemBus(this);

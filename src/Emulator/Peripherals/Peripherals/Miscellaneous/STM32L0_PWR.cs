@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class STM32L0_PWR : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_PWR(Machine machine) : base(machine)
+        public STM32L0_PWR(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
 

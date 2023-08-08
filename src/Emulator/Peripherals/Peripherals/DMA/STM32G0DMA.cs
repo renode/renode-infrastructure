@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class STM32G0DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
     {
-        public STM32G0DMA(Machine machine, int numberOfChannels)
+        public STM32G0DMA(IMachine machine, int numberOfChannels)
         {
             this.machine = machine;
             engine = new DmaEngine(machine.GetSystemBus(this));
@@ -184,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly DmaEngine engine;
         private readonly DoubleWordRegisterCollection registers;
         private readonly Channel[] channels;

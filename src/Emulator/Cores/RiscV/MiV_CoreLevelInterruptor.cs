@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class MiV_CoreLevelInterruptor : CoreLevelInterruptor, IKnownSize
     {
-        public MiV_CoreLevelInterruptor(Machine machine, long frequency, uint prescaler, int numberOfTargets = 1)
+        public MiV_CoreLevelInterruptor(IMachine machine, long frequency, uint prescaler, int numberOfTargets = 1)
             : base(machine, frequency, numberOfTargets)
         {
             // we are extending the existing register map defined by the base class

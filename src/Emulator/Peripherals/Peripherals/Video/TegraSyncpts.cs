@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class TegraSyncpts : IDoubleWordPeripheral, IKnownSize
     {
-        public TegraSyncpts(Machine machine)
+        public TegraSyncpts(IMachine machine)
         {
   //          this.machine = machine;
 
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
 //        private object sync;
 
-//        private readonly Machine machine;
+//        private readonly IMachine machine;
     }
 }
 

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class NXPGPIOPort : BaseGPIOPort, IBusPeripheral
     {
-        public NXPGPIOPort(Machine machine, int numberOfPins) : base(machine, numberOfPins)
+        public NXPGPIOPort(IMachine machine, int numberOfPins) : base(machine, numberOfPins)
         {
             IRQ = new GPIO();
             interruptManager = new GPIOInterruptManager(IRQ, State);

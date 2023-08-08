@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public sealed class MPC5567_UART : UARTBase, IDoubleWordPeripheral, IWordPeripheral, IKnownSize
     {
-        public MPC5567_UART(Machine machine) : base(machine)
+        public MPC5567_UART(IMachine machine) : base(machine)
         {
             Reset();
         }

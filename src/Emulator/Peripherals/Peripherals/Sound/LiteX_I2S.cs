@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Sound
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public abstract class LiteX_I2S : BasicDoubleWordPeripheral, IKnownSize
     {
-        protected LiteX_I2S(Machine machine, DataFormat format, uint sampleWidth, uint samplingRate, uint fifoIrqThreshold = 256) : base(machine)
+        protected LiteX_I2S(IMachine machine, DataFormat format, uint sampleWidth, uint samplingRate, uint fifoIrqThreshold = 256) : base(machine)
         {
             if(format != DataFormat.Standard)
             {

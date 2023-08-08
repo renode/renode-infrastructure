@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Core
     public interface IPeripheralsGroup
     {
         string Name { get; }
-        Machine Machine { get; }
+        IMachine Machine { get; }
         IEnumerable<IPeripheral> Peripherals { get; }
 
         void Unregister();

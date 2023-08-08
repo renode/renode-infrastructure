@@ -14,7 +14,6 @@ using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
 using ELFSharp.ELF;
 
-using Machine = Antmicro.Renode.Core.Machine;
 using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -322,7 +321,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.MapMemory(segment, owner, relative, context);
         }
 
-        public virtual Machine Machine => ParentController.Machine;
+        public virtual IMachine Machine => ParentController.Machine;
 
         public virtual SymbolLookup Lookup => ParentController.Lookup;
 

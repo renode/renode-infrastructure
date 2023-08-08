@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class MAX32650_GCR : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_GCR(Machine machine, IHasFrequency nvic) : base(machine)
+        public MAX32650_GCR(IMachine machine, IHasFrequency nvic) : base(machine)
         {
             DefineRegisters();
 

@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_OneTimeProgrammableMemoryController: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_OneTimeProgrammableMemoryController(Machine machine) : base(machine)
+        public OpenTitan_OneTimeProgrammableMemoryController(IMachine machine) : base(machine)
         {
             memoryLock = new Object();
             transitionCountLock = new Object();

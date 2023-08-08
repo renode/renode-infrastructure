@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [Endianess(Endianess.BigEndian)]
     public class GaislerGPTimer : IDoubleWordPeripheral, IGaislerAPB, INumberedGPIOOutput
     {
-        public GaislerGPTimer(int timersNumber, Machine machine, int frequency = DefaultTimerFrequency)
+        public GaislerGPTimer(int timersNumber, IMachine machine, int frequency = DefaultTimerFrequency)
         {
             this.numberOfTimers = timersNumber;
             if(timersNumber > MaximumNumberTimersImplemented)
@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 CoreTimer.Reset();
             }
             
-            public InnerTimer(Machine machine, int frequency, GaislerGPTimer parent)
+            public InnerTimer(IMachine machine, int frequency, GaislerGPTimer parent)
             {
                 CoreTimer = new LimitTimer(machine.ClockSource, frequency, parent, nameof(CoreTimer), InitialLimit, Direction.Descending, eventEnabled: true);
             }

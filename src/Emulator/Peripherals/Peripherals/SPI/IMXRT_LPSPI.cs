@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class IMXRT_LPSPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public IMXRT_LPSPI(Machine machine, uint fifoSize = 4) : base(machine)
+        public IMXRT_LPSPI(IMachine machine, uint fifoSize = 4) : base(machine)
         {
             if(fifoSize == 0 || (fifoSize & (fifoSize - 1)) != 0)
             {

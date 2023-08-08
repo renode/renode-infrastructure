@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LiteX_Timer_CSR32 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_Timer_CSR32(Machine machine, long frequency) : base(machine)
+        public LiteX_Timer_CSR32(IMachine machine, long frequency) : base(machine)
         {
             uptimeTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(uptimeTimer), direction: Antmicro.Renode.Time.Direction.Ascending, enabled: true);
             innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);

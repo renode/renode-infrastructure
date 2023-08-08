@@ -36,9 +36,9 @@ namespace Antmicro.Renode.Core
             CurrentLogger = Logger.GetLogger();
             randomGenerator = new Lazy<PseudorandomNumberGenerator>(() => new PseudorandomNumberGenerator());
             nameCache = new LRUCache<object, Tuple<string, string>>(NameCacheSize);
-            peripheralToMachineCache = new LRUCache<IPeripheral, Machine>(PeripheralToMachineCacheSize);
+            peripheralToMachineCache = new LRUCache<IPeripheral, IMachine>(PeripheralToMachineCacheSize);
 
-            machs = new FastReadConcurrentTwoWayDictionary<string, Machine>();
+            machs = new FastReadConcurrentTwoWayDictionary<string, IMachine>();
             machs.ItemAdded += (name, machine) =>
             {
                 machine.StateChanged += OnMachineStateChanged;
@@ -127,12 +127,12 @@ namespace Antmicro.Renode.Core
         [Transient]
         private bool isStarted;
 
-        public Machine this[String key]
+        public IMachine this[String key]
         {
             get { return machs[key]; }
         }
 
-        public String this[Machine machine]
+        public String this[IMachine machine]
         {
             get { return machs[machine]; }
         }
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Core
 
         public HostMachine HostMachine { get; private set; }
 
-        public bool TryGetMachineName(Machine machine, out string name)
+        public bool TryGetMachineName(IMachine machine, out string name)
         {
             return machs.TryGetValue(machine, out name);
         }
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Core
             get { return machs.Count; }
         }
 
-        public IEnumerable<Machine> Machines
+        public IEnumerable<IMachine> Machines
         {
             get { return machs.Rights; }
         }
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Core
             get { return machs.Lefts; }
         }
 
-        public bool TryGetExecutionContext(out Machine machine, out ICPU cpu)
+        public bool TryGetExecutionContext(out IMachine machine, out ICPU cpu)
         {
             foreach(var m in Machines)
             {
@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Core
         /// <param name='name'>
         /// Name of the machine. If null or empty (as default), the name is automatically given.
         /// </param>
-        public void AddMachine(Machine machine, string name = "")
+        public void AddMachine(IMachine machine, string name = "")
         {
             if(!TryAddMachine(machine, name))
             {
@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public bool TryGetMachineByName(string name, out Machine machine)
+        public bool TryGetMachineByName(string name, out IMachine machine)
         {
             return machs.TryGetValue(name, out machine);
         }
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public bool TryAddMachine(Machine machine, string name)
+        public bool TryAddMachine(IMachine machine, string name)
         {
             lock(machLock)
             {
@@ -364,10 +364,10 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void SetNameForMachine(string name, Machine machine)
+        public void SetNameForMachine(string name, IMachine machine)
         {
             // TODO: locking issues
-            Machine oldMachine;
+            IMachine oldMachine;
             machs.TryRemove(name, out oldMachine);
 
             AddMachine(machine, name);
@@ -389,7 +389,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void RemoveMachine(Machine machine)
+        public void RemoveMachine(IMachine machine)
         {
             machs.Remove(machine);
             (machine as IDisposable)?.Dispose();
@@ -397,7 +397,7 @@ namespace Antmicro.Renode.Core
 
         public bool TryRemoveMachine(string name)
         {
-            Machine machine;
+            IMachine machine;
             var result = machs.TryRemove(name, out machine);
             if(result)
             {
@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Core
             return result;
         }
 
-        public bool TryGetMachineForPeripheral(IPeripheral p, out Machine machine)
+        public bool TryGetMachineForPeripheral(IPeripheral p, out IMachine machine)
         {
             if(peripheralToMachineCache.TryGetValue(p, out machine))
             {
@@ -457,7 +457,7 @@ namespace Antmicro.Renode.Core
             var objAsIPeripheral = obj as IPeripheral;
             if(objAsIPeripheral != null)
             {
-                Machine machine;
+                IMachine machine;
                 string machName;
 
                 if(TryGetMachineForPeripheral(objAsIPeripheral, out machine) && TryGetMachineName(machine, out machName))
@@ -530,7 +530,7 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            Machine machine;
+            IMachine machine;
             if(TryGetMachineByName(name, out machine))
             {
                 element = machine;
@@ -613,7 +613,7 @@ namespace Antmicro.Renode.Core
 
 
         [field: Transient]
-        public event Action<Machine, Machine> MachineExchanged;
+        public event Action<IMachine, IMachine> MachineExchanged;
 
         [PostDeserialization]
         private void AfterDeserialization()
@@ -627,7 +627,7 @@ namespace Antmicro.Renode.Core
 
         #region Event processors
 
-        private void OnMachineStateChanged(Machine machine, MachineStateChangedEventArgs ea)
+        private void OnMachineStateChanged(IMachine machine, MachineStateChangedEventArgs ea)
         {
             var msc = MachineStateChanged;
             if(msc != null)
@@ -636,7 +636,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void OnMachineAdded(Machine machine)
+        private void OnMachineAdded(IMachine machine)
         {
             var ma = MachineAdded;
             if(ma != null)
@@ -645,7 +645,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void OnMachineRemoved(Machine machine)
+        private void OnMachineRemoved(IMachine machine)
         {
             var mr = MachineRemoved;
             if(mr != null)
@@ -657,12 +657,12 @@ namespace Antmicro.Renode.Core
         #endregion
 
         [field: Transient]
-        public event Action<Machine, MachineStateChangedEventArgs> MachineStateChanged;
+        public event Action<IMachine, MachineStateChangedEventArgs> MachineStateChanged;
 
         [field: Transient]
-        public event Action<Machine> MachineAdded;
+        public event Action<IMachine> MachineAdded;
         [field: Transient]
-        public event Action<Machine> MachineRemoved;
+        public event Action<IMachine> MachineRemoved;
 
         [field: Transient]
         public event Action<Emulation, bool> IsStartedChanged;
@@ -674,11 +674,11 @@ namespace Antmicro.Renode.Core
         private readonly LRUCache<object, Tuple<string, string>> nameCache;
 
         [Constructor(PeripheralToMachineCacheSize)]
-        private readonly LRUCache<IPeripheral, Machine> peripheralToMachineCache;
+        private readonly LRUCache<IPeripheral, IMachine> peripheralToMachineCache;
 
         private readonly Lazy<PseudorandomNumberGenerator> randomGenerator;
         private readonly Dictionary<string, object> theBag;
-        private readonly FastReadConcurrentTwoWayDictionary<string, Machine> machs;
+        private readonly FastReadConcurrentTwoWayDictionary<string, IMachine> machs;
 
         private const int NameCacheSize = 100;
         private const int PeripheralToMachineCacheSize = 100;

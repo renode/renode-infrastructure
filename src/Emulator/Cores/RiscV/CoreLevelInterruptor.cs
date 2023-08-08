@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider
     {
-        public CoreLevelInterruptor(Machine machine, long frequency, int numberOfTargets = 1)
+        public CoreLevelInterruptor(IMachine machine, long frequency, int numberOfTargets = 1)
         {
             this.machine = machine;
             this.timerFrequency = frequency;
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
         private readonly long timerFrequency;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private enum Registers : long
         {

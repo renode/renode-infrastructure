@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
     // This model doesn't implement idling, matching, anything that requires more than 8 bit wide data and irDA
     public class LowPower_UART : UARTBase, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public LowPower_UART(Machine machine, long frequency = 8000000) : base(machine)
+        public LowPower_UART(IMachine machine, long frequency = 8000000) : base(machine)
         {
             this.frequency = frequency;
 

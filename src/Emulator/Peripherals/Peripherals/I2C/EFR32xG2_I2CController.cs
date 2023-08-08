@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class EFR32xG2_I2CController : EFR32_GenericI2CController, IDoubleWordPeripheral
     {
-        public EFR32xG2_I2CController(Machine machine) : base(machine)
+        public EFR32xG2_I2CController(IMachine machine) : base(machine)
         {
             var map = new Dictionary<long, DoubleWordRegister>
             {

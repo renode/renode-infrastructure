@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.SD
 {
     public class LiteSDCard_CSR32 : NullRegistrationPointPeripheralContainer<SDCard>, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteSDCard_CSR32(Machine machine) : base(machine)
+        public LiteSDCard_CSR32(IMachine machine) : base(machine)
         {
             phyRegistersCollection = new DoubleWordRegisterCollection(this);
             coreRegistersCollection = new DoubleWordRegisterCollection(this);

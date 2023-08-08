@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public static class ICPUExtensions
     {
-        public static string GetCPUThreadName(this ICPU cpu, Machine machine)
+        public static string GetCPUThreadName(this ICPU cpu, IMachine machine)
         {
             string machineName;
             if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machineName))

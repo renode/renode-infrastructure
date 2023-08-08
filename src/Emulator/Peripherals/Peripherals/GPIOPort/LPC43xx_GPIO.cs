@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class LPC43xx_GPIO : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public LPC43xx_GPIO(Machine machine) : base(machine, PinsPerPort * NumberOfPorts)
+        public LPC43xx_GPIO(IMachine machine) : base(machine, PinsPerPort * NumberOfPorts)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
 

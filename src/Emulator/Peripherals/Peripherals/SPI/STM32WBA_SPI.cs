@@ -10,7 +10,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class STM32WBA_SPI : STM32H7_SPI
     {
-        public STM32WBA_SPI(Machine machine) : base(machine)
+        public STM32WBA_SPI(IMachine machine) : base(machine)
         {
         }
 

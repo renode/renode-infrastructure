@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Network
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class LiteX_Ethernet : NetworkWithPHY, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IMACInterface, IKnownSize
     {
-        public LiteX_Ethernet(Machine machine, int numberOfWriteSlots = 2, int numberOfReadSlots = 2) : base(machine)
+        public LiteX_Ethernet(IMachine machine, int numberOfWriteSlots = 2, int numberOfReadSlots = 2) : base(machine)
         {
             Interlocked.Add(ref NumberOfInstances, 1);
 

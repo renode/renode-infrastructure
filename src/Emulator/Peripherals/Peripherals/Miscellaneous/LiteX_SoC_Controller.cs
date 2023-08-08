@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class LiteX_SoC_Controller : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_SoC_Controller(Machine machine) : base(machine)
+        public LiteX_SoC_Controller(IMachine machine) : base(machine)
         {
             DefineRegisters();
         }

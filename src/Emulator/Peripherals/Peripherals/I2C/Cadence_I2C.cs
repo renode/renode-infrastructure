@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class Cadence_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_I2C(Machine machine) : base(machine)
+        public Cadence_I2C(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             rxFifo = new Queue<byte>();

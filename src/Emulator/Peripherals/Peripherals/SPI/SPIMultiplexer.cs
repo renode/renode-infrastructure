@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class SPIMultiplexer : SimpleContainer<ISPIPeripheral>, IGPIOReceiver, ISPIPeripheral
     {
-        public SPIMultiplexer(Machine machine) : base(machine)
+        public SPIMultiplexer(IMachine machine) : base(machine)
         {
             chipSelects = new HashSet<int>();
             activeLowSignals = new HashSet<int>();

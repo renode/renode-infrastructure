@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_FlashController : STM32_FlashController, IKnownSize
     {
-        public STM32L0_FlashController(Machine machine, MappedMemory flash, MappedMemory eeprom) : base(machine)
+        public STM32L0_FlashController(IMachine machine, MappedMemory flash, MappedMemory eeprom) : base(machine)
         {
             this.underlyingFlash = flash;
             this.underlyingEeprom = eeprom;

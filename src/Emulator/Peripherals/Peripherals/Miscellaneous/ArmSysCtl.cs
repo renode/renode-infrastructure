@@ -17,13 +17,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [Icon("wrench")]
     public class ArmSysCtl : IDoubleWordPeripheral
     {
-        public ArmSysCtl(Machine machine)
+        public ArmSysCtl(IMachine machine)
         {
             this.machine = machine;
             Reset();
         }
 
-        public ArmSysCtl(Machine machine,uint procId)
+        public ArmSysCtl(IMachine machine,uint procId)
         {
             this.machine = machine;
             this.ProcId=procId;
@@ -272,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private uint ProcId = 0x02000000;
         private uint MachineReset = 0xC0900000;
         private uint MachineShutdown = 0xC0800000;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         
         private enum CTL : uint
         {

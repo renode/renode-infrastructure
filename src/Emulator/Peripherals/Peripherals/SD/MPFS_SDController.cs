@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.SD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class MPFS_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
     {
-        public MPFS_SDController(Machine machine) : base(machine)
+        public MPFS_SDController(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();

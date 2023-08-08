@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.DoubleWordToByte | AllowedTranslation.WordToByte)]
     public class SAMD5_UART : UARTBase, IBytePeripheral, IKnownSize, IProvidesRegisterCollection<ByteRegisterCollection>
     {
-        public SAMD5_UART(Machine machine) : base(machine)
+        public SAMD5_UART(IMachine machine) : base(machine)
         {
             RegistersCollection = new ByteRegisterCollection(this);
             IRQ = new GPIO();

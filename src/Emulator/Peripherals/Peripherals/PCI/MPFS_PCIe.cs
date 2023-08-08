@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.PCI
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class MPFS_PCIe : SimpleContainer<IPCIePeripheral>, IDoubleWordPeripheral, IKnownSize, IPCIeRouter, IAbsoluteAddressAware
     {
-        public MPFS_PCIe(Machine machine) : base(machine)
+        public MPFS_PCIe(IMachine machine) : base(machine)
         {
             var registersDictionary = new Dictionary<long, DoubleWordRegister>
             {

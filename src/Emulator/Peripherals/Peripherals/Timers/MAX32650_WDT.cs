@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MAX32650_WDT : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_WDT(Machine machine, MAX32650_GCR gcr) : base(machine)
+        public MAX32650_WDT(IMachine machine, MAX32650_GCR gcr) : base(machine)
         {
             IRQ = new GPIO();
 

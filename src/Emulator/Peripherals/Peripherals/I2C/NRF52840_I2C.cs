@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class NRF52840_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_I2C(Machine machine) : base(machine)
+        public NRF52840_I2C(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
 

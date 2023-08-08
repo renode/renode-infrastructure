@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Video
     [Icon("lcd")]
     public abstract class AutoRepaintingVideo : IVideo, IDisposable
     {
-        protected AutoRepaintingVideo(Machine machine)
+        protected AutoRepaintingVideo(IMachine machine)
         {
             innerLock = new object();
             // we use synchronized thread since some deriving classes can generate interrupt on repainting
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.Video
         [Transient]
         private Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> configurationChanged;
         private readonly object innerLock;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private uint framesPerVirtualSecond = 25;
     }
 }

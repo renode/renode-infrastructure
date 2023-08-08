@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public class EmberRadio : IDoubleWordPeripheral, IRadio
     {
-        public EmberRadio(Machine machine)
+        public EmberRadio(IMachine machine)
         {
             this.machine = machine;
 
@@ -392,7 +392,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private uint MAC_RX_ST_ADDR_A = 0x20000000;
         private uint MAC_RX_ST_ADDR_B = 0x20000000;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
        // public event Action<string> SendPacket;
 

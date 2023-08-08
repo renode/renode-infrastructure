@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public abstract partial class AtCommandModem : IUART
     {
-        public AtCommandModem(Machine machine)
+        public AtCommandModem(IMachine machine)
         {
             this.machine = machine;
             Init();
@@ -214,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected const byte ControlZ = 26;
         protected const byte Escape = 27;
 
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
 
         private Response DefaultTestCommand()
         {

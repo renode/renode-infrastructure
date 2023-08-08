@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 {
     public class PULP_I2S: BasicDoubleWordPeripheral, IDisposable, IKnownSize, INumberedGPIOOutput
     {
-        public PULP_I2S(Machine machine) : base(machine)
+        public PULP_I2S(IMachine machine) : base(machine)
         {
             CreateRegisters();
             var irqs = new Dictionary<int, IGPIO>();

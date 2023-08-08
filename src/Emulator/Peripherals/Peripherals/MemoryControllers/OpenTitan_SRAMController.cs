@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
     public class OpenTitan_SRAMController: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_SRAMController(Machine machine): base(machine)
+        public OpenTitan_SRAMController(IMachine machine): base(machine)
         {
             FatalError = new GPIO();
             DefineRegisters();

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.X86
 {
     public class Quark_PWM : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public Quark_PWM(Machine machine) : base(machine, NumberOfInternalTimers)
+        public Quark_PWM(IMachine machine) : base(machine, NumberOfInternalTimers)
         {
             IRQ = new GPIO();
             internalLock = new object();

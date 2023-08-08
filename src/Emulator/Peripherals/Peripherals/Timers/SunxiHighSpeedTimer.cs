@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class SunxiHighSpeedTimer : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public SunxiHighSpeedTimer(Machine machine, long frequency)
+        public SunxiHighSpeedTimer(IMachine machine, long frequency)
         {
             irqEnableRegister = new DoubleWordRegister(this);
             irqStatusRegister = new DoubleWordRegister(this);
@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private sealed class SunxiHighSpeedTimerUnit : LimitTimer
         {
-            public SunxiHighSpeedTimerUnit(Machine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, enabled: false)
+            public SunxiHighSpeedTimerUnit(IMachine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, enabled: false)
             {
                 controlRegister = new DoubleWordRegister(this);
                 controlRegister.DefineFlagField(7, changeCallback: OnModeChange, name: "MODE");

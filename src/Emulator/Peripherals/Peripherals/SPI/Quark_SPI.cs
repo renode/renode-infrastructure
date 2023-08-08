@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public sealed class Quark_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public Quark_SPI(Machine machine) : base(machine)
+        public Quark_SPI(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             CreateRegisters();

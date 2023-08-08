@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // Note: the documentation explicitly disallows 8- and 16-bit transfers
     public class S32K_SCG : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32K_SCG(Machine machine) : base(machine)
+        public S32K_SCG(IMachine machine) : base(machine)
         {
             Registers.ClockStatus.Define(this)
                 .WithValueField(0, 4, FieldMode.Read, valueProviderCallback: _ => slowClockRatio.Value, name: "DIVSLOW")

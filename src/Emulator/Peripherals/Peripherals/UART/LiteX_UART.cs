@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public LiteX_UART(Machine machine) : base(machine)
+        public LiteX_UART(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             var registersMap = new Dictionary<long, DoubleWordRegister>

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public sealed class STM32F7_I2C : SimpleContainer<II2CPeripheral>, II2CPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F7_I2C(Machine machine) : base(machine)
+        public STM32F7_I2C(IMachine machine) : base(machine)
         {
             EventInterrupt = new GPIO();
             ErrorInterrupt = new GPIO();

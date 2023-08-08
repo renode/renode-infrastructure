@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Storage
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class VirtIOBlockDevice : BasicDoubleWordPeripheral, IKnownSize, IDisposable
     {
-        public VirtIOBlockDevice(Machine machine) : base(machine)
+        public VirtIOBlockDevice(IMachine machine) : base(machine)
         {
             DefineRegisters();
             storage = DataStorage.Create(size: 0);

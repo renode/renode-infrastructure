@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Hooks
 {
     public sealed class UartPythonEngine : PythonEngine
     {
-        public UartPythonEngine(Machine machine, IUART uart, string script)
+        public UartPythonEngine(IMachine machine, IUART uart, string script)
         {
             Script = script;
             Uart = uart;
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Hooks
         [PostDeserialization]
         private void InnerInit()
         {
-            Scope.SetVariable(Machine.MachineKeyword, Machine);
+            Scope.SetVariable(Core.Machine.MachineKeyword, Machine);
             Scope.SetVariable("uart", Uart);
             Scope.SetVariable("self", Uart);
             var source = Engine.CreateScriptSourceFromString(Script);
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Hooks
         private CompiledCode code;
         private readonly string Script;
         private readonly IUART Uart;
-        private readonly Machine Machine;
+        private readonly IMachine Machine;
     }
 }
 

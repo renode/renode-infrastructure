@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class MAX30208 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor, IGPIOReceiver
     {
-        public MAX30208(Machine machine)
+        public MAX30208(IMachine machine)
         {
             RegistersCollection = new ByteRegisterCollection(this);
             this.machine = machine;
@@ -419,7 +419,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField gpio0Level;
         private IFlagRegisterField gpio1Level;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly Queue<TemperatureSampleWrapper> samplesFifo;
 
         private const uint FIFOSize = 32;

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     class MAX32650_TPU : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_TPU(Machine machine) : base(machine)
+        public MAX32650_TPU(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
 

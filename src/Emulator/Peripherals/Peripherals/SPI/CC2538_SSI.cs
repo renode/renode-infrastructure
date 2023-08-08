@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class CC2538_SSI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public CC2538_SSI(Machine machine) : base(machine)
+        public CC2538_SSI(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
 

@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class BitAccess : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral
     {
-        public BitAccess(Machine machine, ulong address, BitAccessMode mode)
+        public BitAccess(IMachine machine, ulong address, BitAccessMode mode)
         {
             sysbus = machine.GetSystemBus(this);
             this.address = address;

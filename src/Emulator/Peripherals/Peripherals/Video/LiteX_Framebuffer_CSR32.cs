@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class LiteX_Framebuffer_CSR32 : AutoRepaintingVideo, IBusPeripheral
     {
-        public LiteX_Framebuffer_CSR32(Machine machine, PixelFormat format, IBusPeripheral memory, uint offset = 0, ushort hres = 0, ushort vres = 0) : base(machine)
+        public LiteX_Framebuffer_CSR32(IMachine machine, PixelFormat format, IBusPeripheral memory, uint offset = 0, ushort hres = 0, ushort vres = 0) : base(machine)
         {
             this.memory = memory;
             this.resetOffset = offset;
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private uint bufferAddress;
 
         private readonly IBusPeripheral memory;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly PixelFormat format;
         private readonly uint resetOffset;
         private readonly uint resetHres;

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class IMX_GPTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public IMX_GPTimer(Machine machine, int frequency = DefaultFrequency) : base(machine)
+        public IMX_GPTimer(IMachine machine, int frequency = DefaultFrequency) : base(machine)
         {
             timers = new ComparingTimer[NumberOfCaptures];
             capturesPending = new IFlagRegisterField[NumberOfCaptures];

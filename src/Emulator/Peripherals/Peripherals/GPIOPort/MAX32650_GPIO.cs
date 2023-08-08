@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class MAX32650_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_GPIO(Machine machine, int numberOfPins) : base(machine, numberOfPins)
+        public MAX32650_GPIO(IMachine machine, int numberOfPins) : base(machine, numberOfPins)
         {
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             IRQ = new GPIO();

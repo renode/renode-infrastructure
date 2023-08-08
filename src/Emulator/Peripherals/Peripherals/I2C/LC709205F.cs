@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class LC709205F : II2CPeripheral, IProvidesRegisterCollection<WordRegisterCollection>
     {
-        public LC709205F(Machine machine)
+        public LC709205F(IMachine machine)
         {
             this.machine = machine;
             RegistersCollection = new WordRegisterCollection(this);
@@ -281,7 +281,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private const decimal TemperatureSensitivity = 0.1m;
         private const int DefaultSlaveAddress = 0x0B;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private Registers? registerAddress;
 

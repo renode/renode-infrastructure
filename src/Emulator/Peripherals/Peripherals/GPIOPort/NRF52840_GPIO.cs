@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class NRF52840_GPIO : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_GPIO(Machine machine) : base(machine, NumberOfPins)
+        public NRF52840_GPIO(IMachine machine) : base(machine, NumberOfPins)
         {
             Pins = new Pin[NumberOfPins];
             for(var i = 0; i < Pins.Length; i++)

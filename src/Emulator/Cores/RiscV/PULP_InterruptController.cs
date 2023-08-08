@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class PULP_InterruptController : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize, IIRQController, IPeripheralContainer<PULP_EventController, NullRegistrationPoint>
     {
-        public PULP_InterruptController(Machine machine) : base(machine)
+        public PULP_InterruptController(IMachine machine) : base(machine)
         {
             var irqs = new Dictionary<int, IGPIO>();
             for(var i = 0; i < NumberOfOutgoingInterrupts; i++)

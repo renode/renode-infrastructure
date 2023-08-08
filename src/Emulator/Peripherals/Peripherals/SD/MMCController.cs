@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.SD
             }
         }
 
-        protected MMCController(Machine machine) : base(machine)
+        protected MMCController(IMachine machine) : base(machine)
         {
             this.machine = machine;
         }
@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         protected int BlockSize, ByteCount;
 
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
 
         protected enum Commands
         {

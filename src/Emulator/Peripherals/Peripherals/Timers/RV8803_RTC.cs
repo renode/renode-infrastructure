@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class RV8803_RTC : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>
     {
-        public RV8803_RTC(Machine machine)
+        public RV8803_RTC(IMachine machine)
         {
             IRQ = new GPIO();
 
@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class RTCTimer
         {
-            public RTCTimer(Machine machine, IPeripheral parent)
+            public RTCTimer(IMachine machine, IPeripheral parent)
             {
                 this.parent = parent;
 

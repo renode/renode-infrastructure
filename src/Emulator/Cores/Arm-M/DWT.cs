@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class DWT: BasicDoubleWordPeripheral, IKnownSize
     {
-        public DWT(Machine machine, uint frequency): base(machine)
+        public DWT(IMachine machine, uint frequency): base(machine)
         {
             CreateRegisters();
             cycleCounter = new LimitTimer(machine.ClockSource, frequency, this, "CycleCounter", direction: Direction.Ascending);

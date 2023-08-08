@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class Xilinx_XADC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public Xilinx_XADC(Machine machine) : base(machine)
+        public Xilinx_XADC(IMachine machine) : base(machine)
         {
             DefineRegisters();
 

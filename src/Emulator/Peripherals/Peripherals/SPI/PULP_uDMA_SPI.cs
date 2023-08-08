@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class PULP_uDMA_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public PULP_uDMA_SPI(Machine machine) : base(machine)
+        public PULP_uDMA_SPI(IMachine machine) : base(machine)
         {
             RxIRQ = new GPIO();
             TxIRQ = new GPIO();

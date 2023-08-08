@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 {
     public class VersatilePCI : SimpleContainer<IPCIPeripheral>, IDoubleWordPeripheral
     {
-        public VersatilePCI(Machine machine) : base(machine)
+        public VersatilePCI(IMachine machine) : base(machine)
         {
             info = new PCIInfo[4];
             _info = new bool[4];

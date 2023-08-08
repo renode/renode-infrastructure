@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MiV_CoreTimer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public MiV_CoreTimer(Machine machine, long clockFrequency) : base(machine.ClockSource, clockFrequency, limit: uint.MaxValue, autoUpdate: true, eventEnabled: true)
+        public MiV_CoreTimer(IMachine machine, long clockFrequency) : base(machine.ClockSource, clockFrequency, limit: uint.MaxValue, autoUpdate: true, eventEnabled: true)
         {
             IRQ = new GPIO();
             LimitReached += delegate

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_LifeCycleController: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_LifeCycleController(Machine machine, OpenTitan_ResetManager resetManager, OpenTitan_OneTimeProgrammableMemoryController otpController) : base(machine)
+        public OpenTitan_LifeCycleController(IMachine machine, OpenTitan_ResetManager resetManager, OpenTitan_OneTimeProgrammableMemoryController otpController) : base(machine)
         {
             this.resetManager = resetManager;
             this.otpController = otpController;

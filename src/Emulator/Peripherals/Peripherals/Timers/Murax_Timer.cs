@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Murax_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public Murax_Timer(Machine machine, long frequency = 12000000) : base(machine)
+        public Murax_Timer(IMachine machine, long frequency = 12000000) : base(machine)
         {
             DefineRegisters();
             for(var i = 0; i < NumberOfTimers; i++)

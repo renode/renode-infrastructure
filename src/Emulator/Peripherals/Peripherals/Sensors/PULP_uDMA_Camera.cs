@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class PULP_uDMA_Camera: NullRegistrationPointPeripheralContainer<ICPIPeripheral>, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public PULP_uDMA_Camera(Machine machine) : base(machine)
+        public PULP_uDMA_Camera(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
 

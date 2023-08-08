@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public abstract class UARTBase : NullRegistrationPointPeripheralContainer<IUART>, IUART
     {
-        protected UARTBase(Machine machine) : base(machine)
+        protected UARTBase(IMachine machine) : base(machine)
         {
             queue = new Queue<byte>();
             innerLock = new object();

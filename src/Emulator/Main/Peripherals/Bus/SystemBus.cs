@@ -41,9 +41,9 @@ namespace Antmicro.Renode.Peripherals.Bus
     [ControllerMask(typeof(IPeripheral))]
     public sealed partial class SystemBus : IBusController, IDisposable
     {
-        internal SystemBus(Machine machine)
+        internal SystemBus(IMachine machine)
         {
-            this.machine = machine;
+            this.Machine = machine;
             cpuSync = new object();
             binaryFingerprints = new List<BinaryFingerprint>();
             cpuById = new Dictionary<int, ICPU>();
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             using(Machine.ObtainPausedState())
             {
-                machine.UnregisterAsAChildOf(this, peripheral);
+                Machine.UnregisterAsAChildOf(this, peripheral);
                 UnregisterInner(peripheral);
             }
         }
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             using(Machine.ObtainPausedState())
             {
-                machine.UnregisterAsAChildOf(this, busRegisteredPeripheral.RegistrationPoint);
+                Machine.UnregisterAsAChildOf(this, busRegisteredPeripheral.RegistrationPoint);
                 UnregisterInner(busRegisteredPeripheral);
             }
         }
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     registrationPoint = new CPURegistrationPoint(i);
                 }
-                machine.RegisterAsAChildOf(this, cpu, registrationPoint);
+                Machine.RegisterAsAChildOf(this, cpu, registrationPoint);
                 cpuById.Add(registrationPoint.Slot.Value, cpu);
                 cpuLocalPeripherals[cpu] = new PeripheralCollection(this);
                 idByCpu.Add(cpu, registrationPoint.Slot.Value);
@@ -156,9 +156,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Unregister(ICPU cpu)
         {
-            using(machine.ObtainPausedState())
+            using(Machine.ObtainPausedState())
             {
-                machine.UnregisterAsAChildOf(this, cpu);
+                Machine.UnregisterAsAChildOf(this, cpu);
                 lock(cpuSync)
                 {
                     var id = idByCpu[cpu];
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void SetPCOnAllCores(ulong pc)
         {
-            using(machine.ObtainPausedState())
+            using(Machine.ObtainPausedState())
             {
                 lock(cpuSync)
                 {
@@ -926,7 +926,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public string DecorateWithCPUNameAndPC(string str)
         {
-            if(!TryGetCurrentCPU(out var cpu) || !machine.TryGetLocalName(cpu, out var cpuName))
+            if(!TryGetCurrentCPU(out var cpu) || !Machine.TryGetLocalName(cpu, out var cpuName))
             {
                 return str;
             }
@@ -949,13 +949,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return builder.ToString();
         }
 
-        public Machine Machine
-        {
-            get
-            {
-                return machine;
-            }
-        }
+        public IMachine Machine { get; }
 
         public int UnexpectedReads
         {
@@ -1367,7 +1361,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             PeripheralCollection peripherals = null;
             
-            using(machine.ObtainPausedState())
+            using(Machine.ObtainPausedState())
             {
                 // Register only for the selected core
                 if(context != null)
@@ -1403,7 +1397,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var mappings = segments.Select(x => FromRegistrationPointToSegmentWrapper(x, registrationPoint, cpuWithMappedMemory)).Where(x => x != null);
                     AddMappings(mappings, peripheral);
                 }
-                machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+                Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
             }
         }        
 
@@ -1546,7 +1540,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void AddMappings(IEnumerable<MappedSegmentWrapper> newMappings, IBusPeripheral owner)
         {
-            using(machine.ObtainPausedState())
+            using(Machine.ObtainPausedState())
             {
                 lock(cpuSync)
                 {
@@ -1602,7 +1596,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             tagEntered = true;
             if(pausingTags.Contains(tag))
             {
-                machine.Pause();
+                Machine.Pause();
             }
             return string.Format("(tag: '{0}') {1}", tag, str);
         }
@@ -1700,7 +1694,6 @@ namespace Antmicro.Renode.Peripherals.Bus
         private List<SVDParser> svdDevices;
         private HashSet<string> pausingTags;
         private readonly List<BinaryFingerprint> binaryFingerprints;
-        private readonly Machine machine;
         private const string NonExistingRead = "Read{1} from non existing peripheral at 0x{0:X}.";
         private const string NonExistingWrite = "Write{2} to non existing peripheral at 0x{0:X}, value 0x{1:X}.";
         private const string IOExceptionMessage = "I/O error while loading ELF: {0}.";

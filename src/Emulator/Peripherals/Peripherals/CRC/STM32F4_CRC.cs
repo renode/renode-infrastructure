@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.CRC
 {
     public class STM32F4_CRC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_CRC(Machine machine) : base(machine)
+        public STM32F4_CRC(IMachine machine) : base(machine)
         {
             crc = new CRCEngine(CRCPolynomial.CRC32, init: 0xFFFFFFFF, xorOutput: 0xFFFFFFFF);
 

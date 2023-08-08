@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class MAX32650_PWRSEQ : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_PWRSEQ(Machine machine, MAX32650_RTC rtc) : base(machine)
+        public MAX32650_PWRSEQ(IMachine machine, MAX32650_RTC rtc) : base(machine)
         {
             RTC = rtc;
             DefineRegisters();

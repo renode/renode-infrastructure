@@ -20,7 +20,7 @@ namespace Antmicro.Renode.EventRecording
     [Transient]
     public class Player : IDisposable
     {
-        public Player(FileStream stream, Machine machine)
+        public Player(FileStream stream, IMachine machine)
         {
             this.machine = machine;
             this.stream = stream;
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.EventRecording
         private readonly Serializer.OpenStreamDeserializer deserializer;
         private readonly Dictionary<NameAndHandler, Delegate> handlersCache;
         private readonly FileStream stream;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private struct NameAndHandler
         {

@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class MAX3421E : SimpleContainer<IUSBDevice>, IProvidesRegisterCollection<ByteRegisterCollection>, ISPIPeripheral, IDisposable
     {
-        public MAX3421E(Machine machine) : base(machine)
+        public MAX3421E(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             setupQueue = new Queue<byte>();

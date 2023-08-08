@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32_RTCCCounter
     {
-        public EFR32_RTCCCounter(Machine machine, long frequency, IPeripheral owner, string localName, int counterWidth = 32, int preCounterWidth = 32, int numberOfCaptureCompareChannels = 3)
+        public EFR32_RTCCCounter(IMachine machine, long frequency, IPeripheral owner, string localName, int counterWidth = 32, int preCounterWidth = 32, int numberOfCaptureCompareChannels = 3)
         {
             var counterLimit = (1UL << counterWidth) - 1;
             var preCounterLimit = (1UL << preCounterWidth) - 1;
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly LimitTimer coreTimer;
         private readonly LimitTimer coreTimerTick;
         private readonly LimitTimer preTimer;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         public enum CCChannelMode
         {

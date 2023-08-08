@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class MC3635 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ISensor
     {
-        public MC3635(Machine machine)
+        public MC3635(IMachine machine)
         {
             this.machine = machine;
             RegistersCollection = new ByteRegisterCollection(this);
@@ -601,7 +601,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private MaximumValue maximumValue;
 
         private IManagedThread samplingThread;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private readonly SensorSamplesFifo<Vector3DSample> accelerationFifo;
 

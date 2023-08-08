@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class NRF52840_ECB : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_ECB(Machine machine) : base(machine)
+        public NRF52840_ECB(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             DefineRegisters();

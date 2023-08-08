@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class Potato_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public Potato_UART(Machine machine) : base(machine)
+        public Potato_UART(IMachine machine) : base(machine)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

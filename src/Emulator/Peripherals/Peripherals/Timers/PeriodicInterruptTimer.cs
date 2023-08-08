@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class PeriodicInterruptTimer : IDoubleWordPeripheral
     {
 
-        public PeriodicInterruptTimer(Machine machine)
+        public PeriodicInterruptTimer(IMachine machine)
         {
             this.machine = machine;
             IRQ = new GPIO();
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private InnerTimer[] timers;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private struct InnerTimer
         {      

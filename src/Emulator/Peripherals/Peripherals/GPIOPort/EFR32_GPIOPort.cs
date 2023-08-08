@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class EFR32_GPIOPort : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public EFR32_GPIOPort(Machine machine) : base(machine, NumberOfPins * NumberOfPorts)
+        public EFR32_GPIOPort(IMachine machine) : base(machine, NumberOfPins * NumberOfPorts)
         {
             EvenIRQ = new GPIO();
             OddIRQ = new GPIO();

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     // look for comments in the code below
     public class ExternalCPU : BaseCPU, IGPIOReceiver, ITimeSink, IDisposable
     {
-        public ExternalCPU(string cpuType, Machine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+        public ExternalCPU(string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
             : base(0, cpuType, machine, endianness, bitness)
         {
             throw new Exception("This is only a stub class that should not be directly used in a platform");

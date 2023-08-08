@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class PL031 : IDoubleWordPeripheral
     {
-        public PL031(Machine machine)
+        public PL031(IMachine machine)
         {
             this.machine = machine;
             IRQ = new GPIO();
@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint rawInterruptStatusRegister;
         private uint tickOffset;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly byte[] id = { 0x31, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
 
         private enum Offset : uint

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class NRF52840_EGU : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
-        public NRF52840_EGU(Machine machine) : base(machine)
+        public NRF52840_EGU(IMachine machine) : base(machine)
         {
             interruptManager = new InterruptManager<Events>(this, IRQ, "EGU_IRQ");
 

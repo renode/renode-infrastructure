@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class Quectel_BC660K : QuectelModem
     {
-        public Quectel_BC660K(Machine machine, string imeiNumber = DefaultImeiNumber,
+        public Quectel_BC660K(IMachine machine, string imeiNumber = DefaultImeiNumber,
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {

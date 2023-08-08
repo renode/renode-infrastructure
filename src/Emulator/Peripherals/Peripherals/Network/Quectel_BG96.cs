@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class Quectel_BG96 : QuectelModem
     {
-        public Quectel_BG96(Machine machine, string imeiNumber = DefaultImeiNumber,
+        public Quectel_BG96(IMachine machine, string imeiNumber = DefaultImeiNumber,
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {

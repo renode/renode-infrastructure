@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class Cadence_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_SPI(Machine machine, int txFifoCapacity = DefaultTxFifoCapacity, int rxFifoCapacity = DefaultRxFifoCapacity) : base(machine)
+        public Cadence_SPI(IMachine machine, int txFifoCapacity = DefaultTxFifoCapacity, int rxFifoCapacity = DefaultRxFifoCapacity) : base(machine)
         {
             this.txFifoCapacity = txFifoCapacity;
             this.rxFifoCapacity = rxFifoCapacity;

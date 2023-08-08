@@ -16,7 +16,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class EmptyCPU : BaseCPU
     {
-        public EmptyCPU(Machine machine, string model = "emptyCPU") : base(0, model, machine, ELFSharp.ELF.Endianess.LittleEndian)
+        public EmptyCPU(IMachine machine, string model = "emptyCPU") : base(0, model, machine, ELFSharp.ELF.Endianess.LittleEndian)
         {
         }
         

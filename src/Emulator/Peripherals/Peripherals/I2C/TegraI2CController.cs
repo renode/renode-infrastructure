@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     public class TegraI2CController : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral
     {
 
-        public TegraI2CController(Machine machine) : base(machine)
+        public TegraI2CController(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
         }

@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public sealed class STM32DMA2D : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32DMA2D(Machine machine) : this()
+        public STM32DMA2D(IMachine machine) : this()
         {
             this.machine = machine;
             IRQ = new GPIO();
@@ -387,7 +387,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly IFlagRegisterField startFlag;
         private readonly IFlagRegisterField transferCompleteFlag;
         private readonly IEnumRegisterField<Mode> dma2dMode;

@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class IMXRT_FlexSPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public IMXRT_FlexSPI(Machine machine) : base(machine)
+        public IMXRT_FlexSPI(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             RegistersCollection = new DoubleWordRegisterCollection(this);

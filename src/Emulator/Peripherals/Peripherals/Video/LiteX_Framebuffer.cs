@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class LiteX_Framebuffer : AutoRepaintingVideo, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public LiteX_Framebuffer(Machine machine, PixelFormat format, IBusPeripheral memory) : base(machine)
+        public LiteX_Framebuffer(IMachine machine, PixelFormat format, IBusPeripheral memory) : base(machine)
         {
             this.memory = memory;
             this.machine = machine;
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private uint bufferAddress;
 
         private readonly IBusPeripheral memory;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly PixelFormat format;
 
         private enum Registers

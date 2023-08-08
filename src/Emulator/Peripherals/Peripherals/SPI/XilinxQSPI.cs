@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class XilinxQSPI : NullRegistrationPointPeripheralContainer<ISPIFlash>, IDoubleWordPeripheral
     {
-        public XilinxQSPI(Machine machine) : base(machine)
+        public XilinxQSPI(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             InnerReset();

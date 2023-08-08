@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class BitBanding : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral
     {
-        public BitBanding(Machine machine, ulong peripheralBase)
+        public BitBanding(IMachine machine, ulong peripheralBase)
         {
             sysbus = machine.GetSystemBus(this);
             this.peripheralBase = peripheralBase;

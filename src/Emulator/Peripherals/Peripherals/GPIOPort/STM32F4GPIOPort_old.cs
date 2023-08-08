@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
     public class STM32F4GPIOPort : BaseGPIOPort, IDoubleWordPeripheral
     {
-        public STM32F4GPIOPort(Machine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0) : base(machine, 16)
+        public STM32F4GPIOPort(IMachine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0) : base(machine, 16)
         {
             this.modeResetValue = modeResetValue;
             this.outputSpeedResetValue = outputSpeedResetValue;

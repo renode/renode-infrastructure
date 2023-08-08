@@ -33,7 +33,7 @@ using Microsoft.CSharp.RuntimeBinder;
 
 namespace Antmicro.Renode.Core
 {
-    public class Machine : IEmulationElement, IDisposable
+    public class Machine : IMachine, IDisposable
     {
         public Machine(bool createLocalTimeSource = false)
         {
@@ -606,7 +606,7 @@ namespace Antmicro.Renode.Core
 
         private class ManagedThreadWrappingClockEntry : IManagedThread
         {
-            public ManagedThreadWrappingClockEntry(Machine machine, Action action, uint frequency, string name, IEmulationElement owner, Func<bool> stopCondition = null)
+            public ManagedThreadWrappingClockEntry(IMachine machine, Action action, uint frequency, string name, IEmulationElement owner, Func<bool> stopCondition = null)
             {
                 this.action = () =>
                 {
@@ -661,7 +661,7 @@ namespace Antmicro.Renode.Core
             }
 
             private readonly Action action;
-            private readonly Machine machine;
+            private readonly IMachine machine;
         }
 
         private BaseClockSource clockSource;
@@ -1202,13 +1202,13 @@ namespace Antmicro.Renode.Core
         }
 
         [field: Transient]
-        public event Action<Machine> MachineReset;
+        public event Action<IMachine> MachineReset;
         [field: Transient]
-        public event Action<Machine, PeripheralsChangedEventArgs> PeripheralsChanged;
+        public event Action<IMachine, PeripheralsChangedEventArgs> PeripheralsChanged;
         [field: Transient]
-        public event Action<Machine> RealTimeClockModeChanged;
+        public event Action<IMachine> RealTimeClockModeChanged;
         [field: Transient]
-        public event Action<Machine, MachineStateChangedEventArgs> StateChanged;
+        public event Action<IMachine, MachineStateChangedEventArgs> StateChanged;
 
         public const char PathSeparator = '.';
         public const string SystemBusName = "sysbus";
@@ -1622,7 +1622,7 @@ namespace Antmicro.Renode.Core
 
         private sealed class PausedState : IDisposable
         {
-            public PausedState(Machine machine)
+            public PausedState(IMachine machine)
             {
                 this.machine = machine;
                 sync = new object();
@@ -1688,13 +1688,13 @@ namespace Antmicro.Renode.Core
             [Transient]
             private int currentLevel;
             private bool wasPaused;
-            private readonly Machine machine;
+            private readonly IMachine machine;
             private readonly object sync;
         }
 
         private sealed class PeripheralsGroupsManager : IPeripheralsGroupsManager
         {
-            public PeripheralsGroupsManager(Machine machine)
+            public PeripheralsGroupsManager(IMachine machine)
             {
                 this.machine = machine;
                 groups = new List<PeripheralsGroup>();
@@ -1765,11 +1765,11 @@ namespace Antmicro.Renode.Core
             }
 
             private readonly List<PeripheralsGroup> groups;
-            private readonly Machine machine;
+            private readonly IMachine machine;
 
             private sealed class PeripheralsGroup : IPeripheralsGroup
             {
-                public PeripheralsGroup(string name, Machine machine)
+                public PeripheralsGroup(string name, IMachine machine)
                 {
                     Machine = machine;
                     Name = name;
@@ -1813,7 +1813,7 @@ namespace Antmicro.Renode.Core
 
                 public bool IsActive { get; private set; }
 
-                public Machine Machine { get; private set; }
+                public IMachine Machine { get; private set; }
 
                 public IEnumerable<IPeripheral> Peripherals { get; private set; }
             }

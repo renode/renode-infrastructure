@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class OpenCoresI2C : SimpleContainer<II2CPeripheral>, IBytePeripheral, IKnownSize
     {
-        public OpenCoresI2C(Machine machine) : base(machine)
+        public OpenCoresI2C(IMachine machine) : base(machine)
         {
             dataToSlave = new Queue<byte>();
             dataFromSlave = new Queue<byte>();

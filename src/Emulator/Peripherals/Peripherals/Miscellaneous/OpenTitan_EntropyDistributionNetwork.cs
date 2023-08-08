@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_EntropyDistributionNetwork : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_EntropyDistributionNetwork(Machine machine, OpenTitan_CSRNG cryptoRandomGenerator) : base(machine)
+        public OpenTitan_EntropyDistributionNetwork(IMachine machine, OpenTitan_CSRNG cryptoRandomGenerator) : base(machine)
         {
             this.csrng = cryptoRandomGenerator;
 

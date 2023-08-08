@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Logging.Profiling
 {
     public class Profiler : IDisposable
     {
-        public Profiler(Machine machine, string outputPath)
+        public Profiler(IMachine machine, string outputPath)
         {
             this.machine = machine;
 
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Logging.Profiling
             }
         }
 
-        private void OnPeripheralsChanged(Machine machine, PeripheralsChangedEventArgs args)
+        private void OnPeripheralsChanged(IMachine machine, PeripheralsChangedEventArgs args)
         {
             if(args.Operation != PeripheralsChangedEventArgs.PeripheralChangeType.Addition)
             {
@@ -111,6 +111,6 @@ namespace Antmicro.Renode.Logging.Profiling
 
         private readonly static object locker = new object();
         private readonly FileStream output;
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }

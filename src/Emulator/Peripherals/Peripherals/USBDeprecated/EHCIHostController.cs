@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class EHCIHostController : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IDisposable
     {
-        public EHCIHostController(Machine machine, uint ehciBaseAddress = 0x100, uint capabilityRegistersLength = 0x40, uint numberOfPorts = 1, uint? ulpiBaseAddress = 0x170)
+        public EHCIHostController(IMachine machine, uint ehciBaseAddress = 0x100, uint capabilityRegistersLength = 0x40, uint numberOfPorts = 1, uint? ulpiBaseAddress = 0x170)
         {
             this.machine = machine;
             this.numberOfPorts = numberOfPorts;
@@ -848,7 +848,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         private readonly Object thisLock;
         private readonly IManagedThread asyncThread;
         private readonly IManagedThread periodicThread;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private uint usbCommand;
         private uint usbStatus;

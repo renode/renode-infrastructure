@@ -50,12 +50,12 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
 
-        public PeripheralsCommand(Monitor monitor, Func<Machine> getCurrentMachine) : base(monitor, "peripherals", "prints list of registered and named peripherals.", "peri")
+        public PeripheralsCommand(Monitor monitor, Func<IMachine> getCurrentMachine) : base(monitor, "peripherals", "prints list of registered and named peripherals.", "peri")
         {
             GetCurrentMachine = getCurrentMachine;
         }
 
-        private Func<Machine> GetCurrentMachine;
+        private Func<IMachine> GetCurrentMachine;
 
         private class PeripheralNode
         {

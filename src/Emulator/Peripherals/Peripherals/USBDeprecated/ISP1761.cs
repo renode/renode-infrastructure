@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
     [Icon("usb")]
     public class ISP1761 : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IPCIPeripheral
     {
-        private readonly Machine machine;
+        private readonly IMachine machine;
         protected IUSBPeripheral activeDevice;
         protected IUSBPeripheral defaultDevice;
 
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             registeredHubs.Remove(port);
         }
 
-        public ISP1761(Machine machine)
+        public ISP1761(IMachine machine)
         {
             // pci-specific info.
             pci_info = new PCIInfo(0x5406, 0x10b5, 0x9054, 0x10b5, 0x680);

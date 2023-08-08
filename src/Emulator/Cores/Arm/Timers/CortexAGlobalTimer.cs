@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     // NOTE: this timer is not yet ready for multicore operation
     public sealed class CortexAGlobalTimer : ComparingTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public CortexAGlobalTimer(Machine machine, long frequency) : base(machine.ClockSource, frequency)
+        public CortexAGlobalTimer(IMachine machine, long frequency) : base(machine.ClockSource, frequency)
         {
             sysbus = machine.GetSystemBus(this);
             IRQ = new GPIO();

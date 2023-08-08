@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class VybridDCU : AutoRepaintingVideo, IDoubleWordPeripheral
     {
-        public VybridDCU(Machine machine) : base(machine)
+        public VybridDCU(IMachine machine) : base(machine)
         {
             Reconfigure(format: PixelFormat.BGR888);
 
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private readonly object lock_obj;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }
 

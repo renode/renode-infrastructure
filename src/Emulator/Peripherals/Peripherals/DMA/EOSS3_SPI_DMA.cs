@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class EOSS3_SPI_DMA : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public EOSS3_SPI_DMA(Machine machine, DesignWare_SPI spi) : base(machine, 1)
+        public EOSS3_SPI_DMA(IMachine machine, DesignWare_SPI spi) : base(machine, 1)
         {
             this.spi = spi;
             innerLock = new object();

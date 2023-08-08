@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class Emios : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public Emios(Machine machine) : base(machine, 2 * NumberOfChannels)
+        public Emios(IMachine machine) : base(machine, 2 * NumberOfChannels)
         {
             controlRegisters = new DoubleWordRegister[NumberOfChannels];
             statusRegisters = new DoubleWordRegister[NumberOfChannels];

@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Network
     [Endianess(Endianess.BigEndian)]
     public class GaislerEth : NetworkWithPHY, IDoubleWordPeripheral, IGaislerAPB, IMACInterface, IKnownSize
     {
-        public GaislerEth(Machine machine) : base(machine)
+        public GaislerEth(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             Reset();

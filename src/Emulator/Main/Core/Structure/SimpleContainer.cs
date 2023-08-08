@@ -101,11 +101,11 @@ namespace Antmicro.Renode.Core.Structure
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
-        protected SimpleContainer(Machine machine) : base()
+        protected SimpleContainer(IMachine machine) : base()
         {
             this.machine = machine;
         }
 
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
     }
 }

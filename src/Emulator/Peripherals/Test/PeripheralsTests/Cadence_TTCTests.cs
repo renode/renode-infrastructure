@@ -107,7 +107,7 @@ namespace Antmicro.Renode.UnitTests
         }
 
         private Cadence_TTC timer;
-        private Machine machine;
+        private IMachine machine;
 
         private const int TimersCount = 3;
         private const int RegisterSize = 0x4;

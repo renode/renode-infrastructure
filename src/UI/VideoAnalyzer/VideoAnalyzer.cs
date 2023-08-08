@@ -196,14 +196,12 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 
         private IEnumerable<IKeyboard> FindKeyboards()
         {
-            Machine machine;
-            return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(element, out machine) ? machine.GetPeripheralsOfType<IKeyboard>() : null;
+            return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(element, out var machine) ? machine.GetPeripheralsOfType<IKeyboard>() : null;
         }
 
         private IEnumerable<IPointerInput> FindPointers()
         {
-            Machine machine;
-            return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(element, out machine) ? machine.GetPeripheralsOfType<IPointerInput>() : null;
+            return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(element, out var machine) ? machine.GetPeripheralsOfType<IPointerInput>() : null;
         }
 
         private void RefreshFramerate()

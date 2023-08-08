@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_KeyManager : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_KeyManager(Machine machine, OpenTitan_ROMController romController,
+        public OpenTitan_KeyManager(IMachine machine, OpenTitan_ROMController romController,
             string deviceId, string lifeCycleDiversificationConstant, string creatorKey, string ownerKey, string rootKey,
             string softOutputSeed, string hardOutputSeed, string destinationNoneSeed, string destinationAesSeed, string destinationOtbnSeed, string destinationKmacSeed,
             string revisionSeed, string creatorIdentitySeed, string ownerIntermediateIdentitySeed, string ownerIdentitySeed,

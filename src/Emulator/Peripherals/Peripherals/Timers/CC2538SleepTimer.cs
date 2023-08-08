@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class CC2538SleepTimer : ComparingTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public CC2538SleepTimer(Machine machine) : base(machine.ClockSource, 32768, compare: uint.MaxValue, limit: uint.MaxValue, enabled: true)
+        public CC2538SleepTimer(IMachine machine) : base(machine.ClockSource, 32768, compare: uint.MaxValue, limit: uint.MaxValue, enabled: true)
         {
             IRQ = new GPIO();
         }

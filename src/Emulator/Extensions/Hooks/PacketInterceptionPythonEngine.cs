@@ -68,6 +68,6 @@ namespace Antmicro.Renode.Hooks
         private readonly string script;
         private readonly string filename;
         private readonly IRadio radio;
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }

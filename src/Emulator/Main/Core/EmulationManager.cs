@@ -251,7 +251,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void EnableProfilerInMachine(Machine machine)
+        private void EnableProfilerInMachine(IMachine machine)
         {
             var profilerPath = new SequencedFilePath($"{profilerPathPrefix}-{CurrentEmulation[machine]}");
             machine.EnableProfiler(profilerPath);

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class MAX32650_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_UART(Machine machine, MAX32650_GCR gcr) : base(machine)
+        public MAX32650_UART(IMachine machine, MAX32650_GCR gcr) : base(machine)
         {
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             IRQ = new GPIO();

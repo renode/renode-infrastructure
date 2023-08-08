@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class PULP_Timer : BasicDoubleWordPeripheral, INumberedGPIOOutput
     {
-        public PULP_Timer(Machine machine, long frequency) : base(machine)
+        public PULP_Timer(IMachine machine, long frequency) : base(machine)
         {
             interruptEnable = new IFlagRegisterField[NumberOfTimers];
             oneShot = new IFlagRegisterField[NumberOfTimers];

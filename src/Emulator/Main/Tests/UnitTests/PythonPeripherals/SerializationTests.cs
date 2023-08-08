@@ -99,6 +99,6 @@ if request.isRead:
             machine = new Machine();
         }
 
-        private Machine machine;
+        private IMachine machine;
     }
 }

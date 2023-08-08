@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MPFS_SystemServices : IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public MPFS_SystemServices(Machine machine, MappedMemory flashMemory)
+        public MPFS_SystemServices(IMachine machine, MappedMemory flashMemory)
         {
             this.machine = machine;
             this.flashMemory = flashMemory;
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField commandOffset;
 
         private readonly Mailbox mailbox;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly MappedMemory flashMemory;
         private readonly DoubleWordRegisterCollection registers;
 

@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
      */
     public sealed class EOSS3_IntrCtrl : BaseGPIOPort, IIRQController, INumberedGPIOOutput, IKnownSize, IDoubleWordPeripheral
     {
-        public EOSS3_IntrCtrl(Machine machine) : base(machine, NumberOfGPIOs)
+        public EOSS3_IntrCtrl(IMachine machine) : base(machine, NumberOfGPIOs)
         {
             gpioManager = new GPIOInterruptManager(GPIOIrq, State);
             externalIrqConfig = new [] { SRAMIrq, UARTIrq, TimerIrq, WatchdogIrq,

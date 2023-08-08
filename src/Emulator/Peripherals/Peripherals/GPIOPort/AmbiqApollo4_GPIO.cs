@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class AmbiqApollo4_GPIO : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public AmbiqApollo4_GPIO(Machine machine) : base(machine, NumberOfPins)
+        public AmbiqApollo4_GPIO(IMachine machine) : base(machine, NumberOfPins)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
 

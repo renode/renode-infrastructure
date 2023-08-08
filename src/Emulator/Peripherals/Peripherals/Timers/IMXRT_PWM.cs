@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class IMXRT_PWM : BasicWordPeripheral, IKnownSize
     {
-        public IMXRT_PWM(Machine machine, long frequency = 10_000_000) : base(machine)
+        public IMXRT_PWM(IMachine machine, long frequency = 10_000_000) : base(machine)
         {
             IRQ = new GPIO();
 

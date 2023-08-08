@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     public class EFM32GGI2CController : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral
     {
 
-        public EFM32GGI2CController(Machine machine) : base(machine)
+        public EFM32GGI2CController(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
         }

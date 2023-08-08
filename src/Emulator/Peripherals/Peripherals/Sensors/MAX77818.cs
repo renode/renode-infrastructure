@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class MAX77818 : II2CPeripheral, IProvidesRegisterCollection<WordRegisterCollection>
     {
-        public MAX77818(Machine machine)
+        public MAX77818(IMachine machine)
         {
             RegistersCollection = new WordRegisterCollection(this);
             DefineRegisters();

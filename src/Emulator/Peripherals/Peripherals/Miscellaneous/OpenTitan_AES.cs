@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // OpenTitan HMAC AES as per https://docs.opentitan.org/hw/ip/aes/doc/ (16.09.2021)
     public class OpenTitan_AES : BasicDoubleWordPeripheral, IKnownSize, ISideloadableKey
     {
-        public OpenTitan_AES(Machine machine) : base(machine)
+        public OpenTitan_AES(IMachine machine) : base(machine)
         {
             DefineRegisters();
             initializationVector = new ByteArrayWithAccessTracking(this, InitializationVectorLengthInBytes / sizeof(uint), sizeof(uint), "IV");

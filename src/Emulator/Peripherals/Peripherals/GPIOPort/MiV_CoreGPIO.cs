@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MiV_CoreGPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public MiV_CoreGPIO(Machine machine) : base(machine, NumberOfInterrupts)
+        public MiV_CoreGPIO(IMachine machine) : base(machine, NumberOfInterrupts)
         {
             innerLock = new object();
             IRQ = new GPIO();

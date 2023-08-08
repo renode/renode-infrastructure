@@ -441,7 +441,7 @@ namespace Antmicro.Renode.Config.Devices
             }
         }
 
-        public DevicesConfig(string text, Machine machine)
+        public DevicesConfig(string text, IMachine machine)
         {
             try
             {
@@ -690,7 +690,7 @@ namespace Antmicro.Renode.Config.Devices
             {
                 if(node.ContainsKey(ctorParam.Name))
                 {
-                    if(typeof(IPeripheral).IsAssignableFrom(ctorParam.ParameterType) && ctorParam.ParameterType != typeof(Machine) && !ctorParam.ParameterType.IsArray)
+                    if(typeof(IPeripheral).IsAssignableFrom(ctorParam.ParameterType) && !typeof(IMachine).IsAssignableFrom(ctorParam.ParameterType) && !ctorParam.ParameterType.IsArray)
                     {
                         var info = deviceList.SingleOrDefault(di => di.Name == node[ctorParam.Name]);
                         if(info != null)
@@ -720,7 +720,7 @@ namespace Antmicro.Renode.Config.Devices
                         }
                     }
                 }
-                else if(ctorParam.ParameterType == typeof(Machine))
+                else if(typeof(IMachine).IsAssignableFrom(ctorParam.ParameterType))
                 {
                     sortedParams.Add(ctorParam.Name, machine);
                 }
@@ -823,7 +823,7 @@ namespace Antmicro.Renode.Config.Devices
                     if(!parameters.Contains(param.Name))
                     {
 
-                        if(!param.IsOptional && param.ParameterType != typeof(Machine))
+                        if(!param.IsOptional && !typeof(IMachine).IsAssignableFrom(param.ParameterType))
                         {
                             unusableFound = true;
                         }
@@ -838,7 +838,7 @@ namespace Antmicro.Renode.Config.Devices
             return goodCtors;
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private const string TYPE_NODE = "_type";
         private const string IRQ_NODE = "_irq";

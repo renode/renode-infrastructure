@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_LpTimer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_LpTimer(Machine machine, long frequency) : base(machine.ClockSource, frequency, limit: 0x1, direction: Direction.Ascending, enabled: false, eventEnabled: true)
+        public STM32L0_LpTimer(IMachine machine, long frequency) : base(machine.ClockSource, frequency, limit: 0x1, direction: Direction.Ascending, enabled: false, eventEnabled: true)
         {
             IRQ = new GPIO();
 

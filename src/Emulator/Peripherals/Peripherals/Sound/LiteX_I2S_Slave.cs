@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 {
     public class LiteX_I2S_Slave : LiteX_I2S
     {
-        public LiteX_I2S_Slave(Machine machine, DataFormat format, uint sampleWidthBits, uint samplingRateHz, uint numberOfChannels) : base(machine, format, sampleWidthBits, samplingRateHz)
+        public LiteX_I2S_Slave(IMachine machine, DataFormat format, uint sampleWidthBits, uint samplingRateHz, uint numberOfChannels) : base(machine, format, sampleWidthBits, samplingRateHz)
         {
             decoder = new PCMDecoder(sampleWidthBits, samplingRateHz, numberOfChannels, false, this);
             SamplesPushFrequency = 100;

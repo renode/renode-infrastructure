@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
     public class EFR32xG22_USART : EFR32_GenericUSART, IDoubleWordPeripheral
     {
-        public EFR32xG22_USART(Machine machine, uint clockFrequency = 19000000) : base(machine, clockFrequency)
+        public EFR32xG22_USART(IMachine machine, uint clockFrequency = 19000000) : base(machine, clockFrequency)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

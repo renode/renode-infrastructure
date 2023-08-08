@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class OpenTitan_CSRNG: BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_CSRNG(Machine machine, OpenTitan_EntropySource entropySource) : base(machine)
+        public OpenTitan_CSRNG(IMachine machine, OpenTitan_EntropySource entropySource) : base(machine)
         {
             this.entropySource = entropySource;
 

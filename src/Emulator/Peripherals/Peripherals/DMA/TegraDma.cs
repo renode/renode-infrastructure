@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class TegraDma : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public TegraDma(Machine machine)
+        public TegraDma(IMachine machine)
         {
             dmaEngine = new DmaEngine(machine.GetSystemBus(this));
             channels = new Channel[ChannelNo];

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class PULP_uDMA_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public PULP_uDMA_UART(Machine machine) : base(machine)
+        public PULP_uDMA_UART(IMachine machine) : base(machine)
         {
             TxIRQ = new GPIO();
             RxIRQ = new GPIO();

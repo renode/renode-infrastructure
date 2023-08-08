@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class AmbiqApollo4_Timer : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
-        public AmbiqApollo4_Timer(Machine machine) : base(machine)
+        public AmbiqApollo4_Timer(IMachine machine) : base(machine)
         {
             var innerConnections = new Dictionary<int, IGPIO>();
             internalTimers = new InternalTimer[TimersCount];

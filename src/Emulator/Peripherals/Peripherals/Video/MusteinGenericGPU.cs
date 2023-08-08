@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Video
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MusteinGenericGPU : AutoRepaintingVideo, IDoubleWordPeripheral, IKnownSize
     {
-        public MusteinGenericGPU(Machine machine, MappedMemory buffer, bool registers64bitAligned = false, int controlBit = 23, uint frameBufferSize = 0x800000) : base(machine)
+        public MusteinGenericGPU(IMachine machine, MappedMemory buffer, bool registers64bitAligned = false, int controlBit = 23, uint frameBufferSize = 0x800000) : base(machine)
         {
             this.machine = machine;
             this.frameBufferSize = frameBufferSize;
@@ -276,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private PixelPacking pixelPacking;
         private readonly MappedMemory underlyingBuffer;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly int accessAligment;
         private readonly bool is64bitAligned;
         private readonly int controlBit;

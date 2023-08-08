@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class OMAP_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public OMAP_Timer(Machine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Ascending, limit: uint.MaxValue)
+        public OMAP_Timer(IMachine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Ascending, limit: uint.MaxValue)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

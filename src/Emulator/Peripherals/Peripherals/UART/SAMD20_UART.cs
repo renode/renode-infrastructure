@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
     // Due to unusual register offsets we cannot use address translations
     public class SAMD20_UART : IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IUART, IKnownSize
     {
-        public SAMD20_UART(Machine machine) 
+        public SAMD20_UART(IMachine machine) 
         {
             IRQ = new GPIO();
 

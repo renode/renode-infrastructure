@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public IManagedThread FeedSamplesPeriodically(Machine machine, IPeripheral owner, string name, string delayString, uint frequency, IEnumerable<T> samples)
+        public IManagedThread FeedSamplesPeriodically(IMachine machine, IPeripheral owner, string name, string delayString, uint frequency, IEnumerable<T> samples)
         {
             if(!TimeInterval.TryParse(delayString, out var delay))
             {
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return FeedSamplesInner(machine, owner, name, delay, frequency, samples, true);
         }
 
-        public IManagedThread FeedSamplesFromBinaryFile(Machine machine, IPeripheral owner, string name, string path, string delayString, Func<List<decimal>, T> sampleConstructor = null, Action onFinish = null)
+        public IManagedThread FeedSamplesFromBinaryFile(IMachine machine, IPeripheral owner, string name, string path, string delayString, Func<List<decimal>, T> sampleConstructor = null, Action onFinish = null)
         {
             if(sampleConstructor == null)
             {
@@ -118,7 +118,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public uint SamplesCount => (uint)samplesFifo.Count;
 
-        private IManagedThread FeedSamplesInner(Machine machine, IPeripheral owner, string name, TimeInterval startDelay, uint frequency, IEnumerable<T> samples, bool repeatMode = false, Action onFinish = null)
+        private IManagedThread FeedSamplesInner(IMachine machine, IPeripheral owner, string name, TimeInterval startDelay, uint frequency, IEnumerable<T> samples, bool repeatMode = false, Action onFinish = null)
         {
             var samplesBuffer = new SamplesBuffer(samples, autoRewind: repeatMode);
             

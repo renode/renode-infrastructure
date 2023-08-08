@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class ARMv8R : TranslationCPU, IARMSingleSecurityStateCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
-        public ARMv8R(string cpuType, Machine machine, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, SecurityState securityState = SecurityState.NonSecure, uint mpuRegionsCount = 16)
+        public ARMv8R(string cpuType, IMachine machine, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, SecurityState securityState = SecurityState.NonSecure, uint mpuRegionsCount = 16)
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
             SecurityState = securityState;

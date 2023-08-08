@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class OpenTitan_I2C : SimpleContainer<II2CPeripheral>, II2CPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_I2C(Machine machine) : base(machine)
+        public OpenTitan_I2C(IMachine machine) : base(machine)
         {
             FormatWatermarkIRQ = new GPIO();
             RxWatermarkIRQ = new GPIO();

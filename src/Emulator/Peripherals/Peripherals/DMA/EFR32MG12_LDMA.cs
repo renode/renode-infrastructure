@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class EFR32MG12_LDMA : BasicDoubleWordPeripheral, IGPIOReceiver, IKnownSize
     {
-        public EFR32MG12_LDMA(Machine machine) : base(machine)
+        public EFR32MG12_LDMA(IMachine machine) : base(machine)
         {
             engine = new DmaEngine(machine.GetSystemBus(this));
             signals = new HashSet<int>();

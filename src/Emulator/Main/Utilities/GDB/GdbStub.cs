@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Utilities.GDB
     [Transient]
     public class GdbStub : IDisposable, IExternal
     {
-        public GdbStub(Machine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation, bool blockOnStep)
+        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation, bool blockOnStep)
         {
             this.cpus = cpus;
             Port = port;

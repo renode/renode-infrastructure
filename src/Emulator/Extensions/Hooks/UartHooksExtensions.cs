@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Hooks
             };
         }
 
-        public static void AddLineHook(this IUART uart, [AutoParameter] Machine machine, string contains, string pythonScript)
+        public static void AddLineHook(this IUART uart, [AutoParameter] IMachine machine, string contains, string pythonScript)
         {
             var engine = new UartPythonEngine(machine, uart, pythonScript);
             uart.AddLineHook(x => x.Contains(contains), engine.Hook);

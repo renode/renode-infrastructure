@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32F4_FlashController : STM32_FlashController, IKnownSize
     {
-        public STM32F4_FlashController(Machine machine, MappedMemory flash) : base(machine)
+        public STM32F4_FlashController(IMachine machine, MappedMemory flash) : base(machine)
         {
             this.flash = flash;
 

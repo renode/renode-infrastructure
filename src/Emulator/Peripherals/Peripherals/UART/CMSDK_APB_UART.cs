@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class CMSDK_APB_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public CMSDK_APB_UART(Machine machine, uint frequency = 24000000) : base(machine)
+        public CMSDK_APB_UART(IMachine machine, uint frequency = 24000000) : base(machine)
         {
             this.frequency = frequency;
             var registersMap = new Dictionary<long, DoubleWordRegister>

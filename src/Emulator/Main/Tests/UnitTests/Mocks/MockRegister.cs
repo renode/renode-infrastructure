@@ -15,7 +15,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class MockRegister : IPeripheralRegister<ICPU, NullRegistrationPoint>, IDoubleWordPeripheral, IKnownSize
     {
-        public MockRegister(Machine machine)
+        public MockRegister(IMachine machine)
         {
             this.machine = machine;
         }
@@ -61,6 +61,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
         }
 
         private bool isRegistered;
-        private Machine machine;
+        private IMachine machine;
     }
 }

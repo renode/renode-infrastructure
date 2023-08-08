@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class STM32F0_ADC : STM32_ADC_Common
     {
-        public STM32F0_ADC(Machine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null)
+        public STM32F0_ADC(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null)
             : base(
                 machine,
                 referenceVoltage,

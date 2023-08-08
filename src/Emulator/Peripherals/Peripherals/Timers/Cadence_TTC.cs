@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Cadence_TTC : IDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
-        public Cadence_TTC(Machine machine, long frequency = DefaultFrequency)
+        public Cadence_TTC(IMachine machine, long frequency = DefaultFrequency)
         {
             var irqs = new Dictionary<int, IGPIO>(TimerUnitsCount);
             var registersMap = new Dictionary<long, DoubleWordRegister>();

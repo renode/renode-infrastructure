@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 {
     public class NRF52840_I2S : BasicDoubleWordPeripheral, IDisposable, IKnownSize
     {
-        public NRF52840_I2S(Machine machine) : base(machine)
+        public NRF52840_I2S(IMachine machine) : base(machine)
         {
             CreateRegisters();
             IRQ = new GPIO();

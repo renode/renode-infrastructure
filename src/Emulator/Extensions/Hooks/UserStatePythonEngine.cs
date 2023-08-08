@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Hooks
 {
     public sealed class UserStatePythonEngine : PythonEngine
     {
-        public UserStatePythonEngine(Machine machine, string script)
+        public UserStatePythonEngine(IMachine machine, string script)
         {
             Script = script;
             Machine = machine;
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Hooks
         [PostDeserialization]
         private void InnerInit()
         {
-            Scope.SetVariable(Machine.MachineKeyword, Machine);
+            Scope.SetVariable(Core.Machine.MachineKeyword, Machine);
             Scope.SetVariable("self", Machine);
             var source = Engine.CreateScriptSourceFromString(Script);
             code = Compile(source);
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Hooks
         [Transient]
         private CompiledCode code;
         private readonly string Script;
-        private readonly Machine Machine;
+        private readonly IMachine Machine;
     }
 }
 

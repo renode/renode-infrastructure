@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Hooks
 {
     public sealed class BlockPythonEngine : PythonEngine
     {
-        public BlockPythonEngine(Machine mach, ICPUWithHooks cpu, string script)
+        public BlockPythonEngine(IMachine mach, ICPUWithHooks cpu, string script)
         {
             Script = script;
             CPU = cpu;
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Hooks
         [PostDeserialization]
         private void InnerInit()
         {
-            Scope.SetVariable(Machine.MachineKeyword, Machine);
+            Scope.SetVariable(Core.Machine.MachineKeyword, Machine);
             Scope.SetVariable("cpu", CPU);
             Scope.SetVariable("self", CPU);
             var source = Engine.CreateScriptSourceFromString(Script);
@@ -65,6 +65,6 @@ namespace Antmicro.Renode.Hooks
 
         private readonly string Script;
         private readonly ICPUWithHooks CPU;
-        private readonly Machine Machine;
+        private readonly IMachine Machine;
     }
 }

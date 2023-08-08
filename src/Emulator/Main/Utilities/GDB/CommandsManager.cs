@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Utilities.GDB
 {
     public class CommandsManager
     {
-        public CommandsManager(Machine machine, IEnumerable<ICpuSupportingGdb> cpus, bool blockOnStep)
+        public CommandsManager(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, bool blockOnStep)
         {
             availableCommands = new HashSet<CommandDescriptor>();
             activeCommands = new HashSet<Command>();
@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Utilities.GDB
             return registers;
         }
 
-        public Machine Machine { get; private set; }
+        public IMachine Machine { get; }
         public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
         public bool CanAttachCPU { get; set; }
         public ICpuSupportingGdb Cpu

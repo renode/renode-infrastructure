@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MPFS_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_Watchdog(Machine machine, long frequency) : base(machine)
+        public MPFS_Watchdog(IMachine machine, long frequency) : base(machine)
         {
             DefineRegisters();
             internalTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, TimeDefault - MSVPDefault, workMode: WorkMode.OneShot, eventEnabled: true);

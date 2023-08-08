@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals
 {
     public abstract class BasicBytePeripheral : IBytePeripheral, IProvidesRegisterCollection<ByteRegisterCollection>
     {
-        public BasicBytePeripheral(Machine machine)
+        public BasicBytePeripheral(IMachine machine)
         {
             this.machine = machine;
             RegistersCollection = new ByteRegisterCollection(this);
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals
 
         protected abstract void DefineRegisters();
 
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
     }
 
     public static class BasicBytePeripheralExtensions

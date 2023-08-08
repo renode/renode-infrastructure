@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
-        public NVIC(Machine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8, bool haltSystickOnDeepSleep = true)
+        public NVIC(IMachine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8, bool haltSystickOnDeepSleep = true)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
@@ -930,7 +930,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Action resetMachine;
         private CortexM cpu;
         private readonly LimitTimer systick;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly uint cpuId;
 
         private const int MPUStart             = 0xD90;

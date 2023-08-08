@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K_LPTMR : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32K_LPTMR(Machine machine, long frequency) : base(machine)
+        public S32K_LPTMR(IMachine machine, long frequency) : base(machine)
         {
             innerTimer = new ComparingTimer(machine.ClockSource, frequency, this, "lptmr", limit: 0xFFFF, direction: Direction.Ascending,
                 enabled: false, eventEnabled: true, workMode: WorkMode.Periodic, compare: 0xFFFF, divider: 2);

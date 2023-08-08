@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
     public class OpenTitan_BigNumberAccelerator : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_BigNumberAccelerator(Machine machine) : base(machine)
+        public OpenTitan_BigNumberAccelerator(IMachine machine) : base(machine)
         {
             ulong instructionMemorySize = sizeof(uint) * DataMemoryWindowsCount;
             ulong dataMemorySize = sizeof(uint) * InstructionsMemoryWindowsCount;

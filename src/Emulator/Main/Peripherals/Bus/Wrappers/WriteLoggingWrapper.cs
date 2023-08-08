@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             OriginalMethod(offset, value);
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly RegisterMapper mapper;
         private readonly bool needsByteSwapForDisplay;
     }

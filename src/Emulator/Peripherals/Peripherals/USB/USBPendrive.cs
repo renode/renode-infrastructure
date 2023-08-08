@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.USB
 {
     public static class USBPendriveExtensions
     {
-        public static void PendriveFromFile(this Machine machine, string file, string name, IPeripheralRegister<IUSBDevice, NumberRegistrationPoint<int>> attachTo, int port, bool persistent = true)
+        public static void PendriveFromFile(this IMachine machine, string file, string name, IPeripheralRegister<IUSBDevice, NumberRegistrationPoint<int>> attachTo, int port, bool persistent = true)
         {
             var pendrive = new USBPendrive(file, persistent: persistent);
             attachTo.Register(pendrive, new NumberRegistrationPoint<int>(port));

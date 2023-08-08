@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class NRF52840_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public NRF52840_SPI(Machine machine, bool easyDMA = false) : base(machine)
+        public NRF52840_SPI(IMachine machine, bool easyDMA = false) : base(machine)
         {
             this.machine = machine;
             this.easyDMA = easyDMA;
@@ -413,7 +413,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private bool enabled;
 
         private readonly Queue<byte> receiveFifo;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly bool easyDMA;
 
         private enum Registers

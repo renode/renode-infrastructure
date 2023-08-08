@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [Endianess(Endianess.BigEndian)]
     public class GaislerMIC: IDoubleWordPeripheral, INumberedGPIOOutput, IIRQController, IGaislerAPB
     {
-        public GaislerMIC(Machine machine, uint totalNumberCPUs = 1)
+        public GaislerMIC(IMachine machine, uint totalNumberCPUs = 1)
         {
             this.numberOfProcessors = totalNumberCPUs;
             if(totalNumberCPUs > maxNumberOfProcessors)

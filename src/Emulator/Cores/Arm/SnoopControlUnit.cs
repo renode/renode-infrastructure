@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class SnoopControlUnit : IDoubleWordPeripheral
     {
-        public SnoopControlUnit(Machine machine)
+        public SnoopControlUnit(IMachine machine)
         {
             this.machine = machine;
         }
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private uint scu;
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }
 

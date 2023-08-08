@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Efm32Timer : LimitTimer, IDoubleWordPeripheral
     {
-        public Efm32Timer(Machine machine) : base(machine.ClockSource, 48000000, direction: Direction.Ascending, limit: 0x100000, enabled: false)
+        public Efm32Timer(IMachine machine) : base(machine.ClockSource, 48000000, direction: Direction.Ascending, limit: 0x100000, enabled: false)
         {
             AutoUpdate = true;
             IRQ = new GPIO();

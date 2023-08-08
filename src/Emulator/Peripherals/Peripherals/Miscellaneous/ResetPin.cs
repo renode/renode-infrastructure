@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class ResetPin : IGPIOReceiver
     {
-        public ResetPin(Machine machine, bool invert = true)
+        public ResetPin(IMachine machine, bool invert = true)
         {
             inverted = invert;
             this.machine = machine;
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool state;
 
         private readonly bool inverted;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly object sync;
     }
 }

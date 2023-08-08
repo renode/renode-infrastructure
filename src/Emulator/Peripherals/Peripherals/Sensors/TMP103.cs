@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class TMP103 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
-        public TMP103(Machine machine)
+        public TMP103(IMachine machine)
         {
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class NRF52840_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_UART(Machine machine, bool easyDMA = false) : base(machine)
+        public NRF52840_UART(IMachine machine, bool easyDMA = false) : base(machine)
         {
             this.easyDMA = easyDMA;
             IRQ = new GPIO();

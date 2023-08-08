@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     public class AmbiqApollo4_IOMaster : IPeripheralContainer<ISPIPeripheral, TypedNumberRegistrationPoint<int>>, IPeripheralContainer<II2CPeripheral, TypedNumberRegistrationPoint<int>>,
         IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IPeripheral, IKnownSize
     {
-        public AmbiqApollo4_IOMaster(Machine machine)
+        public AmbiqApollo4_IOMaster(IMachine machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
 
@@ -884,7 +884,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly Fifo outgoingFifo;
         private readonly Dictionary<int, ISPIPeripheral> spiPeripherals;
         private readonly Dictionary<int, II2CPeripheral> i2cPeripherals;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private const int IoMasterInterruptsCount = 15;
         private const int MaxSpiPeripheralsConnected = 4;

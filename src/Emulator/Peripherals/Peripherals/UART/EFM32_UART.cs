@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class EFM32_UART : UARTBase, IDoubleWordPeripheral
     {
-        public EFM32_UART(Machine machine) : base(machine)
+        public EFM32_UART(IMachine machine) : base(machine)
         {
             TransmitIRQ = new GPIO();
             ReceiveIRQ = new GPIO();

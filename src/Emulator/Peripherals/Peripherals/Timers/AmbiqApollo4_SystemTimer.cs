@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class AmbiqApollo4_SystemTimer : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
-        public AmbiqApollo4_SystemTimer(Machine machine) : base(machine)
+        public AmbiqApollo4_SystemTimer(IMachine machine) : base(machine)
         {
             // Changing 'CLKSEL' (it's 'NOCLK' by default) is necessary to enable 'systemTimer'.
             systemTimer = new LimitTimer(machine.ClockSource, InvalidFrequency, this, "System Timer", uint.MaxValue,

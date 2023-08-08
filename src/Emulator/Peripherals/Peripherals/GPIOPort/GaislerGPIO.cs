@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [Endianess(Endianess.BigEndian)]
     public sealed class GaislerGPIO : BaseGPIOPort, IDoubleWordPeripheral, IGaislerAPB
     {
-        public GaislerGPIO(Machine machine, int numberOfPorts, int numberOfInterrupts) : base(machine, numberOfPorts)
+        public GaislerGPIO(IMachine machine, int numberOfPorts, int numberOfInterrupts) : base(machine, numberOfPorts)
         {
             this.numberOfPorts = numberOfPorts;
             if(numberOfPorts < 2 || numberOfPorts > 32)

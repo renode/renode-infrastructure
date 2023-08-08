@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SD
 {
     public class SunxiMMC : MMCController, IDoubleWordPeripheral, IKnownSize
     {
-        public SunxiMMC(Machine machine) : base(machine)
+        public SunxiMMC(IMachine machine) : base(machine)
         {
             SetupRegisters();
             IRQ = new GPIO();

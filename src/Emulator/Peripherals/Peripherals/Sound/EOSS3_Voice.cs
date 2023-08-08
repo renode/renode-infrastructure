@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 {
     public class EOSS3_Voice : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EOSS3_Voice(Machine machine) : base(machine)
+        public EOSS3_Voice(IMachine machine) : base(machine)
         {
             CreateRegisters();
             IRQ = new GPIO();

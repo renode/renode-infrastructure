@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public class TegraDVC : TegraI2CController
     {
-        public TegraDVC(Machine machine) : base(machine)
+        public TegraDVC(IMachine machine) : base(machine)
         {
         }
 

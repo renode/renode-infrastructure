@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.ATAPI
     //This device implements Fixed Disk Interface ATAPI connected CDROM
     public class ATAPI : SimpleContainer<IAtapiPeripheral>, IBytePeripheral, IWordPeripheral, IKnownSize
     {
-        public ATAPI(Machine machine) : base(machine)
+        public ATAPI(IMachine machine) : base(machine)
         {
             CreateRegisters();
         }

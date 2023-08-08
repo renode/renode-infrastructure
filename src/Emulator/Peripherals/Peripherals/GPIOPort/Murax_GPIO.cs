@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class Murax_GPIO : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public Murax_GPIO(Machine machine) : base(machine, 32)
+        public Murax_GPIO(IMachine machine) : base(machine, 32)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();

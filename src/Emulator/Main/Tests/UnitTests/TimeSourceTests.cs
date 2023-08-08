@@ -963,7 +963,7 @@ namespace UnitTests
 
         private class PeripheralMock : IBytePeripheral
         {
-            public PeripheralMock(Machine machine)
+            public PeripheralMock(IMachine machine)
             {
                 this.machine = machine;
                 events = new Queue<Tuple<ulong, int>>();
@@ -1010,7 +1010,7 @@ namespace UnitTests
                 events.Enqueue(Tuple.Create(machine.LocalTimeSource.ElapsedVirtualTime.Ticks, counter));
             }
 
-            private readonly Machine machine;
+            private readonly IMachine machine;
             private readonly Queue<Tuple<ulong, int>> events;
         }
 

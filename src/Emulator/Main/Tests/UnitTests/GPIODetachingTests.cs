@@ -18,7 +18,7 @@ namespace Antmicro.Renode.UnitTests
     [TestFixture]
     public class GPIODetachingTests
     {
-        Machine machine;
+        IMachine machine;
 
         [SetUp]
         public void SetUp()

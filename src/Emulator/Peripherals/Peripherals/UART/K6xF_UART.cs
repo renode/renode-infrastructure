@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class K6xF_UART : UARTBase, IBytePeripheral, IKnownSize
     {
-        public K6xF_UART(Machine machine) : base(machine)
+        public K6xF_UART(IMachine machine) : base(machine)
         {
             baudRateDivValue = 0;
             transmitQueue = new Queue<byte>();

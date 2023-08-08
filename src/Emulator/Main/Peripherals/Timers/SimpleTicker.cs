@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class SimpleTicker : IDoubleWordPeripheral
     {
-        public SimpleTicker(ulong periodInMs, Machine machine)
+        public SimpleTicker(ulong periodInMs, IMachine machine)
         {
             machine.ClockSource.AddClockEntry(new ClockEntry(periodInMs, 1000, OnTick, this, String.Empty));
         }

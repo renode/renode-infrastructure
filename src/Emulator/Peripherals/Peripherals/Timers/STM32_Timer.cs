@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32_Timer : LimitTimer, IDoubleWordPeripheral, INumberedGPIOOutput, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>, IPeripheralRegister<IGPIOReceiver, NullRegistrationPoint>
     {
-        public STM32_Timer(Machine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit,  direction: Direction.Ascending, enabled: false, autoUpdate: false)
+        public STM32_Timer(IMachine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit,  direction: Direction.Ascending, enabled: false, autoUpdate: false)
         {
             this.machine = machine;
             IRQ = new GPIO();
@@ -540,7 +540,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly DoubleWordRegisterCollection registers;
         private readonly IEnumRegisterField<OutputCompareMode>[] outputCompareModes = new IEnumRegisterField<OutputCompareMode>[NumberOfCCChannels];
         private readonly LimitTimer[] ccTimers = new LimitTimer[NumberOfCCChannels];
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly Dictionary<int, IGPIO> connections;
 
         private const int NumberOfCCChannels = 4;

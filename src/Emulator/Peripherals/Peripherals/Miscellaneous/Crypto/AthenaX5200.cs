@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
     public class AthenaX5200 : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public AthenaX5200(Machine machine)
+        public AthenaX5200(IMachine machine)
         {
             memoryManager = new InternalMemoryManager();
             RegistersCollection = new DoubleWordRegisterCollection(this);

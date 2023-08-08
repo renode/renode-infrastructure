@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public sealed class MSCM : IIRQController, INumberedGPIOOutput, IWordPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public MSCM(Machine machine)
+        public MSCM(IMachine machine)
         {
             sysbus = machine.GetSystemBus(this);
             routingTable = new bool[NumberOfInterrupts * 2];

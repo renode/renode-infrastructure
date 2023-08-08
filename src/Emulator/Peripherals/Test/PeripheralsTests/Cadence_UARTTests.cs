@@ -68,7 +68,7 @@ namespace Antmicro.Renode.UnitTests
             return (InterruptFlag)uart.ReadDoubleWord((long)Registers.ChannelInterruptStatus);
         }
 
-        private Machine machine;
+        private IMachine machine;
 
         private const uint FlagEnableRx = 1 << 2;
         private const InterruptFlag FlagsInitial = InterruptFlag.TxFifoEmpty | InterruptFlag.RxFifoEmpty;

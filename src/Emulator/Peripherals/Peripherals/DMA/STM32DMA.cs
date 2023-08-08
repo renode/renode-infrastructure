@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class STM32DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
     {
-        public STM32DMA(Machine machine)
+        public STM32DMA(IMachine machine)
         {
             streamFinished = new bool[NumberOfStreams];
             streams = new Stream[NumberOfStreams];
@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly bool[] streamFinished;
         private readonly Stream[] streams;
         private readonly DmaEngine engine;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private const int NumberOfStreams = 8;
         private const int StreamOffsetStart = 0x10;

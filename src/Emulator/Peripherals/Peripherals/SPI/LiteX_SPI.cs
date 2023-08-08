@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class LiteX_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_SPI(Machine machine) : base(machine)
+        public LiteX_SPI(IMachine machine) : base(machine)
         {
             var registers = new Dictionary<long, DoubleWordRegister>
             {

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals
 {
     public abstract class BasicWordPeripheral : IWordPeripheral, IProvidesRegisterCollection<WordRegisterCollection>
     {
-        public BasicWordPeripheral(Machine machine)
+        public BasicWordPeripheral(IMachine machine)
         {
             this.machine = machine;
             RegistersCollection = new WordRegisterCollection(this);
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals
 
         public WordRegisterCollection RegistersCollection { get; private set; }
 
-        protected readonly Machine machine;
+        protected readonly IMachine machine;
     }
 
     public static class BasicWordPeripheralExtensions

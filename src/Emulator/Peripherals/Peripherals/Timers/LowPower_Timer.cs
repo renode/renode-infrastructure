@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class LowPower_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public LowPower_Timer(Machine machine, long frequency = 8000000) : base(machine.ClockSource, frequency, null, "", eventEnabled: true)
+        public LowPower_Timer(IMachine machine, long frequency = 8000000) : base(machine.ClockSource, frequency, null, "", eventEnabled: true)
         {
             IRQ = new GPIO();
 

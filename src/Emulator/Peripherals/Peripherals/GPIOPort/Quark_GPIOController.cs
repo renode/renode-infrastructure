@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.X86
 {
     public sealed class Quark_GPIOController : BaseGPIOPort, IDoubleWordPeripheral, IGPIOReceiver, IKnownSize
     {
-        public Quark_GPIOController(Machine machine) : base(machine, NumberOfGPIOS)
+        public Quark_GPIOController(IMachine machine) : base(machine, NumberOfGPIOS)
         {
             internalLock = new object();
             previousState = new bool[NumberOfGPIOS];

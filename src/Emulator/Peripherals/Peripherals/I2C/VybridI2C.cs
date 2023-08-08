@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 {
     public sealed class VybridI2C : SimpleContainer<II2CPeripheral>, IBytePeripheral, IKnownSize
     {
-        public VybridI2C(Machine machine) : base(machine)
+        public VybridI2C(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             Reset();

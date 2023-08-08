@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32WBA_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32WBA_RCC(Machine machine, IHasFrequency nvic = null, IHasFrequency lptim1 = null, IHasFrequency lptim2 = null,
+        public STM32WBA_RCC(IMachine machine, IHasFrequency nvic = null, IHasFrequency lptim1 = null, IHasFrequency lptim2 = null,
             long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency, long hseFrequency = DefaultHseFreqeuency) : base(machine)
         {
             this.nvic = nvic;

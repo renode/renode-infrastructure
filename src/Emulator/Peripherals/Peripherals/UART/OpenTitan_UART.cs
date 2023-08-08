@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
     // This model currently does not support timeout feature, rx break detection and software tx pin override
     public class OpenTitan_UART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_UART(Machine machine) : base(machine)
+        public OpenTitan_UART(IMachine machine) : base(machine)
         {
             TxWatermarkIRQ = new GPIO();
             RxWatermarkIRQ = new GPIO();

@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class MPFS_eNVM : IDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_eNVM(Machine machine, MappedMemory memory)
+        public MPFS_eNVM(IMachine machine, MappedMemory memory)
         {
             this.memory = memory;
             IRQ = new GPIO();

@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class LiteX_MMCM : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_MMCM(Machine machine) : base(machine)
+        public LiteX_MMCM(IMachine machine) : base(machine)
         {
             mmcmRegisters = new uint[RegistersCount];
 

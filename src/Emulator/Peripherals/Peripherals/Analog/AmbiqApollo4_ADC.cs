@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class AmbiqApollo4_ADC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public AmbiqApollo4_ADC(Machine machine) : base(machine)
+        public AmbiqApollo4_ADC(IMachine machine) : base(machine)
         {
             // This is just a mock. Getters simply read the properties.
             channelDataGettersArray = new Func<uint>[]

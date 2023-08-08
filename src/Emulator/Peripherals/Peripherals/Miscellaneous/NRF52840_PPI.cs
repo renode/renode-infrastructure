@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class NRF52840_PPI : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_PPI(Machine machine) : base(machine)
+        public NRF52840_PPI(IMachine machine) : base(machine)
         {
             for(var i = 0; i < Channels; i++)
             {

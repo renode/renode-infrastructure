@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Network
     public class CadenceGEM : NetworkWithPHY, IDoubleWordPeripheral, IMACInterface, IKnownSize
     {
         // the default moduleRevision/moduleId are correct for Zynq with GEM p23
-        public CadenceGEM(Machine machine, ushort moduleRevision = 0x118, ushort moduleId = 0x2) : base(machine)
+        public CadenceGEM(IMachine machine, ushort moduleRevision = 0x118, ushort moduleId = 0x2) : base(machine)
         {
             ModuleId = moduleId;
             ModuleRevision = moduleRevision;

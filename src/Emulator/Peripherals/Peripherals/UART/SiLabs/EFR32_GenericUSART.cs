@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.UART.Silabs
 {
     public abstract class EFR32_GenericUSART : UARTBase, IUARTWithBufferState, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>
     {
-        public EFR32_GenericUSART(Machine machine, uint clockFrequency) : base(machine)
+        public EFR32_GenericUSART(IMachine machine, uint clockFrequency) : base(machine)
         {
             TransmitIRQ = new GPIO();
             ReceiveIRQ = new GPIO();

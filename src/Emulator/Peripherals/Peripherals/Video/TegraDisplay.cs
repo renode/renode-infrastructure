@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Video
 {
     public class TegraDisplay : AutoRepaintingVideo, IDoubleWordPeripheral, IKnownSize
     {
-        public TegraDisplay(Machine machine) : base(machine)
+        public TegraDisplay(IMachine machine) : base(machine)
         {
             Reconfigure(640, 480, PixelFormat.RGB565);
             this.machine = machine;
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private object sync;
         private uint bufferAddress = 0xFFFFFFFF;
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }
 

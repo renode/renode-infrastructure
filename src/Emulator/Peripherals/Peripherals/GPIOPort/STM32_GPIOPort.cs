@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class STM32_GPIOPort : BaseGPIOPort, IDoubleWordPeripheral, ILocalGPIOReceiver
     {
-        public STM32_GPIOPort(Machine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0,
+        public STM32_GPIOPort(IMachine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0,
             uint numberOfAFs = 16) : base(machine, NumberOfPins)
         {
             if(numberOfAFs < 1 || numberOfAFs > 16)

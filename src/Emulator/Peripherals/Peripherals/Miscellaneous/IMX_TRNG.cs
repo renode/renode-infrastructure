@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class IMX_TRNG : BasicDoubleWordPeripheral, IKnownSize
     {
-        public IMX_TRNG(Machine machine) : base(machine)
+        public IMX_TRNG(IMachine machine) : base(machine)
         {
             rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             IRQ = new GPIO();

@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MPFS_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_GPIO(Machine machine) : base(machine, 32)
+        public MPFS_GPIO(IMachine machine) : base(machine, 32)
         {
             locker = new object();
             IRQ = new GPIO();

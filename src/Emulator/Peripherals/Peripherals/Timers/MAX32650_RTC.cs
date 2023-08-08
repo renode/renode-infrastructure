@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MAX32650_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_RTC(Machine machine, bool subSecondsMSBOverwrite = false, string baseDateTime = null, bool secondsTickOnOneSubSecond = false) : base(machine)
+        public MAX32650_RTC(IMachine machine, bool subSecondsMSBOverwrite = false, string baseDateTime = null, bool secondsTickOnOneSubSecond = false) : base(machine)
         {
             BaseDateTime = Misc.UnixEpoch;
             if(baseDateTime != null)

@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     [Endianess(Endianess.BigEndian)]
     public class GaislerAHBPlugAndPlayInfo : IDoubleWordPeripheral
     {
-        public GaislerAHBPlugAndPlayInfo(Machine machine)
+        public GaislerAHBPlugAndPlayInfo(IMachine machine)
         {
             this.machine = machine;
             Reset();
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private List<GaislerAHBPlugAndPlayRecord> slaveDevices;
         private GaislerAHBPlugAndPlayRecord emptyRecord;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly uint slaveOffset = 0x800;
         private readonly uint PlugAndPlayRecordsOffset = 0xff000;
     }

@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class EFMGPIOPort : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public EFMGPIOPort(Machine machine) : base(machine, 6*16)
+        public EFMGPIOPort(IMachine machine) : base(machine, 6*16)
         {
 
         }

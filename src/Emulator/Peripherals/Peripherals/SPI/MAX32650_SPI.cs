@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class MAX32650_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public MAX32650_SPI(Machine machine, int numberOfSlaves, bool hushTxFifoLevelWarnings = false) : base(machine)
+        public MAX32650_SPI(IMachine machine, int numberOfSlaves, bool hushTxFifoLevelWarnings = false) : base(machine)
         {
             if(numberOfSlaves < 0 || numberOfSlaves > MaximumNumberOfSlaves)
             {

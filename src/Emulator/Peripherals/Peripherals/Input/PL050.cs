@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Input
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class PL050 : NullRegistrationPointPeripheralContainer<IPS2Peripheral>, IPS2Controller, IDoubleWordPeripheral, IKnownSize
     {
-        public PL050(Machine machine, int size = 0x1000) : base(machine)
+        public PL050(IMachine machine, int size = 0x1000) : base(machine)
         {
             this.size = size;
             idHelper = new PrimeCellIDHelper(size, new byte[] { 0x50, 0x10, 0x04, 0x00, 0x0D, 0xF0, 0x05, 0xB1 }, this);

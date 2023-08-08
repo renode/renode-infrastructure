@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // This is just a mock handling hint flags
     public class OpenTitan_ClockManager : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_ClockManager(Machine machine, OpenTitan_BigNumberAccelerator otbn) : base(machine)
+        public OpenTitan_ClockManager(IMachine machine, OpenTitan_BigNumberAccelerator otbn) : base(machine)
         {
             this.otbn = otbn;
             DefineRegisters();

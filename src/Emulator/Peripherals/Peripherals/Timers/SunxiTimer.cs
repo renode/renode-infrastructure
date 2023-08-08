@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class SunxiTimer : IDoubleWordPeripheral, IKnownSize
     {
-        public SunxiTimer(Machine machine)
+        public SunxiTimer(IMachine machine)
         {
             timers = new SunxiTimerUnit[NumberOfTimerUnits];
             for(int i = 0; i < NumberOfTimerUnits; ++i)
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private sealed class SunxiTimerUnit : LimitTimer
         {
-            public SunxiTimerUnit(Machine machine, SunxiTimer parent) : base(machine.ClockSource, 24000000, direction: Antmicro.Renode.Time.Direction.Descending, enabled: false, eventEnabled: true)
+            public SunxiTimerUnit(IMachine machine, SunxiTimer parent) : base(machine.ClockSource, 24000000, direction: Antmicro.Renode.Time.Direction.Descending, enabled: false, eventEnabled: true)
             {
                 timerGroup = parent;
                 controlRegister = new DoubleWordRegister(this, 0x04);

@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class CC2538Watchdog : SimpleTicker, IKnownSize
     {
-        public CC2538Watchdog(ulong periodInMs, Machine machine) : base(periodInMs, machine)
+        public CC2538Watchdog(ulong periodInMs, IMachine machine) : base(periodInMs, machine)
         {
             Reset();
         }

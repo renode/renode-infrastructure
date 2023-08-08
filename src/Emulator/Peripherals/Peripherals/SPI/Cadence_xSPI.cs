@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class Cadence_xSPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_xSPI(Machine machine) : base(machine)
+        public Cadence_xSPI(IMachine machine) : base(machine)
         {
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             auxiliaryRegisters = new DoubleWordRegisterCollection(this);

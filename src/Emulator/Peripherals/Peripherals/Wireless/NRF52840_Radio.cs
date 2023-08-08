@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public class NRF52840_Radio : BasicDoubleWordPeripheral, IRadio, IKnownSize, INRFEventProvider
     {
-        public NRF52840_Radio(Machine machine) : base(machine)
+        public NRF52840_Radio(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             interruptManager = new InterruptManager<Events>(this, IRQ, "RadioIrq");

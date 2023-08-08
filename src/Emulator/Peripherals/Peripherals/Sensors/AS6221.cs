@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class AS6221 : II2CPeripheral, IProvidesRegisterCollection<WordRegisterCollection>, ITemperatureSensor
     {
-        public AS6221(Machine machine)
+        public AS6221(IMachine machine)
         {
             RegistersCollection = new WordRegisterCollection(this);
 
@@ -271,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const decimal MaximumTemperature = (decimal)short.MaxValue / (decimal)Resolution;
         private const decimal MinimumTemperature = (decimal)short.MinValue / (decimal)Resolution;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly LimitTimer conversionTimer;
 
         private enum States

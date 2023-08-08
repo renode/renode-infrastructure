@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class CC2538_Cryptoprocessor : IDoubleWordPeripheral, IKnownSize
     {
-        public CC2538_Cryptoprocessor(Machine machine)
+        public CC2538_Cryptoprocessor(IMachine machine)
         {
             this.machine = machine;
             Interrupt = new GPIO();
@@ -664,7 +664,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IFlagRegisterField resultInterruptEnabled;
         private readonly IFlagRegisterField dmaDoneInterruptEnabled;
         private readonly DoubleWordRegisterCollection registers;
-        private readonly Machine machine;
+        private readonly IMachine machine;
 
         private const int NumberOfKeys = 8;
         private const int KeyEntrySizeInBytes = 16;

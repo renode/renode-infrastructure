@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // OpenTitan HMACi HWIP as per https://docs.opentitan.org/hw/ip/hmac/doc/ (30.06.2021)
     public class OpenTitan_HMAC: BasicDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public OpenTitan_HMAC(Machine machine) : base(machine)
+        public OpenTitan_HMAC(IMachine machine) : base(machine)
         {
             key = new byte[SecretKeyLength * 4];
             digest = new byte[DigestLength * 4];

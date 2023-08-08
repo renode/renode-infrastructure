@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Minerva : RiscV32
     {
-        public Minerva(Core.Machine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(timeProvider, "rv32i", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public Minerva(Core.IMachine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(timeProvider, "rv32i", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
             CSRValidation = CSRValidationLevel.None;
 

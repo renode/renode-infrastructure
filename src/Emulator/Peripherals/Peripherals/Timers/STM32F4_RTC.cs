@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class STM32F4_RTC : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_RTC(Machine machine, long wakeupTimerFrequency = DefaultWakeupTimerFrequency)
+        public STM32F4_RTC(IMachine machine, long wakeupTimerFrequency = DefaultWakeupTimerFrequency)
         {
             mainTimer = new TimerConfig(this);
             alarmA = new AlarmConfig(this, mainTimer);

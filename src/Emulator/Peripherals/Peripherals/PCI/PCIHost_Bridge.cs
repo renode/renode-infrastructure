@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.PCI
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
     public class PCIHost_Bridge : SimpleContainer<IPCIePeripheral>, IPCIeRouter, IDoubleWordPeripheral, IAbsoluteAddressAware, IKnownSize
     {
-        public PCIHost_Bridge(Machine machine) : base(machine)
+        public PCIHost_Bridge(IMachine machine) : base(machine)
         {
             registers = CreateRegisters();
         }

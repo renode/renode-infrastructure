@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals
             }
         }
 
-        public void HideAnalyzersFor(Machine machine)
+        public void HideAnalyzersFor(IMachine machine)
         {
             string name;
             var toRemove = new List<IAnalyzableBackendAnalyzer>();

@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EOSS3_SimplePeriodicTimer : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
-        public EOSS3_SimplePeriodicTimer(Machine machine) : base(machine)
+        public EOSS3_SimplePeriodicTimer(IMachine machine) : base(machine)
         {
             interruptTimestamps = new ushort[NumberOfInterrupts];
             FFEKickOff = new GPIO();

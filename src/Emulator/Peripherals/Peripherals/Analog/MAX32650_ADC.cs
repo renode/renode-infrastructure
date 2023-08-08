@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class MAX32650_ADC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MAX32650_ADC(Machine machine) : base(machine)
+        public MAX32650_ADC(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             DefineRegisters();

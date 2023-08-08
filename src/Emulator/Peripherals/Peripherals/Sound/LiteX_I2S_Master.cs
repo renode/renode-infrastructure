@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 {
     public class LiteX_I2S_Master : LiteX_I2S, IDisposable
     {
-        public LiteX_I2S_Master(Machine machine, DataFormat format, uint sampleWidthBits, uint samplingRateHz, uint numberOfChannels) : base(machine, format, sampleWidthBits, samplingRateHz)
+        public LiteX_I2S_Master(IMachine machine, DataFormat format, uint sampleWidthBits, uint samplingRateHz, uint numberOfChannels) : base(machine, format, sampleWidthBits, samplingRateHz)
         {
             encoder = new PCMEncoder(sampleWidthBits, samplingRateHz, numberOfChannels, false);
         }

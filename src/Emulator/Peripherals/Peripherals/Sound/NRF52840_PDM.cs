@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 {
     public class NRF52840_PDM: BasicDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_PDM(Machine machine) : base(machine)
+        public NRF52840_PDM(IMachine machine) : base(machine)
         {
             CreateRegisters();
             IRQ = new GPIO();

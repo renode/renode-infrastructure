@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class MAX86171 : ISPIPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>
     {
-        public MAX86171(Machine machine)
+        public MAX86171(IMachine machine)
         {
             this.machine = machine;
             this.resdFrequencyMultiplier = 1;
@@ -848,7 +848,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool FifoThresholdReached =>
             (MaximumFIFOCount - circularFifo.Count) <= fifoFullThreshold.Value;
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly AFESampleFIFO circularFifo;
         private readonly bool[] measurementEnabled;
         private readonly object feederThreadLock = new object();

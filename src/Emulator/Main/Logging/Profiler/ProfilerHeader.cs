@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Logging.Profiling
             buffer = new List<byte>();
         }
 
-        public void RegisterPeripherals(Machine machine)
+        public void RegisterPeripherals(IMachine machine)
         {
             var peripherals = machine.GetRegisteredPeripherals();
             var cpus = peripherals.Where(x => x.Peripheral is ICPU).ToList();

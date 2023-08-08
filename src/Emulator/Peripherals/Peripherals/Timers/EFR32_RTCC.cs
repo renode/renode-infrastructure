@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32_RTCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32_RTCC(Machine machine, long frequency) : base(machine)
+        public EFR32_RTCC(IMachine machine, long frequency) : base(machine)
         {
             IRQ = new GPIO();
 

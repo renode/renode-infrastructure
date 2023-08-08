@@ -891,7 +891,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public static string DumpPacket(EthernetFrame packet, bool isSend, Machine machine)
+        public static string DumpPacket(EthernetFrame packet, bool isSend, IMachine machine)
         {
             var builder = new StringBuilder();
             string machName;

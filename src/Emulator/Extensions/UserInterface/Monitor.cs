@@ -39,7 +39,7 @@ namespace Antmicro.Renode.UserInterface
 
         public Func<IEnumerable<ICommandDescription>> GetInternalCommands { get; set; }
 
-        public Machine Machine
+        public IMachine Machine
         {
             get
             {
@@ -121,12 +121,12 @@ namespace Antmicro.Renode.UserInterface
             JoinEmulation();
         }
 
-        private void RegisterResetCommand(Machine machine)
+        private void RegisterResetCommand(IMachine machine)
         {
             machine.MachineReset += ResetMachine;
         }
 
-        private void UpdateMonitorPrompt(Machine machine)
+        private void UpdateMonitorPrompt(IMachine machine)
         {
             if(currentMachine == machine)
             {
@@ -203,7 +203,7 @@ namespace Antmicro.Renode.UserInterface
 
         private void InitCommands()
         {
-            Bind(Machine.MachineKeyword, () => Machine);
+            Bind(Core.Machine.MachineKeyword, () => Machine);
             BindStatic("connector", () => emulationManager.CurrentEmulation.Connector);
             BindStatic("emulation", () => Emulation);
             BindStatic("plugins", () => TypeManager.Instance.PluginManager);
@@ -256,7 +256,7 @@ namespace Antmicro.Renode.UserInterface
             stringEaterVariableName = variable;
         }
 
-        private void ResetMachine(Machine machine)
+        private void ResetMachine(IMachine machine)
         {
             string machineName;
             if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machineName))
@@ -1126,9 +1126,9 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private Machine _currentMachine;
+        private IMachine _currentMachine;
 
-        private Machine currentMachine
+        private IMachine currentMachine
         {
             get
             {

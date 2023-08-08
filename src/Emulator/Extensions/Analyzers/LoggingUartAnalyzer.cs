@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Analyzers
         private DateTime lastLineStampHost;
         private TimeInterval lastLineStampVirtual;
         private IUART uart;
-        private Machine machine;
+        private IMachine machine;
 
         private int maxHostTimestampLength;
         private int maxVirtTimestampLength;

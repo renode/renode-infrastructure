@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class WindowIOMMU : SimpleContainer<IBusPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public WindowIOMMU(Machine machine) : base(machine)
+        public WindowIOMMU(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             busController = new WindowMMUBusController(this, machine.GetSystemBus(this));

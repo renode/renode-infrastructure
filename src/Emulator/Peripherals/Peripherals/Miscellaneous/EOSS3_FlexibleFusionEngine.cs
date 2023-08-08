@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class EOSS3_FlexibleFusionEngine : BasicDoubleWordPeripheral, IKnownSize, IPeripheralContainer<IBytePeripheral, NumberRegistrationPoint<int>>
     {
-        public EOSS3_FlexibleFusionEngine(Machine machine) : base(machine)
+        public EOSS3_FlexibleFusionEngine(IMachine machine) : base(machine)
         {
             children = new Dictionary<int, IBytePeripheral>();
             DefineRegisters();

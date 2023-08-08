@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class NRF52840_GPIOTasksEvents : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NRF52840_GPIOTasksEvents(Machine machine, NRF52840_GPIO port0 = null, NRF52840_GPIO port1 = null) : base(machine)
+        public NRF52840_GPIOTasksEvents(IMachine machine, NRF52840_GPIO port0 = null, NRF52840_GPIO port1 = null) : base(machine)
         {
             IRQ = new GPIO();
             DefineRegisters();

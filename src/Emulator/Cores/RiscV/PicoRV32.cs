@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class PicoRV32 : RiscV32
     {
-        public PicoRV32(Core.Machine machine, string cpuType, bool latchedIrqs = true, uint hartId = 0, uint resetVectorAddress = 0x10) : base(null, cpuType, machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public PicoRV32(Core.IMachine machine, string cpuType, bool latchedIrqs = true, uint hartId = 0, uint resetVectorAddress = 0x10) : base(null, cpuType, machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
             this.latchedIrqs = latchedIrqs;
 

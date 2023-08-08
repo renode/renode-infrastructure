@@ -350,7 +350,7 @@ namespace Antmicro.Renode.Testing
         }
 
         private readonly ILed led;
-        private readonly Machine machine;
+        private readonly IMachine machine;
         private readonly float defaultTimeout;
     }
 }

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class UDMA : IDoubleWordPeripheral, IKnownSize
     {
-        public UDMA(Machine machine, int numberOfChannels = 32)
+        public UDMA(IMachine machine, int numberOfChannels = 32)
         {
             engine = new DmaEngine(machine.GetSystemBus(this));
             SystemBus = machine.GetSystemBus(this);

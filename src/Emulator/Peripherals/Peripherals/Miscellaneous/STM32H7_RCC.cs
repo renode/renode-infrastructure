@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32H7_RCC : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32H7_RCC(Machine machine)
+        public STM32H7_RCC(IMachine machine)
         {
             //  Based on https://stm32-rs.github.io/stm32-rs/STM32H743.html#RCC
             var registersMap = new Dictionary<long, DoubleWordRegister>

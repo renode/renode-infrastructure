@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class AmbiqApollo4_Security : BasicDoubleWordPeripheral, IKnownSize
     {
-        public AmbiqApollo4_Security(Machine machine) : base(machine)
+        public AmbiqApollo4_Security(IMachine machine) : base(machine)
         {
             systemBus = machine.GetSystemBus(this);
             DefineRegisters();

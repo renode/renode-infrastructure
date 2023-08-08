@@ -334,7 +334,7 @@ namespace Antmicro.Renode.PeripheralsTests
             return (ReadFromRegister(I2C.Registers.FifoStatus) >> 8) & 0x7F;
         }
 
-        private Machine machine;
+        private IMachine machine;
         private II2CPeripheral sensor1;
         private II2CPeripheral sensor2;
         private OpenTitan_I2C peripheral;

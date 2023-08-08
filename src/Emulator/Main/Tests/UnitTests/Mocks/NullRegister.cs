@@ -15,7 +15,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class NullRegister : IPeripheralRegister<ICPU, NullRegistrationPoint>, IDoubleWordPeripheral
     {
-        public NullRegister(Machine machine)
+        public NullRegister(IMachine machine)
         {
             this.machine = machine;
         }
@@ -45,6 +45,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
             
         }
 
-        private readonly Machine machine;
+        private readonly IMachine machine;
     }
 }

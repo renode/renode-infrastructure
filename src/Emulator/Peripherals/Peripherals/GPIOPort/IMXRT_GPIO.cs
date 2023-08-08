@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class IMXRT_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public IMXRT_GPIO(Machine machine) : base(machine, NumberOfPins)
+        public IMXRT_GPIO(IMachine machine) : base(machine, NumberOfPins)
         {
             locker = new object();
             IRQ = new GPIO();

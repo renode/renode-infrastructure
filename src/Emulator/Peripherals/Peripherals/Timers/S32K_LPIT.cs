@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K_LPIT : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
-        public S32K_LPIT(Machine machine, long frequency) : base(machine)
+        public S32K_LPIT(IMachine machine, long frequency) : base(machine)
         {
             IRQ = new GPIO();
             TimerOutput0 = new GPIO();

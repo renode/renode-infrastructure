@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class CortexM : Arm
     {
-        public CortexM(string cpuType, Machine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian, uint? fpuInterruptNumber = null) : base(cpuType, machine, id, endianness)
+        public CortexM(string cpuType, IMachine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian, uint? fpuInterruptNumber = null) : base(cpuType, machine, id, endianness)
         {
             if(nvic == null)
             {

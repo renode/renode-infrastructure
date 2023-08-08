@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class AmbiqApollo4_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public AmbiqApollo4_RTC(Machine machine) : base(machine)
+        public AmbiqApollo4_RTC(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
             machine.RealTimeClockModeChanged += _ => SetDateTimeFromMachine();
@@ -417,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class RTCTimer : LimitTimer
         {
-            public RTCTimer(Machine machine, IBusPeripheral owner, DateTime baseDateTime, Action alarmAction) : base(machine.ClockSource, Frequency, owner, "RTC",
+            public RTCTimer(IMachine machine, IBusPeripheral owner, DateTime baseDateTime, Action alarmAction) : base(machine.ClockSource, Frequency, owner, "RTC",
                 limit: ulong.MaxValue, direction: Direction.Ascending, enabled: true, workMode: WorkMode.Periodic, eventEnabled: true)
             {
                 this.alarmAction = alarmAction;

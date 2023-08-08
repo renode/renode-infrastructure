@@ -242,7 +242,7 @@ namespace Antmicro.Renode.PeripheralsTests
             secondWord = value >> 16;
         }
 
-        private Machine machine;
+        private IMachine machine;
         private SPI peripheral;
         private SpiHost spiHost;
         private HostMachine hostMachine;

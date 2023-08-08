@@ -10,6 +10,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Peripherals.Bus;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals
@@ -45,12 +46,12 @@ namespace Antmicro.Renode.Peripherals
             return result == null ? local : result.Union(local);
         }
 
-        public static bool TryGetMachine(this IPeripheral @this, out Machine machine)
+        public static bool TryGetMachine(this IPeripheral @this, out IMachine machine)
         {
             return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(@this, out machine);
         }
 
-        public static Machine GetMachine(this IPeripheral @this)
+        public static IMachine GetMachine(this IPeripheral @this)
         {
             if(!@this.TryGetMachine(out var machine))
             {
@@ -68,6 +69,10 @@ namespace Antmicro.Renode.Peripherals
             }
             else if(defaultEndianness == null)
             {
+                if(@this is IBusPeripheral busPeripheral)
+                {
+                    return @this.GetMachine().GetSystemBus(busPeripheral).Endianess;
+                }
                 return @this.GetMachine().SystemBus.Endianess;
             }
             else

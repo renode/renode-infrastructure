@@ -336,7 +336,7 @@ namespace Antmicro.Renode.PeripheralsTests
             Write
         }
 
-        private Machine machine;
+        private IMachine machine;
         private EFR32_I2CController controller;
         private EchoI2CDevice writeTestPeripheral;
         private DummyI2CSlave readTestPeripheral;

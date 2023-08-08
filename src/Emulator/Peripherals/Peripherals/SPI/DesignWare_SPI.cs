@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class DesignWare_SPI: SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
-        public DesignWare_SPI(Machine machine, uint transmitDepth, uint receiveDepth) : base(machine)
+        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth) : base(machine)
         {
             transmitBuffer = new Queue<ushort>();
             receiveBuffer = new Queue<ushort>();

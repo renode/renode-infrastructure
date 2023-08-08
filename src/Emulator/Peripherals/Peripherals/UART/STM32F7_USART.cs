@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32F7_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F7_USART(Machine machine, uint frequency, bool lowPowerMode = false) : base(machine)
+        public STM32F7_USART(IMachine machine, uint frequency, bool lowPowerMode = false) : base(machine)
         {
             IRQ = new GPIO();
             ReceiveDmaRequest = new GPIO();

@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.USB
 {
     public class ValentyUSB : BasicDoubleWordPeripheral, IUSBDevice, IKnownSize
     {
-        public ValentyUSB(Machine machine, int maximumPacketSize = 64) : base(machine)
+        public ValentyUSB(IMachine machine, int maximumPacketSize = 64) : base(machine)
         {
             maxPacketSize = maximumPacketSize;
             USBCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);

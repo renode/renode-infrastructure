@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class LiteX_ControlAndStatus : BaseGPIOPort, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_ControlAndStatus(Machine machine) : base(machine, LedsCount + SwitchesCount + ButtonsCount)
+        public LiteX_ControlAndStatus(IMachine machine) : base(machine, LedsCount + SwitchesCount + ButtonsCount)
         {
             buttonsPending = new bool[ButtonsCount];
             IRQ = new GPIO();

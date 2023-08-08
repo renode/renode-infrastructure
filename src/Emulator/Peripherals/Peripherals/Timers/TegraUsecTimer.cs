@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class TegraUsecTimer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public TegraUsecTimer (Machine machine) : base(machine.ClockSource, 1000000, direction: Direction.Ascending, limit: uint.MaxValue, enabled: true)
+        public TegraUsecTimer (IMachine machine) : base(machine.ClockSource, 1000000, direction: Direction.Ascending, limit: uint.MaxValue, enabled: true)
         {
             Reset ();
         }

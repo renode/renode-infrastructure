@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public sealed class LAPIC : IDoubleWordPeripheral, IIRQController, IKnownSize
     {
-        public LAPIC(Machine machine)
+        public LAPIC(IMachine machine)
         {
             // frequency guessed from driver and zephyr code
             localTimer = new LimitTimer(machine.ClockSource, 32000000, this, nameof(localTimer), direction: Direction.Descending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);

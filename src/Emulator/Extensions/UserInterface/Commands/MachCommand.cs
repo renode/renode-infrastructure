@@ -68,7 +68,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer, [Values("set", "add", "rem", "create")] LiteralToken action, StringToken name)
         {
-            Machine machine;
+            IMachine machine;
             switch(action.Value)
             {
             case "add":
@@ -79,19 +79,17 @@ namespace Antmicro.Renode.UserInterface.Commands
                     SetCurrentMachine(machine);
                 }
                 break;
-            case "set":                   
-                Machine machineToSet;               
-                if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(name.Value, out machineToSet))                  
-                {                  
+            case "set":
+                if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(name.Value, out var machineToSet))
+                {
                     writer.WriteError(string.Format("Machine {0} not found.", name.Value));
                     break;
                 }
                 SetCurrentMachine(machineToSet);
                 break;
             case "rem":
-                Machine machineToRemove;
-                if (!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(name.Value, out machineToRemove)) 
-                {                    
+                if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(name.Value, out var machineToRemove))
+                {
                     writer.WriteError(string.Format("Machine {0} not found.", name.Value));
                     break;
                 }
@@ -125,10 +123,10 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
         }
 
-        private readonly Func<Machine> GetCurrentMachine;
-        private readonly Action<Machine> SetCurrentMachine;
+        private readonly Func<IMachine> GetCurrentMachine;
+        private readonly Action<IMachine> SetCurrentMachine;
 
-        public MachCommand(Monitor monitor, Func<Machine> getCurrentMachine, Action<Machine> setCurrentMachine) 
+        public MachCommand(Monitor monitor, Func<IMachine> getCurrentMachine, Action<IMachine> setCurrentMachine)
             : base(monitor, "mach", "list and manipulate machines available in the environment.")
         {
             GetCurrentMachine = getCurrentMachine;

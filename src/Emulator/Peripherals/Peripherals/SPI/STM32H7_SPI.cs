@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class STM32H7_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IKnownSize, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral
     {
-        public STM32H7_SPI(Machine machine) : base(machine)
+        public STM32H7_SPI(IMachine machine) : base(machine)
         {
             registers = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();

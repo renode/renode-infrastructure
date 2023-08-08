@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class SiFive_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
     {
-        public SiFive_UART(Machine machine, long inputClockFrequency = 16000000) : base(machine)
+        public SiFive_UART(IMachine machine, long inputClockFrequency = 16000000) : base(machine)
         {
             this.inputClockFrequency = inputClockFrequency;
 
