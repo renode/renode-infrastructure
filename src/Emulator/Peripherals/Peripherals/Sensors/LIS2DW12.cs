@@ -332,7 +332,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         return Math.Min(accelerationFifo.SamplesCount, MaxFifoSize);
                     }, name: "Number of unread samples stored in FIFO (DIFF)")
                 .WithTag("FIFO overrun status (FIFO_OVR)", 6, 1)
-                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => accelerationFifo.SamplesCount >= fifoTreshold.Value,
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ =>
+                    fifoTreshold.Value != 0 && accelerationFifo.SamplesCount >= fifoTreshold.Value,
                     name: "FIFO threshold status flag (FIFO_FTH)");
 
             Registers.TapThreshholdX.Define(this)
