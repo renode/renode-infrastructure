@@ -230,7 +230,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Block data update (BDU)", 3)
                 .WithTaggedFlag("Disconnect CS pull-up (CS_PU_DISC)", 4)
                 .WithReservedBits(5, 1)
-                .WithTaggedFlag("Acts as reset for all control register (SOFT_RESET)", 6)
+                .WithFlag(6, writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            Reset();
+                        }
+                    }, name: "Acts as reset for all control register (SOFT_RESET)")
                 .WithTaggedFlag("Enables retrieving the correct trimming parameters from nonvolatile memory into registers (BOOT)", 7);
 
             Registers.Control3.Define(this)
