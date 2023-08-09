@@ -179,6 +179,7 @@ namespace Antmicro.Renode.Testing
 
         public bool IsIdle(TimeInterval? timeout = null, bool pauseEmulation = true)
         {
+            var emulation = EmulationManager.Instance.CurrentEmulation;
             this.pauseEmulation = pauseEmulation;
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent(
                 (ulong)(timeout ?? GlobalTimeout).TotalMilliseconds,
@@ -186,13 +187,18 @@ namespace Antmicro.Renode.Testing
                 {
                     if(this.pauseEmulation)
                     {
-                        EmulationManager.Instance.CurrentEmulation.PauseAll();
+                        emulation.PauseAll();
                         this.pauseEmulation = false;
                     }
                 }
             );
 
             charEvent.Reset();
+            if(!emulation.IsStarted)
+            {
+                emulation.StartAll();
+            }
+
             var eventIdx = WaitHandle.WaitAny( new [] { timeoutEvent.WaitHandle, charEvent } );
             var result = eventIdx == 0;
             if(!result)
