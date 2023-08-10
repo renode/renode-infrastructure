@@ -274,6 +274,11 @@ namespace Antmicro.Renode.Testing
                 }
                 return immediateResult;
             }
+            // If we had timeout=0 and there was no immediate match, fail immediately
+            else if(timeout == TimeInterval.Empty)
+            {
+                return null;
+            }
 
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)timeout.TotalMilliseconds);
             var waitHandles = new [] { matchEvent, timeoutEvent.WaitHandle };
