@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -108,7 +109,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         writeCallback: (_, val) => { if(val) timer.ResetValue(); },
                         valueProviderCallback: (_) => false
                     )
-                    .WithTaggedFlag("MatchEnable", 3)
+                    .WithFlag(3, name: "MatchEnable",
+                        writeCallback: (_, val) => timer.MatchEnabled = val,
+                        valueProviderCallback: (_) => timer.MatchEnabled
+                    )
                     .WithFlag(2, name: "CounterDecrement",
                         writeCallback: (_, val) => timer.Direction = (val ? Direction.Descending : Direction.Ascending),
                         valueProviderCallback: (_) => timer.Direction == Direction.Descending
@@ -133,6 +137,24 @@ namespace Antmicro.Renode.Peripherals.Timers
                         valueProviderCallback: (_) => timer.Interval
                     )
                 },
+                {(long)Registers.Match1Counter1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "Match1Value",
+                        writeCallback: (_, val) => timer.Match[0].MatchValue = (uint)val,
+                        valueProviderCallback: (_) => timer.Match[0].MatchValue
+                    )
+                },
+                {(long)Registers.Match2Counter1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "Match1Value",
+                        writeCallback: (_, val) => timer.Match[1].MatchValue = (uint)val,
+                        valueProviderCallback: (_) => timer.Match[1].MatchValue
+                    )
+                },
+                {(long)Registers.Match3Counter1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "Match1Value",
+                        writeCallback: (_, val) => timer.Match[2].MatchValue = (uint)val,
+                        valueProviderCallback: (_) => timer.Match[2].MatchValue
+                    )
+                },
                 {(long)Registers.InterruptStatus1, new DoubleWordRegister(this)
                     .WithReservedBits(6, 26)
                     .WithTaggedFlag("EventTimerOverflowInterrupt", 5)
@@ -140,9 +162,18 @@ namespace Antmicro.Renode.Peripherals.Timers
                         readCallback: (_, __) => timer.OverflowInterruptFlag = false,
                         valueProviderCallback: (_) => timer.OverflowInterruptFlag
                     )
-                    .WithTaggedFlag("Match3Interrupt", 3)
-                    .WithTaggedFlag("Match2Interrupt", 2)
-                    .WithTaggedFlag("Match1Interrupt", 1)
+                    .WithFlag(3, FieldMode.ReadToClear, name: "Match3Interrupt",
+                        readCallback: (_, __) => timer.Match[2].Interrupt = false,
+                        valueProviderCallback: (_) => timer.Match[2].Interrupt
+                    )
+                    .WithFlag(2, FieldMode.ReadToClear, name: "Match2Interrupt",
+                        readCallback: (_, __) => timer.Match[1].Interrupt = false,
+                        valueProviderCallback: (_) => timer.Match[1].Interrupt
+                    )
+                    .WithFlag(1, FieldMode.ReadToClear, name: "Match1Interrupt",
+                        readCallback: (_, __) => timer.Match[0].Interrupt = false,
+                        valueProviderCallback: (_) => timer.Match[0].Interrupt
+                    )
                     .WithFlag(0, FieldMode.ReadToClear, name: "IntervalInterrupt",
                         readCallback: (_, __) => timer.IntervalInterruptFlag = false,
                         valueProviderCallback: (_) => timer.IntervalInterruptFlag
@@ -156,9 +187,18 @@ namespace Antmicro.Renode.Peripherals.Timers
                         writeCallback: (_, val) => timer.OverflowInterruptEnabled = val,
                         valueProviderCallback: (_) => timer.OverflowInterruptEnabled
                     )
-                    .WithTaggedFlag("Match3InterruptEnable", 3)
-                    .WithTaggedFlag("Match2InterruptEnable", 2)
-                    .WithTaggedFlag("Match1InterruptEnable", 1)
+                    .WithFlag(3, name: "Match3InterruptEnable",
+                        writeCallback: (_, val) => timer.Match[2].InterruptEnable = val,
+                        valueProviderCallback: (_) => timer.Match[2].InterruptEnable
+                    )
+                    .WithFlag(2, name: "Match2InterruptEnable",
+                        writeCallback: (_, val) => timer.Match[1].InterruptEnable = val,
+                        valueProviderCallback: (_) => timer.Match[1].InterruptEnable
+                    )
+                    .WithFlag(1, name: "Match1InterruptEnable",
+                        writeCallback: (_, val) => timer.Match[0].InterruptEnable = val,
+                        valueProviderCallback: (_) => timer.Match[0].InterruptEnable
+                    )
                     .WithFlag(0, name: "IntervalInterruptEnable",
                         writeCallback: (_, val) => timer.IntervalInterruptEnabled = val,
                         valueProviderCallback: (_) => timer.IntervalInterruptEnabled
@@ -174,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const long DefaultFrequency = 33330000;
         private const int RegisterSize = 4;
         private const int TimerUnitsCount = 3;
+        private const int MatchTimerUnitsCount = 3;
 
         private class TimerUnit : ITimer
         {
@@ -181,15 +222,23 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 timer = new LimitTimer(clockSource, frequency, parent, localName, limit: OverflowLimit, direction: Direction.Ascending, eventEnabled: true);
                 timer.LimitReached += OnLimitReached;
+
+                Match = new MatchTimerUnit[MatchTimerUnitsCount];
+                for(var i = 0; i < MatchTimerUnitsCount; i++)
+                {
+                    Match[i] = new MatchTimerUnit(clockSource, parent, this, frequency, $"{localName}-match{i}");
+                }
             }
 
             public void Reset()
             {
                 timer.Reset();
+                MatchEnabled = false;
                 Mode = CounterMode.Overflow;
                 Interval = 0;
                 PrescalerEnabled = false;
                 Prescaler = 0;
+                Array.ForEach(Match, m => m.Reset());
 
                 OverflowInterruptEnabled = false;
                 IntervalInterruptEnabled = false;
@@ -206,18 +255,34 @@ namespace Antmicro.Renode.Peripherals.Timers
             public void ResetValue()
             {
                 timer.ResetValue();
+                Array.ForEach(Match, m => m.Update());
             }
 
             public void UpdateInterrupts()
             {
                 irq.Set((OverflowInterruptFlag && OverflowInterruptEnabled)
-                    || (IntervalInterruptFlag && IntervalInterruptEnabled));
+                    || (IntervalInterruptFlag && IntervalInterruptEnabled)
+                    || Match.Any(m => m.IRQ));
             }
 
             public bool Enabled
             {
                 get => timer.Enabled;
-                set => timer.Enabled = value;
+                set
+                {
+                    timer.Enabled = value;
+                    Array.ForEach(Match, m => m.Update());
+                }
+            }
+
+            public bool MatchEnabled
+            {
+                get => matchEnabled;
+                set
+                {
+                    matchEnabled = value;
+                    Array.ForEach(Match, m => m.Enabled = value);
+                }
             }
 
             public CounterMode Mode
@@ -263,25 +328,38 @@ namespace Antmicro.Renode.Peripherals.Timers
             public Direction Direction
             {
                 get => timer.Direction;
-                set => timer.Direction = value;
+                set
+                {
+                    timer.Direction = value;
+                    Array.ForEach(Match, m => m.Update());
+                }
             }
 
             public ulong Value
             {
                 get => timer.Value;
-                set => timer.Value = value;
+                set
+                {
+                    timer.Value = value;
+                    Array.ForEach(Match, m => m.Update());
+                }
             }
 
             public long Frequency
             {
                 get => timer.Frequency;
-                set => timer.Frequency = value;
+                set
+                {
+                    timer.Frequency = value;
+                    Array.ForEach(Match, m => m.Frequency = value);
+                }
             }
 
             public bool OverflowInterruptFlag { get; set; }
             public bool OverflowInterruptEnabled { get; set; }
             public bool IntervalInterruptFlag { get; set; }
             public bool IntervalInterruptEnabled { get; set; }
+            public MatchTimerUnit[] Match { get; }
 
             public readonly IGPIO irq = new GPIO();
 
@@ -295,6 +373,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     OverflowInterruptFlag = true;
                 }
+                Array.ForEach(Match, m => m.Update());
                 UpdateInterrupts();
             }
 
@@ -308,6 +387,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     timer.Divider = 1;
                 }
+                Array.ForEach(Match, m => m.Divider = timer.Divider);
             }
 
             private void UpdateLimit()
@@ -320,16 +400,138 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     timer.Limit = OverflowLimit;
                 }
+                Array.ForEach(Match, m => m.Limit = timer.Limit);
             }
 
             private CounterMode mode;
             private uint interval;
             private bool prescalerEnabled;
+            private bool matchEnabled;
             private int prescaler;
 
             private readonly LimitTimer timer;
 
             private const uint OverflowLimit = UInt32.MaxValue;
+
+            public class MatchTimerUnit
+            {
+                public MatchTimerUnit(IClockSource clockSource, IPeripheral parent, TimerUnit owner, long frequency, string localName)
+                {
+                    this.owner = owner;
+                    timer = new LimitTimer(clockSource, frequency, parent, localName, limit: OverflowLimit, direction: Direction.Ascending, workMode: WorkMode.OneShot);
+                    timer.LimitReached += owner.UpdateInterrupts;
+                    limit = OverflowLimit;
+                }
+
+                public void Reset()
+                {
+                    timer.Reset();
+                    matchValue = 0;
+                    // `limit` and `matchEnabled` are reset by `owner`
+                }
+
+                public void Update()
+                {
+                    if(!enabled || matchValue > limit || !owner.Enabled || (IsAscending ? matchValue < owner.Value : owner.Value < matchValue))
+                    {
+                        timer.Enabled = false;
+                        return;
+                    }
+                    TimerMatchValue = matchValue;
+                    TimerValue = owner.Value;
+                    timer.Enabled = true;
+                }
+
+                public uint MatchValue
+                {
+                    get => matchValue;
+                    set
+                    {
+                        matchValue = value;
+                        Update();
+                    }
+                }
+
+                public bool Enabled
+                {
+                    get => enabled;
+                    set
+                    {
+                        enabled = value;
+                        Update();
+                    }
+                }
+
+                public bool Interrupt
+                {
+                    get => timer.RawInterrupt;
+                    set
+                    {
+                        if(!value)
+                        {
+                            timer.ClearInterrupt();
+                        }
+                    }
+                }
+
+                public bool IRQ => timer.Interrupt;
+
+                public bool InterruptEnable
+                {
+                    get => timer.EventEnabled;
+                    set => timer.EventEnabled = value;
+                }
+
+                public int Divider
+                {
+                    set => timer.Divider = value;
+                }
+
+                public ulong Limit
+                {
+                    set
+                    {
+                        limit = value;
+                        Update();
+                    }
+                }
+
+                public long Frequency
+                {
+                    set => timer.Frequency = value;
+                }
+
+                private ulong TranslateValueForInternalTimer(ulong value)
+                {
+                    // For descending this class flips direction, thus counting in ascending
+                    // direction, changing sign and using values congruent modulo `limit`
+
+                    // NOTE: ComparingTimer doesn't support descending direction so this
+                    // translation and usage of LimitTimer is a workaround
+                    return IsAscending ? value : limit - value;
+                }
+
+                private ulong TimerMatchValue
+                {
+                    get => TranslateValueForInternalTimer(timer.Limit);
+                    set => timer.Limit = TranslateValueForInternalTimer(value);
+                }
+
+                private ulong TimerValue
+                {
+                    get => TranslateValueForInternalTimer(timer.Value);
+                    set => timer.Value = TranslateValueForInternalTimer(value);
+                }
+
+                private bool IsAscending => owner.Direction == Direction.Ascending;
+
+                private bool enabled;
+                private ulong limit;
+                private uint matchValue;
+
+                private readonly TimerUnit owner;
+                private readonly LimitTimer timer;
+            }
         }
 
         private enum CounterMode
