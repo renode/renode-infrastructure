@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
             this.ArchitectureVersion = architectureVersion;
 
-            this.irqsDecoder = new InterruptsDecoder(sharedPeripheralCount, identifierBits: 14);
+            this.irqsDecoder = new InterruptsDecoder(sharedPeripheralCount, identifierBits: 10);
 
             var irqIds = InterruptId.GetRange(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast)
                 .Concat(InterruptId.GetRange(irqsDecoder.ExtendedSharedPeripheralFirst, irqsDecoder.ExtendedSharedPeripheralLast));
