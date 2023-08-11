@@ -272,7 +272,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set => timer.Frequency = value;
             }
 
-
             public bool OverflowInterruptFlag { get; set; }
             public bool OverflowInterruptEnabled { get; set; }
             public bool IntervalInterruptFlag { get; set; }
