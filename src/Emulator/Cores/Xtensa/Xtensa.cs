@@ -19,8 +19,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Xtensa : TranslationCPU, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
-        public Xtensa(string cpuType, Machine machine, long frequency = 10000000)
-                : base(cpuType, machine, Endianess.LittleEndian)
+        public Xtensa(string cpuType, Machine machine, uint cpuId = 0, long frequency = 10000000)
+                : base(cpuId, cpuType, machine, Endianess.LittleEndian)
         {
             innerTimers = new ComparingTimer[InnerTimersCount];
             for(var i = 0; i < innerTimers.Length; i++)
