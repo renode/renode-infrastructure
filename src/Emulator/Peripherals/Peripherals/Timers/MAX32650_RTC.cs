@@ -290,7 +290,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private uint secondsCounter;
-        private ulong subSecondAlarmCounter;
         private uint secondsCounterCache;
         private uint subSecondsCounterCache;
         private bool secondsCounterReadFlag;
