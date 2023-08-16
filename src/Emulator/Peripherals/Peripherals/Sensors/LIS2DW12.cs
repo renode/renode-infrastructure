@@ -24,6 +24,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineRegisters();
 
             accelerationFifo = new SensorSamplesFifo<Vector3DSample>();
+            // Set the default acceleration here, it needs to be preserved across resets
+            DefaultAccelerationZ = 1m;
         }
 
         public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
@@ -140,6 +142,51 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 }
                 accelerationFifo.Sample.Z = value;
                 this.Log(LogLevel.Noisy, "AccelerationZ set to {0}", value);
+                UpdateInterrupts();
+            }
+        }
+
+        public decimal DefaultAccelerationX
+        {
+            get => accelerationFifo.DefaultSample.X;
+            set
+            {
+                if(IsAccelerationOutOfRange(value))
+                {
+                    return;
+                }
+                accelerationFifo.DefaultSample.X = value;
+                this.Log(LogLevel.Noisy, "DefaultAccelerationX set to {0}", value);
+                UpdateInterrupts();
+            }
+        }
+
+        public decimal DefaultAccelerationY
+        {
+            get => accelerationFifo.DefaultSample.Y;
+            set
+            {
+                if(IsAccelerationOutOfRange(value))
+                {
+                    return;
+                }
+                accelerationFifo.DefaultSample.Y = value;
+                this.Log(LogLevel.Noisy, "DefaultAccelerationY set to {0}", value);
+                UpdateInterrupts();
+            }
+        }
+
+        public decimal DefaultAccelerationZ
+        {
+            get => accelerationFifo.DefaultSample.Z;
+            set
+            {
+                if(IsAccelerationOutOfRange(value))
+                {
+                    return;
+                }
+                accelerationFifo.DefaultSample.Z = value;
+                this.Log(LogLevel.Noisy, "DefaultAccelerationZ set to {0}", value);
                 UpdateInterrupts();
             }
         }
