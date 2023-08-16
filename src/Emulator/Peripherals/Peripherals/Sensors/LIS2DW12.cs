@@ -208,6 +208,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public GPIO IRQ { get; }
         public ByteRegisterCollection RegistersCollection { get; }
+        public int SampleRate { get; private set; }
 
         private void LoadNextSample()
         {
@@ -233,41 +234,40 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithEnumField(2, 2, out modeSelection, name: "Mode selection (MODE)")
                 .WithEnumField(4, 4, out outDataRate, writeCallback: (_, __) =>
                     {
-                        var samplingRate = 0;
                         switch(outDataRate.Value)
                         {
                             case DataRateConfig.HighPerformanceLowPower1_6Hz:
-                                samplingRate = 2;
+                                SampleRate = 2;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower12_5Hz:
-                                samplingRate = 13;
+                                SampleRate = 13;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower25Hz:
-                                samplingRate = 25;
+                                SampleRate = 25;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower50Hz:
-                                samplingRate = 50;
+                                SampleRate = 50;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower100Hz:
-                                samplingRate = 100;
+                                SampleRate = 100;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower200Hz:
-                                samplingRate = 200;
+                                SampleRate = 200;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower400Hz:
-                                samplingRate = 400;
+                                SampleRate = 400;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower800Hz:
-                                samplingRate = 800;
+                                SampleRate = 800;
                                 break;
                             case DataRateConfig.HighPerformanceLowPower1600Hz:
-                                samplingRate = 1600;
+                                SampleRate = 1600;
                                 break;
                             default:
-                                samplingRate = 0;
+                                SampleRate = 0;
                                 break;
                         }
-                        this.Log(LogLevel.Noisy, "Sampling rate set to {0}", samplingRate);
+                        this.Log(LogLevel.Noisy, "Sampling rate set to {0}", SampleRate);
                     }, name: "Output data rate and mode selection (ODR)");
 
             Registers.Control2.Define(this, 0x4)
