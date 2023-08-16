@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -55,6 +56,15 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 timer.Reset();
             }
+        }
+
+        public void SetCounterValue(int timerIndex, uint value)
+        {
+            if(timerIndex < 0 || timerIndex >= TimerUnitsCount)
+            {
+                throw new RecoverableException($"Invalid timer index: TTC contains {TimerUnitsCount} timers.");
+            }
+            timerUnits[timerIndex].Value = value;
         }
 
         public long Size => 0x1000;
@@ -113,8 +123,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     )
                 },
                 {(long)Registers.CounterValue1, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "CounterValue",
-                        writeCallback: (_, val) => timer.Value = val,
+                    .WithValueField(0, 32, FieldMode.Read, name: "CounterValue",
                         valueProviderCallback: (_) => (uint)timer.Value
                     )
                 },
@@ -127,20 +136,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)Registers.InterruptStatus1, new DoubleWordRegister(this)
                     .WithReservedBits(6, 26)
                     .WithTaggedFlag("EventTimerOverflowInterrupt", 5)
-                    .WithFlag(4, name: "CounterInterrupt",
-                        writeCallback: (_, val) => timer.OverflowInterruptFlag &= !val,
+                    .WithFlag(4, FieldMode.ReadToClear, name: "CounterInterrupt",
                         readCallback: (_, __) => timer.OverflowInterruptFlag = false,
                         valueProviderCallback: (_) => timer.OverflowInterruptFlag
                     )
                     .WithTaggedFlag("Match3Interrupt", 3)
                     .WithTaggedFlag("Match2Interrupt", 2)
                     .WithTaggedFlag("Match1Interrupt", 1)
-                    .WithFlag(0, name: "IntervalInterrupt",
-                        writeCallback: (_, val) => timer.IntervalInterruptFlag &= !val,
+                    .WithFlag(0, FieldMode.ReadToClear, name: "IntervalInterrupt",
                         readCallback: (_, __) => timer.IntervalInterruptFlag = false,
                         valueProviderCallback: (_) => timer.IntervalInterruptFlag
                     )
-                    .WithWriteCallback((_, __) => timer.UpdateInterrupts())
                     .WithReadCallback((_, __) => timer.UpdateInterrupts())
                 },
                 {(long)Registers.InterruptEnable1, new DoubleWordRegister(this)

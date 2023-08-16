@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldResetCounter()
         {
             var index = 0;
-            WriteTimerRegister(index, Registers.CounterValue, TicksPerSecond);
+            timer.SetCounterValue(0, TicksPerSecond);
             WriteTimerRegister(index, Registers.InterruptEnable, InterruptMaskAll);
             Assert.AreEqual(TicksPerSecond, ReadTimerRegister(index, Registers.CounterValue));
             Assert.False(timer.Connections[0].IsSet);
@@ -76,9 +76,9 @@ namespace Antmicro.Renode.UnitTests
             WriteTimerRegister(index, Registers.CounterControl, counterControl);
             WriteTimerRegister(index, Registers.CounterInterval, interval);
             WriteTimerRegister(index, Registers.InterruptEnable, interruptMask);
-            WriteTimerRegister(index, Registers.InterruptStatus, InterruptMaskAll);
+            ReadTimerRegister(index, Registers.InterruptStatus);
 
-            WriteTimerRegister(index, Registers.CounterValue, initValue);
+            timer.SetCounterValue(0, initValue);
             AdvanceBySeconds(1);
 
             Assert.False(timer.Connections[index].IsSet);
