@@ -479,10 +479,13 @@ namespace Antmicro.Renode.Core
                 }
 
                 // Precise mode is only available when this method is run on the CPU thread
+                // We silence the logging that would happen otherwise (for example if we came
+                // here from a GPIO state change triggered by a timer) - in that case we log
+                // our own warning.
                 // We only attempt to prepare the CPU for a precise pause if the machine is currently running
                 if(precise && !IsPaused)
                 {
-                    if(!TryRestartTranslationBlockOnCurrentCpu())
+                    if(!TryRestartTranslationBlockOnCurrentCpu(quiet: true))
                     {
                         this.Log(LogLevel.Warning, "Failed to restart translation block for precise pause, " +
                             "the pause will happen at the end of the current block");
