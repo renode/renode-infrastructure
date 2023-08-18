@@ -333,14 +333,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             profiler?.Dispose();
         }
 
-        public bool RequestTranslationBlockRestart()
+        public bool RequestTranslationBlockRestart(bool quiet = false)
         {
             if(!OnPossessedThread)
             {
-                this.Log(LogLevel.Error, "Translation block restart should be requested from CPU thread only. Ignoring the operation.");
+                if(!quiet)
+                {
+                    this.Log(LogLevel.Error, "Translation block restart should be requested from CPU thread only. Ignoring the operation.");
+                }
                 return false;
             }
-            return pauseGuard.RequestTranslationBlockRestart();
+            return pauseGuard.RequestTranslationBlockRestart(quiet);
         }
 
         public void RaiseException(uint exceptionId)
@@ -1468,11 +1471,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            public bool RequestTranslationBlockRestart()
+            public bool RequestTranslationBlockRestart(bool quiet = false)
             {
                 if(guard.Value == null)
                 {
-                    parent.Log(LogLevel.Error, "Trying to request translation block restart without prior guard initialization on this thread.");
+                    if(!quiet)
+                    {
+                        parent.Log(LogLevel.Error, "Trying to request translation block restart without prior guard initialization on this thread.");
+                    }
                     return false;
                 }
                 restartTranslationBlock = true;

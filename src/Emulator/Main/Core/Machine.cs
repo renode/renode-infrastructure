@@ -1045,21 +1045,30 @@ namespace Antmicro.Renode.Core
             ClockSource.AddClockEntry(new ClockEntry(delay.Ticks, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
         }
 
-        // This method should only be called on the CPU thread
-        public bool TryRestartTranslationBlockOnCurrentCpu()
+        // This method will only be effective when called from the CPU thread with the pause guard held.
+        // In use cases where one of these conditions may sometimes not be met (for example a GPIO
+        // state change callback, which can be triggered by a MMIO write or a timer limit event) and the
+        // restart is not critical, the quiet parameter should be used to silence logging.
+        public bool TryRestartTranslationBlockOnCurrentCpu(bool quiet = false)
         {
             if(!SystemBus.TryGetCurrentCPU(out var icpu))
             {
-                this.Log(LogLevel.Error, "Couldn't find the CPU requesting translation block restart.");
+                if(!quiet)
+                {
+                    this.Log(LogLevel.Error, "Couldn't find the CPU requesting translation block restart.");
+                }
                 return false;
             }
 
             try
             {
                 var cpu = (dynamic)icpu;
-                if(!cpu.RequestTranslationBlockRestart())
+                if(!cpu.RequestTranslationBlockRestart(quiet))
                 {
-                    Logger.LogAs(icpu, LogLevel.Error, "Failed to restart translation block.");
+                    if(!quiet)
+                    {
+                        Logger.LogAs(icpu, LogLevel.Error, "Failed to restart translation block.");
+                    }
                     return false;
                 }
             }
