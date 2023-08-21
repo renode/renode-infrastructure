@@ -126,7 +126,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(0, out enabled, name: "UE")
                 .WithTaggedFlag("UESM", 1)
                 .WithFlag(2, out receiveEnabled, name: "RE")
-                .WithFlag(3, out transmitEnabled, name: "TE")
+                .WithFlag(3, out transmitEnabled, writeCallback: (_, value) =>
+                {
+                    if(!value)
+                    {
+                        transferComplete.Value = true;
+                    }
+                }, name: "TE")
                 .WithTaggedFlag("IDLEIE", 4)
                 .WithFlag(5, out readRegisterNotEmptyInterruptEnabled, name: "RXNEIE")
                 .WithFlag(6, out transferCompleteInterruptEnabled, name: "TCIE")
