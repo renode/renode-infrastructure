@@ -209,7 +209,6 @@ namespace Antmicro.Renode.UI
                 // forcing vcursor is necessary, because calibrating will never end if the window is not shown
                 shell = ShellProvider.GenerateShell(monitor, forceVCursor: options.HideMonitor);
                 shell.Terminal = new NavigableTerminalEmulator(io, options.HideMonitor);
-                monitor.Quitted += shell.Stop;
 
                 if(terminal != null)
                 {
@@ -227,6 +226,7 @@ namespace Antmicro.Renode.UI
                     }
                 }
             }
+            monitor.Quitted += shell.Stop;
             shell.Quitted += Emulator.Exit;
 
             monitor.Interaction = shell.Writer;
