@@ -18,6 +18,8 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             {
                 case ControllerMode.SoftwareTriggeredInstructionGenerator:
                     return STIGCommand.CreateSTIGCommand(controller, payload);
+                case ControllerMode.AutoCommand:
+                    return AutoCommand.CreateAutoCommand(controller, payload);
                 default:
                     controller.Log(LogLevel.Warning, "Unable to create the command, unknown controller mode 0x{0:x}", controller.Mode);
                     return null;

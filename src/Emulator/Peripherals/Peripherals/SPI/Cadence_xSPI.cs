@@ -27,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             commandIgnored = new CadenceInterruptFlag();
             dmaTriggered = new CadenceInterruptFlag(() => (currentCommand as IDMACommand)?.DMATriggered ?? false);
             dmaError = new CadenceInterruptFlag(() => (currentCommand as IDMACommand)?.DMAError ?? false);
+            autoCommandCompleted = new CadenceInterruptFlag(() => (currentCommand as PIOCommand)?.Completed ?? false);
+            autoCommandCompleted.InterruptEnable(true);
 
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             auxiliaryRegisters = new DoubleWordRegisterCollection(this);
@@ -259,6 +261,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     )
                     .WithReservedBits(0, 7)
                 },
+                {(long)Registers.AutoCommandStatus, new DoubleWordRegister(this)
+                    .WithReservedBits(1, 31)
+                    .WithFlag(0, FieldMode.Read, name: "autoCommandControllerBusy",
+                        valueProviderCallback: _ => !controllerIdle.Status
+                    )
+                },
                 {(long)Registers.InterruptStatus, new DoubleWordRegister(this)
                     .WithReservedBits(24, 8)
                     .WithFlag(23, name: "commandCompletedInterruptStatus",
@@ -316,6 +324,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(0, 16)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
+                {(long)Registers.AutoCommandCompleteInterruptStatus, new DoubleWordRegister(this)
+                    .WithReservedBits(1, 31)
+                    .WithFlag(0, name: "autoCommandCompletedInterruptStatus",
+                        valueProviderCallback: _ => autoCommandCompleted.StickyStatus,
+                        writeCallback: (_, val) => autoCommandCompleted.ClearSticky(val)
+                    )
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
+                },
                 {(long)Registers.ControllerConfig, new DoubleWordRegister(this)
                     .WithReservedBits(7, 25)
                     .WithEnumField(5, 2, out controllerMode, name: "controllerMode",
@@ -363,7 +379,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private bool IsModeSupported(ControllerMode mode)
         {
-            return mode == ControllerMode.SoftwareTriggeredInstructionGenerator;
+            return mode == ControllerMode.SoftwareTriggeredInstructionGenerator || mode == ControllerMode.AutoCommand;
         }
 
         private void UpdateSticky()
@@ -395,6 +411,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             yield return commandIgnored;
             yield return dmaTriggered;
             yield return dmaError;
+            yield return autoCommandCompleted;
         }
 
         private Command currentCommand;
@@ -412,6 +429,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly CadenceInterruptFlag commandIgnored;
         private readonly CadenceInterruptFlag dmaTriggered;
         private readonly CadenceInterruptFlag dmaError;
+        private readonly CadenceInterruptFlag autoCommandCompleted;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly DoubleWordRegisterCollection auxiliaryRegisters;

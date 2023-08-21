@@ -187,6 +187,8 @@
     <Compile Include="Peripherals\SPI\Cadence_xSPICommands\CommandPayload.cs" />
     <Compile Include="Peripherals\SPI\Cadence_xSPICommands\Command.cs" />
     <Compile Include="Peripherals\SPI\Cadence_xSPICommands\IDMACommand.cs" />
+    <Compile Include="Peripherals\SPI\Cadence_xSPICommands\AutoCommand.cs" />
+    <Compile Include="Peripherals\SPI\Cadence_xSPICommands\PIOCommands.cs" />
     <Compile Include="Peripherals\SPI\Cadence_xSPICommands\STIGCommands.cs" />
     <Compile Include="Peripherals\SPI\HiFive_SPI.cs" />
     <Compile Include="Peripherals\IRQControllers\MSCM.cs" />
