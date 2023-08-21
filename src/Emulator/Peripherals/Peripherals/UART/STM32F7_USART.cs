@@ -234,9 +234,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("ORECF", 3)
                 .WithTaggedFlag("IDLECF", 4)
                 .WithReservedBits(5, 1)
-                // this flag is clear on read or write 1
-                .WithFlag(6, name: "TCCF",
-                    readCallback: (_, __) => { transferComplete.Value = false; },
+                // the TC flag is cleared by writing 1 to TCCF
+                .WithFlag(6, FieldMode.Read | FieldMode.WriteOneToClear, name: "TCCF",
                     writeCallback: (_, val) => { if(val) transferComplete.Value = false; })
                 .WithTaggedFlag("CTSCF", 9)
                 .WithReservedBits(10, 1)
