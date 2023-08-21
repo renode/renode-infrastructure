@@ -80,14 +80,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             RegistersCollection.DefineRegister((long)Registers.PrivilegeConfiguration);
 
             // For now there is no way we can tell where did the signal came from - no way to implement this
+            // However, we define the fields as value fields to handle software that expects to be able to
+            // read back the last written value.
             for(var registerIndex = 0; registerIndex < InterruptSelectionRegistersCount; registerIndex++)
             {
                 var firstOffset = registerIndex * 4;
                 RegistersCollection.DefineRegister((long)Registers.ExternalInterruptSelection1 + firstOffset)
-                    .WithTag($"EXTI{firstOffset + 0}", 0, 8)
-                    .WithTag($"EXTI{firstOffset + 1}", 8, 8)
-                    .WithTag($"EXTI{firstOffset + 2}", 16, 8)
-                    .WithTag($"EXTI{firstOffset + 3}", 24, 8);
+                    .WithValueField(0, 8, name: $"EXTI{firstOffset + 0}")
+                    .WithValueField(8, 8, name: $"EXTI{firstOffset + 1}")
+                    .WithValueField(16, 8, name: $"EXTI{firstOffset + 2}")
+                    .WithValueField(24, 8, name: $"EXTI{firstOffset + 3}");
             }
 
             RegistersCollection.DefineRegister((long)Registers.Lock);
