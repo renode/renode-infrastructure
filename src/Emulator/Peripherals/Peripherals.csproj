@@ -184,6 +184,10 @@
     <Compile Include="Peripherals\Network\SynopsysEthernetMAC.cs" />
     <Compile Include="Peripherals\SPI\XilinxQSPI.cs" />
     <Compile Include="Peripherals\SPI\Cadence_xSPI.cs" />
+    <Compile Include="Peripherals\SPI\Cadence_xSPICommands\CommandPayload.cs" />
+    <Compile Include="Peripherals\SPI\Cadence_xSPICommands\Command.cs" />
+    <Compile Include="Peripherals\SPI\Cadence_xSPICommands\IDMACommand.cs" />
+    <Compile Include="Peripherals\SPI\Cadence_xSPICommands\STIGCommands.cs" />
     <Compile Include="Peripherals\SPI\HiFive_SPI.cs" />
     <Compile Include="Peripherals\IRQControllers\MSCM.cs" />
     <Compile Include="Peripherals\Miscellaneous\SEMA4.cs" />

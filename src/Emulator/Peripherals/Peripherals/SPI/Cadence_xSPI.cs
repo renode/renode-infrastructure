@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -22,10 +23,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         public Cadence_xSPI(Machine machine) : base(machine)
         {
             controllerIdle = new CadenceInterruptFlag(() => currentCommand == null || currentCommand.Completed || currentCommand.Failed);
-            commandCompleted = new CadenceInterruptFlag(() => currentCommand?.Completed ?? false);
+            commandCompleted = new CadenceInterruptFlag(() => (currentCommand as STIGCommand)?.Completed ?? false);
             commandIgnored = new CadenceInterruptFlag();
-            dmaTriggered = new CadenceInterruptFlag(() => (currentCommand as DMATransactionCommand)?.DMATriggered ?? false);
-            dmaError = new CadenceInterruptFlag(() => (currentCommand as DMATransactionCommand)?.DMAError ?? false);
+            dmaTriggered = new CadenceInterruptFlag(() => (currentCommand as IDMACommand)?.DMATriggered ?? false);
+            dmaError = new CadenceInterruptFlag(() => (currentCommand as IDMACommand)?.DMAError ?? false);
 
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
             auxiliaryRegisters = new DoubleWordRegisterCollection(this);
@@ -56,45 +57,39 @@ namespace Antmicro.Renode.Peripherals.SPI
         // There is no information in the Linux driver about handling offset for a DMA access
         // The comment above applies to all Write*ToDMA and Read*FromDMA methods
         [ConnectionRegion("dma")]
-        public void WriteByteToDMA(long offset, byte value)
+        public void WriteByteUsingDMA(long offset, byte value)
         {
-            TransmitByDMA(TransmissionDirection.Write, new byte[] { value });
+            WriteUsingDMA(new byte[] { value });
         }
 
         [ConnectionRegion("dma")]
-        public void WriteWordToDMA(long offset, ushort value)
+        public void WriteWordUsingDMA(long offset, ushort value)
         {
-            TransmitByDMA(TransmissionDirection.Write, BitHelper.GetBytesFromValue(value, 2));
+            WriteUsingDMA(BitHelper.GetBytesFromValue(value, 2));
         }
 
         [ConnectionRegion("dma")]
-        public void WriteDoubleWordToDMA(long offset, uint value)
+        public void WriteDoubleWordUsingDMA(long offset, uint value)
         {
-            TransmitByDMA(TransmissionDirection.Write, BitHelper.GetBytesFromValue(value, 4));
+            WriteUsingDMA(BitHelper.GetBytesFromValue(value, 4));
         }
 
         [ConnectionRegion("dma")]
-        public byte ReadByteFromDMA(long offset)
+        public byte ReadByteUsingDMA(long offset)
         {
-            var data = new byte[1];
-            TransmitByDMA(TransmissionDirection.Read, data);
-            return data[0];
+            return ReadUsingDMA(1).First();
         }
 
         [ConnectionRegion("dma")]
-        public ushort ReadWordFromDMA(long offset)
+        public ushort ReadWordUsingDMA(long offset)
         {
-            var data = new byte[2];
-            TransmitByDMA(TransmissionDirection.Read, data);
-            return BitHelper.ToUInt16(data, 0, false);
+            return BitHelper.ToUInt16(ReadUsingDMA(2).ToArray(), 0, false);
         }
 
         [ConnectionRegion("dma")]
-        public uint ReadDoubleWordFromDMA(long offset)
+        public uint ReadDoubleWordUsingDMA(long offset)
         {
-            var data = new byte[4];
-            TransmitByDMA(TransmissionDirection.Read, data);
-            return BitHelper.ToUInt32(data, 0, data.Length, false);
+            return BitHelper.ToUInt32(ReadUsingDMA(4).ToArray(), 0, 4, false);
         }
 
         public override void Reset()
@@ -107,42 +102,74 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
+        public ControllerMode Mode => controllerMode.Value;
+
         public long Size => 0x1040;
 
         public GPIO IRQ { get; } = new GPIO();
 
+        internal bool TryGetPeripheral(int address, out ISPIPeripheral peripheral)
+        {
+            return TryGetByAddress(address, out peripheral);
+        }
+
         private void TriggerCommand()
         {
             var previousCommand = currentCommand;
-            currentCommand = Command.CreateCommand(this, commandPayload);
+            currentCommand = Command.CreateCommand(this, new CommandPayload(commandPayload));
             this.Log(LogLevel.Debug, "New command: {0}", currentCommand);
 
             if(currentCommand == null)
             {
                 commandIgnored.SetSticky(true);
             }
-            else if(previousCommand != null && previousCommand.ChipSelect != currentCommand.ChipSelect && !previousCommand.TransmissionCompleted)
+            else if(previousCommand != null && previousCommand.ChipSelect != currentCommand.ChipSelect && !previousCommand.TransmissionFinished)
             {
                 this.Log(LogLevel.Error, "Triggering command with chip select different than previous one, when the previous transaction isn't finished.");
-                previousCommand.ForceFinish();
+                previousCommand.FinishTransmission();
             }
 
             currentCommand?.Transmit();
-            UpdateDMASticky();
+            UpdateSticky();
             UpdateInterrupts();
         }
 
-        private void TransmitByDMA(TransmissionDirection direction, byte[] data)
+        private void WriteUsingDMA(IReadOnlyList<byte> data)
         {
-            var command = currentCommand as DMATransactionCommand;
+            if(TryGetDMACommand(TransmissionDirection.Write, out var command))
+            {
+                command.WriteData(data);
+                UpdateSticky();
+                UpdateInterrupts();
+            }
+        }
+
+        private IEnumerable<byte> ReadUsingDMA(int length)
+        {
+            if(TryGetDMACommand(TransmissionDirection.Read, out var command))
+            {
+                var data = command.ReadData(length);
+                UpdateSticky();
+                UpdateInterrupts();
+                return data;
+            }
+            return new byte[length];
+        }
+
+        private bool TryGetDMACommand(TransmissionDirection accessDirection, out IDMACommand command)
+        {
+            command = currentCommand as IDMACommand;
             if(command == null)
             {
                 this.Log(LogLevel.Warning, "Trying to access data using DMA, when the latest command isn't a DMA transaction command.");
-                return;
+                return false;
             }
-            command.TransmitData(direction, data);
-            UpdateDMASticky();
-            UpdateInterrupts();
+            if(command.DMADirection != accessDirection)
+            {
+                this.Log(LogLevel.Warning, "Trying to access data using DMA with the wrong direction ({0}), expected {1}.", accessDirection, command.DMADirection);
+                return false;
+            }
+            return true;
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -156,9 +183,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     )
                     .WithWriteCallback((_, __) =>
                         {
-                            if(controllerMode.Value != ControllerMode.DMA)
+                            if(!IsModeSupported(controllerMode.Value))
                             {
-                                this.Log(LogLevel.Warning, "Can't trigger command in {0} mode, different than DMA.", controllerMode.Value);
+                                this.Log(LogLevel.Warning, "Command trigger ignored, the mode {0} isn't supported.", controllerMode.Value);
                                 return;
                             }
                             // Based on the Linux driver all command registers are written in sequence
@@ -294,23 +321,23 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithEnumField(5, 2, out controllerMode, name: "controllerMode",
                         changeCallback: (_, val) =>
                         {
-                            if(val != ControllerMode.DMA)
+                            if(!IsModeSupported(val))
                             {
-                                this.Log(LogLevel.Error, "Only the DMA mode is currently supported.");
+                                this.Log(LogLevel.Warning, "Setting the controller mode to one which isn't supported ({0}).", val);
                             }
                         }
                     )
                     .WithReservedBits(0, 5)
                 },
-                {(long)Registers.DmaSize, new DoubleWordRegister(this)
+                {(long)Registers.DMASize, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, name: "DMASize",
-                        valueProviderCallback: _ => (currentCommand as DMATransactionCommand)?.DataCount ?? 0
+                        valueProviderCallback: _ => (currentCommand as IDMACommand)?.DMADataCount ?? 0
                     )
                 },
-                {(long)Registers.DmaStatus, new DoubleWordRegister(this)
+                {(long)Registers.DMAStatus, new DoubleWordRegister(this)
                     .WithReservedBits(9, 23)
                     .WithEnumField<DoubleWordRegister, TransmissionDirection>(8, 1, FieldMode.Read, name: "DMADirection",
-                        valueProviderCallback: _ => (currentCommand as DMATransactionCommand)?.Direction ?? default(TransmissionDirection)
+                        valueProviderCallback: _ => (currentCommand as IDMACommand)?.DMADirection ?? default(TransmissionDirection)
                     )
                     .WithReservedBits(0, 8)
                 },
@@ -334,13 +361,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             };
         }
 
-        private void UpdateDMASticky()
+        private bool IsModeSupported(ControllerMode mode)
         {
-            controllerIdle.UpdateStickyStatus();
-            commandCompleted.UpdateStickyStatus();
-            commandIgnored.UpdateStickyStatus();
-            dmaTriggered.UpdateStickyStatus();
-            dmaError.UpdateStickyStatus();
+            return mode == ControllerMode.SoftwareTriggeredInstructionGenerator;
+        }
+
+        private void UpdateSticky()
+        {
+            foreach(var flag in GetInterruptFlags())
+            {
+                flag.UpdateStickyStatus();
+            }
         }
 
         private void ResetSticky()
@@ -388,247 +419,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const uint HardwareMagicNumber = 0x6522;
         private const uint HardwareRevision = 0x0;
 
-        private abstract class Command
-        {
-            static public Command CreateCommand(Cadence_xSPI controller, uint[] payload)
-            {
-                var commandType = DecodeCommandType(payload);
-                switch(commandType)
-                {
-                    case CommandType.SendOperation:
-                    case CommandType.SendOperationWithoutFinish:
-                        return new SendOperationCommand(controller, payload);
-                    case CommandType.DataSequence:
-                        return new DMATransactionCommand(controller, payload);
-                    default:
-                        controller.Log(LogLevel.Warning, "Unable to create a command, unknown command type 0x{0:x}", commandType);
-                        return null;
-                }
-            }
-
-            public Command(Cadence_xSPI controller, uint[] payload)
-            {
-                this.controller = controller;
-                Type = DecodeCommandType(payload);
-                ChipSelect = BitHelper.GetValue(payload[4], 12, 3);
-            }
-
-            public void ForceFinish()
-            {
-                if(TryGetPeripheral(out var peripheral))
-                {
-                    peripheral.FinishTransmission();
-                }
-            }
-
-            public override string ToString()
-            {
-                return $"{this.GetType().Name}: type = {Type}, chipSelect = {ChipSelect}, invalidCommand = {InvalidCommandError}";
-            }
-
-            public abstract void Transmit();
-
-            public CommandType Type { get; }
-            public uint ChipSelect { get; }
-            public bool TransmissionCompleted { get; protected set; }
-            public bool Completed { get; protected set; }
-            public bool CRCError { get; protected set; }
-            public bool BusError { get; protected set; }
-            public bool InvalidCommandError { get; protected set; }
-            public bool Failed => CRCError || BusError || InvalidCommandError;
-
-            protected bool TryGetPeripheral(out ISPIPeripheral peripheral)
-            {
-                return controller.TryGetByAddress((int)ChipSelect, out peripheral);
-            }
-
-            protected ISPIPeripheral GetPeripheral()
-            {
-                if(!TryGetPeripheral(out var peripheral))
-                {
-                    controller.Log(LogLevel.Warning, "There is no peripheral with selected address 0x{0:x}.", ChipSelect);
-                }
-                return peripheral;
-            }
-
-            protected readonly Cadence_xSPI controller;
-
-            static private CommandType DecodeCommandType(uint[] payload)
-            {
-                return (CommandType)BitHelper.GetValue(payload[1], 0, 7);
-            }
-
-            public enum CommandType
-            {
-                SendOperation = 0x0,
-                SendOperationWithoutFinish = 0x1,
-                DataSequence = 0x7f
-            }
-        }
-
-        private class SendOperationCommand : Command
-        {
-            public SendOperationCommand(Cadence_xSPI controller, uint[] payload)
-               : base(controller, payload)
-            {
-                OperationCode = BitHelper.GetValue(payload[3], 16, 8);
-                AddressRaw = (((ulong)payload[3] & 0xff) << 40) | ((ulong)payload[2] << 8) | (payload[1] >> 24);
-                AddressValidBytes = (int)BitHelper.GetValue(payload[3], 28, 3);
-                AddressBytes = BitHelper.GetBytesFromValue(AddressRaw, AddressValidBytes);
-            }
-
-            public override void Transmit()
-            {
-                var peripheral = GetPeripheral();
-                if(peripheral != null)
-                {
-                    peripheral.Transmit((byte)OperationCode);
-                    foreach(var addressByte in AddressBytes)
-                    {
-                        peripheral.Transmit(addressByte);
-                    }
-                }
-
-                Completed = true;
-                if(Type != CommandType.SendOperationWithoutFinish)
-                {
-                    TransmissionCompleted = true;
-                    peripheral.FinishTransmission();
-                }
-            }
-
-            public override string ToString()
-            {
-                return $"{base.ToString()}, operationCode = 0x{OperationCode:x}, addressBytes = [{string.Join(", ", AddressBytes.Select(x => $"0x{x:x2}"))}]";
-            }
-
-            public uint OperationCode { get; }
-            public ulong AddressRaw { get; }
-            public int AddressValidBytes { get; }
-            public byte[] AddressBytes { get; }
-        }
-
-        private class DMATransactionCommand : Command
-        {
-            public DMATransactionCommand(Cadence_xSPI controller, uint[] payload)
-               : base(controller, payload)
-            {
-                Direction = BitHelper.GetValue(payload[4], 4, 1) == 0 ? TransmissionDirection.Read : TransmissionDirection.Write;
-                DoneTransmission = (payload[0] & 1) == 1;
-                DataCount = (payload[3] & 0xffff) | payload[2] >> 16;
-                var dummyBitsCount = BitHelper.GetValue(payload[3], 20, 6);
-                if(dummyBitsCount % 8 != 0)
-                {
-                    controller.Log(LogLevel.Warning, "The dummy bit count equals to {0} isn't multiplication of 8. DMA transaction command doesn't support that.");
-                }
-                DummyBytesCount = dummyBitsCount / 8;
-            }
-
-            public override void Transmit()
-            {
-                var peripheral = GetPeripheral();
-                if(peripheral != null)
-                {
-                    DMATriggered = true;
-                }
-                else
-                {
-                    DMAError = true;
-                    FinishTransmission(peripheral);
-                }
-            }
-
-            public void TransmitData(TransmissionDirection accessDirection, byte[] data)
-            {
-                if(accessDirection != Direction)
-                {
-                    controller.Log(LogLevel.Warning, "DMA transaction command direction ({0}) is invalid for a given DMA access.", Direction);
-                    return;
-                }
-
-                var peripheral = GetPeripheral();
-                if(peripheral == null)
-                {
-                    dummyTransmitted = DummyBytesCount;
-                    dataTransmitted += (uint)data.Length;
-                    if(dataTransmitted >= DataCount)
-                    {
-                        dataTransmitted = DataCount;
-                        FinishTransmission(peripheral);
-                    }
-                    return;
-                }
-
-                for(; dummyTransmitted < DummyBytesCount; dummyTransmitted++)
-                {
-                    peripheral.Transmit(default(Byte));
-                }
-
-                var transferCount = (uint)data.Length;
-                if(dataTransmitted + transferCount > DataCount)
-                {
-                    controller.Log(LogLevel.Warning, "Trying to access more data than command data count.");
-                    transferCount = DataCount - dataTransmitted;
-                }
-
-                for(int i = 0; i < transferCount; i++)
-                {
-                    switch(Direction)
-                    {
-                        case TransmissionDirection.Read:
-                            data[i] = peripheral.Transmit(default(Byte));
-                            break;
-                        case TransmissionDirection.Write:
-                            peripheral.Transmit(data[i]);
-                            break;
-                        default:
-                            controller.Log(LogLevel.Warning, "DMA transaction command direction {0} is unknown.", Direction);
-                            break;
-                    }
-                }
-                dataTransmitted += transferCount;
-
-                if(dataTransmitted == DataCount)
-                {
-                    FinishTransmission(peripheral);
-                }
-            }
-
-            public override string ToString()
-            {
-                return $"{base.ToString()}, dataCount = {DataCount}, dummyBytesCount = {DummyBytesCount}, doneTransmission = {DoneTransmission}";
-            }
-
-            public TransmissionDirection Direction { get; }
-            public bool DoneTransmission { get; }
-            public uint DataCount { get; }
-            public uint DummyBytesCount { get; }
-            public bool DMATriggered { get; private set; }
-            public bool DMAError { get; private set; }
-
-            private void FinishTransmission(ISPIPeripheral peripheral)
-            {
-                Completed = true;
-                if(DoneTransmission)
-                {
-                    peripheral?.FinishTransmission();
-                    TransmissionCompleted = true;
-                }
-            }
-
-            private uint dummyTransmitted;
-            private uint dataTransmitted;
-        }
-
-        private enum ControllerMode
+        public enum ControllerMode
         {
             Direct = 0x0,
-            DMA = 0x1,
+            SoftwareTriggeredInstructionGenerator = 0x1,
             // Based on the Linux driver there is no mode for the 0x2 value
             AutoCommand = 0x3
         }
 
-        private enum TransmissionDirection
+        public enum TransmissionDirection
         {
             Read = 0x0,
             Write = 0x1
@@ -642,19 +441,20 @@ namespace Antmicro.Renode.Peripherals.SPI
             Command3 = 0x000c,
             Command4 = 0x0010,
             Command5 = 0x0014,
+            CommandStatusPointer = 0x0040,
             CommandStatus = 0x0044,
             ControllerStatus = 0x0100,
+            AutoCommandStatus = 0x0104,
             InterruptStatus = 0x0110,
             InterruptEnable = 0x0114,
-            AutoTransactionCompleteInterruptStatus = 0x0120,
-            AutoTransactionErrorInterurptStatus = 0x0130,
-            AutoTransactionErrorInterruptEnable = 0x0134,
+            AutoCommandCompleteInterruptStatus = 0x0120,
+            AutoCommandErrorInterruptStatus = 0x0130,
+            AutoCommandErrorInterruptEnable = 0x0134,
             ControllerConfig = 0x0230,
-            DmaSize = 0x0240,
-            DmaStatus = 0x0244,
+            DMASize = 0x0240,
+            DMAStatus = 0x0244,
             ControllerVersion = 0x0f00,
             ControllerFeatures = 0x0f04,
-            AutoTransactionStatus = 0x0104,
             DLLControl = 0x1034,
         }
 
