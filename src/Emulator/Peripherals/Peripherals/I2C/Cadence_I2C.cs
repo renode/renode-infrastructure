@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,6 +23,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         public Cadence_I2C(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
+            rxFifo = new Queue<byte>();
+            txFifo = new Queue<byte>(FifoCapacity);
+            txTransfer = new Queue<byte>();
+            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
+
             txFifoOverflow = new CadenceInterruptFlag();
             rxFifoOverflow = new CadenceInterruptFlag();
             rxFifoUnderflow = new CadenceInterruptFlag();
@@ -30,11 +35,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             transferNotAcknowledged = new CadenceInterruptFlag();
             transferNewData = new CadenceInterruptFlag();
             transferCompleted = new CadenceInterruptFlag();
-
-            rxFifo = new Queue<byte>();
-            txFifo = new Queue<byte>(FifoCapacity);
-            txTransfer = new Queue<byte>();
-            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -60,7 +60,10 @@ namespace Antmicro.Renode.Peripherals.I2C
             ClearFifos();
             txTransfer.Clear();
 
-            ClearSticky();
+            foreach(var flag in GetInterruptFlags())
+            {
+                flag.Reset();
+            }
             UpdateInterrupts();
         }
 
@@ -70,14 +73,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             txFifo.Clear();
             // transferSize relates to the FIFOs counts, so it's also reseted
             transferSize.Value = 0;
-        }
-
-        private void ClearSticky()
-        {
-            foreach(var flag in GetInterruptFlags())
-            {
-                flag.ClearSticky(true);
-            }
         }
 
         private void UpdateInterrupts()
