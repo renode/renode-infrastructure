@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,9 +10,18 @@ namespace Antmicro.Renode.Peripherals.Helpers
 {
     public class CadenceInterruptFlag
     {
-        public CadenceInterruptFlag(Func<bool> statusProvider = null)
+        public CadenceInterruptFlag(Func<bool> statusProvider = null, bool initialMask = false)
         {
             this.statusProvider = statusProvider ?? (() => false);
+            this.initialMask = initialMask;
+            Reset();
+        }
+
+        public void Reset()
+        {
+            InterruptMask = initialMask;
+            StickyStatus = false;
+            UpdateStickyStatus();
         }
 
         public void UpdateStickyStatus()
@@ -55,5 +64,6 @@ namespace Antmicro.Renode.Peripherals.Helpers
         }
 
         private readonly Func<bool> statusProvider;
+        private readonly bool initialMask;
     }
 }
