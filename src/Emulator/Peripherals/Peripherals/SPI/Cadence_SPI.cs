@@ -24,6 +24,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.txFifoCapacity = txFifoCapacity;
             this.rxFifoCapacity = rxFifoCapacity;
 
+            txFifo = new Queue<byte>(this.txFifoCapacity);
+            rxFifo = new Queue<byte>(this.rxFifoCapacity);
+            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
+
             IRQ = new GPIO();
             txFifoFull = new CadenceInterruptFlag(() => txFifo.Count >= this.txFifoCapacity);
             txFifoNotFull = new CadenceInterruptFlag(() => txFifo.Count < (int)txFifoThreshold.Value);
@@ -32,10 +36,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             rxFifoFull = new CadenceInterruptFlag(() => rxFifo.Count >= this.rxFifoCapacity);
             rxFifoNotEmpty = new CadenceInterruptFlag(() => rxFifo.Count >= (int)rxFifoThreshold.Value);
             modeFail = new CadenceInterruptFlag(() => false); // Not handled
-
-            txFifo = new Queue<byte>(this.txFifoCapacity);
-            rxFifo = new Queue<byte>(this.rxFifoCapacity);
-            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -54,7 +54,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             txFifo.Clear();
             rxFifo.Clear();
             selectedPeripheral = null;
-            ResetSticky();
+
+            foreach(var flag in GetInterruptFlags())
+            {
+                flag.Reset();
+            }
             UpdateInterrupts();
         }
 
@@ -209,15 +213,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 flag.UpdateStickyStatus();
             }
-        }
-
-        private void ResetSticky()
-        {
-            foreach(var flag in GetInterruptFlags())
-            {
-                flag.ClearSticky(true);
-            }
-            UpdateSticky();
         }
 
         private void UpdateInterrupts()
