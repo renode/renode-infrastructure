@@ -22,16 +22,15 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public Cadence_xSPI(Machine machine) : base(machine)
         {
+            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
+            auxiliaryRegisters = new DoubleWordRegisterCollection(this);
+
             controllerIdle = new CadenceInterruptFlag(() => currentCommand == null || currentCommand.Completed || currentCommand.Failed);
             commandCompleted = new CadenceInterruptFlag(() => (currentCommand as STIGCommand)?.Completed ?? false);
             commandIgnored = new CadenceInterruptFlag();
             dmaTriggered = new CadenceInterruptFlag(() => (currentCommand as IDMACommand)?.DMATriggered ?? false);
             dmaError = new CadenceInterruptFlag(() => (currentCommand as IDMACommand)?.DMAError ?? false);
-            autoCommandCompleted = new CadenceInterruptFlag(() => (currentCommand as PIOCommand)?.Completed ?? false);
-            autoCommandCompleted.InterruptEnable(true);
-
-            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
-            auxiliaryRegisters = new DoubleWordRegisterCollection(this);
+            autoCommandCompleted = new CadenceInterruptFlag(() => (currentCommand as PIOCommand)?.Completed ?? false, initialMask: true);
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -100,7 +99,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             Array.Clear(commandPayload, 0, commandPayload.Length);
             auxiliaryRegisters.Reset();
             currentCommand = null;
-            ResetSticky();
+            foreach(var flag in GetAllInterruptFlags())
+            {
+                flag.Reset();
+            }
             UpdateInterrupts();
         }
 
@@ -384,34 +386,34 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void UpdateSticky()
         {
-            foreach(var flag in GetInterruptFlags())
+            foreach(var flag in GetAllInterruptFlags())
             {
-                flag.UpdateStickyStatus();
-            }
-        }
-
-        private void ResetSticky()
-        {
-            foreach(var flag in GetInterruptFlags())
-            {
-                flag.ClearSticky(true);
                 flag.UpdateStickyStatus();
             }
         }
 
         private void UpdateInterrupts()
         {
-            IRQ.Set(interruptsEnabled.Value && GetInterruptFlags().Any(x => x.InterruptStatus));
+            IRQ.Set(interruptsEnabled.Value && GetAllInterruptFlags().Any(x => x.InterruptStatus));
         }
 
-        private IEnumerable<CadenceInterruptFlag> GetInterruptFlags()
+        private IEnumerable<CadenceInterruptFlag> GetControllerInterruptFlags()
         {
             yield return controllerIdle;
             yield return commandCompleted;
             yield return commandIgnored;
             yield return dmaTriggered;
             yield return dmaError;
+        }
+
+        private IEnumerable<CadenceInterruptFlag> GetAutoCommandInterruptFlags()
+        {
             yield return autoCommandCompleted;
+        }
+
+        private IEnumerable<CadenceInterruptFlag> GetAllInterruptFlags()
+        {
+            return GetControllerInterruptFlags().Concat(GetAutoCommandInterruptFlags());
         }
 
         private Command currentCommand;
