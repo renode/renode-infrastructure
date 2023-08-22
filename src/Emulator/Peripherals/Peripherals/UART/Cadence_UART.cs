@@ -22,6 +22,8 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             this.clearInterruptStatusOnRead = clearInterruptStatusOnRead;
             this.clockFrequency = clockFrequency;
+            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
+
             IRQ = new GPIO();
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
             rxFifoFull = new CadenceInterruptFlag(() => Count >= FifoCapacity);
@@ -29,7 +31,6 @@ namespace Antmicro.Renode.Peripherals.UART
             rxFifoEmpty = new CadenceInterruptFlag(() => Count == 0);
             rxTimeoutError = new CadenceInterruptFlag(() => false);
             txFifoEmpty = new CadenceInterruptFlag(() => true);
-            registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -70,7 +71,10 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             registers.Reset();
-            ResetSticky();
+            foreach(var flag in GetInterruptFlags())
+            {
+                flag.Reset();
+            }
             UpdateInterrupts();
         }
 
@@ -135,15 +139,6 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 flag.UpdateStickyStatus();
             }
-        }
-
-        private void ResetSticky()
-        {
-            foreach(CadenceInterruptFlag flag in GetInterruptFlags())
-            {
-                flag.ClearSticky(true);
-            }
-            UpdateSticky();
         }
 
         private void UpdateInterrupts()
