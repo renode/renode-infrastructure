@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public MSCM(Machine machine)
         {
-            sysbus = machine.SystemBus;
+            sysbus = machine.GetSystemBus(this);
             routingTable = new bool[NumberOfInterrupts * 2];
             destinations = new Destination[NumberOfInterrupts * 2];
             interProcessorInterrupts = new GPIO[8];
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private Destination[] destinations;
         private readonly bool[] routingTable;
         private readonly GPIO[] interProcessorInterrupts;
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
 
 
         private const int NumberOfInterrupts = 112;

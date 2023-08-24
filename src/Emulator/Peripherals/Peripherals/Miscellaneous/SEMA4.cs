@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public SEMA4(Machine machine)
         {
-            sysbus = machine.SystemBus;
+            sysbus = machine.GetSystemBus(this);
             irqLock = new object();
             locks = new Lock[NumberOfEntries];
             for(var i = 0; i < locks.Length; i++)
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private ushort interruptEnabled1;
         private ushort notifyCPU0;
         private ushort notifyCPU1;
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
         private readonly object irqLock;
         private const int NumberOfEntries = 16;
         private static readonly int[] VybridErrataIndices = { 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3 };

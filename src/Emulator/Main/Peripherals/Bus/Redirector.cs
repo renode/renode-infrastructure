@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public Redirector(Machine machine, ulong redirectedAddress)
         {
             this.redirectedAddress = redirectedAddress;
-            systemBus = machine.SystemBus;
+            systemBus = machine.GetSystemBus(this);
         }
 
         public byte ReadByte(long offset)
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         private readonly ulong redirectedAddress;
-        private readonly SystemBus systemBus;
+        private readonly IBusController systemBus;
     }
 }
 

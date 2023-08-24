@@ -398,9 +398,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             this.Log(LogLevel.Error, "Trying to enable RTC, but it was not passed int the RCC constructor, ignoring");
                             return;
                         }
-                        machine.SystemBus.SetPeripheralEnabled(rtc, value);
+                        machine.GetSystemBus(this).SetPeripheralEnabled(rtc, value);
                     },
-                    valueProviderCallback: _ => rtc == null ? false : machine.SystemBus.IsPeripheralEnabled(rtc), name: "RTCEN")
+                    valueProviderCallback: _ => rtc == null ? false : machine.GetSystemBus(this).IsPeripheralEnabled(rtc), name: "RTCEN")
                 .WithFlag(19, writeCallback: (_, value) =>
                     {
                         if(value)
@@ -411,7 +411,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                 return;
                             }
                             rtc.Reset();
-                            machine.SystemBus.DisablePeripheral(rtc);
+                            machine.GetSystemBus(this).DisablePeripheral(rtc);
                         }
                     }, name: "RTCRST")
                 .WithReservedBits(20, 3)

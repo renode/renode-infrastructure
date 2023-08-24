@@ -417,13 +417,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class RTCTimer : LimitTimer
         {
-            public RTCTimer(Machine machine, IPeripheral owner, DateTime baseDateTime, Action alarmAction) : base(machine.ClockSource, Frequency, owner, "RTC",
+            public RTCTimer(Machine machine, IBusPeripheral owner, DateTime baseDateTime, Action alarmAction) : base(machine.ClockSource, Frequency, owner, "RTC",
                 limit: ulong.MaxValue, direction: Direction.Ascending, enabled: true, workMode: WorkMode.Periodic, eventEnabled: true)
             {
                 this.alarmAction = alarmAction;
                 baseDateTimeTicks = baseDateTime.Ticks;
                 this.owner = owner;
-                systemBus = machine.SystemBus;
+                systemBus = machine.GetSystemBus(owner);
 
                 // It can be reached only after setting up the alarm.
                 LimitReached += AlarmHandler;
@@ -600,7 +600,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             private readonly Action alarmAction;
             private readonly long baseDateTimeTicks;
             private readonly IPeripheral owner;
-            private readonly SystemBus systemBus;
+            private readonly IBusController systemBus;
 
             private ulong alarmIntervalTicks;
             private ulong nextAlarmValue;

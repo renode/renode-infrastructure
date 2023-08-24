@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public BitAccess(Machine machine, ulong address, BitAccessMode mode)
         {
-            sysbus = machine.SystemBus;
+            sysbus = machine.GetSystemBus(this);
             this.address = address;
             switch(mode)
             {
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             sysbus.WriteDoubleWord(address + (ulong)offset, (uint)operation(sysbus.ReadDoubleWord(address + (ulong)offset), mask));
         }
 
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
         private readonly ulong address;
         private readonly Func<uint, uint, uint> operation;
 

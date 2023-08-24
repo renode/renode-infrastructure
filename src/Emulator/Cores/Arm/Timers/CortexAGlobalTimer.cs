@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public CortexAGlobalTimer(Machine machine, long frequency) : base(machine.ClockSource, frequency)
         {
-            sysbus = machine.SystemBus;
+            sysbus = machine.GetSystemBus(this);
             IRQ = new GPIO();
             controlRegister = new DoubleWordRegister(this);
             controlRegister.DefineFlagField(0, name: "Timer enable", writeCallback: (oldValue, newValue) => Enabled = newValue,
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IFlagRegisterField comparatorEnabled;
         private readonly IFlagRegisterField interruptEnabled;
         private readonly IFlagRegisterField autoIncrementEnabled;
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
 
         private enum Registers
         {

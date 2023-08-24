@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public BitBanding(Machine machine, ulong peripheralBase)
         {
-            sysbus = machine.SystemBus;
+            sysbus = machine.GetSystemBus(this);
             this.peripheralBase = peripheralBase;
         }
 
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return retval;
         }
 
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
         private readonly ulong peripheralBase;
     }
 }
