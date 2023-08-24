@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -29,5 +30,12 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, ICPU context = null);
         IPeripheral WhatPeripheralIsAt(ulong address, ICPU context = null);
+
+        bool TryGetCurrentCPU(out ICPU cpu);
+
+        void SetPeripheralEnabled(IPeripheral peripheral, bool value);
+        bool IsPeripheralEnabled(IPeripheral peripheral);
+
+        IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral, ICPU context = null);
     }
 }

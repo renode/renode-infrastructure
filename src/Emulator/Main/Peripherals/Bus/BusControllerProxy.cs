@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
+using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -111,6 +112,26 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             ValidateOperation(ref address, BusAccessPrivileges.Other, context);
             return ParentController.WhatPeripheralIsAt(address, context);
+        }
+
+        public virtual bool TryGetCurrentCPU(out ICPU cpu)
+        {
+            return ParentController.TryGetCurrentCPU(out cpu);
+        }
+
+        public virtual void SetPeripheralEnabled(IPeripheral peripheral, bool value)
+        {
+            ParentController.SetPeripheralEnabled(peripheral, value);
+        }
+
+        public virtual bool IsPeripheralEnabled(IPeripheral peripheral)
+        {
+            return ParentController.IsPeripheralEnabled(peripheral);
+        }
+
+        public virtual IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral, ICPU context = null)
+        {
+            return ParentController.GetRegistrationPoints(peripheral, context);
         }
 
         public virtual IBusController ParentController { get; protected set; }
