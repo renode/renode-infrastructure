@@ -290,7 +290,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 cpuId = cachedCpuId.Value;
                 return true;
             }
-            
+
             lock(cpuSync)
             {
                 foreach(var entry in cpuById)
