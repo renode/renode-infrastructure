@@ -75,10 +75,10 @@ namespace Antmicro.Renode.Peripherals.Python
             Execute(code);
         }
 
-        public void SetSysbusAndMachine(SystemBus bus)
+        public void SetSysbusAndMachine(Machine mach, IBusController bus)
         {
             Scope.SetVariable("sysbus", bus);
-            Scope.SetVariable(Machine.MachineKeyword, bus.Machine);
+            Scope.SetVariable(Machine.MachineKeyword, mach);
         }
 
         [Transient]
