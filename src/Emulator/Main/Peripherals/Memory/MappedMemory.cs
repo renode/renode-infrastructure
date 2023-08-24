@@ -29,7 +29,7 @@ using System.Reflection;
 namespace Antmicro.Renode.Peripherals.Memory
 {
     [Icon("memory")]
-    public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral
+    public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral
     {
 #if PLATFORM_WINDOWS
         static MappedMemory()
@@ -195,6 +195,47 @@ namespace Antmicro.Renode.Peripherals.Memory
             {
                 Marshal.WriteInt32(new IntPtr(segment.ToInt64() + localOffset), unchecked((int)value));
                 InvalidateMemoryFragment(offset, sizeof(uint));
+            }
+        }
+
+        public ulong ReadQuadWord(long offset)
+        {
+            if(offset < 0 || offset > size - sizeof(ulong))
+            {
+                this.Log(LogLevel.Error, "Tried to read quad word at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, size);
+                return 0;
+            }
+
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
+            if(localOffset > SegmentSize  - sizeof(ulong)) // cross segment read
+            {
+                var bytes = ReadBytes(offset, sizeof(ulong));
+                return BitConverter.ToUInt64(bytes, 0);
+            }
+            return unchecked((ulong)Marshal.ReadInt64(new IntPtr(segment.ToInt64() + localOffset)));
+        }
+
+        public void WriteQuadWord(long offset, ulong value)
+        {
+            if(offset < 0 || offset > size - sizeof(ulong))
+            {
+                this.Log(LogLevel.Error, "Tried to write quad word value 0x{0:X} to offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", value, offset, size);
+                return;
+            }
+
+            var localOffset = GetLocalOffset(offset);
+            var segment = segments[GetSegmentNo(offset)];
+            if(localOffset > SegmentSize - sizeof(ulong)) // cross segment write
+            {
+                var bytes = BitConverter.GetBytes(value);
+                WriteBytes(offset, bytes);
+                // the memory will be invalidated by `WriteBytes`
+            }
+            else
+            {
+                Marshal.WriteInt64(new IntPtr(segment.ToInt64() + localOffset), unchecked((long)value));
+                InvalidateMemoryFragment(offset, sizeof(ulong));
             }
         }
 
