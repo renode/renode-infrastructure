@@ -130,13 +130,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             IRQ.Set(pending);
         }
 
-        private void TryDeassert()
+        private void DeassertCS(Func<int, bool> predicate)
         {
             foreach(var indexPeripheral in ActivePeripherals)
             {
                 var index = indexPeripheral.Item1;
                 var peripheral = indexPeripheral.Item2;
-                if(shouldDeassert[index])
+
+                if(predicate(index))
                 {
                     peripheral.FinishTransmission();
                     shouldDeassert[index] = false;
@@ -146,6 +147,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void StartTransaction()
         {
+            // deassert CS of active peripherals that are not enabled in the slave select register anymore
+            DeassertCS(x => !BitHelper.IsBitSet((uint)slaveSelect.Value, (byte)x));
+
             foreach(var value in txQueue)
             {
                 Transmit(value);
@@ -170,7 +174,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             transactionInProgress = false;
             interruptTransactionFinishedPending.Value = true;
 
-            TryDeassert();
+            // deassert CS of active peripherals marked in the should deassert array
+            DeassertCS(x => shouldDeassert[x]);
             UpdateInterrupts();
         }
 
@@ -296,7 +301,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 },
                 {(long)Registers.MasterSignalsControl, new DoubleWordRegister(this)
                     .WithFlag(0, out var spiEnabled, name: "CTRL0.spi_en",
-                        writeCallback: (_, value) => { if(!value) TryDeassert(); })
+                        // deassert all CS lines when disabling the controller
+                        writeCallback: (_, value) => { if(!value) DeassertCS(x => true); })
                     .WithFlag(1, name: "CTRL0.mm_en",
                         changeCallback: (_, value) =>
                         {
