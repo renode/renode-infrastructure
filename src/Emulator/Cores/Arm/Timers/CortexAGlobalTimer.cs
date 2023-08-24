@@ -68,14 +68,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Compare = (Compare & 0x00000000FFFFFFFF) | ((ulong)value << 32);
                 break;
             case Registers.AutoIncrement:
-                int currentCpuId;
-                if(sysbus.TryGetCurrentCPUId(out currentCpuId))
+                if(sysbus.TryGetCurrentCPU(out var currentCpu))
                 {
-                    if(lastCpuId.HasValue && lastCpuId.Value != currentCpuId)
+                    if(lastCpuId.HasValue && lastCpuId.Value != currentCpu.Id)
                     {
                         this.Log(LogLevel.Error, "Current version of Cortex A global timer does not support multicore operation.");
                     }
-                    lastCpuId = currentCpuId;
+                    lastCpuId = (int)currentCpu.Id;
                 }
                 autoIncrementValue = value;
                 break;

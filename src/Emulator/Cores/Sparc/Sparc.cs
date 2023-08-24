@@ -152,10 +152,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if( ConnectedMIC != null )
             {
-                int cpuid;
-                if(machine.SystemBus.TryGetCurrentCPUId(out cpuid))
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                 {
-                    return ConnectedMIC.CPUGetInterrupt(cpuid);
+                    return ConnectedMIC.CPUGetInterrupt((int)cpu.Id);
                 }
                 else
                 {
@@ -170,10 +169,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if( ConnectedMIC != null )
             {
-                int cpuid;
-                if(machine.SystemBus.TryGetCurrentCPUId(out cpuid))
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                 {
-                    ConnectedMIC.CPUAckInterrupt(cpuid, interruptNumber);
+                    ConnectedMIC.CPUAckInterrupt((int)cpu.Id, interruptNumber);
                 }
                 else
                 {

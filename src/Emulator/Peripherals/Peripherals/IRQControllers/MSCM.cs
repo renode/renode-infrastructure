@@ -151,9 +151,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             var interruptId = (int)value & 3;
             var targetListField = (value >> 24) & 3;
-            var cpuTargetList = (int)((value >> 16) & 3);
-            int askingCpuId;
-            if(!sysbus.TryGetCurrentCPUId(out askingCpuId))
+            var cpuTargetList = (uint)((value >> 16) & 3);
+            if(!sysbus.TryGetCurrentCPU(out var askingCpu))
             {
                 this.Log(LogLevel.Warning, "Generate interrupt write by not a CPU - ignoring.");
                 return;
@@ -161,10 +160,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch(targetListField)
             {
             case 1:
-                cpuTargetList = 2 - askingCpuId;
+                cpuTargetList = 2 - askingCpu.Id;
                 break;
             case 2:
-                cpuTargetList = askingCpuId + 1;
+                cpuTargetList = askingCpu.Id + 1;
                 break;
             }
             lock(interProcessorInterrupts)

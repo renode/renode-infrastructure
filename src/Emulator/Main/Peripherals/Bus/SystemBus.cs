@@ -277,7 +277,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return id;
         }
 
-        public bool TryGetCurrentCPUId(out int cpuId)
+        private bool TryGetCurrentCPUId(out int cpuId)
         {
             /*
              * Because getting cpu id can possibly be a heavy operation, we cache the

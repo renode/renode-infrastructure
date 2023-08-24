@@ -188,14 +188,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return;
                     // ignore such writes
                 }
-                int id;
-                if(!sema.sysbus.TryGetCurrentCPUId(out id))
+                if(!sema.sysbus.TryGetCurrentCPU(out var cpu))
                 {
                     sema.Log(LogLevel.Warning, "Gate {0}: write outside the CPU thread.", number);
                     return;
                     // write that did not come from CPU
                 }
-                id++;
+                int id = (int)cpu.Id + 1;
                 lock(this)
                 {
                     if(value == 0)
