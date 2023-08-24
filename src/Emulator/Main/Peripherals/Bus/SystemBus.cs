@@ -894,28 +894,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void DisablePeripheral(IPeripheral peripheral)
-        {
-            if(peripheral != null)
-            {
-                lockedPeripherals.Add(peripheral);
-            }
-        }
-
-        public void EnablePeripheral(IPeripheral peripheral)
-        {
-            lockedPeripherals.Remove(peripheral);
-        }
-
         public void SetPeripheralEnabled(IPeripheral peripheral, bool enabled)
         {
             if(enabled)
             {
-                EnablePeripheral(peripheral);
+                lockedPeripherals.Remove(peripheral);
             }
             else
             {
-                DisablePeripheral(peripheral);
+                if(peripheral != null)
+                {
+                    lockedPeripherals.Add(peripheral);
+                }
             }
         }
 

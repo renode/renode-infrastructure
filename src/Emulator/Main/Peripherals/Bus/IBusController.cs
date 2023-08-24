@@ -38,4 +38,17 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral, ICPU context = null);
     }
+
+    public static class BusControllerExtensions
+    {
+        public static void EnablePeripheral(this IBusController bus, IPeripheral peripheral)
+        {
+            bus.SetPeripheralEnabled(peripheral, true);
+        }
+
+        public static void DisablePeripheral(this IBusController bus, IPeripheral peripheral)
+        {
+            bus.SetPeripheralEnabled(peripheral, false);
+        }
+    }
 }
