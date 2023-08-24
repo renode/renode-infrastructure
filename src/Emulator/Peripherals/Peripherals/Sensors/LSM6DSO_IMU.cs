@@ -528,6 +528,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void TryIncrementAddress()
         {
+            // automatic rounding when accessing FIFO registers
+            if(address == (byte)Registers.FifoOutputZHigh)
+            {
+                address = (byte)Registers.FifoOutputTag;
+                return;
+            }
+
             if(!addressAutoIncrement.Value)
             {
                 return;
