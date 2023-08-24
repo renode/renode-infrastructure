@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.SPI;
@@ -21,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public MAX86171(Machine machine)
         {
             this.machine = machine;
+            this.resdFrequencyMultiplier = 1;
 
             Interrupt1 = new GPIO();
             Interrupt2 = new GPIO();
@@ -61,16 +63,30 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {
                     staleConfiguration = true;
                 };
-                feederThread = resdStream.StartSampleFeedThread(this, CalculateCurrentFrequency(), (sample, ts, status) =>
+
+                // The initial value is set to `RESDFrequencyMultiplier - 1`
+                // in order to load a sample at the first callback instead of waiting for `RESDFrequencyMultiplier` of them
+                var count = RESDFrequencyMultiplier - 1;
+                feederThread = resdStream.StartSampleFeedThread(this, RESDFrequencyMultiplier * CalculateCurrentFrequency(), (sample, ts, status) =>
                 {
-                    if(status == RESDStreamStatus.OK)
-                    {
-                        circularFifo.EnqueueFrame(new AFESampleFrame(sample.Frame.Select(v => new AFESample(v)).ToArray()));
-                    }
-                    else if(status == RESDStreamStatus.AfterStream)
+                    count++;
+
+                    if(status == RESDStreamStatus.AfterStream)
                     {
                         feedingSamplesFromFile = false;
                         TryFeedDefaultSample();
+                        return;
+                    }
+
+                    if(count != RESDFrequencyMultiplier)
+                    {
+                        return;
+                    }
+                    count = 0;
+
+                    if(status == RESDStreamStatus.OK)
+                    {
+                        circularFifo.EnqueueFrame(new AFESampleFrame(sample.Frame.Select(v => new AFESample(v)).ToArray()));
                     }
                     else
                     {
@@ -251,6 +267,29 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 measurement9ADCValue = value;
                 UpdateDefaultMeasurements();
+            }
+        }
+
+        // This propery allows RESD data to be sampled at N times frequency from the input file,
+        // but still loading them every N'th sample into the FIFO (effectively keeping the initial frequency).
+        // This mechanism may help with synchronization in some specific cases, especially when data from multiple sensors needs to be read precisely.
+        // In general there is no need to change the multiplier from the default value of 1, though.
+        public uint RESDFrequencyMultiplier
+        {
+            get => resdFrequencyMultiplier;
+            set
+            {
+                if(feedingSamplesFromFile)
+                {
+                    throw new RecoverableException("Cannot change the RESD frequency multiplier while samples are being fed from a file");
+                }
+
+                if(value < 1)
+                {
+                    throw new RecoverableException($"Attempted to set RESD frequency multiplier to {value}. The multiplier has to be greater or equal to 1");
+                }
+
+                resdFrequencyMultiplier = value;
             }
         }
 
@@ -836,6 +875,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private int measurement7ADCValue;
         private int measurement8ADCValue;
         private int measurement9ADCValue;
+
+        private uint resdFrequencyMultiplier;
 
         private AFESampleFrame defaultMeasurements;
         private IManagedThread feederThread;
