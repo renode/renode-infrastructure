@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public ushort ReadWord(long offset)
         {
-            if(offset < 0 || offset >= size)
+            if(offset < 0 || offset > size - sizeof(ushort))
             {
                 this.Log(LogLevel.Error, "Tried to read word at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, size);
                 return 0;
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
-            if(localOffset == SegmentSize - 1) // cross segment read
+            if(localOffset > SegmentSize - sizeof(ushort)) // cross segment read
             {
                 var bytes = new byte[2];
                 bytes[0] = Marshal.ReadByte(new IntPtr(segment.ToInt64() + localOffset));
@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteWord(long offset, ushort value)
         {
-            if(offset < 0 || offset >= size)
+            if(offset < 0 || offset > size - sizeof(ushort))
             {
                 this.Log(LogLevel.Error, "Tried to write word value 0x{0:X} to offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", value, offset, size);
                 return;
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
-            if(localOffset == SegmentSize - 1) // cross segment write
+            if(localOffset > SegmentSize - sizeof(ushort)) // cross segment write
             {
                 var bytes = BitConverter.GetBytes(value);
                 Marshal.WriteByte(new IntPtr(segment.ToInt64() + localOffset), bytes[0]);
@@ -153,13 +153,13 @@ namespace Antmicro.Renode.Peripherals.Memory
             else
             {
                 Marshal.WriteInt16(new IntPtr(segment.ToInt64() + localOffset), unchecked((short)value));
-                InvalidateMemoryFragment(offset, 2);
+                InvalidateMemoryFragment(offset, sizeof(ushort));
             }
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            if(offset < 0 || offset >= size)
+            if(offset < 0 || offset > size - sizeof(uint))
             {
                 this.Log(LogLevel.Error, "Tried to read double word at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, size);
                 return 0;
@@ -167,9 +167,9 @@ namespace Antmicro.Renode.Peripherals.Memory
 
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
-            if(localOffset >= SegmentSize - 3) // cross segment read
+            if(localOffset > SegmentSize - sizeof(uint)) // cross segment read
             {
-                var bytes = ReadBytes(offset, 4);
+                var bytes = ReadBytes(offset, sizeof(uint));
                 return BitConverter.ToUInt32(bytes, 0);
             }
             return unchecked((uint)Marshal.ReadInt32(new IntPtr(segment.ToInt64() + localOffset)));
@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            if(offset < 0 || offset >= size)
+            if(offset < 0 || offset > size - sizeof(uint))
             {
                 this.Log(LogLevel.Error, "Tried to write double word value 0x{0:X} to offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", value, offset, size);
                 return;
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
             var localOffset = GetLocalOffset(offset);
             var segment = segments[GetSegmentNo(offset)];
-            if(localOffset >= SegmentSize - 3) // cross segment write
+            if(localOffset > SegmentSize - sizeof(uint)) // cross segment write
             {
                 var bytes = BitConverter.GetBytes(value);
                 WriteBytes(offset, bytes);
@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             else
             {
                 Marshal.WriteInt32(new IntPtr(segment.ToInt64() + localOffset), unchecked((int)value));
-                InvalidateMemoryFragment(offset, 4);
+                InvalidateMemoryFragment(offset, sizeof(uint));
             }
         }
 
