@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected bool TryReadAndDisassembleInstruction(ulong pc, uint flags, out DisassemblyResult result)
         {
             // here we read only 4-bytes as it should cover most cases
-            var key = AttachedCPU.Bus.ReadDoubleWord(pc);
+            var key = AttachedCPU.Bus.ReadDoubleWord(pc, context: AttachedCPU);
             if(!disassemblyCache.TryGetValue(key, out result))
             {
                 // here we are prepared for longer opcodes

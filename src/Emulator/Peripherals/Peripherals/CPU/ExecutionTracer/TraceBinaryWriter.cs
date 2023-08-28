@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool TryReadAndDecodeInstruction(ulong pc, uint flags, out byte[] opcode)
         {
             // here we read only 4-bytes as it should cover most cases
-            var key = AttachedCPU.Bus.ReadDoubleWord(pc);
+            var key = AttachedCPU.Bus.ReadDoubleWord(pc, context: AttachedCPU);
             if(!cache.TryGetValue(key, out opcode))
             {
                 // here we are prepared for longer opcodes
