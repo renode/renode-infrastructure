@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public GPIO CPU0 { get; private set; }
 
         public GPIO CPU1 { get; private set; }
-            
+
         public byte ReadByte(long offset)
         {
             if(offset < 16)
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             var effectiveNotifyCPU0 = notifyCPU0 & interruptEnabled0;
             var effectiveNotifyCPU1 = notifyCPU1 & interruptEnabled1;
-            this.NoisyLog("Effective interrupt state: CPU0: 0x{0:X} (0x{1:X} & 0x{2:X}), CPU1: 0x{3:X} (0x{4:X} & 0x{5:X}).", effectiveNotifyCPU0, notifyCPU0, 
+            this.NoisyLog("Effective interrupt state: CPU0: 0x{0:X} (0x{1:X} & 0x{2:X}), CPU1: 0x{3:X} (0x{4:X} & 0x{5:X}).", effectiveNotifyCPU0, notifyCPU0,
                 interruptEnabled0, effectiveNotifyCPU1, notifyCPU1, interruptEnabled1);
             CPU0.Set(effectiveNotifyCPU0 != 0);
             CPU1.Set(effectiveNotifyCPU1 != 0);
@@ -271,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             public bool InterruptActive { get; private set; }
-                
+
             private uint currentValue;
             private int cpuWaitingForLock;
             private readonly SEMA4 sema;
