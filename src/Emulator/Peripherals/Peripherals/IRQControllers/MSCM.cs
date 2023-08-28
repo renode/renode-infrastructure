@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 interProcessorInterrupts[i] = new GPIO();
             }
 
-            Connections = new IGPIORedirector(232, HandleIRQConnect, HandleIRQDisconnect); 
+            Connections = new IGPIORedirector(232, HandleIRQConnect, HandleIRQDisconnect);
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return 0x1000;
             }
         }
-            
+
         private void HandleIRQConnect(int sourceNumber, IGPIOReceiver destination, int destinationNumber)
         {
             if(sourceNumber > 223)
@@ -208,11 +208,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
         }
+
         private Destination[] destinations;
         private readonly bool[] routingTable;
         private readonly GPIO[] interProcessorInterrupts;
         private readonly IBusController sysbus;
-
 
         private const int NumberOfInterrupts = 112;
         private const int RoutingControlStart = 0x880;
