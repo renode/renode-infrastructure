@@ -378,7 +378,7 @@ namespace Antmicro.Renode.Core
                 machineExchanged(oldMachine, machine);
             }
 
-            oldMachine.Dispose();
+            (oldMachine as IDisposable)?.Dispose();
         }
 
         public void RemoveMachine(string name)
@@ -392,7 +392,7 @@ namespace Antmicro.Renode.Core
         public void RemoveMachine(Machine machine)
         {
             machs.Remove(machine);
-            machine.Dispose();
+            (machine as IDisposable)?.Dispose();
         }
 
         public bool TryRemoveMachine(string name)
@@ -401,7 +401,7 @@ namespace Antmicro.Renode.Core
             var result = machs.TryRemove(name, out machine);
             if(result)
             {
-                machine.Dispose();
+                (machine as IDisposable)?.Dispose();
             }
             return result;
         }
@@ -567,7 +567,7 @@ namespace Antmicro.Renode.Core
                 // require access to peripherals when operating
                 ExternalsManager.Clear();
                 BackendManager.Dispose();
-                Array.ForEach(machs.Rights, x => x.Dispose());
+                Array.ForEach(machs.Rights, x => (x as IDisposable)?.Dispose());
                 MasterTimeSource.Dispose();
                 machs.Dispose();
                 HostMachine.Dispose();
