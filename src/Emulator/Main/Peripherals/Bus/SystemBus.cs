@@ -39,8 +39,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     /// </summary>
     [Icon("sysbus")]
     [ControllerMask(typeof(IPeripheral))]
-    public sealed partial class SystemBus : IBusController, IPeripheralContainer<IBusPeripheral, BusRangeRegistration>, IPeripheralRegister<IKnownSize, BusPointRegistration>,
-        IPeripheralRegister<ICPU, CPURegistrationPoint>, IDisposable, IPeripheral, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, ICanLoadFiles
+    public sealed partial class SystemBus : IBusController, IDisposable
     {
         internal SystemBus(Machine machine)
         {

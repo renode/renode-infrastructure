@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
@@ -55,7 +56,7 @@ namespace Antmicro.Renode.UnitTests
             machine.SystemBus.Register(gpioReceiverMock, new BusRangeRegistration(0x10, 0x10));
 
             //act
-            machine.SystemBus.Unregister(gpioReceiverMock);
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
 
             //assert
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
@@ -81,7 +82,7 @@ namespace Antmicro.Renode.UnitTests
             machine.SystemBus.Register(gpioReceiverMock3, new BusRangeRegistration(0x30, 0x10));
 
             //act
-            machine.SystemBus.Unregister(gpioReceiverMock);
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
 
             //assert
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
@@ -103,7 +104,7 @@ namespace Antmicro.Renode.UnitTests
             gpioSender.Irq.Connect(gpioReceiverMock, 1);
 
             //act
-            machine.SystemBus.Unregister(gpioReceiverMock);
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
             //assert
             Assert.IsFalse(gpioSender.Irq.IsConnected);
         }
@@ -131,7 +132,7 @@ namespace Antmicro.Renode.UnitTests
             A.Connections[1].Connect(C, 2);
 
             //act
-            machine.SystemBus.Unregister(B);
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(B);
             var AConnections = A.Connections;
             var BConnections = B.Connections;
 
@@ -165,7 +166,7 @@ namespace Antmicro.Renode.UnitTests
             A.Connections[0].Connect(C, 1);
             Assert.True(A.Connections[0].Endpoints.Count(x => x.Receiver == C && x.Number == 1) == 1);
 
-            machine.SystemBus.Unregister(C);
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(C);
 
             Assert.True(A.Connections[0].Endpoints.Count == 1);
             Assert.True(A.Connections[0].Endpoints[0].Receiver == B);
