@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 IRQ.Set();
             }
         }
-            
+
         private int? lastCpuId;
         private uint autoIncrementValue;
         private readonly DoubleWordRegister controlRegister;
