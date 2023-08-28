@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             Machine machine;
             switch(action.Value)
             {
-            case "add":       
+            case "add":
                 machine = new Machine();
                 EmulationManager.Instance.CurrentEmulation.AddMachine(machine, name.Value);
                 if(GetCurrentMachine() == null)
@@ -84,8 +84,8 @@ namespace Antmicro.Renode.UserInterface.Commands
                 if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(name.Value, out machineToSet))                  
                 {                  
                     writer.WriteError(string.Format("Machine {0} not found.", name.Value));
-                    break;                 
-                } 
+                    break;
+                }
                 SetCurrentMachine(machineToSet);
                 break;
             case "rem":
