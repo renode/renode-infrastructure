@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Hooks
 {
     public class WatchpointHookPythonEngine : PythonEngine
     {
-        public WatchpointHookPythonEngine(SystemBus sysbus, string script)
+        public WatchpointHookPythonEngine(IBusController sysbus, string script)
         {
             this.sysbus = sysbus;
             this.script = script;
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Hooks
         private CompiledCode code;
 
         private readonly string script;
-        private readonly SystemBus sysbus;
+        private readonly IBusController sysbus;
     }
 }
 

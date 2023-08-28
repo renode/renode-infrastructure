@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -315,7 +315,7 @@ namespace Antmicro.Renode.UnitTests
             });
         }
 
-        private void CreateMachineAndExecute(Action<SystemBus> action)
+        private void CreateMachineAndExecute(Action<IBusController> action)
         {
             using(var machine = new Machine())
             {
@@ -328,7 +328,7 @@ namespace Antmicro.Renode.UnitTests
             }
         }
 
-        private SystemBus sysbus;
+        private IBusController sysbus;
         private byte[] bytes;
         private const int PauseResumeRetries = 5;
 

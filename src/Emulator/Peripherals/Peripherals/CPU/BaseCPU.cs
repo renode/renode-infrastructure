@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         
         public Endianess Endianness { get; }
         
-        public SystemBus Bus => machine.SystemBus;
+        public IBusController Bus => machine.SystemBus;
         
         public string Model { get; }
 

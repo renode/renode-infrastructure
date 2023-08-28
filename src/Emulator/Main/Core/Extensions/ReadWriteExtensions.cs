@@ -604,7 +604,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
             strBldr.Append(".");
 
-            peripheral.Log(LogLevel.Warning, peripheral.GetMachine().SystemBus.DecorateWithCPUNameAndPC(strBldr.ToString()));
+            peripheral.Log(LogLevel.Warning, peripheral.GetMachine().GetSystemBus(peripheral).DecorateWithCPUNameAndPC(strBldr.ToString()));
         }
     }
 }

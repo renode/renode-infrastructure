@@ -13,9 +13,9 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Hooks
 {
-    public static class SystemBusHooksExtensions
+    public static class IBusControllerHooksExtensions
     {
-        public static void SetHookAfterPeripheralRead(this SystemBus sysbus, IBusPeripheral peripheral, string pythonScript, Range? subrange = null)
+        public static void SetHookAfterPeripheralRead(this IBusController sysbus, IBusPeripheral peripheral, string pythonScript, Range? subrange = null)
         {
             var runner = new BusPeripheralsHooksPythonEngine(sysbus, peripheral, pythonScript);
             sysbus.SetHookAfterPeripheralRead<ulong>(peripheral, runner.ReadHook, subrange);
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Hooks
             sysbus.SetHookAfterPeripheralRead<byte>(peripheral, (readValue, offset) => (byte)runner.ReadHook(readValue, offset), subrange);
         }
 
-        public static void SetHookBeforePeripheralWrite(this SystemBus sysbus, IBusPeripheral peripheral, string pythonScript, Range? subrange = null)
+        public static void SetHookBeforePeripheralWrite(this IBusController sysbus, IBusPeripheral peripheral, string pythonScript, Range? subrange = null)
         {
             var runner = new BusPeripheralsHooksPythonEngine(sysbus, peripheral, null, pythonScript);
             sysbus.SetHookBeforePeripheralWrite<ulong>(peripheral, runner.WriteHook, subrange);
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Hooks
             sysbus.SetHookBeforePeripheralWrite<byte>(peripheral, (valueToWrite, offset) => (byte)runner.WriteHook(valueToWrite, offset), subrange);
         }
 
-        public static void AddWatchpointHook(this SystemBus sysbus, ulong address, SysbusAccessWidth width, Access access, string pythonScript)
+        public static void AddWatchpointHook(this IBusController sysbus, ulong address, SysbusAccessWidth width, Access access, string pythonScript)
         {
             var engine = new WatchpointHookPythonEngine(sysbus, pythonScript);
             sysbus.AddWatchpointHook(address, width, access, engine.Hook);

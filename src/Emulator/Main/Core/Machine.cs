@@ -1107,7 +1107,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public SystemBus SystemBus { get; private set; }
+        public IBusController SystemBus { get; private set; }
 
         public IPeripheralsGroupsManager PeripheralsGroups { get; private set; }
 

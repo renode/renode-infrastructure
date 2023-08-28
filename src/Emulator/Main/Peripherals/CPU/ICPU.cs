@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         string Model { get; }
         RegisterValue PC { get; set; }
         bool IsHalted { get; set; }
-        SystemBus Bus { get; }
+        IBusController Bus { get; }
         /// <summary>
         /// Returns true if the thread calling this property is possesed
         /// by the object.

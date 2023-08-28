@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Debug
 
         private readonly Dictionary<string, TraceInfo> registeredCallbacks = new Dictionary<string, TraceInfo>();
         private readonly Arm cpu;
-        private readonly SystemBus bus;
+        private readonly IBusController bus;
 
         private const int SizeOfStringBatch = 100;
 

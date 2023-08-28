@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Utilities
             new DevicesConfig(text, machine);
         }
 
-        public static void LoadAtags(this SystemBus bus, String bootargs, uint memorySize, uint beginAddress)
+        public static void LoadAtags(this IBusController bus, String bootargs, uint memorySize, uint beginAddress)
         {
             var atags = Misc.CreateAtags(bootargs, memorySize);
             //Fill ATAGs
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Utilities
 
         }
 
-        public static void LoadFdt(this SystemBus sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "")
+        public static void LoadFdt(this IBusController sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "")
         {
             if(!File.Exists(file))
             {

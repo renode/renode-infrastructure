@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Hooks
 {
     public class BusPeripheralsHooksPythonEngine : PythonEngine
     {
-        public BusPeripheralsHooksPythonEngine(SystemBus sysbus, IBusPeripheral peripheral, string readScript = null, string writeScript = null)
+        public BusPeripheralsHooksPythonEngine(IBusController sysbus, IBusPeripheral peripheral, string readScript = null, string writeScript = null)
         {
             Peripheral = peripheral;
             Sysbus = sysbus;
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Hooks
         private readonly string ReadScript;
         private readonly string WriteScript;
         private readonly IBusPeripheral Peripheral;
-        private readonly SystemBus Sysbus;
+        private readonly IBusController Sysbus;
     }
 }
 

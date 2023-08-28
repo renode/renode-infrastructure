@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public static class RedirectorExtensions
     {
-        public static void Redirect(this SystemBus sysbus, ulong from, ulong to, ulong size)
+        public static void Redirect(this IBusController sysbus, ulong from, ulong to, ulong size)
         {
             var redirector = new Redirector(sysbus.Machine, to);
             var rangePoint = new BusRangeRegistration(from.By(size));

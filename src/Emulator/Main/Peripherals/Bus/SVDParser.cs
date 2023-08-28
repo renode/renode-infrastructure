@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public sealed class SVDParser
     {
-        public SVDParser(string path, SystemBus parent)
+        public SVDParser(string path, IBusController parent)
         {
             currentSystemBus = parent;
             XDocument document;
@@ -399,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private SystemBus currentSystemBus;
+        private IBusController currentSystemBus;
         private Dictionary<ulong, SVDRegister> registerDictionary;
 
         private class SVDDevice
