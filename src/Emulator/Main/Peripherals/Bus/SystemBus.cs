@@ -491,11 +491,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             WriteBytes(zeroBlock, range.StartAddress + blocksNo * (ulong)zeroBlock.Length, (int)range.Size % zeroBlock.Length, context: context);
         }
 
-        public void ZeroRange(long from, long size, ICPU context = null)
-        {
-            ZeroRange(from.By(size), context);
-        }
-
         public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false)
         {
             using (var elf = GetELFFromFile(fileName))

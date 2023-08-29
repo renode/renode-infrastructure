@@ -50,5 +50,10 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             bus.SetPeripheralEnabled(peripheral, false);
         }
+
+        public static void ZeroRange(this IBusController bus, long from, long size, ICPU context = null)
+        {
+            bus.ZeroRange(from.By(size), context);
+        }
     }
 }
