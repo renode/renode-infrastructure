@@ -26,7 +26,9 @@ namespace Antmicro.Renode.UnitTests
         [SetUp]
         public void SetUp()
         {
-            sysbus = new Machine().SystemBus;
+            var machine = new Machine();
+            EmulationManager.Instance.CurrentEmulation.AddMachine(machine);
+            sysbus = machine.SystemBus;
             bytes = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 };
         }
 
