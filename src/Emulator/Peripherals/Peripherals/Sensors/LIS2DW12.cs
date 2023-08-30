@@ -12,6 +12,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -43,6 +44,36 @@ namespace Antmicro.Renode.Peripherals.Sensors
             UpdateInterrupts();
         }
 
+        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
+        {
+            resdStream = this.CreateRESDStream<AccelerationSample>(path, channel);
+            feederThread?.Stop();
+            feederThread = resdStream.StartSampleFeedThread(this,
+                (uint)SampleRate,
+                (sample, ts, status) =>
+                {
+                    switch(status)
+                    {
+                        case RESDStreamStatus.BeforeStream:
+                            FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ);
+                            break;
+                        case RESDStreamStatus.AfterStream:
+                            feederThread?.Stop();
+                            feederThread = null;
+                            break;
+                        case RESDStreamStatus.OK:
+                            FeedAccelerationSample(
+                                (decimal)sample.AccelerationX / 1e6m,
+                                (decimal)sample.AccelerationY / 1e6m,
+                                (decimal)sample.AccelerationZ / 1e6m
+                            );
+                            break;
+                    }
+                },
+                startTime, sampleOffsetTime
+            );
+        }
+
         public void FeedAccelerationSample(string path)
         {
             accelerationFifo.FeedSamplesFromFile(path);
@@ -59,6 +90,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void Reset()
         {
             RegistersCollection.Reset();
+            feederThread?.Stop();
+            resdStream?.Dispose();
+            resdStream = null;
+            feederThread = null;
             SetScaleDivider();
             state = State.WaitingForRegister;
             regAddress = 0;
@@ -276,6 +311,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                                 break;
                         }
                         this.Log(LogLevel.Noisy, "Sampling rate set to {0}", SampleRate);
+                        if(feederThread != null)
+                        {
+                            feederThread.Frequency = (uint)SampleRate;
+                        }
                     }, name: "Output data rate and mode selection (ODR)");
 
             Registers.Control2.Define(this, 0x4)
@@ -674,6 +713,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private int scaleDivider;
 
         private readonly SensorSamplesFifo<Vector3DSample> accelerationFifo;
+        private IManagedThread feederThread;
+        private RESDStream<AccelerationSample> resdStream;
 
         private decimal temperature;
 
