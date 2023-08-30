@@ -117,6 +117,10 @@ namespace Antmicro.Renode.Time
                     this.Trace();
                     return;
                 }
+                // Make sure the previous instance of the dispatcher thread has finished.
+                // Otherwise it could keep running after we started the new one and cause
+                // a tricky crash down the line.
+                dispatcherThread?.Join();
                 dispatcherThread = new Thread(Dispatcher) { Name = "MasterTimeSource Dispatcher", IsBackground = true };
                 dispatcherThread.Start();
                 this.Trace("Started");
@@ -139,8 +143,8 @@ namespace Antmicro.Renode.Time
                 {
                     this.Trace("Waiting for dispatcher thread");
                     dispatcherThread.Join();
+                    dispatcherThread = null;
                 }
-                dispatcherThread = null;
                 this.Trace("Stopped");
             }
         }
