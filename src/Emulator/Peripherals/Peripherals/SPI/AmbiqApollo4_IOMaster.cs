@@ -282,6 +282,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                     activeTransactionSizeLeft.Value = transactionSize.Value;
 
                     SendTransactionOffset((uint)transactionOffsetCount.Value);
+
+                    if(activeTransactionSizeLeft.Value == 0)
+                    {
+                        // As this is 0-size TX transaction and we already send transaction offset,
+                        // there is nothing more to do.
+                        TryFinishTransaction();
+                        return;
+                    }
+
                     while(activeTransactionSizeLeft.Value > 0)
                     {
                         if(activeTransactionCommand.Value == Commands.Read)
