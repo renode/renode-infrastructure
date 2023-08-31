@@ -1966,7 +1966,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             AddHookAtInterruptBegin(exceptionIndex =>
             {
-                machine.Profiler.Log(new ExceptionEntry(exceptionIndex));
+                machine.Profiler.Log(new ExceptionEntry(machine, exceptionIndex));
             });
 
             SetHookAtMemoryAccess((_, operation, address) =>
@@ -1975,11 +1975,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     case MemoryOperation.MemoryIORead:
                     case MemoryOperation.MemoryIOWrite:
-                        machine.Profiler?.Log(new PeripheralEntry((byte)operation, address));
+                        machine.Profiler?.Log(new PeripheralEntry(machine, (byte)operation, address));
                         break;
                     case MemoryOperation.MemoryRead:
                     case MemoryOperation.MemoryWrite:
-                        machine.Profiler?.Log(new MemoryEntry((byte)operation));
+                        machine.Profiler?.Log(new MemoryEntry(machine, (byte)operation));
                         break;
                 }
             });

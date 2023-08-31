@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Logging.Profiling
 {
@@ -16,10 +17,10 @@ namespace Antmicro.Renode.Logging.Profiling
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public abstract class BaseEntry
     {
-        public BaseEntry(ProfilerEntryType type)
+        public BaseEntry(Machine machine, ProfilerEntryType type)
         {
             RealTime = CustomDateTime.Now.Ticks;
-            VirtualTime = TimeDomainsManager.Instance.VirtualTimeStamp.TimeElapsed.TotalMilliseconds;
+            VirtualTime = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
             Type = type;
         }
 
@@ -33,7 +34,7 @@ namespace Antmicro.Renode.Logging.Profiling
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class InstructionEntry : BaseEntry
     {
-        public InstructionEntry(byte cpuId, ulong executedInstructions) : base(ProfilerEntryType.ExecutedInstructions)
+        public InstructionEntry(Machine machine, byte cpuId, ulong executedInstructions) : base(machine, ProfilerEntryType.ExecutedInstructions)
         {
             CpuId = cpuId;
             ExecutedInstructions = executedInstructions;
@@ -47,7 +48,7 @@ namespace Antmicro.Renode.Logging.Profiling
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class MemoryEntry : BaseEntry
     {
-        public MemoryEntry(byte operation) : base(ProfilerEntryType.MemoryAccess)
+        public MemoryEntry(Machine machine, byte operation) : base(machine, ProfilerEntryType.MemoryAccess)
         {
             Operation = operation;
         }
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Logging.Profiling
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class PeripheralEntry : BaseEntry
     {
-        public PeripheralEntry(byte operation, ulong address) : base(ProfilerEntryType.PeripheralAccess)
+        public PeripheralEntry(Machine machine, byte operation, ulong address) : base(machine, ProfilerEntryType.PeripheralAccess)
         {
             Operation = operation;
             Address = address;
@@ -73,7 +74,7 @@ namespace Antmicro.Renode.Logging.Profiling
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class ExceptionEntry : BaseEntry
     {
-        public ExceptionEntry(ulong index) : base(ProfilerEntryType.Exception)
+        public ExceptionEntry(Machine machine, ulong index) : base(machine, ProfilerEntryType.Exception)
         {
             Index = index;
         }

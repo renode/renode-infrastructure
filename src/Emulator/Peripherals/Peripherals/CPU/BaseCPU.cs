@@ -580,7 +580,7 @@ restart:
 
                     result = ExecuteInstructions(toExecute, out var executed);
                     this.Trace($"CPU executed {executed} instructions and returned {result}");
-                    machine.Profiler?.Log(new InstructionEntry((byte)Id, ExecutedInstructions));
+                    machine.Profiler?.Log(new InstructionEntry(machine, (byte)Id, ExecutedInstructions));
                     ReportProgress(executed);
                 }
                 if(ExecutionFinished(result))
