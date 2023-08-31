@@ -96,6 +96,13 @@ namespace Antmicro.Renode.Logging.Profiling
         public WFIEnd(Machine machine) : base(machine, ProfilerEntryType.WFIEnd) {}
     }
 
+    [Serializable]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public class EndOfSimulation: BaseEntry
+    {
+        public EndOfSimulation(Machine machine) : base(machine, ProfilerEntryType.EndOfSimulation) {}
+    }
+
     public enum ProfilerEntryType : byte
     {
         ExecutedInstructions,
@@ -103,7 +110,8 @@ namespace Antmicro.Renode.Logging.Profiling
         PeripheralAccess,
         Exception,
         WFIStart,
-        WFIEnd
+        WFIEnd,
+        EndOfSimulation
     }
 
     public enum MemoryOperation: byte

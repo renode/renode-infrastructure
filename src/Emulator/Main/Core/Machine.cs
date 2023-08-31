@@ -563,6 +563,7 @@ namespace Antmicro.Renode.Core
                 alreadyDisposed = true;
             }
             Pause();
+            this.Profiler?.Log(new EndOfSimulation(this));
             if(recorder != null)
             {
                 recorder.Dispose();
