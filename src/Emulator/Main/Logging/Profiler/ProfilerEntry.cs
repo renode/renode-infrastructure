@@ -82,12 +82,28 @@ namespace Antmicro.Renode.Logging.Profiling
         private ulong Index { get; }
     }
 
+    [Serializable]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public class WFIStart: BaseEntry
+    {
+        public WFIStart(Machine machine) : base(machine, ProfilerEntryType.WFIStart) {}
+    }
+
+    [Serializable]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public class WFIEnd : BaseEntry
+    {
+        public WFIEnd(Machine machine) : base(machine, ProfilerEntryType.WFIEnd) {}
+    }
+
     public enum ProfilerEntryType : byte
     {
         ExecutedInstructions,
         MemoryAccess,
         PeripheralAccess,
-        Exception
+        Exception,
+        WFIStart,
+        WFIEnd
     }
 
     public enum MemoryOperation: byte

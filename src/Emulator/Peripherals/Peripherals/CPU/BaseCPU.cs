@@ -176,6 +176,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public virtual void Reset()
         {
             isAborted = false;
+            inWfi = false;
             Pause();
         }
         
@@ -579,6 +580,11 @@ restart:
                     this.Trace($"Asking CPU to execute {toExecute} instructions");
 
                     result = ExecuteInstructions(toExecute, out var executed);
+                    if(executed > 0 && inWfi)
+                    {
+                        machine.Profiler?.Log(new WFIEnd(machine));
+                        inWfi = false;
+                    }
                     this.Trace($"CPU executed {executed} instructions and returned {result}");
                     machine.Profiler?.Log(new InstructionEntry(machine, (byte)Id, ExecutedInstructions));
                     ReportProgress(executed);
@@ -604,6 +610,12 @@ restart:
                             {
                                 instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept).ToCPUCycles(PerformanceInMips, out var _);
                             }
+                        } 
+
+                        if(!inWfi)
+                        {
+                            machine.Profiler?.Log(new WFIStart(machine));
+                            inWfi = true;
                         }
 
                         ReportProgress(instructionsToSkip);
@@ -829,6 +841,7 @@ restart:
         private TimeHandle timeHandle;
         
         private bool wasRunningWhenHalted;
+        private bool inWfi;
         private ulong executedResiduum;
         private ulong instructionsLeftThisRound;
         private ulong instructionsExecutedThisRound;
