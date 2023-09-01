@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Testing
                         // Create a new event for holding at the precise moment that the LED state changed
                         timeoutEvent = GetTimeoutEvent((ulong)(timeoutHold * 1000), MakePauseRequest(emulation, pauseEmulation));
                     }
-                    ev.Set();
+                    ev?.Set();
                 }
             });
 
@@ -160,8 +160,12 @@ namespace Antmicro.Renode.Testing
             }
             finally
             {
-                led.StateChanged -= method;
-                ev.Dispose();
+                lock(locker)
+                {
+                    led.StateChanged -= method;
+                    ev.Dispose();
+                    ev = null;
+                }
             }
 
             emulationPausedEvent?.WaitOne();
