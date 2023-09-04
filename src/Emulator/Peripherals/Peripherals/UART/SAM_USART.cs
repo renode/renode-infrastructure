@@ -199,7 +199,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public long Size => 0x4000;
+        public long Size => 0x100;
         public GPIO IRQ { get; private set; }
 
         public override uint BaudRate => 115200;
