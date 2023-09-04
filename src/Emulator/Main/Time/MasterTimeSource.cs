@@ -121,7 +121,10 @@ namespace Antmicro.Renode.Time
                 // Otherwise it could keep running after we started the new one and cause
                 // a tricky crash down the line.
                 dispatcherThread?.Join();
-                dispatcherThread = new Thread(Dispatcher) { Name = "MasterTimeSource Dispatcher", IsBackground = true };
+                // Get a fresh cancellation token for the new thread.
+                dispatcherThreadCanceller?.Dispose();
+                dispatcherThreadCanceller = new CancellationTokenSource();
+                dispatcherThread = new Thread(() => Dispatcher(dispatcherThreadCanceller.Token)) { Name = "MasterTimeSource Dispatcher", IsBackground = true };
                 dispatcherThread.Start();
                 this.Trace("Started");
             }
@@ -129,6 +132,9 @@ namespace Antmicro.Renode.Time
 
         /// <summary>
         /// Stop the time-dispatching thread.
+        /// Note that if this is called on the dispatcher thread itself from a time callback,
+        /// the thread will continue running for a moment after this function returns, but it
+        /// will not begin a new iteration of InnerExecute.
         /// </summary>
         public new void Stop()
         {
@@ -136,6 +142,8 @@ namespace Antmicro.Renode.Time
             lock(locker)
             {
                 base.Stop();
+                // Cancel the currently-running dispatcher thread, if any.
+                dispatcherThreadCanceller?.Cancel();
                 // If we're on the dispatcher thread, we are currently in the process of stopping
                 // initiated by the dispatcher itself, for example as part of a hook callback.
                 // In this case we can't join our own thread.
@@ -155,7 +163,7 @@ namespace Antmicro.Renode.Time
         /// </remarks>
         public override ITimeDomain Domain => this;
 
-        private void Dispatcher()
+        private void Dispatcher(CancellationToken token)
         {
 #if DEBUG
             using(this.TraceRegion("Dispatcher loop"))
@@ -165,7 +173,9 @@ namespace Antmicro.Renode.Time
             {
                 try
                 {
-                    while(isStarted)
+                    // The token will be canceled when stopping, just after isStarted gets cleared,
+                    // with the crucial difference that the token is NOT shared between threads.
+                    while(!token.IsCancellationRequested)
                     {
                         WaitIfBlocked();
                         InnerExecute(out var notused);
@@ -182,6 +192,8 @@ namespace Antmicro.Renode.Time
         private bool isDisposed;
         [Transient]
         private Thread dispatcherThread;
+        [Transient]
+        private CancellationTokenSource dispatcherThreadCanceller;
         private readonly object locker;
     }
 }
