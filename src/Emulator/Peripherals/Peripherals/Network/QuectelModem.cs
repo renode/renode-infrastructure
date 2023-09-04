@@ -295,6 +295,13 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         // CSCON - Signaling Connection Status
+        [AtCommand("AT+CSCON", CommandType.Read)]
+        protected virtual Response Cscon()
+        {
+            return Ok.WithParameters(CsconContent());
+        }
+
+        // CSCON - Signaling Connection Status
         [AtCommand("AT+CSCON", CommandType.Write)]
         protected virtual Response Cscon(int enable = 0)
         {
