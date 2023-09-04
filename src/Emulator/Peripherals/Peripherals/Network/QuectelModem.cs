@@ -286,7 +286,8 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+CSCON", CommandType.Write)]
         protected virtual Response Cscon(int enable = 0)
         {
-            return Ok; // stub, enables +CSCON: <mode> URC
+            signalingConnectionStatusReportingEnabled = enable == 1;
+            return Ok;
         }
 
         // CSQ - Signal Quality Report
@@ -673,6 +674,12 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             signalingConnectionActive = active;
+
+            if(!signalingConnectionStatusReportingEnabled)
+            {
+                return;
+            }
+
             var activeAsInt = active ? 1 : 0;
             SendString($"+CSCON: {activeAsInt}");
         }
@@ -693,6 +700,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected DataFormat receiveDataFormat = DataFormat.Text;
         protected string dataOutputSeparator = CrLf;
         protected bool deepSleepEventEnabled = false;
+        protected bool signalingConnectionStatusReportingEnabled;
 
         protected readonly string imeiNumber;
 
