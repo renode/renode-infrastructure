@@ -6,8 +6,12 @@
 //
 using System;
 using System.Linq;
+using System.IO;
+using System.Collections;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -16,6 +20,7 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
+    // TODO: FIFO for other data than the accelerometer
     public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
         public LIS2DW12()
@@ -28,7 +33,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             fifoFullEnabled = new IFlagRegisterField[2];
             DefineRegisters();
 
-            accelerationFifo = new SensorSamplesFifo<Vector3DSample>();
+            accelerationFifo = new LIS2DW12_FIFO(this, "fifo", MaxFifoSize);
+            accelerationFifo.OnOverrun += UpdateInterrupts;
             // Set the default acceleration here, it needs to be preserved across resets
             DefaultAccelerationZ = 1m;
         }
@@ -49,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             resdStream = this.CreateRESDStream<AccelerationSample>(path, channel);
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
-                (uint)SampleRate,
+                SampleRate,
                 (sample, ts, status) =>
                 {
                     switch(status)
@@ -63,6 +69,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                             break;
                         case RESDStreamStatus.OK:
                             FeedAccelerationSample(
+                                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
+                                // while the peripheral's measurement unit is g.
                                 (decimal)sample.AccelerationX / 1e6m,
                                 (decimal)sample.AccelerationY / 1e6m,
                                 (decimal)sample.AccelerationZ / 1e6m
@@ -251,7 +259,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public GPIO Interrupt1 { get; }
         public GPIO Interrupt2 { get; }
         public ByteRegisterCollection RegistersCollection { get; }
-        public int SampleRate { get; private set; }
+        public uint SampleRate {
+            get => sampleRate;
+            private set
+            {
+                sampleRate = value;
+                if(feederThread != null)
+                {
+                    feederThread.Frequency = sampleRate;
+                }
+            }
+        }
 
         private void LoadNextSample()
         {
@@ -311,10 +329,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                                 break;
                         }
                         this.Log(LogLevel.Noisy, "Sampling rate set to {0}", SampleRate);
-                        if(feederThread != null)
-                        {
-                            feederThread.Frequency = (uint)SampleRate;
-                        }
                     }, name: "Output data rate and mode selection (ODR)");
 
             Registers.Control2.Define(this, 0x4)
@@ -357,7 +371,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(0, out readyEnabledAcceleration[1], name: "Data-ready is routed to INT2 pad (INT2_DRDY)")
                 .WithFlag(1, out fifoThresholdEnabled[1], name: "FIFO threshold interrupt is routed to INT2 pad (INT2_FTH)")
                 .WithFlag(2, out fifoFullEnabled[1], name: "FIFO full recognition is routed to INT2 pad (INT2_DIFF5)")
-                .WithTaggedFlag("FIFO overrun interrupt is routed to INT2 pad (INT2_OVR)", 3)
+                .WithFlag(3, out fifoOverrunEnabled, name: "FIFO overrun interrupt is routed to INT2 pad (INT2_OVR)")
                 .WithFlag(4, out readyEnabledTemperature, name: "Temperature data-ready is routed to INT2 (INT2_DRDY_T)")
                 .WithTaggedFlag("Boot state routed to INT2 pad (INT2_BOOT)", 5)
                 .WithTaggedFlag("Sleep change status routed to INT2 pad (INT2_SLEEP_CHG)", 6)
@@ -382,7 +396,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Double-tap event status (DOUBLE_TAP)", 4)
                 .WithTaggedFlag("Sleep event status (SLEEP_STATE)", 5)
                 .WithTaggedFlag("Wakeup event detection status (WU_IA)", 6)
-                .WithTaggedFlag("FIFO threshold status flag (FIFO_THS)", 7);
+                .WithFlag(7, FieldMode.Read, name: "FIFO threshold status flag (FIFO_THS)",
+                    valueProviderCallback: _ => FifoThresholdReached);
 
             Registers.DataOutXLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis LSB output register (OUT_X_L)",
@@ -414,18 +429,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.FifoControl.Define(this)
                 .WithValueField(0, 5, out fifoThreshold, name: "FIFO threshold level setting (FTH)")
-                .WithEnumField(5, 3, out fifoModeSelection, name: "FIFO mode selection bits (FMode)");
-
-            Registers.FifoSamples.Define(this)
-                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ =>
+                .WithEnumField(5, 3, out fifoModeSelection, writeCallback: (_, __) =>
                     {
                         if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
                         {
-                            return 0;
+                            accelerationFifo.Reset();
                         }
-                        return Math.Min(accelerationFifo.SamplesCount, MaxFifoSize);
-                    }, name: "Number of unread samples stored in FIFO (DIFF)")
-                .WithTag("FIFO overrun status (FIFO_OVR)", 6, 1)
+                    }, name: "FIFO mode selection bits (FMode)");
+
+            Registers.FifoSamples.Define(this)
+                .WithValueField(0, 6, FieldMode.Read, name: "Number of unread samples stored in FIFO (DIFF)",
+                    valueProviderCallback: _ => accelerationFifo.Disabled ? 0 : accelerationFifo.SamplesCount)
+                .WithFlag(6, FieldMode.Read, name: "FIFO overrun status (FIFO_OVR)",
+                    valueProviderCallback: _ => FifoOverrunOccurred)
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => FifoThresholdReached,
                     name: "FIFO threshold status flag (FIFO_FTH)");
 
@@ -472,7 +488,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("Double-tap event status (DOUBLE_TAP)", 4)
                 .WithTaggedFlag("Sleep event status (SLEEP_STATE_IA)", 5)
                 .WithFlag(6, valueProviderCallback: _ => outDataRate.Value != DataRateConfig.PowerDown, name: "Temperature status (DRDY_T)")
-                .WithTaggedFlag("FIFO threshold status flag (OVR)", 7);
+                .WithFlag(7, name: "FIFO overrun status flag (OVR)",
+                    valueProviderCallback: _ => FifoOverrunOccurred);
 
             Registers.WakeupSource.Define(this)
                 .WithTaggedFlag("Wakeup event detection status on Z-axis (Z_WU)", 0)
@@ -563,6 +580,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var int2Status =
                 readyEnabledAcceleration[1].Value ||
                 fifoThresholdEnabled[1].Value && FifoThresholdReached ||
+                fifoOverrunEnabled.Value && FifoOverrunOccurred ||
                 fifoFullEnabled[1].Value && FifoFull;
 
             this.Log(LogLevel.Noisy, "Setting interrupts: INT1 = {0}, INT2 = {1}", int1Status, int2Status);
@@ -688,14 +706,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private decimal ReportedTemperature => Temperature - TemperatureBias;
 
-        private bool FifoThresholdReached => fifoThreshold.Value != 0 &&
-            accelerationFifo.SamplesCount >= fifoThreshold.Value;
-        private bool FifoFull => accelerationFifo.SamplesCount >= MaxFifoSize;
+        private bool FifoThresholdReached => fifoThreshold.Value != 0 && accelerationFifo.SamplesCount >= fifoThreshold.Value;
+        private bool FifoFull => accelerationFifo.Full;
+        private bool FifoOverrunOccurred => accelerationFifo.OverrunOccurred;
 
         private IFlagRegisterField autoIncrement;
         private IFlagRegisterField[] readyEnabledAcceleration;
         private IFlagRegisterField[] fifoThresholdEnabled;
         private IFlagRegisterField[] fifoFullEnabled;
+        // Interrupt on overrun is only avaliable on INT2
+        private IFlagRegisterField fifoOverrunEnabled;
         private IFlagRegisterField readyEnabledTemperature;
         // This flag controls whether 6D, tap, fall, etc. interrupts are enabled and is not a global
         // flag for all interrupts (FIFO and others)
@@ -707,16 +727,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IEnumRegisterField<FIFOModeSelection> fifoModeSelection;
         private IEnumRegisterField<FullScaleSelect> fullScale;
         private IEnumRegisterField<SelfTestMode> selfTestMode;
+        private uint sampleRate;
 
         private Registers regAddress;
         private State state;
         private int scaleDivider;
 
-        private readonly SensorSamplesFifo<Vector3DSample> accelerationFifo;
         private IManagedThread feederThread;
         private RESDStream<AccelerationSample> resdStream;
 
         private decimal temperature;
+
+        private readonly LIS2DW12_FIFO accelerationFifo;
 
         private const decimal MinTemperature = -40.0m;
         // The temperature register has the value 0 at this temperature
@@ -729,6 +751,144 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const int MaxValue14Bit = 0x3FFF;
         private const int MaxValue12Bit = 0x0FFF;
         private const int TemperatureLsbsPerDegree = 16;
+
+        private class LIS2DW12_FIFO
+        {
+            public LIS2DW12_FIFO(LIS2DW12 owner, string name, uint capacity)
+            {
+                Capacity = capacity;
+                this.name = name;
+                this.owner = owner;
+                this.locker = new object();
+                this.queue = new Queue<Vector3DSample>();
+            }
+
+            public void FeedAccelerationSample(decimal x, decimal y, decimal z)
+            {
+                var sample = new Vector3DSample(x, y, z);
+                FeedSample(sample);
+            }
+
+            public void FeedSample(Vector3DSample sample)
+            {
+                lock(locker)
+                {
+                    if(Mode == FIFOModeSelection.Bypass)
+                    {
+                        latestSample = sample;
+                        return;
+                    }
+
+                    if(Mode == FIFOModeSelection.Continuous && Full)
+                    {
+                        if(!OverrunOccurred)
+                        {
+                            owner.Log(LogLevel.Debug, "{0}: Overrun", name);
+                            OverrunOccurred = true;
+                            OnOverrun?.Invoke();
+                        }
+
+                        owner.Log(LogLevel.Noisy, "{0}: Fifo filled up. Dumping the oldest sample.", name);
+                        queue.TryDequeue<Vector3DSample>(out _);
+                    }
+
+                    queue.Enqueue(sample);
+                }
+            }
+
+            // Old, deprecated API. Added because this peripheral already included a public FeedSamplesFromFile method.
+            public void FeedSamplesFromFile(string path)
+            {
+                try
+                {
+                    using(var reader = File.OpenText(path))
+                    {
+                        string line;
+                        while((line = reader.ReadLine()) != null)
+                        {
+                            line = line.Trim();
+
+                            if(line.StartsWith("#"))
+                            {
+                                continue;
+                            }
+
+                            var numbers = line.Split(new [] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
+                            var sample = new Vector3DSample();
+                            if(!sample.TryLoad(numbers))
+                            {
+                                sample = null;
+                            }
+                            FeedSample(sample);
+                        }
+                    }
+                }
+                catch(Exception e)
+                {
+                    if(e is RecoverableException)
+                    {
+                        throw;
+                    }
+
+                    throw new RecoverableException($"There was a problem when reading samples file: {e.Message}");
+                }
+            }
+
+            public void Reset()
+            {
+                owner.Log(LogLevel.Debug, "Resetting FIFO");
+
+                queue.Clear();
+                latestSample = null;
+                OverrunOccurred = false;
+            }
+
+            public bool TryDequeueNewSample()
+            {
+                lock(locker)
+                {
+                    if(CheckEnabled() && queue.TryDequeue(out var sample))
+                    {
+                        owner.Log(LogLevel.Noisy, "New sample dequeued: {0}", sample);
+                        latestSample = sample;
+                        return true;
+                    }
+                }
+                owner.Log(LogLevel.Noisy, "Dequeueing new sample failed.");
+                return false;
+            }
+
+            public uint SamplesCount => (uint)queue.Count;
+            public bool Disabled => Mode == FIFOModeSelection.Bypass;
+            public bool Empty => SamplesCount == 0;
+            public bool Full => SamplesCount >= Capacity;
+
+            public FIFOModeSelection Mode => owner.fifoModeSelection.Value;
+
+            public bool OverrunOccurred { get; private set; }
+            public Vector3DSample Sample => latestSample;
+            public Vector3DSample DefaultSample => new Vector3DSample();
+
+            public event Action OnOverrun;
+
+            private bool CheckEnabled()
+            {
+                if(Disabled)
+                {
+                    owner.Log(LogLevel.Debug, "Sample unavailable -- FIFO disabled.");
+                    return false;
+                }
+                return true;
+            }
+
+            private Vector3DSample latestSample;
+
+            private readonly object locker;
+            private readonly Queue<Vector3DSample> queue;
+            private readonly string name;
+            private readonly LIS2DW12 owner;
+            private readonly uint Capacity;
+        }
 
         private enum State
         {
