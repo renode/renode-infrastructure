@@ -282,6 +282,18 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok; // stub
         }
 
+        protected virtual string CsconContent(bool urc = false)
+        {
+            var reportingEnabled = signalingConnectionStatusReportingEnabled ? 1 : 0;
+            var active = signalingConnectionActive ? 1 : 0;
+
+            if(urc)
+            {
+                return $"+CSCON: {active}";
+            }
+            return $"+CSCON: {reportingEnabled},{active}";
+        }
+
         // CSCON - Signaling Connection Status
         [AtCommand("AT+CSCON", CommandType.Write)]
         protected virtual Response Cscon(int enable = 0)
@@ -680,8 +692,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            var activeAsInt = active ? 1 : 0;
-            SendString($"+CSCON: {activeAsInt}");
+            SendString(CsconContent(true));
         }
 
         protected abstract string Vendor { get; }
