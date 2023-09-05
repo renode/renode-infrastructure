@@ -528,6 +528,7 @@
     <Compile Include="Peripherals\I2C\MAX32650_I2C.cs" />
     <Compile Include="Peripherals\Sensors\MAX30208.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32L0_PWR.cs" />
+    <Compile Include="Peripherals\Miscellaneous\STM32WBA_PWR.cs" />
     <Compile Include="Peripherals\Sensors\AS6221.cs" />
     <Compile Include="Peripherals\Sensors\MAX77818.cs" />
     <Compile Include="Peripherals\I2C\LC709205F.cs" />
