@@ -65,6 +65,7 @@ namespace Antmicro.Renode.Time
             {
                 while(!isDisposed && period.Ticks > 0)
                 {
+                    WaitIfBlocked();
                     InnerExecute(out var timeElapsed, period);
                     period -= timeElapsed;
                 }
