@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public AtCommandModem(IMachine machine)
         {
             this.machine = machine;
+            commandOverrides = new Dictionary<string, CommandOverride>();
             Init();
             Reset();
         }
@@ -93,6 +94,17 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 lineBuffer.Append(charValue);
             }
+        }
+
+        public void OverrideResponseForCommand(string command, string status, string parameters = "", bool oneShot = false)
+        {
+            var splitParams = string.IsNullOrEmpty(parameters) ? new string[] { } : parameters.Split('\n');
+            commandOverrides[command] = new CommandOverride(new Response(status, splitParams), oneShot);
+        }
+
+        public void ClearOverrides()
+        {
+            commandOverrides.Clear();
         }
 
         public abstract void PassthroughWriteChar(byte value);
@@ -246,6 +258,17 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private Response HandleCommand(string command)
         {
+            if(commandOverrides.TryGetValue(command, out var overrideResp))
+            {
+                this.Log(LogLevel.Debug, "Using overridden response for '{0}'{1}",
+                    command, overrideResp.oneShot ? " once" : "");
+                if(overrideResp.oneShot)
+                {
+                    commandOverrides.Remove(command);
+                }
+                return overrideResp.response;
+            }
+
             if(!ParsedCommand.TryParse(command, out var parsed))
             {
                 this.Log(LogLevel.Warning, "Failed to parse command '{0}'", command);
@@ -358,6 +381,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private MethodInfo defaultTestCommandMethodInfo;
 
         private readonly object uartWriteLock = new object();
+        private readonly Dictionary<string, CommandOverride> commandOverrides;
 
         [AttributeUsage(AttributeTargets.Method)]
         protected class AtCommandAttribute : Attribute
@@ -480,6 +504,18 @@ namespace Antmicro.Renode.Peripherals.Network
             Read = 1 << 1,
             Write = 1 << 2,
             Execution = 1 << 3,
+        }
+
+        private struct CommandOverride
+        {
+            public CommandOverride(Response response, bool oneShot)
+            {
+                this.response = response;
+                this.oneShot = oneShot;
+            }
+
+            public readonly Response response;
+            public readonly bool oneShot;
         }
     }
 }
