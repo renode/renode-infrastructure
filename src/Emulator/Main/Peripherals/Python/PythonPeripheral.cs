@@ -157,11 +157,6 @@ namespace Antmicro.Renode.Peripherals.Python
         {
             if(!inited)
             {
-                if(EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(this, out var mach))
-                {
-                    pythonRunner.SetSysbusAndMachine(mach, mach.GetSystemBus(this));
-                }
-
                 Init();
                 inited = true;
             }

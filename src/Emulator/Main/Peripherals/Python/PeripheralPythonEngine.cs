@@ -34,8 +34,7 @@ namespace Antmicro.Renode.Peripherals.Python
             "self",
             "size",
             "logger",
-            "LogLevel",
-            Machine.MachineKeyword
+            "LogLevel"
         };
 
         private void InitScope(ScriptSource script)
@@ -73,12 +72,6 @@ namespace Antmicro.Renode.Peripherals.Python
         public void ExecuteCode()
         {
             Execute(code);
-        }
-
-        public void SetSysbusAndMachine(IMachine mach, IBusController bus)
-        {
-            Scope.SetVariable("sysbus", bus);
-            Scope.SetVariable(Machine.MachineKeyword, mach);
         }
 
         [Transient]
