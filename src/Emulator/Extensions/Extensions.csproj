@@ -184,6 +184,7 @@
     <Compile Include="Hooks\RegisterCollectionHookExtensions.cs">
       <DependentUpon>RegisterCollectionHookExtensions.tt</DependentUpon>
     </Compile>
+    <Compile Include="UserInterface\Commands\ResdCommand.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Hooks\RegisterCollectionHookExtensions.tt">
