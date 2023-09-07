@@ -146,6 +146,14 @@ namespace Antmicro.Renode.Utilities
 
         public long Length { get; }
         public bool EOF => BaseStream.Position >= Length;
+        public IDisposable Checkpoint
+        {
+            get
+            {
+                var currentPosition = this.BaseStream.Position;
+                return DisposableWrapper.New(() => this.BaseStream.Seek(currentPosition, SeekOrigin.Begin));
+            }
+        }
 
         public Action<string> EndOfStreamEvent;
 
