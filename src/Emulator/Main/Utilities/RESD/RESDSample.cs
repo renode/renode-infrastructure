@@ -10,7 +10,7 @@ using System.Globalization;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
-    public abstract class RESDSample
+    public abstract class RESDSample : IAutoLoadType
     {
         public virtual bool TryReadMetadata(SafeBinaryReader reader)
         {
