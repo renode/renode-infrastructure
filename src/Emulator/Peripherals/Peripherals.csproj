@@ -148,6 +148,7 @@
     <Compile Include="Peripherals\PCI\PIIX.cs" />
     <Compile Include="Peripherals\PCI\PCIHost_Bridge.cs" />
     <Compile Include="Peripherals\SPI\FakeEfmSPITransmitter.cs" />
+    <Compile Include="Peripherals\SPI\NANDFlash.cs" />
     <Compile Include="Peripherals\UART\LEUART.cs" />
     <Compile Include="Peripherals\USBDeprecated\MassStorage.cs" />
     <Compile Include="Peripherals\Network\KS8851.cs" />
