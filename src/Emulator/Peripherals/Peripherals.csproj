@@ -66,6 +66,7 @@
     <Compile Include="Peripherals\SPI\Cypress_S25H.cs" />
     <Compile Include="Peripherals\MTD\CFIFlash.cs" />
     <Compile Include="Peripherals\UART\NS16550.cs" />
+    <Compile Include="Peripherals\UART\NPCX_UART.cs" />
     <Compile Include="Peripherals\UART\AxiUartLite.cs" />
     <Compile Include="Peripherals\Input\AntMouse.cs" />
     <Compile Include="Peripherals\MTD\CFIFlashExtensions.cs" />
