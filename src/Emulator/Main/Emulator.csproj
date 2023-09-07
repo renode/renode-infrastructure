@@ -582,7 +582,7 @@
     <Compile Include="Utilities\RESD\SamplesData.cs" />
     <Compile Include="Utilities\RESD\RESDException.cs" />
     <Compile Include="Utilities\RESD\RESDSample.cs" />
-    <Compile Include="Utilities\RESD\RESDParser.cs" />
+    <Compile Include="Utilities\RESD\RESDStream.cs" />
     <Compile Include="Peripherals\Timers\BCDHelper.cs" />
     <Compile Include="Peripherals\Timers\DateTimeWithCustomWeekday.cs" />
     <Compile Include="Peripherals\Network\AtCommandModem.cs" />

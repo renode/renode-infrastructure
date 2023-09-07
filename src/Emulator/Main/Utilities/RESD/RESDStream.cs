@@ -47,16 +47,12 @@ namespace Antmicro.Renode.Utilities.RESD
                 throw new RESDException($"Unsupported RESD sample type: {typeof(T).Name}");
             }
 
-            this.sampleType = sampleTypeAttribute.SampleType;
             this.channel = channel;
             this.managedThreads = new List<IManagedThread>();
+            this.parser = new LowLevelRESDParser(path);
+            this.parser.LogCallback += (logLevel, message) => Owner?.Log(logLevel, message);
+            this.blockEnumerator = parser.GetDataBlockEnumerator<T>().GetEnumerator();
 
-            reader = new SafeBinaryReader(File.OpenRead(path));
-            reader.EndOfStreamEvent += (message) =>
-            {
-                throw new RESDException($"RESD file ended while reading data: {message} ({reader.BaseStream.Position} > {reader.BaseStream.Length})");
-            };
-            ReadHeader();
             PrereadFirstBlock();
         }
 
@@ -69,7 +65,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 return RESDStreamStatus.BeforeStream;
             }
 
-            while(!reader.EOF)
+            while(blockEnumerator != null)
             {
                 if(currentBlock == null)
                 {
@@ -120,12 +116,13 @@ namespace Antmicro.Renode.Utilities.RESD
 
             Func<bool> stopCondition = () =>
             {
-                if(reader.EOF)
+                if(blockEnumerator == null)
                 {
                     Owner?.Log(LogLevel.Debug, "RESD: End of sample feeding thread detected");
                     newSampleCallback(null, TimeInterval.Empty, RESDStreamStatus.AfterStream);
+                    return true;
                 }
-                return reader.EOF;
+                return false;
             };
 
             var thread = machine.ObtainManagedThread(feedSample, frequency, "RESD stream thread", owner, stopCondition);
@@ -143,7 +140,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 thread.Dispose();
             }
             managedThreads.Clear();
-            reader.Dispose();
+            blockEnumerator?.Dispose();
         }
 
         // The `Owner` property is used to log detailed messages
@@ -154,29 +151,6 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public T CurrentSample => currentBlock?.CurrentSample;
         public Action MetadataChanged;
-
-        private void ReadHeader()
-        {
-            var magic = reader.ReadBytes(MagicValue.Length);
-            if(!Enumerable.SequenceEqual(magic, MagicValue))
-            {
-                throw new RESDException($"Invalid magic number for RESD file, excepted: {Misc.PrettyPrintCollectionHex(MagicValue)}, got {Misc.PrettyPrintCollectionHex(magic)}");
-            }
-
-            var version = reader.ReadByte();
-            if(version != SupportedVersion)
-            {
-                throw new RESDException($"Version {version} is not supported");
-            }
-
-            var padding = reader.ReadBytes(HeaderPaddingLength);
-            if(padding.Length != HeaderPaddingLength || padding.Any(b => b != 0x00))
-            {
-                throw new RESDException($"Invalid padding in RESD header (expected {HeaderPaddingLength} zeros, got {Misc.PrettyPrintCollectionHex(padding)})");
-            }
-
-            Owner?.Log(LogLevel.Debug, "RESD: Read header succesfully");
-        }
 
         private void PrereadFirstBlock()
         {
@@ -189,89 +163,50 @@ namespace Antmicro.Renode.Utilities.RESD
 
         private bool TryGetNextBlock(out DataBlock<T> block)
         {
-            while(!reader.EOF)
+            if(blockEnumerator == null)
             {
-                var dataBlockHeader = DataBlockHeader.ReadFromStream(reader);
-                if(dataBlockHeader.SampleType != sampleType || dataBlockHeader.ChannelId != channel)
+                block = null;
+                return false;
+            }
+
+            while(blockEnumerator.TryGetNext(out var nextBlock))
+            {
+                if(nextBlock.ChannelId != this.channel)
                 {
-                    Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
-                    reader.SkipBytes((int)dataBlockHeader.Size);
+                    Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", nextBlock.BlockType, nextBlock.DataSize);
                     continue;
                 }
 
-                Owner?.Log(LogLevel.Debug, "RESD: Reading block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
-                var limitedReader = reader.WithLength(reader.BaseStream.Position + (long)dataBlockHeader.Size);
-
-                switch(dataBlockHeader.BlockType)
-                {
-                    case BlockType.ConstantFrequencySamples:
-                        block = ConstantFrequencySamplesDataBlock<T>.ReadFromStream(dataBlockHeader, limitedReader);
-                        Owner?.Log(LogLevel.Debug, "RESD: Constant frequency block: period is {0}ns, frequency is {1}Hz, start time is {2}ns", ((ConstantFrequencySamplesDataBlock<T>)block).Period, ((ConstantFrequencySamplesDataBlock<T>)block).Frequency, block.StartTime);
-                        return true;
-
-                    default:
-                        // skip the rest of the unsupported block
-                        Owner?.Log(LogLevel.Warning, "RESD: Skipping unupported block of type {0} and size {1} bytes", dataBlockHeader.BlockType, dataBlockHeader.Size);
-                        reader.SkipBytes((int)dataBlockHeader.Size);
-                        break;
-                }
+                block = nextBlock;
+                return true;
             }
 
             block = null;
+            blockEnumerator = null;
             return false;
         }
 
         [PreSerialization]
         private void BeforeSerialization()
         {
-            var currentOffset = reader.BaseStream.Seek(0, SeekOrigin.Current);
-            reader.BaseStream.Seek(0, SeekOrigin.Begin);
-
-            serializationContext.fileData = reader.ReadBytes((int)reader.Length);
-            serializationContext.timeStamp = currentBlock.CurrentTimestamp;
-
-            reader.BaseStream.Seek(currentOffset, SeekOrigin.Begin);
-        }
-
-        [PostSerialization]
-        private void AfterSerialization()
-        {
-            serializationContext.fileData = null;
-            serializationContext.timeStamp = 0;
+            serializedTimestamp = currentBlock.CurrentTimestamp;
         }
 
         [PostDeserialization]
         private void AfterDeserialization()
         {
-            reader = new SafeBinaryReader(new MemoryStream(serializationContext.fileData));
-            reader.EndOfStreamEvent += (message) =>
-            {
-                throw new RESDException($"RESD file ended while reading data: {message} ({reader.BaseStream.Position} > {reader.BaseStream.Length})");
-            };
-
-            ReadHeader();
             PrereadFirstBlock();
-            TryGetSample(serializationContext.timeStamp, out _);
+            TryGetSample(serializedTimestamp, out _);
         }
 
         [Transient]
         private DataBlock<T> currentBlock;
         [Transient]
-        private SafeBinaryReader reader;
-        private BinaryReaderSerializationContext serializationContext;
+        private IEnumerator<DataBlock<T>> blockEnumerator;
+        private ulong serializedTimestamp;
 
-        private readonly SampleType sampleType;
+        private readonly LowLevelRESDParser parser;
         private readonly uint channel;
         private readonly IList<IManagedThread> managedThreads;
-
-        private const byte SupportedVersion = 0x1;
-        private const int HeaderPaddingLength = 3;
-        private static readonly byte[] MagicValue = new byte[] { (byte)'R', (byte)'E', (byte)'S', (byte)'D' };
-
-        private struct BinaryReaderSerializationContext
-        {
-            public byte[] fileData;
-            public ulong timeStamp;
-        }
     }
 }

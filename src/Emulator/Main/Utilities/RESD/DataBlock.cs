@@ -5,13 +5,34 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
-    public abstract class DataBlock<T>
+    public static class DataBlockExtensions
+    {
+        public static ulong GetEndTime(this IDataBlock @this)
+        {
+            return @this.StartTime + @this.Duration;
+        }
+    }
+
+    public interface IDataBlock
+    {
+        ulong StartTime { get; }
+        SampleType SampleType { get; }
+        ushort ChannelId { get; }
+        ulong SamplesCount { get; }
+        ulong Duration { get; }
+        IDictionary<String, MetadataValue> Metadata { get; }
+    }
+
+    public abstract class DataBlock<T> : IDataBlock where T: RESDSample, new()
     {
         public DataBlock(DataBlockHeader header)
         {
+            Header = header;
         }
 
         public abstract RESDStreamStatus TryGetSample(ulong timestamp, out T sample);
@@ -19,6 +40,16 @@ namespace Antmicro.Renode.Utilities.RESD
         public abstract ulong StartTime { get; }
         public abstract T CurrentSample { get; }
         public abstract ulong CurrentTimestamp { get; }
+        public abstract ulong SamplesCount { get; }
+        public abstract ulong Duration { get; }
+
+        public virtual BlockType BlockType => Header.BlockType;
+        public virtual SampleType SampleType => Header.SampleType;
+        public virtual ushort ChannelId => Header.ChannelId;
+        public virtual ulong DataSize => Header.Size;
+        public virtual IDictionary<String, MetadataValue> Metadata => CurrentSample.Metadata;
+
+        protected virtual DataBlockHeader Header { get; }
     }
 
     public class DataBlockHeader
@@ -88,6 +119,8 @@ namespace Antmicro.Renode.Utilities.RESD
         public override ulong StartTime { get; }
         public override T CurrentSample => samplesData.GetCurrentSample();
         public override ulong CurrentTimestamp => currentSampleTimestamp;
+        public override ulong SamplesCount => samplesCount.Value;
+        public override ulong Duration => SamplesCount * Period;
 
         private ConstantFrequencySamplesDataBlock(DataBlockHeader header, ulong startTime, ulong period, SafeBinaryReader reader) : base(header)
         {
@@ -98,12 +131,38 @@ namespace Antmicro.Renode.Utilities.RESD
 
             Period = period;
             StartTime = startTime;
+
+            samplesCount = new Lazy<ulong>(() =>
+            {
+                using(reader.Checkpoint)
+                {
+                    reader.BaseStream.Seek(samplesData.SampleDataOffset, SeekOrigin.Begin);
+                    if(reader.EOF)
+                    {
+                        return 0;
+                    }
+
+                    var sample = new T();
+                    if(sample.Width is int width)
+                    {
+                        return Header.Size / (ulong)width;
+                    }
+
+                    var packets = 1UL;
+                    while(sample.Skip(reader, 1))
+                    {
+                        packets += 1;
+                    }
+                    return packets;
+                }
+            });
         }
 
         private ulong currentSampleTimestamp;
 
         private readonly SafeBinaryReader reader;
         private readonly SamplesData<T> samplesData;
+        private readonly Lazy<ulong> samplesCount;
 
         private const decimal NanosecondsInSecond = 1e9m;
     }
