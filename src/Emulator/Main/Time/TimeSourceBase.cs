@@ -580,7 +580,7 @@ namespace Antmicro.Renode.Time
             var result = handle.Value.WaitUntilDone(out var usedInterval);
             if(!result.IsDone)
             {
-                EnterBlockedState();
+                EnterBlockedState(!handle.Value.SinkSideActive);
             }
 
             using(sync.HighPriority)
@@ -592,10 +592,16 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// Sets blocking event to true.
         /// </summary>
-        private void EnterBlockedState()
+        /// <param name="waitForEvent">Describes if we should block until external event</param>
+        private void EnterBlockedState(bool waitForEvent)
         {
             isBlocked = true;
-            blockingEvent.Reset();
+            // The blocking event is by default in the `set` state.
+            // It enters the `unset` state only temporarily between calls to `EnterBlockedState` (with the wait for event flag set) and `ReportHandleActive`.
+            if(waitForEvent)
+            {
+                blockingEvent.Reset();
+            }
         }
 
         /// <summary>
