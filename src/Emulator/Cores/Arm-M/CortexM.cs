@@ -128,6 +128,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public bool IsV8
+        {
+            get
+            {
+                return tlibIsV8() > 0;
+            }
+        }
+
         public UInt32 PmsaV8Ctrl
         {
             get
@@ -404,6 +412,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 tlibGetXpsr;
+
+        [Import]
+        private FuncUInt32 tlibIsV8;
 
         /* PMSAv8 MPU */
         [Import]

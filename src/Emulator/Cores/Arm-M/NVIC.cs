@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void AttachCPU(CortexM cpu)
         {
             this.cpu = cpu;
+            mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
         }
 
         public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
