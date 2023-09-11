@@ -182,6 +182,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return cpu.FaultStatus;
             case Registers.InterruptControllerType:
                 return 0b0111;
+            case Registers.MemoryFaultAddress:
+                return cpu.MemoryFaultAddress;
             default:
                 this.LogUnhandledRead(offset);
                 return 0;
@@ -991,6 +993,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             HardFaultStatus = 0xD2C,
             DebugFaultStatus = 0xD30,
             // FPU registers 0xD88 .. F3C
+            MemoryFaultAddress = 0xD34,
             CoprocessorAccessControl = 0xD88,
             SoftwareTriggerInterruptRegister = 0xF00,
             FPContextControl = 0xF34,
