@@ -128,6 +128,78 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public UInt32 PmsaV8Ctrl
+        {
+            get
+            {
+                return tlibGetPmsav8Ctrl();
+            }
+            set
+            {
+                tlibSetPmsav8Ctrl(value);
+            }
+        }
+
+        public UInt32 PmsaV8Rnr
+        {
+            get
+            {
+                return tlibGetPmsav8Rnr();
+            }
+            set
+            {
+                tlibSetPmsav8Rnr(value);
+            }
+        }
+
+        public UInt32 PmsaV8Rbar
+        {
+            get
+            {
+                return tlibGetPmsav8Rbar();
+            }
+            set
+            {
+                tlibSetPmsav8Rbar(value);
+            }
+        }
+
+        public UInt32 PmsaV8Rlar
+        {
+            get
+            {
+                return tlibGetPmsav8Rlar();
+            }
+            set
+            {
+                tlibSetPmsav8Rlar(value);
+            }
+        }
+
+        public UInt32 PmsaV8Mair0
+        {
+            get
+            {
+                return tlibGetPmsav8Mair(0);
+            }
+            set
+            {
+                tlibSetPmsav8Mair(0, value);
+            }
+        }
+
+        public UInt32 PmsaV8Mair1
+        {
+            get
+            {
+                return tlibGetPmsav8Mair(1);
+            }
+            set
+            {
+                tlibSetPmsav8Mair(1, value);
+            }
+        }
+
         public bool MPUEnabled
         {
             get
@@ -332,6 +404,37 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 tlibGetXpsr;
+
+        /* PMSAv8 MPU */
+        [Import]
+        private ActionUInt32 tlibSetPmsav8Ctrl;
+
+        [Import]
+        private ActionUInt32 tlibSetPmsav8Rnr;
+
+        [Import]
+        private ActionUInt32 tlibSetPmsav8Rbar;
+
+        [Import]
+        private ActionUInt32 tlibSetPmsav8Rlar;
+
+        [Import]
+        private ActionUInt32UInt32 tlibSetPmsav8Mair;
+
+        [Import]
+        private FuncUInt32 tlibGetPmsav8Ctrl;
+
+        [Import]
+        private FuncUInt32 tlibGetPmsav8Rnr;
+
+        [Import]
+        private FuncUInt32 tlibGetPmsav8Rbar;
+
+        [Import]
+        private FuncUInt32 tlibGetPmsav8Rlar;
+
+        [Import]
+        private FuncUInt32UInt32 tlibGetPmsav8Mair;
 
         #pragma warning restore 649
     }
