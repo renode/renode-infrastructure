@@ -578,69 +578,172 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private uint HandleMPURead(long offset)
         {
-            uint value;
-            switch((MPURegisters)offset)
+            switch(mpuVersion)
             {
-                case MPURegisters.Type:
-                    value = (numberOfMPURegions & 0xFF) << 8;
-                    break;
-                case MPURegisters.Control:
-                    value = mpuControlRegister;
-                    break;
-                case MPURegisters.RegionNumber:
-                    value = cpu.MPURegionNumber;
-                    break;
-                case MPURegisters.RegionBaseAddress:
-                case MPURegisters.RegionBaseAddressAlias1:
-                case MPURegisters.RegionBaseAddressAlias2:
-                case MPURegisters.RegionBaseAddressAlias3:
-                    value = cpu.MPURegionBaseAddress;
-                    break;
-                case MPURegisters.RegionAttributeAndSize:
-                case MPURegisters.RegionAttributeAndSizeAlias1:
-                case MPURegisters.RegionAttributeAndSizeAlias2:
-                case MPURegisters.RegionAttributeAndSizeAlias3:
-                    value = cpu.MPURegionAttributeAndSize;
-                    break;
+                case MPUVersion.PMSAv7:
+                    return HandleMPUReadV7(offset);
+                case MPUVersion.PMSAv8:
+                    return HandleMPUReadV8(offset);
                 default:
-                    value = 0x0;
-                    break;
+                    throw new Exception("Attempted MPU read, but the MPU version is unknown");
             }
-            this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(MPURegisters), offset), value);
-            return value;
         }
 
         private void HandleMPUWrite(long offset, uint value)
         {
-            this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(MPURegisters), offset), value);
-            switch((MPURegisters)offset)
+            switch(mpuVersion)
             {
-                case MPURegisters.Type:
+                case MPUVersion.PMSAv7:
+                    HandleMPUWriteV7(offset, value);
+                    break;
+                case MPUVersion.PMSAv8:
+                    HandleMPUWriteV8(offset, value);
+                    break;
+                default:
+                    throw new Exception("Attempted MPU write, but the mpuVersion is unknown");
+            }
+        }
+
+        private void HandleMPUWriteV7(long offset, uint value)
+        {
+            this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV7), offset), value);
+            switch((RegistersV7)offset)
+            {
+                case RegistersV7.Type:
                     this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
                     break;
-                case MPURegisters.Control:
+                case RegistersV7.Control:
                     if((mpuControlRegister & 0x1) != (value & 0x1))
                     {
                         this.cpu.MPUEnabled = (value & 0x1) != 0x0;
                     }
                     mpuControlRegister = value;
                     break;
-                case MPURegisters.RegionNumber: // MPU_RNR
+                case RegistersV7.RegionNumber: // MPU_RNR
                     cpu.MPURegionNumber = value;
                     break;
-                case MPURegisters.RegionBaseAddress:
-                case MPURegisters.RegionBaseAddressAlias1:
-                case MPURegisters.RegionBaseAddressAlias2:
-                case MPURegisters.RegionBaseAddressAlias3:
+                case RegistersV7.RegionBaseAddress:
+                case RegistersV7.RegionBaseAddressAlias1:
+                case RegistersV7.RegionBaseAddressAlias2:
+                case RegistersV7.RegionBaseAddressAlias3:
                     cpu.MPURegionBaseAddress = value;
                     break;
-                case MPURegisters.RegionAttributeAndSize:
-                case MPURegisters.RegionAttributeAndSizeAlias1:
-                case MPURegisters.RegionAttributeAndSizeAlias2:
-                case MPURegisters.RegionAttributeAndSizeAlias3:
+                case RegistersV7.RegionAttributeAndSize:
+                case RegistersV7.RegionAttributeAndSizeAlias1:
+                case RegistersV7.RegionAttributeAndSizeAlias2:
+                case RegistersV7.RegionAttributeAndSizeAlias3:
                     cpu.MPURegionAttributeAndSize = value;
                     break;
             }
+        }
+
+        private void HandleMPUWriteV8(long offset, uint value)
+        {
+            this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV8), offset), value);
+            switch((RegistersV8)offset)
+            {
+                case RegistersV8.Type:
+                    this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
+                    break;
+                case RegistersV8.Control:
+                    cpu.PmsaV8Ctrl = value;
+                    break;
+                case RegistersV8.RegionNumberRegister:
+                    cpu.PmsaV8Rnr = value;
+                    break;
+                case RegistersV8.RegionBaseAddressRegister:
+                case RegistersV8.RegionBaseAddressRegisterAlias1:
+                case RegistersV8.RegionBaseAddressRegisterAlias2:
+                case RegistersV8.RegionBaseAddressRegisterAlias3:
+                    cpu.PmsaV8Rbar = value;
+                    break;
+                case RegistersV8.RegionLimitAddressRegister:
+                case RegistersV8.RegionLimitAddressRegisterAlias1:
+                case RegistersV8.RegionLimitAddressRegisterAlias2:
+                case RegistersV8.RegionLimitAddressRegisterAlias3:
+                    cpu.PmsaV8Rlar = value;
+                    break;
+                case RegistersV8.MemoryAttributeIndirectionRegister0:
+                    cpu.PmsaV8Mair0 = value;
+                    break;
+                case RegistersV8.MemoryAttributeIndirectionRegister1:
+                    cpu.PmsaV8Mair1 = value;
+                    break;
+            }
+        }
+
+        private uint HandleMPUReadV7(long offset)
+        {
+            uint value;
+            switch((RegistersV7)offset)
+            {
+                case RegistersV7.Type:
+                    value = (numberOfMPURegions & 0xFF) << 8;
+                    break;
+                case RegistersV7.Control:
+                    value = mpuControlRegister;
+                    break;
+                case RegistersV7.RegionNumber:
+                    value = cpu.MPURegionNumber;
+                    break;
+                case RegistersV7.RegionBaseAddress:
+                case RegistersV7.RegionBaseAddressAlias1:
+                case RegistersV7.RegionBaseAddressAlias2:
+                case RegistersV7.RegionBaseAddressAlias3:
+                    value = cpu.MPURegionBaseAddress;
+                    break;
+                case RegistersV7.RegionAttributeAndSize:
+                case RegistersV7.RegionAttributeAndSizeAlias1:
+                case RegistersV7.RegionAttributeAndSizeAlias2:
+                case RegistersV7.RegionAttributeAndSizeAlias3:
+                    value = cpu.MPURegionAttributeAndSize;
+                    break;
+                default:
+                    value = 0x0;
+                    break;
+            }
+            this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV7), offset), value);
+            return value;
+        }
+
+        private uint HandleMPUReadV8(long offset)
+        {
+            uint value;
+            switch((RegistersV8)offset)
+            {
+                case RegistersV8.Type:
+                    value = (numberOfMPURegions & 0xFF) << 8;
+                    break;
+                case RegistersV8.Control:
+                    value = cpu.PmsaV8Ctrl;
+                    break;
+                case RegistersV8.RegionNumberRegister:
+                    value = cpu.PmsaV8Rnr;
+                    break;
+                case RegistersV8.RegionBaseAddressRegister:
+                case RegistersV8.RegionBaseAddressRegisterAlias1:
+                case RegistersV8.RegionBaseAddressRegisterAlias2:
+                case RegistersV8.RegionBaseAddressRegisterAlias3:
+                    value = cpu.PmsaV8Rbar;
+                    break;
+                case RegistersV8.RegionLimitAddressRegister:
+                case RegistersV8.RegionLimitAddressRegisterAlias1:
+                case RegistersV8.RegionLimitAddressRegisterAlias2:
+                case RegistersV8.RegionLimitAddressRegisterAlias3:
+                    value = cpu.PmsaV8Rlar;
+                    break;
+                case RegistersV8.MemoryAttributeIndirectionRegister0:
+                    value = cpu.PmsaV8Mair0;
+                    break;
+                case RegistersV8.MemoryAttributeIndirectionRegister1:
+                    value = cpu.PmsaV8Mair1;
+                    break;
+                default:
+                    value = 0x0;
+                    break;
+            }
+            this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV7), offset), value);
+            return value;
         }
 
         private uint HandleApplicationInterruptAndResetRead()
@@ -895,7 +998,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             FPDefaultStatusControl = 0xF3C,
         }
 
-        private enum MPURegisters
+        private enum RegistersV7
         {
             Type = 0x00,
             Control = 0x04,
@@ -910,6 +1013,29 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             RegionAttributeAndSizeAlias3 = 0x28,
         }
 
+        private enum RegistersV8
+        {
+            Type = 0x00,
+            Control = 0x04,
+            RegionNumberRegister = 0x08,
+            RegionBaseAddressRegister = 0x0C,
+            RegionLimitAddressRegister = 0x10,
+            RegionBaseAddressRegisterAlias1 = 0x14,
+            RegionLimitAddressRegisterAlias1 = 0x18,
+            RegionBaseAddressRegisterAlias2 = 0x1C,
+            RegionLimitAddressRegisterAlias2 = 0x20,
+            RegionBaseAddressRegisterAlias3 = 0x24,
+            RegionLimitAddressRegisterAlias3 = 0x28,
+            MemoryAttributeIndirectionRegister0 = 0x30,
+            MemoryAttributeIndirectionRegister1 = 0x34
+        }
+
+        private enum MPUVersion
+        {
+            PMSAv7,
+            PMSAv8
+        }
+
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
         private uint ccr = 0x10000;
 
@@ -922,6 +1048,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private ISet<int> pendingIRQs;
         private int binaryPointPosition; // from the right
         private uint mpuControlRegister;
+        private MPUVersion mpuVersion;
 
         private bool maskedInterruptPresent;
 
@@ -934,7 +1061,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly uint cpuId;
 
         private const int MPUStart             = 0xD90;
-        private const int MPUEnd               = 0xDBC;
+        private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
         private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
         private const int SetEnableEnd         = 0x140;
