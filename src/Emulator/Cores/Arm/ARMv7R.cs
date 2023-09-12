@@ -20,5 +20,27 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public byte Affinity0 => (byte)Id;
         public SecurityState SecurityState => SecurityState.Secure;
+        public uint AuxiliaryControlRegister { get; set; }
+
+        protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
+        {
+            if(instruction == AuxiliaryControlRegisterInstruction)
+            {
+                AuxiliaryControlRegister = value;
+                return;
+            }
+            base.Write32CP15Inner(instruction, value);
+        }
+
+        protected override uint Read32CP15Inner(Coprocessor32BitMoveInstruction instruction)
+        {
+            if(instruction == AuxiliaryControlRegisterInstruction)
+            {
+                return AuxiliaryControlRegister;
+            }
+            return base.Read32CP15Inner(instruction);
+        }
+
+        private readonly Coprocessor32BitMoveInstruction AuxiliaryControlRegisterInstruction = new Coprocessor32BitMoveInstruction(0, 1, 0, 1); // ACTLR
     }
 }
