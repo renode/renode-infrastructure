@@ -347,6 +347,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 FieldsOnly = instruction & FieldsMask;
             }
 
+            public Coprocessor32BitMoveInstruction(uint opc1, uint crn, uint crm, uint opc2)
+            {
+                Opc1 = opc1;
+                CRn = crn;
+                CRm = crm;
+                Opc2 = opc2;
+                FieldsOnly = (Opc1 << Opc1Offset) | (CRn << CRnOffset) | (CRm << CRmOffset) | (Opc2 << Opc2Offset);
+            }
+
             public override bool Equals(object o)
             {
                 return o is Coprocessor32BitMoveInstruction b && this == b;
@@ -359,7 +368,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public override string ToString()
             {
-                return $"op1={Opc1}, op2={Opc2}, crm={CRm}, crn={CRn}";
+                return $"op1={Opc1}, crn={CRn}, crm={CRm}, op2={Opc2}";
             }
 
             public uint Opc1 { get; }
