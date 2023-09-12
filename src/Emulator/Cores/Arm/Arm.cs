@@ -25,8 +25,12 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 2)]
     public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
-        public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian) : base(cpuId, cpuType, machine, endianness)
+        public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null) : base(cpuId, cpuType, machine, endianness)
         {
+            if(numberOfMPURegions.HasValue)
+            {
+                TlibSetNumberOfMpuRegions(numberOfMPURegions.Value);
+            }
         }
 
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
@@ -303,6 +307,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionInt32 TlibSetSevOnPending;
+
+        [Import]
+        private ActionUInt32 TlibSetNumberOfMpuRegions;
 
 #pragma warning restore 649
 

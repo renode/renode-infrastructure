@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class CortexM : Arm
     {
-        public CortexM(string cpuType, IMachine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian, uint? fpuInterruptNumber = null) : base(cpuType, machine, id, endianness)
+        public CortexM(string cpuType, IMachine machine, NVIC nvic, uint id = 0, Endianess endianness = Endianess.LittleEndian, uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null) : base(cpuType, machine, id, endianness, numberOfMPURegions)
         {
             if(nvic == null)
             {
