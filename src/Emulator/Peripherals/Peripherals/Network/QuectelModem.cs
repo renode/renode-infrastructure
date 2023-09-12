@@ -47,7 +47,6 @@ namespace Antmicro.Renode.Peripherals.Network
             inReset = false;
             signalingConnectionActive = false;
             echoInDataMode = false;
-            networkRegistrationUrcType = NetworkRegistrationUrcType.Disabled;
             Enabled = false;
             vddExt.Unset();
         }
@@ -709,7 +708,6 @@ namespace Antmicro.Renode.Peripherals.Network
         protected abstract string SoftwareRevision { get; }
 
         protected bool echoInDataMode;
-        protected NetworkRegistrationUrcType networkRegistrationUrcType;
 
         // These fields are not affected by resets because they are automatically saved to NVRAM.
         protected string pdpContextApn = "";
@@ -719,6 +717,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected string dataOutputSeparator = CrLf;
         protected bool deepSleepEventEnabled = false;
         protected bool signalingConnectionStatusReportingEnabled;
+        protected NetworkRegistrationUrcType networkRegistrationUrcType;
 
         protected readonly string imeiNumber;
 
