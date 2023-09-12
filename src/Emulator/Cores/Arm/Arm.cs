@@ -328,6 +328,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected struct Coprocessor32BitMoveInstruction
         {
+            public static bool operator ==(Coprocessor32BitMoveInstruction a, Coprocessor32BitMoveInstruction b)
+            {
+                return a.FieldsOnly == b.FieldsOnly;
+            }
+
+            public static bool operator !=(Coprocessor32BitMoveInstruction a, Coprocessor32BitMoveInstruction b)
+            {
+                return !(a == b);
+            }
+
             public Coprocessor32BitMoveInstruction(uint instruction)
             {
                 Opc1 = BitHelper.GetValue(instruction, Opc1Offset, Opc1Size);
@@ -335,6 +345,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Opc2 = BitHelper.GetValue(instruction, Opc2Offset, Opc2Size);
                 CRm = BitHelper.GetValue(instruction, CRmOffset, CRmSize);
                 FieldsOnly = instruction & FieldsMask;
+            }
+
+            public override bool Equals(object o)
+            {
+                return o is Coprocessor32BitMoveInstruction b && this == b;
+            }
+
+            public override int GetHashCode()
+            {
+                return (int)FieldsOnly;
             }
 
             public override string ToString()
