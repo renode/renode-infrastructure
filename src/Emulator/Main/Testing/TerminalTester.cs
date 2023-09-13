@@ -515,9 +515,6 @@ namespace Antmicro.Renode.Testing
             lock(lines)
             {
                 ReportInner(eventName, "failure", lines.Count, true);
-
-                currentLineBuffer.Unload();
-                lines.Clear();
             }
         }
 
