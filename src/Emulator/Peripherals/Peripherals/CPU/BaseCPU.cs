@@ -448,6 +448,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual void DisposeInner(bool silent = false)
         {
+            // Take a copy of the CPU thread because it will be cleared at the end of its body
+            var cpuThreadCopy = cpuThread;
             disposing = true;
             if(!silent)
             {
@@ -456,6 +458,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             started = false;
             Pause(new HaltArguments(HaltReason.Abort, this), checkPauseGuard: false);
             singleStepSynchronizer.Enabled = false;
+            cpuThreadCopy?.Join();
         }
 
         protected void InvokeHalted(HaltArguments arguments)
