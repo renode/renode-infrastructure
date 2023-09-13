@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Utilities
                 return false;
             }
         }
-        
+
         private static bool TryGetConvertMethodDelegate(Type type, int fromBase, out Delegate result)
         {
             var parameters = new [] { typeof(string), typeof(int) };
