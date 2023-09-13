@@ -86,6 +86,11 @@ namespace Antmicro.Renode.Utilities
                 }
                 );
             }
+            else if(GetDefault(outputType) == null && (input == "null" || input == ""))
+            {
+                result = null;
+                return true;
+            }
             else
             {
                 parser = GetFromCacheOrAdd(
@@ -112,6 +117,16 @@ namespace Antmicro.Renode.Utilities
                 result = null;
                 return false;
             }
+        }
+
+        private static object GetDefault(Type type)
+        {
+            if(type.IsValueType)
+            {
+                // this will handle the nullable case
+                return Activator.CreateInstance(type);
+            }
+            return null;
         }
 
         private static bool TryGetConvertMethodDelegate(Type type, int fromBase, out Delegate result)
