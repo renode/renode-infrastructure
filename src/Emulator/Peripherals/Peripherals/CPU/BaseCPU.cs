@@ -336,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             RequestPause();
 
-            if(onCpuThread)
+            if(!onCpuThread)
             {
                 bool success = false;
                 do
@@ -385,11 +385,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 // cpuThread can get null as a result of `InnerPause` call
                 var cpuThreadCopy = cpuThread;
-                var onCpuThread = (cpuThreadCopy != null && Thread.CurrentThread.ManagedThreadId != cpuThreadCopy.ManagedThreadId);
+                var onCpuThread = (cpuThreadCopy != null && Thread.CurrentThread.ManagedThreadId == cpuThreadCopy.ManagedThreadId);
 
                 InnerPause(onCpuThread, checkPauseGuard);
 
-                if(onCpuThread)
+                if(!onCpuThread)
                 {
                     singleStepSynchronizer.Enabled = false;
                     this.NoisyLog("Waiting for thread to pause.");

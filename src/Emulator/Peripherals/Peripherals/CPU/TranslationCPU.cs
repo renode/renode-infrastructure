@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.InnerPause(onCpuThread, checkPauseGuard);
 
-            if(!onCpuThread && checkPauseGuard)
+            if(onCpuThread && checkPauseGuard)
             {
                 pauseGuard.OrderPause();
             }
