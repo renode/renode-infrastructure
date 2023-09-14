@@ -383,6 +383,12 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     this.Log(LogLevel.Debug, Misc.DumpPacket(frame, true, machine));
 
+                    if((dmaInterruptEnable & (TransmitStatus)) != 0) // transmit interrupt
+                    {
+                        dmaStatus |= TransmitStatus;
+                        IRQ.Set();
+                    }
+
                     FrameReady?.Invoke(frame);
                 }
                 transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);
