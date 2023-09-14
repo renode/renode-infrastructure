@@ -866,8 +866,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public FIFOModeSelection Mode => owner.fifoModeSelection.Value;
 
             public bool OverrunOccurred { get; private set; }
-            public Vector3DSample Sample => latestSample;
-            public Vector3DSample DefaultSample => new Vector3DSample();
+            public Vector3DSample Sample => latestSample ?? DefaultSample;
+            public Vector3DSample DefaultSample { get; } = new Vector3DSample();
 
             public event Action OnOverrun;
 
