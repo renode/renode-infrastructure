@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -116,6 +116,30 @@ namespace Antmicro.Renode.UI
                     ByteRead?.Invoke(ESCCode);
                     ByteRead?.Invoke(CSICode);
                     continue;
+                }
+
+                // It seems that Mono inserts Vt100 escape sequences, but this is not a case in .NET
+                // Add handling for CtrlLeftArrow and CtrlRightArrow
+                if(key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                {
+                    if(key.Key == ConsoleKey.RightArrow || key.Key == ConsoleKey.LeftArrow)
+                    {
+                        // Invoke correct Vt100 sequence for AntShell
+                        ByteRead?.Invoke(ESCCode);
+                        ByteRead?.Invoke(CSICode);
+                        ByteRead?.Invoke('1');
+                        ByteRead?.Invoke(';');
+                        ByteRead?.Invoke('5');
+
+                        if(key.Key == ConsoleKey.LeftArrow)
+                        {
+                            ByteRead?.Invoke('D');
+                        }
+                        else if(key.Key == ConsoleKey.RightArrow)
+                        {
+                            ByteRead?.Invoke('C');
+                        }
+                    }
                 }
 
                 if(mappings.TryGetValue(key.Key, out var sequence))
