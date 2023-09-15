@@ -450,7 +450,19 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QNBIOTEVENT", CommandType.Write)]
         protected virtual Response Qnbiotevent(int enable = 0, int eventType = 1)
         {
-            return Ok; // stub
+            // Only event type 1 (PSM state) is supported
+            if(eventType != 1)
+            {
+                return Error;
+            }
+            powerSavingModeEventEnabled = enable != 0;
+            return Ok;
+        }
+
+        [AtCommand("AT+QNBIOTEVENT", CommandType.Read)]
+        protected virtual Response QnbioteventRead()
+        {
+            return Ok.WithParameters($"+QNBIOTEVENT: {(powerSavingModeEventEnabled ? 1 : 0)},1");
         }
 
         // QNBIOTRAI - NB-IoT Release Assistance Indication
@@ -726,6 +738,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected DataFormat receiveDataFormat = DataFormat.Text;
         protected string dataOutputSeparator = CrLf;
         protected bool deepSleepEventEnabled = false;
+        protected bool powerSavingModeEventEnabled;
         protected bool signalingConnectionStatusReportingEnabled;
         protected NetworkRegistrationUrcType networkRegistrationUrcType;
 
