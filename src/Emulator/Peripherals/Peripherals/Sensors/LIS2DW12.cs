@@ -775,6 +775,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 lock(locker)
                 {
+                    if(!FeedingFromFile)
+                    {
+                        queue.Enqueue(sample);
+                        return;
+                    }
+
                     if(Mode == FIFOModeSelection.Bypass)
                     {
                         latestSample = sample;
@@ -838,6 +844,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public void Reset()
             {
+                if(!FeedingFromFile)
+                {
+                    return;
+                }
+
                 owner.Log(LogLevel.Debug, "Resetting FIFO");
 
                 queue.Clear();
@@ -868,8 +879,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return false;
             }
 
-            public uint SamplesCount => (uint)queue.Count;
-            public bool Disabled => Mode == FIFOModeSelection.Bypass;
+            public uint SamplesCount => (uint)Math.Min(queue.Count, Capacity);
+            public bool Disabled => Mode == FIFOModeSelection.Bypass && FeedingFromFile;
             public bool Empty => SamplesCount == 0;
             public bool Full => SamplesCount >= Capacity;
 
