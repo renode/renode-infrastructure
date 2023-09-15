@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
         {
             resdStream = this.CreateRESDStream<AccelerationSample>(path, channel);
+            accelerationFifo.FeedingFromFile = true;
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
                 SampleRate,
@@ -66,6 +67,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         case RESDStreamStatus.AfterStream:
                             feederThread?.Stop();
                             feederThread = null;
+                            accelerationFifo.FeedingFromFile = false;
                             break;
                         case RESDStreamStatus.OK:
                             FeedAccelerationSample(
@@ -854,6 +856,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         return true;
                     }
                 }
+                // If we're feeding from a file, the sensor might have been polled between
+                // two samples - in this case, the earlier of these should be returned. Otherwise,
+                // clearing the FIFO means we ran out of data and so we should go to the default
+                // sample.
+                if(!FeedingFromFile)
+                {
+                    latestSample = null;
+                }
                 owner.Log(LogLevel.Noisy, "Dequeueing new sample failed.");
                 return false;
             }
@@ -868,6 +878,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public bool OverrunOccurred { get; private set; }
             public Vector3DSample Sample => latestSample ?? DefaultSample;
             public Vector3DSample DefaultSample { get; } = new Vector3DSample();
+            public bool FeedingFromFile { get; set; }
 
             public event Action OnOverrun;
 
