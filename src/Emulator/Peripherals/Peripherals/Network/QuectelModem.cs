@@ -46,6 +46,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             inReset = false;
             signalingConnectionActive = false;
+            powerSavingModeActive = false;
             echoInDataMode = false;
             Enabled = false;
             vddExt.Unset();
@@ -679,6 +680,8 @@ namespace Antmicro.Renode.Peripherals.Network
         protected void EnterDeepsleep()
         {
             this.Log(LogLevel.Debug, "Entering deep sleep mode");
+            // Entering deep sleep mode also enables power saving mode
+            SetPowerSavingMode(true);
             ReportNbiotEvent(NbiotEvent.EnterDeepsleep);
             // Entering deep sleep is equivalent to a power off, so we do a reset here.
             // NVRAM values will be preserved.
@@ -693,6 +696,16 @@ namespace Antmicro.Renode.Peripherals.Network
             vddExt.Set();
         }
 
+        protected void SetPowerSavingMode(bool enable)
+        {
+            if(powerSavingModeActive == enable)
+            {
+                return;
+            }
+
+            ReportNbiotEvent(enable ? NbiotEvent.EnterPowerSavingMode : NbiotEvent.ExitPowerSavingMode);
+        }
+
         protected void SendSignalingConnectionStatus(bool active)
         {
             if(signalingConnectionActive == active)
@@ -700,6 +713,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
+            // When the signaling connection becomes active, we leave PSM and vice versa
+            SetPowerSavingMode(!active);
             signalingConnectionActive = active;
 
             if(!signalingConnectionStatusReportingEnabled)
@@ -712,14 +727,31 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected void ReportNbiotEvent(NbiotEvent kind)
         {
+            string eventDescription = null;
             switch(kind)
             {
                 case NbiotEvent.EnterDeepsleep:
                     if(deepSleepEventEnabled)
                     {
-                        SendString("+QNBIOTEVENT: \"ENTER DEEPSLEEP\"");
+                        eventDescription = "ENTER DEEPSLEEP";
                     }
                     break;
+                case NbiotEvent.EnterPowerSavingMode:
+                    if(powerSavingModeEventEnabled)
+                    {
+                        eventDescription = "ENTER PSM";
+                    }
+                    break;
+                case NbiotEvent.ExitPowerSavingMode:
+                    if(powerSavingModeEventEnabled)
+                    {
+                        eventDescription = "EXIT PSM";
+                    }
+                    break;
+            }
+            if(eventDescription != null)
+            {
+                SendString($"+QNBIOTEVENT: \"{eventDescription}\"");
             }
         }
 
@@ -821,6 +853,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private Action<byte[]> dataCallback;
         private bool inReset;
         private bool signalingConnectionActive;
+        private bool powerSavingModeActive;
 
         private readonly string softwareVersionNumber;
         private readonly string serialNumber;
@@ -922,6 +955,8 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected enum NbiotEvent
         {
+            EnterPowerSavingMode,
+            ExitPowerSavingMode,
             EnterDeepsleep,
         }
 
