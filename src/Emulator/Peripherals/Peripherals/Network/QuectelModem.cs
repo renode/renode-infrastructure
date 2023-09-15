@@ -679,6 +679,11 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected void EnterDeepsleep()
         {
+            if(!Enabled)
+            {
+                return;
+            }
+
             this.Log(LogLevel.Debug, "Entering deep sleep mode");
             // Entering deep sleep mode also enables power saving mode
             SetPowerSavingMode(true);
