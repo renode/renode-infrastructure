@@ -667,10 +667,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected void EnterDeepsleep()
         {
             this.Log(LogLevel.Debug, "Entering deep sleep mode");
-            if(deepSleepEventEnabled)
-            {
-                SendString("+QNBIOTEVENT: \"ENTER DEEPSLEEP\"");
-            }
+            ReportNbiotEvent(NbiotEvent.EnterDeepsleep);
             // Entering deep sleep is equivalent to a power off, so we do a reset here.
             // NVRAM values will be preserved.
             Reset();
@@ -699,6 +696,19 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             SendString(CsconContent(true));
+        }
+
+        protected void ReportNbiotEvent(NbiotEvent kind)
+        {
+            switch(kind)
+            {
+                case NbiotEvent.EnterDeepsleep:
+                    if(deepSleepEventEnabled)
+                    {
+                        SendString("+QNBIOTEVENT: \"ENTER DEEPSLEEP\"");
+                    }
+                    break;
+            }
         }
 
         protected abstract string Vendor { get; }
@@ -895,6 +905,11 @@ namespace Antmicro.Renode.Peripherals.Network
             None,
             Pap,
             Chap,
+        }
+
+        protected enum NbiotEvent
+        {
+            EnterDeepsleep,
         }
 
         // One SocketService corresponds to one connectionId
