@@ -102,6 +102,8 @@ namespace Antmicro.Renode.UI
                 { ConsoleKey.RightArrow, new [] { ESCCode, CSICode, (byte)'C' } },
                 { ConsoleKey.LeftArrow,  new [] { ESCCode, CSICode, (byte)'D' } },
                 { ConsoleKey.Delete,     new [] { ESCCode, CSICode, (byte)'3', (byte)'~' } },
+                { ConsoleKey.Home,       new [] { ESCCode, CSICode, (byte)'H' } },
+                { ConsoleKey.End,        new [] { ESCCode, CSICode, (byte)'F' } },
                 { ConsoleKey.Tab,        new [] { (byte)'\t' } },
                 { ConsoleKey.Backspace,  new [] { (byte)127 } }
             };
@@ -109,7 +111,6 @@ namespace Antmicro.Renode.UI
             while(true)
             {
                 var key = Console.ReadKey(true);
-                // this is to support Home/End keys
                 if(key.Key == (ConsoleKey)0 && (key.Modifiers & ConsoleModifiers.Alt) != 0)
                 {
                     ByteRead?.Invoke(ESCCode);
