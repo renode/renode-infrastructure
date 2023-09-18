@@ -308,6 +308,7 @@
     <Compile Include="Peripherals\UART\LiteX_UART_64bit.cs" />
     <Compile Include="Peripherals\Network\LiteX_Ethernet.cs" />
     <Compile Include="Peripherals\UART\PicoSoC_SimpleUART.cs" />
+    <Compile Include="Peripherals\UART\Renesas_SCI.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
     <Compile Include="Peripherals\Miscellaneous\Quark_SystemControlSubsystem.cs" />
     <Compile Include="Peripherals\UART\SiFive_UART.cs" />
