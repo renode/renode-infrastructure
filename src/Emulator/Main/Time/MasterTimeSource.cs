@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Time
         /// <param name="period">Amount of virtual time to pass.</param>
         public void RunFor(TimeInterval period)
         {
-            DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
+            EnsureDispatcherExited();
 
             using(ObtainStartedState())
             using(this.ObtainSourceActiveState())
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Time
         /// <param name="numberOfSyncPoints">Number of synchronization points to pass (default 1).</param>
         public void Run(uint numberOfSyncPoints = 1)
         {
-            DebugHelper.Assert(dispatcherThread == null, "Dispatcher thread should not run at this moment");
+            EnsureDispatcherExited();
 
             using(ObtainStartedState())
             using(this.ObtainSourceActiveState())
@@ -151,8 +151,7 @@ namespace Antmicro.Renode.Time
                 if(dispatcherThread != null && dispatcherThread.ManagedThreadId != Thread.CurrentThread.ManagedThreadId)
                 {
                     this.Trace("Waiting for dispatcher thread");
-                    dispatcherThread.Join();
-                    dispatcherThread = null;
+                    EnsureDispatcherExited();
                 }
                 this.Trace("Stopped");
             }
@@ -188,6 +187,17 @@ namespace Antmicro.Renode.Time
                     throw;
                 }
             }
+        }
+
+        private void EnsureDispatcherExited()
+        {
+            // We check isStarted to make sure the dispatcher thread is not supposed to be running
+            // and then wait for it to exit if needed. When the time source is paused from within
+            // the dispatcher, the thread object is left behind so that we can wait for it to exit
+            // as needed before further time source operations.
+            DebugHelper.Assert(!isStarted, "Dispatcher thread should not be set to run at this moment");
+            dispatcherThread?.Join();
+            dispatcherThread = null;
         }
 
         private bool isDisposed;
