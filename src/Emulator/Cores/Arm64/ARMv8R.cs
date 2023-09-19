@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case InterruptSignalType.FIQ:
                     return Interrupt.TargetExternal1;
                 default:
-                    this.Log(LogLevel.Error, "WTF, IRQ#{0}?!?!", number);
+                    this.Log(LogLevel.Error, "Unexpected interrupt type for IRQ#{0}", number);
                     throw InvalidInterruptNumberException;
             }
         }
