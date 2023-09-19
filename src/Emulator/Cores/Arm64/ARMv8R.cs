@@ -20,15 +20,24 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class ARMv8R : TranslationCPU, IARMSingleSecurityStateCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
-        public ARMv8R(string cpuType, IMachine machine, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, SecurityState securityState = SecurityState.NonSecure, uint mpuRegionsCount = 16)
+        public ARMv8R(string cpuType, IMachine machine, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, SecurityState securityState = SecurityState.NonSecure, uint mpuRegionsCount = 16, ulong defaultHVBARValue = 0, ulong defaultVBARValue = 0)
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
             SecurityState = securityState;
+            this.defaultHVBARValue = defaultHVBARValue;
+            this.defaultVBARValue = defaultVBARValue;
 
             gic = genericInterruptController;
             gic.AttachCPU(cpuId, this);
             TlibSetMpuRegionsCount(mpuRegionsCount);
             Reset();
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            SetSystemRegisterValue("hvbar", defaultHVBARValue);
+            SetSystemRegisterValue("vbar", defaultVBARValue);
         }
 
         public ulong GetSystemRegisterValue(string name)
@@ -216,6 +225,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly ARM_GenericInterruptController gic;
 
+        private readonly ulong defaultHVBARValue;
+        private readonly ulong defaultVBARValue;
         // These '*ReturnValue' enums have to be in sync with their counterparts in 'tlib/arch/arm64/arch_exports.c'.
         private enum SetAvailableElsReturnValue
         {
