@@ -531,8 +531,12 @@ namespace Antmicro.Renode.UserInterface
             return variableName;
         }
 
-        private bool TryCompilePlugin(string filename, ICommandInteraction writer)
+        public bool TryCompilePlugin(string filename, ICommandInteraction writer = null)
         {
+            if(writer == null)
+            {
+                writer = Interaction;
+            }
             string sha; 
             using(var shaComputer = SHA256.Create())
             {
