@@ -642,6 +642,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private void HandleMPUWriteV8(long offset, uint value)
         {
             this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV8), offset), value);
+
+            if (cpu.NumberOfMPURegions == 0)
+            {
+                this.Log(LogLevel.Error, $"CPU abort [PC={cpu.PC:x}]. Attempted a write to an MPU register, but the CPU doesn't support MPU. Set 'numberOfMPURegions' in CPU configuration to enable it.");
+                throw new CpuAbortException();
+            }
             switch((RegistersV8)offset)
             {
                 case RegistersV8.Type:
@@ -710,6 +716,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private uint HandleMPUReadV8(long offset)
         {
+            if (cpu.NumberOfMPURegions == 0)
+            {
+                this.Log(LogLevel.Debug, $"Attempted a read from an MPU register, but the CPU doesn't support MPU. Set 'numberOfMPURegions' in CPU configuration to enable it.");
+                return 0;
+            }
             uint value;
             switch((RegistersV8)offset)
             {
