@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -147,8 +147,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             Registers.Slot0Configuration.Define32Many(this, SlotsCount, (register, index) =>
                 {
                     register
-                        .WithFlag(0, out slots[index].enableFlag, name: $"SLEN{index}",
-                                writeCallback: (_, newValue) => this.Log(LogLevel.Error, $"SLEN{index} set to: {newValue}"))
+                        .WithFlag(0, out slots[index].enableFlag, name: $"SLEN{index}")
                         .WithTaggedFlag($"WCEN{index}", 1)
                         .WithReservedBits(2, 6)
                         .WithEnumField(8, 4, out slots[index].channelSelect, name: $"CHSEL{index}", writeCallback: (oldValue, newValue) =>
