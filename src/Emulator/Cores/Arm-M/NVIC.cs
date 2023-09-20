@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
     {
-        public NVIC(IMachine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, uint cpuId = DefaultCpuId, uint numberOfMPURegions = 8, bool haltSystickOnDeepSleep = true)
+        public NVIC(IMachine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, bool haltSystickOnDeepSleep = true)
         {
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
@@ -30,8 +30,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, eventEnabled: true, autoUpdate: true);
             this.machine = machine;
             this.priorityMask = priorityMask;
-            this.cpuId = cpuId;
-            this.numberOfMPURegions = numberOfMPURegions;
             this.haltSystickOnDeepSleep = haltSystickOnDeepSleep;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
@@ -50,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void AttachCPU(CortexM cpu)
         {
             this.cpu = cpu;
+            this.cpuId = cpu.ID;
             mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
         }
 
@@ -681,7 +680,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((RegistersV7)offset)
             {
                 case RegistersV7.Type:
-                    value = (numberOfMPURegions & 0xFF) << 8;
+                    value = (cpu.NumberOfMPURegions & 0xFF) << 8;
                     break;
                 case RegistersV7.Control:
                     value = mpuControlRegister;
@@ -715,7 +714,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((RegistersV8)offset)
             {
                 case RegistersV8.Type:
-                    value = (numberOfMPURegions & 0xFF) << 8;
+                    value = (cpu.NumberOfMPURegions & 0xFF) << 8;
                     break;
                 case RegistersV8.Control:
                     value = cpu.PmsaV8Ctrl;
@@ -956,8 +955,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint numberOfMPURegions;
-
         [Flags]
         private enum IRQState : byte
         {
@@ -1062,7 +1059,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private CortexM cpu;
         private readonly LimitTimer systick;
         private readonly IMachine machine;
-        private readonly uint cpuId;
+        private uint cpuId;
 
         private const int MPUStart             = 0xD90;
         private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
