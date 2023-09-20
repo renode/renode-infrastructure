@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(numberOfMPURegions.HasValue)
             {
-                TlibSetNumberOfMpuRegions(numberOfMPURegions.Value);
+                this.NumberOfMPURegions = numberOfMPURegions.Value;
             }
         }
 
@@ -85,6 +85,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 wfeAndSevAsNop = value;
                 neverWaitForInterrupt = wfiAsNop && wfeAndSevAsNop;
+            }
+        }
+
+        public uint NumberOfMPURegions
+        {
+            get
+            {
+                return TlibGetNumberOfMpuRegions();
+            }
+            set
+            {
+                TlibSetNumberOfMpuRegions(value);
             }
         }
 
@@ -310,6 +322,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 TlibSetNumberOfMpuRegions;
+
+        [Import]
+        private FuncUInt32 TlibGetNumberOfMpuRegions;
 
 #pragma warning restore 649
 
