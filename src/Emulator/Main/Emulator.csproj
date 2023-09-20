@@ -595,6 +595,7 @@
     <Compile Include="Network\CRCMode.cs" />
     <Compile Include="Utilities\IfWrapper.cs" />
     <Compile Include="Peripherals\IMachine.cs" />
+    <Compile Include="Utilities\RESD\LowLevelRESDParser.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
