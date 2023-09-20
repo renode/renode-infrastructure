@@ -32,6 +32,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             tlibSetFpuInterruptNumber((int?)fpuInterruptNumber ?? -1);
 
+            if(!numberOfMPURegions.HasValue)
+            {
+                // FIXME: This is not correct for M7 and v8M cores
+                // Setting 8 regions backward-compatibility for now
+                this.NumberOfMPURegions = 8;
+            }
+
             this.nvic = nvic;
             nvic.AttachCPU(this);
         }
