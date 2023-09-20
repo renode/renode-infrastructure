@@ -206,15 +206,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(12, 20)
                 ;
 
+            // Some software expects values written to
+            // IOCLKEN, FSEL, DIVEN, LOWPER, TOTPER to be retained
             Registers.IOClockConfiguration.Define(this)
-                .WithTaggedFlag("IOCLKEN", 0)
+                .WithFlag(0, name: "IOCLKEN")
                 .WithReservedBits(1, 7)
-                .WithTag("FSEL", 8, 3)
+                .WithValueField(8, 3, name: "FSEL")
                 .WithTaggedFlag("DIV3", 11)
-                .WithTaggedFlag("DIVEN", 12)
+                .WithFlag(12, name: "DIVEN")
                 .WithReservedBits(13, 3)
-                .WithTag("LOWPER", 16, 8)
-                .WithTag("TOTPER", 24, 8)
+                .WithValueField(16, 8, name: "LOWPER")
+                .WithValueField(24, 8, name: "TOTPER")
                 ;
 
             Registers.SubmoduleControl.Define(this)
@@ -485,16 +487,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(31, 1)
                 ;
 
+            // Some software expects values written to
+            // SDADLY, SCLENDLY and SDAENDLY to be retined
             Registers.I2CMasterConfiguration.Define(this)
                 .WithFlag(0, out i2cExtendedAdressingMode, name: "ADDRSZ")
                 .WithTaggedFlag("I2CLSB", 1)
                 .WithTaggedFlag("ARBEN", 2)
                 .WithReservedBits(3, 1)
-                .WithTag("SDADLY", 4, 2)
-                .WithTaggedFlag("MI2CRST", 6)
+                .WithValueField(4, 2, name: "SDADLY")
+                .WithFlag(6, name: "MI2CRST")
                 .WithReservedBits(7, 1)
-                .WithTag("SCLENDLY", 8, 4)
-                .WithTag("SDAENDLY", 12, 4)
+                .WithValueField(8, 4, name: "SCLENDLY")
+                .WithValueField(12, 4, name: "SDAENDLY")
                 .WithTag("SMPCNT", 16, 8)
                 .WithTaggedFlag("STRDIS", 24)
                 .WithReservedBits(25, 7)
