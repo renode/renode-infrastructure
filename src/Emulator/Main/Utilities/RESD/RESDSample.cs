@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -37,6 +38,13 @@ namespace Antmicro.Renode.Utilities.RESD
         public abstract bool TryReadFromStream(SafeBinaryReader reader);
 
         public IDictionary<string, MetadataValue> Metadata { get; private set; }
+
+        // Ensure decimal dots are always used regardless of the system locale
+        // for consistent output formatting.
+        protected static string DecimalToString(decimal value)
+        {
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
     }
 
     [SampleType(SampleType.Temperature)]
@@ -51,6 +59,11 @@ namespace Antmicro.Renode.Utilities.RESD
             Temperature = reader.ReadInt32();
 
             return true;
+        }
+
+        public override string ToString()
+        {
+            return $"{DecimalToString(Temperature / (decimal)1e3)} °C";
         }
     }
 
@@ -71,6 +84,15 @@ namespace Antmicro.Renode.Utilities.RESD
 
             return true;
         }
+
+        public override string ToString()
+        {
+            var xStr = DecimalToString(AccelerationX / (decimal)1e6);
+            var yStr = DecimalToString(AccelerationY / (decimal)1e6);
+            var zStr = DecimalToString(AccelerationZ / (decimal)1e6);
+
+            return $"[{xStr}, {yStr}, {zStr}] g";
+        }
     }
 
     [SampleType(SampleType.AngularRate)]
@@ -90,6 +112,15 @@ namespace Antmicro.Renode.Utilities.RESD
 
             return true;
         }
+
+        public override string ToString()
+        {
+            var xStr = DecimalToString(AngularRateX / (decimal)1e5);
+            var yStr = DecimalToString(AngularRateY / (decimal)1e5);
+            var zStr = DecimalToString(AngularRateZ / (decimal)1e5);
+
+            return $"[{xStr}, {yStr}, {zStr}] rad/s";
+        }
     }
 
     [SampleType(SampleType.Voltage)]
@@ -105,6 +136,11 @@ namespace Antmicro.Renode.Utilities.RESD
 
             return true;
         }
+
+        public override string ToString()
+        {
+            return $"{DecimalToString(Voltage / (decimal)1e6)} V";
+        }
     }
 
     [SampleType(SampleType.ECG)]
@@ -119,6 +155,11 @@ namespace Antmicro.Renode.Utilities.RESD
             ECG = reader.ReadInt32();
 
             return true;
+        }
+
+        public override string ToString()
+        {
+            return $"{ECG} nV";
         }
     }
 
