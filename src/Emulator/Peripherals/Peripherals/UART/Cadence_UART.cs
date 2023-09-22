@@ -454,7 +454,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         UpdateInterrupts();
                     })
                 },
-                {(long)Registers.BaudRateDivider, new DoubleWordRegister(this)
+                {(long)Registers.BaudRateDivider, new DoubleWordRegister(this, resetValue: 0x0000000F)
                     .WithReservedBits(8, 24)
                     .WithValueField(0, 8, out baudDivider, name: "baudRateDivider")
                 }
