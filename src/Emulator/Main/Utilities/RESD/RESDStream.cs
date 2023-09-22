@@ -27,19 +27,77 @@ namespace Antmicro.Renode.Utilities.RESD
         AfterStream = -2,
     }
 
+    public enum RESDStreamSampleOffset
+    {
+        // Use specified sample offset
+        Specified,
+        // User current virtual-time timestamp as offset
+        CurrentVirtualTime,
+    }
+
     public static class RESDStreamExtension
     {
-        public static RESDStream<T> CreateRESDStream<T>(this IEmulationElement @this, ReadFilePath path, uint channel) where T: RESDSample, new()
+        public static RESDStream<T> CreateRESDStream<T>(this IPeripheral @this, ReadFilePath path, uint channel,
+            RESDStreamSampleOffset offsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0) where T: RESDSample, new()
         {
-            var stream = new RESDStream<T>(path, channel);
+            if(offsetType == RESDStreamSampleOffset.CurrentVirtualTime)
+            {
+                var machine = @this.GetMachine();
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+                sampleOffsetTime = (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L;
+            }
+
+            var stream = new RESDStream<T>(path, channel, sampleOffsetTime);
             stream.Owner = @this;
             return stream;
         }
+
+        public static RESDStreamStatus TryGetCurrentSample<T, Out>(this RESDStream<T> @this, IPeripheral peripheral, Func<T, Out> transformer,
+            out Out sample, out TimeInterval timestamp, long? overrideSampleOffsetTime = null) where T: RESDSample, new()
+        {
+            var result = @this.TryGetCurrentSample(peripheral, out var originalSample, out timestamp, overrideSampleOffsetTime);
+            sample = transformer(originalSample);
+            return result;
+        }
+    }
+
+    public class RESDStream<T, Out> : RESDStream<T> where T: RESDSample, new()
+    {
+        public RESDStream(ReadFilePath path, uint channel, Func<T, Out> transformer, long sampleOffsetTime = 0) : base(path, channel, sampleOffsetTime)
+        {
+            this.transformer = transformer;
+        }
+
+        public RESDStreamStatus TryGetSample(ulong timestamp, out Out sample, long? overrideSampleOffsetTime = null)
+        {
+            var result = TryGetSample(timestamp, out T originalSample, overrideSampleOffsetTime);
+            sample = transformer(originalSample);
+            return result;
+        }
+
+        public RESDStreamStatus TryGetCurrentSample(IPeripheral peripheral, out Out sample, out TimeInterval timestamp, long? overrideSampleOffsetTime = null)
+        {
+            var result = TryGetCurrentSample(peripheral, out T originalSample, out timestamp, overrideSampleOffsetTime);
+            sample = transformer(originalSample);
+            return result;
+        }
+
+        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<Out, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, long? overrideSampleOffsetTime = null)
+        {
+            Action<T, TimeInterval, RESDStreamStatus> transformedCallback =
+                (sample, timestamp, status) => newSampleCallback(transformer(sample), timestamp, status);
+            return StartSampleFeedThread(owner, frequency, transformedCallback, startTime, overrideSampleOffsetTime);
+        }
+
+        private readonly Func<T, Out> transformer;
     }
 
     public class RESDStream<T> : IDisposable where T : RESDSample, new()
     {
-        public RESDStream(ReadFilePath path, uint channel)
+        public RESDStream(ReadFilePath path, uint channel, long sampleOffsetTime = 0)
         {
             var sampleTypeAttribute = typeof(T).GetCustomAttributes(typeof(SampleTypeAttribute), true).FirstOrDefault() as SampleTypeAttribute;
             if(sampleTypeAttribute == null)
@@ -48,6 +106,7 @@ namespace Antmicro.Renode.Utilities.RESD
             }
 
             this.channel = channel;
+            this.sampleOffsetTime = sampleOffsetTime;
             this.managedThreads = new List<IManagedThread>();
             this.parser = new LowLevelRESDParser(path);
             this.parser.LogCallback += (logLevel, message) => Owner?.Log(logLevel, message);
@@ -56,7 +115,15 @@ namespace Antmicro.Renode.Utilities.RESD
             PrereadFirstBlock();
         }
 
-        public RESDStreamStatus TryGetSample(ulong timestamp, out T sample)
+        public RESDStreamStatus TryGetCurrentSample(IPeripheral peripheral, out T sample, out TimeInterval timestamp, long? overrideSampleOffsetTime = null)
+        {
+            var machine = peripheral.GetMachine();
+            timestamp = machine.ClockSource.CurrentValue;
+            var timestampInMicroseconds = timestamp.TotalMicroseconds * 1000;
+            return TryGetSample(timestampInMicroseconds, out sample, overrideSampleOffsetTime);
+        }
+
+        public RESDStreamStatus TryGetSample(ulong timestamp, out T sample, long? overrideSampleOffsetTime = null)
         {
             if(timestamp < currentBlock.StartTime)
             {
@@ -64,6 +131,9 @@ namespace Antmicro.Renode.Utilities.RESD
                 sample = null;
                 return RESDStreamStatus.BeforeStream;
             }
+
+            var currentSampleOffsetTime = overrideSampleOffsetTime ?? sampleOffsetTime;
+            timestamp = currentSampleOffsetTime > 0 ? timestamp + (ulong)currentSampleOffsetTime : timestamp - (ulong)(-currentSampleOffsetTime);
 
             while(blockEnumerator != null)
             {
@@ -101,16 +171,12 @@ namespace Antmicro.Renode.Utilities.RESD
             return RESDStreamStatus.AfterStream;
         }
 
-        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, long sampleOffsetTime = 0)
+        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, long? overrideSampleOffsetTime = null)
         {
             var machine = owner.GetMachine();
             Action feedSample = () =>
             {
-                var timestamp = machine.ClockSource.CurrentValue;
-                var timestampInNanoseconds = timestamp.TotalMicroseconds * 1000;
-                timestampInNanoseconds = sampleOffsetTime > 0 ? timestampInNanoseconds + (ulong)sampleOffsetTime : timestampInNanoseconds - (ulong)(-sampleOffsetTime);
-                var status = TryGetSample(timestampInNanoseconds, out var sample);
-                Owner?.Log(LogLevel.Debug, "RESD: Feeding sample at timestamp {0}us", timestamp);
+                var status = TryGetCurrentSample(owner, out var sample, out var timestamp, overrideSampleOffsetTime);
                 newSampleCallback(sample, timestamp, status);
             };
 
@@ -204,6 +270,7 @@ namespace Antmicro.Renode.Utilities.RESD
         [Transient]
         private IEnumerator<DataBlock<T>> blockEnumerator;
         private ulong serializedTimestamp;
+        private long sampleOffsetTime;
 
         private readonly LowLevelRESDParser parser;
         private readonly uint channel;
