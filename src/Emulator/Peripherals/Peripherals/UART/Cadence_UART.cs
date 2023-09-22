@@ -377,9 +377,17 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                     })
                 },
-                {(long)Registers.BaudRateGenerator, new DoubleWordRegister(this)
+                {(long)Registers.BaudRateGenerator, new DoubleWordRegister(this, resetValue: 0x0000028B)
                     .WithReservedBits(16, 16)
-                    .WithValueField(0, 16, out baudGenerator, name: "baudRateGenerator")
+                    .WithValueField(0, 16, out baudGenerator, writeCallback: (oldVal, newVal) =>
+                    {
+                        if(newVal == 0)
+                        {
+                            // https://docs.xilinx.com/r/en-US/ug585-zynq-7000-SoC-TRM/Baud-Rate-Generator
+                            this.Log(LogLevel.Warning, "Attempt to write 0 to Baud Rate Generator register was ignored. It can be programmed with a value between 1 and 65535.");
+                            baudGenerator.Value = oldVal;
+                        }
+                    }, name: "baudRateGenerator")
                 },
                 {(long)Registers.RxFifoTriggerLevel, new DoubleWordRegister(this, 0x00000020)
                     .WithReservedBits(6, 26)
