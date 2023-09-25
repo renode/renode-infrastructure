@@ -13,6 +13,7 @@ using Antmicro.Renode.Utilities.Binding;
 using System.Collections.Generic;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -225,6 +226,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ExceptionDescriptions[exceptionIndex];
         }
 
+        public override void Reset()
+        {
+            base.Reset();
+            foreach(var config in defaultTCMConfiguration)
+            {
+                RegisterTCMRegion(config);
+            }
+        }
+
         public void SetEventFlag(bool value)
         {
             TlibSetEventFlag(value ? 1 : 0);
@@ -233,6 +243,67 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void SetSevOnPending(bool value)
         {
             TlibSetSevOnPending(value ? 1 : 0);
+        }
+
+        public void RegisterTCMRegion(MappedMemory memory, uint interfaceIndex, uint regionIndex)
+        {
+            Action<IMachine, MachineStateChangedEventArgs> hook = null;
+            hook = (_, args) =>
+            {
+                if(args.CurrentState != MachineStateChangedEventArgs.State.Started)
+                {
+                    return;
+                }
+                if(!TryRegisterTCMRegion(memory, interfaceIndex, regionIndex))
+                {
+                    this.Log(LogLevel.Error, "Attempted to register a TCM #{0} region #{1}, but {2} is not registered for this cpu.", interfaceIndex, regionIndex, machine.GetLocalName(memory));
+                }
+                machine.StateChanged -= hook;
+            };
+            machine.StateChanged += hook;
+        }
+
+        public void RegisterTCMRegion(ulong address, long size, uint interfaceIndex, uint regionIndex)
+        {
+            var config = new TCMConfiguration(checked((uint)address), checked((ulong)size), interfaceIndex, regionIndex);
+            RegisterTCMRegion(config);
+            defaultTCMConfiguration.Add(config);
+        }
+
+        private void RegisterTCMRegion(TCMConfiguration config)
+        {
+            try
+            {
+                TlibRegisterTcmRegion(config.Address, config.Size, ((ulong)config.InterfaceIndex << 32) | config.RegionIndex);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException(e);
+            }
+        }
+
+        private bool TryRegisterTCMRegion(MappedMemory memory, uint interfaceIndex, uint regionIndex)
+        {
+            var registrationPoint = ((SystemBus)machine.SystemBus).GetRegistrationPoints(memory, this).OfType<IPerCoreRegistration>().Where(x => x.CPU == this).SingleOrDefault();
+            if(registrationPoint == null)
+            {
+                return false;
+            }
+            var address = (ulong)0x0;
+            if(registrationPoint is BusRangeRegistration rangeRegistration)
+            {
+                address = rangeRegistration.Range.StartAddress;
+            }
+            else if(registrationPoint is BusPointRegistration pointRegistration)
+            {
+                address = pointRegistration.StartingPoint;
+            }
+            else
+            {
+                return false;
+            }
+            RegisterTCMRegion(address, memory.Size, interfaceIndex, regionIndex);
+            return true;
         }
 
         [Export]
@@ -296,6 +367,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
+
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
 
@@ -325,6 +398,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetNumberOfMpuRegions;
+
+        [Import]
+        private ActionUInt32UInt64UInt64 TlibRegisterTcmRegion;
 
 #pragma warning restore 649
 
@@ -431,6 +507,22 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private const int Opc1Offset = 4;
             private const int CRmOffset = 0;
+        }
+
+        protected struct TCMConfiguration
+        {
+            public TCMConfiguration(uint address, ulong size, uint interfaceIndex, uint regionIndex)
+            {
+                Address = address;
+                Size = size;
+                InterfaceIndex = interfaceIndex;
+                RegionIndex = regionIndex;
+            }
+
+            public uint Address { get; }
+            public ulong Size { get; }
+            public uint InterfaceIndex { get; }
+            public uint RegionIndex { get; }
         }
     }
 }
