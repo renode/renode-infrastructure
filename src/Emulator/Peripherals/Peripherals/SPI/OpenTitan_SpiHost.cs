@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(addr == (long)Registers.Txdata)
             {
                 EnqueueTx(val, sizeof(uint));
+                return;
             }
             RegistersCollection.Write(addr, val);
         }
@@ -68,6 +69,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(addr == (long)Registers.Txdata)
             {
                 EnqueueTx(val, sizeof(ushort));
+                return;
             }
             RegistersCollection.Write(addr, val);
         }
@@ -77,6 +79,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(addr == (long)Registers.Txdata)
             {
                 EnqueueTx(val, sizeof(byte));
+                return;
             }
             RegistersCollection.Write(addr, val);
         }
@@ -139,9 +142,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 })
             },
             {(long)Registers.Status, new DoubleWordRegister(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => txCountInWords, name: "TXQD")
-                .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => rxCountInWords, name: "RXQD")
-                .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => cmdCountInWords, name: "CMDQD")
+                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => txCountInDoubleWords, name: "TXQD")
+                .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => rxCountInDoubleWords, name: "RXQD")
+                .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => cmdCountInDoubleWords, name: "CMDQD")
                 .WithFlag(20, out rxWatermarkEventTriggered, FieldMode.Read, name: "RXWM")
                 .WithReservedBits(21, 1)
                 .WithTaggedFlag("BYTEORDER", 22)
