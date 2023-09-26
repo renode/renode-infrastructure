@@ -620,8 +620,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return result;
             }
 
+            var minValue = MinValue14Bit;
             var maxValue = MaxValue14Bit;
             var shift = 2;
+            // Divide the divider by 4 because the divider for full scale = 2 g
+            // is 4 and the base sensitivity is given for this scale setting
+            var sensitivity = BaseSensitivity * (scaleDivider / 4);
 
             if(modeSelection.Value == ModeSelection.HighPerformance)
             {
@@ -634,18 +638,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
             else if((modeSelection.Value == ModeSelection.LowPower) && (lowPowerModeSelection.Value == LowPowerModeSelection.LowPowerMode1_12bitResolution))
             {
                 this.Log(LogLevel.Noisy, "Low power (12-bit resolution) mode is selected.");
+                minValue = MinValue12Bit;
                 maxValue = MaxValue12Bit;
                 shift = 4;
+                sensitivity *= 4;
             }
             else
             {
                 this.Log(LogLevel.Noisy, "Other conversion mode selected.");
             }
 
-            var sensitivity = ((decimal)scaleDivider / maxValue) * 1000m;   // [mg/digit]
-            var gain = 1m / sensitivity;
-            var valueAsUshort = (ushort)((ushort)((short)((value * 1000) * gain)) << shift);
-            this.Log(LogLevel.Noisy, "Conversion done with sensitivity: {0:F4}, and gain: {1:F4}", sensitivity, gain);
+            var valueAsInt = ((int)(value * 1000 / sensitivity)).Clamp(minValue, maxValue);
+            var valueAsUshort = (ushort)(valueAsInt << shift); // left-align
+            this.Log(LogLevel.Noisy, "Conversion done with sensitivity: {0:F3}, result: 0x{1:X4}", sensitivity, valueAsUshort);
 
             if(upperByte)
             {
@@ -749,9 +754,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const decimal MinAcceleration = -16m;
         private const decimal MaxAcceleration = 16m;
         private const decimal SelfTestAcceleration = 1m;
+        // Calculated as floor(1000 / 0xfff, 3), 1000 mg / 12-bit max value, used as a base
+        // to calculate the sensitivity for other ranges/resolutions, multiplying it by 2^n
+        // to match the tables in the datasheet, appnote, and drivers
+        private const decimal BaseSensitivity = 0.244m; // mg / digit
         private const int MaxFifoSize = 32;
-        private const int MaxValue14Bit = 0x3FFF;
-        private const int MaxValue12Bit = 0x0FFF;
+        private const int MinValue14Bit = -0x2000;
+        private const int MaxValue14Bit = 0x1FFF;
+        private const int MinValue12Bit = -0x0800;
+        private const int MaxValue12Bit = 0x07FF;
         private const int TemperatureLsbsPerDegree = 16;
 
         private class LIS2DW12_FIFO
