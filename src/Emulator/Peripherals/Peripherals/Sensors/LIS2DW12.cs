@@ -285,7 +285,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.TemperatureOutLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_L)",
                     valueProviderCallback: _ => (byte)(TwoComplementSignConvert(ReportedTemperature * TemperatureLsbsPerDegree) << 4));
-            
+
             Registers.TemperatureOutHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "Temperature output register in 12-bit resolution (OUT_T_H)",
                     valueProviderCallback: _ => (byte)(TwoComplementSignConvert(ReportedTemperature * TemperatureLsbsPerDegree) >> 4));
@@ -403,7 +403,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.DataOutXLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "X-axis LSB output register (OUT_X_L)",
-                    valueProviderCallback: _ => 
+                    valueProviderCallback: _ =>
                     {
                         LoadNextSample();
                         return Convert(ReportedAccelerationX, upperByte: false);
@@ -650,10 +650,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             if(upperByte)
             {
                 return (byte)(valueAsUshort >> 8);
-            }            
+            }
             result = (byte)(valueAsUshort);
             UpdateInterrupts();
-            
+
             return result;
         }
 
