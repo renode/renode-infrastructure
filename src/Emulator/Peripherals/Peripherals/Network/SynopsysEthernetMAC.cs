@@ -363,7 +363,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     this.Log(LogLevel.Noisy, "Sending frame of {0} bytes.", packetData.Count);
 
-                    if(!Misc.TryCreateFrameOrLogWarning(this, packetData.ToArray(), out var frame, addCrc: false))
+                    if(!Misc.TryCreateFrameOrLogWarning(this, packetData.ToArray(), out var frame, addCrc: true))
                     {
                         continue;
                     }
