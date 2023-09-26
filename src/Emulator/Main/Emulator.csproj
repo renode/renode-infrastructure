@@ -111,7 +111,8 @@
     <Compile Include="Utilities\Packets\LeastSignificantByteFirst.cs" />
     <Compile Include="Utilities\Packets\DynamicPropertiesObject.cs" />
     <Compile Include="Storage\SCSI\Commands\IReadWrite10Command.cs" />
-    <Compile Include="Storage\SCSI\Commands\ReadCapacity10Result.cs" />
+    <Compile Include="Storage\SCSI\Commands\SCSICommands.cs" />
+    <Compile Include="Storage\SCSI\Commands\SCSIResponses.cs" />
     <Compile Include="Storage\SCSI\SCSICommand.cs" />
     <Compile Include="Storage\SCSI\SCSICommandDescriptorBlock.cs" />
     <Compile Include="Peripherals\USB\MSC\BOT\CommandStatusWrapper.cs" />
