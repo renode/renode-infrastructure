@@ -373,7 +373,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         if(transmitDescriptor.ChecksumInstertionControl == 1)
                         {
                             //IP only
-                            frame.FillWithChecksums(supportedEtherChecksums, null);
+                            frame.FillWithChecksums(supportedEtherChecksums, new IPProtocolType[] {});
                         }
                         else
                         {
