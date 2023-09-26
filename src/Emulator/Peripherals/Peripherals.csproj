@@ -458,6 +458,7 @@
     <Compile Include="Peripherals\Storage\UFS\UFSDeviceDescriptors.cs" />
     <Compile Include="Peripherals\Storage\UFS\UFSProtocolInformationUnits.cs" />
     <Compile Include="Peripherals\Storage\UFS\UTPProtocol.cs" />
+    <Compile Include="Peripherals\Storage\UFSDevice.cs" />
     <Compile Include="Peripherals\Analog\ADCChannel.cs" />
     <Compile Include="Peripherals\MemoryControllers\OpenTitan_ROMController.cs" />
     <Compile Include="Peripherals\MemoryControllers\OpenTitan_SRAMController.cs" />
