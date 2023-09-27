@@ -20,7 +20,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class NVIC : IDoubleWordPeripheral, IHasFrequency, IKnownSize, IIRQController
+    public class NVIC : IDoubleWordPeripheral, IHasDivisibleFrequency, IKnownSize, IIRQController
     {
         public NVIC(IMachine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, bool haltSystickOnDeepSleep = true)
         {
@@ -78,6 +78,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public int Divider
         {
+            get => systick.Divider;
             set
             {
                 systick.Divider = value;

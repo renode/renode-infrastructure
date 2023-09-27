@@ -4,7 +4,7 @@
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
-
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -16,28 +16,138 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_RCC(IMachine machine, IPeripheral rtc = null, ITimer lptimer = null, long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency) : base(machine)
+        public STM32L0_RCC(IMachine machine, IPeripheral rtc = null, ITimer lptimer = null, IHasDivisibleFrequency systick = null,
+            long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency,
+            long hseFrequency = DefaultHseFrequency) : base(machine)
         {
+            if(systick == null)
+            {
+                this.Log(LogLevel.Warning, "Systick not passed in the RCC constructor. Changes to the system clock will be ignored");
+            }
+            this.systick = systick;
+            if(rtc == null)
+            {
+                this.Log(LogLevel.Warning, "RTC not passed in the RCC constructor. Changes to the real-time clock will be ignored");
+            }
             this.rtc = rtc;
+            if(lptimer == null)
+            {
+                this.Log(LogLevel.Warning, "Lptimer not passed in the RCC constructor. Changes to the low-power timer clock will be ignored");
+            }
             this.lptimer = lptimer;
+
             this.apbFrequency = apbFrequency;
             this.lsiFrequency = lsiFrequency;
             this.lseFrequency = lseFrequency;
+            this.hseFrequency = hseFrequency;
+
             DefineRegisters();
             Reset();
         }
 
+        public void Reset()
+        {
+            // Set PLL divisor to a default value of 1.
+            // Despite it not being a valid value, this is what it resets to
+            // and we don't want the error about invalid PLLDIV to show up after reset.
+            pllDivisor = 1;
+            pllMultiplier = 3;
+            msiMultiplier = 32;
+            systick.Divider = 1;
+            base.Reset();
+            UpdateClocks();
+        }
+
         public long Size => 0x400;
+
+        // Update frequencies and divisors of all clocks connected to the RCC.
+        // Make sure it's called after any configuration register is touched
+        private void UpdateClocks()
+        {
+            UpdateSystemClock();
+            UpdateLpTimerClock();
+        }
+
+        private void UpdateSystemClock()
+        {
+            if(systick == null)
+            {
+                return;
+            }
+            
+            var old = systick.Frequency;
+            switch(systemClockSwitch.Value)
+            {
+                case SystemClockSourceSelection.Msi:
+                    systick.Frequency = MsiFrequency;
+                    break;
+                case SystemClockSourceSelection.Hsi16:
+                    systick.Frequency = Hsi16Frequency;
+                    break;
+                case SystemClockSourceSelection.Hse:
+                    systick.Frequency = hseFrequency;
+                    break;
+                case SystemClockSourceSelection.Pll:
+                    if(!pllOn.Value)
+                    {
+                        this.Log(LogLevel.Error, "Systick source set to PLL when PLL is disabled.");
+                    }
+                    systick.Frequency = PllFrequency;
+                    break;
+                default:
+                    throw new Exception("unreachable code");
+            }
+            if(old != systick.Frequency)
+            {
+                this.Log(
+                    LogLevel.Debug,
+                    "systick clock frequency changed to {0}. Current effective frequency: {1}",
+                    systick.Frequency,
+                    systick.Frequency / systick.Divider
+                );
+            }
+        }
+
+        private void UpdateLpTimerClock()
+        {
+            if(lptimer == null) 
+            {
+                return;
+            }
+
+            var old = lptimer.Frequency;
+            switch(lpTimer1Selection.Value)
+            {
+                case LpTimerClockSourceSelection.Apb:
+                    lptimer.Frequency = apbFrequency;
+                    break;
+                case LpTimerClockSourceSelection.Lsi:
+                    lptimer.Frequency = lsiFrequency;
+                    break;
+                case LpTimerClockSourceSelection.Hsi16:
+                    lptimer.Frequency = Hsi16Frequency;
+                    break;
+                case LpTimerClockSourceSelection.Lse:
+                    lptimer.Frequency = lseFrequency;
+                    break;
+                default:
+                    throw new Exception("unreachable code");
+            }
+            if(old != lptimer.Frequency)
+            {
+                this.Log(LogLevel.Debug, "LpTimer clock frequency changed to {0}", lptimer.Frequency);
+            }
+        }
 
         private void DefineRegisters()
         {
             // Keep in mind that most of these registers do not affect other
             // peripherals or their clocks.
-            Registers.ClockControl.Define(this, 0x300)
+            Registers.ClockControl.Define(this, 0x00000300)
                 .WithFlag(0, out var hsi16on, name: "HSI16ON")
                 .WithFlag(1, name: "HSI16KERON")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => hsi16on.Value, name: "HSI16RDYF")
-                .WithFlag(3, out var hsi16diven, name: "HSI16DIVEN")
+                .WithFlag(3, out hsi16diven, name: "HSI16DIVEN")
                 .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => hsi16diven.Value, name: "HSI16DIVF")
                 .WithTaggedFlag("HSI16OUTEN", 5)
                 .WithReservedBits(6, 2)
@@ -50,17 +160,36 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("CSSHSEON", 19, 1)
                 .WithValueField(20, 2, name: "RTCPRE")
                 .WithReservedBits(22, 2)
-                .WithFlag(24, out var pllon, name: "PLLON")
-                .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => pllon.Value, name: "PLLRDY")
+                .WithFlag(24, out pllOn, name: "PLLON",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(!previous && value && pllDivisor == 1)
+                        {
+                            this.Log(LogLevel.Error, "PLL enabled without setting a valid PLLDIV");
+                        }
+                    })
+                .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => pllOn.Value, name: "PLLRDY")
                 .WithReservedBits(26, 6)
+                .WithWriteCallback((_, __) => UpdateClocks())
                 ;
 
-            Registers.InternalClockSourcesCalibration.Define(this)
+            Registers.InternalClockSourcesCalibration.Define(this, 0x0000B000)
                 .WithValueField(0, 8, name: "HSI16CAL")
                 .WithValueField(8, 5, name: "HSI16TRIM")
-                .WithValueField(13, 3, name: "MSIRANGE")
+                .WithValueField(13, 3, name: "MSIRANGE",
+                    writeCallback: (_, value) =>
+                    {
+                        if(value >= 0b111)
+                        {
+                            this.Log(LogLevel.Error, "Invalid MSI range: {0}", value);
+                            return;
+                        }
+
+                        msiMultiplier = (long)Math.Pow(2, value);
+                    })
                 .WithValueField(16, 8, name: "MSICAL")
                 .WithValueField(24, 8, name: "MSITRIM")
+                .WithWriteCallback((_, __) => UpdateClocks())
                 ;
 
             Registers.ClockRecoveryRc.Define(this)
@@ -70,24 +199,132 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(3, 5)
                 .WithValueField(8, 8, name: "HSI48CAL")
                 .WithReservedBits(16, 16)
+                .WithWriteCallback((_, __) => UpdateClocks())
                 ;
 
             Registers.ClockConfigurationCfgr.Define(this)
-                .WithValueField(0, 2, out var systemClockSwitch, name: "SW")
-                .WithValueField(2, 2, FieldMode.Read, name: "SWS", valueProviderCallback: _ => systemClockSwitch.Value)
-                .WithValueField(4, 4, name: "HPRE")
+                .WithEnumField<DoubleWordRegister, SystemClockSourceSelection>(0, 2, out systemClockSwitch, name: "SW")
+                .WithValueField(2, 2, FieldMode.Read, name: "SWS", valueProviderCallback: _ => (ulong)systemClockSwitch.Value)
+                .WithValueField(4, 4, name: "HPRE",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(systick == null || previous == value)
+                        {
+                            return;
+                        }
+
+                        // SYSCLK is not divided unless HPRE is set to 0b1000 or higher,
+                        // in which case it's divided by consecutive powers of 2.
+                        if((0b1000 & value) == 0)
+                        {
+                            systick.Divider = 1;
+                        }
+                        else
+                        {
+                            var power = (0b111 & value) + 1;
+                            systick.Divider = (int)Math.Pow(2, power);
+                        }
+                        this.Log(
+                            LogLevel.Debug,
+                            "systick clock divisor changed to {0}. Current effective frequency: {1}",
+                            systick.Divider,
+                            systick.Frequency / systick.Divider
+                        );
+                    })
                 .WithValueField(8, 3, name: "PPRE1")
                 .WithValueField(11, 3, name: "PPRE2")
                 .WithReservedBits(14, 1)
                 .WithFlag(15, name: "STOPWUCK")
-                // The PLLSRC bit must preserve its value so that the HAL allows disabling the HSI when
-                // the system clock source is the PLL and the HSE is selected as the PLL clock source.
-                .WithFlag(16, name: "PLLSRC")
+                .WithEnumField<DoubleWordRegister, PllSourceSelection>(16, 1, out pllSource, name: "PLLSRC",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(pllOn.Value && previous != value)
+                        {
+                            this.Log(LogLevel.Error, "PLLDIV modified while PLL is enabled");
+                        }
+                    })
                 .WithReservedBits(17, 1)
-                .WithValueField(18, 4, name: "PLLMUL")
-                .WithValueField(22, 2, name: "PLLDIV")
+                .WithValueField(18, 4, name: "PLLMUL",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(pllOn.Value && previous != value)
+                        {
+                            this.Log(LogLevel.Error, "PLLMUL modified while PLL is enabled");
+                        }
+
+                        switch(value)
+                        {
+                            case 0b0000:
+                                pllMultiplier = 3;
+                                break;
+                            case 0b0001:
+                                pllMultiplier = 4;
+                                break;
+                            case 0b0010:
+                                pllMultiplier = 6;
+                                break;
+                            case 0b0011:
+                                pllMultiplier = 8;
+                                break;
+                            case 0b0100:
+                                pllMultiplier = 12;
+                                break;
+                            case 0b0101:
+                                pllMultiplier = 16;
+                                break;
+                            case 0b0110:
+                                pllMultiplier = 24;
+                                break;
+                            case 0b0111:
+                                pllMultiplier = 32;
+                                break;
+                            case 0b1000:
+                                pllMultiplier = 48;
+                                break;
+                            default:
+                                // We don't need a special check here, compared to PLLDIV,
+                                // as here the reset value is valid and the only invalid values
+                                // are ones that'd be deliberately set by the software
+                                this.Log(LogLevel.Error, "Invalid PLLMUL: {0}", value);
+                                break;
+                        }
+                    })
+                .WithValueField(22, 2, name: "PLLDIV",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(pllOn.Value && previous != value)
+                        {
+                            this.Log(LogLevel.Error, "PLLDIV modified while PLL is enabled");
+                        }
+
+                        switch(value)
+                        {
+                            case 0b00:
+                                // Only emit the error if the PLL divisor has been set to a valid value previously.
+                                // If it hasn't, we'll still emit an error whenever PLL is enabled,
+                                // and if it has, we'll inform that the software changed it to an invalid value
+                                // (but only when the value actually changes)
+                                if(pllDivisor != 1 && previous != value)
+                                {
+                                    this.Log(LogLevel.Error, "Invalid PLLDIV: 0");
+                                }
+                                break;
+                            case 0b01:
+                                pllDivisor = 2;
+                                break;
+                            case 0b10:
+                                pllDivisor = 3;
+                                break;
+                            case 0b11:
+                                pllDivisor = 4;
+                                break;
+                            default:
+                                throw new Exception("unreachable code");
+                        }
+                    })
                 .WithValueField(24, 4, name: "MCOSEL")
                 .WithValueField(28, 3, name: "MCOPRE")
+                .WithWriteCallback((_, __) => UpdateClocks())
                 ;
 
             Registers.ClockInterruptEnable.Define(this)
@@ -351,33 +588,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(12, 2, name: "I2C1SEL")
                 .WithReservedBits(14, 2)
                 .WithValueField(16, 2, name: "I2C3SEL")
-                .WithEnumField<DoubleWordRegister, LpTimerClockSourceSelection>(18, 2, changeCallback: (_, value) =>
-                    {
-                        if(lptimer == null) 
-                        {
-                            this.Log(LogLevel.Error, "Trying to change LPTimer frequency, but it was not passed in the RCC constructor, ignoring");
-                            return;
-                        }
-                        switch(value)
-                        {
-                            case LpTimerClockSourceSelection.Apb:
-                                lptimer.Frequency = apbFrequency;
-                                break;
-                            case LpTimerClockSourceSelection.Lsi:
-                                lptimer.Frequency = lsiFrequency;
-                                break;
-                            case LpTimerClockSourceSelection.Hsi16:
-                                lptimer.Frequency = Hsi16Frequency;
-                                break;
-                            case LpTimerClockSourceSelection.Lse:
-                                lptimer.Frequency = lseFrequency;
-                                break;
-                        }
-                        this.Log(LogLevel.Debug, "LpTimer clock frequency changed to {0}", lptimer.Frequency);
-                    }, name: "LPTIM1SEL")
+                .WithEnumField<DoubleWordRegister, LpTimerClockSourceSelection>(18, 2, out lpTimer1Selection, name: "LPTIM1SEL")
                 .WithReservedBits(20, 6)
                 .WithTaggedFlag("HSI48SEL", 26)
                 .WithReservedBits(27, 5)
+                .WithWriteCallback((_, __) => UpdateClocks())
                 ;
 
             Registers.ControlStatus.Define(this, 0x0C000000)
@@ -393,9 +608,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(16, 2, name: "RTCSEL")
                 .WithFlag(18, writeCallback: (_, value) =>
                     {
-                        if(rtc == null && value)
+                        if(rtc == null)
                         {
-                            this.Log(LogLevel.Error, "Trying to enable RTC, but it was not passed int the RCC constructor, ignoring");
                             return;
                         }
                         machine.GetSystemBus(this).SetPeripheralEnabled(rtc, value);
@@ -403,13 +617,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     valueProviderCallback: _ => rtc == null ? false : machine.GetSystemBus(this).IsPeripheralEnabled(rtc), name: "RTCEN")
                 .WithFlag(19, writeCallback: (_, value) =>
                     {
+                        if(rtc == null)
+                        {
+                            return;
+                        }
                         if(value)
                         {
-                            if(rtc == null)
-                            {
-                                this.Log(LogLevel.Error, "Trying to disable RTC, but it was not passed int the RCC constructor, ignoring");
-                                return;
-                            }
                             rtc.Reset();
                             machine.GetSystemBus(this).DisablePeripheral(rtc);
                         }
@@ -427,28 +640,68 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
         }
 
-        private const long DefaultApbFrequency = 32000000;
-        private const long DefaultLsiFrequency = 37000;
-        private const long DefaultLseFrequency = 32768;
-        private const long Hsi16Frequency = 16000000;
+        private long Hsi16Frequency { get => 16000000 / (hsi16diven.Value ? 4 : 1); }
+        private long PllFrequency
+        {
+            get =>
+                (pllSource.Value == PllSourceSelection.Hse ? hseFrequency : Hsi16Frequency)
+                * pllMultiplier
+                / pllDivisor;
+        }
+        private long MsiFrequency { get => BaseMsiFrequency * msiMultiplier; }
 
-        private readonly IPeripheral rtc;
-        private readonly ITimer lptimer;
+        private IFlagRegisterField hsi16diven;
+        private IValueRegisterField msiRange;
+        private IEnumRegisterField<PllSourceSelection> pllSource;
+        private IEnumRegisterField<SystemClockSourceSelection> systemClockSwitch;
+        private IEnumRegisterField<LpTimerClockSourceSelection> lpTimer1Selection;
+        private IFlagRegisterField pllOn;
+
+        private long pllMultiplier;
+        private long pllDivisor;
+        private long msiMultiplier;
+
         private readonly long apbFrequency;
         private readonly long lsiFrequency;
         private readonly long lseFrequency;
+        private readonly long hseFrequency;
+
+        private readonly IHasDivisibleFrequency systick;
+        private readonly IPeripheral rtc;
+        private readonly ITimer lptimer;
+
+        private const long DefaultApbFrequency = 32000000;
+        private const long DefaultLsiFrequency = 37000;
+        private const long DefaultLseFrequency = 32768;
+        private const long DefaultHseFrequency = 16000000;
+        private const long DefaultMsiFrequency = 2097000;
+        private const long BaseMsiFrequency = 65536;
 
         // There can't be one common ClockSourceSelection enum because different peripherals
         // have different sets of possible values:
         // I2C has APB, system clock, HSI16, reserved;
         // UARTs have APB, system clock, HSI16, LSE.
         // The system clock can be HSI16, HSE, PLL, MSI (default)
-        public enum LpTimerClockSourceSelection
+        private enum LpTimerClockSourceSelection
         {
             Apb,
             Lsi,
             Hsi16,
             Lse,
+        }
+
+        private enum SystemClockSourceSelection
+        {
+            Msi,
+            Hsi16,
+            Hse,
+            Pll,
+        }
+
+        private enum PllSourceSelection
+        {
+            Hsi16,
+            Hse,
         }
 
         private enum Registers

@@ -572,6 +572,7 @@
     <Compile Include="Utilities\FilePath.cs" />
     <Compile Include="Peripherals\CPU\CpuAbortException.cs" />
     <Compile Include="Peripherals\IHasFrequency.cs" />
+    <Compile Include="Peripherals\IHasDivisibleFrequency.cs" />
     <Compile Include="Peripherals\Sensor\SensorSamplesPacket.cs" />
     <Compile Include="Core\Structure\TypedNumberRegistrationPoint.cs" />
     <Compile Include="Utilities\SafeBinaryReader.cs" />
