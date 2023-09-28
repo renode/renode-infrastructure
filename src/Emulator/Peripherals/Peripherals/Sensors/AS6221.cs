@@ -33,9 +33,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Reset();
         }
 
-        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0)
+        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
-            resdStream = new RESDStream<TemperatureSample>(filePath, channelId);
+            resdStream = this.CreateRESDStream<TemperatureSample>(filePath, channelId, sampleOffsetType, sampleOffsetTime);
         }
 
         public void Write(byte[] data)
@@ -146,12 +147,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             if(resdStream != null)
             {
-                var currentTimestamp = machine.ClockSource.CurrentValue;
-                var currentTimestampInNanoseconds = currentTimestamp.TotalMicroseconds * 1000;
-                switch(resdStream.TryGetSample(currentTimestampInNanoseconds, out var sample))
+                switch(resdStream.TryGetCurrentSample(this, (sample) => sample.Temperature / 1000m, out var temperature, out _))
                 {
                     case RESDStreamStatus.OK:
-                        Temperature = sample.Temperature / 1000m;
+                        Temperature = temperature;
                         break;
                     case RESDStreamStatus.BeforeStream:
                         // Just ignore and return previously set value
