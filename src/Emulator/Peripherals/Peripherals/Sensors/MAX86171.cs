@@ -51,14 +51,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
             RegistersCollection = new ByteRegisterCollection(this, BuildRegisterMap());
         }
 
-        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0, ulong startTimestamp = 0, long sampleOffsetTime = 0)
+        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0, ulong startTimestamp = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
             lock(feederThreadLock)
             {
                 feedingSamplesFromFile = true;
                 feederThread?.Stop();
                 resdStream?.Dispose();
-                resdStream = this.CreateRESDStream<MAX86171_AFESample>(filePath, channelId);
+                resdStream = this.CreateRESDStream<MAX86171_AFESample>(filePath, channelId, sampleOffsetType, sampleOffsetTime);
                 resdStream.MetadataChanged += () =>
                 {
                     staleConfiguration = true;
@@ -92,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         circularFifo.EnqueueFrame(defaultMeasurements);
                     }
-                }, sampleOffsetTime: sampleOffsetTime, startTime: startTimestamp);
+                }, startTime: startTimestamp);
                 this.Log(LogLevel.Info, "Started feeding samples from RESD file at {0}Hz", CalculateCurrentFrequency());
             }
         }
