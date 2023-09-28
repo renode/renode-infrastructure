@@ -50,9 +50,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             UpdateInterrupts();
         }
 
-        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
+        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
-            resdStream = this.CreateRESDStream<AccelerationSample>(path, channel);
+            resdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetType, sampleOffsetTime);
             accelerationFifo.FeedingFromFile = true;
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
@@ -80,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                             break;
                     }
                 },
-                startTime, sampleOffsetTime
+                startTime
             );
         }
 
