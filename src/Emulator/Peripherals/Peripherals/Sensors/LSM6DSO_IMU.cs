@@ -39,9 +39,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
+        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
-            accelerometerResdStream = this.CreateRESDStream<AccelerationSample>(path, channel);
+            accelerometerResdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetType, sampleOffsetTime);
             accelerometerFeederThread?.Stop();
             accelerometerFeederThread = accelerometerResdStream.StartSampleFeedThread(this,
                 DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value),
@@ -64,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                             break;
                     }
                 },
-                startTime, sampleOffsetTime
+                startTime
             );
         }
 
@@ -76,9 +77,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FeedAngularRateSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
+        public void FeedAngularRateSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
-            gyroResdStream = this.CreateRESDStream<AngularRateSample>(path, channel);
+            gyroResdStream = this.CreateRESDStream<AngularRateSample>(path, channel, sampleOffsetType, sampleOffsetTime);
             gyroFeederThread?.Stop();
             gyroFeederThread = gyroResdStream.StartSampleFeedThread(this,
                 DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value),
@@ -101,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                             break;
                     }
                 },
-                startTime, sampleOffsetTime
+                startTime
             );
         }
 
