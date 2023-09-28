@@ -47,7 +47,7 @@
           <SourceFiles Include="$(TlibDirectory)/*.c" />
           <SourceFiles Include="$(TlibDirectory)/arch/*.c" />
           <SourceFiles Include="$(TlibDirectory)/external/*.c" />
-          <SourceFiles Include="$(TlibDirectory)/fpu/*.c" />
+          <SourceFiles Include="$(TlibDirectory)/softfloat-2/*.c" />
           <SourceFiles Include="$(TlibDirectory)/arch/$(EmulatedTarget)/*.c" />
           <SourceFiles Include="renode/*.c" />
           <SourceFiles Include="renode/arch/$(EmulatedTarget)/*.c" />
@@ -83,7 +83,7 @@
           <CompilationFlags Include="-I $(TlibDirectory)/arch/$(EmulatedTarget)" />
           <CompilationFlags Include="-I $(TlibDirectory)/tcg/$(HostArchitecture)" />
           <CompilationFlags Include="-I $(TlibDirectory)/include" />
-          <CompilationFlags Include="-I $(TlibDirectory)/fpu" />
+          <CompilationFlags Include="-I $(TlibDirectory)/softfloat-2" />
           <CompilationFlags Include="-I $(TlibDirectory)/tcg" />
           <CompilationFlags Include="-I renode/include" />
           <!-- Common headers for "arm" and "arm64" -->
