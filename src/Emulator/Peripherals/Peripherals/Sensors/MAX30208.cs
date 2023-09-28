@@ -34,9 +34,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             UpdateInterrupts();
         }
 
-        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0)
+        public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
-            resdStream = new RESDStream<TemperatureSample>(filePath, channelId);
+            resdStream = this.CreateRESDStream<TemperatureSample>(filePath, channelId, sampleOffsetType, sampleOffsetTime);
         }
 
         public void Write(byte[] data)
@@ -377,14 +378,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {
                     return null;
                 }
-
-                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-                {
-                    cpu.SyncTime();
-                }
-
-                var currentTimestamp = machine.ClockSource.CurrentValue.TotalMicroseconds * 1000;
-                return resdStream.TryGetSample(currentTimestamp, out var sample) == RESDStreamStatus.OK ? sample : null;
+                return resdStream.TryGetCurrentSample(this, out var sample, out _) == RESDStreamStatus.OK ? sample : null;
             }
         }
 
