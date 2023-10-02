@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             Offset = offset;
             CPU = cpu;
         }
-        
+
         public override string ToString()
         {
             var result = StartingPoint.ToString();
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             return new BusPointRegistration(address);
         }
-        
+
         public ulong StartingPoint { get; set; }
         public ulong Offset { get; set; }
         public ICPU CPU { get; set; }
