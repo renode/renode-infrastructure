@@ -230,7 +230,7 @@
       <Project>{25FAECC1-55F0-4608-88BD-4207A7F993B0}</Project>
       <Name>TermSharp</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt.csproj">
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt\Xwt.csproj">
       <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
       <Name>Xwt</Name>
     </ProjectReference>

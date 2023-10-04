@@ -23,7 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Emulator\Main\Emulator_NET.csproj"/>
     <ProjectReference Include="..\..\Emulator\Extensions\Extensions_NET.csproj"/>
-    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt\Xwt_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
     <ProjectReference Include="..\..\UI\UI_NET.csproj"/>

@@ -85,7 +85,7 @@
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\lib\xwt\Xwt\Xwt.csproj">
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt\Xwt.csproj">
       <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
       <Name>Xwt</Name>
     </ProjectReference>
