@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(oldValue != 0)
             {
-                var target = machine.GetSystemBus(this).WhatPeripheralIsAt(oldValue);
+                var target = sysbus.WhatPeripheralIsAt(oldValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
                     //todo: how to do it on reset?
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             eventEndpoint[eventId] = newValue;
             if(newValue != 0)
             {
-                var target = machine.GetSystemBus(this).WhatPeripheralIsAt(newValue);
+                var target = sysbus.WhatPeripheralIsAt(newValue);
                 if(target is INRFEventProvider nrfTarget)
                 {
                     nrfTarget.EventTriggered += eventCallbacks[eventId];
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(taskEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering task at 0x{2:X}", id, eventEndpoint[id], taskEndpoint[id]);
-                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => machine.GetSystemBus(this).WriteDoubleWord(taskEndpoint[id], 1));
+                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(taskEndpoint[id], 1));
             }
             else
             {
@@ -263,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(forkEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering fork task at 0x{2:X}", id, eventEndpoint[id], forkEndpoint[id]);
-                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => machine.GetSystemBus(this).WriteDoubleWord(forkEndpoint[id], 1));
+                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(forkEndpoint[id], 1));
             }
         }
 

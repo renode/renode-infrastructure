@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             // RxTxMaxCnt denotes number of DoubleWords, we need to calculate samples number
             for(var samples = 0u; samples < maxSamplesCount.Value * samplesPerDoubleWord; samples++)
             {
-                var thisSample = machine.GetSystemBus(this).ReadDoubleWord(currentPointer + samples * sampleWidth / 8);
+                var thisSample = sysbus.ReadDoubleWord(currentPointer + samples * sampleWidth / 8);
                 BitHelper.ClearBits(ref thisSample, (int)sampleWidth, (int)(32 - sampleWidth));
                 encoder.AcceptSample(thisSample);
             }
@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 {
                     valueToStore |= decoder.GetSingleSample() << (int)(sampleWidth * (sampleOffset - 1));
                 }
-                machine.GetSystemBus(this).WriteDoubleWord(currentPointer + doubleWords * 4, valueToStore);
+                sysbus.WriteDoubleWord(currentPointer + doubleWords * 4, valueToStore);
             }
         }
         

@@ -9,6 +9,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
@@ -180,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             var data = new byte[preparedDoubleWords.Length * 4];
             System.Buffer.BlockCopy(preparedDoubleWords, 0, data, 0, preparedDoubleWords.Length * 4);
-            machine.GetSystemBus(this).WriteBytes(data, dmac0DestAddr.Value);
+            sysbus.WriteBytes(data, dmac0DestAddr.Value);
 
             IRQ.Blink();
         }

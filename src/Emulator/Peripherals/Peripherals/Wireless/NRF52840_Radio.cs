@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -57,9 +58,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var headerLengthInRAM = HeaderLengthInRAM();
 
             var dataAddress = (uint)packetPointer.Value;
-            machine.GetSystemBus(this).WriteBytes(frame, address: dataAddress, startingIndex: addressLength, count: headerLengthInRAM);
+            sysbus.WriteBytes(frame, address: dataAddress, startingIndex: addressLength, count: headerLengthInRAM);
             var payloadLength = Math.Min(frame[addressLength + (int)s0Length.Value], (byte)maxPacketLength.Value);
-            machine.GetSystemBus(this).WriteBytes(frame, address: (ulong)(dataAddress + headerLengthInRAM), startingIndex: addressLength + headerLengthInAir, count: payloadLength);
+            sysbus.WriteBytes(frame, address: (ulong)(dataAddress + headerLengthInRAM), startingIndex: addressLength + headerLengthInAir, count: payloadLength);
 
             var crcLen = 4;
             ScheduleRadioEvents((uint)(headerLengthInAir + payloadLength + crcLen));
@@ -431,7 +432,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             var data = new byte[addressLength + headerLengthInRAM + (uint)maxPacketLength.Value];
             FillCurrentAddress(data, 0, (uint)txAddress.Value);
 
-            machine.GetSystemBus(this).ReadBytes(dataAddress, headerLengthInRAM, data, addressLength);
+            sysbus.ReadBytes(dataAddress, headerLengthInRAM, data, addressLength);
             this.Log(LogLevel.Noisy, "Header: {0} S0 {1} Length {2} S1 {3} s1inc {4}", Misc.PrettyPrintCollectionHex(data), s0Length.Value, lengthFieldLength.Value, s1Length.Value, s1Include.Value);
             var payloadLength = data[addressLength + (uint)s0Length.Value];
             if(payloadLength > maxPacketLength.Value)
@@ -439,7 +440,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 this.Log(LogLevel.Error, "Payload length ({0}) longer than the max packet length ({1}), trimming...", payloadLength, maxPacketLength.Value);
                 payloadLength = (byte)maxPacketLength.Value;
             }
-            machine.GetSystemBus(this).ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLengthInAir);
+            sysbus.ReadBytes((ulong)(dataAddress + headerLengthInRAM), payloadLength, data, addressLength + headerLengthInAir);
             this.Log(LogLevel.Noisy, "Data: {0} Maxlen {1} statlen {2}", Misc.PrettyPrintCollectionHex(data), maxPacketLength.Value, staticLength.Value);
 
             FrameSent?.Invoke(this, data);

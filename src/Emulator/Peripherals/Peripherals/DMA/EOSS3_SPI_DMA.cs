@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public EOSS3_SPI_DMA(IMachine machine, DesignWare_SPI spi) : base(machine, 1)
         {
+            sysbus = machine.GetSystemBus(this);
             this.spi = spi;
             innerLock = new object();
             RegistersCollection = new DoubleWordRegisterCollection(this);
@@ -94,14 +95,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                         case 1:
                         {
                             this.Log(LogLevel.Noisy, "DMA transfer: writing byte 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                            machine.GetSystemBus(this).WriteByte(destinationAddress.Value, (byte)data);
+                            sysbus.WriteByte(destinationAddress.Value, (byte)data);
                             break;
                         }
 
                         case 2:
                         {
                             this.Log(LogLevel.Noisy, "DMA transfer: writing ushort 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                            machine.GetSystemBus(this).WriteWord(destinationAddress.Value, data);
+                            sysbus.WriteWord(destinationAddress.Value, data);
                             break;
                         }
                     }
@@ -219,6 +220,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private IFlagRegisterField dmaDataAvailableEnable;
         private bool enabled;
 
+        private readonly IBusController sysbus;
         private readonly DesignWare_SPI spi;
         private readonly object innerLock;
 

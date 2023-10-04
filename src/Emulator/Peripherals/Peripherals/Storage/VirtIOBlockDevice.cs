@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         // Virtqueue handling methods
         private void VirtqueueHandle()
         {
-            var idx = (ushort)base.machine.GetSystemBus(this).ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Index);
+            var idx = (ushort)sysbus.ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Index);
             // Processing all available requests
             // We're using 2 variables: availableIndex, availableIndexFromDriver because we have to compare this value to index field in driver's struct for available descriptors.
             // This field is meant to start at 0, then only increase and wrap around 65535. That's why we have one variable for comparing and the other one for accessing tables.
@@ -219,9 +219,9 @@ namespace Antmicro.Renode.Peripherals.Storage
         // Read next available desctriptor chain.
         private Tuple<int, bool> ReadVirtqueueAvailable()
         {
-            var flag = base.machine.GetSystemBus(this).ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Flags);
+            var flag = sysbus.ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Flags);
             var noInterruptOnUsed = (flag == 1);
-            var ret = (int)base.machine.GetSystemBus(this).ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Ring
+            var ret = (int)sysbus.ReadWord(virtqueueAvailableAddress + (ulong)VirtqueueUsedAndAvailable.Ring
                                                             + AvailableRingEntrySize * (ulong)availableIndex);
             return Tuple.Create(ret, noInterruptOnUsed);
         }
@@ -266,10 +266,10 @@ namespace Antmicro.Renode.Peripherals.Storage
                                 + UsedRingEntrySize * ((ulong)usedIndex);
             usedIndex = (ushort)((usedIndex + 1u) % virtqueueSize.Value);
             usedIndexForDriver++;
-            base.machine.GetSystemBus(this).WriteWord(virtqueueUsedAddress + (ulong)VirtqueueUsedAndAvailable.Flags, 0);
-            base.machine.GetSystemBus(this).WriteDoubleWord(ringAddress + (ulong)UsedRing.Index, (uint)descriptorIndex);
-            base.machine.GetSystemBus(this).WriteDoubleWord(ringAddress + (ulong)UsedRing.Length, (uint)bytesProcessed);
-            base.machine.GetSystemBus(this).WriteWord(virtqueueUsedAddress + (ulong)VirtqueueUsedAndAvailable.Index, (ushort)usedIndexForDriver);
+            sysbus.WriteWord(virtqueueUsedAddress + (ulong)VirtqueueUsedAndAvailable.Flags, 0);
+            sysbus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Index, (uint)descriptorIndex);
+            sysbus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Length, (uint)bytesProcessed);
+            sysbus.WriteWord(virtqueueUsedAddress + (ulong)VirtqueueUsedAndAvailable.Index, (ushort)usedIndexForDriver);
             if(!noInterruptOnUsed)
             {
                 hasUsedBuffer.Value = true;
@@ -324,9 +324,9 @@ namespace Antmicro.Renode.Peripherals.Storage
             public bool ReadHeader()
             {
                 ReadDescriptorMetadata();
-                Type = (int)parent.machine.GetSystemBus(parent).ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.Type);
-                sector = (long)(((ulong)parent.machine.GetSystemBus(parent).ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.SectorHigh)) << 32) |
-                            (long)parent.machine.GetSystemBus(parent).ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.SectorLow);
+                Type = (int)parent.sysbus.ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.Type);
+                sector = (long)(((ulong)parent.sysbus.ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.SectorHigh)) << 32) |
+                            (long)parent.sysbus.ReadDoubleWord(bufferAddress + (ulong)BlockRequestHeader.SectorLow);
                 if(!SetNextIndex())
                 {
                     parent.Log(LogLevel.Error, "NEXT flag isn't set in header descriptor. Descriptor info: index: {0}, Address: {1}, Flags: {2}", index, bufferAddress, flags);
@@ -338,7 +338,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             public void WriteStatus()
             {
                 ReadDescriptorMetadata();
-                parent.machine.GetSystemBus(parent).WriteByte(bufferAddress, status);
+                parent.sysbus.WriteByte(bufferAddress, status);
             }
 
             public bool Read()
@@ -352,7 +352,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 else
                 {
                     SeekToSector();
-                    var deviceBytes = parent.machine.GetSystemBus(parent).ReadBytes(bufferAddress, length);
+                    var deviceBytes = parent.sysbus.ReadBytes(bufferAddress, length);
                     parent.storage.Write(deviceBytes, 0, length);
                     BytesProcessed += length;
                 }
@@ -378,7 +378,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                     SeekToSector();
                     var driverBytes = new byte[length];
                     parent.storage.Read(driverBytes, 0, length);
-                    parent.machine.GetSystemBus(parent).WriteBytes(driverBytes, bufferAddress, true);
+                    parent.sysbus.WriteBytes(driverBytes, bufferAddress, true);
                     BytesProcessed += length;
                 }
 
@@ -418,11 +418,11 @@ namespace Antmicro.Renode.Peripherals.Storage
             private void ReadDescriptorMetadata()
             {
                 ulong descriptorAddress = parent.virtqueueDescTableAddress + DescriptorSize * (ulong)index;
-                bufferAddress = (((ulong)parent.machine.GetSystemBus(parent).ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressHigh)) << 32) |
-                    (ulong)parent.machine.GetSystemBus(parent).ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressLow);
-                next = (int)parent.machine.GetSystemBus(parent).ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Next);
-                length = (int)parent.machine.GetSystemBus(parent).ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.Length);
-                flags = (ushort)parent.machine.GetSystemBus(parent).ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Flags);
+                bufferAddress = (((ulong)parent.sysbus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressHigh)) << 32) |
+                    (ulong)parent.sysbus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.AddressLow);
+                next = (int)parent.sysbus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Next);
+                length = (int)parent.sysbus.ReadDoubleWord(descriptorAddress + (ulong)VirtqueueDescriptor.Length);
+                flags = (ushort)parent.sysbus.ReadWord(descriptorAddress + (ulong)VirtqueueDescriptor.Flags);
             }
 
             private bool SetNextIndex()

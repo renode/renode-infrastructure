@@ -9,6 +9,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -31,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             try
             {
                 byte[] data;
-                data = machine.GetSystemBus(this).ReadBytes((ulong)dmaSourceAddress.Value, (int)dmaDataLength.Value, onlyMemory: true);
+                data = sysbus.ReadBytes((ulong)dmaSourceAddress.Value, (int)dmaDataLength.Value, onlyMemory: true);
                 crcEngine.Update(data);
                 crcValue.Value = crcEngine.Value;
                 dmaFinished.Value = true;

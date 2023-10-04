@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             IRQ = new GPIO();
             WakeupIRQ = new GPIO();
+            sysbus = machine.GetSystemBus(this);
             irqManager = new InterruptManager<Interrupts>(this);
             internalBuffer = new Queue<byte>();
 
@@ -366,7 +367,7 @@ namespace Antmicro.Renode.Peripherals.SD
             var data = sdCard.ReadData(size);
             if(isDmaEnabled.Value)
             {
-                Machine.GetSystemBus(this).WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
+                sysbus.WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
                 Machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
                 {
                     irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
@@ -395,7 +396,7 @@ namespace Antmicro.Renode.Peripherals.SD
             var bytes = new byte[size];
             if(isDmaEnabled.Value)
             {
-                bytes = Machine.GetSystemBus(this).ReadBytes(((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value, (int)size);
+                bytes = sysbus.ReadBytes(((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value, (int)size);
             }
             else
             {
@@ -444,6 +445,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IPhysicalLayer<byte> phy;
         private Queue<byte> internalBuffer;
 
+        private readonly IBusController sysbus;
         private readonly InterruptManager<Interrupts> irqManager;
 
         private enum Registers

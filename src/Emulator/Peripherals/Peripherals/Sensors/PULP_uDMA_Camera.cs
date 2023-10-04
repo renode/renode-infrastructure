@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public PULP_uDMA_Camera(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
+            sysbus = machine.GetSystemBus(this);
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
@@ -107,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         this.Log(LogLevel.Warning, "Received {0} bytes from the device, but RX DMA stream is configured for {1} bytes. This might indicate problems in the driver", data.Length, rxBufferSize.Value);
                     }
 
-                    Machine.GetSystemBus(this).WriteBytes(data, rxBufferAddress.Value);
+                    sysbus.WriteBytes(data, rxBufferAddress.Value);
                     rxStreamEnabled.Value = false;
                     IRQ.Blink();
                 })
@@ -144,6 +145,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IValueRegisterField rxBufferAddress;
         private IValueRegisterField rxBufferSize;
         private IFlagRegisterField rxStreamEnabled;
+
+        private readonly IBusController sysbus;
 
         private enum Registers
         {

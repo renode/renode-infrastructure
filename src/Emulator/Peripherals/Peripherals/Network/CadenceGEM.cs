@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             ModuleId = moduleId;
             ModuleRevision = moduleRevision;
+            sysbus = machine.GetSystemBus(this);
 
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
@@ -193,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.GetSystemBus(this), (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
+                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
                         })
                 },
 
@@ -229,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is started is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.GetSystemBus(this), (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
                         })
                 },
 
@@ -692,6 +693,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IEnumRegisterField<TimestampingMode> txBufferDescriptorTimeStampMode;
         private readonly IValueRegisterField secTimer;
 
+        private readonly IBusController sysbus;
         private readonly InterruptManager<Interrupts> interruptManager;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object sync;

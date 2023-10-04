@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.SD
     {
         public LiteSDCard(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             phyRegistersCollection = new DoubleWordRegisterCollection(this);
             coreRegistersCollection = new DoubleWordRegisterCollection(this);
             readerRegistersCollection = new DoubleWordRegisterCollection(this);
@@ -320,14 +321,14 @@ namespace Antmicro.Renode.Peripherals.SD
             this.Log(LogLevel.Noisy, "Reading {0} bytes of data from device: {1}. Writing it to 0x{2:X}", data.Length, Misc.PrettyPrintCollectionHex(data), readerAddress);
 #endif
 
-            Machine.GetSystemBus(this).WriteBytes(data, readerAddress);
+            sysbus.WriteBytes(data, readerAddress);
         }
 
         private void WriteData()
         {
             writerAddress &= 0xffffffff;
 
-            var data = Machine.GetSystemBus(this).ReadBytes(writerAddress, (int)writerLength);
+            var data = sysbus.ReadBytes(writerAddress, (int)writerLength);
 #if DEBUG_PACKETS
             this.Log(LogLevel.Noisy, "Writing {0} bytes of data read from 0x{1:X} to the device: {2}", data.Length, writerAddress, Misc.PrettyPrintCollectionHex(data));
 #endif
@@ -352,6 +353,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private uint argumentValue;
 
+        private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection phyRegistersCollection;
         private readonly DoubleWordRegisterCollection coreRegistersCollection;
         private readonly DoubleWordRegisterCollection readerRegistersCollection;

@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         public K6xF_Ethernet(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             RxIRQ = new GPIO();
             TxIRQ = new GPIO();
             PtpIRQ = new GPIO();
@@ -169,7 +170,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(machine.GetSystemBus(this), (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, extendedMode.Value));
+                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, extendedMode.Value));
                         })
                     .WithReservedBits(1, 1)
                     .WithReservedBits(0, 1)
@@ -183,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 this.Log(LogLevel.Warning, "Changing value of transmit buffer descriptor ring start address while transmission is started is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(machine.GetSystemBus(this), (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, extendedMode.Value));
+                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, extendedMode.Value));
                         })
                     .WithReservedBits(1, 1)
                     .WithReservedBits(0, 1)
@@ -463,6 +464,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
+        private readonly IBusController sysbus;
         private readonly InterruptManager<Interrupts> interruptManager;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object innerLock;

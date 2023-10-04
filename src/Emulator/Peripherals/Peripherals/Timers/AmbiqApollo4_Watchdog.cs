@@ -8,6 +8,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -90,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             get
             {
-                if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+                if(sysbus.TryGetCurrentCPU(out var cpu))
                 {
                     cpu.SyncTime();
                 }

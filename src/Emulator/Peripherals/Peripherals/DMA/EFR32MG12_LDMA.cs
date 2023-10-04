@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public EFR32MG12_LDMA(IMachine machine) : base(machine)
         {
-            engine = new DmaEngine(machine.GetSystemBus(this));
+            engine = new DmaEngine(sysbus);
             signals = new HashSet<int>();
             IRQ = new GPIO();
             channels = new Channel[NumberOfChannels];
@@ -664,7 +664,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     address += descriptorAddress.Value;
                 }
-                var data = parent.machine.GetSystemBus(parent).ReadBytes(address, DescriptorSize);
+                var data = parent.sysbus.ReadBytes(address, DescriptorSize);
                 descriptorAddress = address;
                 descriptor = Packet.Decode<Descriptor>(data);
 #if DEBUG

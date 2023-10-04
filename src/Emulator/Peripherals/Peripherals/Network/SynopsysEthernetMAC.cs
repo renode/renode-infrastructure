@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         public SynopsysEthernetMAC(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             IRQ = new GPIO();
             Reset();
@@ -243,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                 }
 
-                var receiveDescriptor = new RxDescriptor(machine.GetSystemBus(this));
+                var receiveDescriptor = new RxDescriptor(sysbus);
                 receiveDescriptor.Fetch(dmaReceiveDescriptorListAddress);
                 if(receiveDescriptor.IsUsed)
                 {
@@ -265,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     var toWriteArray = new byte[howManyBytes];
 
                     Array.Copy(bytes, written, toWriteArray, 0, howManyBytes);
-                    machine.GetSystemBus(this).WriteBytes(toWriteArray, receiveDescriptor.Address1);
+                    sysbus.WriteBytes(toWriteArray, receiveDescriptor.Address1);
                     written += howManyBytes;
                     //write second buffer
                     if(frame.Bytes.Length - written > 0 && !receiveDescriptor.IsNextDescriptorChained)
@@ -273,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         howManyBytes = Math.Min(receiveDescriptor.Buffer2Length, frame.Bytes.Length - written);
                         toWriteArray = new byte[howManyBytes];
                         Array.Copy(bytes, written, toWriteArray, 0, howManyBytes);
-                        machine.GetSystemBus(this).WriteBytes(toWriteArray, receiveDescriptor.Address2);
+                        sysbus.WriteBytes(toWriteArray, receiveDescriptor.Address2);
                         written += howManyBytes;
                     }
                     if(frame.Bytes.Length - written <= 0)
@@ -336,7 +337,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private void SendFrames()
         {
             this.Log(LogLevel.Noisy, "Sending frame");
-            var transmitDescriptor = new TxDescriptor(machine.GetSystemBus(this));
+            var transmitDescriptor = new TxDescriptor(sysbus);
             var packetData = new List<byte>();
 
             transmitDescriptor.Fetch(dmaTransmitDescriptorListAddress);
@@ -344,10 +345,10 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 transmitDescriptor.IsUsed = true;
                 this.Log(LogLevel.Noisy, "GOING TO READ FROM {0:X}, len={1}", transmitDescriptor.Address1, transmitDescriptor.Buffer1Length);
-                packetData.AddRange(machine.GetSystemBus(this).ReadBytes(transmitDescriptor.Address1, transmitDescriptor.Buffer1Length));
+                packetData.AddRange(sysbus.ReadBytes(transmitDescriptor.Address1, transmitDescriptor.Buffer1Length));
                 if(!transmitDescriptor.IsNextDescriptorChained)
                 {
-                    packetData.AddRange(machine.GetSystemBus(this).ReadBytes(transmitDescriptor.Address2, transmitDescriptor.Buffer2Length));
+                    packetData.AddRange(sysbus.ReadBytes(transmitDescriptor.Address2, transmitDescriptor.Buffer2Length));
                 }
 
                 transmitDescriptor.WriteBack();
@@ -432,6 +433,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private uint dmaStatus;
         private uint dmaOperationMode;
         private uint dmaInterruptEnable;
+        private readonly IBusController sysbus;
         private readonly object receiveLock = new object();
         private readonly Queue<EthernetFrame> queue = new Queue<EthernetFrame>();
         private readonly EtherType[] supportedEtherChecksums = { EtherType.IpV4, EtherType.Arp };

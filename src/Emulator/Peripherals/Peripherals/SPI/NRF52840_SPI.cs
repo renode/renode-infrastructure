@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public NRF52840_SPI(IMachine machine, bool easyDMA = false) : base(machine)
         {
             this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             this.easyDMA = easyDMA;
 
             IRQ = new GPIO();
@@ -298,7 +299,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 this.Log(LogLevel.Debug, "Starting SPI transaction using easyDMA interface");
 
-                var bytesToSend = machine.GetSystemBus(this).ReadBytes(txDataPointer.Value, (int)txMaxDataCount.Value);
+                var bytesToSend = sysbus.ReadBytes(txDataPointer.Value, (int)txMaxDataCount.Value);
                 if(rxMaxDataCount.Value > txMaxDataCount.Value)
                 {
                     // fill the rest of bytes to transmit with the ORC byte
@@ -317,7 +318,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }
             }
 
-            machine.GetSystemBus(this).WriteBytes(receivedBytes, rxDataPointer.Value);
+            sysbus.WriteBytes(receivedBytes, rxDataPointer.Value);
 
             endTxPending.Value = true;
             endRxPending.Value = true;
@@ -414,6 +415,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private readonly Queue<byte> receiveFifo;
         private readonly IMachine machine;
+        private readonly IBusController sysbus;
         private readonly bool easyDMA;
 
         private enum Registers

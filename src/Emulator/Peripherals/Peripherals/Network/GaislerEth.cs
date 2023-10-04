@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         public GaislerEth(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             IRQ = new GPIO();
             Reset();
         }
@@ -210,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            var rd = new receiveDescriptor(machine.GetSystemBus(this));
+            var rd = new receiveDescriptor(sysbus);
 
             if(!EthernetFrame.CheckCRC(frame.Bytes))
             {
@@ -226,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            machine.GetSystemBus(this).WriteBytes(frame.Bytes, rd.PacketAddress);
+            sysbus.WriteBytes(frame.Bytes, rd.PacketAddress);
             registers.Status = 1u << 2;
             if(rd.Wrap)
             {
@@ -257,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void transmitFrame()
         {
-            var td = new transmitDescriptor(machine.GetSystemBus(this));
+            var td = new transmitDescriptor(sysbus);
             td.Fetch(transmitDescriptorBase | transmitDescriptorOffset);
 
             if(!td.Enable)
@@ -265,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return; //if decriptor is disabled there is nothing to send (just return)
             }
 
-            var packetBytes = machine.GetSystemBus(this).ReadBytes(td.PacketAddress, (int)td.Length);
+            var packetBytes = sysbus.ReadBytes(td.PacketAddress, (int)td.Length);
             if(!Misc.TryCreateFrameOrLogWarning(this, packetBytes, out var packet, addCrc: true))
             {
                 return;
@@ -318,6 +319,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public MACAddress MAC { get; set; }
 
         #endregion
+
+        private readonly IBusController sysbus;
 
         #region registers
 

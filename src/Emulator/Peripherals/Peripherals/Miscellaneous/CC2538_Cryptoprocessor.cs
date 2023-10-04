@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public CC2538_Cryptoprocessor(IMachine machine)
         {
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             Interrupt = new GPIO();
 
             var keyStoreWrittenRegister = new DoubleWordRegister(this);
@@ -183,10 +183,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void ProcessDataInMemory(uint inputAddress, uint? outputAddress, int length, Action<Block> processor, Block data = null)
         {
             SysbusWriter writer = null;
-            var reader = new SysbusReader(machine.GetSystemBus(this), inputAddress, length);
+            var reader = new SysbusReader(sysbus, inputAddress, length);
             if(outputAddress.HasValue)
             {
-                writer = new SysbusWriter(machine.GetSystemBus(this), outputAddress.Value, length);
+                writer = new SysbusWriter(sysbus, outputAddress.Value, length);
             }
 
             if(data == null)
@@ -372,7 +372,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             for(var i = keyWriteSlotIndex; i < numberOfConsecutiveSlots; i++)
             {
-                keys[i] = machine.GetSystemBus(this).ReadBytes(dmaInputAddress.Value, KeyEntrySizeInBytes);
+                keys[i] = sysbus.ReadBytes(dmaInputAddress.Value, KeyEntrySizeInBytes);
                 dmaInputAddress.Value += KeyEntrySizeInBytes;
             }
         }
@@ -664,7 +664,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IFlagRegisterField resultInterruptEnabled;
         private readonly IFlagRegisterField dmaDoneInterruptEnabled;
         private readonly DoubleWordRegisterCollection registers;
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
 
         private const int NumberOfKeys = 8;
         private const int KeyEntrySizeInBytes = 16;

@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Video
             this.resetOffset = offset;
             this.resetHres = hres;
             this.resetVres = vres;
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             this.format = format;
 
             DefineDMARegisters();
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected override void Repaint()
         {
-            machine.GetSystemBus(this).ReadBytes(bufferAddress, buffer.Length, buffer, 0);
+            sysbus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
         }
 
         private void DefineDMARegisters()
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Video
                         var width = (int)hres.Value;
                         bufferAddress = (uint)bufferRegister.Value;
 
-                        var memoryBase = (uint)machine.SystemBus.GetRegistrationPoints(memory).First().Range.StartAddress;
+                        var memoryBase = (uint)sysbus.GetRegistrationPoints(memory).First().Range.StartAddress;
                         bufferAddress += memoryBase;
 
                         this.Log(LogLevel.Debug, "Reconfiguring screen to {0}x{1}", width, height);
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private uint bufferAddress;
 
         private readonly IBusPeripheral memory;
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
         private readonly PixelFormat format;
         private readonly uint resetOffset;
         private readonly uint resetHres;

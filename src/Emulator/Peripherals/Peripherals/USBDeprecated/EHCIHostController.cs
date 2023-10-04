@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public EHCIHostController(IMachine machine, uint ehciBaseAddress = 0x100, uint capabilityRegistersLength = 0x40, uint numberOfPorts = 1, uint? ulpiBaseAddress = 0x170)
         {
             this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             this.numberOfPorts = numberOfPorts;
 
             this.ehciBaseAddress = ehciBaseAddress;
@@ -47,8 +48,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             SoftReset(); //soft reset must be done before attaching devices
 
-            periodic_qh = new QueueHead(machine.GetSystemBus(this));
-            async_qh = new QueueHead(machine.GetSystemBus(this));
+            periodic_qh = new QueueHead(sysbus);
+            async_qh = new QueueHead(sysbus);
         }
 
         public void Dispose()
@@ -440,8 +441,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             mode = ControllerMode.Idle;
             interruptEnableRegister.Clear();
-            periodic_qh = new QueueHead(machine.GetSystemBus(this));
-            async_qh = new QueueHead(machine.GetSystemBus(this));
+            periodic_qh = new QueueHead(sysbus);
+            async_qh = new QueueHead(sysbus);
         }
 
         private uint GetFrs()
@@ -595,7 +596,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             Array.Copy(inData, inputSourceArray, dataToSend, 0, dataAmount);
                             bytesToTransfer -= dataAmount;
                             inputSourceArray += dataAmount;
-                            machine.GetSystemBus(this).WriteBytes(dataToSend, qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, (int)dataAmount);
+                            sysbus.WriteBytes(dataToSend, qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, (int)dataAmount);
                             qh.UpdateTotalBytesToTransfer(Math.Min(dataAmount, qh.Overlay.TotalBytesToTransfer));
                         }
                     }
@@ -605,11 +606,11 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     this.NoisyLog("[async] Device {0:d} [{1}]", qh.DeviceAddress, targetDevice);
 
                     setupData = new USBSetupPacket();
-                    setupData.requestType = machine.GetSystemBus(this).ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
-                    setupData.request = machine.GetSystemBus(this).ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
-                    setupData.value = machine.GetSystemBus(this).ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
-                    setupData.index = machine.GetSystemBus(this).ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
-                    setupData.length = machine.GetSystemBus(this).ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
+                    setupData.requestType = sysbus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
+                    setupData.request = sysbus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
+                    setupData.value = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
+                    setupData.index = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
+                    setupData.length = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
 
                     if(((setupData.requestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
                     {
@@ -703,7 +704,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             var transferredThisTurn = Math.Min(4096, (int)qh.Overlay.TotalBytesToTransfer);
 
                             //get data
-                            machine.GetSystemBus(this).ReadBytes(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, transferredThisTurn, data, bytesTransferred);
+                            sysbus.ReadBytes(qh.Overlay.BufferPointer[i] | qh.Overlay.CurrentOffset, transferredThisTurn, data, bytesTransferred);
                             bytesTransferred += transferredThisTurn;
                             qh.UpdateTotalBytesToTransfer((uint)transferredThisTurn);
                         }
@@ -849,6 +850,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         private readonly IManagedThread asyncThread;
         private readonly IManagedThread periodicThread;
         private readonly IMachine machine;
+        private readonly IBusController sysbus;
 
         private uint usbCommand;
         private uint usbStatus;

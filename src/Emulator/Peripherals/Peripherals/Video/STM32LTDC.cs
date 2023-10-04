@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
             IRQ = new GPIO();
 
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             internalLock = new object();
 
             var activeWidthConfigurationRegister = new DoubleWordRegister(this);
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 {
                     if(layer[i].LayerEnableFlag.Value && layer[i].ColorFrameBufferAddressRegister.Value != 0)
                     {
-                        machine.GetSystemBus(this).ReadBytes(layer[i].ColorFrameBufferAddressRegister.Value, layer[i].LayerBuffer.Length, layer[i].LayerBuffer, 0);
+                        sysbus.ReadBytes(layer[i].ColorFrameBufferAddressRegister.Value, layer[i].LayerBuffer.Length, layer[i].LayerBuffer, 0);
                         localLayerBuffer[i] = layer[i].LayerBuffer;
                     }
                     else
@@ -190,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly DoubleWordRegisterCollection registers;
 
         private readonly object internalLock;
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
 
         [Transient]
         private IPixelBlender blender;

@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     {
         public PULP_uDMA_I2C(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             outputBuffer = new Queue<byte>();
             RegistersCollection = new DoubleWordRegisterCollection(this);
 
@@ -105,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         }
 
                         this.Log(LogLevel.Debug, "Starting a DMA TX transaction");
-                        var data = machine.GetSystemBus(this).ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
+                        var data = sysbus.ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
 #if DEBUG_PACKETS
                         this.Log(LogLevel.Noisy, "Read data from the memory @ 0x{0:X}: {1}", txBufferAddress.Value, Misc.PrettyPrintCollectionHex(data));
 #endif
@@ -365,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     this.Log(LogLevel.Warning, "Received {0} bytes from the device, but RX DMA stream is configured for {1} bytes. This might indicate problems in the driver", data.Length, rxBufferSize.Value);
                 }
 
-                machine.GetSystemBus(this).WriteBytes(data, rxBufferAddress.Value);
+                sysbus.WriteBytes(data, rxBufferAddress.Value);
                 RxEvent.Blink();
 
                 rxStreamEnabled.Value = false;
@@ -392,6 +393,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IValueRegisterField rxBufferSize;
         private IFlagRegisterField rxStreamEnabled;
 
+        private readonly IBusController sysbus;
         private readonly Queue<byte> outputBuffer;
 
         private enum State

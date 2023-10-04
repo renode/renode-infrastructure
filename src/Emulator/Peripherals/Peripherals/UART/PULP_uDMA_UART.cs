@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public PULP_uDMA_UART(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             TxIRQ = new GPIO();
             RxIRQ = new GPIO();
 
@@ -70,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                       return;
                                   }
 
-                                  var data = machine.GetSystemBus(this).ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
+                                  var data = sysbus.ReadBytes(txBufferAddress.Value, (int)txBufferSize.Value);
                                   foreach(var c in data)
                                   {
                                       TransmitCharacter(c);
@@ -146,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            this.Machine.GetSystemBus(this).WriteByte(rxBufferAddress.Value + rxIdx, c);
+            sysbus.WriteByte(rxBufferAddress.Value + rxIdx, c);
             rxIdx++;
 
             if(rxIdx == rxBufferSize.Value)
@@ -164,6 +165,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private uint rxIdx;
         private bool rxStarted;
 
+        private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection registers;
 
         private IFlagRegisterField parityEnable;

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Video
         public TegraDisplay(IMachine machine) : base(machine)
         {
             Reconfigure(640, 480, PixelFormat.RGB565);
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             sync = new object();
         }
 
@@ -88,13 +88,13 @@ namespace Antmicro.Renode.Peripherals.Video
             }
             lock (sync) 
             {
-                machine.GetSystemBus(this).ReadBytes(bufferAddress, buffer.Length, buffer, 0);
+                sysbus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
             }
         }
 
         private object sync;
         private uint bufferAddress = 0xFFFFFFFF;
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
     }
 }
 

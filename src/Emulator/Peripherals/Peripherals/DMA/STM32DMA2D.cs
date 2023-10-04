@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public STM32DMA2D(IMachine machine) : this()
         {
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             IRQ = new GPIO();
             Reset();
         }
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         }
 
                         foregroundClut = new byte[(foregroundClutSizeField.Value + 1) * (uint)foregroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
-                        machine.GetSystemBus(this).ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
+                        sysbus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
                     })
                 .WithEnumField(16, 2, out foregroundAlphaMode, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange())
                 .WithValueField(24, 8, out foregroundAlphaField, name: "ALPHA")
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         }
 
                         backgroundClut = new byte[(backgroundClutSizeField.Value + 1) * (uint)backgroundClutColorModeField.Value.ToPixelFormat().GetColorDepth()];
-                        machine.GetSystemBus(this).ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
+                        sysbus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
                     })
                 .WithEnumField(16, 2, out backgroundAlphaMode, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange())
                 .WithValueField(24, 8, out backgroundAlphaField, name: "ALPHA")
@@ -271,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     if(outputLineOffsetField.Value == 0)
                     {
                         // we can copy everything at once - it might be faster
-                        machine.GetSystemBus(this).WriteBytes(outputBuffer, outputMemoryAddressRegister.Value);
+                        sysbus.WriteBytes(outputBuffer, outputMemoryAddressRegister.Value);
                     }
                     else
                     {
@@ -280,7 +280,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         var offset = lineWidth + ((int)outputLineOffsetField.Value * outputFormat.GetColorDepth());
                         for(var line = 0; line < (int)numberOfLineField.Value; line++)
                         {
-                            machine.GetSystemBus(this).WriteBytes(outputBuffer, (ulong)(outputMemoryAddressRegister.Value + line * offset), line * lineWidth, lineWidth);
+                            sysbus.WriteBytes(outputBuffer, (ulong)(outputMemoryAddressRegister.Value + line * offset), line * lineWidth, lineWidth);
                         }
                     }
                     break;
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value, foregroundBuffer,
                                converter: (localForegroundBuffer, line) =>
                                {
-                                   machine.GetSystemBus(this).ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
+                                   sysbus.ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
                                    // per-pixel alpha blending
                                    blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0, 0, 0, 0xFF), bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
                                    return outputBuffer;
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                (int)numberOfLineField.Value,
                                (localForegroundBuffer, line) =>
                                 {
-                                    machine.GetSystemBus(this).ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (uint)(backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
+                                    sysbus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (uint)(backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
                                     blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
                                     return outputLineBuffer;
                                 });
@@ -378,16 +378,16 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             for(var line = 0; line < count; line++)
             {
-                machine.GetSystemBus(this).ReadBytes(currentSource, sourceBuffer.Length, sourceBuffer, 0);
+                sysbus.ReadBytes(currentSource, sourceBuffer.Length, sourceBuffer, 0);
                 var destinationBuffer = converter == null ? sourceBuffer : converter(sourceBuffer, line);
-                machine.GetSystemBus(this).WriteBytes(destinationBuffer, currentDestination, 0, destinationBuffer.Length);
+                sysbus.WriteBytes(destinationBuffer, currentDestination, 0, destinationBuffer.Length);
 
                 currentSource += (ulong)(sourceBuffer.Length + sourceOffset);
                 currentDestination += (ulong)(destinationBuffer.Length + destinationOffset);
             }
         }
 
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
         private readonly IFlagRegisterField startFlag;
         private readonly IFlagRegisterField transferCompleteFlag;
         private readonly IEnumRegisterField<Mode> dma2dMode;

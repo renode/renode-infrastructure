@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public MPFS_SystemServices(IMachine machine, MappedMemory flashMemory)
         {
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             this.flashMemory = flashMemory;
             mailbox = new Mailbox(MailboxSize);
             registers = new DoubleWordRegisterCollection(this);
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var nBytes = mailbox.ReadDoubleWord(offset + 12);
 
             var bytes = flashMemory.ReadBytes(srcAddr, (int)nBytes);
-            machine.GetSystemBus(this).WriteBytes(bytes, (((ulong)destAddrUpper) << 32) | destAddrLower);
+            sysbus.WriteBytes(bytes, (((ulong)destAddrUpper) << 32) | destAddrLower);
         }
 
         private RequestResult status;
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField commandOffset;
 
         private readonly Mailbox mailbox;
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
         private readonly MappedMemory flashMemory;
         private readonly DoubleWordRegisterCollection registers;
 

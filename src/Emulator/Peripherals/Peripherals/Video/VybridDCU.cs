@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             Reconfigure(format: PixelFormat.BGR888);
 
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             lock_obj = new object();
         }
 
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 {
                     return;
                 }
-                machine.GetSystemBus(this).ReadBytes(bufferAddress, buffer.Length, buffer, 0);
+                sysbus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
             }
         }
 
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private readonly object lock_obj;
 
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
     }
 }
 

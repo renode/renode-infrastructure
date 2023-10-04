@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public PULP_uDMA_SPI(IMachine machine) : base(machine)
         {
+            sysbus = machine.GetSystemBus(this);
             RxIRQ = new GPIO();
             TxIRQ = new GPIO();
             CmdIRQ = new GPIO();
@@ -156,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 receiveQueue.Enqueue(RegisteredPeripheral.Transmit(0));
             }
             RegisteredPeripheral.FinishTransmission();
-            Machine.GetSystemBus(this).WriteBytes(receiveQueue.ToArray(), rxTransferAddress.Value);
+            sysbus.WriteBytes(receiveQueue.ToArray(), rxTransferAddress.Value);
             receiveQueue.Clear();
             command = Commands.None;
             RxIRQ.Blink();
@@ -174,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Warning, "Trying to issue a transaction to a slave peripheral, but nothing is connected");
                 return;
             }
-            foreach(var b in Machine.GetSystemBus(this).ReadBytes(txTransferAddress.Value, (int)txTransferBufferSize.Value))
+            foreach(var b in sysbus.ReadBytes(txTransferAddress.Value, (int)txTransferBufferSize.Value))
             {
                 RegisteredPeripheral.Transmit(b);
             }
@@ -186,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private Commands ReadCommand()
         {
             // The command is the third element of an array stored in memory, hence the addition
-            var cmd = (Commands)(Machine.GetSystemBus(this).ReadDoubleWord(commandTransferAddress.Value + 8) >> 28);
+            var cmd = (Commands)(sysbus.ReadDoubleWord(commandTransferAddress.Value + 8) >> 28);
             if(!Enum.IsDefined(typeof(Commands), cmd))
             {
                 this.Log(LogLevel.Warning, "Invalid command has been issued: {0}", cmd);
@@ -196,6 +197,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private Commands command;
 
+        private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection registersCollection;
         private readonly IFlagRegisterField commandEnable;
         private readonly IFlagRegisterField rxEnable;

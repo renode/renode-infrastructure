@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Video
         public LiteX_Framebuffer(IMachine machine, PixelFormat format, IBusPeripheral memory) : base(machine)
         {
             this.memory = memory;
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             this.format = format;
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected override void Repaint()
         {
-            machine.GetSystemBus(this).ReadBytes(bufferAddress, buffer.Length, buffer, 0);
+            sysbus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
         }
 
         private void DefineRegisters()
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Video
                         var width = (int)((hres[0].Value << 8) | hres[1].Value);
                         bufferAddress = (uint)((bufferRegisters[0].Value << 24) | (bufferRegisters[1].Value << 16) | (bufferRegisters[2].Value << 8) | bufferRegisters[3].Value);
 
-                        var memoryBase = (uint)machine.SystemBus.GetRegistrationPoints(memory).First().Range.StartAddress;
+                        var memoryBase = (uint)sysbus.GetRegistrationPoints(memory).First().Range.StartAddress;
                         bufferAddress += memoryBase;
 
                         this.Log(LogLevel.Debug, "Reconfiguring screen to {0}x{1}", width, height);
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private uint bufferAddress;
 
         private readonly IBusPeripheral memory;
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
         private readonly PixelFormat format;
 
         private enum Registers

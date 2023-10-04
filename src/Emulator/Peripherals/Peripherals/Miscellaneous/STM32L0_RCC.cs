@@ -612,9 +612,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             return;
                         }
-                        machine.GetSystemBus(this).SetPeripheralEnabled(rtc, value);
+                        sysbus.SetPeripheralEnabled(rtc, value);
                     },
-                    valueProviderCallback: _ => rtc == null ? false : machine.GetSystemBus(this).IsPeripheralEnabled(rtc), name: "RTCEN")
+                    valueProviderCallback: _ => rtc == null ? false : sysbus.IsPeripheralEnabled(rtc), name: "RTCEN")
                 .WithFlag(19, writeCallback: (_, value) =>
                     {
                         if(rtc == null)
@@ -624,7 +624,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         if(value)
                         {
                             rtc.Reset();
-                            machine.GetSystemBus(this).DisablePeripheral(rtc);
+                            sysbus.DisablePeripheral(rtc);
                         }
                     }, name: "RTCRST")
                 .WithReservedBits(20, 3)

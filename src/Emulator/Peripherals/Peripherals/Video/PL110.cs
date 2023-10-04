@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Video
         public PL110(IMachine machine, int? screenWidth = null, int? screenHeight = null) : base(machine)
         {
             Reconfigure(screenWidth ?? DefaultWidth, screenHeight ?? DefaultHeight, PixelFormat.RGB565);
-            this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
         }
 
         public void WriteDoubleWord(long address, uint value)
@@ -70,12 +70,12 @@ namespace Antmicro.Renode.Peripherals.Video
             {
                 return;
             }
-            machine.GetSystemBus(this).ReadBytes(bufferAddress, buffer.Length, buffer, 0);
+            sysbus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
         }
 
         private uint bufferAddress = 0xFFFFFFFF;
 
-        private readonly IMachine machine;
+        private readonly IBusController sysbus;
        
         private const int DefaultWidth = 640;
         private const int DefaultHeight = 480;

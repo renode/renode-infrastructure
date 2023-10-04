@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public EmberRadio(IMachine machine)
         {
             this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
 
             currentKey = new byte[16];
             currentData = new byte[16];
@@ -238,8 +239,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if((value & 0x1) > 0)
                 {
                     // TODO: we should deterimine which ADDR to use
-                    int packet_len = machine.GetSystemBus(this).ReadByte(MAC_TX_ST_ADDR_A);
-                    machine.GetSystemBus(this).WriteByte(MAC_TX_ST_ADDR_A, 0); // clear len
+                    int packet_len = sysbus.ReadByte(MAC_TX_ST_ADDR_A);
+                    sysbus.WriteByte(MAC_TX_ST_ADDR_A, 0); // clear len
                     if(packet_len == 0)
                     {
                         break;
@@ -249,8 +250,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     var dataToSend = new byte[packet_len];
                     for(uint j = 0; j < packet_len; j++)
                     {
-                        dataToSend[j] = machine.GetSystemBus(this).ReadByte(MAC_TX_ST_ADDR_A + j + 1);
-                    //    s = s + string.Format("{0:X2}", machine.SystemBus.ReadByte(MAC_TX_ST_ADDR_A + j + 1));
+                        dataToSend[j] = sysbus.ReadByte(MAC_TX_ST_ADDR_A + j + 1);
+                    //    s = s + string.Format("{0:X2}", sysbus.ReadByte(MAC_TX_ST_ADDR_A + j + 1));
                     }
                     this.Log(LogLevel.Info, "data = {0}", dataToSend.Select(x => x.ToString("X")).Stringify());
                     var frameSent = FrameSent;
@@ -262,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
                 if((value & 0x8) > 0)
                 {
-                    int packet_len = machine.GetSystemBus(this).ReadByte(MAC_TX_ST_ADDR_A);
+                    int packet_len = sysbus.ReadByte(MAC_TX_ST_ADDR_A);
                     this.Log(LogLevel.Noisy, "Adding CRC.");
 
                     if(packet_len == 0)
@@ -273,13 +274,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
                     var data = new byte[packet_len];
                     for(uint j = 0; j < packet_len; j++)
-                        data[j] = machine.GetSystemBus(this).ReadByte(MAC_TX_ST_ADDR_A + 1 + j);
+                        data[j] = sysbus.ReadByte(MAC_TX_ST_ADDR_A + 1 + j);
 
                     ushort crc = count_crc(data);
                     this.Log(LogLevel.Noisy, "Counted CRC = {0:X}", crc);
 
-                    machine.GetSystemBus(this).WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len - 1), (byte)(crc & 0xFF));
-                    machine.GetSystemBus(this).WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len), (byte)((crc >> 8) & 0xFF));
+                    sysbus.WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len - 1), (byte)(crc & 0xFF));
+                    sysbus.WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len), (byte)((crc >> 8) & 0xFF));
 
                 }
                 break;
@@ -300,13 +301,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             this.Log(LogLevel.Warning, "packet as bytes '{0}' of len {1}", frame.Select(x => String.Format("0x{0:X}", x)).Aggregate((x, y) => x + " " + y), frame.Length);
             packLength = (uint)frame.Length;
-            machine.GetSystemBus(this).WriteByte(MAC_RX_ST_ADDR_A, (byte)(frame.Length));
-            machine.GetSystemBus(this).WriteByte(MAC_RX_ST_ADDR_B, (byte)(frame.Length));
+            sysbus.WriteByte(MAC_RX_ST_ADDR_A, (byte)(frame.Length));
+            sysbus.WriteByte(MAC_RX_ST_ADDR_B, (byte)(frame.Length));
 
             for(int i = 0; i < frame.Length; ++i)
             {
-                machine.GetSystemBus(this).WriteByte((ulong)(MAC_RX_ST_ADDR_A + i + 1), frame[i]);
-                machine.GetSystemBus(this).WriteByte((ulong)(MAC_RX_ST_ADDR_B + i + 1), frame[i]);
+                sysbus.WriteByte((ulong)(MAC_RX_ST_ADDR_A + i + 1), frame[i]);
+                sysbus.WriteByte((ulong)(MAC_RX_ST_ADDR_B + i + 1), frame[i]);
             }
 
             /*   ushort crc = count_crc(data);
@@ -393,6 +394,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private uint MAC_RX_ST_ADDR_B = 0x20000000;
 
         private readonly IMachine machine;
+        private readonly IBusController sysbus;
 
        // public event Action<string> SendPacket;
 
