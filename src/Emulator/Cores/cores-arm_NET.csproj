@@ -29,7 +29,7 @@
     <Compile Include="Arm\ARMv7A.cs" />
     <Compile Include="Arm\ARMv7R.cs" />
     <Compile Include="Arm\Timers\ARM_GenericTimer.cs" />
-    <Compile Include="Arm\Timers\CortexAGlobalTimer.cs" />
+    <Compile Include="Arm\Timers\ARM_GlobalTimer.cs" />
     <Compile Include="Arm\Timers\ARM_PrivateTimer.cs" />
     <Compile Include="Arm\ARM_GenericInterruptController.cs" />
     <Compile Include="Arm\ArmSnoopControlUnit.cs" />
