@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals
         public BasicWordPeripheral(IMachine machine)
         {
             this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             RegistersCollection = new WordRegisterCollection(this);
         }
 
@@ -40,6 +41,7 @@ namespace Antmicro.Renode.Peripherals
         public WordRegisterCollection RegistersCollection { get; private set; }
 
         protected readonly IMachine machine;
+        protected readonly IBusController sysbus;
     }
 
     public static class BasicWordPeripheralExtensions

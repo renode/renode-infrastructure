@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals
         public BasicBytePeripheral(IMachine machine)
         {
             this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();
         }
@@ -43,6 +44,7 @@ namespace Antmicro.Renode.Peripherals
         protected abstract void DefineRegisters();
 
         protected readonly IMachine machine;
+        protected readonly IBusController sysbus;
     }
 
     public static class BasicBytePeripheralExtensions
