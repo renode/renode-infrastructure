@@ -1398,6 +1398,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     AddMappings(mappings, peripheral);
                 }
                 Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+                Machine.RegisterBusController(peripheral, this);
             }
         }        
 
