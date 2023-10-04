@@ -30,7 +30,7 @@
     <ProjectReference Include="..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\FdtSharp\FdtSharp\FdtSharp_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
-    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp-working_copy_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt\Xwt_NET.csproj"/>
   </ItemGroup>
 </Project>

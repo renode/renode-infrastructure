@@ -639,7 +639,7 @@
       <Project>{3A70B9B8-BBAB-47EA-8473-B7A0B4961D56}</Project>
       <Name>CxxDemangler</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp-working_copy.csproj">
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp.csproj">
       <Project>{25FAECC1-55F0-4608-88BD-4207A7F993B0}</Project>
       <Name>TermSharp</Name>
     </ProjectReference>

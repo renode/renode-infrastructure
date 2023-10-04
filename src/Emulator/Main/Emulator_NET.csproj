@@ -69,7 +69,7 @@
     <ProjectReference Include="..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\CxxDemangler\CxxDemangler\CxxDemangler_NET.csproj"/>
-    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp-working_copy_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt\Xwt_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt.Gtk\Xwt.Gtk3_NET.csproj" Condition=" $(OS) != 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
     <ProjectReference Include="..\..\..\..\..\lib\termsharp\xwt\Xwt.WPF\Xwt.WPF_NET.csproj" Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>

@@ -226,7 +226,7 @@
       <Project>{CF944E09-7C14-433C-A185-161848E989B3}</Project>
       <Name>ELFSharp</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp-working_copy.csproj">
+    <ProjectReference Include="..\..\..\..\..\lib\termsharp\TermSharp.csproj">
       <Project>{25FAECC1-55F0-4608-88BD-4207A7F993B0}</Project>
       <Name>TermSharp</Name>
     </ProjectReference>
