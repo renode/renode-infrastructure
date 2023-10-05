@@ -140,11 +140,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private byte[] Encrypt(byte[] key, byte[] iv, byte[] input)
         {                
             using(var ms = new MemoryStream())
+            using(var aes = Aes.Create())
             {
-                using(var aes = new AesCryptoServiceProvider()
-                {
-                    Padding = PaddingMode.None
-                })
+                aes.Padding = PaddingMode.None;
+                aes.Key = key;
+                aes.IV = iv;
                 using(var cs = new CryptoStream(ms, aes.CreateEncryptor(key, iv), CryptoStreamMode.Write))
                 {
                     cs.Write(input, 0, input.Length);

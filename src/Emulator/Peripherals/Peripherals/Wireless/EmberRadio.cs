@@ -362,7 +362,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void Encrypt()
         {
-            var aes = new RijndaelManaged();
+            var aes = Aes.Create();
             aes.KeySize = 128;
             aes.BlockSize = 128;
             aes.Mode = CipherMode.CBC;

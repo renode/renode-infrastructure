@@ -654,7 +654,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private long MsiFrequency { get => BaseMsiFrequency * msiMultiplier; }
 
         private IFlagRegisterField hsi16diven;
-        private IValueRegisterField msiRange;
         private IEnumRegisterField<PllSourceSelection> pllSource;
         private IEnumRegisterField<SystemClockSourceSelection> systemClockSwitch;
         private IEnumRegisterField<LpTimerClockSourceSelection> lpTimer1Selection;

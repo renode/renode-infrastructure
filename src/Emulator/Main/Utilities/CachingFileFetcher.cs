@@ -200,7 +200,9 @@ namespace Antmicro.Renode.Utilities
             var wasCancelled = false;
 
             using(var downloadProgressHandler = EmulationManager.Instance.ProgressMonitor.Start(GenerateProgressMessage(uri), false, true))
+#pragma warning disable SYSLIB0014 // Even though WebClient is technically obselete, there's no better replacement for our use case
             using(client = new WebClient())
+#pragma warning restore SYSLIB0014
             {
                 Logger.LogAs(this, LogLevel.Info, "Downloading {0}.", uri);
                 var now = CustomDateTime.Now;
@@ -506,7 +508,7 @@ namespace Antmicro.Renode.Utilities
         private static byte[] GetSHA1Checksum(string fileName)
         {
             using(var file = new FileStream(fileName, FileMode.Open))
-            using(var sha = new SHA1Managed())
+            using(var sha = SHA1.Create())
             {
                 sha.Initialize();
                 return sha.ComputeHash(file);

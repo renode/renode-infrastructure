@@ -43,7 +43,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             manager.TryReadDoubleWord((long)DSARegisters.MessageLenth, out var msgLength);
             manager.TryReadDoubleWord((long)DSARegisters.MessageExternalAddress, out var msgExternalAddress);
             var msgBytes = bus.ReadBytes(msgExternalAddress, (int)msgLength);
-            var hash = new SHA384CryptoServiceProvider().ComputeHash(msgBytes);
+            // We could use SHA384.HashData static method, but it's not available in Mono.
+            var hash = SHA384.Create().ComputeHash(msgBytes);
             
             var z = AthenaX5200_BigIntegerHelper.CreateBigInteger(hash, Math.Min(q.ToByteArray().Length, hash.Length));
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,12 +19,20 @@ namespace Antmicro.Renode.Logging
 
         public string WindowTitle
         {
+            // Console.Title *getter* is only supported on Windows,
+            // so we always return an empty string on other platforms.
             get
             {
+#if PLATFORM_WINDOWS
                 return PlainMode
                     ? string.Empty
                     : Console.Title;
+#else
+                return string.Empty;
+#endif
             }
+            // The setter is supported on all the platforms we target,
+            // so it doesn't need the if clause.
             set
             {
                 if(!PlainMode)
