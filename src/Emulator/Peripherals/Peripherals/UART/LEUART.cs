@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -35,6 +35,8 @@ namespace Antmicro.Renode.Peripherals.UART
             case Register.InterruptFlag:
                 this.NoisyLog("Interrupt flag register read, returned {0}.", interruptFlag);
                 return (uint)interruptFlag;
+            case Register.InterruptEnable:
+                return interruptEnable;
             case Register.ReceiveBufferData:
                 return HandleReadCharacter();
             case Register.Freeze:
@@ -57,9 +59,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 break;
             case Register.TransmitBufferData:
                 TransmitCharacter((byte)value);
+                UpdateInterrupts();
                 break;
             case Register.InterruptClear:
                 ClearInterrupt();
+                break;
+            case Register.InterruptEnable:
+                interruptEnable = value;
+                UpdateInterrupts();
                 break;
             case Register.ClockControl:
                 clockControl = value & 0x7FF8;
@@ -73,20 +80,21 @@ namespace Antmicro.Renode.Peripherals.UART
         public void Reset()
         {
             currentStatus = Status.TransmitBufferEmpty;
-            interruptFlag = 0;
+            // Assume that TX buffer is always empty
+            interruptFlag = InterruptFlag.TxCompleteInterrutpt | InterruptFlag.TxBufferLevelInterrupt;
             waitingChars = new Queue<byte>();
         }
 
         public void WriteChar(byte data)
         {
             this.NoisyLog("Char 0x{0:X} written.", data);
-            IRQ.Set(true);
             interruptFlag |= InterruptFlag.RxDataAvailable;
             lock(queueLock)
             {
                 waitingChars.Enqueue(data);
                 currentStatus |= Status.RxDataAvailable;
             }
+            UpdateInterrupts();
         }
 
         [field: Transient]
@@ -104,8 +112,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 if(waitingChars.Count == 0)
                 {
                     currentStatus &= ~Status.RxDataAvailable;
-                    ClearInterrupt();
                 }
+                UpdateInterrupts();
                 this.NoisyLog("ReceiveBufferData read, returned {0}", waitingChar);
                 return waitingChar;
             }
@@ -126,8 +134,18 @@ namespace Antmicro.Renode.Peripherals.UART
             interruptFlag &= ~InterruptFlag.RxDataAvailable;
         }
 
+        private void UpdateInterrupts()
+        {
+            IRQ.Set(
+                ((interruptEnable & (uint)InterruptEnable.RxDataAvailable) != 0 && waitingChars.Count > 0) ||
+                (interruptEnable & (uint)InterruptEnable.TxBufferLevelInterrupt) != 0 ||
+                (interruptEnable & (uint)InterruptEnable.TxCompleteInterrutpt) != 0
+            );
+        }
+
         private uint controlRegister;
         private uint clockControl;
+        private uint interruptEnable;
 
         private Status currentStatus;
         private InterruptFlag interruptFlag;
@@ -137,7 +155,17 @@ namespace Antmicro.Renode.Peripherals.UART
         [Flags]
         private enum InterruptFlag
         {
-            RxDataAvailable = 1 << 2
+            RxDataAvailable = 1 << 2,
+            TxBufferLevelInterrupt = 1 << 1,
+            TxCompleteInterrutpt = 1 << 0
+        }
+
+        [Flags]
+        private enum InterruptEnable
+        {
+            RxDataAvailable = 1 << 2,
+            TxBufferLevelInterrupt = 1 << 1,
+            TxCompleteInterrutpt = 1 << 0
         }
 
         [Flags]
@@ -163,6 +191,7 @@ namespace Antmicro.Renode.Peripherals.UART
             TransmitBufferData = 0x028,
             InterruptFlag      = 0x02C,
             InterruptClear     = 0x034,
+            InterruptEnable    = 0x038,
             Freeze             = 0x040,
             SyncBusy           = 0x044,
             ClockControl       = 0x00C
