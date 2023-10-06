@@ -388,8 +388,8 @@ namespace Antmicro.Renode.UserInterface
                 object result;
                 try
                 {
-                    var deviceObj = IdentifyDevice(name);
-                    result = ExecuteDeviceAction(device, name, deviceObj, p);
+                    var device = IdentifyDevice(name);
+                    result = ExecuteDeviceAction(name, device, p);
                 }
                 catch(ParametersMismatchException)
                 {
@@ -1124,9 +1124,10 @@ namespace Antmicro.Renode.UserInterface
             return true;
         }
 
-        public object ExecuteDeviceAction(Type type, string name, object device, IEnumerable<Token> p)
+        public object ExecuteDeviceAction(string name, object device, IEnumerable<Token> p)
         {
             string commandValue;
+            var type = device.GetType();
             var command = p.FirstOrDefault();
             if(command is LiteralToken || command is LeftBraceToken)
             {
@@ -1190,7 +1191,14 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(foundField != null)
             {
-                if(setValue != null && !foundField.IsLiteral && !foundField.IsInitOnly)
+                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
+                if(CanTypeBeChained(foundField.FieldType) && setValue != null && setValue is LiteralToken)
+                {
+                    var currentObject = InvokeGet(device, foundField);
+                    var objectFullName = $"{name} {commandValue}";
+                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
+                }
+                else if(setValue != null && !foundField.IsLiteral && !foundField.IsInitOnly)
                 {
                     object value;
                     try
@@ -1215,7 +1223,14 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(foundProp != null)
             {
-                if(setValue != null && foundProp.IsCurrentlySettable(CurrentBindingFlags))
+                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
+                if(CanTypeBeChained(foundProp.PropertyType) && setValue != null && setValue is LiteralToken)
+                {
+                    var currentObject = InvokeGet(device, foundProp);
+                    var objectFullName = $"{name} {commandValue}";
+                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1); 
+                }
+                else if(setValue != null && foundProp.IsCurrentlySettable(CurrentBindingFlags))
                 {
                     object value;
                     try
@@ -1311,6 +1326,20 @@ namespace Antmicro.Renode.UserInterface
             {
                 throw new RecoverableException(String.Format("{0} does not provide a default-named indexer.", name));
             }
+        }
+
+        private bool CanTypeBeChained(Type type)
+        {
+            return !type.IsEnum && !type.IsValueType && type != typeof(string);
+        }
+
+        private object RecursiveExecuteDeviceAction(string name, object currentObject, IEnumerable<Token> p, int tokensToSkip)
+        {
+            if(currentObject == null)
+            {
+                return null;
+            }
+            return ExecuteDeviceAction(name, currentObject, p.Skip(tokensToSkip)); 
         }
 
         IEnumerable<PropertyInfo> GetAvailableIndexers(Type objectType)
