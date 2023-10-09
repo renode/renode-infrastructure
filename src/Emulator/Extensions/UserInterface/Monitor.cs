@@ -969,7 +969,8 @@ namespace Antmicro.Renode.UserInterface
                     }
                     else if(currentCommandSplit.Length == 2 && GetAllAvailableNames().Contains(currentCommandSplit[0]))
                     {
-                        var devInfo = GetDeviceSuggestions(currentCommandSplit[0]).Distinct();
+                        var dev = GetDevice(currentCommandSplit[0]);
+                        var devInfo = GetObjectSuggestions(dev).Distinct();
                         if(devInfo != null)
                         {
                             suggestions.AddRange(devInfo.Where(x => x.StartsWith(currentCommandSplit[1], StringComparison.OrdinalIgnoreCase))
@@ -990,7 +991,8 @@ namespace Antmicro.Renode.UserInterface
 
                 if(suggestions.Count == 0) //EmulationManager
                 {
-                    var devInfo = GetDeviceSuggestions(typeof(EmulationManager).Name).Distinct();
+                    var dev = GetDevice(typeof(EmulationManager).Name);
+                    var devInfo = GetObjectSuggestions(dev).Distinct();
                     if(devInfo != null)
                     {
                         suggestions.AddRange(devInfo.Where(x => x.StartsWith(currentCommandSplit[0], StringComparison.OrdinalIgnoreCase)));

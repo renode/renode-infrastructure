@@ -228,7 +228,16 @@ namespace Antmicro.Renode.UserInterface
 
         private const string DefaultNamespace = "Antmicro.Renode.Peripherals.";
 
-        private IEnumerable<String> GetDeviceSuggestions(string name)
+        private IEnumerable<String> GetObjectSuggestions(object node)
+        {
+            if(node != null)
+            {
+                return GetMonitorInfo(node.GetType()).AllNames;
+            }
+            return new List<String>();
+        }
+
+        private object GetDevice(string name)
         {
             var staticBound = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
@@ -237,18 +246,18 @@ namespace Antmicro.Renode.UserInterface
                 var boundObject = staticBound ?? FromMapping(name) ?? iface;
                 if(boundObject != null)
                 {
-                    return GetMonitorInfo(boundObject.GetType()).AllNames;
+                    return boundObject; 
                 }
 
-                Type device;
+                IPeripheral device;
                 string longestMatch;
                 string actualName;
-                if(TryFindPeripheralTypeByName(name, out device, out longestMatch, out actualName))
+                if(TryFindPeripheralByName(name, out device, out longestMatch))
                 {
-                    return GetMonitorInfo(device).AllNames;
+                    return device;
                 }
             }
-            return new List<String>();
+            return null; 
         }
 
         private string GetResultFormat(object result, int num, int? width = null)
