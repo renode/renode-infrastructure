@@ -959,23 +959,34 @@ namespace Antmicro.Renode.UserInterface
 
             if(currentCommand.Contains(' '))
             {
-                if(currentCommandSplit.Length <= 2)
+                var cmd = Commands.SingleOrDefault(c => c.Name == currentCommandSplit[0] || c.AlternativeNames.Contains(currentCommandSplit[0])) as ISuggestionProvider;
+                if(cmd != null)
                 {
-                    var cmd = Commands.SingleOrDefault(c => c.Name == currentCommandSplit[0] || c.AlternativeNames.Contains(currentCommandSplit[0])) as ISuggestionProvider;
-                    if(cmd != null)
+                    var sugs = cmd.ProvideSuggestions(currentCommandSplit.Length > 1 ? currentCommandSplit[1] : string.Empty);
+                    suggestions.AddRange(sugs.Select(s => string.Format("{0}{1}", allButLastOptional, s)));
+                }
+                else if(currentCommandSplit.Length > 1 && GetAllAvailableNames().Contains(currentCommandSplit[0]))
+                {
+                    var currentObject = GetDevice(currentCommandSplit[0]);
+                    //Take whole command split without first and last element
+                    var commandsChain = currentCommandSplit.Skip(1).Take(currentCommandSplit.Length - 2);
+                    foreach(var command in commandsChain)
                     {
-                        var sugs = cmd.ProvideSuggestions(currentCommandSplit.Length > 1 ? currentCommandSplit[1] : string.Empty);
-                        suggestions.AddRange(sugs.Select(s => string.Format("{0}{1}", allButLastOptional, s)));
-                    }
-                    else if(currentCommandSplit.Length == 2 && GetAllAvailableNames().Contains(currentCommandSplit[0]))
-                    {
-                        var dev = GetDevice(currentCommandSplit[0]);
-                        var devInfo = GetObjectSuggestions(dev).Distinct();
-                        if(devInfo != null)
+                        //It is assumed that commands chain can contain only properties or fields
+                        var newObject = FindFieldOrProperty(currentObject, command);
+                        if(newObject == null)
                         {
-                            suggestions.AddRange(devInfo.Where(x => x.StartsWith(currentCommandSplit[1], StringComparison.OrdinalIgnoreCase))
-                                .Select(x => allButLastOptional + x));
+                            currentObject = null;
+                            break;
                         }
+                        currentObject = newObject;
+                    }
+                    
+                    if(currentObject != null)
+                    {
+                        var devInfo = GetObjectSuggestions(currentObject).Distinct(); 
+                        suggestions.AddRange(devInfo.Where(x => x.StartsWith(currentCommandSplit[currentCommandSplit.Length - 1], StringComparison.OrdinalIgnoreCase))
+                            .Select(x => allButLastOptional + x));
                     }
                 }
             }

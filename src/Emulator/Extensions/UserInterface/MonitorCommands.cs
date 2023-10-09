@@ -1187,6 +1187,26 @@ namespace Antmicro.Renode.UserInterface
             return true;
         }
 
+        public object FindFieldOrProperty(object node, string name)
+        {
+            var type = node.GetType();
+            var fields = cache.Get(type, GetAvailableFields);
+            var properties = cache.Get(type, GetAvailableProperties);
+            var foundField = fields.FirstOrDefault(x => x.Name == name);
+            var foundProp = properties.FirstOrDefault(x => x.Name == name);
+
+            if(foundProp != null)
+            {
+                return InvokeGet(node, foundProp);
+            }
+            if(foundField != null)
+            {
+                return InvokeGet(node, foundField);
+            }
+
+            return null;
+        }
+
         public object ExecuteDeviceAction(string name, object device, IEnumerable<Token> p)
         {
             string commandValue;
