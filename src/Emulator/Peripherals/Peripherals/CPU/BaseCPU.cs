@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             singleStepSynchronizer = new Synchronizer();
         }
-        
+
         public string[,] GetRegistersValues()
         {
             var result = new Dictionary<string, ulong>();
@@ -167,31 +167,31 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             SkipInstructions += instructions;
         }
-        
+
         public virtual void Dispose()
         {
             DisposeInner();
         }
-        
+
         public virtual void Reset()
         {
             isAborted = false;
             Pause();
         }
-        
+
         public virtual void SyncTime()
         {
             // by default do nothing
         }
-        
+
         public Endianess Endianness { get; }
-        
+
         public IBusController Bus => machine.SystemBus;
-        
+
         public string Model { get; }
 
         public uint PerformanceInMips { get; set; }
-        
+
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
         public virtual bool ShouldEnterDebugMode
@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public ulong SkippedInstructions { get; private set; }
-        
+
         public virtual ExecutionMode ExecutionMode
         {
             get
@@ -302,7 +302,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
         }
-        
+
         public event Action<HaltArguments> Halted;
 
         public abstract ulong ExecutedInstructions { get; }
@@ -317,7 +317,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TimeHandle.Interrupt();
             }
         }
-        
+
         protected virtual void Pause(HaltArguments haltArgs, bool checkPauseGuard)
         {
             if(isAborted || isPaused)
@@ -331,9 +331,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // cpuThread can get null as a result of `InnerPause` call
                 var cpuThreadCopy = cpuThread;
                 var onCpuThread = (cpuThreadCopy != null && Thread.CurrentThread.ManagedThreadId != cpuThreadCopy.ManagedThreadId);
-                
+
                 InnerPause(onCpuThread, checkPauseGuard);
-                
+
                 if(onCpuThread)
                 {
                     singleStepSynchronizer.Enabled = false;
@@ -347,7 +347,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             InvokeHalted(haltArgs);
         }
-        
+
         protected void ReportProgress(ulong instructions)
         {
             if(instructions > 0)
@@ -360,7 +360,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TimeHandle.ReportProgress(intervalToReport);
             }
         }
-        
+
         protected override void OnResume()
         {
             singleStepSynchronizer.Enabled = IsSingleStepMode;
@@ -521,12 +521,12 @@ restart:
                 this.Trace();
             }
         }
-        
+
         protected virtual bool ExecutionFinished(ExecutionResult result)
         {
             return false;
         }
-        
+
         protected CpuResult CpuThreadBodyInner(bool singleStep)
         {
             if(!TimeHandle.RequestTimeInterval(out var interval))
@@ -704,7 +704,7 @@ restart:
                 }
             }
         }
-        
+
         protected void CheckIfOnSynchronizedThread()
         {
             if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
@@ -712,7 +712,7 @@ restart:
                 this.Log(LogLevel.Warning, "An interrupt from the unsynchronized thread.");
             }
         }
-        
+
         [Conditional("DEBUG")]
         protected void CheckCpuThreadId()
         {
@@ -723,7 +723,7 @@ restart:
                                   cpuThread.ManagedThreadId, Thread.CurrentThread.ManagedThreadId));
             }
         }
-        
+
         protected virtual bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
             var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
@@ -772,11 +772,11 @@ restart:
 
         [Constructor]
         protected readonly Synchronizer singleStepSynchronizer;
-        
+
         protected readonly Sleeper sleeper = new Sleeper();
         protected readonly CpuBitness bitness;
         protected readonly IMachine machine;
-        
+
         protected enum CpuResult
         {
             ExecutedInstructions = 0,
@@ -784,11 +784,11 @@ restart:
             MmuFault = 2,
             Aborted = 3,
         }
-        
+
         protected class RegisterAttribute : Attribute
         {
         }
-        
+
         private ulong InstructionsToNearestLimit()
         {
             var nearestLimitIn = ((BaseClockSource)machine.ClockSource).NearestLimitIn;
@@ -806,7 +806,7 @@ restart:
             }
             return instructionsToNearestLimit;
         }
-        
+
         private void SetPCFromEntryPoint(ulong entryPoint)
         {
             var what = machine.SystemBus.WhatIsAt(entryPoint, this);
@@ -822,18 +822,18 @@ restart:
             }
             PC = entryPoint;
         }
-        
+
         [Transient]
         private Thread cpuThread;
-        
+
         private TimeHandle timeHandle;
-        
+
         private bool wasRunningWhenHalted;
         private ulong executedResiduum;
         private ulong instructionsLeftThisRound;
         private ulong instructionsExecutedThisRound;
         private ulong skipInstructions;
-        
+
         private readonly object cpuThreadBodyLock = new object();
     }
 }
