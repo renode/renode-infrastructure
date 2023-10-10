@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,7 +26,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Load, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => Limit = val, valueProviderCallback: _ => checked((uint)Limit), name: "LoadValue")},
+                    .WithValueField(0, 32, name: "LoadValue",
+                        writeCallback: (_, val) =>
+                            {
+                                Limit = val;
+                                if(Mode == WorkMode.OneShot)
+                                {
+                                    Enabled = true;
+                                }
+                            },
+                        valueProviderCallback: (_) => checked((uint)Limit)
+                    )
+                },
 
                 {(long)Registers.Value, new DoubleWordRegister(this, 0xFFFFFFFF)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => checked((uint)Value), name: "CurrentValue")},
