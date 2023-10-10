@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(0, 8, out baudValue0to7, name: "BAUD_VALUE_0_7")},
 
                 {(long)Registers.Control2, new ByteRegister(this)
-                    .WithTag("BIT8", 0, 1)
+                    .WithFlag(0, name: "BIT8") // The register only provides a read-back function
                     .WithFlag(1, out parityFlagField, name: "PARITY_EN")
                     .WithFlag(2, out oddNEventFlagField, name: "ODD_N_EVEN")
                     .WithValueField(3, 5, out baudValue8to12, name: "BAUD_VALUE_8_12")},
