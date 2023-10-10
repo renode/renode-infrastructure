@@ -920,7 +920,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var tempArray = new long[size];
             Marshal.Copy(arrayStart, tempArray, 0, size);
-            machine.AppendDirtyAddresses(tempArray);
+            machine.AppendDirtyAddresses(Id, tempArray);
         }
 
         [Transient]

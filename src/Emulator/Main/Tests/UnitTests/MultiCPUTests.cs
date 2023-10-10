@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -28,7 +28,9 @@ namespace Antmicro.Renode.UnitTests
                 var sysbus = machine.SystemBus;
                 for(var i = 0; i < cpus.Length; i++)
                 {
-                    cpus[i] = new Mock<ICPU>().Object;
+                    var mock = new Mock<ICPU>();
+                    mock.Setup(cpu => cpu.Architecture).Returns("mock");  // Required by InitializeInvalidatedAddressesList.
+                    cpus[i] = mock.Object;
                     sysbus.Register(cpus[i], new CPURegistrationPoint());
                 }
                 for(var i = 0; i < cpus.Length; i++)

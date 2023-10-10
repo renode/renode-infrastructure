@@ -123,7 +123,11 @@ namespace Antmicro.Renode.UnitTests
                 var sb = machine.SystemBus;
                 var mock = new Mock<IHasOwnLife>();
                 sb.Register(mock.As<IDoubleWordPeripheral>().Object, 0.To(100));
-                sb.Register(new Mock<ICPU>().Object, new CPURegistrationPoint());
+
+                var cpuMock = new Mock<ICPU>();
+                cpuMock.Setup(cpu => cpu.Architecture).Returns("mock");  // Required by InitializeInvalidatedAddressesList.
+                sb.Register(cpuMock.Object, new CPURegistrationPoint());
+
                 machine.Start();
                 PauseResumeRetries.Times(machine.Pause);
                 mock.Verify(x => x.Pause(), Times.Once());

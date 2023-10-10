@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Core
     public interface IMachine: IEmulationElement
     {
         void AddUserStateHook(Func<string, bool> predicate, Action<string> hook);
-        void AppendDirtyAddresses(long[] addresses);
+        void AppendDirtyAddresses(uint cpuId, long[] addresses);
         void AttachGPIO(IPeripheral source, int sourceNumber, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null);
         void AttachGPIO(IPeripheral source, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null);
         void AttachGPIO(IPeripheral source, string connectorName, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null);
