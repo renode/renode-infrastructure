@@ -53,7 +53,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             pllDivisor = 1;
             pllMultiplier = 3;
             msiMultiplier = 32;
-            systick.Divider = 1;
+            if(systick != null)
+            {
+                systick.Divider = 1;
+            }
             base.Reset();
             UpdateClocks();
         }
