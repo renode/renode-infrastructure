@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,7 +12,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class PL031 : IDoubleWordPeripheral
+    public class PL031 : IDoubleWordPeripheral, IKnownSize
     {
         public PL031(IMachine machine)
         {
@@ -90,6 +90,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; private set; }
+        public long Size => 0x1000;
 
         private void UpdateInterrupt(bool value)
         {
