@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Reset();
         }
 
-        public void Reset()
+        public override void Reset()
         {
             // Set PLL divisor to a default value of 1.
             // Despite it not being a valid value, this is what it resets to
