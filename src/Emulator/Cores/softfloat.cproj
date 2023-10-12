@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="CCompilerTask"/>
+
+  <PropertyGroup>
+    <SoftFloatDirectory>tlib/softfloat-3</SoftFloatDirectory>
+    <BuildDirectory>$(SoftFloatDirectory)/build/$(Configuration)/$(SpecializedArchitecture)</BuildDirectory>
+    <OutputDirectory>$(BuildDirectory)</OutputDirectory>
+  </PropertyGroup>
+
+  <Target Name="_VerifyProperties">
+    <Error Text="No configuration provided" Condition=" $(Configuration) == '' "/>
+    <Error Text="No specialized architecture provided" Condition=" $(SpecializedArchitecture) == '' "/>
+    <PropertyGroup>
+      <SoftFloatOutput>$(OutputDirectory)/libsoftfloat.a</SoftFloatOutput>
+      <ObjectFilesDirectory>$(BuildDirectory)</ObjectFilesDirectory>
+      <ExcludeNonFastInt64>**/s_*128M*.c;**/s_*128SigM*.c;**/s_*80M*.c;**/s_*M.c</ExcludeNonFastInt64>
+      <ExcludeUnusedFormats>**/*bf16*.c;**/*F80*.c;**/*F128*.c;**/*f128*.c;**/*BF16*.c</ExcludeUnusedFormats>
+      <ExcludeCommon>$(ExcludeUnusedFormats);$(ExcludeNonFastInt64)</ExcludeCommon>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <CompilationFlags Include="-Werror-implicit-function-declaration" />
+      <CompilationFlags Include="-DSOFTFLOAT_ROUND_ODD" />
+      <CompilationFlags Include="-DSOFTFLOAT_FAST_INT64" />
+      <CompilationFlags Include="-DINLINE_LEVEL=5" Condition="$(Configuration) == 'Release'" />
+      <CompilationFlags Include="-DSOFTFLOAT_FAST_DIV32TO16" />
+      <CompilationFlags Include="-DSOFTFLOAT_FAST_DIV64TO32" />
+      <CompilationFlags Include="-I $(SoftFloatDirectory)/build/Linux-x86_64-GCC" />
+      <CompilationFlags Include="-I $(SoftFloatDirectory)/source/$(SpecializedArchitecture)" />
+      <CompilationFlags Include="-I $(SoftFloatDirectory)/source/include " />
+      <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release' and $(TlibProfilingBuild) != 'true'" />
+      <CompilationFlags Include="-fno-omit-frame-pointer" Condition="$(TlibProfilingBuild) == 'true'" />
+      <CompilationFlags Include="-O3" Condition="$(Configuration) == 'Release'" />
+      <CompilationFlags Include="-fPIC " Condition=" $(CurrentPlatform) != 'Windows'" />
+      <CompilationFlags Include="-g3 " Condition=" $(Configuration) == 'Debug' or $(TlibProfilingBuild) == 'true'" />
+
+      <CSources Include="$(SoftFloatDirectory)/source/$(SpecializedArchitecture)/*.c" Condition="$(SpecializedArchitecture) == '8086'" Exclude="$(ExcludeCommon)" />
+      <CSources Include="$(SoftFloatDirectory)/source/$(SpecializedArchitecture)/*.c" Condition="$(SpecializedArchitecture) == 'RISCV'" Exclude="$(ExcludeCommon)" />
+      <CSources Include="$(SoftFloatDirectory)/source/*.c" Exclude="$(ExcludeCommon)" />
+
+      <InputFiles Include="$(SoftFloatDirectory)/**" Exclude="$(BuildDirectory)/**;$(OutputDirectory)/*.a" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ObjectFiles Include="@(CSources -> '$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="_VerifyProperties">
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)"/>
+  </Target>
+
+  <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(SoftFloatOutput)" DependsOnTargets="Compile">
+    <Message Text="Calling ar"/>
+    <PropertyGroup>
+      <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
+    </PropertyGroup>
+    <MakeDir Directories="$(OutputDirectory)"/>
+    <Exec Command="$(ArPath) rcs $(SoftFloatOutput) $(ObjectFilesString)" Condition=" !Exists('$(SoftFloatOutput)') Or '$(ObjectFilesString)' != '' "/>
+  </Target>
+
+  <Target Name="Clean">
+    <RemoveDir Directories="$(BuildDirectory);$(OutputDirectory)"/>
+  </Target>
+</Project>
