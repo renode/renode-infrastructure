@@ -32,6 +32,8 @@
         <TlibDirectory>tlib</TlibDirectory>
         <TcgLibraryDirectory>$(MSBuildProjectDirectory)/tlib/tcg/bin/$(Configuration)</TcgLibraryDirectory>
         <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(TargetEndianess).a</TcgLibraryFilename>
+        <SoftFloatLibraryDirectory>$(MSBuildProjectDirectory)/tlib/softfloat-3/build/$(Configuration)</SoftFloatLibraryDirectory>
+        <SoftFloatLibraryFilename>libsoftfloat.a</SoftFloatLibraryFilename>
     </PropertyGroup>
 
     <Message Text="Configuring translation library" />
@@ -81,6 +83,7 @@
           <CompilationFlags Include="-I $(TlibDirectory)/tcg/$(HostArchitecture)" />
           <CompilationFlags Include="-I $(TlibDirectory)/include" />
           <CompilationFlags Include="-I $(TlibDirectory)/softfloat-2" />
+          <CompilationFlags Include="-I $(TlibDirectory)/softfloat-3/source/include/" />
           <CompilationFlags Include="-I $(TlibDirectory)/tcg" />
           <CompilationFlags Include="-I renode/include" />
           <!-- Common headers for "arm" and "arm64" -->
@@ -123,9 +126,10 @@
 
   <Target Name="_PrepareInputsAndOutputsForCompilation" DependsOnTargets="GenerateFlags">
       <ItemGroup>
-          <InputFiles Include="**" Exclude="config/**;tcg/**;bin/**;obj/**;lib/**;**/.*" />
+          <InputFiles Include="**" Exclude="config/**;tcg/**;softfloat-3/**;bin/**;obj/**;lib/**;**/.*" />
           <ObjectFiles Include="@(SourceFiles->'$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
           <ObjectFiles Include="$(TcgLibraryDirectory)/$(TcgLibraryFilename)" />
+          <ObjectFiles Include="$(SoftFloatLibraryDirectory)/$(SoftFloatLibraryFilename)" />
       </ItemGroup>
   </Target>
 
@@ -137,7 +141,15 @@
         Properties="Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
   </Target>
 
-  <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" >
+  <Target Name="CompileSoftFloat" DependsOnTargets="GenerateFlags">
+    <Message Text="Compiling SoftFloat" />
+    <MSBuild
+        Projects="softfloat.cproj"
+        Targets="_VerifyProperties;Compile;Build"
+        Properties="Configuration=$(Configuration);CompilerPath=$(CompilerPath)" />
+  </Target>
+
+  <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg;CompileSoftFloat" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" >
     <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
   </Target>
 
@@ -151,6 +163,7 @@
 
   <Target Name="Clean">
       <MSBuild Projects="tcg.cproj" Targets="Clean" />
+      <MSBuild Projects="softfloat.cproj" Targets="Clean" />
       <RemoveDir Directories="config;obj;bin" />
   </Target>
 </Project>
