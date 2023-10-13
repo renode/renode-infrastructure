@@ -153,6 +153,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             if(processorNumber < CPUsCountLegacySupport)
             {
+                legacyCpusAttachedMask |= cpuEntry.TargetFieldFlag;
+                legacyCpusCount += 1;
                 // The new attached CPU need to be registered for all CPUs including itself.
                 foreach(var target in cpuEntries.Values)
                 {
@@ -511,8 +513,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
         {
             var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups[type].Enabled).ToArray();
+            IEnumerable<SharedInterrupt> filteredSharedInterrupts = sharedInterrupts.Values;
+            if(legacyCpusCount > 1)
+            {
+                filteredSharedInterrupts = filteredSharedInterrupts.Where(irq => irq.IsTargetingCPU(cpu));
+            }
             return cpu.AllInterrupts
-                .Concat(sharedInterrupts.Values.Where(irq => irq.IsTargetingCPU(cpu)))
+                .Concat(filteredSharedInterrupts)
                 .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
         }
 
@@ -560,8 +567,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithFlag(8, name: "SharedPeripheralInterruptsExtendedSupport",
                         valueProviderCallback: _ => false
                     )
-                    .WithValueField(5, 3, name: "CPUsCountWithoutAffinityRouting",
-                        valueProviderCallback: _ => CPUsCountWithoutAffinityRouting - 1
+                    .WithValueField(5, 3, name: "LegacyCpusCount",
+                        valueProviderCallback: _ => (ulong)legacyCpusCount - 1
                     )
                     .WithValueField(0, 5, name: "SharedPeripheralInterruptsCount",
                         valueProviderCallback: _ => ((uint)irqsDecoder.SharedPeripheralLast + 1) / 32 - 1
@@ -1110,7 +1117,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IEnumerable<DoubleWordRegister> BuildSharedInterruptTargetsRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptValueRegisters(startId, endId, name, 4,
-                writeCallback: (irq, val) => ((SharedInterrupt)irq).TargetCPU = (byte)val,
+                writeCallback: (irq, val) =>
+                {
+                    ((SharedInterrupt)irq).TargetCPU = (byte)val;
+                    var invalidTargets = ~legacyCpusAttachedMask & val;
+                    if(invalidTargets != 0)
+                    {
+                        this.Log(LogLevel.Warning, "Interrupt {0} configured to target an invalid CPU, id: {1}.", irq.Identifier, String.Join(", ", BitHelper.GetSetBits(invalidTargets)));
+                    }
+                },
                 valueProviderCallback: irq => ((SharedInterrupt)irq).TargetCPU
             );
         }
@@ -1503,6 +1518,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         // This field should be redistributor-specific.
         private IFlagRegisterField processorSleep;
+        private int legacyCpusCount;
+        private uint legacyCpusAttachedMask;
 
         private readonly IBusController busController;
         private readonly Object locker = new Object();
@@ -1532,7 +1549,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const byte DefaultRevisionNumber = 0x0;
         private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer
 
-        private const int CPUsCountWithoutAffinityRouting = 1;
         private const uint CPUsCountLegacySupport = 8;
         private const int BytesPerDoubleWordRegister = 4;
         private const int BitsPerByte = 8;
@@ -1966,11 +1982,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public bool IsTargetingCPU(CPUEntry cpu)
             {
-                return true;
-                // TODO: Instead of always returning true
-                // (which in this case means broadcasting the interrupt to every core available)
-                // uncomment line below once affinity routing is properly implemented
-                // return (TargetCPU & cpu.Affinity.TargetFieldFlag) != 0;
+                return (TargetCPU & cpu.TargetFieldFlag) != 0;
             }
 
             public byte TargetCPU { get; set; }
