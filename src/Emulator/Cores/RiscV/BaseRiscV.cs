@@ -486,6 +486,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         TlibAllowFeature((uint)gSet);
                     }
                     TlibAllowAdditionalFeature((uint)StandardInstructionSetExtensions.ICSR);
+                    TlibAllowAdditionalFeature((uint)StandardInstructionSetExtensions.IFENCEI);
                 }
                 else if(set == InstructionSet.B)
                 {
@@ -829,6 +830,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             BC = 0x3 << AdditionalExtensionOffset,
             BS = 0x4 << AdditionalExtensionOffset,
             ICSR = 0x5 << AdditionalExtensionOffset,
+            IFENCEI = 0x6 << AdditionalExtensionOffset,
         }
 
         public enum InterruptMode
@@ -919,6 +921,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         case "BC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
                         case "BS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
                         case "ICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
+                        case "IFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
                         default:
                             parent.Log(LogLevel.Warning, $"Undefined instruction set extension: {set}.");
                             break;
