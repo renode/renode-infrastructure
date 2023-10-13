@@ -88,6 +88,20 @@ namespace Antmicro.Renode.Disassembler.LLVM
             {
                 triple = "arm";
             }
+
+            // RISC-V extensions Zicsr and Zifencei are not supported in LLVM yet:
+            // https://discourse.llvm.org/t/support-for-zicsr-and-zifencei-extensions/68369
+            // https://reviews.llvm.org/D143924
+            // The LLVM version used by Renode (at the time of adding this logic) is 14.0.0-rc1
+            if(model.Contains("_zicsr"))
+            {
+                model = model.Replace("_zicsr", "");
+            }
+
+            if(model.Contains("_zifencei"))
+            {
+                model = model.Replace("_zifencei", "");
+            }
         }
         
         private IDisassembler GetDisassembler(uint flags) 
