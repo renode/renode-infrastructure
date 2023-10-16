@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0)
             {
                 // scu
-                var scus = machine.GetPeripheralsOfType<SnoopControlUnit>().ToArray();
+                var scus = machine.GetPeripheralsOfType<ArmSnoopControlUnit>().ToArray();
                 switch(scus.Length)
                 {
                     case 0:
