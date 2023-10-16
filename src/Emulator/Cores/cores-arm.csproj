@@ -52,7 +52,6 @@
     <Compile Include="Arm\Timers\CortexAGlobalTimer.cs" />
     <Compile Include="Arm\Timers\ARM_PrivateTimer.cs" />
     <Compile Include="Arm\ARM_GenericInterruptController.cs" />
-    <Compile Include="Arm\SnoopControlUnit.cs" />
     <Compile Include="Arm\ArmSnoopControlUnit.cs" />
     <Compile Include="Debug\CPUTracer.cs" />
     <Compile Include="Debug\FunctionCallParameter.cs" />
