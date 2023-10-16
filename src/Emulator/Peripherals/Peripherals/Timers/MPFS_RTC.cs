@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithFlag(2, writeCallback: (_, value) => { if(value) alarmEnabled = true; }, valueProviderCallback: _ => alarmEnabled, name: "Alarm_on/Alarm_enabled")
                 .WithFlag(3, writeCallback: (_, value) => { if(value) alarmEnabled = false; }, valueProviderCallback: _ => alarmEnabled, name: "Alarm_off/Alarm_enabled")
                 .WithFlag(4, FieldMode.Set, writeCallback: (_, value) => { if(value) ResetInnerTimer(); }, name: "Reset")
-                .WithFlag(5, writeCallback: (_, value) => { if(value) { currentTime = timeToUpload; }; }, name: "Upload")
+                .WithFlag(5, writeCallback: (_, value) => { if(value) currentTime = timeToUpload; }, valueProviderCallback: _ => false, name: "Upload")
                 .WithFlag(6, writeCallback: (_, value) => { if(value) { timeToUpload = currentTime; }; }, name: "Download")
                 .WithFlag(7, out match, FieldMode.Read, name: "Match")
                 .WithFlag(8, out wakeup, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, value) => { if(value) WakeupIRQ.Set(false) ; }, name: "Wakeup_clear/Wakeup")
@@ -305,7 +305,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void ResetInnerTimer()
         {
             currentTime = ResetTimeValue;
-            timeToUpload = new DateTime();
+            timeToUpload = ResetTimeValue;
         }
 
         private ulong CalculateElapsedSeconds(DateTime dt)
