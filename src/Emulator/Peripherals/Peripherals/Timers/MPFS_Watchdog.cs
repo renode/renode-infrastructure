@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public MPFS_Watchdog(IMachine machine, long frequency) : base(machine)
         {
             DefineRegisters();
-            internalTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, TimeDefault - MSVPDefault, workMode: WorkMode.OneShot, eventEnabled: true);
+            internalTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, workMode: WorkMode.OneShot, eventEnabled: true);
             internalTimer.LimitReached += TimerLimitReached;
 
             RefreshEnable = new GPIO();
@@ -204,9 +204,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private const uint ResetTrigger = 0xDEAD;
         private const uint WatchdogReset = 0xDEADC0DE;
-        private const uint TimeDefault = 0xFFFFF0;
-        private const uint MSVPDefault = 0x989680;
-        private const uint TriggerDefault = 0x3E0;
+        private const uint TimeDefault = 30000;
+        private const uint MSVPDefault = 15000;
+        private const uint TriggerDefault = 1000;
 
         private enum State
         {
