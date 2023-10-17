@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             return (irqManager.PinDirection[j] & GPIOInterruptManager.Direction.Input) != 0;
                         }, name: "INREG")
-                    .WithTag("OUTBUFF", 2, 1)
+                    .WithFlag(2, name: "OUTBUFF") // The register only provides a read-back function
                     .WithFlag(3, writeCallback: (_, v) => irqManager.InterruptEnable[j] = v, valueProviderCallback: _ => irqManager.InterruptEnable[j], name: "INTENABLE")
                     .WithReservedBits(4, 1)
                     .WithValueField(5, 3, writeCallback: (_, value) =>
