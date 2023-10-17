@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                 this.Log(LogLevel.Warning, "Cannot change pin #{0} direction because it is fixed");
                                 return;
                             }
-                            
+
                             if(value)
                             {
                                 irqManager.PinDirection[j] |= GPIOInterruptManager.Direction.Input;
