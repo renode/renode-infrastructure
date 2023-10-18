@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,12 +14,13 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Core
 {
     [Convertible]
-    public sealed class GPIO : IGPIO
+    public sealed class GPIO : IGPIOWithHooks
     {
         public GPIO()
         {
             sync = new object();
             targets = new List<GPIOEndpoint>();
+            stateChangedHook = delegate {};
         }
 
         public void Set(bool value)
@@ -36,6 +37,7 @@ namespace Antmicro.Renode.Core
                 {
                     targets[i].Receiver.OnGPIO(targets[i].Number, state);
                 }
+                stateChangedHook(value);
             }
         }
 
@@ -118,6 +120,21 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void AddStateChangedHook(Action<bool> hook)
+        {
+            stateChangedHook += hook;
+        }
+
+        public void RemoveStateChangedHook(Action<bool> hook)
+        {
+            stateChangedHook -= hook;
+        }
+
+        public void RemoveAllStateChangedHooks()
+        {
+            stateChangedHook = delegate {};
+        }
+
         private static GPIOAttribute GetAttribute(IGPIOReceiver per)
         {
             return (GPIOAttribute)per.GetType().GetCustomAttributes(true).FirstOrDefault(x => x is GPIOAttribute);
@@ -136,6 +153,7 @@ namespace Antmicro.Renode.Core
         }
 
         private bool state;
+        private Action<bool> stateChangedHook;
         private readonly object sync;
         private readonly IList<GPIOEndpoint> targets;
     }
