@@ -1,4 +1,4 @@
-﻿/********************************************************
+/********************************************************
 *
 * Warning!
 * This file was generated automatically.
@@ -26,384 +26,408 @@ namespace Antmicro.Renode.Peripherals.Bus
     {
         public byte ReadByte(ulong address, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
+                ulong startAddress, endAddress;
+
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                else if(TryGetCurrentCPU(out var currentCPU))
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    return (byte)ReportNonExistingRead(address, SysbusAccessWidth.Byte);
                 }
-            }
-            if(accessMethods == null)
-            {
-                return (byte)ReportNonExistingRead(address, SysbusAccessWidth.Byte);
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
-                return 0;
-            }
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    return 0;
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                var lockTaken = false;
+                try
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    return accessMethods.ReadByte(checked((long)(address - startAddress)));
                 }
-                return accessMethods.ReadByte(checked((long)(address - startAddress)));
-            }
-            finally
-            {
-                if(lockTaken)
+                finally
                 {
-                    accessMethods.Lock.Exit();
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public void WriteByte(ulong address, byte value, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
-                {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-                else if(TryGetCurrentCPU(out var currentCPU))
-                {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-            }
-            if(accessMethods == null)
-            {
-                ReportNonExistingWrite(address, value, SysbusAccessWidth.Byte);
-                return;
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
-                return;
-            }
+                ulong startAddress, endAddress;
 
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                if(accessMethods == null)
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    ReportNonExistingWrite(address, value, SysbusAccessWidth.Byte);
+                    return;
                 }
-                accessMethods.WriteByte(checked((long)(address - startAddress)), value);
-            }
-            finally
-            {
-                if(lockTaken)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Exit();
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    return;
+                }
+
+                var lockTaken = false;
+                try
+                {
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    accessMethods.WriteByte(checked((long)(address - startAddress)), value);
+                }
+                finally
+                {
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public ushort ReadWord(ulong address, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
+                ulong startAddress, endAddress;
+
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                else if(TryGetCurrentCPU(out var currentCPU))
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    return (ushort)ReportNonExistingRead(address, SysbusAccessWidth.Word);
                 }
-            }
-            if(accessMethods == null)
-            {
-                return (ushort)ReportNonExistingRead(address, SysbusAccessWidth.Word);
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
-                return 0;
-            }
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    return 0;
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                var lockTaken = false;
+                try
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    return accessMethods.ReadWord(checked((long)(address - startAddress)));
                 }
-                return accessMethods.ReadWord(checked((long)(address - startAddress)));
-            }
-            finally
-            {
-                if(lockTaken)
+                finally
                 {
-                    accessMethods.Lock.Exit();
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public void WriteWord(ulong address, ushort value, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
-                {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-                else if(TryGetCurrentCPU(out var currentCPU))
-                {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-            }
-            if(accessMethods == null)
-            {
-                ReportNonExistingWrite(address, value, SysbusAccessWidth.Word);
-                return;
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
-                return;
-            }
+                ulong startAddress, endAddress;
 
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                if(accessMethods == null)
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    ReportNonExistingWrite(address, value, SysbusAccessWidth.Word);
+                    return;
                 }
-                accessMethods.WriteWord(checked((long)(address - startAddress)), value);
-            }
-            finally
-            {
-                if(lockTaken)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Exit();
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    return;
+                }
+
+                var lockTaken = false;
+                try
+                {
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    accessMethods.WriteWord(checked((long)(address - startAddress)), value);
+                }
+                finally
+                {
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public uint ReadDoubleWord(ulong address, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
+                ulong startAddress, endAddress;
+
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                else if(TryGetCurrentCPU(out var currentCPU))
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    return (uint)ReportNonExistingRead(address, SysbusAccessWidth.DoubleWord);
                 }
-            }
-            if(accessMethods == null)
-            {
-                return (uint)ReportNonExistingRead(address, SysbusAccessWidth.DoubleWord);
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
-                return 0;
-            }
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    return 0;
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                var lockTaken = false;
+                try
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    return accessMethods.ReadDoubleWord(checked((long)(address - startAddress)));
                 }
-                return accessMethods.ReadDoubleWord(checked((long)(address - startAddress)));
-            }
-            finally
-            {
-                if(lockTaken)
+                finally
                 {
-                    accessMethods.Lock.Exit();
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public void WriteDoubleWord(ulong address, uint value, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
-                {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-                else if(TryGetCurrentCPU(out var currentCPU))
-                {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-            }
-            if(accessMethods == null)
-            {
-                ReportNonExistingWrite(address, value, SysbusAccessWidth.DoubleWord);
-                return;
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
-                return;
-            }
+                ulong startAddress, endAddress;
 
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                if(accessMethods == null)
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    ReportNonExistingWrite(address, value, SysbusAccessWidth.DoubleWord);
+                    return;
                 }
-                accessMethods.WriteDoubleWord(checked((long)(address - startAddress)), value);
-            }
-            finally
-            {
-                if(lockTaken)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Exit();
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    return;
+                }
+
+                var lockTaken = false;
+                try
+                {
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    accessMethods.WriteDoubleWord(checked((long)(address - startAddress)), value);
+                }
+                finally
+                {
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public ulong ReadQuadWord(ulong address, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
+                ulong startAddress, endAddress;
+
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                else if(TryGetCurrentCPU(out var currentCPU))
+                if(accessMethods == null)
                 {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    return (ulong)ReportNonExistingRead(address, SysbusAccessWidth.QuadWord);
                 }
-            }
-            if(accessMethods == null)
-            {
-                return (ulong)ReportNonExistingRead(address, SysbusAccessWidth.QuadWord);
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
-                return 0;
-            }
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    return 0;
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                var lockTaken = false;
+                try
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    return accessMethods.ReadQuadWord(checked((long)(address - startAddress)));
                 }
-                return accessMethods.ReadQuadWord(checked((long)(address - startAddress)));
-            }
-            finally
-            {
-                if(lockTaken)
+                finally
                 {
-                    accessMethods.Lock.Exit();
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
 
         public void WriteQuadWord(ulong address, ulong value, ICPU context = null)
         {
-            ulong startAddress, endAddress;
-            
-            var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
-            if(accessMethods == null)
+            using(SetLocalContext(context))
             {
-                if(context != null)
-                {
-                    accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-                else if(TryGetCurrentCPU(out var currentCPU))
-                {
-                    accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                }
-            }
-            if(accessMethods == null)
-            {
-                ReportNonExistingWrite(address, value, SysbusAccessWidth.QuadWord);
-                return;
-            }
-            if(!IsPeripheralEnabled(accessMethods.Peripheral))
-            {
-                this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
-                return;
-            }
+                ulong startAddress, endAddress;
 
-            var lockTaken = false;
-            try
-            {
-                if(!accessMethods.Lock.IsHeldByCurrentThread)
+                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                if(accessMethods == null)
                 {
-                    accessMethods.Lock.Enter(ref lockTaken);
+                    if(context != null)
+                    {
+                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
+                    else if(TryGetCurrentCPU(out var currentCPU))
+                    {
+                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                    }
                 }
-                if(accessMethods.SetAbsoluteAddress != null)
+                if(accessMethods == null)
                 {
-                    accessMethods.SetAbsoluteAddress(address);
+                    ReportNonExistingWrite(address, value, SysbusAccessWidth.QuadWord);
+                    return;
                 }
-                accessMethods.WriteQuadWord(checked((long)(address - startAddress)), value);
-            }
-            finally
-            {
-                if(lockTaken)
+                if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    accessMethods.Lock.Exit();
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    return;
+                }
+
+                var lockTaken = false;
+                try
+                {
+                    if(!accessMethods.Lock.IsHeldByCurrentThread)
+                    {
+                        accessMethods.Lock.Enter(ref lockTaken);
+                    }
+                    if(accessMethods.SetAbsoluteAddress != null)
+                    {
+                        accessMethods.SetAbsoluteAddress(address);
+                    }
+                    accessMethods.WriteQuadWord(checked((long)(address - startAddress)), value);
+                }
+                finally
+                {
+                    if(lockTaken)
+                    {
+                        accessMethods.Lock.Exit();
+                    }
                 }
             }
         }
