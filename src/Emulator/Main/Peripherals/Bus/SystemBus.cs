@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             FillAccessMethodsWithTaggedMethods(peripheral, registrationPoint.ConnectionRegionName, ref methods);
             RegisterInner(peripheral, methods, registrationPoint, context: registrationPoint.CPU);
         }
-        
+
         void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
         {
             Unregister(peripheral);
@@ -383,7 +383,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             return GetPeripheralsForContext(context).FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
         }
-        
+
         public IPeripheral WhatPeripheralIsAt(ulong address, ICPU context = null)
         {
             var registered = WhatIsAt(address, context);
@@ -1036,7 +1036,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 mappingsForPeripheral.Remove(peripheral);
             }
 
-            // remove the peripheral from all cpu-local and the global mappings 
+            // remove the peripheral from all cpu-local and the global mappings
             foreach(var context in cpuLocalPeripherals.Keys.ToArray())
             {
                 cpuLocalPeripherals[context].Remove(peripheral);
@@ -1075,7 +1075,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         // this wrapper is to avoid compiler crashing on Ubuntu 20.04;
         // for unknown reasons calling `TryGetCurrentCPU` in the `Children` getter
         // caused the compiler to throw na InternalErrorException/NullReferenceException
-        // when building sources 
+        // when building sources
         private IEnumerable<IBusRegistered<IBusPeripheral>> GetPeripheralsForCurrentCPU()
         {
             TryGetCurrentCPU(out var context);
@@ -1088,7 +1088,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 ? cpuLocalPeripherals[context].Peripherals.Concat(globalPeripherals.Peripherals)
                 : globalPeripherals.Peripherals;
         }
-        
+
         private void FillAccessMethodsWithTaggedMethods(IBusPeripheral peripheral, string tag, ref PeripheralAccessMethods methods)
         {
             methods.Peripheral = peripheral;
@@ -1373,7 +1373,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private void RegisterInner(IBusPeripheral peripheral, PeripheralAccessMethods methods, BusRangeRegistration registrationPoint, ICPU context)
         {
             PeripheralCollection peripherals = null;
-            
+
             using(Machine.ObtainPausedState())
             {
                 // Register only for the selected core
@@ -1413,7 +1413,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
                 Machine.RegisterBusController(peripheral, this);
             }
-        }        
+        }
 
         private IEnumerable<PeripheralLookupResult> FindTargets(ulong address, ulong count, ICPU context = null)
         {
@@ -1507,7 +1507,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     Machine.UnregisterFromParent(p);
                 }
-                
+
                 mappingsRemoved = false;
                 InitStructures();
             }
