@@ -181,6 +181,7 @@
     <Compile Include="HostInterfaces\Camera\HostCamera.cs" />
     <Compile Include="Utilities\GDB\Commands\DetachCommand.cs" />
     <Compile Include="Hooks\RegisterCollectionHookPythonEngine.cs" />
+    <Compile Include="Hooks\GPIOHookExtensions.cs" />
     <Compile Include="Hooks\GPIOPythonEngine.cs" />
     <Compile Include="Hooks\RegisterCollectionHookExtensions.cs">
       <DependentUpon>RegisterCollectionHookExtensions.tt</DependentUpon>
