@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -25,7 +25,7 @@ using Antmicro.Migrant.Customization;
 
 namespace Antmicro.Renode.Utilities
 {
-    public class CachingFileFetcher
+    public class CachingFileFetcher : IDisposable
     {
         public CachingFileFetcher()
         {
@@ -76,6 +76,26 @@ namespace Antmicro.Renode.Utilities
             finally
             {
                 Monitor.Exit(concurrentLock);
+            }
+        }
+
+        public void Dispose()
+        {
+            if(EmulationManager.DisableEmulationFilesCleanup)
+            {
+                return;
+            }
+
+            foreach(var file in fetchedFiles.Keys)
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch(Exception)
+                {
+                    // nothing we can do
+                }
             }
         }
         

@@ -572,6 +572,7 @@ namespace Antmicro.Renode.Core
                 machs.Dispose();
                 HostMachine.Dispose();
                 CurrentLogger.Dispose();
+                FileFetcher.Dispose();
             }
         }
 
