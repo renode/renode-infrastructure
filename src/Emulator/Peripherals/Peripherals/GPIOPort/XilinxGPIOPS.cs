@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,10 +15,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class XilinxGPIOPS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public XilinxGPIOPS(IMachine machine) : base (machine, 54 + 64) //54 MIO + 64 EMIO
+        public XilinxGPIOPS(IMachine machine, uint numberOfGpioBanks = 4) : base (machine, 54 + 64) //54 MIO + 64 EMIO
         {
-            portContorllers = new GPIOController[4];
-            for(uint i=0;i<4;i++)
+            portContorllers = new GPIOController[numberOfGpioBanks];
+            for(uint i = 0; i < numberOfGpioBanks; i++)
             {
                 portContorllers[i] = new GPIOController(this, i);
             }
