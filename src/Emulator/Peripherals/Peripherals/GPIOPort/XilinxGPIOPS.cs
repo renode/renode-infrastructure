@@ -17,10 +17,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
     {
         public XilinxGPIOPS(IMachine machine, uint numberOfGpioBanks = 4) : base (machine, 54 + 64) //54 MIO + 64 EMIO
         {
-            portContorllers = new GPIOController[numberOfGpioBanks];
+            portControllers = new GPIOController[numberOfGpioBanks];
             for(uint i = 0; i < numberOfGpioBanks; i++)
             {
-                portContorllers[i] = new GPIOController(this, i);
+                portControllers[i] = new GPIOController(this, i);
             }
         }
 
@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             if(offset > 0x200)
             {
                 var portNumber = (uint)((offset - 0x200) / 0x40);
-                return portContorllers[portNumber].ReadRegister(offset % 0x40);
+                return portControllers[portNumber].ReadRegister(offset % 0x40);
             }
             switch((registersOffsets)offset)
             {
@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             if(offset > 0x200)
             {
                 var portNumber = (uint)((offset - 0x200) / 0x40);
-                portContorllers[portNumber].WriteRegister(offset % 0x40, value);
+                portControllers[portNumber].WriteRegister(offset % 0x40, value);
                 return;
             }
             switch((registersOffsets)offset)
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             /* Port 1 is only 22 bit long, while all the others are 32 bit*/
             var portLength = portNumber == 1 ? 21 : 31;
-            var outputEnabled = portContorllers[portNumber].OutputEnabled();
+            var outputEnabled = portControllers[portNumber].OutputEnabled();
             for(int i = 0; i < portLength; i++)
             {
                 if((mask & (1u << i)) == 0)
@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        private GPIOController[] portContorllers;
+        private GPIOController[] portControllers;
 
         /* Registers */
         private uint OutputData0;
