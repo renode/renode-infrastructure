@@ -291,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             this.Log(LogLevel.Debug, "Setting signal of the interrupt with id {0} to {1}.", irqId, value);
             LockExecuteAndUpdate(() =>
-                sharedInterrupts[irqId].AssertAsPending(value)
+                sharedInterrupts[irqId].State.AssertAsPending(value)
             );
         }
 
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var cpu = GetCPUByConnectionId(cpuConnectionId);
             lock(locker)
             {
-                return GetAllEnabledInterupts(cpu).Select(irq => (uint)irq.Identifier);
+                return GetAllEnabledInterrupts(cpu).Select(irq => (uint)irq.Identifier);
             }
         }
 
@@ -333,10 +333,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
 
                 disabledSecurity = true;
-                var allInterrupts = cpuEntries.Values.SelectMany(cpu => cpu.Interrupts.Values).Concat(sharedInterrupts.Values);
-                foreach(var irq in allInterrupts)
+                var cpuConfigs = cpuEntries.Values.SelectMany(cpu => cpu.Interrupts.Values.Select(irq => irq.Config));
+                var allInterruptConfigs = cpuConfigs.Concat(sharedInterrupts.Values.Select(irq => irq.Config));
+                foreach(var config in allInterruptConfigs)
                 {
-                    irq.GroupModifierBit = false;
+                    config.GroupModifierBit = false;
                 }
             }
         }
@@ -359,10 +360,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             this.Log(LogLevel.Debug, "Setting signal of the interrupt with id {0} to {1} for {2}.", irqId, value, cpu.Name);
             LockExecuteAndUpdate(() =>
-                cpu.Interrupts[irqId].AssertAsPending(value)
+                cpu.Interrupts[irqId].State.AssertAsPending(value)
             );
         }
 
+        // The GIC uses the latest CPU state and the latest groups configuration to choose a correct interrupt signal to assert.
         private void OnExecutionModeChanged(CPUEntry cpu)
         {
             lock(locker)
@@ -388,14 +390,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             foreach(var cpu in cpuEntries.Values)
             {
-                var pendingCandidates = GetAllPendingCandidateInterupts(cpu);
+                var pendingCandidates = GetAllPendingCandidateInterrupts(cpu);
                 var bestPending = pendingCandidates.FirstOrDefault();
                 foreach(var irq in pendingCandidates.Skip(1))
                 {
-                    if(irq.Priority < bestPending.Priority)
+                    if(irq.Config.Priority < bestPending.Config.Priority)
                     {
                         bestPending = irq;
-                        if(bestPending.Priority == InterruptPriority.Highest)
+                        if(bestPending.Config.Priority == InterruptPriority.Highest)
                         {
                             break;
                         }
@@ -406,22 +408,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private IEnumerable<Interrupt> GetAllInterupts(CPUEntry cpu)
+        private IEnumerable<Interrupt> GetAllInterrupts(CPUEntry cpu)
         {
             return cpu.Interrupts.Values.Concat(sharedInterrupts.Values);
         }
 
-        private IEnumerable<Interrupt> GetAllEnabledInterupts(CPUEntry cpu)
+        private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
         {
             var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups[type].Enabled).ToArray();
             return cpu.Interrupts.Values
                 .Concat(sharedInterrupts.Values.Where(irq => irq.IsTargetingCPU(cpu)))
-                .Where(irq => irq.Enabled && enabledGroups.Contains(irq.GroupType));
+                .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
         }
 
-        private IEnumerable<Interrupt> GetAllPendingCandidateInterupts(CPUEntry cpu)
+        private IEnumerable<Interrupt> GetAllPendingCandidateInterrupts(CPUEntry cpu)
         {
-            return GetAllEnabledInterupts(cpu).Where(irq => irq.Pending && irq.Priority < cpu.PriorityMask && irq.Priority < cpu.RunningPriority);
+            return GetAllEnabledInterrupts(cpu).Where(irq => irq.State.Pending && irq.Config.Priority < cpu.PriorityMask && irq.Config.Priority < cpu.RunningPriority);
         }
 
         private ReadOnlyDictionary<InterruptSignalType, IGPIO> GetCPUConnections(uint connectionId)
@@ -980,24 +982,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IEnumerable<DoubleWordRegister> BuildInterruptSetEnableRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
-                writeCallback: (irq, val) => irq.Enabled |= val,
-                valueProviderCallback: irq => irq.Enabled
+                writeCallback: (irq, val) => irq.Config.Enabled |= val,
+                valueProviderCallback: irq => irq.Config.Enabled
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptClearEnableRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
-                writeCallback: (irq, val) => irq.Enabled &= !val,
-                valueProviderCallback: irq => irq.Enabled
+                writeCallback: (irq, val) => irq.Config.Enabled &= !val,
+                valueProviderCallback: irq => irq.Config.Enabled
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptPriorityRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptEnumRegisters<InterruptPriority>(startId, endId, name, 4,
-                writeCallback: (irq, val) => irq.Priority = val,
-                valueProviderCallback: irq => irq.Priority
+                writeCallback: (irq, val) => irq.Config.Priority = val,
+                valueProviderCallback: irq => irq.Config.Priority
             );
         }
 
@@ -1023,7 +1025,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 writeCallback = (irq, val) =>
                 {
-                    irq.TriggerType = val;
+                    irq.State.TriggerType = val;
                     if(val != InterruptTriggerType.LevelSensitive && val != InterruptTriggerType.EdgeTriggered)
                     {
                         this.Log(LogLevel.Error, "Setting an unknown interrupt trigger type, value {0}", val);
@@ -1032,39 +1034,39 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             return BuildInterruptEnumRegisters<InterruptTriggerType>(startId, endId, name, 16,
                 writeCallback: writeCallback,
-                valueProviderCallback: irq => irq.TriggerType
+                valueProviderCallback: irq => irq.State.TriggerType
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptSetActiveRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
-                writeCallback: (irq, val) => irq.Active |= val,
-                valueProviderCallback: irq => irq.Active
+                writeCallback: (irq, val) => irq.State.Active |= val,
+                valueProviderCallback: irq => irq.State.Active
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptClearActiveRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
-                writeCallback: (irq, val) => irq.Active &= !val,
-                valueProviderCallback: irq => irq.Active
+                writeCallback: (irq, val) => irq.State.Active &= !val,
+                valueProviderCallback: irq => irq.State.Active
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptClearPendingRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
-                writeCallback: (irq, val) => irq.Pending &= !val,
-                valueProviderCallback: irq => irq.Pending
+                writeCallback: (irq, val) => irq.State.Pending &= !val,
+                valueProviderCallback: irq => irq.State.Pending
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptGroupRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
-                writeCallback: (irq, val) => irq.GroupBit = val,
-                valueProviderCallback: irq => irq.GroupBit,
+                writeCallback: (irq, val) => irq.Config.GroupBit = val,
+                valueProviderCallback: irq => irq.Config.GroupBit,
                 allowAccessWhenNonSecureGroup: false
             );
         }
@@ -1076,7 +1078,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if(!DisabledSecurity)
                         {
-                            irq.GroupModifierBit = val;
+                            irq.Config.GroupModifierBit = val;
                         }
                         else
                         {
@@ -1084,7 +1086,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             this.Log(LogLevel.Debug, "The group modifier register is reserved for the disabled security, write ignored.");
                         }
                     },
-                valueProviderCallback: irq => irq.GroupModifierBit,
+                valueProviderCallback: irq => irq.Config.GroupModifierBit,
                 allowAccessWhenNonSecureGroup: false
             );
         }
@@ -1176,7 +1178,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool CheckInterruptAccess(Func<Interrupt> irqGetter, bool allowAccessWhenNonSecureGroup)
         {
             if(DisabledSecurity || GetAskingCPU().IsStateSecure
-                || (allowAccessWhenNonSecureGroup && irqGetter().GroupType == GroupType.Group1NonSecure))
+                || (allowAccessWhenNonSecureGroup && irqGetter().Config.GroupType == GroupType.Group1NonSecure))
             {
                 return true;
             }
@@ -1420,7 +1422,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 Interrupts = new ReadOnlyDictionary<InterruptId, Interrupt>(irqIds.ToDictionary(id => id, id => new Interrupt(id)));
 
                 Groups = new ReadOnlyDictionary<GroupType, InterruptGroup>(groupTypes.ToDictionary(type => type, _ => new InterruptGroup()));
-                RunnningInterrupts = new Stack<Interrupt>();
+                RunningInterrupts = new Stack<Interrupt>();
             }
 
             public void Reset()
@@ -1434,7 +1436,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     group.Reset();
                 }
                 BestPending = null;
-                RunnningInterrupts.Clear();
+                RunningInterrupts.Clear();
                 PriorityMask = InterruptPriority.Idle;
                 UpdateSignals();
             }
@@ -1453,7 +1455,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return gic.irqsDecoder.NoPending;
                 }
                 var groupType = GetGroupTypeForRegister(groupTypeRegister);
-                if(pendingIrq.GroupType != groupType)
+                if(pendingIrq.Config.GroupType != groupType)
                 {
                     // In GICv2, Secure (Group 0) access can acknowledge Group 1 interrupt if GICC_CTLR.AckCtl is set. Otherwise, the returned Interrupt ID is 1022 (NoPending=1023).
                     if(gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
@@ -1466,12 +1468,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                     else
                     {
-                        gic.Log(LogLevel.Warning, "Trying to acknowledge pending interrupt using register of an incorrect interrupt group ({0}), expected {1}.", groupType, pendingIrq.GroupType);
+                        gic.Log(LogLevel.Warning, "Trying to acknowledge pending interrupt using register of an incorrect interrupt group ({0}), expected {1}.", groupType, pendingIrq.Config.GroupType);
                         return gic.irqsDecoder.NoPending;
                     }
                 }
-                pendingIrq.Acknowledge();
-                RunnningInterrupts.Push(pendingIrq);
+                pendingIrq.State.Acknowledge();
+                RunningInterrupts.Push(pendingIrq);
                 BestPending = null;
 
                 return pendingIrq.Identifier;
@@ -1479,14 +1481,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public void CompleteRunning(InterruptId id, GroupTypeRegister groupTypeRegister)
             {
-                if(RunnningInterrupts.Count == 0)
+                if(RunningInterrupts.Count == 0)
                 {
                     gic.Log(LogLevel.Warning, "Trying to complete interrupt when there is no running one.");
                     return;
                 }
-                var runningIrq = RunnningInterrupts.Peek();
+                var runningIrq = RunningInterrupts.Peek();
                 var groupType = GetGroupTypeForRegister(groupTypeRegister);
-                if(runningIrq.GroupType != groupType)
+                if(runningIrq.Config.GroupType != groupType)
                 {
                     // In GICv2, Secure (Group 0) access can affect Group 1 interrupts if GICC_CTLR.AckCtl is set.
                     if(gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
@@ -1499,7 +1501,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                     else
                     {
-                        gic.Log(LogLevel.Warning, "Trying to complete the running interrupt using the register of an incorrect interrupt group ({0}), expected {1}, request ignored.", groupType, runningIrq.GroupType);
+                        gic.Log(LogLevel.Warning, "Trying to complete the running interrupt using the register of an incorrect interrupt group ({0}), expected {1}, request ignored.", groupType, runningIrq.Config.GroupType);
                         return;
                     }
                 }
@@ -1508,10 +1510,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     gic.Log(LogLevel.Error, "Incorrect interrupt identifier for interrupt end, expected INTID {0}, given {1}, request ignored.", runningIrq.Identifier, id);
                     return;
                 }
-                runningIrq.Active = false;
+                runningIrq.State.Active = false;
                 // The interrupt are just removed from stack of currently running interrupts
                 // It's still accessible using one of the read only collections of interrupts (shared or private ones)
-                RunnningInterrupts.Pop();
+                RunningInterrupts.Pop();
             }
 
             public void UpdateSignals()
@@ -1562,17 +1564,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public IReadOnlyDictionary<InterruptId, Interrupt> Interrupts { get; }
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
+
             public CPUAffinity Affinity { get; }
+            public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
             public Interrupt BestPending { get; set; }
-            public Stack<Interrupt> RunnningInterrupts { get; }
-            public InterruptPriority RunningPriority => RunnningInterrupts.Count > 0 ? RunnningInterrupts.Peek().Priority : InterruptPriority.Idle;
             public InterruptPriority PriorityMask { get; set; }
-            public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
+            public Stack<Interrupt> RunningInterrupts { get; }
+            public InterruptPriority RunningPriority => RunningInterrupts.Count > 0 ? RunningInterrupts.Peek().Config.Priority : InterruptPriority.Idle;
 
             protected virtual InterruptSignalType GetBestPendingInterruptSignalType()
             {
-                if(gic.enableFIQ && BestPending.GroupType == GroupType.Group0)
+                if(gic.enableFIQ && BestPending.Config.GroupType == GroupType.Group0)
                 {
                     return InterruptSignalType.FIQ;
                 }
@@ -1597,11 +1600,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if(BestPending != null && groupTypeRegister == GroupTypeRegister.Group0 && cpu.ExceptionLevel == ExceptionLevel.EL3_MonitorMode)
                 {
-                    if(BestPending.GroupType == GroupType.Group1Secure)
+                    if(BestPending.Config.GroupType == GroupType.Group1Secure)
                     {
                         return gic.irqsDecoder.ExpectedToHandleAtSecure;
                     }
-                    else if(BestPending.GroupType == GroupType.Group1NonSecure)
+                    else if(BestPending.Config.GroupType == GroupType.Group1NonSecure)
                     {
                         return gic.irqsDecoder.ExpectedToHandleAtNonSecure;
                     }
@@ -1617,7 +1620,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return base.GetBestPendingInterruptSignalType();
                 }
 
-                var groupType = BestPending.GroupType;
+                var groupType = BestPending.Config.GroupType;
                 cpu.GetAtomicExceptionLevelAndSecurityState(out var exceptionLevel, out var securityState);
                 if(groupType == GroupType.Group0
                     || (groupType == GroupType.Group1NonSecure && securityState == SecurityState.Secure) // Includes the case when the current EL is EL3_MonitorMode
@@ -1632,36 +1635,35 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private readonly IARMTwoSecurityStatesCPU cpu;
         }
 
-        private class Interrupt
+        private class InterruptState
         {
-            public Interrupt(InterruptId identifier)
+            public InterruptState()
             {
-                Identifier = identifier;
+                TriggerType = DefaultTriggerType;
             }
 
             public virtual void Reset()
             {
-                Enabled = false;
-                GroupBit = false;
-                GroupModifierBit = false;
-                TriggerType = default(InterruptTriggerType);
-                State = InterruptState.Inactive;
-                Priority = default(InterruptPriority);
+                Active = false;
+                Pending = false;
+                TriggerType = DefaultTriggerType;
             }
 
             public void Acknowledge()
             {
-                if(State == InterruptState.Inactive)
+                if(IsInactive)
                 {
                     throw new InvalidOperationException("It's invalid to acknowledge an interrupt in the inactive state.");
                 }
                 if(TriggerType == InterruptTriggerType.EdgeTriggered)
                 {
-                    State = InterruptState.Active;
+                    Active = true;
+                    Pending = false;
                 }
                 else if(TriggerType == InterruptTriggerType.LevelSensitive)
                 {
-                    State = InterruptState.ActiveAndPending;
+                    Active = true;
+                    Pending = true;
                 }
             }
 
@@ -1677,45 +1679,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public InterruptId Identifier { get; }
+            public bool Active { get; set; }
+            public bool IsInactive => !Active && !Pending;
+            public bool Pending { get; set; }
+            public virtual InterruptTriggerType TriggerType { get; set; }
+
+            protected virtual InterruptTriggerType DefaultTriggerType => default(InterruptTriggerType);
+        }
+
+        private class InterruptConfig
+        {
+            public virtual void Reset()
+            {
+                Enabled = false;
+                GroupBit = false;
+                GroupModifierBit = false;
+                Priority = default(InterruptPriority);
+            }
+
             public bool Enabled { get; set; }
             public bool GroupBit { get; set; }
             public bool GroupModifierBit { get; set; }
-            public InterruptTriggerType TriggerType { get; set; }
-            public InterruptState State { get; private set; }
             public InterruptPriority Priority { get; set; }
-
-            public bool Pending
-            {
-                get => (State & InterruptState.Pending) != 0;
-                set
-                {
-                    if(value)
-                    {
-                        State |= InterruptState.Pending;
-                    }
-                    else
-                    {
-                        State &= ~InterruptState.Pending;
-                    }
-                }
-            }
-
-            public bool Active
-            {
-                get => (State & InterruptState.Active) != 0;
-                set
-                {
-                    if(value)
-                    {
-                        State |= InterruptState.Active;
-                    }
-                    else
-                    {
-                        State &= ~InterruptState.Active;
-                    }
-                }
-            }
 
             public GroupType GroupType
             {
@@ -1735,6 +1720,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                 }
             }
+        }
+
+        private class Interrupt
+        {
+            public Interrupt(InterruptId identifier) : base()
+            {
+                Identifier = identifier;
+            }
+
+            public virtual void Reset()
+            {
+                Config.Reset();
+                State.Reset();
+            }
+
+            public InterruptId Identifier { get; }
+            public virtual InterruptConfig Config { get; } = new InterruptConfig();
+            public virtual InterruptState State { get; } = new InterruptState();
         }
 
         private class SharedInterrupt : Interrupt
@@ -1903,15 +1906,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             Highest = 0x00,
             Idle = 0xFF
-        }
-
-        [Flags]
-        private enum InterruptState
-        {
-            Inactive = 0b00,
-            Pending = 0b01,
-            Active = 0b10,
-            ActiveAndPending = Pending | Active
         }
 
         private enum InterruptTriggerType : byte
