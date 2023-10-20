@@ -391,11 +391,12 @@ namespace Antmicro.Renode.UserInterface
                     var device = IdentifyDevice(name);
                     result = ExecuteDeviceAction(name, device, p);
                 }
-                catch(ParametersMismatchException)
+                catch(ParametersMismatchException e)
                 {
-                    if(devInfo != null)
+                    var nodeInfo = GetMonitorInfo(e.Type);
+                    if(nodeInfo != null)
                     {
-                        PrintMonitorInfo(name, devInfo, writer, p.First().OriginalValue);
+                        PrintMonitorInfo(e.Name, nodeInfo, writer, e.Command);
                     }
                     throw;
                 }
@@ -1171,7 +1172,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 if(!foundExts.Any())
                 {
-                    throw new ParametersMismatchException();
+                    throw new ParametersMismatchException(type, commandValue, name);
                 }
             }
             if(foundExts.Any())
@@ -1186,7 +1187,7 @@ namespace Antmicro.Renode.UserInterface
                         return InvokeExtensionMethod(device, foundExt, parameters);
                     }
                 }
-                throw new ParametersMismatchException();
+                throw new ParametersMismatchException(type, commandValue, name);
 
             }
             else if(foundField != null)
@@ -1266,12 +1267,12 @@ namespace Antmicro.Renode.UserInterface
                 setValue = null;
                 if(parameterArray.Length < 3 || !(parameterArray[0] is LeftBraceToken))
                 {
-                    throw new ParametersMismatchException();
+                    throw new ParametersMismatchException(type, commandValue, name);
                 }
                 var index = parameterArray.IndexOf(x => x is RightBraceToken);
                 if(index == -1)
                 {
-                    throw new ParametersMismatchException();
+                    throw new ParametersMismatchException(type, commandValue, name);
                 }
                 if(index == parameterArray.Length - 2)
                 {
@@ -1279,7 +1280,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 else if(index != parameterArray.Length - 1)
                 {
-                    throw new ParametersMismatchException();
+                    throw new ParametersMismatchException(type, commandValue, name);
                 }
                 var getParameters = parameterArray.Skip(1).Take(index - 1).ToArray();
                 foreach(var foundIndexer in foundIndexers.OrderBy(x=>x.GetIndexParameters ().Count())
@@ -1316,7 +1317,7 @@ namespace Antmicro.Renode.UserInterface
                         }
                     }
                 }
-                throw new ParametersMismatchException();
+                throw new ParametersMismatchException(type, commandValue, name);
             }
             if(command is LiteralToken)
             {
