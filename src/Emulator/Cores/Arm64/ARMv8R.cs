@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.defaultVBARValue = defaultVBARValue;
 
             gic = genericInterruptController;
-            gic.AttachCPU(cpuId, this);
+            gic.AttachCPU(this);
             TlibSetMpuRegionsCount(mpuRegionsCount, mpuHyperRegionsCount);
             Reset();
         }

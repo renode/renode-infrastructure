@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(genericInterruptController != null)
             {
-                genericInterruptController.AttachCPU(cpuId, this);
+                genericInterruptController.AttachCPU(this);
             }
         }
 

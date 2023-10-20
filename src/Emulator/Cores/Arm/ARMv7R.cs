@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ARMv7R(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null)
             : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
         {
-            genericInterruptController?.AttachCPU(cpuId, this);
+            genericInterruptController?.AttachCPU(this);
         }
 
         public byte Affinity0 => (byte)Id;

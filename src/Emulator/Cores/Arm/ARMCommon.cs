@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface IARMSingleSecurityStateCPU
+    public interface IARMSingleSecurityStateCPU : ICPU
     {
         byte Affinity0 { get; }
         // This kind of CPU is always in a specific Security State and it can't be changed
@@ -28,6 +29,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         bool HasSingleSecurityState { get; }
 
         event Action<ExceptionLevel, SecurityState> ExecutionModeChanged;
+    }
+
+    public interface IARMCPUsConnectionsProvider
+    {
+        void AttachCPU(IARMSingleSecurityStateCPU cpu);
+        // AttachedCPUs and CPUAttached provide information for GPIO handling purposes.
+        // Depending on the declaration order in repl file, some CPUs can be attached before or after peripheral's creation.
+        IEnumerable<IARMSingleSecurityStateCPU> AttachedCPUs { get; }
+        event Action<IARMSingleSecurityStateCPU> CPUAttached;
     }
 
     public enum ExceptionLevel : uint
