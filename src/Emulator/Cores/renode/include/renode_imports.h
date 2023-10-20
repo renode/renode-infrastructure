@@ -9,6 +9,8 @@
 
 #include "renode_imports_generated.h"
 
+EXTERN_C void tlib_try_interrupt_translation_block(void);
+
 #define renode_direct_glue(a, b) a##b
 
 #define renode_glue(a, b) renode_direct_glue(a, b)
@@ -38,6 +40,7 @@ EXTERN_C void renode_glue(renode_glue(renode_glue(renode_external_attach__, reno
         * Otherwise, just call it. */ \
        IF_THEN_ELSE(HAS_RETVAL(TYPE), RETURN_TYPE(TYPE) retval = , ) \
        (* renode_glue(LOCAL_NAME, _callback$)) (renode_glue(TYPE, _vars$)); \
+       tlib_try_interrupt_translation_block(); \
        /* If this function returns a value, return it. */ \
        IF_THEN_ELSE(HAS_RETVAL(TYPE), return retval;, ) \
     }\
