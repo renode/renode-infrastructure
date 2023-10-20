@@ -10,6 +10,7 @@ using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -21,7 +22,7 @@ using Antmicro.Renode.Utilities.RESD;
 namespace Antmicro.Renode.Peripherals.Sensors
 {
     // TODO: FIFO for other data than the accelerometer
-    public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
+    public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor, IUnderstandRESD
     {
         public LIS2DW12()
         {
@@ -50,6 +51,39 @@ namespace Antmicro.Renode.Peripherals.Sensors
             UpdateInterrupts();
         }
 
+        [OnRESDSample(SampleType.Acceleration)]
+        [BeforeRESDSample(SampleType.Acceleration)]
+        private void HandleAccelerationSample(AccelerationSample sample, TimeInterval timestamp)
+        {
+            if(sample != null)
+            {
+                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
+                // while the peripheral's measurement unit is g.
+                FeedAccelerationSample(
+                    sample.AccelerationX / 1e6m,
+                    sample.AccelerationY / 1e6m,
+                    sample.AccelerationZ / 1e6m
+                );
+            }
+            else
+            {
+                FeedAccelerationSample(
+                    DefaultAccelerationX,
+                    DefaultAccelerationY,
+                    DefaultAccelerationZ
+                );
+            }
+        }
+
+        [AfterRESDSample(SampleType.Acceleration)]
+        private void HandleAccelerationSampleEnded(AccelerationSample sample, TimeInterval timestamp)
+        {
+            feederThread?.Stop();
+            feederThread = null;
+            accelerationFifo.FeedingFromFile = false;
+        }
+
+
         public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
             RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
@@ -58,30 +92,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
                 SampleRate,
-                (sample, ts, status) =>
-                {
-                    switch(status)
-                    {
-                        case RESDStreamStatus.BeforeStream:
-                            FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ);
-                            break;
-                        case RESDStreamStatus.AfterStream:
-                            feederThread?.Stop();
-                            feederThread = null;
-                            accelerationFifo.FeedingFromFile = false;
-                            break;
-                        case RESDStreamStatus.OK:
-                            FeedAccelerationSample(
-                                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
-                                // while the peripheral's measurement unit is g.
-                                (decimal)sample.AccelerationX / 1e6m,
-                                (decimal)sample.AccelerationY / 1e6m,
-                                (decimal)sample.AccelerationZ / 1e6m
-                            );
-                            break;
-                    }
-                },
-                startTime
+                startTime: startTime
             );
         }
 
