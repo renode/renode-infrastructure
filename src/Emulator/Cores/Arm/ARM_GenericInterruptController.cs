@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -140,9 +141,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var cpuConnections = cpuMappedConnections.Select(x => new KeyValuePair<int, IGPIO>(firstGPIO + (int)x.Key, x.Value));
             Connections = new ReadOnlyDictionary<int, IGPIO>(Connections.Concat(cpuConnections).ToDictionary(x => x.Key, x => x.Value));
 
+            // SGIs require an information about a requesting CPU when Affinity Routing is disabled.
+            foreach(var requester in cpuEntries.Values.Where(req => req.ProcessorNumber < CPUsCountLegacySupport))
+            {
+                cpuEntry.RegisterLegacySGIRequester(requester);
+            }
+
             cpusByProcessorNumberCache.Add(processorNumber, cpu);
             cpuEntries.Add(cpu, cpuEntry);
             CPUAttached?.Invoke(cpu);
+
+            if(processorNumber < CPUsCountLegacySupport)
+            {
+                // The new attached CPU need to be registered for all CPUs including itself.
+                foreach(var target in cpuEntries.Values)
+                {
+                    target.RegisterLegacySGIRequester(cpuEntry);
+                }
+            }
         }
 
         [ConnectionRegion("distributor")]
@@ -350,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
 
                 disabledSecurity = true;
-                var cpuConfigs = cpuEntries.Values.SelectMany(cpu => cpu.Interrupts.Values.Select(irq => irq.Config));
+                var cpuConfigs = cpuEntries.Values.SelectMany(cpu => cpu.AllInterruptsConfigs);
                 var allInterruptConfigs = cpuConfigs.Concat(sharedInterrupts.Values.Select(irq => irq.Config));
                 foreach(var config in allInterruptConfigs)
                 {
@@ -379,8 +395,68 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             this.Log(LogLevel.Debug, "Setting signal of the interrupt with id {0} to {1} for {2}.", irqId, value, cpu.Name);
             LockExecuteAndUpdate(() =>
-                cpu.Interrupts[irqId].State.AssertAsPending(value)
+                cpu.PrivatePeripheralInterrupts[irqId].State.AssertAsPending(value)
             );
+        }
+
+        private void OnSoftwareGeneratedInterrupt(CPUEntry requestingCPU, SoftwareGeneratedInterruptRequest request)
+        {
+            // The GIC uses a groups configuration at the moment of SGI request to choose correct target CPUs.
+            var irqId = request.InterruptId;
+            DebugHelper.Assert(irqsDecoder.IsSoftwareGenerated(irqId), $"Invalid interrupt identifier ({irqId}), it doesn't indicate an SGI.");
+            this.Log(LogLevel.Noisy, "The {0} requests an SGI with id {1}.", requestingCPU.Name, irqId);
+
+            if(ArchitectureVersion > ARM_GenericInterruptControllerVersion.GICv2)
+            {
+                this.Log(LogLevel.Warning, "The GIC supports Software Generated Interrupts only for GICv2 or older.");
+                // GICv3 with disabled Affinity Routing uses the same mechanism of handling SGIs as GICv2.
+                // There is no return here to provide at least partial support of GICv3.
+            }
+
+            var targetCPUs = new List<CPUEntry>();
+            switch(request.TargetCPUsType)
+            {
+                case SoftwareGeneratedInterruptRequest.TargetType.Loopback:
+                    targetCPUs.Add(requestingCPU);
+                    break;
+                case SoftwareGeneratedInterruptRequest.TargetType.AllCPUs:
+                    targetCPUs.AddRange(cpuEntries.Values.Where(cpu => cpu != requestingCPU));
+                    break;
+                case SoftwareGeneratedInterruptRequest.TargetType.TargetList:
+                    foreach(var processorNumber in BitHelper.GetSetBits(request.TargetsList))
+                    {
+                        if(TryGetCPUEntry((uint)processorNumber, out var targetCPU))
+                        {
+                            targetCPUs.Add(targetCPU);
+                        }
+                        else
+                        {
+                            this.Log(LogLevel.Debug, "There is no target CPU with the Processor Number {0} for an SGI request.", processorNumber);
+                        }
+                    }
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Unknown Software Generated Interrupt target type {0}", request.TargetCPUsType);
+                    return;
+            }
+
+            foreach(var target in targetCPUs)
+            {
+                if(!target.SoftwareGeneratedInterruptsLegacyRequester.TryGetValue(requestingCPU, out var interrupts))
+                {
+                    this.Log(LogLevel.Warning, "The GIC doesn't support requesting an SGI from the CPU with the Processor Number ({0}) greater than {1}, request ignored.", requestingCPU.ProcessorNumber, CPUsCountLegacySupport - 1);
+                    return;
+                }
+
+                var interrupt = interrupts[irqId];
+                if(interrupt.Config.GroupType == request.TargetGroup)
+                {
+                    this.Log(LogLevel.Noisy, "Setting signal of the interrupt with id {0} for {1}.", irqId, target.Name);
+                    // SGIs are triggered by a register access so the method is already called inside a lock.
+                    interrupt.State.AssertAsPending(true);
+                }
+                // According to the specification, interrupt with a group different than a target group is just ignored.
+            }
         }
 
         // The GIC uses the latest CPU state and the latest groups configuration to choose a correct interrupt signal to assert.
@@ -429,13 +505,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private IEnumerable<Interrupt> GetAllInterrupts(CPUEntry cpu)
         {
-            return cpu.Interrupts.Values.Concat(sharedInterrupts.Values);
+            return cpu.AllInterrupts.Concat(sharedInterrupts.Values);
         }
 
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
         {
             var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups[type].Enabled).ToArray();
-            return cpu.Interrupts.Values
+            return cpu.AllInterrupts
                 .Concat(sharedInterrupts.Values.Where(irq => irq.IsTargetingCPU(cpu)))
                 .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
         }
@@ -497,6 +573,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => DistributorVariant, name: "VariantNumber")
                     .WithValueField(12, 4, FieldMode.Read, valueProviderCallback: _ => DistributorRevision, name: "RevisionNumber")
                     .WithValueField(0, 12, FieldMode.Read, valueProviderCallback: _ => DistributorImplementer, name: "ImplementerIdentification")
+                },
+                {(long)DistributorRegisters.SoftwareGeneratedInterruptControl, new DoubleWordRegister(this)
+                    .WithReservedBits(26, 6)
+                    .WithEnumField<DoubleWordRegister, SoftwareGeneratedInterruptRequest.TargetType>(24, 2, FieldMode.Write, name: "TargetListFilter",
+                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.TargetCPUsType = val
+                    )
+                    .WithValueField(16, 8, FieldMode.Write, name: "TargetsList",
+                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.TargetsList = (uint)val
+                    )
+                    .WithFlag(15, FieldMode.Write, name: "GroupFilterSecureAccess",
+                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.TargetGroup = val ? GroupType.Group1 : GroupType.Group0
+                    )
+                    .WithReservedBits(4, 10)
+                    .WithValueField(0, 4, FieldMode.Write, name: "SoftwareGeneratedInterruptIdentifier",
+                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.InterruptId = new InterruptId((uint)val)
+                    )
+                    .WithWriteCallback((_, __) => OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), softwareGeneratedInterruptRequest))
                 },
                 {GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
@@ -815,17 +908,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => GetAskingCPUEntry().PriorityMask
                     )
                 },
-                {(long)CPUInterfaceSystemRegisters.InterruptAcknowledgeGroup0, new QuadWordRegister(this)
-                    .WithReservedBits(24, 40)
-                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptAcknowledgeGroup0",
-                        valueProviderCallback: _ => (ulong)GetAskingCPUEntry().AcknowledgeBestPending(GroupTypeRegister.Group0)
-                    )
+                {(long)CPUInterfaceSystemRegisters.InterruptAcknowledgeGroup0,
+                    BuildInterruptAcknowledgeRegister(new QuadWordRegister(this), 64, "InterruptAcknowledgeGroup0", () => GroupTypeRegister.Group0, false)
                 },
-                {(long)CPUInterfaceSystemRegisters.InterruptAcknowledgeGroup1, new QuadWordRegister(this)
-                    .WithReservedBits(24, 40)
-                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptAcknowledgeGroup1",
-                        valueProviderCallback: _ => (ulong)GetAskingCPUEntry().AcknowledgeBestPending(GroupTypeRegister.Group1)
-                    )
+                {(long)CPUInterfaceSystemRegisters.InterruptAcknowledgeGroup1,
+                    BuildInterruptAcknowledgeRegister(new QuadWordRegister(this), 64, "InterruptAcknowledgeGroup1", () => GroupTypeRegister.Group1, false)
                 },
                 {(long)CPUInterfaceSystemRegisters.InterruptDeactivate, new QuadWordRegister(this)
                     .WithReservedBits(24, 40)
@@ -835,17 +922,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithValueField(0, 24, FieldMode.Write, name: "INTID")
                     .WithWriteCallback((_, __) => this.Log(LogLevel.Noisy, "Separate interrupt deactivation isn't currently supported."))
                 },
-                {(long)CPUInterfaceSystemRegisters.InterruptEndGroup0, new QuadWordRegister(this)
-                    .WithReservedBits(24, 40)
-                    .WithValueField(0, 24, FieldMode.Write, name: "InterruptEndGroup0",
-                        writeCallback: (_, val) => GetAskingCPUEntry().CompleteRunning(new InterruptId((uint)val), GroupTypeRegister.Group0)
-                    )
+                {(long)CPUInterfaceSystemRegisters.InterruptEndGroup0,
+                    BuildEndOfInterruptRegister(new QuadWordRegister(this), 64, "InterruptEndGroup0", () => GroupTypeRegister.Group0, false)
                 },
-                {(long)CPUInterfaceSystemRegisters.InterruptEndGroup1, new QuadWordRegister(this)
-                    .WithReservedBits(24, 40)
-                    .WithValueField(0, 24, FieldMode.Write, name: "InterruptEndGroup1",
-                        writeCallback: (_, val) => GetAskingCPUEntry().CompleteRunning(new InterruptId((uint)val), GroupTypeRegister.Group1)
-                    )
+                {(long)CPUInterfaceSystemRegisters.InterruptEndGroup1,
+                    BuildEndOfInterruptRegister(new QuadWordRegister(this), 64, "InterruptEndGroup1", () => GroupTypeRegister.Group1, false)
                 }
             };
 
@@ -876,17 +957,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => GetAskingCPUEntry().PriorityMask
                     )
                 },
-                {(long)CPUInterfaceRegisters.InterruptAcknowledge, new DoubleWordRegister(this)
-                    .WithReservedBits(24, 8)
-                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptAcknowledge",
-                        valueProviderCallback: _ => (ulong)GetAskingCPUEntry().AcknowledgeBestPending(getRegisterGroupType())
-                    )
+                {(long)CPUInterfaceRegisters.InterruptAcknowledge,
+                    BuildInterruptAcknowledgeRegister(new DoubleWordRegister(this), 32, "InterruptAcknowledge", getRegisterGroupType, true)
                 },
-                {(long)CPUInterfaceRegisters.InterruptEnd, new DoubleWordRegister(this)
-                    .WithReservedBits(24, 8)
-                    .WithValueField(0, 24, FieldMode.Write, name: "InterruptEnd",
-                        writeCallback: (_, val) => GetAskingCPUEntry().CompleteRunning(new InterruptId((uint)val), getRegisterGroupType())
-                    )
+                {(long)CPUInterfaceRegisters.InterruptEnd,
+                    BuildEndOfInterruptRegister(new DoubleWordRegister(this), 32, "InterruptEnd", getRegisterGroupType, true)
                 },
             };
 
@@ -955,20 +1030,50 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {(long)CPUInterfaceRegisters.Control, controlRegister},
 
                 // Aliases for acknowledging/ending non-secure interrupts in secure state.
-                {(long)CPUInterfaceRegisters.InterruptAcknowledgeAlias, new DoubleWordRegister(this)
-                    .WithReservedBits(24, 8)
-                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptAcknowledgeAlias",
-                        valueProviderCallback: _ => (ulong)GetAskingCPUEntry().AcknowledgeBestPending(GroupTypeRegister.Group1)
-                    )
+                {(long)CPUInterfaceRegisters.InterruptAcknowledgeAlias,
+                    BuildInterruptAcknowledgeRegister(new DoubleWordRegister(this), 32, "InterruptAcknowledgeAlias", () => GroupTypeRegister.Group1, true)
                 },
-                {(long)CPUInterfaceRegisters.InterruptEndAlias, new DoubleWordRegister(this)
-                    .WithReservedBits(24, 8)
-                    .WithValueField(0, 24, FieldMode.Read, name: "InterruptEndAlias",
-                        writeCallback: (_, val) => GetAskingCPUEntry().CompleteRunning(new InterruptId((uint)val), GroupTypeRegister.Group1)
-                    )
+                {(long)CPUInterfaceRegisters.InterruptEndAlias,
+                    BuildEndOfInterruptRegister(new DoubleWordRegister(this), 32, "InterruptEndAlias", () => GroupTypeRegister.Group1, true)
                 },
             };
             return registersMap;
+        }
+
+        private T BuildInterruptAcknowledgeRegister<T>(T register, int registerWidth, string name,
+            Func<GroupTypeRegister> groupTypeRegisterProvider, bool useCPUIdentifier) where T : PeripheralRegister
+        {
+            return register
+                .WithReservedBits(24, registerWidth - 24)
+                .WithValueField(0, 24, FieldMode.Read, name: name,
+                    valueProviderCallback: _ =>
+                    {
+                        var irqId = (uint)GetAskingCPUEntry().AcknowledgeBestPending(groupTypeRegisterProvider(), out var requester);
+                        var cpuId = useCPUIdentifier ? requester?.ProcessorNumber ?? 0 : 0;
+                        return cpuId << 10 | irqId;
+                    }
+                );
+        }
+
+        private T BuildEndOfInterruptRegister<T>(T register, int registerWidth, string name,
+            Func<GroupTypeRegister> groupTypeRegisterProvider, bool useCPUIdentifier) where T : PeripheralRegister
+        {
+            return register
+                .WithReservedBits(24, registerWidth - 24)
+                .WithValueField(0, 24, FieldMode.Write, name: name,
+                    writeCallback: (_, val) =>
+                    {
+                        var irqId = BitHelper.GetValue((uint)val, 0, 10);
+                        CPUEntry cpu = null;
+                        var cpuId = BitHelper.GetValue((uint)val, 10, 3);
+                        if(useCPUIdentifier && !TryGetCPUEntry(cpuId, out cpu))
+                        {
+                            this.Log(LogLevel.Warning, "Trying to end the interrupt ({0}) for the non-existing CPU ({1}), write ignored.", irqId, cpuId);
+                            return;
+                        }
+                        GetAskingCPUEntry().CompleteRunning(new InterruptId(irqId), groupTypeRegisterProvider(), cpu);
+                    }
+                );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptSetEnableRegisters(InterruptId startId, InterruptId endId, string name)
@@ -1084,7 +1189,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptFlagRegisters(InterruptId startId, InterruptId endId, string name,
-            Action<Interrupt, bool> writeCallback = null, Func<Interrupt, bool> valueProviderCallback = null, bool allowAccessWhenNonSecureGroup = true)
+            Action<Interrupt, bool> writeCallback = null, Func<Interrupt, bool> valueProviderCallback = null, bool allowAccessWhenNonSecureGroup = true,
+            CPUEntry sgiRequestingCPU = null)
         {
             const int BitsPerRegister = 32;
             return BuildInterruptRegisters(startId, endId, BitsPerRegister,
@@ -1107,12 +1213,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             writeCallback: writeCallbackWrapped, valueProviderCallback: valueProviderCallbackWrapped);
                     },
 
-                (register, fieldIndex) => register.WithReservedBits(fieldIndex, 1)
+                (register, fieldIndex) => register.WithReservedBits(fieldIndex, 1),
+                sgiRequestingCPU
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptValueRegisters(InterruptId startId, InterruptId endId, string name, int fieldsPerRegister,
-            Action<Interrupt, ulong> writeCallback = null, Func<Interrupt, ulong> valueProviderCallback = null, bool allowAccessWhenNonSecureGroup = true)
+            Action<Interrupt, ulong> writeCallback = null, Func<Interrupt, ulong> valueProviderCallback = null, bool allowAccessWhenNonSecureGroup = true,
+            CPUEntry sgiRequestingCPU = null)
         {
             const int registerWidth = 32;
             var fieldWidth = registerWidth / fieldsPerRegister;
@@ -1135,12 +1243,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         register.WithValueField(fieldIndex * fieldWidth, fieldWidth, fieldMode, name: $"{name}_{(uint)irqId}",
                             writeCallback: writeCallbackWrapped, valueProviderCallback: valueProviderCallbackWrapped);
                     },
-                (register, fieldIndex) => register.WithReservedBits(fieldIndex * fieldWidth, fieldWidth)
+                (register, fieldIndex) => register.WithReservedBits(fieldIndex * fieldWidth, fieldWidth),
+                sgiRequestingCPU
             );
         }
 
         private IEnumerable<DoubleWordRegister> BuildInterruptEnumRegisters<TEnum>(InterruptId startId, InterruptId endId, string name, int fieldsPerRegister,
-            Action<Interrupt, TEnum> writeCallback = null, Func<Interrupt, TEnum> valueProviderCallback = null, bool allowAccessWhenNonSecureGroup = true) where TEnum : struct, IConvertible
+            Action<Interrupt, TEnum> writeCallback = null, Func<Interrupt, TEnum> valueProviderCallback = null, bool allowAccessWhenNonSecureGroup = true,
+            CPUEntry sgiRequestingCPU = null) where TEnum : struct, IConvertible
         {
             const int registerWidth = 32;
             var fieldWidth = registerWidth / fieldsPerRegister;
@@ -1163,7 +1273,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         register.WithEnumField<DoubleWordRegister, TEnum>(fieldIndex * fieldWidth, fieldWidth, fieldMode, name: $"{name}_{(uint)irqId}",
                             writeCallback: writeCallbackWrapped, valueProviderCallback: valueProviderCallbackWrapped);
                     },
-                (register, fieldIndex) => register.WithReservedBits(fieldIndex * fieldWidth, fieldWidth)
+                (register, fieldIndex) => register.WithReservedBits(fieldIndex * fieldWidth, fieldWidth),
+                sgiRequestingCPU
             );
         }
 
@@ -1180,7 +1291,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private IEnumerable<DoubleWordRegister> BuildInterruptRegisters(InterruptId startId, InterruptId endId, int fieldsPerRegister,
             Action<DoubleWordRegister, Func<Interrupt>, InterruptId, int> fieldAction,
-            Action<DoubleWordRegister, int> fieldPlaceholderAction
+            Action<DoubleWordRegister, int> fieldPlaceholderAction,
+            CPUEntry sgiRequestingCPU
         )
         {
             var interruptsCount = (int)endId - (int)startId + 1;
@@ -1201,9 +1313,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         fieldPlaceholderAction(register, inRegisterIndex);
                     }
-                    else if(irqsDecoder.IsSoftwareGenerated(irqId) || irqsDecoder.IsPrivatePeripheral(irqId))
+                    else if(irqsDecoder.IsSoftwareGenerated(irqId))
                     {
-                        fieldAction(register, () => GetAskingCPUEntry().Interrupts[irqId], irqId, inRegisterIndex);
+                        if(sgiRequestingCPU == null)
+                        {
+                            fieldAction(register, () => GetAskingCPUEntry().SoftwareGeneratedInterruptsUnknownRequester[irqId], irqId, inRegisterIndex);
+                        }
+                        else
+                        {
+                            fieldAction(register, () => GetAskingCPUEntry().SoftwareGeneratedInterruptsLegacyRequester[sgiRequestingCPU][irqId], irqId, inRegisterIndex);
+                        }
+                    }
+                    else if(irqsDecoder.IsPrivatePeripheral(irqId))
+                    {
+                        fieldAction(register, () => GetAskingCPUEntry().PrivatePeripheralInterrupts[irqId], irqId, inRegisterIndex);
                     }
                     else
                     {
@@ -1375,6 +1498,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool ackControl;
         private bool enableFIQ;
         private bool disabledSecurity;
+        // The following field aggregates information used to create an SGI.
+        private SoftwareGeneratedInterruptRequest softwareGeneratedInterruptRequest = new SoftwareGeneratedInterruptRequest();
 
         // This field should be redistributor-specific.
         private IFlagRegisterField processorSleep;
@@ -1424,10 +1549,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 Name = $"cpu{Affinity.Level0}";
                 interruptSignals = interruptConnections;
 
-                var irqIds = InterruptId.GetRange(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.SoftwareGeneratedLast)
-                    .Concat(InterruptId.GetRange(gic.irqsDecoder.PrivatePeripheralFirst, gic.irqsDecoder.PrivatePeripheralLast))
+                var sgiIds = InterruptId.GetRange(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.SoftwareGeneratedLast);
+                SoftwareGeneratedInterruptsConfig = new ReadOnlyDictionary<InterruptId, InterruptConfig>(sgiIds.ToDictionary(id => id, _ => new InterruptConfig()));
+                SoftwareGeneratedInterruptsUnknownRequester = GenerateSGIs(SoftwareGeneratedInterruptsConfig, null);
+                SoftwareGeneratedInterruptsLegacyRequester = new Dictionary<CPUEntry, ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt>>();
+
+                var ppiIds = InterruptId.GetRange(gic.irqsDecoder.PrivatePeripheralFirst, gic.irqsDecoder.PrivatePeripheralLast)
                     .Concat(InterruptId.GetRange(gic.irqsDecoder.ExtendedPrivatePeripheralFirst, gic.irqsDecoder.ExtendedPrivatePeripheralLast));
-                Interrupts = new ReadOnlyDictionary<InterruptId, Interrupt>(irqIds.ToDictionary(id => id, id => new Interrupt(id)));
+                PrivatePeripheralInterrupts = new ReadOnlyDictionary<InterruptId, Interrupt>(ppiIds.ToDictionary(id => id, id => new Interrupt(id)));
 
                 Groups = new ReadOnlyDictionary<GroupType, InterruptGroup>(groupTypes.ToDictionary(type => type, _ => new InterruptGroup()));
                 RunningInterrupts = new Stack<Interrupt>();
@@ -1435,7 +1564,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public void Reset()
             {
-                foreach(var irq in Interrupts.Values)
+                foreach(var irq in AllInterrupts)
                 {
                     irq.Reset();
                 }
@@ -1455,8 +1584,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 PrivateInterruptChanged?.Invoke(this, number, value);
             }
 
-            public virtual InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister)
+            public virtual InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister, out CPUEntry sgiRequestingCPU)
             {
+                sgiRequestingCPU = null;
                 var pendingIrq = BestPending;
                 if(pendingIrq == null)
                 {
@@ -1484,10 +1614,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 RunningInterrupts.Push(pendingIrq);
                 BestPending = null;
 
+                var pendingIrqAsSGI = pendingIrq as SoftwareGeneratedInterrupt;
+                if(pendingIrqAsSGI != null)
+                {
+                    sgiRequestingCPU = pendingIrqAsSGI.Requester;
+                }
+
                 return pendingIrq.Identifier;
             }
 
-            public void CompleteRunning(InterruptId id, GroupTypeRegister groupTypeRegister)
+            public void CompleteRunning(InterruptId id, GroupTypeRegister groupTypeRegister, CPUEntry sgiRequestingCPU)
             {
                 if(RunningInterrupts.Count == 0)
                 {
@@ -1516,6 +1652,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(!runningIrq.Identifier.Equals(id))
                 {
                     gic.Log(LogLevel.Error, "Incorrect interrupt identifier for interrupt end, expected INTID {0}, given {1}, request ignored.", runningIrq.Identifier, id);
+                    return;
+                }
+                var runningIrqAsSGI = runningIrq as SoftwareGeneratedInterrupt;
+                if(runningIrqAsSGI == null && sgiRequestingCPU != null && sgiRequestingCPU.ProcessorNumber != 0)
+                {
+                    gic.Log(LogLevel.Debug, "Ending the non-SGI interrupt ({0}) passing the Processor Number ({1}).", runningIrq.Identifier, sgiRequestingCPU.ProcessorNumber);
+                }
+                if(runningIrqAsSGI?.Requester != null && runningIrqAsSGI.Requester != sgiRequestingCPU)
+                {
+                    gic.Log(LogLevel.Warning, "Trying to end the SGI ({0}) passing the incorrect Processor Number, request ignored.", runningIrq.Identifier);
                     return;
                 }
                 runningIrq.State.Active = false;
@@ -1568,9 +1714,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 throw new ArgumentOutOfRangeException($"There is no valid InterruptGroupType for value: {type}.");
             }
 
+            public void RegisterLegacySGIRequester(CPUEntry cpu)
+            {
+                if(SoftwareGeneratedInterruptsLegacyRequester.ContainsKey(cpu))
+                {
+                    throw new ArgumentException($"The CPU ({cpu}) was already registered as a legacy requester.");
+                }
+                SoftwareGeneratedInterruptsLegacyRequester[cpu] = GenerateSGIs(SoftwareGeneratedInterruptsConfig, cpu);
+            }
+
             public event Action<CPUEntry, int, bool> PrivateInterruptChanged;
 
-            public IReadOnlyDictionary<InterruptId, Interrupt> Interrupts { get; }
+            public IReadOnlyDictionary<InterruptId, Interrupt> PrivatePeripheralInterrupts { get; }
+            public IReadOnlyDictionary<InterruptId, InterruptConfig> SoftwareGeneratedInterruptsConfig { get; }
+            public IReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt> SoftwareGeneratedInterruptsUnknownRequester;
+            public Dictionary<CPUEntry, ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt>> SoftwareGeneratedInterruptsLegacyRequester { get; }
+
+            public IEnumerable<Interrupt> AllInterrupts => PrivatePeripheralInterrupts.Values
+                .Concat(SoftwareGeneratedInterruptsUnknownRequester.Values)
+                .Concat(SoftwareGeneratedInterruptsLegacyRequester.Values.SelectMany(x => x.Values));
+            public IEnumerable<InterruptConfig> AllInterruptsConfigs => PrivatePeripheralInterrupts.Values.Select(irq => irq.Config)
+                .Concat(SoftwareGeneratedInterruptsConfig.Values);
+
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
 
             public CPUAffinity Affinity { get; }
@@ -1595,6 +1760,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             protected readonly ARM_GenericInterruptController gic;
 
+            private ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt> GenerateSGIs(IReadOnlyDictionary<InterruptId, InterruptConfig> configs, CPUEntry requester)
+            {
+                return new ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt>(configs.ToDictionary(config => config.Key, config => new SoftwareGeneratedInterrupt(config.Key, config.Value, requester)));
+            }
+
             private readonly IARMSingleSecurityStateCPU cpu;
             private readonly IReadOnlyDictionary<InterruptSignalType, IGPIO> interruptSignals;
         }
@@ -1607,8 +1777,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.cpu = cpu;
             }
 
-            public override InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister)
+            public override InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister, out CPUEntry sgiRequestingCPU)
             {
+                sgiRequestingCPU = null;
                 if(BestPending != null && groupTypeRegister == GroupTypeRegister.Group0 && cpu.ExceptionLevel == ExceptionLevel.EL3_MonitorMode)
                 {
                     if(BestPending.Config.GroupType == GroupType.Group1Secure)
@@ -1620,7 +1791,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         return gic.irqsDecoder.ExpectedToHandleAtNonSecure;
                     }
                 }
-                return base.AcknowledgeBestPending(groupTypeRegister);
+                return base.AcknowledgeBestPending(groupTypeRegister, out sgiRequestingCPU);
             }
 
             protected override InterruptSignalType GetBestPendingInterruptSignalType()
@@ -1749,6 +1920,38 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public InterruptId Identifier { get; }
             public virtual InterruptConfig Config { get; } = new InterruptConfig();
             public virtual InterruptState State { get; } = new InterruptState();
+        }
+
+        private class SoftwareGeneratedInterruptState : InterruptState
+        {
+            public override InterruptTriggerType TriggerType
+            {
+                get => DefaultTriggerType;
+                set
+                {
+                    if(value != TriggerType)
+                    {
+                        throw new InvalidOperationException("SoftwareGeneratedInterrupt has constant trigger type.");
+                    }
+                }
+            }
+
+            protected override InterruptTriggerType DefaultTriggerType => InterruptTriggerType.EdgeTriggered;
+        }
+
+        private class SoftwareGeneratedInterrupt : Interrupt
+        {
+            public SoftwareGeneratedInterrupt(InterruptId irqId, InterruptConfig config, CPUEntry requester) : base(irqId)
+            {
+                // Software Generated Interrupts with a same requester share a config.
+                Config = config;
+                Requester = requester;
+            }
+
+            public override InterruptConfig Config { get; }
+            public override InterruptState State { get; } = new SoftwareGeneratedInterruptState();
+            // The null value indicates that the Requester is unknown, what is typical for a GICv3 with Affinity Routing enabled.
+            public CPUEntry Requester { get; }
         }
 
         private class SharedInterrupt : Interrupt
@@ -1898,6 +2101,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private readonly uint identifierBits;
 
             public const uint MaximumSharedPeripheralCount = 988;
+        }
+
+        private class SoftwareGeneratedInterruptRequest
+        {
+            public TargetType TargetCPUsType { get; set; }
+            public uint TargetsList { get; set; }
+            public GroupType TargetGroup { get; set; }
+            public InterruptId InterruptId { get; set; }
+
+            public enum TargetType
+            {
+                TargetList = 0b00,
+                AllCPUs = 0b01,
+                Loopback = 0b10
+            }
         }
 
         private struct CPUAffinity
