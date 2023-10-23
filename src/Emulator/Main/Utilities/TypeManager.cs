@@ -670,35 +670,7 @@ namespace Antmicro.Renode.Utilities
 
         private bool IsInterestingType(TypeDefinition type)
         {
-        #if NET
-            if (type.CustomAttributes.Any(x => ResolveInner(x.AttributeType)?.Interfaces.Select(y => y.InterfaceType.GetFullNameOfMember()).Contains(typeof(IInterestingType).FullName) == true))
-        #else
-            if(type.CustomAttributes.Any(x => ResolveInner(x.AttributeType)?.Interfaces.Select(y => y.GetFullNameOfMember()).Contains(typeof(IInterestingType).FullName) == true))
-        #endif
-            {
-                return true;
-            }
-            if(type.IsInterface && type.GetFullNameOfMember() == typeof(IInterestingType).FullName)
-            {
-                return true;
-            }
-            foreach(var iface in type.Interfaces)
-            {
-            #if NET
-                if (iface.InterfaceType.GetFullNameOfMember() == typeof(IInterestingType).FullName)
-            #else
-                if(iface.GetFullNameOfMember() == typeof(IInterestingType).FullName)
-            #endif
-                {
-                    return true;
-                }
-            }
-            var resolved = ResolveBaseType(type);
-            if(resolved == null)
-            {
-                return false;
-            }
-            return IsInterestingType(resolved);
+            return type.Namespace.StartsWith("Antmicro.Renode");
         }
 
         private AssemblyDescription GetAssemblyDescription(string fullName, string path)
