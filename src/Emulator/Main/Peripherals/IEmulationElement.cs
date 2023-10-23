@@ -9,7 +9,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode
 {
-	public interface IEmulationElement : IInterestingType
+	public interface IEmulationElement
 	{
 	}
 }

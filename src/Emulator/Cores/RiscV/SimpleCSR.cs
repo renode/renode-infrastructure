@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,7 +9,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public struct SimpleCSR : IEquatable<SimpleCSR>, IInterestingType
+    public struct SimpleCSR : IEquatable<SimpleCSR>
     {
         public SimpleCSR(string name, uint number, PrivilegeLevel mode)
         {

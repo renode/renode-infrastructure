@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,7 +11,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Plugins
 {
     [AttributeUsage(AttributeTargets.Class)]
-    public class PluginAttribute : Attribute, IInterestingType
+    public class PluginAttribute : Attribute
     {
         public string Name { get; set; }
         public string Description { get; set; }

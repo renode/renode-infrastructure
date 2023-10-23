@@ -22,7 +22,7 @@ using System.Threading;
 
 namespace Antmicro.Renode.Core
 {
-    public class Emulation : IInterestingType, IDisposable
+    public class Emulation : IDisposable
     {
         public Emulation()
         {

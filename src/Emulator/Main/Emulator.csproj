@@ -295,7 +295,7 @@
     <Compile Include="Peripherals\Bus\SystemBusGenerated.cs">
       <DependentUpon>SystemBusGenerated.tt</DependentUpon>
     </Compile>
-    <Compile Include="Utilities\IInterestingType.cs" />
+    <Compile Include="Utilities\IAutoLoadType.cs" />
     <Compile Include="Peripherals\CPU\ICPU.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMetrics.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithNMI.cs" />

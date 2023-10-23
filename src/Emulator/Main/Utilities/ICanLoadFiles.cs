@@ -12,7 +12,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Utilities
 {
-    public interface ICanLoadFiles : IInterestingType
+    public interface ICanLoadFiles
     {
         // Handle data from FileChunk collection - specific for each peripheral
         void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu);
