@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -71,6 +71,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // [Here goes an invocation reading the register value from the external simulator]
             return 0;
         }
+
+        public override string Architecture => "Unknown";
 
         public override RegisterValue PC 
         { 

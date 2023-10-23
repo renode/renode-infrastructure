@@ -70,8 +70,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitDisas();
             externalMmuWindowsCount = TlibGetMmuWindowsCount();
         }
-        
-        public abstract string Architecture { get; }
 
         public abstract string GDBArchitecture { get; }
 

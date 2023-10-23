@@ -184,6 +184,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // by default do nothing
         }
 
+        public abstract string Architecture { get; }
+
         public Endianess Endianness { get; }
 
         public IBusController Bus => machine.SystemBus;
