@@ -29,6 +29,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             lockedCPUs = new bool[MaximumCPUs];
             numberOfCPUs = -1;
 
+            /* Do not reset FilteringStart/End properties - this is intentional
+            /* they are SoC-specific and once set should not change on Reset
+            */
+
             base.Reset();
         }
 
@@ -54,7 +58,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.Control.Define(this)
                 .WithFlag(0, out enabled, name: "SCU Enable")
                 // We return 0 here to signify that these are not supported
-                .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) => false, name: "Address Filtering Enable")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) =>
+                    {
+                        return MasterFilteringStartRange != 0 && MasterFilteringEndRange != 0;
+                    }, 
+                    name: "Address Filtering Enable")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: (_) => false, name: "ECC/Parity Enable") // Parity for Cortex-A9, otherwise ECC
                 .WithTaggedFlag("Speculative linefills enable", 3)
                 .WithTaggedFlag("Force all Device to port0 enable", 4) // Cortex-A9 only
@@ -87,7 +95,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     name: "CPUs in SMP")
                 .WithTag("Cache/Tag RAM sizes", 8, 16) // This field's layout differs greatly between cores
                 .WithReservedBits(24, 7)
-                .WithFlag(31, FieldMode.Read, valueProviderCallback: (_) => false, name: "AXI master port 1"); // Cortex-R8 only
+                .WithFlag(31, FieldMode.Read, valueProviderCallback: (_) =>
+                    {
+                        return MasterFilteringStartRange != 0 && MasterFilteringEndRange != 0;
+                    },
+                    name: "AXI master port 1"); // Cortex-R8 only
 
             Registers.AccessControl.Define(this)
                 .WithFlags(0, MaximumCPUs,
@@ -107,6 +119,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.NonSecureAccessControl.Define(this)
                 .WithFlags(0, 12, FieldMode.Read, valueProviderCallback: (_, __) => true)
                 .WithReservedBits(12, 20);
+
+            // These should have reserved lower 20 bits (Should-Be-Zero), so we clear them
+            Registers.PeripheralsFilteringStart.Define(this)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => PeripheralsFilteringStartRange & ~0xFFFFFUL);
+
+            Registers.PeripheralsFilteringEnd.Define(this)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => PeripheralsFilteringEndRange & ~0xFFFFFUL);
+
+            Registers.MasterFilteringStart.Define(this)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringStartRange & ~0xFFFFFUL);
+
+            Registers.MasterFilteringEnd.Define(this)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringEndRange & ~0xFFFFFUL);
         }
 
         public long Size => 0x100;
@@ -132,6 +157,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly byte smpMask;
         private int numberOfCPUs;
 
+        public ulong PeripheralsFilteringStartRange { get; set; }
+        public ulong PeripheralsFilteringEndRange { get; set; }
+
+        public ulong MasterFilteringStartRange { get; set; }
+        public ulong MasterFilteringEndRange { get; set; }
+
         // Should not be more than 4, but could be less
         private const int MaximumCPUs = 4;
 
@@ -148,15 +179,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             /*  See: https://developer.arm.com/documentation/ddi0458/c/Functional-Description/Processor-ports/AXI-master-port-1?lang=en
                 MasterFilteringStart/End forces accesses at the range to be performed through AXI master port 1 which has
-                "ECC protection on data and parity on control bits". These seems to be handled opaquely by the hardware,
-                so we can safely ignore this
+                "ECC protection on data and parity on control bits". These seem to be handled opaquely by the hardware.
+                They can be declared via appropriate properties.
             */
             MasterFilteringStart = 0x40,
             MasterFilteringEnd = 0x44,
 
             /* See: https://developer.arm.com/documentation/ddi0458/c/Functional-Description/Processor-ports/AXI-peripheral-port?lang=en
                "It is used to access certain peripherals with a low latency, and having burst support."
-               We can ignore these
                On Cortex-R8 these can also be referred to as LLPFilteringStart/End
             */
             PeripheralsFilteringStart = 0x48,
