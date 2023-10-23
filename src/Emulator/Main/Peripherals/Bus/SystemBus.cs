@@ -57,15 +57,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
         {
-            ulong minAddr = ulong.MaxValue;
-
-            foreach(FileChunk chunk in chunks)
-            {
-                var chunkData = chunk.Data.ToArray();
-                WriteBytes(chunkData, chunk.OffsetToLoad, chunkData.Length, context: cpu);
-                minAddr = Math.Min(minAddr, chunk.OffsetToLoad);
-            }
-
+            var minAddr = this.LoadFileChunks(chunks, cpu);
             AddFingerprint(path);
             UpdateLowestLoadedAddress(minAddr);
             this.DebugLog(path + " File loaded.");
