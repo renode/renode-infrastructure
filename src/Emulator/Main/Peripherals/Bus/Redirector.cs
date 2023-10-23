@@ -9,6 +9,7 @@ using System;
 using Antmicro.Renode.Core;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -72,14 +73,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             throw new RecoverableException("Cannot translate address that does not lay in redirector.");
         }
 
-        public byte[] ReadBytes(long offset, int count)
+        public byte[] ReadBytes(long offset, int count, ICPU context = null)
         {
-            return systemBus.ReadBytes(redirectedAddress + checked((ulong)offset), count);
+            return systemBus.ReadBytes(redirectedAddress + checked((ulong)offset), count, context: context);
         }
 
-        public void WriteBytes(long offset, byte[] array, int startingIndex, int count)
+        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null)
         {
-            systemBus.WriteBytes(array, redirectedAddress + checked((ulong)offset), count);
+            systemBus.WriteBytes(array, redirectedAddress + checked((ulong)offset), count, context: context);
         }
 
         public void Reset()
