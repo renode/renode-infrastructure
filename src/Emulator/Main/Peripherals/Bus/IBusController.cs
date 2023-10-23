@@ -19,7 +19,8 @@ using Range = Antmicro.Renode.Core.Range;
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public interface IBusController: IPeripheralContainer<IBusPeripheral, BusRangeRegistration>, IPeripheralRegister<IKnownSize, BusPointRegistration>,
-        IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheral, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, ICanLoadFiles
+        IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheral, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, ICanLoadFiles,
+        IMultibyteWritePeripheral
     {
         byte ReadByte(ulong address, ICPU context = null);
         void WriteByte(ulong address, byte value, ICPU context = null);

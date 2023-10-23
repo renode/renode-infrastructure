@@ -452,6 +452,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return result;
         }
 
+        public byte[] ReadBytes(long offset, int count, ICPU context = null)
+        {
+            return ReadBytes((ulong)offset, count, context: context);
+        }
+
         public void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, ICPU context = null)
         {
             WriteBytes(bytes, address, bytes.Length, onlyMemory, context);
@@ -490,6 +495,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, ICPU context = null)
         {
             WriteBytes(bytes, address, 0, count, onlyMemory, context);
+        }
+
+        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null)
+        {
+            WriteBytes(array, (ulong)offset, startingIndex, count, context: context);
         }
 
         public void ZeroRange(Range range, ICPU context = null)

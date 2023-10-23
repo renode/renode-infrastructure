@@ -96,6 +96,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return result;
         }
 
+        public virtual byte[] ReadBytes(long offset, int count, ICPU context = null)
+        {
+            return ReadBytes((ulong)offset, count, context: context);
+        }
+
         public virtual void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, ICPU context = null)
         {
             WriteBytes(bytes, address, bytes.Length, onlyMemory, context);
@@ -112,6 +117,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public virtual void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, ICPU context = null)
         {
             WriteBytes(bytes, address, 0, count, onlyMemory, context);
+        }
+
+        public virtual void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null)
+        {
+            WriteBytes(array, (ulong)offset, startingIndex, count, context: context);
         }
 
         public virtual IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, ICPU context = null)
