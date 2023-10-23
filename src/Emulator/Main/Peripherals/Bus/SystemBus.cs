@@ -480,7 +480,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         for(var i = 0UL; i < target.SourceLength; ++i)
                         {
-                            WriteByte(target.Offset + i, bytes[target.SourceIndex + i]);
+                            WriteByte(target.Offset + i, bytes[target.SourceIndex + (ulong)startingIndex + i]);
                         }
                     }
                 }
