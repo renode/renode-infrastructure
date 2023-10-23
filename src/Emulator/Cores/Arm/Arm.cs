@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual uint Read32CP15Inner(Coprocessor32BitMoveInstruction instruction)
         {
-            if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0)
+            if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0 && instruction.CRn == 15) // CBAR
             {
                 // scu
                 var scus = machine.GetPeripheralsOfType<ArmSnoopControlUnit>().ToArray();
