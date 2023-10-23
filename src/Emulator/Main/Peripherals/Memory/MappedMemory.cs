@@ -30,7 +30,7 @@ using System.Reflection;
 namespace Antmicro.Renode.Peripherals.Memory
 {
     [Icon("memory")]
-    public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral
+    public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral, ICanLoadFiles
     {
 #if PLATFORM_WINDOWS
         static MappedMemory()
@@ -302,6 +302,11 @@ namespace Antmicro.Renode.Peripherals.Memory
         public void WriteString(long offset, string value)
         {
             WriteBytes(offset, new System.Text.ASCIIEncoding().GetBytes(value).Concat(new []{ (byte)'\0' }).ToArray());
+        }
+
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        {
+            this.LoadFileChunks(chunks, cpu);
         }
 
         public void Reset()
