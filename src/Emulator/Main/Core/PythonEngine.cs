@@ -50,6 +50,8 @@ namespace Antmicro.Renode.Core
             "clr.ImportExtensions(Antmicro.Renode.Peripherals.IPeripheralExtensions)",
             "import Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions",
             "clr.ImportExtensions(Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions)",
+            "import Antmicro.Renode.Core.Extensions.FileLoaderExtensions",
+            "clr.ImportExtensions(Antmicro.Renode.Core.Extensions.FileLoaderExtensions)",
             "import Antmicro.Renode.Logging.LogLevel as LogLevel"
         };
 
