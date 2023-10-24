@@ -167,6 +167,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
                 base.OnGPIO(number, value);
                 irqManager.RefreshInterrupts();
+                                
+                if( ((false == value) && (GPIOInterruptManager.InterruptTrigger.ActiveHigh == irqManager.InterruptType[number])) ||
+                    ((true == value) && (GPIOInterruptManager.InterruptTrigger.ActiveLow == irqManager.InterruptType[number])) )
+                {
+                    irqManager.ClearInterrupt(number);
+                }
 
                 // RefreshInterrupts will update the main IRQ, but it will not update the connection.
                 // We have to do it manually, as connection reflects if there is an active interrupt for the given pin.
