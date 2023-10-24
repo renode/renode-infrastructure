@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.IRQControllers;
@@ -19,9 +20,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ARMv7A(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian)
             : base(cpuType, machine, cpuId, endianness)
         {
-            if(genericInterruptController != null)
+            try
             {
-                genericInterruptController.AttachCPU(this);
+                genericInterruptController?.AttachCPU(this);
+            }
+            catch(Exception e)
+            {
+                throw new ConstructionException("Failed to attach CPU to Generic Interrupt Controller", e);
             }
         }
 

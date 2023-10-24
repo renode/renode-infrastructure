@@ -4,7 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -15,7 +17,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ARMv7R(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null)
             : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
         {
-            genericInterruptController?.AttachCPU(this);
+            try
+            {
+                genericInterruptController?.AttachCPU(this);
+            }
+            catch(Exception e)
+            {
+                throw new ConstructionException("Failed to attach CPU to Generic Interrupt Controller", e);
+            }
         }
 
         public byte Affinity0 => (byte)Id;

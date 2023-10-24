@@ -24,7 +24,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
             gic = genericInterruptController;
-            gic.AttachCPU(this);
+            try
+            {
+                gic.AttachCPU(this);
+            }
+            catch(Exception e)
+            {
+                throw new ConstructionException("Failed to attach CPU to Generic Interrupt Controller", e);
+            }
             Reset();
             HasSingleSecurityState = TlibHasEl3() == 0;
         }

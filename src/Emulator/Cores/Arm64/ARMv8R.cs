@@ -28,7 +28,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.defaultVBARValue = defaultVBARValue;
 
             gic = genericInterruptController;
-            gic.AttachCPU(this);
+            try
+            {
+                gic.AttachCPU(this);
+            }
+            catch(Exception e)
+            {
+                throw new ConstructionException("Failed to attach CPU to Generic Interrupt Controller", e);
+            }
             TlibSetMpuRegionsCount(mpuRegionsCount, mpuHyperRegionsCount);
             Reset();
         }
