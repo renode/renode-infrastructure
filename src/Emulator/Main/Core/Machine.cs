@@ -811,7 +811,7 @@ namespace Antmicro.Renode.Core
         {
             if(!firstUnbroadcastedDirtyAddressIndex.ContainsKey(id))
             {
-                throw new ArgumentException("No entries for a core with id {0}. Was the core registered properly?");
+                throw new RecoverableException($"No entries for a core with id {id}. Was the core registered properly?");
             }
 
             long[] newAddresses;
