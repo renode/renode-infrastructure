@@ -1633,7 +1633,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private FuncInt32Int32 TlibExecute;
 
-        [Import(UseExceptionWrapper = false)]
+        [Import]
         protected Action TlibRestartTranslationBlock;
 
         [Import]
