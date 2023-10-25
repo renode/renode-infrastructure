@@ -26,6 +26,9 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine("'resd unload NAME'\tunloads RESD file with identifier NAME");
             writer.WriteLine("'resd list-blocks NAME'\tlist data blocks from RESD file with identifier NAME");
             writer.WriteLine("'resd describe-block NAME INDEX'\tshow informations about INDEXth block from RESD with identifier NAME");
+            writer.WriteLine("'resd get-samples NAME INDEX \"START_TIME\" COUNT'\tlists COUNT samples starting at START_TIME from INDEXth block of RESD with identifier NAME");
+            writer.WriteLine("'resd get-samples-range NAME INDEX \"START_TIME\" \"DURATION\"'\tlists DURATION samples starting at START_TIME from INDEXth block of RESD with identifier NAME");
+            writer.WriteLine("'resd get-samples-range NAME INDEX \"START_TIME..END_TIME\"'\tlists samples between START_TIME and END_TIME from INDEXth block of RESD with identifier NAME");
             writer.WriteLine("'resd get-prop NAME INDEX PROP'\tread property PROP from INDEXth block of RESD with identifier NAME");
             writer.WriteLine($"  possible values for PROP are: {RESDPropertyNames}");
             writer.WriteLine();
@@ -81,16 +84,15 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer, [Values("get-prop")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, LiteralToken property)
         {
+            RESDProperty enumValue;
+            if(!Enum.TryParse(property.Value, false, out enumValue))
+            {
+                writer.WriteError($"{property.Value} is not a valid property.");
+                writer.WriteError($"Valid properties are: {RESDPropertyNames}");
+                return;
+            }
             DoForBlockWithIndex(writer, internalName.Value, index.Value, (block) =>
             {
-                RESDProperty enumValue;
-                if(!Enum.TryParse(property.Value, false, out enumValue))
-                {
-                    writer.WriteError($"{property.Value} is not a valid property.");
-                    writer.WriteError($"Valid properties are: {RESDPropertyNames}");
-                    return;
-                }
-
                 switch(enumValue)
                 {
                     case RESDProperty.SampleType:
@@ -110,6 +112,77 @@ namespace Antmicro.Renode.UserInterface.Commands
                         break;
                     default:
                         throw new Exception("unreachable");
+                }
+            });
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("get-samples")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, StringToken startTimeString, DecimalIntegerToken count)
+        {
+            if(!TimeInterval.TryParse(startTimeString.Value, out var startTime))
+            {
+                writer.WriteError($"{startTimeString.Value} is invalid time-interval");
+                return;
+            }
+
+            DoForBlockWithIndex(writer, internalName.Value, index.Value, (block) =>
+            {
+                foreach(var kv in block.Samples.SkipWhile(kv => kv.Key < startTime).Take((int)count.Value))
+                {
+                    writer.WriteLine($"{kv.Key}: {kv.Value}");
+                }
+            });
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("get-samples-range")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, StringToken range)
+        {
+            var delimiterIndex = range.Value.IndexOf("..");
+            if(delimiterIndex == -1)
+            {
+                writer.WriteError($"{range.Value} is invalid range");
+                return;
+            }
+
+            var startTimeString = range.Value.Substring(0, delimiterIndex);
+            var durationString = range.Value.Substring(delimiterIndex + 2, range.Value.Length - delimiterIndex - 2);
+            if(String.IsNullOrEmpty(startTimeString) ||
+                String.IsNullOrEmpty(durationString) ||
+               !TimeInterval.TryParse(startTimeString, out var startTime) ||
+               !TimeInterval.TryParse(durationString, out var duration))
+            {
+                writer.WriteError($"{range.Value} is invalid range");
+                return;
+            }
+
+            DoForBlockWithIndex(writer, internalName.Value, index.Value, (block) =>
+            {
+                foreach(var kv in block.Samples.SkipWhile(kv => kv.Key < startTime).TakeWhile(kv => kv.Key <= startTime + duration))
+                {
+                    writer.WriteLine($"{kv.Key}: {kv.Value}");
+                }
+            });
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("get-samples-range")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, StringToken startTimeString, StringToken endTimeString)
+        {
+            if(!TimeInterval.TryParse(startTimeString.Value, out var startTime))
+            {
+                writer.WriteError($"{startTimeString.Value} is invalid time-interval");
+                return;
+            }
+            if(!TimeInterval.TryParse(endTimeString.Value, out var endTime))
+            {
+                writer.WriteError($"{endTimeString.Value} is invalid time-interval");
+                return;
+            }
+
+            DoForBlockWithIndex(writer, internalName.Value, index.Value, (block) =>
+            {
+                foreach(var kv in block.Samples.SkipWhile(kv => kv.Key < startTime).TakeWhile(kv => kv.Key <= endTime))
+                {
+                    writer.WriteLine($"{kv.Key}: {kv.Value}");
                 }
             });
         }
