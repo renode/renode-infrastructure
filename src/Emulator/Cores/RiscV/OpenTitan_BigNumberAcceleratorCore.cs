@@ -495,6 +495,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 Log(LogLevel.Error, $"The wsr is argument is too high: 0x{wsr:X}");
                 ThrowError(CoreError.IllegalInstruction);
+                return;
             }
 
             if(isWrite)
@@ -766,6 +767,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if((incrementRs && incrementRd) || grdVal > 31 || grsVal > 31)
             {
                 ThrowError(CoreError.IllegalInstruction);
+                return;
             }
 
             if(incrementRd)
@@ -792,6 +794,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if((incrementRs1 && incrementRd) || grdVal > 31)
             {
                 ThrowError(CoreError.IllegalInstruction);
+                return;
             }
 
             if(incrementRd)
