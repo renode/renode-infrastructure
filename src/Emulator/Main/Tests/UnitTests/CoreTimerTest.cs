@@ -70,7 +70,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var limit = 100UL;
             var manualClockSource = new ManualClockSource();
-            var timer = new LimitTimer(manualClockSource, 1, null, String.Empty, limit, Direction.Ascending, true);
+            var timer = new LimitTimer(manualClockSource, 1, null, String.Empty, limit, Direction.Descending, true);
             manualClockSource.AdvanceBySeconds(limit - 1);
             for(var i = 0; i < 3; i++)
             {
