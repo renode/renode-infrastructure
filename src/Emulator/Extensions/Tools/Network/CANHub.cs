@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,19 +19,20 @@ namespace Antmicro.Renode.Tools.Network
 {
     public static class CANHubExtensions
     {
-        public static void CreateCANHub(this Emulation emulation, string name)
+        public static void CreateCANHub(this Emulation emulation, string name, bool loopback = false)
         {
-            emulation.ExternalsManager.AddExternal(new CANHub(), name);
+            emulation.ExternalsManager.AddExternal(new CANHub(loopback), name);
         }
     }
 
     public sealed class CANHub : IExternal, IHasOwnLife, IConnectable<ICAN>
     {
-        public CANHub()
+        public CANHub(bool loopback = false)
         {
             sync = new object();
             attached = new List<ICAN>();
             handlers = new Dictionary<ICAN, Action<CANMessageFrame>>();
+            this.loopback = loopback;
         }
 
         public void AttachTo(ICAN iface)
@@ -88,7 +89,7 @@ namespace Antmicro.Renode.Tools.Network
                 {
                     return;
                 }
-                foreach(var iface in attached.Where(x => x != sender))
+                foreach(var iface in attached.Where(x => (x != sender || loopback)))
                 {
                     iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, TimeDomainsManager.Instance.VirtualTimeStamp);
                 }
@@ -98,7 +99,8 @@ namespace Antmicro.Renode.Tools.Network
         private readonly List<ICAN> attached;
         private readonly Dictionary<ICAN, Action<CANMessageFrame>> handlers;
         private bool started;
-        private object sync;
+        private readonly object sync;
+        private readonly bool loopback;
     }
 }
 
