@@ -5,8 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.IO;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -26,6 +28,7 @@ namespace Antmicro.Renode.Utilities.RESD
         ulong SamplesCount { get; }
         ulong Duration { get; }
         IDictionary<String, MetadataValue> Metadata { get; }
+        IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
     }
 
     public abstract class DataBlock<T> : IDataBlock where T: RESDSample, new()
@@ -42,6 +45,7 @@ namespace Antmicro.Renode.Utilities.RESD
         public abstract ulong CurrentTimestamp { get; }
         public abstract ulong SamplesCount { get; }
         public abstract ulong Duration { get; }
+        public abstract IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
 
         public virtual BlockType BlockType => Header.BlockType;
         public virtual SampleType SampleType => Header.SampleType;
@@ -93,6 +97,11 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override RESDStreamStatus TryGetSample(ulong timestamp, out T sample)
         {
+            if(Interlocked.Exchange(ref usingReader, 1) != 0)
+            {
+                throw new RESDException("trying to call TryGetSample when using Samples iterator");
+            }
+
             if(timestamp < currentSampleTimestamp)
             {
                 // we don't support moving back in time
@@ -110,6 +119,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
             currentSampleTimestamp += samplesDiff * Period;
             sample = samplesData.GetCurrentSample();
+
+            Interlocked.Exchange(ref usingReader, 0);
+
             return RESDStreamStatus.OK;
         }
 
@@ -121,6 +133,31 @@ namespace Antmicro.Renode.Utilities.RESD
         public override ulong CurrentTimestamp => currentSampleTimestamp;
         public override ulong SamplesCount => samplesCount.Value;
         public override ulong Duration => SamplesCount * Period;
+
+        public override IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples
+        {
+            get
+            {
+                if(Interlocked.Exchange(ref usingReader, 1) != 0)
+                {
+                    throw new RESDException("Trying to use Samples iterator during TryGetSample");
+                }
+                using(reader.Checkpoint)
+                {
+                    reader.BaseStream.Seek(samplesData.SampleDataOffset, SeekOrigin.Begin);
+
+                    var currentTime = StartTime;
+                    var currentSample = new T();
+
+                    while(!reader.EOF && currentSample.TryReadFromStream(reader))
+                    {
+                        yield return new KeyValuePair<TimeInterval, RESDSample>(TimeInterval.FromMicroseconds(currentTime / 1000), currentSample);
+                        currentTime += Period;
+                    }
+                }
+                Interlocked.Exchange(ref usingReader, 0);
+            }
+        }
 
         private ConstantFrequencySamplesDataBlock(DataBlockHeader header, ulong startTime, ulong period, SafeBinaryReader reader) : base(header)
         {
@@ -159,6 +196,7 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         private ulong currentSampleTimestamp;
+        private int usingReader;
 
         private readonly SafeBinaryReader reader;
         private readonly SamplesData<T> samplesData;
