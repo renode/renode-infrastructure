@@ -64,6 +64,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("MCO2PRE", 25, 4)
                     .WithTag("MCO2", 29, 3)
                 },
+                {(long)Registers.PLLConfigurationRegister, new DoubleWordRegister(this, 0x01FF0000)
+                },
                 {(long)Registers.BackupDomainControl, new DoubleWordRegister(this)
                     .WithFlag(0, out var lseon, name: "LSEON")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lseon.Value, name: "LSERDY")
@@ -132,6 +134,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockControl = 0x0,
             InternalClockSourceCalibration = 0x4,
             ClockConfiguration = 0x10,
+            PLLConfigurationRegister = 0x2c,
             // ...
             BackupDomainControl = 0x70,
             ClockControlAndStatus = 0x74,
