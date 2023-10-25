@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Utilities.RESD
         ulong SamplesCount { get; }
         ulong Duration { get; }
         IDictionary<String, MetadataValue> Metadata { get; }
+        IDictionary<String, String> ExtraInformation { get; }
         IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
     }
 
@@ -45,6 +46,7 @@ namespace Antmicro.Renode.Utilities.RESD
         public abstract ulong CurrentTimestamp { get; }
         public abstract ulong SamplesCount { get; }
         public abstract ulong Duration { get; }
+        public abstract IDictionary<String, String> ExtraInformation { get; }
         public abstract IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
 
         public virtual BlockType BlockType => Header.BlockType;
@@ -133,6 +135,10 @@ namespace Antmicro.Renode.Utilities.RESD
         public override ulong CurrentTimestamp => currentSampleTimestamp;
         public override ulong SamplesCount => samplesCount.Value;
         public override ulong Duration => SamplesCount * Period;
+        public override IDictionary<String, String> ExtraInformation => new Dictionary<String, String>() {
+            {"Period", TimeInterval.FromMicroseconds(Period / 1000).ToString()},
+            {"Frequency", $"{Frequency}Hz"}
+        };
 
         public override IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples
         {

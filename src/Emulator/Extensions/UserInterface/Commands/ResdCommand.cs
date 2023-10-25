@@ -199,6 +199,11 @@ namespace Antmicro.Renode.UserInterface.Commands
                 writer.WriteLine($"End Time: {TimeStampToTimeInterval(block.GetEndTime())}");
                 writer.WriteLine($"Duration: {TimeStampToTimeInterval(block.Duration)}");
 
+                foreach(var kv in block.ExtraInformation)
+                {
+                    writer.WriteLine($"{kv.Key}: {kv.Value}");
+                }
+
                 if(block.Metadata.Count == 0)
                 {
                     return;
