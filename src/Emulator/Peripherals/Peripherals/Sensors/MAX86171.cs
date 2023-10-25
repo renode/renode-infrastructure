@@ -991,6 +991,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return !reader.EOF;
             }
 
+            public override string ToString()
+            {
+                var sampleFrame = Frame.Select(sample => new AFESample(sample));
+                return String.Join(", ", sampleFrame.Select(frame => $"[{frame}]"));
+            }
+
             private const int MaxChannels = 9;
         }
 
