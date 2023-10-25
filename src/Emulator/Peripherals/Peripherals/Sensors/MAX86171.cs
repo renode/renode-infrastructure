@@ -1136,7 +1136,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 innerPacket = (((int)tag & 0xF) << 20) | (value & 0x0FFFFF);
             }
 
-            public int Value => (innerPacket & 0x0FFFFF);
+            public int Value => ((innerPacket & 0x0FFFFF) << 12) >> 12;
             public SampleSource Tag => (SampleSource)((innerPacket & 0xF00000) >> 20);
             public byte Byte1 => (byte)((innerPacket & 0xFF0000) >> 16);
             public byte Byte2 => (byte)((innerPacket & 0x00FF00) >> 8);
