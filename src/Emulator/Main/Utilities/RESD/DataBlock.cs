@@ -186,12 +186,7 @@ namespace Antmicro.Renode.Utilities.RESD
                     }
 
                     var sample = new T();
-                    if(sample.Width is int width)
-                    {
-                        return Header.Size / (ulong)width;
-                    }
-
-                    var packets = 1UL;
+                    var packets = 0UL;
                     while(sample.Skip(reader, 1))
                     {
                         packets += 1;

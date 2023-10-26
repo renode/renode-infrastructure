@@ -983,12 +983,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public override bool Skip(SafeBinaryReader reader, int count)
             {
-                for(var i = 0; i < count && !reader.EOF; ++i)
+                for(; count > 0 && !reader.EOF; count--)
                 {
                     var frameLength = reader.ReadByte();
                     reader.SkipBytes(frameLength * 4);
                 }
-                return !reader.EOF;
+                return count == 0;
             }
 
             public override string ToString()
