@@ -70,22 +70,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            bool irqPending;
-
-            if(!receiveInterruptEnable.Value)
-            {
-                irqPending = false;
-            }
-            else if(receiveFifoDataTriggerNumber.Value == 0)
-            {
-                irqPending = receiveFifo.Count > 0;
-            }
-            else
-            {
-                irqPending = receiveFifo.Count >= (int)receiveFifoDataTriggerNumber.Value;
-            }
-
-            IRQ.Set(irqPending);
+            // On real hardware FCR.RTRG value doesn't affect interrupt requests,
+            // they are triggered for every character in RX fifo.
+            IRQ.Set(receiveInterruptEnable.Value && receiveFifo.Count > 0);
         }
 
         private void DefineRegisters()
@@ -154,6 +141,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("TTRG", 8, 5)
                 .WithReservedBits(13, 2)
                 .WithTaggedFlag("TFRST", 15)
+                // On real hardware FCR.RTRG value doesn't affect interrupt requests
+                // they are triggered for every character in RX fifo.
                 .WithValueField(16, 5, out receiveFifoDataTriggerNumber, name: "RTRG",
                     writeCallback: (oldValue, newValue) =>
                     {
