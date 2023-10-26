@@ -198,6 +198,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                 writer.WriteLine($"Start Time: {TimeStampToTimeInterval(block.StartTime)}");
                 writer.WriteLine($"End Time: {TimeStampToTimeInterval(block.GetEndTime())}");
                 writer.WriteLine($"Duration: {TimeStampToTimeInterval(block.Duration)}");
+                writer.WriteLine($"Samples count: {block.SamplesCount}");
 
                 foreach(var kv in block.ExtraInformation)
                 {
@@ -224,6 +225,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             StartTime,
             EndTime,
             Duration,
+            SamplesCount,
         }
 
         public ResdCommand(Monitor monitor)
