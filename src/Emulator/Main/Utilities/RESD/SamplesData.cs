@@ -33,6 +33,13 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public bool Move(int count)
         {
+            if(count == 0)
+            {
+                // if count is zero, we can return sample if either it's ready or we
+                // aren't at the end of the file
+                return sampleReady || !reader.EOF;
+            }
+
             if(reader.EOF)
             {
                 return false;
