@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
     // TODO: FIFO for other data than the accelerometer
     public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor, IUnderstandRESD
     {
-        public LIS2DW12()
+        public LIS2DW12(IMachine machine)
         {
             RegistersCollection = new ByteRegisterCollection(this);
             Interrupt1 = new GPIO();
@@ -38,6 +38,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             accelerationFifo.OnOverrun += UpdateInterrupts;
             // Set the default acceleration here, it needs to be preserved across resets
             DefaultAccelerationZ = 1m;
+
+            this.machine = machine;
         }
 
         public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
@@ -78,8 +80,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
-            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0,
+            RESDType type = RESDType.Normal)
         {
+            if(type == RESDType.MultiFrequency)
+            {
+                FeedMultiFrequencyAccelerationSamplesFromRESD(path);
+                return;
+            }
+            else if(type != RESDType.Normal)
+            {
+                throw new RecoverableException($"Unhandled RESD type {type}");
+            }
+
             resdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetType, sampleOffsetTime);
             accelerationFifo.KeepFifoOnReset = false;
             feederThread?.Stop();
@@ -271,7 +284,87 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {
                     feederThread.Frequency = sampleRate;
                 }
+                SampleRateChanged?.Invoke(value);
             }
+        }
+
+        private void FeedMultiFrequencyAccelerationSamplesFromRESD(string path)
+        {
+            var parser = new LowLevelRESDParser(path);
+            var mapping = parser.GetDataBlockEnumerator<AccelerationSample>()
+                .OfType<ConstantFrequencySamplesDataBlock<AccelerationSample>>()
+                .Select(block => new { Channel = block.ChannelId, block.Frequency, block.StartTime })
+                .ToList();
+
+            // We keep the index of the last block used so far so that we can skip already
+            // used blocks on each sample rate change.
+            var index = 0;
+            Action<uint> findAndActivate = null;
+            findAndActivate = (sampleRate) =>
+            {
+                var currentEntry = mapping
+                    .Select((item, i) => new { Item = item, Index = i })
+                    .Skip(index)
+                    .FirstOrDefault(o => o.Item.Frequency == sampleRate);
+
+                if(currentEntry == null)
+                {
+                    // No more blocks at this sample rate, so restore the FIFO-preserving behavior
+                    accelerationFifo.KeepFifoOnReset = true;
+                    // If there are no more blocks, even without taking the sample rate
+                    // into account, then we can unregister this sample rate change handler
+                    if(index == mapping.Count)
+                    {
+                        SampleRateChanged -= findAndActivate;
+                    }
+                    return;
+                }
+
+                index = currentEntry.Index + 1;
+                var block = currentEntry.Item;
+
+                feederThread?.Stop();
+                resdStream?.Dispose();
+
+                if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+
+                // Offset the start time so that we start reading the block from the beginning even if
+                // the sample rate was switched at a time different from the exact start time of the block
+                resdStream = this.CreateRESDStream<AccelerationSample>(
+                    path,
+                    block.Channel,
+                    RESDStreamSampleOffset.Specified,
+                    (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L + (long)block.StartTime,
+                    b => (b as ConstantFrequencySamplesDataBlock<AccelerationSample>)?.Frequency == sampleRate
+                );
+                accelerationFifo.KeepFifoOnReset = false;
+
+                // We start the thread with shouldStop: false so that it will keep feeding the last
+                // sample into the FIFO at the specified frequency until it's stopped after a sample
+                // rate switch
+                AccelerationSample previousSample = null;
+                feederThread = resdStream.StartSampleFeedThread(this, sampleRate, (sample, ts, status) =>
+                {
+                    if(status == RESDStreamStatus.OK)
+                    {
+                        previousSample = sample;
+                    }
+                    else if(status == RESDStreamStatus.AfterStream && index == mapping.Count)
+                    {
+                        feederThread = null;
+                    }
+                    if(previousSample != null)
+                    {
+                        HandleAccelerationSample(previousSample, ts);
+                    }
+                }, shouldStop: false);
+            };
+
+            findAndActivate(SampleRate);
+            SampleRateChanged += findAndActivate;
         }
 
         private void FeedAccelerationSampleInner(decimal x, decimal y, decimal z, bool keepOnReset, uint repeat = 1)
@@ -765,9 +858,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IManagedThread feederThread;
         private RESDStream<AccelerationSample> resdStream;
 
+        private event Action<uint> SampleRateChanged;
+
         private decimal temperature;
 
         private readonly LIS2DW12_FIFO accelerationFifo;
+        private readonly IMachine machine;
 
         private const decimal MinTemperature = -40.0m;
         // The temperature register has the value 0 at this temperature
@@ -786,6 +882,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private const int MinValue12Bit = -0x0800;
         private const int MaxValue12Bit = 0x07FF;
         private const int TemperatureLsbsPerDegree = 16;
+
+        public enum RESDType
+        {
+            Normal,
+            MultiFrequency,
+        }
 
         private class LIS2DW12_FIFO
         {
