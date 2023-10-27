@@ -1865,13 +1865,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     return emptyDisposable;
                 }
-                if(context.Value.inUse)
+                if(context.Value.InUse && cpu != context.Value.cpu)
                 {
                     throw new RecoverableException("Attempted to create nested context");
                 }
+                context.Value.cpu = cpu;
                 context.Value.cpuId = parent.GetCPUId(cpu);
-                context.Value.inUse = true;
-                return DisposableWrapper.New(() => context.Value.inUse = false);
+                context.Value.level++;
+                return DisposableWrapper.New(() => context.Value.level--);
             }
 
             public void Dispose()
@@ -1879,7 +1880,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 context.Dispose();
             }
 
-            public bool InUse => context.Value.inUse;
+            public bool InUse => context.Value.InUse;
             public int CPUId => context.Value.cpuId;
 
             private readonly ThreadLocal<Context> context;
@@ -1889,8 +1890,10 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             private class Context
             {
+                public ICPU cpu;
                 public int cpuId;
-                public bool inUse;
+                public int level;
+                public bool InUse => level != 0;
             }
         }
     }
