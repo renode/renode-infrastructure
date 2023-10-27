@@ -266,7 +266,8 @@ namespace Antmicro.Renode.Utilities.RESD
             return RESDStreamStatus.AfterStream;
         }
 
-        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0)
+        // If shouldStop is false, the thread will continue running after the end of the stream
+        public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, bool shouldStop = true)
         {
             var machine = owner.GetMachine();
             Action feedSample = () =>
@@ -281,7 +282,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 {
                     Owner?.Log(LogLevel.Debug, "RESD: End of sample feeding thread detected");
                     newSampleCallback(null, TimeInterval.Empty, RESDStreamStatus.AfterStream);
-                    return true;
+                    return shouldStop;
                 }
                 return false;
             };
