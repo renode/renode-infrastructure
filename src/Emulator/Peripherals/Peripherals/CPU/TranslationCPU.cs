@@ -1449,7 +1449,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(anyEnabled)
                 {
                     // TODO: think if we have to tlib restart at all? if there is no pausing in watchpoint hook than maybe it's not necessary at all?
-                    parent.TlibRestartTranslationBlock();
+                    parent.TlibRequestTranslationBlockInterrupt();
                     // note that on the line above we effectively exit the function so the stuff below is not executed
                 }
                 else
@@ -1492,7 +1492,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         parent.TlibRestoreContext();
                     }
-                    parent.TlibRestartTranslationBlock();
+                    parent.TlibRequestTranslationBlockInterrupt();
                     // Note that any code after RestartTranslationBlock won't be executed
                 }
                 guard.Value = null;
@@ -1634,7 +1634,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncInt32Int32 TlibExecute;
 
         [Import]
-        protected Action TlibRestartTranslationBlock;
+        protected Action TlibRequestTranslationBlockInterrupt;
 
         [Import]
         protected Action TlibSetReturnRequest;

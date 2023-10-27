@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             LastError = error;
             if(stopExecution)
             {
-                this.TlibRestartTranslationBlock();
+                this.TlibRequestTranslationBlockInterrupt();
             }
         }
 
