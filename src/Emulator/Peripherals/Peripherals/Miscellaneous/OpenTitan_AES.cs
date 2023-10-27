@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             UpdateErrorAlert = new GPIO();
 
             key = new byte[InitialKeyShareLengthInBytes];
-            aes = Aes.Create();
+            aes = new AesManaged();
             random = new PseudorandomNumberGenerator();
             Reset();
         }
@@ -316,7 +316,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<OperationMode> operationMode;
         private IEnumRegisterField<KeyLength> keyLength;
 
-        private readonly Aes aes;
+        private readonly AesManaged aes;
         private readonly PseudorandomNumberGenerator random;
 
         private const int InitialKeyShareLengthInBytes = 32;
