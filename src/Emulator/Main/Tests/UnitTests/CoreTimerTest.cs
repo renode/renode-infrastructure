@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -79,6 +79,38 @@ namespace Antmicro.Renode.UnitTests
                 Assert.GreaterOrEqual(value, 0, "Timer returned negative value.");
                 manualClockSource.AdvanceBySeconds(1);
             }
+        }
+
+        [Test]
+        public void ShouldHandleMicrosecondPrecisionTimerEvents()
+        {
+            uint activationCounter = 0;
+
+            var limit = 4UL;
+            var manualClockSource = new ManualClockSource();
+            var timer = new LimitTimer(manualClockSource, 1000000, null, String.Empty, limit, Direction.Descending, true);
+            timer.EventEnabled = true;
+            timer.LimitReached += () => activationCounter++;
+            manualClockSource.Advance(TimeInterval.FromMicroseconds(10));
+
+            Assert.AreEqual(2, activationCounter, "Timer did not go off twice.");
+            Assert.AreEqual(2, timer.Value, "Timer value is not expected.");
+        }
+
+        [Test]
+        public void ShouldHandleSubMicrosecondPrecisionTimerEvents()
+        {
+            uint activationCounter = 0;
+
+            var limit = 4UL;
+            var manualClockSource = new ManualClockSource();
+            var timer = new LimitTimer(manualClockSource, 10000000, null, String.Empty, limit, Direction.Descending, true);
+            timer.EventEnabled = true;
+            timer.LimitReached += () => activationCounter++;
+            manualClockSource.Advance(TimeInterval.FromMicroseconds(1));
+
+            Assert.AreEqual(2, activationCounter, "Timer did not go off twice.");
+            Assert.AreEqual(2, timer.Value, "Timer value is not expected.");
         }
 
         [Test]
