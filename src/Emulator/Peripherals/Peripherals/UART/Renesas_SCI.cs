@@ -57,6 +57,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public override uint BaudRate => 115200;
 
         public GPIO IRQ { get; } = new GPIO();
+        public GPIO TxIRQ { get; } = new GPIO();
+        public GPIO TxEndIRQ { get; } = new GPIO();
 
         protected override void CharWritten()
         {
@@ -73,6 +75,8 @@ namespace Antmicro.Renode.Peripherals.UART
             // On real hardware FCR.RTRG value doesn't affect interrupt requests,
             // they are triggered for every character in RX fifo.
             IRQ.Set(receiveInterruptEnable.Value && receiveFifo.Count > 0);
+            TxEndIRQ.Set(transmitEndInterruptEnable.Value);
+            TxIRQ.Set(transmitInterruptEnable.Value);
         }
 
         private void DefineRegisters()
@@ -126,14 +130,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("DCME", 9)
                 .WithTaggedFlag("IDSEL", 10)
                 .WithReservedBits(11, 5)
-                .WithFlag(16, out receiveInterruptEnable, name: "RIE",
-                    writeCallback: (_, __) => UpdateInterrupts())
+                .WithFlag(16, out receiveInterruptEnable, name: "RIE")
                 .WithReservedBits(17, 3)
-                .WithTaggedFlag("TIE", 20)
-                .WithTaggedFlag("TEIE", 21)
+                .WithFlag(20, out transmitInterruptEnable, name: "TIE")
+                .WithFlag(21, out transmitEndInterruptEnable, name: "TEIE")
                 .WithReservedBits(22, 2)
                 .WithTaggedFlag("SSE", 24)
-                .WithReservedBits(25, 7);
+                .WithReservedBits(25, 7)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.FIFOControlRegister.Define(this, resetValue: 0x1f1f0000)
                 .WithTaggedFlag("DRES", 0)
@@ -176,6 +180,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private IValueRegisterField receiveFifoDataTriggerNumber;
         private IFlagRegisterField receiveInterruptEnable;
+        private IFlagRegisterField transmitInterruptEnable;
+        private IFlagRegisterField transmitEndInterruptEnable;
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
 
