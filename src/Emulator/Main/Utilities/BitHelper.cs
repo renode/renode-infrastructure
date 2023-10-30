@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Utilities
 
         public static ulong SetBitsFrom(ulong source, ulong newValue, int position, int width)
         {
-            var mask = ((1u << width) - 1) << position;
+            var mask = ((1UL << width) - 1) << position;
             var bitsToSet = newValue & mask;
             return source | bitsToSet;
         }
