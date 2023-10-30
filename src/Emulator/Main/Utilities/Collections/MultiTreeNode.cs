@@ -64,7 +64,6 @@ namespace Antmicro.Renode.Utilities.Collections
                 handler(ChildrenList[i].Value, ConnectionWays[i]);
             }
         }
-       
 
         public override void RemoveChild(TValue value)
         {
@@ -147,4 +146,3 @@ namespace Antmicro.Renode.Utilities.Collections
         }
     }
 }
-
