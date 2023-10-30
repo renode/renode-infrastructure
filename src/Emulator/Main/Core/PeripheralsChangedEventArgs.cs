@@ -9,7 +9,7 @@ using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core
 {
-    public class PeripheralsChangedEventArgs 
+    public class PeripheralsChangedEventArgs
     {
         public PeripheralsChangedEventArgs(IPeripheral peripheral, PeripheralChangeType operation)
         {
@@ -30,4 +30,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-
