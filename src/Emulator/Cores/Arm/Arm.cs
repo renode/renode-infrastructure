@@ -218,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override string GetExceptionDescription(ulong exceptionIndex)
         {
-            if((int)exceptionIndex >= ExceptionDescriptions.Length)
+            if(exceptionIndex >= (ulong)ExceptionDescriptions.Length)
             {
                 return base.GetExceptionDescription(exceptionIndex);
             }
