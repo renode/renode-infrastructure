@@ -492,6 +492,12 @@ namespace Antmicro.Renode.Utilities
             reg |= value;
         }
 
+        public static uint SetMaskedValue(uint source, uint value, int maskOffset, int maskSize)
+        {
+            SetMaskedValue(ref source, value, maskOffset, maskSize);
+            return source;
+        }
+
         public static void SetMaskedValue(ref ulong reg, ulong value, int maskOffset, int maskSize)
         {            
             var mask = CalculateQuadWordMask(maskSize, maskOffset);
@@ -499,6 +505,12 @@ namespace Antmicro.Renode.Utilities
             value &= mask;
             reg &= ~mask;
             reg |= value;
+        }
+
+        public static ulong SetMaskedValue(ulong source, ulong value, int maskOffset, int maskSize)
+        {
+            SetMaskedValue(ref source, value, maskOffset, maskSize);
+            return source;
         }
 
         public static uint GetValueFromBitsArray(IEnumerable<bool> array)
