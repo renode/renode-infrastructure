@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -31,19 +31,19 @@ namespace Antmicro.Renode.UnitTests
             var timer = new ComparingTimer(clockSource, 1000000, null, String.Empty, 65535 + 1, enabled: true, workMode: WorkMode.Periodic, eventEnabled: true, compare: 65535);
             timer.CompareReached += delegate { compareCounter++; };
 
-            clockSource.Advance(TimeInterval.FromTicks(65535), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(65535), true);
             Assert.AreEqual(65535, timer.Value);
             Assert.AreEqual(65535, timer.Compare);
             Assert.AreEqual(1, compareCounter);
 
-            clockSource.Advance(TimeInterval.FromTicks(1), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(1), true);
             Assert.AreEqual(0, timer.Value);
             Assert.AreEqual(65535, timer.Compare);
             Assert.AreEqual(1, compareCounter);
 
             compareCounter = 0;
 
-            clockSource.Advance(TimeInterval.FromTicks(16304), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(16304), true);
             Assert.AreEqual(16304, timer.Value);
             Assert.AreEqual(65535, timer.Compare);
             Assert.AreEqual(0, compareCounter);
@@ -53,22 +53,22 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0, timer.Compare);
             Assert.AreEqual(0, compareCounter);
 
-            clockSource.Advance(TimeInterval.FromTicks(65535 - 16304), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(65535 - 16304), true);
             Assert.AreEqual(65535, timer.Value);
             Assert.AreEqual(0, timer.Compare);
             Assert.AreEqual(0, compareCounter);
 
-            clockSource.Advance(TimeInterval.FromTicks(1), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(1), true);
             Assert.AreEqual(0, timer.Value);
             Assert.AreEqual(0, timer.Compare);
             Assert.AreEqual(1, compareCounter);
 
-            clockSource.Advance(TimeInterval.FromTicks(65535), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(65535), true);
             Assert.AreEqual(65535, timer.Value);
             Assert.AreEqual(0, timer.Compare);
             Assert.AreEqual(1, compareCounter);
 
-            clockSource.Advance(TimeInterval.FromTicks(1), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(1), true);
             Assert.AreEqual(0, timer.Value);
             Assert.AreEqual(0, timer.Compare);
             Assert.AreEqual(2, compareCounter);
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.UnitTests
 
             // Run to 100 ticks
             var advance = 100UL;
-            clockSource.Advance(TimeInterval.FromTicks(advance), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(advance), true);
             Assert.AreEqual(advance, timer.Value);
             Assert.AreEqual(compare, timer.Compare);
             Assert.AreEqual(compareCounter, 0);
@@ -109,12 +109,12 @@ namespace Antmicro.Renode.UnitTests
 
             // Run to 200 ticks, then clear
             var advance = 200UL;
-            clockSource.Advance(TimeInterval.FromTicks(advance), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(advance), true);
             timer.Value = 0;
 
             // Now run to compare
             compareCounter = 0;
-            clockSource.Advance(TimeInterval.FromTicks(compare), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(compare), true);
             Assert.AreEqual(compareCounter, 1);
             Assert.AreEqual(timer.Value, compare);
             Assert.AreEqual(timer.Compare, compare);
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0, compareCounter);
 
             // Run up to the first compare
-            clockSource.Advance(TimeInterval.FromTicks(100), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(100), true);
             Assert.AreEqual(1, compareCounter);
 
             // overwrite timer's value with the same value it has;
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(1, compareCounter);
 
             // Now run to the next compare event
-            clockSource.Advance(TimeInterval.FromTicks(300), true);
+            clockSource.Advance(TimeInterval.FromMicroseconds(300), true);
             Assert.AreEqual(2, compareCounter);
             Assert.AreEqual(timer.Value, compare);
             Assert.AreEqual(timer.Compare, compare);
