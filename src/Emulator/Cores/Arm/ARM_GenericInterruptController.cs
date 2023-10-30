@@ -78,13 +78,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
-                    ProductIdentifier = DefaultProductIdentifier;
-                    CPUInterfaceRevision = DefaultRevisionNumber;
-                    CPUInterfaceImplementer = DefaultImplementerIdentification;
-                    DistributorVariant = DefaultVariantNumber;
-                    DistributorRevision = DefaultRevisionNumber;
-                    DistributorImplementer = DefaultImplementerIdentification;
-
                     ackControl = false;
                     enableFIQ = false;
                     disabledSecurity = false;
@@ -378,12 +371,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; }
-        public uint ProductIdentifier { get; set; }
-        public byte CPUInterfaceRevision { get; set; }
-        public uint CPUInterfaceImplementer { get; set; }
-        public byte DistributorVariant { get; set; }
-        public byte DistributorRevision { get; set; }
-        public uint DistributorImplementer { get; set; }
+        public uint ProductIdentifier { get; set; } = DefaultProductIdentifier;
+        public byte CPUInterfaceRevision { get; set; } = DefaultRevisionNumber;
+        public uint CPUInterfaceImplementer { get; set; } = DefaultImplementerIdentification;
+        public byte DistributorVariant { get; set; } = DefaultVariantNumber;
+        public byte DistributorRevision { get; set; } = DefaultRevisionNumber;
+        public uint DistributorImplementer { get; set; } = DefaultImplementerIdentification;
 
         public event Action<IARMSingleSecurityStateCPU> CPUAttached;
 
