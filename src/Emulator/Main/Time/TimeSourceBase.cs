@@ -757,7 +757,7 @@ namespace Antmicro.Renode.Time
         private readonly object virtualTimeSyncLock;
         private readonly object isOnSyncPhaseThreadLock;
 
-        private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);
+        private static readonly TimeInterval DefaultQuantum = TimeInterval.FromMicroseconds(100);
 
         /// <summary>
         /// Allows locking without starvation.

@@ -656,8 +656,8 @@ restart:
                         {
                             // Don't fall behind realtime by sleeping
                             var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(virtualTimeAhead.Ticks);
-                            sleeper.Sleep(intervalToSleep.ToTimeSpan(), out var intervalSlept);
-                            instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum;
+                            sleeper.Sleep(intervalToSleep.ToTimeSpan(out var nsResiduum), out var intervalSlept);
+                            instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept, nsResiduum).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum;
                         }
 
                         ReportProgress(instructionsToSkip);
@@ -717,7 +717,7 @@ restart:
                 // reportedInstructions + executedResiduum + instructionsLeft = instructionsToExecuteThisRound
                 // reportedInstructions is divisible by instructionsPerTick and instructionsToExecuteThisRound is divisible by instructionsPerTick
                 // so instructionsLeft + executedResiduum is divisible by instructionsPerTick and residuum is 0
-                var timeLeft = TimeInterval.FromCPUCycles(instructionsLeft + executedResiduum, PerformanceInMips, out var residuum) + TimeInterval.FromTicks(ticksResiduum);
+                var timeLeft = TimeInterval.FromCPUCycles(instructionsLeft + executedResiduum, PerformanceInMips, out var residuum) + TimeInterval.FromMicroseconds(ticksResiduum);
                 DebugHelper.Assert(residuum == 0);
                 if(instructionsLeft > 0)
                 {
