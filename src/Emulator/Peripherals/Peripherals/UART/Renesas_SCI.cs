@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public override uint BaudRate => 115200;
 
-        public GPIO IRQ { get; } = new GPIO();
+        public GPIO RxIRQ { get; } = new GPIO();
         public GPIO TxIRQ { get; } = new GPIO();
         public GPIO TxEndIRQ { get; } = new GPIO();
 
@@ -74,7 +74,8 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             // On real hardware FCR.RTRG value doesn't affect interrupt requests,
             // they are triggered for every character in RX fifo.
-            IRQ.Set(receiveInterruptEnable.Value && receiveFifo.Count > 0);
+            RxIRQ.Set(receiveInterruptEnable.Value && receiveFifo.Count > 0);
+
             TxEndIRQ.Set(transmitEndInterruptEnable.Value);
             TxIRQ.Set(transmitInterruptEnable.Value);
         }
