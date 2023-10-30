@@ -309,25 +309,25 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                 {(long)Registers.AliasedControlRegister0, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 0, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 0, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 0, 8), name: "CTRL0")
                 },
 
                 {(long)Registers.AliasedControlRegister1, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 8, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 8, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 8, 8), name: "CTRL1")
                 },
 
                 {(long)Registers.AliasedControlRegister2, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 16, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 16, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 16, 8), name: "CTRL2")
                 },
 
                 {(long)Registers.AliasedControlRegister3, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
-                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetBitsFrom(controlRegister.Value, newVal, 24, 8)),
+                        writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 24, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 24, 8), name: "CTRL3")
                 }
             };

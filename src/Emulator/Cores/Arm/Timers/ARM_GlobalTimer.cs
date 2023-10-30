@@ -196,13 +196,13 @@ namespace Antmicro.Renode.Peripherals.Timers
         private ulong CounterLow
         {
             get => (uint)Counter;
-            set => Counter = BitHelper.SetBitsFrom(Counter, value, 0, 32);
+            set => Counter = BitHelper.SetMaskedValue(Counter, value, 0, 32);
         }
 
         private ulong CounterHigh
         {
             get => (uint)(Counter >> 32);
-            set => Counter = BitHelper.SetBitsFrom(Counter, value, 32, 32);
+            set => Counter = BitHelper.SetMaskedValue(Counter, value, 32, 32);
         }
 
         private ulong Counter
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 get => (uint)innerTimer.Compare;
                 set
                 {
-                    innerTimer.Compare = BitHelper.SetBitsFrom(innerTimer.Compare, value, 0, 32);
+                    innerTimer.Compare = BitHelper.SetMaskedValue(innerTimer.Compare, value, 0, 32);
                     UpdateEventFlag();
                     UpdateInterrupt();
                 }
@@ -320,7 +320,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 get => (uint)(innerTimer.Compare >> 32);
                 set
                 {
-                    innerTimer.Compare = BitHelper.SetBitsFrom(innerTimer.Compare, value, 32, 32);
+                    innerTimer.Compare = BitHelper.SetMaskedValue(innerTimer.Compare, value, 32, 32);
                     UpdateEventFlag();
                     UpdateInterrupt();
                 }
