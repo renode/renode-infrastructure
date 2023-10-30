@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.Collections
             ParentsList = new List<TNode>();
         }
 
-        public IEnumerable<TNode> Children 
+        public IEnumerable<TNode> Children
         {
             get
             {
@@ -54,10 +54,10 @@ namespace Antmicro.Renode.Utilities.Collections
             {
                 child.TraverseChildrenFirst(nodeHandler, initialLevel + 1);
             }
-            
+
             nodeHandler((TNode)this, ChildrenList, initialLevel);
         }
-        
+
         public void TraverseParentFirst(Action<TValue, int> nodeHandler, int initialLevel)
         {
             nodeHandler(value, initialLevel);
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Utilities.Collections
                 child.TraverseParentFirst(nodeHandler, initialLevel + 1);
             }
         }
-        
+
         public TNode TryGetNode(Func<TValue, bool> predicate)
         {
             if(predicate(value))
@@ -83,12 +83,12 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             return null;
         }
-        
+
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
         }
-        
+
         public IEnumerator<TValue> GetEnumerator()
         {
             yield return Value;
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Utilities.Collections
         }
 
         public abstract TNode AddChild(TValue value);
-        
+
         public TNode TryGetNode(TValue valueToFind)
         {
             return TryGetNode(val => valueToFind.Equals(val));
@@ -116,11 +116,10 @@ namespace Antmicro.Renode.Utilities.Collections
                 throw new InvalidOperationException(string.Format("Could not find child '{0}'.", value));
             }
             ChildrenList.Remove(node);
-        }     
+        }
 
         protected readonly List<TNode> ParentsList;
         protected readonly List<TNode> ChildrenList;
         private readonly TValue value;
     }
-    
 }
