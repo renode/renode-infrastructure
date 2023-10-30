@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(23, 9)
                 },
                 {(long)Registers.WakeupTimerRegister, new DoubleWordRegister(this, 0xFFFF)
-                    .WithValueField(0, 16, name: "WUT",
+                    .WithValueField(0, 16, out wakeupAutoReload, name: "WUT",
                         writeCallback: (_, value) =>
                         {
                             if(!CheckIfUnlocked(Registers.WakeupTimerRegister))
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             // The wakeup timer flag needs to be set every (WUT + 1) cycles of the wakeup timer.
                             wakeupTimer.Limit = value + 1;
                         },
-                        valueProviderCallback: _ => (uint)wakeupTimer.Limit)
+                        valueProviderCallback: _ => WakeupTimerRegisterErrata ? wakeupAutoReload.Value : (uint)wakeupTimer.Limit)
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.CalibrationRegister, new DoubleWordRegister(this)
@@ -673,6 +673,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateAlarm(alarmB, Registers.AlarmBRegister, action);
         }
 
+        public bool WakeupTimerRegisterErrata { get; set; }
+
         private readonly TimerConfig mainTimer;
         private readonly AlarmConfig alarmA;
         private readonly AlarmConfig alarmB;
@@ -683,6 +685,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IValueRegisterField predivS;
         private readonly IValueRegisterField predivA;
         private readonly IFlagRegisterField wakeupTimerFlag;
+        private readonly IValueRegisterField wakeupAutoReload;
         private readonly LimitTimer ticker;
         private readonly LimitTimer fastTicker;
         private readonly LimitTimer wakeupTimer;
