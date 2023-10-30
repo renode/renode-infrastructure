@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -105,6 +105,21 @@ namespace Antmicro.Renode.Utilities.Collections
                 throw new InvalidOperationException(string.Format("Node '{0}' does not have child connected by '{1}'.", Value, connectionWay));
             }
             root.GarbageCollect();
+        }
+
+        public void ReplaceConnectionWay(TConnectionWay oldValue, TConnectionWay newValue)
+        {
+            int index;
+            var replaced = false;
+            while((index = ConnectionWays.IndexOf(oldValue)) != -1)
+            {
+                ConnectionWays[index] = newValue;
+                replaced = true;
+            }
+            if(!replaced)
+            {
+                throw new InvalidOperationException($"Node '{Value}' does not have child with connection way '{oldValue}'.");
+            }
         }
 
         protected void TraverseWithConnectionWaysChildrenOnly(Action<MultiTreeNode<TValue, TConnectionWay>, TConnectionWay, TValue, int> nodeHandler, int initialLevel)
