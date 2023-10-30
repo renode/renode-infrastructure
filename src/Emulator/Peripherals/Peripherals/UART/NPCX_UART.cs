@@ -35,7 +35,10 @@ namespace Antmicro.Renode.Peripherals.UART
             parityEnable = false;
             parityMode = ParityMode.Odd;
             divisor = 1;
-            rxFullLevel = 1;
+            rxFullLevelSelect = 1;
+
+            rxNonEmptyInterruptEnable = false;
+            rxFullLevelInterruptEnable = false;
 
             base.Reset();
             RegistersCollection.Reset();
@@ -96,7 +99,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            // TODO
+            var rxNonEmpty = rxNonEmptyInterruptEnable && Count != 0;
+            var rxFullLevel = rxFullLevelInterruptEnable && RxFullLevelStatus;
+
+            IRQ.Set(rxNonEmpty || rxFullLevel);
         }
 
         private Dictionary<long, ByteRegister> BuildRegisterMap()
@@ -201,9 +207,19 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.ReceiveControl, new ByteRegister(this)
                     .WithTaggedFlag("ERR_EN (Receive Error Interrupt Enable)", 7)
-                    .WithTaggedFlag("RFIFO_NEMPTY_EN (Receive FIFO Not Empty Status Interrupt Enable)", 6)
-                    .WithTaggedFlag("RFULL_LEVEL_EN (Receive FIFO Full Level Status Interrupt Enable)", 5)
-                    .WithTag("RFULL_LEVEL_SEL (Receive FIFO Full Level Select)", 0, 5)
+                    .WithFlag(6, name: "RFIFO_NEMPTY_EN (Receive FIFO Not Empty Status Interrupt Enable)",
+                        valueProviderCallback: _ => rxNonEmptyInterruptEnable,
+                        writeCallback: (_, val) => rxNonEmptyInterruptEnable = val
+                    )
+                    .WithFlag(5, name: "RFULL_LEVEL_EN (Receive FIFO Full Level Status Interrupt Enable)",
+                        valueProviderCallback: _ => rxFullLevelInterruptEnable,
+                        writeCallback: (_, val) => rxFullLevelInterruptEnable = val
+                    )
+                    .WithValueField(0, 5, name: "RFULL_LEVEL_SEL (Receive FIFO Full Level Select)",
+                        valueProviderCallback: _ => (ulong)rxFullLevelSelect,
+                        writeCallback: (_, val) => rxFullLevelSelect = (int)val
+                    )
+                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Control, new ByteRegister(this)
                     .WithReservedBits(7, 1)
@@ -221,13 +237,16 @@ namespace Antmicro.Renode.Peripherals.UART
             return registerMap;
         }
 
-        private bool RxFullLevelStatus => Count >= rxFullLevel;
+        private bool RxFullLevelStatus => Count >= rxFullLevelSelect;
 
         private bool stopBits;
         private bool parityEnable;
         private ParityMode parityMode;
         private uint divisor;
-        private int rxFullLevel;
+        private int rxFullLevelSelect;
+
+        private bool rxNonEmptyInterruptEnable;
+        private bool rxFullLevelInterruptEnable;
 
         private const int MaxQueueCount = 16;
 
