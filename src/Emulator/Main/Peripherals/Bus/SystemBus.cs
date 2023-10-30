@@ -115,6 +115,42 @@ namespace Antmicro.Renode.Peripherals.Bus
             Unregister((IBusPeripheral)peripheral);
         }
 
+        public void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
+        {
+            if(context == null ? !TryFindCurrentThreadCPUAndId(out context, out var _) : !context.OnPossessedThread)
+            {
+                throw new RecoverableException("Moving a peripheral is supported only from context's CPU thread");
+            }
+            if(mappingsForPeripheral.ContainsKey(peripheral))
+            {
+                throw new RecoverableException("Moving mapped peripherals is not yet supported");
+            }
+            var registrationPoints = cpuLocalPeripherals[context].Peripherals.Where(x => x.Peripheral == peripheral).ToList();
+            if(registrationPoints.Count == 0)
+            {
+                throw new RecoverableException("Attempted to move a peripheral that isn't registered within current context");
+            }
+            IBusRegistered<IBusPeripheral> registrationPoint;
+            if(selector != null)
+            {
+                registrationPoint = selector(registrationPoints);
+                if(registrationPoint == null)
+                {
+                    throw new RecoverableException("Provided selector failed to find a suitable registration point");
+                }
+            }
+            else
+            {
+                if(registrationPoints.Count > 1)
+                {
+                    throw new RecoverableException($"Unable to unambiguously determine a registration point, found multiple candidates: {String.Join(", ", registrationPoints.Select(x => x.RegistrationPoint))}");
+                }
+                registrationPoint = registrationPoints[0];
+            }
+            var newRegistrationPoint = cpuLocalPeripherals[context].Move(registrationPoint, newAddress);
+            Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, registrationPoint.RegistrationPoint, newRegistrationPoint.RegistrationPoint);
+        }
+
         public void Register(ICPU cpu, CPURegistrationPoint registrationPoint)
         {
             lock(cpuSync)
@@ -288,12 +324,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return true;
             }
 
+            return TryFindCurrentThreadCPUAndId(out var _, out cpuId);
+        }
+
+        private bool TryFindCurrentThreadCPUAndId(out ICPU cpu, out int cpuId)
+        {
             lock(cpuSync)
             {
                 foreach(var entry in cpuById)
                 {
-                    var candidate = entry.Value;
-                    if(!candidate.OnPossessedThread)
+                    cpu = entry.Value;
+                    if(!cpu.OnPossessedThread)
                     {
                         continue;
                     }
@@ -301,6 +342,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     cachedCpuId.Value = cpuId;
                     return true;
                 }
+                cpu = default(ICPU);
                 cpuId = -1;
                 return false;
             }
