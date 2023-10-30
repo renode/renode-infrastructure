@@ -14,6 +14,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure;
@@ -1586,6 +1587,35 @@ namespace Antmicro.Renode.Core
                 foreach(var cpu in cpus)
                 {
                     cpu.SetBroadcastDirty(true);
+                }
+            }
+        }
+
+        public void ExchangeRegistrationPointForPeripheral(IPeripheral parent, IPeripheral child, IRegistrationPoint oldPoint, IRegistrationPoint newPoint)
+        {
+            // assert paused state or within per-core context
+            var exitLock = false;
+            try
+            {
+                if(!SystemBus.TryGetCurrentCPU(out var cpu) || !cpu.OnPossessedThread)
+                {
+                    Monitor.Enter(pausingSync, ref exitLock);
+                    if(!IsPaused)
+                    {
+                        throw new RecoverableException("Attempted to exchange registration point while not in paused state nor on context's CPU thread");
+                    }
+                }
+                lock(collectionSync)
+                {
+                    registeredPeripherals.GetNode(parent).ReplaceConnectionWay(oldPoint, newPoint);
+                    OnMachinePeripheralsChanged(child, PeripheralsChangedEventArgs.PeripheralChangeType.Moved);
+                }
+            }
+            finally
+            {
+                if(exitLock)
+                {
+                    Monitor.Exit(pausingSync);
                 }
             }
         }

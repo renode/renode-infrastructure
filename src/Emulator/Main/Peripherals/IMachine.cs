@@ -75,6 +75,7 @@ namespace Antmicro.Renode.Core
         void UnregisterAsAChildOf(IPeripheral peripheralParent, IPeripheral peripheralChild);
         void UnregisterAsAChildOf(IPeripheral peripheralParent, IRegistrationPoint registrationPoint);
         void UnregisterFromParent(IPeripheral peripheral);
+        void ExchangeRegistrationPointForPeripheral(IPeripheral parent, IPeripheral child, IRegistrationPoint oldPoint, IRegistrationPoint newPoint);
 
         IPeripheral this[string name] { get; }
         IntPtr AtomicMemoryStatePointer { get; }
