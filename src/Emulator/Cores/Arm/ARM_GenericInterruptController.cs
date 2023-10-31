@@ -348,19 +348,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             get => !supportsTwoSecurityStates || disabledSecurity;
             set
             {
-                if(value == disabledSecurity)
+                if(!supportsTwoSecurityStates)
+                {
+                    this.Log(LogLevel.Warning, "Disabling security isn't allowed for a single security GIC, write ignored.");
+                    return;
+                }
+                if(!SetOnTransitionToTrue(ref disabledSecurity, value, "Trying to enable security when it's disabled, write ignored."))
                 {
                     return;
                 }
 
-                if(!value)
+                if(groups.Values.Any(group => group.Enabled))
                 {
-                    // Reenabling security can only be done through a reset
-                    this.Log(LogLevel.Warning, "Trying to enable security when it's disabled, write ignored.");
-                    return;
+                    this.Log(LogLevel.Warning, "Disabling security when a group of interrupts is enabled.");
                 }
 
-                disabledSecurity = true;
                 var cpuConfigs = cpuEntries.Values.SelectMany(cpu => cpu.AllInterruptsConfigs);
                 var allInterruptConfigs = cpuConfigs.Concat(sharedInterrupts.Values.Select(irq => irq.Config));
                 foreach(var config in allInterruptConfigs)
@@ -1502,6 +1504,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             const long maxByteOffset = 3;
             return (long)RedistributorRegisters.InterruptPriority_0 <= offset && offset <= (long)RedistributorRegisters.InterruptPriority_7 + maxByteOffset;
+        }
+
+        private bool SetOnTransitionToTrue(ref bool value, bool newValue, string warningOnTransitionToFalse)
+        {
+            if(newValue == value)
+            {
+                return false;
+            }
+            if(!newValue)
+            {
+                this.Log(LogLevel.Warning, warningOnTransitionToFalse);
+                return false;
+            }
+            value = true;
+            return true;
         }
 
         private bool ackControl;
