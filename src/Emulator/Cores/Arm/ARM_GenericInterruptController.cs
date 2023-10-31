@@ -236,7 +236,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void WriteDoubleWordToRedistributor(long offset, uint value)
         {
             LockExecuteAndUpdate(() =>
-                LogWriteAccess(redistributorDoubleWordRegisters.TryWrite(offset, value), value, "Redistributor", offset, (RedistributorRegisters)offset)
+                {
+                    // Only a few virtual quad word registers can't be double word accessed, assume all accesses are valid.
+                    var registerExists = redistributorDoubleWordRegisters.TryWrite(offset, value)
+                        || TryWriteDoubleWordToQuadWordCollection(redistributorQuadWordRegisters, offset, value);
+                    LogWriteAccess(registerExists, value, "Redistributor", offset, (RedistributorRegisters)offset);
+                }
             );
         }
 
@@ -245,7 +250,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             uint value = 0;
             LockExecuteAndUpdate(() =>
-                LogReadAccess(redistributorDoubleWordRegisters.TryRead(offset, out value), value, "Redistributor", offset, (RedistributorRegisters)offset)
+                {
+                    // Only a few virtual quad word registers can't be double word accessed, assume all accesses are valid.
+                    var registerExists = redistributorDoubleWordRegisters.TryRead(offset, out value)
+                        || TryReadDoubleWordFromQuadWordCollection(redistributorQuadWordRegisters, offset, out value);
+                    LogReadAccess(registerExists, value, "Redistributor", offset, (RedistributorRegisters)offset);
+                }
             );
             return value;
         }
@@ -1462,6 +1472,37 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool TryReadByteFromDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, out byte value)
         {
             AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
+            var registerExists = registers.TryRead(alignedOffset, out var registerValue);
+            value = (byte)(registerValue >> (byteOffset * BitHelper.BitsPerByte));
+            return registerExists;
+        }
+
+        private bool TryWriteDoubleWordToQuadWordCollection(QuadWordRegisterCollection registers, long offset, uint value)
+        {
+            AlignRegisterOffset(offset, QuadWordRegister.QuadWordWidth, out var alignedOffset, out var byteOffset);
+            if(byteOffset % BitHelper.CalculateBytesCount(DoubleWordRegister.DoubleWordWidth) != 0)
+            {
+                // Unaligned access is forbidden.
+                return false;
+            }
+            var registerExists = registers.TryRead(alignedOffset, out var currentValue);
+            if(registerExists)
+            {
+                BitHelper.UpdateWithShifted(ref currentValue, value, byteOffset * BitHelper.BitsPerByte, BitHelper.BitsPerByte);
+                registerExists &= registers.TryWrite(alignedOffset, currentValue);
+            }
+            return registerExists;
+        }
+
+        private bool TryReadDoubleWordFromQuadWordCollection(QuadWordRegisterCollection registers, long offset, out uint value)
+        {
+            AlignRegisterOffset(offset, QuadWordRegister.QuadWordWidth, out var alignedOffset, out var byteOffset);
+            if(byteOffset % BitHelper.CalculateBytesCount(DoubleWordRegister.DoubleWordWidth) != 0)
+            {
+                // Unaligned access is forbidden.
+                value = 0;
+                return false;
+            }
             var registerExists = registers.TryRead(alignedOffset, out var registerValue);
             value = (byte)(registerValue >> (byteOffset * BitHelper.BitsPerByte));
             return registerExists;
