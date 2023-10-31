@@ -458,6 +458,7 @@
     <Compile Include="Peripherals\Analog\IMXRT_ADC.cs" />
     <Compile Include="Peripherals\Timers\IMXRT_PWM.cs" />
     <Compile Include="Peripherals\Miscellaneous\MPFS_SystemServices.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NPCX_LFCG.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_Watchdog.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Watchdog.cs" />
     <Compile Include="Peripherals\Storage\VirtIOBlockDevice.cs" />
