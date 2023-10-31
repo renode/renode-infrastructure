@@ -875,7 +875,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                     .WithTag("LocalitySpecificInterruptConfigurationSharing", 24, 2)
                     .WithValueField(8, 16, FieldMode.Read, name: "ProcessorNumber",
-                        valueProviderCallback: _ => GetAskingCPUEntry().Affinity.Level0
+                        valueProviderCallback: _ => GetAskingCPUEntry().ProcessorNumber
                     )
                     .WithTaggedFlag("vPEResidentIndicator", 7)
                     .WithFlag(6, FieldMode.Read, name: "MPAMSupport",
@@ -1170,14 +1170,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BuildInterruptValueRegisters(startId, endId, name, 4,
                 writeCallback: (irq, val) =>
                 {
-                    ((SharedInterrupt)irq).TargetCPU = (byte)val;
+                    ((SharedInterrupt)irq).TargetCPUs = (byte)val;
                     var invalidTargets = ~legacyCpusAttachedMask & val;
                     if(invalidTargets != 0)
                     {
                         this.Log(LogLevel.Warning, "Interrupt {0} configured to target an invalid CPU, id: {1}.", irq.Identifier, String.Join(", ", BitHelper.GetSetBits(invalidTargets)));
                     }
                 },
-                valueProviderCallback: irq => ((SharedInterrupt)irq).TargetCPU
+                valueProviderCallback: irq => ((SharedInterrupt)irq).TargetCPUs
             );
         }
 
@@ -1659,8 +1659,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 this.gic = gic;
                 this.cpu = cpu;
-                Affinity = new CPUAffinity(cpu.Affinity0);
-                Name = $"cpu{Affinity.Level0}";
+                Name = $"cpu{Affinity}";
                 interruptSignals = interruptConnections;
 
                 var sgiIds = InterruptId.GetRange(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.SoftwareGeneratedLast);
@@ -1852,7 +1851,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
 
-            public CPUAffinity Affinity { get; }
+            public Affinity Affinity => cpu.Affinity;
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
             public uint ProcessorNumber => cpu.Id;
@@ -2075,15 +2074,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public override void Reset()
             {
                 base.Reset();
-                TargetCPU = 0;
+                TargetCPUs = 0;
             }
 
             public bool IsTargetingCPU(CPUEntry cpu)
             {
-                return (TargetCPU & cpu.TargetFieldFlag) != 0;
+                return (TargetCPUs & cpu.TargetFieldFlag) != 0;
             }
 
-            public byte TargetCPU { get; set; }
+            public byte TargetCPUs { get; set; }
         }
 
         // This class will be extended at least for the Binary Point register support
@@ -2226,18 +2225,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 AllCPUs = 0b01,
                 Loopback = 0b10
             }
-        }
-
-        private struct CPUAffinity
-        {
-            // TODO: Add other affinity levels too
-            public CPUAffinity(uint cpuIdentifier)
-            {
-                Level0 = (byte)cpuIdentifier;
-            }
-
-            public byte Level0 { get; }
-            public uint AllLevels => Level0;
         }
 
         private enum InterruptPriority : byte

@@ -6,12 +6,14 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IARMSingleSecurityStateCPU : ICPU
     {
-        byte Affinity0 { get; }
+        Affinity Affinity { get; }
         // This kind of CPU is always in a specific Security State and it can't be changed
         SecurityState SecurityState { get; }
     }
@@ -66,5 +68,50 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         Secure,
         NonSecure
+    }
+
+    public class Affinity
+    {
+        public Affinity(byte level0, byte level1 = 0, byte level2 = 0, byte level3 = 0)
+        {
+            levels[0] = level0;
+            levels[1] = level1;
+            levels[2] = level2;
+            levels[3] = level3;
+        }
+
+        public Affinity(uint allLevels)
+        {
+            AllLevels = allLevels;
+        }
+
+        public byte GetLevel(int levelIndex)
+        {
+            return levels[levelIndex];
+        }
+
+        public uint AllLevels
+        {
+            get => BitHelper.ToUInt32(levels, 0, levels.Length, false);
+            protected set => BitHelper.GetBytesFromValue(levels, 0, value, levels.Length, false);
+        }
+
+        public override string ToString()
+        {
+            return String.Join(".", levels.Reverse());
+        }
+
+        protected readonly byte[] levels = new byte[LevelsCount];
+        protected const int LevelsCount = 4;
+    }
+
+    public class MutableAffinity : Affinity
+    {
+        public MutableAffinity() : base(0) { }
+
+        public void SetLevel(int levelIndex, byte levelValue)
+        {
+            levels[levelIndex] = levelValue;
+        }
     }
 }

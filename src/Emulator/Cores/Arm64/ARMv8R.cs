@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
             SecurityState = securityState;
+            Affinity = new Affinity(cpuId);
             this.defaultHVBARValue = defaultHVBARValue;
             this.defaultVBARValue = defaultVBARValue;
 
@@ -168,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
-        public byte Affinity0 => (byte)Id;
+        public Affinity Affinity { get; }
         public SecurityState SecurityState { get; private set; }
 
         protected override Interrupt DecodeInterrupt(int number)

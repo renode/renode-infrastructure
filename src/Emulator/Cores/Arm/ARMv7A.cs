@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ARMv7A(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian)
             : base(cpuType, machine, cpuId, endianness)
         {
+            Affinity = new Affinity(cpuId);
             try
             {
                 genericInterruptController?.AttachCPU(this);
@@ -46,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
-        public byte Affinity0 => (byte)Id;
+        public Affinity Affinity { get; }
         public SecurityState SecurityState => SecurityState.Secure;
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)

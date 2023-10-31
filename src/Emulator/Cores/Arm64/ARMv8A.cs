@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ARMv8A(IMachine machine, string cpuType, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
+            Affinity = new Affinity(cpuId);
             gic = genericInterruptController;
             try
             {
@@ -152,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public byte Affinity0 => (byte)Id;
+        public Affinity Affinity { get; }
         public bool IsEL3UsingAArch32State => false; // ARM8vA currently supports only AArch64 execution
         public bool HasSingleSecurityState { get; private set; }
 
