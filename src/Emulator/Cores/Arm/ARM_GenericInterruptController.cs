@@ -1448,29 +1448,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private bool TryWriteByteToDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, uint value)
         {
-            AlignByteRegisterOffset(offset, BytesPerDoubleWordRegister, out var allignedOffset, out var byteShift);
-            var registerExists = registers.TryRead(allignedOffset, out var currentValue);
+            AlignRegisterOffset(offset, BytesPerDoubleWordRegister, out var alignedOffset, out var byteOffset);
+            var registerExists = registers.TryRead(alignedOffset, out var currentValue);
             if(registerExists)
             {
-                BitHelper.UpdateWithShifted(ref currentValue, value, byteShift, BitsPerByte);
-                registerExists &= registers.TryWrite(allignedOffset, currentValue);
+                BitHelper.UpdateWithShifted(ref currentValue, value, byteOffset * BitsPerByte, BitsPerByte);
+                registerExists &= registers.TryWrite(alignedOffset, currentValue);
             }
             return registerExists;
         }
 
         private bool TryReadByteFromDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, out byte value)
         {
-            AlignByteRegisterOffset(offset, BytesPerDoubleWordRegister, out var registerOffset, out var byteShift);
-            var registerExists = registers.TryRead(registerOffset, out var registerValue);
-            value = (byte)(registerValue >> byteShift);
+            AlignRegisterOffset(offset, BytesPerDoubleWordRegister, out var alignedOffset, out var byteOffset);
+            var registerExists = registers.TryRead(alignedOffset, out var registerValue);
+            value = (byte)(registerValue >> (byteOffset * BitsPerByte));
             return registerExists;
         }
 
-        private void AlignByteRegisterOffset(long offset, int bytesPerRegister, out long allignedOffset, out int byteShift)
+        private void AlignRegisterOffset(long offset, int bytesPerRegister, out long alignedOffset, out int byteOffset)
         {
-            var byteOffset = (int)(offset % bytesPerRegister);
-            allignedOffset = offset - byteOffset;
-            byteShift = byteOffset * BitsPerByte;
+            byteOffset = (int)(offset % bytesPerRegister);
+            alignedOffset = offset - byteOffset;
         }
 
         private void LogWriteAccess(bool registerExists, object value, string collectionName, long offset, object prettyOffset)
