@@ -30,10 +30,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 throw new ConstructionException($"The number of shared peripherals {sharedPeripheralCount} is larger than supported {(InterruptsDecoder.MaximumSharedPeripheralCount)}");
             }
 
-            // The behaviour of the GIC doesn't directly depend on the suppportsTwoSecurityState field
+            // The behavior of the GIC doesn't directly depend on the supportsTwoSecurityState field
             // The disabledSecurity field corresponds to the GICD_CTRL.DS flag described in the GICv3 Architecture Specification
             // The GIC without support for two security states has disabled security
-            // Changing the disabledSecurity field affects the behaviour and register map of a GIC
+            // Changing the disabledSecurity field affects the behavior and register map of a GIC
             // Once security is disabled it's impossible to enable it
             // So it is impossible to enable security for the GIC that doesn't support two security states
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
@@ -646,7 +646,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
                         valueProviderCallback: _ => ArchitectureVersion
                     )
-                    .WithTag("ImplementiationDefinedIdentificator", 0, 4)
+                    .WithTag("ImplementationDefinedIdentificator", 0, 4)
                 }
             };
 
@@ -732,7 +732,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 controlRegister
                     .WithReservedBits(8, 23)
-                    .WithFlag(7, FieldMode.Read, name: "Enable1ofNWakeup", valueProviderCallback: _ => false) // There is no support for waking up
+                    .WithFlag(7, FieldMode.Read, name: "Enable1ofNWakeUp", valueProviderCallback: _ => false) // There is no support for waking up
                     .WithFlag(6, name: "DisableSecurity",
                         writeCallback: (_, val) => DisabledSecurity = val,
                         valueProviderCallback: _ => DisabledSecurity
@@ -824,7 +824,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
                         valueProviderCallback: _ => ArchitectureVersion
                     )
-                    .WithTag("ImplementiationDefinedIdentificator", 0, 4)
+                    .WithTag("ImplementationDefinedIdentificator", 0, 4)
                 }
             };
 
@@ -870,7 +870,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithValueField(27, 5, FieldMode.Read, name: "MaximumPrivatePeripheralInterruptIdentifier",
                         valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI
                     )
-                    .WithFlag(26, FieldMode.Read, name: "DirectSoftwareGEenratedInterruptInjectionSupport",
+                    .WithFlag(26, FieldMode.Read, name: "DirectSoftwareGeneratedInterruptInjectionSupport",
                         valueProviderCallback: _ => false
                     )
                     .WithTag("LocalitySpecificInterruptConfigurationSharing", 24, 2)
@@ -1036,7 +1036,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithFlag(7, FieldMode.Read, name: "FIQBypassGroup1", valueProviderCallback: _ => false)
                     .WithFlag(6, FieldMode.Read, name: "IRQBypassGroup0", valueProviderCallback: _ => false)
                     .WithFlag(5, FieldMode.Read, name: "FIQBypassGroup0", valueProviderCallback: _ => false)
-                    .WithTaggedFlag("PremptionControl", 4)
+                    .WithTaggedFlag("PreemptionControl", 4)
                     .WithFlag(3, name: "EnableFIQ",
                         writeCallback: (_, val) => enableFIQ = val,
                         valueProviderCallback: _ => enableFIQ
