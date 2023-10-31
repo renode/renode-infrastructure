@@ -19,11 +19,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Reset();
         }
 
-        public void Reset()
-        {
-            base.Reset();
-        }
-
         public long Size => 0x100;
 
         protected override void DefineRegisters()
