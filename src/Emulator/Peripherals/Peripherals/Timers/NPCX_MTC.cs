@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)Registers.TimingTicksCount, new DoubleWordRegister(this)
                     .WithTag("TTC (Timing Ticks Count)", 0, 32)
                 },
-                {(long)Registers.TimingTicksCount, new DoubleWordRegister(this)
+                {(long)Registers.WakeUpTicksCount, new DoubleWordRegister(this)
                     .WithTaggedFlag("WIE (Wake-Up/Interrupt Enabled)", 31)
                     .WithTaggedFlag("PTO (Predefined Time Occurred)", 30)
                     .WithReservedBits(25, 5)
