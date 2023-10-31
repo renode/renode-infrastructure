@@ -371,7 +371,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; }
-        public uint ProductIdentifier { get; set; } = DefaultProductIdentifier;
+        public uint CPUInterfaceProductIdentifier { get; set; } = DefaultCPUInterfaceProductIdentifier;
+        public uint DistributorProductIdentifier { get; set; } = DefaultDistributorProductIdentifier;
         public byte CPUInterfaceRevision { get; set; } = DefaultRevisionNumber;
         public uint CPUInterfaceImplementer { get; set; } = DefaultImplementerIdentification;
         public byte DistributorVariant { get; set; } = DefaultVariantNumber;
@@ -568,7 +569,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                 },
                 {(long)DistributorRegisters.ImplementerIdentification, new DoubleWordRegister(this)
-                    .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => ProductIdentifier, name: "ProductIdentifier")
+                    .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => DistributorProductIdentifier, name: "ProductIdentifier")
                     .WithReservedBits(20, 4)
                     .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => DistributorVariant, name: "VariantNumber")
                     .WithValueField(12, 4, FieldMode.Read, valueProviderCallback: _ => DistributorRevision, name: "RevisionNumber")
@@ -939,7 +940,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)CPUInterfaceRegisters.InterfaceIdentification, new DoubleWordRegister(this)
-                    .WithValueField(20, 12, FieldMode.Read, valueProviderCallback: _ => ProductIdentifier, name: "ProductIdentifier")
+                    .WithValueField(20, 12, FieldMode.Read, valueProviderCallback: _ => CPUInterfaceProductIdentifier, name: "ProductIdentifier")
                     .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(16, 4, FieldMode.Read, valueProviderCallback: _ => ArchitectureVersion, name: "ArchitectureVersion")
                     .WithValueField(12, 4, FieldMode.Read, valueProviderCallback: _ => CPUInterfaceRevision, name: "RevisionNumber")
                     .WithValueField(0, 12, FieldMode.Read, valueProviderCallback: _ => CPUInterfaceImplementer, name: "ImplementerIdentification")
@@ -1537,7 +1538,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly InterruptsDecoder irqsDecoder;
 
         private const ARM_GenericInterruptControllerVersion DefaultArchitectureVersion = ARM_GenericInterruptControllerVersion.GICv3;
-        private const uint DefaultProductIdentifier = 0x0;
+        private const uint DefaultCPUInterfaceProductIdentifier = 0x0;
+        private const uint DefaultDistributorProductIdentifier = 0x0;
         private const byte DefaultVariantNumber = 0x0;
         private const byte DefaultRevisionNumber = 0x0;
         private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer
