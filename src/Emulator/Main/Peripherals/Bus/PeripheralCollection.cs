@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Antmicro.Migrant;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using System.Text;
@@ -87,6 +88,40 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     sysbus.NoisyLog("Added {0} to dictionary.", name);
                 }
+            }
+
+            public IBusRegistered<IBusPeripheral> Move(IBusRegistered<IBusPeripheral> registeredPeripheral, ulong newStart)
+            {
+                var start = registeredPeripheral.RegistrationPoint.Range.StartAddress;
+                var size = registeredPeripheral.RegistrationPoint.Range.Size;
+                var cpu = registeredPeripheral.RegistrationPoint.CPU;
+                var newRegistrationPoint = new BusRangeRegistration(newStart, size, cpu: cpu);
+                var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistrationPoint);
+                lock(sync)
+                {
+                    var block = blocks.FirstOrDefault(x => x.Peripheral == registeredPeripheral);
+                    if(block.Peripheral == registeredPeripheral)
+                    {
+                        blocks = blocks.Where(x => x.Peripheral != registeredPeripheral).ToArray();
+                    }
+                    else
+                    {
+                        block = shortBlocks.Values.FirstOrDefault(x => x.Peripheral == registeredPeripheral);
+                        if(block.Peripheral != registeredPeripheral)
+                        {
+                            throw new RecoverableException("Attempted to move a peripheral that does not exist in the collection");
+                        }
+                        var toRemove = shortBlocks.Where(x => x.Value.Peripheral != registeredPeripheral).Select(x => x.Key).ToArray();
+                        foreach(var keyToRemove in toRemove)
+                        {
+                            shortBlocks.Remove(keyToRemove);
+                        }
+                    }
+                    InvalidateLastBlock();
+
+                    Add(newStart, newStart + size, newRegisteredPeripheral, block.AccessMethods);
+                }
+                return newRegisteredPeripheral;
             }
 
             public void Remove(IPeripheral peripheral)
