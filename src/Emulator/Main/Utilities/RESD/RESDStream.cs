@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             var machine = peripheral.GetMachine();
             timestamp = machine.ClockSource.CurrentValue;
-            var timestampInNanoseconds = timestamp.TotalMicroseconds * 1000;
+            var timestampInNanoseconds = timestamp.TotalNanoseconds;
             return TryGetSample(timestampInNanoseconds, out sample);
         }
 

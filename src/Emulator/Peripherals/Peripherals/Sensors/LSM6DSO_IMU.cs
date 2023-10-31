@@ -536,7 +536,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 cpu.SyncTime();
             }
 
-            var currentTimestamp = machine.ClockSource.CurrentValue.TotalMicroseconds * 1000;
+            var currentTimestamp = machine.ClockSource.CurrentValue.TotalNanoseconds;
             if(temperatureResdStream.TryGetSample(currentTimestamp, out var sample) == RESDStreamStatus.OK)
             {
                 Temperature = (decimal)sample.Temperature / 1e3m;

@@ -353,8 +353,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 cpu.SyncTime();
             }
 
-            // RESD uses nanosecond timestamps, while the maximum clock resolution is 1 microsecond
-            var currentTimestamp = machine.ClockSource.CurrentValue.TotalMicroseconds * 1000;
+            var currentTimestamp = machine.ClockSource.CurrentValue.TotalNanoseconds;
             if(stream.TryGetSample(currentTimestamp, out sample) == RESDStreamStatus.OK)
             {
                 return true;
