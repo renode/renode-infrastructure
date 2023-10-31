@@ -98,6 +98,7 @@
     <Compile Include="Peripherals\DMA\STM32DMA.cs" />
     <Compile Include="Peripherals\DMA\UDMA.cs" />
     <Compile Include="Peripherals\DMA\MPFS_PDMA.cs" />
+    <Compile Include="Peripherals\DMA\NPCX_MDMA.cs" />
     <Compile Include="Peripherals\DMA\STM32LDMA.cs" />
     <Compile Include="Peripherals\Miscellaneous\ArmSysCtl.cs" />
     <Compile Include="Peripherals\DMA\OmapDma.cs" />
