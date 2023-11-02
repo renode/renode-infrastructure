@@ -668,7 +668,7 @@ namespace Antmicro.Renode.Utilities
                 : ResolveInner(type.BaseType);
         }
 
-        private bool IsInterestingType(TypeDefinition type)
+        private bool IsInterestingType(TypeReference type)
         {
             return type.Namespace.StartsWith("Antmicro.Renode");
         }
