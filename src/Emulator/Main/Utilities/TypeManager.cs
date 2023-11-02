@@ -291,9 +291,15 @@ namespace Antmicro.Renode.Utilities
             return name.Split(',')[0];
         }
 
+        private string GetUnifiedTypeName(Type type)
+        {
+            // type names returned by Type.ToString() and TypeReference.FullName differ by the type of brackets
+            return type.ToString().Replace('[', '<').Replace(']', '>');
+        }
+
         private IEnumerable<MethodInfo> GetExtensionMethodsInner(Type type)
         {
-            var fullName = type.FullName;
+            var fullName = GetUnifiedTypeName(type); 
             IEnumerable<MethodInfo> methodInfos;
             if(!extensionMethodsTraceFromTypeFullName.ContainsKey(fullName))
             {
@@ -413,20 +419,8 @@ namespace Antmicro.Renode.Utilities
                 {
                     // so this is extension method
                     // let's check the type of the first parameter
-                    var paramReference = method.Parameters[0];
-                    var paramType = ResolveInner(paramReference.ParameterType);
+                    var paramType = method.Parameters[0].ParameterType;
 
-                    if(paramType == null)
-                    {
-                        if(paramReference.ParameterType.IsGenericParameter || paramReference.ParameterType.GetElementType().IsGenericParameter)
-                        {
-                            // we do not handle generic extension methods now
-                            continue;
-                        }
-                        Logger.LogAs(this, LogLevel.Warning, "Could not resolve parameter type {0} for method {1} in class {2}.",
-                                 paramReference.ParameterType.GetFullNameOfMember(), method.GetFullNameOfMember(), type.GetFullNameOfMember());
-                        continue;
-                    }
                     if(IsInterestingType(paramType) ||
                         (paramType.GetFullNameOfMember() == typeof(object).FullName
                         && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(ExtensionOnObjectAttribute).FullName)))
