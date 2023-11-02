@@ -1855,7 +1855,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public ThreadLocalContext(IBusController parent)
             {
                 this.parent = parent;
-                context = new ThreadLocal<Context>(() => new Context(), true);
+                context = new ThreadLocal<int?>(() => null, true);
                 emptyDisposable.Disable();
             }
 
@@ -1865,14 +1865,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     return emptyDisposable;
                 }
-                if(context.Value.InUse && cpu != context.Value.cpu)
+                var previousContext = context.Value;
+                context.Value = parent.GetCPUId(cpu);
+                return DisposableWrapper.New(() =>
                 {
-                    throw new RecoverableException("Attempted to create nested context");
-                }
-                context.Value.cpu = cpu;
-                context.Value.cpuId = parent.GetCPUId(cpu);
-                context.Value.level++;
-                return DisposableWrapper.New(() => context.Value.level--);
+                    context.Value = previousContext;
+                });
             }
 
             public void Dispose()
@@ -1880,21 +1878,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                 context.Dispose();
             }
 
-            public bool InUse => context.Value.InUse;
-            public int CPUId => context.Value.cpuId;
+            public bool InUse => context.Value.HasValue;
+            public int CPUId => context.Value.Value;
 
-            private readonly ThreadLocal<Context> context;
+            private readonly ThreadLocal<int?> context;
             private readonly IBusController parent;
 
             private static readonly DisposableWrapper emptyDisposable = new DisposableWrapper();
-
-            private class Context
-            {
-                public ICPU cpu;
-                public int cpuId;
-                public int level;
-                public bool InUse => level != 0;
-            }
         }
     }
 }
