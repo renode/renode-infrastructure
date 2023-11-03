@@ -17,6 +17,18 @@ namespace Antmicro.Renode.Peripherals.Network
         {
         }
 
+        // QBANDSL - Set the List of Preferred Bands to Be Searched
+        [AtCommand("AT+QBANDSL", CommandType.Write)]
+        protected virtual Response QbandslWrite(int mode, int bandCount = 0, params int[] bands)
+        {
+            if(mode < 0 || mode > 1 || bandCount < 0 || bandCount > 4 || bands.Length != bandCount)
+            {
+                return Error;
+            }
+
+            return Ok; // stub
+        }
+
         // QCCLK - Set and Get Current Date and UTC
         [AtCommand("AT+QCCLK", CommandType.Read)]
         protected virtual Response QcclkRead()
