@@ -2083,6 +2083,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             public byte TargetCPUs { get; set; }
+            public MutableAffinity TargetAffinity { get; } = new MutableAffinity();
+            public InterruptRoutingMode RoutingMode { get; set; }
         }
 
         // This class will be extended at least for the Binary Point register support
@@ -2237,6 +2239,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LevelSensitive = 0b00,
             EdgeTriggered = 0b10
+        }
+
+        private enum InterruptRoutingMode : byte
+        {
+            SpecifiedTarget = 0b0,
+            AnyTarget = 0b1
         }
 
         private enum InterruptType
