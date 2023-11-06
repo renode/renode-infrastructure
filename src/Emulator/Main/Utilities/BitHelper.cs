@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Linq;
 using System.Diagnostics;
+using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -656,6 +657,15 @@ namespace Antmicro.Renode.Utilities
         {
             return ((ulong)ReverseBytes((uint)v) << 32) | ReverseBytes((uint)(v >> 32));
         }
+
+        public static int CalculateBytesCount(int bitsCount)
+        {
+            DebugHelper.Assert(bitsCount >= 0);
+            // Return count of bytes, including one which isn't full of bits.
+            return (bitsCount - 1) / BitsPerByte + 1;
+        }
+
+        public const int BitsPerByte = 8;
 
         private static void AssertMaskParameters(int width, int position, int maxWidth)
         {
