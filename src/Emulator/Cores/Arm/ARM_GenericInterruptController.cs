@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             cpuInterfaceRegistersDisabledSecurityView = new DoubleWordRegisterCollection(this, BuildCPUInterfaceRegistersMapSecurityView(true));
 
             // The rest may behave differently for various security settings, but the layout of fields doesn't change
-            distributorRegisters = new DoubleWordRegisterCollection(this, BuildDistributorRegistersMap());
+            distributorDoubleWordRegisters = new DoubleWordRegisterCollection(this, BuildDistributorDoubleWordRegistersMap());
             redistributorDoubleWordRegisters = new DoubleWordRegisterCollection(this, BuildRedistributorDoubleWordRegistersMap());
             redistributorQuadWordRegisters = new QuadWordRegisterCollection(this, BuildRedistributorQuadWordRegistersMap());
             cpuInterfaceRegisters = new DoubleWordRegisterCollection(this, BuildCPUInterfaceRegistersMap());
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             distributorRegistersSecureView.Reset();
             distributorRegistersNonSecureView.Reset();
             distributorRegistersDisabledSecurityView.Reset();
-            distributorRegisters.Reset();
+            distributorDoubleWordRegisters.Reset();
             redistributorDoubleWordRegisters.Reset();
             redistributorQuadWordRegisters.Reset();
             cpuInterfaceRegistersSecureView.Reset();
@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = IsDistributorByteAccessible(offset) && TryWriteByteToDoubleWordCollection(distributorRegisters, offset, value);
+                    var registerExists = IsDistributorByteAccessible(offset) && TryWriteByteToDoubleWordCollection(distributorDoubleWordRegisters, offset, value);
                     LogWriteAccess(registerExists, value, "Distributor (byte access)", offset, (DistributorRegisters)offset);
                 }
             );
@@ -175,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             byte value = 0;
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = IsDistributorByteAccessible(offset) && TryReadByteFromDoubleWordCollection(distributorRegisters, offset, out value);
+                    var registerExists = IsDistributorByteAccessible(offset) && TryReadByteFromDoubleWordCollection(distributorDoubleWordRegisters, offset, out value);
                     LogReadAccess(registerExists, value, "Distributor (byte access)", offset, (DistributorRegisters)offset);
                 }
             );
@@ -187,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = TryWriteRegisterSecurityView(offset, value, distributorRegisters,
+                    var registerExists = TryWriteRegisterSecurityView(offset, value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
                     LogWriteAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             uint value = 0;
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = TryReadRegisterSecurityView(offset, out value, distributorRegisters,
+                    var registerExists = TryReadRegisterSecurityView(offset, out value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
                     LogReadAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
@@ -571,7 +571,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return GetAllEnabledInterrupts(cpu).Where(irq => irq.State.Pending && irq.Config.Priority < cpu.PriorityMask && irq.Config.Priority < cpu.RunningPriority);
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildDistributorRegistersMap()
+        private Dictionary<long, DoubleWordRegister> BuildDistributorDoubleWordRegistersMap()
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -1628,7 +1628,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly InterruptSignalType[] supportedInterruptSignals;
         private readonly ReadOnlyDictionary<InterruptId, SharedInterrupt> sharedInterrupts;
         private readonly ReadOnlyDictionary<GroupType, InterruptGroup> groups;
-        private readonly DoubleWordRegisterCollection distributorRegisters;
+        private readonly DoubleWordRegisterCollection distributorDoubleWordRegisters;
         private readonly DoubleWordRegisterCollection distributorRegistersSecureView;
         private readonly DoubleWordRegisterCollection distributorRegistersNonSecureView;
         private readonly DoubleWordRegisterCollection distributorRegistersDisabledSecurityView;
