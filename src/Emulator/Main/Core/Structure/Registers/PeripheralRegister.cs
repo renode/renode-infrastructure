@@ -29,11 +29,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
             var register = new QuadWordRegister(null, resetValue, softResettable);
-            register.DefineValueField(0, register.MaxRegisterLength);
+            register.DefineValueField(0, register.RegisterWidth);
             return register;
         }
 
-        public QuadWordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 64)
+        public QuadWordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, QuadWordWidth)
         {
         }
 
@@ -97,6 +97,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        public const int QuadWordWidth = 64;
+
         protected override void CallChangeHandlers(ulong oldValue, ulong newValue)
         {
             CallHandlers(changeCallbacks, oldValue, newValue);
@@ -132,11 +134,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
             var register = new DoubleWordRegister(null, resetValue, softResettable);
-            register.DefineValueField(0, register.MaxRegisterLength);
+            register.DefineValueField(0, register.RegisterWidth);
             return register;
         }
 
-        public DoubleWordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 32)
+        public DoubleWordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, DoubleWordWidth)
         {
         }
 
@@ -200,6 +202,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        public const int DoubleWordWidth = 32;
+
         protected override void CallChangeHandlers(ulong oldValue, ulong newValue)
         {
             CallHandlers(changeCallbacks, (uint)oldValue, (uint)newValue);
@@ -235,11 +239,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
             var register = new WordRegister(null, resetValue, softResettable);
-            register.DefineValueField(0, register.MaxRegisterLength);
+            register.DefineValueField(0, register.RegisterWidth);
             return register;
         }
 
-        public WordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 16)
+        public WordRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, WordWidth)
         {
         }
 
@@ -303,6 +307,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        public const int WordWidth = 16;
+
         protected override void CallChangeHandlers(ulong oldValue, ulong newValue)
         {
             CallHandlers(changeCallbacks, (ushort)oldValue, (ushort)newValue);
@@ -338,11 +344,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             //null because parent is used for logging purposes only - this will never happen in this case.
             var register = new ByteRegister(null, resetValue, softResettable);
-            register.DefineValueField(0, register.MaxRegisterLength);
+            register.DefineValueField(0, register.RegisterWidth);
             return register;
         }
 
-        public ByteRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, 8)
+        public ByteRegister(IPeripheral parent, ulong resetValue = 0, bool softResettable = true) : base(parent, resetValue, softResettable, ByteWidth)
         {
         }
 
@@ -405,6 +411,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 return (byte)UnderlyingValue;
             }
         }
+
+        public const int ByteWidth = 8;
 
         protected override void CallChangeHandlers(ulong oldValue, ulong newValue)
         {
@@ -580,10 +588,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return field;
         }
 
-        protected PeripheralRegister(IPeripheral parent, ulong resetValue, bool softResettable, int maxLength)
+        public int RegisterWidth { get; }
+
+        protected PeripheralRegister(IPeripheral parent, ulong resetValue, bool softResettable, int width)
         {
             this.parent = parent;
-            this.MaxRegisterLength = maxLength;
+            RegisterWidth = width;
             this.resetValue = resetValue;
             // We want to reset the register before setting the resettableMask. If we don't do that then
             // the register will not be initialized to the resetValue, instead it will hold the default value of 0
@@ -724,8 +734,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         protected ulong UnderlyingValue;
 
-        protected readonly int MaxRegisterLength;
-
         /// <summary>
         /// Returns information about tag writes. Extracted as a method to allow future lazy evaluation.
         /// </summary>
@@ -762,10 +770,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 return false;
             }
 
-            var writtenValue = "0b" + Convert.ToString((long)originalValue, 2).PadLeft(MaxRegisterLength, '0');
+            var writtenValue = "0b" + Convert.ToString((long)originalValue, 2).PadLeft(RegisterWidth, '0');
             var desiredValues = "0b";
 
-            for(int i = MaxRegisterLength - 1; i >= 0; i--)
+            for(int i = RegisterWidth - 1; i >= 0; i--)
             {
                 if(((allowedValuesMask >> i) & 1u) == 1)
                 {
@@ -787,7 +795,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 throw new ArgumentException("Field {0} has to have a size larger than or equal to 0.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
             }
-            if(position + width > MaxRegisterLength)
+            if(position + width > RegisterWidth)
             {
                 throw new ArgumentException("Field {0} does not fit in the register size.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
             }
