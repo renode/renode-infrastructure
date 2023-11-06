@@ -66,6 +66,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             // The rest may behave differently for various security settings, but the layout of fields doesn't change
             distributorDoubleWordRegisters = new DoubleWordRegisterCollection(this, BuildDistributorDoubleWordRegistersMap());
+            distributorQuadWordRegisters = new QuadWordRegisterCollection(this, BuildDistributorQuadWordRegistersMap());
             redistributorDoubleWordRegisters = new DoubleWordRegisterCollection(this, BuildRedistributorDoubleWordRegistersMap());
             redistributorQuadWordRegisters = new QuadWordRegisterCollection(this, BuildRedistributorQuadWordRegistersMap());
             cpuInterfaceRegisters = new DoubleWordRegisterCollection(this, BuildCPUInterfaceRegistersMap());
@@ -101,6 +102,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             distributorRegistersNonSecureView.Reset();
             distributorRegistersDisabledSecurityView.Reset();
             distributorDoubleWordRegisters.Reset();
+            distributorQuadWordRegisters.Reset();
             redistributorDoubleWordRegisters.Reset();
             redistributorQuadWordRegisters.Reset();
             cpuInterfaceRegistersSecureView.Reset();
@@ -189,6 +191,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var registerExists = TryWriteRegisterSecurityView(offset, value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
+                    registerExists = registerExists || TryWriteDoubleWordToQuadWordCollection(distributorQuadWordRegisters, offset, value);
                     LogWriteAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
             );
@@ -202,8 +205,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var registerExists = TryReadRegisterSecurityView(offset, out value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
+                    registerExists = registerExists || TryReadDoubleWordFromQuadWordCollection(distributorQuadWordRegisters, offset, out value);
                     LogReadAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
+            );
+            return value;
+        }
+
+        [ConnectionRegion("distributor")]
+        public void WriteQuadWordToDistributor(long offset, ulong value)
+        {
+            LockExecuteAndUpdate(() =>
+                LogWriteAccess(distributorQuadWordRegisters.TryWrite(offset, value), value, "Distributor", offset, (DistributorRegisters)offset)
+            );
+        }
+
+        [ConnectionRegion("distributor")]
+        public ulong ReadQuadWordFromDistributor(long offset)
+        {
+            ulong value = 0;
+            LockExecuteAndUpdate(() =>
+                LogWriteAccess(distributorQuadWordRegisters.TryRead(offset, out value), value, "Distributor", offset, (DistributorRegisters)offset)
             );
             return value;
         }
@@ -701,6 +723,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return registersMap;
         }
 
+        private Dictionary<long, QuadWordRegister> BuildDistributorQuadWordRegistersMap()
+        {
+            var registersMap = new Dictionary<long, QuadWordRegister>();
+            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptRouting_0,
+                BuildInterruptRoutingRegisters(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast)
+            );
+            return registersMap;
+        }
+
         private Dictionary<long, DoubleWordRegister> BuildDistributorRegistersMapSecurityView(bool accessForDisabledSecurity, SecurityState? securityStateAccess = null)
         {
             var controlRegister = new DoubleWordRegister(this)
@@ -1134,6 +1165,37 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 );
         }
 
+        private IEnumerable<QuadWordRegister> BuildInterruptRoutingRegisters(InterruptId startId, InterruptId endId)
+        {
+            return InterruptId.GetRange(startId, endId).Select(
+                id => new QuadWordRegister(this)
+                    .WithReservedBits(40, 24)
+                    .WithValueField(32, 8, name: $"Affinity3_{(uint)id}",
+                        writeCallback: (_, val) => { if(IsAffinityRoutingEnabled(GetAskingCPUEntry())) sharedInterrupts[id].TargetAffinity.SetLevel(3, (byte)val); },
+                        valueProviderCallback: _ => IsAffinityRoutingEnabled(GetAskingCPUEntry()) ? (ulong)sharedInterrupts[id].TargetAffinity.GetLevel(3) : 0
+                    )
+                    .WithEnumField<QuadWordRegister, InterruptRoutingMode>(31, 1, name: $"RoutingMode_{(uint)id}",
+                        writeCallback: (_, val) => { if(IsAffinityRoutingEnabled(GetAskingCPUEntry())) sharedInterrupts[id].RoutingMode = val; },
+                        valueProviderCallback: _ => IsAffinityRoutingEnabled(GetAskingCPUEntry()) ? sharedInterrupts[id].RoutingMode : default(InterruptRoutingMode)
+                    )
+                    .WithReservedBits(24, 7)
+                    .WithValueField(16, 8, name: $"Affinity2_{(uint)id}",
+                        writeCallback: (_, val) => { if(IsAffinityRoutingEnabled(GetAskingCPUEntry())) sharedInterrupts[id].TargetAffinity.SetLevel(2, (byte)val); },
+                        valueProviderCallback: _ => IsAffinityRoutingEnabled(GetAskingCPUEntry()) ? (ulong)sharedInterrupts[id].TargetAffinity.GetLevel(2) : 0
+                    )
+                    .WithValueField(8, 8, name: $"Affinity1_{(uint)id}",
+                        writeCallback: (_, val) => { if(IsAffinityRoutingEnabled(GetAskingCPUEntry())) sharedInterrupts[id].TargetAffinity.SetLevel(1, (byte)val); },
+                        valueProviderCallback: _ => IsAffinityRoutingEnabled(GetAskingCPUEntry()) ? (ulong)sharedInterrupts[id].TargetAffinity.GetLevel(1) : 0
+                    )
+                    .WithValueField(0, 8, name: $"Affinity0_{(uint)id}",
+                        writeCallback: (_, val) => { if(IsAffinityRoutingEnabled(GetAskingCPUEntry())) sharedInterrupts[id].TargetAffinity.SetLevel(0, (byte)val); },
+                        valueProviderCallback: _ => IsAffinityRoutingEnabled(GetAskingCPUEntry()) ? (ulong)sharedInterrupts[id].TargetAffinity.GetLevel(0) : 0
+                    )
+                    .WithWriteCallback((_, __) => { if(!IsAffinityRoutingEnabled(GetAskingCPUEntry())) this.Log(LogLevel.Warning, "Trying to write IROUTER register when Affinity Routing is disabled, write ignored."); })
+                    .WithReadCallback((_, __) => { if(!IsAffinityRoutingEnabled(GetAskingCPUEntry())) this.Log(LogLevel.Warning, "Trying to read IROUTER register when Affinity Routing is disabled."); })
+            );
+        }
+
         private IEnumerable<DoubleWordRegister> BuildInterruptSetEnableRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptFlagRegisters(startId, endId, name,
@@ -1342,6 +1404,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 (register, fieldIndex) => register.WithReservedBits(fieldIndex * fieldWidth, fieldWidth),
                 sgiRequestingCPU
             );
+        }
+
+        private bool IsAffinityRoutingEnabled(CPUEntry cpu)
+        {
+            return DisabledSecurity || cpu.IsStateSecure ? AffinityRoutingEnabledSecure : AffinityRoutingEnabledNonSecure;
         }
 
         private bool CheckInterruptAccess(Func<Interrupt> irqGetter, bool allowAccessWhenNonSecureGroup)
@@ -1629,6 +1696,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly ReadOnlyDictionary<InterruptId, SharedInterrupt> sharedInterrupts;
         private readonly ReadOnlyDictionary<GroupType, InterruptGroup> groups;
         private readonly DoubleWordRegisterCollection distributorDoubleWordRegisters;
+        private readonly QuadWordRegisterCollection distributorQuadWordRegisters;
         private readonly DoubleWordRegisterCollection distributorRegistersSecureView;
         private readonly DoubleWordRegisterCollection distributorRegistersNonSecureView;
         private readonly DoubleWordRegisterCollection distributorRegistersDisabledSecurityView;
