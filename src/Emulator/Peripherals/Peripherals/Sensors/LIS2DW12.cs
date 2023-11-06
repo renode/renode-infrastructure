@@ -10,7 +10,6 @@ using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -22,7 +21,7 @@ using Antmicro.Renode.Utilities.RESD;
 namespace Antmicro.Renode.Peripherals.Sensors
 {
     // TODO: FIFO for other data than the accelerometer
-    public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor, IUnderstandRESD
+    public class LIS2DW12 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
         public LIS2DW12()
         {
@@ -42,57 +41,41 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
         {
-            var sample = new Vector3DSample(x, y, z);
-
-            for(var i = 0; i < repeat; i++)
-            {
-                accelerationFifo.FeedSample(sample);
-            }
-            UpdateInterrupts();
+            FeedAccelerationSampleInner(x, y, z, keepOnReset: true, repeat: repeat);
         }
 
-        [OnRESDSample(SampleType.Acceleration)]
-        [BeforeRESDSample(SampleType.Acceleration)]
-        private void HandleAccelerationSample(AccelerationSample sample, TimeInterval timestamp)
+        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0, long sampleOffsetTime = 0)
         {
-            if(sample != null)
-            {
-                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
-                // while the peripheral's measurement unit is g.
-                FeedAccelerationSample(
-                    sample.AccelerationX / 1e6m,
-                    sample.AccelerationY / 1e6m,
-                    sample.AccelerationZ / 1e6m
-                );
-            }
-            else
-            {
-                FeedAccelerationSample(
-                    DefaultAccelerationX,
-                    DefaultAccelerationY,
-                    DefaultAccelerationZ
-                );
-            }
-        }
+            var currentTimestampUs = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime.TotalMicroseconds;
 
-        [AfterRESDSample(SampleType.Acceleration)]
-        private void HandleAccelerationSampleEnded(AccelerationSample sample, TimeInterval timestamp)
-        {
-            feederThread?.Stop();
-            feederThread = null;
-            accelerationFifo.FeedingFromFile = false;
-        }
-
-
-        public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
-            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
-        {
-            resdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetType, sampleOffsetTime);
-            accelerationFifo.FeedingFromFile = true;
+            resdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetTime: ((long)currentTimestampUs * -1000) + sampleOffsetTime);
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
                 SampleRate,
-                startTime: startTime
+                (sample, ts, status) =>
+                {
+                    switch(status)
+                    {
+                        case RESDStreamStatus.BeforeStream:
+                            FeedAccelerationSampleInner(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ, keepOnReset: false);
+                            break;
+                        case RESDStreamStatus.AfterStream:
+                            feederThread?.Stop();
+                            feederThread = null;
+                            break;
+                        case RESDStreamStatus.OK:
+                            FeedAccelerationSampleInner(
+                                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
+                                // while the peripheral's measurement unit is g.
+                                (decimal)sample.AccelerationX / 1e6m,
+                                (decimal)sample.AccelerationY / 1e6m,
+                                (decimal)sample.AccelerationZ / 1e6m,
+                                keepOnReset: false
+                            );
+                            break;
+                    }
+                },
+                startTime
             );
         }
 
@@ -112,10 +95,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void Reset()
         {
             RegistersCollection.Reset();
-            feederThread?.Stop();
-            resdStream?.Dispose();
-            resdStream = null;
-            feederThread = null;
             SetScaleDivider();
             state = State.WaitingForRegister;
             regAddress = 0;
@@ -285,6 +264,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private void FeedAccelerationSampleInner(decimal x, decimal y, decimal z, bool keepOnReset, uint repeat = 1)
+        {
+            if(keepOnReset)
+            {
+                // this is a simplified implementation
+                // that assumes that the `keepOnReset`
+                // status applies to all samples;
+                // might not work when mixing feeding
+                // samples from RESD and manually
+                accelerationFifo.KeepFifoOnReset = true;
+            }
+
+            var sample = new Vector3DSample(x, y, z);
+
+            for(var i = 0; i < repeat; i++)
+            {
+                accelerationFifo.FeedSample(sample);
+            }
+            UpdateInterrupts();
+        }
+
         private void LoadNextSample()
         {
             this.Log(LogLevel.Noisy, "Acquiring next sample");
@@ -443,9 +443,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.FifoControl.Define(this)
                 .WithValueField(0, 5, out fifoThreshold, name: "FIFO threshold level setting (FTH)")
-                .WithEnumField(5, 3, out fifoModeSelection, writeCallback: (_, __) =>
+                .WithEnumField(5, 3, out fifoModeSelection, writeCallback: (_, newMode) =>
                     {
-                        if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
+                        if(newMode == FIFOModeSelection.Bypass)
                         {
                             accelerationFifo.Reset();
                         }
@@ -798,15 +798,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 lock(locker)
                 {
-                    if(!FeedingFromFile)
+                    if(KeepFifoOnReset)
                     {
                         queue.Enqueue(sample);
                         return;
                     }
 
+                    latestSample = sample;
+
                     if(Mode == FIFOModeSelection.Bypass)
                     {
-                        latestSample = sample;
                         return;
                     }
 
@@ -867,16 +868,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public void Reset()
             {
-                if(!FeedingFromFile)
+                owner.Log(LogLevel.Debug, "Resetting FIFO");
+                OverrunOccurred = false;
+
+                if(KeepFifoOnReset)
                 {
+                    owner.Log(LogLevel.Debug, "Keeping existing FIFO content");
                     return;
                 }
 
-                owner.Log(LogLevel.Debug, "Resetting FIFO");
-
                 queue.Clear();
                 latestSample = null;
-                OverrunOccurred = false;
             }
 
             public bool TryDequeueNewSample()
@@ -894,7 +896,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 // two samples - in this case, the earlier of these should be returned. Otherwise,
                 // clearing the FIFO means we ran out of data and so we should go to the default
                 // sample.
-                if(!FeedingFromFile)
+                if(!Disabled)
                 {
                     latestSample = null;
                 }
@@ -902,8 +904,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return false;
             }
 
+            public bool KeepFifoOnReset { get; set; }
+
             public uint SamplesCount => (uint)Math.Min(queue.Count, Capacity);
-            public bool Disabled => Mode == FIFOModeSelection.Bypass && FeedingFromFile;
+            public bool Disabled => Mode == FIFOModeSelection.Bypass && !KeepFifoOnReset;
             public bool Empty => SamplesCount == 0;
             public bool Full => SamplesCount >= Capacity;
 
@@ -912,7 +916,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public bool OverrunOccurred { get; private set; }
             public Vector3DSample Sample => latestSample ?? DefaultSample;
             public Vector3DSample DefaultSample { get; } = new Vector3DSample();
-            public bool FeedingFromFile { get; set; }
 
             public event Action OnOverrun;
 
