@@ -1433,26 +1433,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return cpuEntry;
         }
 
-        private void AddRegistersAtOffset(Dictionary<long, DoubleWordRegister> registersMap, long offset, IEnumerable<DoubleWordRegister> registers)
+        private void AddRegistersAtOffset<T>(Dictionary<long, T> registersMap, long offset, IEnumerable<T> registers)
+        where T : PeripheralRegister
         {
             foreach(var register in registers)
             {
                 if(registersMap.ContainsKey(offset))
                 {
-                    throw new ConstructionException($"The register map already constains register at 0x{offset:x} offset.");
+                    throw new ConstructionException($"The register map already contains register at 0x{offset:x} offset.");
                 }
                 registersMap[offset] = register;
-                offset += BytesPerDoubleWordRegister;
+                offset += BitHelper.CalculateBytesCount(register.RegisterWidth);
             }
         }
 
         private bool TryWriteByteToDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, uint value)
         {
-            AlignRegisterOffset(offset, BytesPerDoubleWordRegister, out var alignedOffset, out var byteOffset);
+            AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
             var registerExists = registers.TryRead(alignedOffset, out var currentValue);
             if(registerExists)
             {
-                BitHelper.UpdateWithShifted(ref currentValue, value, byteOffset * BitsPerByte, BitsPerByte);
+                BitHelper.UpdateWithShifted(ref currentValue, value, byteOffset * BitHelper.BitsPerByte, BitHelper.BitsPerByte);
                 registerExists &= registers.TryWrite(alignedOffset, currentValue);
             }
             return registerExists;
@@ -1460,14 +1461,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private bool TryReadByteFromDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, out byte value)
         {
-            AlignRegisterOffset(offset, BytesPerDoubleWordRegister, out var alignedOffset, out var byteOffset);
+            AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
             var registerExists = registers.TryRead(alignedOffset, out var registerValue);
-            value = (byte)(registerValue >> (byteOffset * BitsPerByte));
+            value = (byte)(registerValue >> (byteOffset * BitHelper.BitsPerByte));
             return registerExists;
         }
 
-        private void AlignRegisterOffset(long offset, int bytesPerRegister, out long alignedOffset, out int byteOffset)
+        private void AlignRegisterOffset(long offset, int bitsPerRegister, out long alignedOffset, out int byteOffset)
         {
+            var bytesPerRegister = BitHelper.CalculateBytesCount(bitsPerRegister);
             byteOffset = (int)(offset % bytesPerRegister);
             alignedOffset = offset - byteOffset;
         }
@@ -1608,9 +1610,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer
 
         private const uint CPUsCountLegacySupport = 8;
-        private const int BytesPerDoubleWordRegister = 4;
-        private const int BitsPerByte = 8;
-
         private const long RedistributorPrivateInterruptsFrameOffset = 0x10000;
 
         private class CPUEntry : IGPIOReceiver
