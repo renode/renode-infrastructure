@@ -112,10 +112,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void Reset()
         {
             RegistersCollection.Reset();
-            feederThread?.Stop();
-            resdStream?.Dispose();
-            resdStream = null;
-            feederThread = null;
             SetScaleDivider();
             state = State.WaitingForRegister;
             regAddress = 0;
