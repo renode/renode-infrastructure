@@ -570,21 +570,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private IEnumerable<Interrupt> GetAllInterrupts(CPUEntry cpu)
+        private IEnumerable<Interrupt> GetSharedInterruptsTargetingCPU(CPUEntry cpu)
         {
-            return cpu.AllInterrupts.Concat(sharedInterrupts.Values);
+            IEnumerable<SharedInterrupt> interrupts = sharedInterrupts.Values;
+            if(cpuEntries.Count == 1)
+            {
+                // If there is only one CPU all interrupts target it.
+                return interrupts;
+            }
+            return interrupts.Where(irq => irq.IsLegacyRoutingTargetingCPU(cpu));
         }
 
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
         {
             var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups[type].Enabled).ToArray();
             IEnumerable<SharedInterrupt> filteredSharedInterrupts = sharedInterrupts.Values;
-            if(legacyCpusCount > 1)
-            {
-                filteredSharedInterrupts = filteredSharedInterrupts.Where(irq => irq.IsTargetingCPU(cpu));
-            }
             return cpu.AllInterrupts
-                .Concat(filteredSharedInterrupts)
+                .Concat(GetSharedInterruptsTargetingCPU(cpu))
                 .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
         }
 
@@ -2164,7 +2166,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 TargetCPUs = 0;
             }
 
-            public bool IsTargetingCPU(CPUEntry cpu)
+            public bool IsLegacyRoutingTargetingCPU(CPUEntry cpu)
             {
                 return (TargetCPUs & cpu.TargetFieldFlag) != 0;
             }
