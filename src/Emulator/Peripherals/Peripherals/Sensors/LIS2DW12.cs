@@ -439,9 +439,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.FifoControl.Define(this)
                 .WithValueField(0, 5, out fifoThreshold, name: "FIFO threshold level setting (FTH)")
-                .WithEnumField(5, 3, out fifoModeSelection, writeCallback: (_, __) =>
+                .WithEnumField(5, 3, out fifoModeSelection, writeCallback: (_, newMode) =>
                     {
-                        if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
+                        if(newMode == FIFOModeSelection.Bypass)
                         {
                             accelerationFifo.Reset();
                         }
