@@ -9,7 +9,12 @@
 
 #include "renode_imports_generated.h"
 
+/* If this header is used as a part of tlib, we will call this hook after every callback */
+#ifdef TARGET_LONG_BITS
 EXTERN_C void tlib_try_interrupt_translation_block(void);
+#else
+#define tlib_try_interrupt_translation_block()
+#endif
 
 #define renode_direct_glue(a, b) a##b
 
