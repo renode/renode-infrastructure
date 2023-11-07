@@ -578,7 +578,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // If there is only one CPU all interrupts target it.
                 return interrupts;
             }
-            return interrupts.Where(irq => irq.IsLegacyRoutingTargetingCPU(cpu));
+            if(!IsAffinityRoutingEnabled(cpu))
+            {
+                return interrupts.Where(irq => irq.IsLegacyRoutingTargetingCPU(cpu));
+            }
+
+            return interrupts.Where(irq => irq.IsAffinityRoutingTargetingCPU(cpu));
         }
 
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
@@ -1940,6 +1945,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
 
             public Affinity Affinity => cpu.Affinity;
+            public bool IsParticipatingInRouting => !IsSleeping;
             public bool IsSleeping { get; set; } = true;
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
@@ -2169,6 +2175,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public bool IsLegacyRoutingTargetingCPU(CPUEntry cpu)
             {
                 return (TargetCPUs & cpu.TargetFieldFlag) != 0;
+            }
+
+            public bool IsAffinityRoutingTargetingCPU(CPUEntry cpu)
+            {
+                if(RoutingMode == InterruptRoutingMode.AnyTarget || TargetAffinity.AllLevels == cpu.Affinity.AllLevels)
+                {
+                    return cpu.IsParticipatingInRouting;
+                }
+                return false;
             }
 
             public byte TargetCPUs { get; set; }
