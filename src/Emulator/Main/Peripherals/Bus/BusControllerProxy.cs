@@ -251,6 +251,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.Register(peripheral, registrationPoint);
         }
 
+        public void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
+        {
+            ParentController.MoveRegistrationWithinContext(peripheral, newAddress, context, selector);
+        }
+
         void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
         {
             ((IPeripheralRegister<IBusPeripheral, BusMultiRegistration>)ParentController).Unregister(peripheral);
