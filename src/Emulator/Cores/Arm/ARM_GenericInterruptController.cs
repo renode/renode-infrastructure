@@ -1231,15 +1231,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             return BuildInterruptValueRegisters(startId, endId, name, 4,
                 writeCallback: (irq, val) =>
-                {
-                    ((SharedInterrupt)irq).TargetCPUs = (byte)val;
-                    var invalidTargets = ~legacyCpusAttachedMask & val;
-                    if(invalidTargets != 0)
                     {
-                        this.Log(LogLevel.Warning, "Interrupt {0} configured to target an invalid CPU, id: {1}.", irq.Identifier, String.Join(", ", BitHelper.GetSetBits(invalidTargets)));
+                        if(IsAffinityRoutingEnabled(GetAskingCPUEntry()))
+                        {
+                            this.Log(LogLevel.Warning, "Trying to write ITARGETSR register when Affinity Routing is enabled, write ignored.");
+                            return;
+                        }
+                        var validTargets = legacyCpusAttachedMask & val;
+                        ((SharedInterrupt)irq).TargetCPUs = (byte)validTargets;
+                        if(validTargets != val)
+                        {
+                            this.Log(LogLevel.Warning, "Interrupt {0} configured to target an invalid CPU, id: {1}, writes ignored.", irq.Identifier, String.Join(", ", BitHelper.GetSetBits(validTargets ^ val)));
+                        }
+                    },
+                valueProviderCallback: irq =>
+                    {
+                        if(IsAffinityRoutingEnabled(GetAskingCPUEntry()))
+                        {
+                            this.Log(LogLevel.Warning, "Trying to read ITARGETSR register when Affinity Routing is enabled, returning 0.");
+                            return 0;
+                        }
+                        return ((SharedInterrupt)irq).TargetCPUs;
                     }
-                },
-                valueProviderCallback: irq => ((SharedInterrupt)irq).TargetCPUs
             );
         }
 
