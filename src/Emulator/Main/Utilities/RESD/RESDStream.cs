@@ -211,7 +211,22 @@ namespace Antmicro.Renode.Utilities.RESD
             }
 
             var currentSampleOffsetTime = overrideSampleOffsetTime ?? sampleOffsetTime;
-            timestamp = currentSampleOffsetTime > 0 ? timestamp + (ulong)currentSampleOffsetTime : timestamp - (ulong)(-currentSampleOffsetTime);
+            if(currentSampleOffsetTime < 0)
+            {
+                if(timestamp >= (ulong)(-currentSampleOffsetTime))
+                {
+                    timestamp = timestamp - (ulong)(-currentSampleOffsetTime);
+                }
+                else
+                {
+                    sample = null;
+                    return RESDStreamStatus.BeforeStream;
+                }
+            }
+            else
+            {
+                timestamp = timestamp + (ulong)currentSampleOffsetTime;
+            }
 
             while(blockEnumerator != null)
             {
