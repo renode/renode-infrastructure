@@ -10,6 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Config.Devices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
 using Machine = Antmicro.Renode.Core.Machine;
 using Antmicro.Renode.Core.Structure;
@@ -50,7 +51,7 @@ namespace Antmicro.Renode.Utilities
 
         }
 
-        public static void LoadFdt(this IBusController sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "")
+        public static void LoadFdt(this IBusController sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "", ICPU context = null)
         {
             if(!File.Exists(file))
             {
@@ -109,7 +110,7 @@ namespace Antmicro.Renode.Utilities
             }
 
             fdtBlob = fdt.GetBinaryBlob();
-            sysbus.WriteBytes(fdtBlob, address, true);
+            sysbus.WriteBytes(fdtBlob, address, true, context);
         }
 
         public static Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>> GetPeripheralsWithAllRegistrationPoints(this IMachine machine)
