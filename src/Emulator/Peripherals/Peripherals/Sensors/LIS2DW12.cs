@@ -42,13 +42,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
         {
-            var sample = new Vector3DSample(x, y, z);
-
-            for(var i = 0; i < repeat; i++)
-            {
-                accelerationFifo.FeedSample(sample);
-            }
-            UpdateInterrupts();
+            FeedAccelerationSampleInner(x, y, z, keepOnReset: true, repeat: repeat);
         }
 
         [OnRESDSample(SampleType.Acceleration)]
@@ -80,15 +74,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             feederThread?.Stop();
             feederThread = null;
-            accelerationFifo.FeedingFromFile = false;
+            accelerationFifo.KeepFifoOnReset = true;
         }
-
 
         public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
             RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
         {
             resdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetType, sampleOffsetTime);
-            accelerationFifo.FeedingFromFile = true;
+            accelerationFifo.KeepFifoOnReset = false;
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
                 SampleRate,
@@ -279,6 +272,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     feederThread.Frequency = sampleRate;
                 }
             }
+        }
+
+        private void FeedAccelerationSampleInner(decimal x, decimal y, decimal z, bool keepOnReset, uint repeat = 1)
+        {
+            if(keepOnReset)
+            {
+                // this is a simplified implementation
+                // that assumes that the `keepOnReset`
+                // status applies to all samples;
+                // might not work when mixing feeding
+                // samples from RESD and manually
+                accelerationFifo.KeepFifoOnReset = true;
+            }
+
+            var sample = new Vector3DSample(x, y, z);
+
+            for(var i = 0; i < repeat; i++)
+            {
+                accelerationFifo.FeedSample(sample);
+            }
+            UpdateInterrupts();
         }
 
         private void LoadNextSample()
@@ -794,15 +808,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 lock(locker)
                 {
-                    if(!FeedingFromFile)
+                    if(KeepFifoOnReset)
                     {
                         queue.Enqueue(sample);
                         return;
                     }
 
+                    latestSample = sample;
+
                     if(Mode == FIFOModeSelection.Bypass)
                     {
-                        latestSample = sample;
                         return;
                     }
 
@@ -863,16 +878,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public void Reset()
             {
-                if(!FeedingFromFile)
+                owner.Log(LogLevel.Debug, "Resetting FIFO");
+                OverrunOccurred = false;
+
+                if(KeepFifoOnReset)
                 {
+                    owner.Log(LogLevel.Debug, "Keeping existing FIFO content");
                     return;
                 }
 
-                owner.Log(LogLevel.Debug, "Resetting FIFO");
-
                 queue.Clear();
                 latestSample = null;
-                OverrunOccurred = false;
             }
 
             public bool TryDequeueNewSample()
@@ -890,7 +906,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 // two samples - in this case, the earlier of these should be returned. Otherwise,
                 // clearing the FIFO means we ran out of data and so we should go to the default
                 // sample.
-                if(!FeedingFromFile)
+                if(!Disabled)
                 {
                     latestSample = null;
                 }
@@ -898,8 +914,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return false;
             }
 
+            public bool KeepFifoOnReset { get; set; }
+
             public uint SamplesCount => (uint)Math.Min(queue.Count, Capacity);
-            public bool Disabled => Mode == FIFOModeSelection.Bypass && FeedingFromFile;
+            public bool Disabled => Mode == FIFOModeSelection.Bypass && !KeepFifoOnReset;
             public bool Empty => SamplesCount == 0;
             public bool Full => SamplesCount >= Capacity;
 
@@ -908,7 +926,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public bool OverrunOccurred { get; private set; }
             public Vector3DSample Sample => latestSample ?? DefaultSample;
             public Vector3DSample DefaultSample { get; } = new Vector3DSample();
-            public bool FeedingFromFile { get; set; }
 
             public event Action OnOverrun;
 
