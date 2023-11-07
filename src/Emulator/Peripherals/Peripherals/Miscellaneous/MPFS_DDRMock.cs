@@ -1,6 +1,6 @@
 //
-// Copyright (c) 2010-2020 Antmicro
-// Copyright (c) 2020 Hugh Breslin <Hugh.Breslin@microchip.com>
+// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2020-2023 Microchip
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,6 +22,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var value = 0x0u;
             switch(offset)
             {
+                case 0x0B4: //In HW, this would return 0x00, returning this signature instead.
+                    value = 0x52454E44;
+                    break;
                 case 0x864:
                     value = 0x44332211;
                     break;
@@ -31,10 +34,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case 0x81C:
                     value = 0x0;
                     break;
+                case 0x820:
+                    value = 0x0;
+                    break;
+                case 0x824:
+                    value = 0xFFFFFFFF;
+                    break;
                 case 0x834:
                     value = 0x8;
                     break;
                 case 0x84C:
+                    value = 0xFF;
+                    break;
+                case 0x850:
                     value = 0xFF;
                     break;
                 case 0xC08:
