@@ -840,15 +840,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                     .WithTaggedFlag("LocalitySpecificInterruptEnable", 0)
                 },
-                {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this, 0x3)
+                {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this, 0x1)
                     // "There is only one GICR_WAKER.Sleep and one GICR_WAKER.Quiescent bit that can be read and written through the GICR_WAKER register of any Redistributor."
                     .WithTaggedFlag("Quiescent", 31)
                     .WithReservedBits(3, 28)
                     .WithFlag(2, FieldMode.Read, name: "ChildrenAsleep",
-                        valueProviderCallback: _ => processorSleep.Value
+                        valueProviderCallback: _ => GetAskingCPUEntry().IsSleeping
                     )
-                    .WithFlag(1, out processorSleep, name: "ProcessorSleep")
+                    .WithFlag(1, name: "ProcessorSleep",
+                        writeCallback: (_, val) => GetAskingCPUEntry().IsSleeping = val,
+                        valueProviderCallback: _ => GetAskingCPUEntry().IsSleeping
+                    )
                     .WithTaggedFlag("Sleep", 0)
+                    // According to the reference manual this register should be RAZ/WI for an unsecure access, but we just show a warning in such a situation.
+                    .WithWriteCallback((_, __) => { if(!DisabledSecurity && !GetAskingCPUEntry().IsStateSecure) this.Log(LogLevel.Warning, "Writing to the GICR_WAKER register from wrong security state."); })
+                    .WithReadCallback((_, __) => { if(!DisabledSecurity && !GetAskingCPUEntry().IsStateSecure) this.Log(LogLevel.Warning, "Reading from the GICR_WAKER register from wrong security state."); })
                 },
                 {GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
@@ -1696,8 +1702,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // The following field aggregates information used to create an SGI.
         private SoftwareGeneratedInterruptRequest softwareGeneratedInterruptRequest = new SoftwareGeneratedInterruptRequest();
 
-        // This field should be redistributor-specific.
-        private IFlagRegisterField processorSleep;
         private int legacyCpusCount;
         private uint legacyCpusAttachedMask;
 
@@ -1767,6 +1771,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     group.Reset();
                 }
                 BestPending = null;
+                IsSleeping = true;
                 RunningInterrupts.Clear();
                 PriorityMask = InterruptPriority.Idle;
                 UpdateSignals();
@@ -1933,6 +1938,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
 
             public Affinity Affinity => cpu.Affinity;
+            public bool IsSleeping { get; set; } = true;
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
             public uint ProcessorNumber => cpu.Id;
