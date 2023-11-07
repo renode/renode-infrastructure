@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 {
                     cpu.SyncTime();
                 }
-                sampleOffsetTime = (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L;
+                sampleOffsetTime += (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L;
             }
 
             var stream = new RESDStream<T>(path, channel, sampleOffsetTime);
