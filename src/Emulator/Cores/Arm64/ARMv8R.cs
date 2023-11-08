@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.IRQControllers;
 
@@ -45,6 +46,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Reset();
             SetSystemRegisterValue("hvbar", defaultHVBARValue);
             SetSystemRegisterValue("vbar", defaultVBARValue);
+            foreach(var config in defaultTCMConfiguration)
+            {
+                RegisterTCMRegion(config);
+            }
         }
 
         public ulong GetSystemRegisterValue(string name)
@@ -122,6 +127,45 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 return features;
             }
+        }
+
+        public void RegisterTCMRegion(MappedMemory memory, uint regionIndex)
+        {
+            if(!machine.IsPaused)
+            {
+                throw new RecoverableException("Registering TCM regions might only take place on paused machine");
+            }
+            if(!TryRegisterTCMRegion(memory, regionIndex))
+            {
+                this.Log(LogLevel.Error, "Attempted to register a TCM region #{0}, but {1} is not registered for this CPU.", regionIndex, machine.GetLocalName(memory));
+            }
+        }
+
+        private void RegisterTCMRegion(TCMConfiguration config)
+        {
+            try
+            {
+                TlibRegisterTcmRegion(config.Address, config.Size, config.RegionIndex);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException(e);
+            }
+        }
+
+        private bool TryRegisterTCMRegion(MappedMemory memory, uint regionIndex)
+        {
+            ulong address;
+            if(!TCMConfiguration.TryFindRegistrationAddress(machine.SystemBus, this, memory, out address))
+            {
+                return false;
+            }
+
+            var config = new TCMConfiguration(checked((uint)address), checked((ulong)memory.Size), regionIndex);
+            RegisterTCMRegion(config);
+            defaultTCMConfiguration.Add(config);
+
+            return true;
         }
 
         public byte Affinity0 => (byte)Id;
@@ -231,9 +275,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ARM_GenericTimer timer;
 
         private readonly ARM_GenericInterruptController gic;
-
         private readonly ulong defaultHVBARValue;
         private readonly ulong defaultVBARValue;
+
+        private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
+
         // These '*ReturnValue' enums have to be in sync with their counterparts in 'tlib/arch/arm64/arch_exports.c'.
         private enum SetAvailableElsReturnValue
         {
@@ -264,6 +310,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibSetMpuRegionsCount;
+
+        [Import]
+        private ActionUInt32UInt64UInt64 TlibRegisterTcmRegion;
 #pragma warning restore 649
     }
 }
