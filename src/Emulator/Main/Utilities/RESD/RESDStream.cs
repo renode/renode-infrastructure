@@ -39,7 +39,8 @@ namespace Antmicro.Renode.Utilities.RESD
     public static class RESDStreamExtension
     {
         public static RESDStream<T> CreateRESDStream<T>(this IPeripheral @this, ReadFilePath path, uint channel,
-            RESDStreamSampleOffset offsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0) where T: RESDSample, new()
+            RESDStreamSampleOffset offsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0,
+            Predicate<DataBlock<T>> extraFilter = null) where T: RESDSample, new()
         {
             if(offsetType == RESDStreamSampleOffset.CurrentVirtualTime)
             {
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 sampleOffsetTime += (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L;
             }
 
-            var stream = new RESDStream<T>(path, channel, sampleOffsetTime);
+            var stream = new RESDStream<T>(path, channel, sampleOffsetTime, extraFilter);
             stream.Owner = @this;
             return stream;
         }
@@ -173,7 +174,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
     public class RESDStream<T> : IDisposable where T : RESDSample, new()
     {
-        public RESDStream(ReadFilePath path, uint channel, long sampleOffsetTime = 0)
+        public RESDStream(ReadFilePath path, uint channel, long sampleOffsetTime = 0, Predicate<DataBlock<T>> extraFilter = null)
         {
             var sampleTypeAttribute = typeof(T).GetCustomAttributes(typeof(SampleTypeAttribute), true).FirstOrDefault() as SampleTypeAttribute;
             if(sampleTypeAttribute == null)
@@ -189,6 +190,7 @@ namespace Antmicro.Renode.Utilities.RESD
             this.parser = new LowLevelRESDParser(path);
             this.parser.LogCallback += (logLevel, message) => Owner?.Log(logLevel, message);
             this.blockEnumerator = parser.GetDataBlockEnumerator<T>().GetEnumerator();
+            this.extraFilter = extraFilter;
 
             PrereadFirstBlock();
         }
@@ -335,7 +337,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
             while(blockEnumerator.TryGetNext(out var nextBlock))
             {
-                if(nextBlock.ChannelId != Channel)
+                if(nextBlock.ChannelId != Channel || !(extraFilter?.Invoke(nextBlock) ?? true))
                 {
                     Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", nextBlock.BlockType, nextBlock.DataSize);
                     continue;
@@ -372,5 +374,6 @@ namespace Antmicro.Renode.Utilities.RESD
 
         private readonly LowLevelRESDParser parser;
         private readonly IList<IManagedThread> managedThreads;
+        private readonly Predicate<DataBlock<T>> extraFilter;
     }
 }
