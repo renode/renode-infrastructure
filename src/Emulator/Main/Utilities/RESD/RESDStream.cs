@@ -289,7 +289,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
             var thread = machine.ObtainManagedThread(feedSample, frequency, "RESD stream thread", owner, stopCondition);
             var delayInterval = TimeInterval.FromMicroseconds(startTime / 1000);
-            Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at frequency {0}Hz delayed by {0}us", frequency, delayInterval);
+            Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at frequency {0}Hz delayed by {1}us", frequency, delayInterval);
             thread.StartDelayed(delayInterval);
             managedThreads.Add(thread);
             return thread;
