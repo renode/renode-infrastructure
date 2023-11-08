@@ -637,14 +637,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BinaryFingerprint(fileName);
         }
 
-         public IEnumerable<ulong> GetAllSymbolAddresses(string symbolName)
-         {
-             IReadOnlyCollection<Symbol> symbols;
-             if(!Lookup.TryGetSymbolsByName(symbolName, out symbols))
-             {
-                 throw new RecoverableException(string.Format("No symbol with name `{0}` found.", symbolName));
-             }
-            return symbols.Select(symbol => symbol.Start.RawValue);
+        public bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses)
+        {
+            var result = Lookup.TryGetSymbolsByName(symbolName, out var symbols);
+            symbolAddresses = symbols.Select(symbol => symbol.Start.RawValue);
+            return result;
+        }
+
+        public IEnumerable<ulong> GetAllSymbolAddresses(string symbolName)
+        {
+            if(!TryGetAllSymbolAddresses(symbolName, out var symbolAddresses))
+            {
+                throw new RecoverableException(string.Format("No symbol with name `{0}` found.", symbolName));
+            }
+            return symbolAddresses;
         }
 
         public ulong GetSymbolAddress(string symbolName)
