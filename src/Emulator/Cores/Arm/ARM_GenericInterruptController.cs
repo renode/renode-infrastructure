@@ -446,6 +446,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        /// <summary>
+        /// Setting this property to true will causes all interrupts to be reported to a core with lowest ID, which configuration allows it to take.
+        ///
+        /// This is mostly for debugging purposes.
+        /// It allows to predict a core (in a multi-core setup) to handle the given interrupt making it easier to debug.
+        /// </summary>
+        public bool ForceLowestIdCpuAsInterruptTarget { get; set; }
+
         public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; }
         public uint CPUInterfaceProductIdentifier { get; set; } = DefaultCPUInterfaceProductIdentifier;
         public uint DistributorProductIdentifier { get; set; } = DefaultDistributorProductIdentifier;
@@ -585,10 +593,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(!IsAffinityRoutingEnabled(cpu))
             {
-                return interrupts.Where(irq => irq.IsLegacyRoutingTargetingCPU(cpu));
+                return interrupts.Where(irq =>
+                    irq.IsLegacyRoutingTargetingCPU(cpu) && (!ForceLowestIdCpuAsInterruptTarget || irq.IsLowestLegacyRoutingTargettedCPU(cpu))
+                );
             }
 
-            return interrupts.Where(irq => irq.IsAffinityRoutingTargetingCPU(cpu));
+            return interrupts.Where(irq =>
+                irq.IsAffinityRoutingTargetingCPU(cpu) && (!ForceLowestIdCpuAsInterruptTarget || irq.IsLowestAffinityRoutingTargettedCPU(cpu, this))
+            );
         }
 
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
@@ -1779,6 +1791,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return true;
         }
 
+        private void ClearForcedTargettingCache()
+        {
+            forcedTargettedCpuForAffinityRouting = null;
+        }
+
+        private CPUEntry ForcedTargettingCpuForAffinityRouting
+        {
+            get
+            {
+                if(forcedTargettedCpuForAffinityRouting == null)
+                {
+                    forcedTargettedCpuForAffinityRouting = cpuEntries.Values.Where(cpu => cpu.IsParticipatingInRouting).MinBy(cpu => cpu.Affinity.AllLevels);
+                }
+                return forcedTargettedCpuForAffinityRouting;
+            }
+        }
+
         private bool ackControl;
         private bool enableFIQ;
         private bool disabledSecurity;
@@ -1787,6 +1816,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // The following field aggregates information used to create an SGI.
         private SoftwareGeneratedInterruptRequest softwareGeneratedInterruptRequest = new SoftwareGeneratedInterruptRequest();
         private uint legacyCpusAttachedMask;
+        private CPUEntry forcedTargettedCpuForAffinityRouting;
 
         private readonly IBusController busController;
         private readonly Object locker = new Object();
@@ -2072,9 +2102,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
 
+            public bool IsSleeping
+            {
+                get => isSleeping;
+                set
+                {
+                    var changed = isSleeping != value;
+                    if(changed)
+                    {
+                        isSleeping = value;
+                        gic.ClearForcedTargettingCache();
+                    }
+                }
+            }
+
             public Affinity Affinity => cpu.Affinity;
             public bool IsParticipatingInRouting => !IsSleeping;
-            public bool IsSleeping { get; set; } = true;
             public virtual string CurrentCPUSecurityStateString => $"state: {cpu.SecurityState}";
             public virtual EndOfInterruptModes CurrentEndOfInterruptMode => EndOfInterruptModeEL1;
 
@@ -2139,6 +2182,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return true;
             }
 
+            private bool isSleeping = true;
             private readonly IARMSingleSecurityStateCPU cpu;
             private readonly IReadOnlyDictionary<InterruptSignalType, IGPIO> interruptSignals;
         }
@@ -2353,6 +2397,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return (TargetCPUs & cpu.TargetFieldFlag) != 0;
             }
 
+            public bool IsLowestLegacyRoutingTargettedCPU(CPUEntry cpu)
+            {
+                return (TargetCPUs & (cpu.TargetFieldFlag - 1)) == 0;
+            }
+
             public bool IsAffinityRoutingTargetingCPU(CPUEntry cpu)
             {
                 if(RoutingMode == InterruptRoutingMode.AnyTarget || TargetAffinity.AllLevels == cpu.Affinity.AllLevels)
@@ -2360,6 +2409,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return cpu.IsParticipatingInRouting;
                 }
                 return false;
+            }
+
+            public bool IsLowestAffinityRoutingTargettedCPU(CPUEntry cpu, ARM_GenericInterruptController gic)
+            {
+                return cpu.IsParticipatingInRouting && (RoutingMode == InterruptRoutingMode.SpecifiedTarget ? TargetAffinity.AllLevels == cpu.Affinity.AllLevels : cpu == gic.ForcedTargettingCpuForAffinityRouting);
             }
 
             public byte TargetCPUs { get; set; }
