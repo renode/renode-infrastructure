@@ -31,7 +31,8 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                         else
                         {
-                            this.Log(LogLevel.Warning, "Trying to transmit '{1}' (0x{0}), but the transmitter is disabled", b, (char) b);
+                            var c = (char)b;
+                            this.Log(LogLevel.Warning, "Trying to transmit '{1}' (0x{0}), but the transmitter is disabled", b, ' ' <= c ? c.ToString() : "<not a printable character>");
                         }
                     }, name: "DATA")
                     .WithTag("RESERVED", 8, 23)
