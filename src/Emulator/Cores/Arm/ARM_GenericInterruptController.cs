@@ -151,7 +151,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(processorNumber < CPUsCountLegacySupport)
             {
                 legacyCpusAttachedMask |= cpuEntry.TargetFieldFlag;
-                legacyCpusCount += 1;
                 // The new attached CPU need to be registered for all CPUs including itself.
                 foreach(var target in cpuEntries.Values)
                 {
@@ -640,7 +639,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => false
                     )
                     .WithValueField(5, 3, name: "LegacyCpusCount",
-                        valueProviderCallback: _ => (ulong)legacyCpusCount - 1
+                        valueProviderCallback: _ => (ulong)BitHelper.GetSetBits(legacyCpusAttachedMask).Count - 1
                     )
                     .WithValueField(0, 5, name: "SharedPeripheralInterruptsCount",
                         valueProviderCallback: _ => ((uint)irqsDecoder.SharedPeripheralLast + 1) / 32 - 1
@@ -1708,8 +1707,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool affinityRoutingEnabledNonSecure;
         // The following field aggregates information used to create an SGI.
         private SoftwareGeneratedInterruptRequest softwareGeneratedInterruptRequest = new SoftwareGeneratedInterruptRequest();
-
-        private int legacyCpusCount;
         private uint legacyCpusAttachedMask;
 
         private readonly IBusController busController;
