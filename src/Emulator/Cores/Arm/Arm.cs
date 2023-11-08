@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void RegisterTCMRegion(ulong address, long size, uint interfaceIndex, uint regionIndex)
         {
-            var config = new TCMConfiguration(checked((uint)address), checked((ulong)size), interfaceIndex, regionIndex);
+            var config = new TCMConfiguration(checked((uint)address), checked((ulong)size), regionIndex, interfaceIndex);
             RegisterTCMRegion(config);
             defaultTCMConfiguration.Add(config);
         }
@@ -284,21 +284,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool TryRegisterTCMRegion(MappedMemory memory, uint interfaceIndex, uint regionIndex)
         {
-            var registrationPoint = ((SystemBus)machine.SystemBus).GetRegistrationPoints(memory, this).OfType<IPerCoreRegistration>().Where(x => x.CPU == this).SingleOrDefault();
-            if(registrationPoint == null)
-            {
-                return false;
-            }
-            var address = (ulong)0x0;
-            if(registrationPoint is BusRangeRegistration rangeRegistration)
-            {
-                address = rangeRegistration.Range.StartAddress;
-            }
-            else if(registrationPoint is BusPointRegistration pointRegistration)
-            {
-                address = pointRegistration.StartingPoint;
-            }
-            else
+            ulong address;
+            if(!TCMConfiguration.TryFindRegistrationAddress((SystemBus)machine.SystemBus, this, memory, out address))
             {
                 return false;
             }
@@ -507,22 +494,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private const int Opc1Offset = 4;
             private const int CRmOffset = 0;
-        }
-
-        protected struct TCMConfiguration
-        {
-            public TCMConfiguration(uint address, ulong size, uint interfaceIndex, uint regionIndex)
-            {
-                Address = address;
-                Size = size;
-                InterfaceIndex = interfaceIndex;
-                RegionIndex = regionIndex;
-            }
-
-            public uint Address { get; }
-            public ulong Size { get; }
-            public uint InterfaceIndex { get; }
-            public uint RegionIndex { get; }
         }
     }
 }

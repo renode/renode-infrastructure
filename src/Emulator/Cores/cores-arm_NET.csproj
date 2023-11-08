@@ -36,6 +36,7 @@
     <Compile Include="Debug\CPUTracer.cs" />
     <Compile Include="Debug\FunctionCallParameter.cs" />
     <Compile Include="Debug\FunctionCallParameterType.cs" />
+    <Compile Include="Arm\TCMConfiguration.cs"/>
   </ItemGroup>
   <ItemGroup>
     <None Include="Arm\ArmRegisters.tt">
