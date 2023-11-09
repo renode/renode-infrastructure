@@ -115,12 +115,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void AttachCPU(IARMSingleSecurityStateCPU cpu)
         {
             var processorNumber = cpu.Id;
-            if(TryGetCPUEntry(processorNumber, out var cpuEntry))
+            if(TryGetCPUEntry(processorNumber, out var existingCPUEntry))
             {
                 throw new RecoverableException($"The CPU with the Processor Number {processorNumber} already exists.");
             }
+            if(cpuEntries.Values.Any(entry => entry.Affinity.AllLevels == cpu.Affinity.AllLevels))
+            {
+                throw new RecoverableException($"The CPU with the affinity {cpu.Affinity} already exists.");
+            }
 
             var cpuMappedConnections = supportedInterruptSignals.ToDictionary(type => type, _ => (IGPIO)new GPIO());
+            CPUEntry cpuEntry = null;
             var cpuTwoSecurityStates = cpu as IARMTwoSecurityStatesCPU;
             if(cpuTwoSecurityStates != null)
             {
