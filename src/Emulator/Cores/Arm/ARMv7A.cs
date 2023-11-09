@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             catch(Exception e)
             {
-                throw new ConstructionException("Failed to attach CPU to Generic Interrupt Controller", e);
+                throw new ConstructionException($"Failed to attach CPU to Generic Interrupt Controller: {e.Message}", e);
             }
         }
 
