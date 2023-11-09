@@ -677,20 +677,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 },
                 {(long)DistributorRegisters.SoftwareGeneratedInterruptControl, new DoubleWordRegister(this)
                     .WithReservedBits(26, 6)
-                    .WithEnumField<DoubleWordRegister, SoftwareGeneratedInterruptRequest.TargetType>(24, 2, FieldMode.Write, name: "TargetListFilter",
-                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.TargetCPUsType = val
-                    )
-                    .WithValueField(16, 8, FieldMode.Write, name: "TargetsList",
-                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.TargetsList = (uint)val
-                    )
-                    .WithFlag(15, FieldMode.Write, name: "GroupFilterSecureAccess",
-                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.TargetGroup = val ? GroupType.Group1 : GroupType.Group0
-                    )
+                    .WithEnumField<DoubleWordRegister, SoftwareGeneratedInterruptRequest.TargetType>(24, 2, out var type, FieldMode.Write, name: "TargetListFilter")
+                    .WithValueField(16, 8, out var list, FieldMode.Write, name: "TargetsList")
+                    .WithFlag(15, out var group, FieldMode.Write, name: "GroupFilterSecureAccess")
                     .WithReservedBits(4, 10)
-                    .WithValueField(0, 4, FieldMode.Write, name: "SoftwareGeneratedInterruptIdentifier",
-                        writeCallback: (_, val) => softwareGeneratedInterruptRequest.InterruptId = new InterruptId((uint)val)
+                    .WithValueField(0, 4, out var id, FieldMode.Write, name: "SoftwareGeneratedInterruptIdentifier")
+                    .WithWriteCallback((_, __) => OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(),
+                        new SoftwareGeneratedInterruptRequest(type.Value, (uint)list.Value, group.Value ? GroupType.Group1 : GroupType.Group0, new InterruptId((uint)id.Value)))
                     )
-                    .WithWriteCallback((_, __) => OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), softwareGeneratedInterruptRequest))
                 },
                 {GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
@@ -1813,8 +1807,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool disabledSecurity;
         private bool affinityRoutingEnabledSecure;
         private bool affinityRoutingEnabledNonSecure;
-        // The following field aggregates information used to create an SGI.
-        private SoftwareGeneratedInterruptRequest softwareGeneratedInterruptRequest = new SoftwareGeneratedInterruptRequest();
         private uint legacyCpusAttachedMask;
         private CPUEntry forcedTargettedCpuForAffinityRouting;
 
@@ -2548,12 +2540,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public const uint MaximumSharedPeripheralCount = 988;
         }
 
-        private class SoftwareGeneratedInterruptRequest
+        private struct SoftwareGeneratedInterruptRequest
         {
-            public TargetType TargetCPUsType { get; set; }
-            public uint TargetsList { get; set; }
-            public GroupType TargetGroup { get; set; }
-            public InterruptId InterruptId { get; set; }
+            public SoftwareGeneratedInterruptRequest(TargetType type, uint list, GroupType group, InterruptId id)
+            {
+                TargetCPUsType = type;
+                TargetsList = list;
+                TargetGroup = group;
+                InterruptId = id;
+            }
+
+            public TargetType TargetCPUsType { get; }
+            public uint TargetsList { get; }
+            public GroupType TargetGroup { get; }
+            public InterruptId InterruptId { get; }
 
             public enum TargetType
             {
