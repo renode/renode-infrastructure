@@ -704,7 +704,7 @@ namespace Antmicro.Renode.Utilities
         {
             if(!type.IsGenericType)
             {
-                return type.FullName;
+                return type.IsGenericParameter ? type.ToString() : type.FullName;
             }
             var result = string.Format("{0}<{1}>", type.GetGenericTypeDefinition().FullName,
                                        type.GetGenericArguments().Select(x => GetSimpleFullTypeName(x)).Aggregate((x, y) => x + "," + y));
