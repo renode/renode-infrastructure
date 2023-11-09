@@ -24,7 +24,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 2)]
-    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
+    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>, IPeripheralRegister<ArmPerformanceMonitoringUnit, NullRegistrationPoint>
     {
         public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null) : base(cpuId, cpuType, machine, endianness)
         {
@@ -47,6 +47,24 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void Unregister(SemihostingUart peripheral)
         {
             semihostingUart = null;
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        public void Register(ArmPerformanceMonitoringUnit peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(performanceMonitoringUnit != null)
+            {
+                throw new RegistrationException("A PMU is already registered.");
+            }
+            performanceMonitoringUnit = peripheral;
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+
+            performanceMonitoringUnit.RegisterCPU(this);
+        }
+
+        public void Unregister(ArmPerformanceMonitoringUnit peripheral)
+        {
+            performanceMonitoringUnit = null;
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
@@ -321,6 +339,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        private void ReportPMUOverflow(int counter)
+        {
+            performanceMonitoringUnit?.OnOverflowAction(counter);
+        }
+
+        private ArmPerformanceMonitoringUnit performanceMonitoringUnit;
+
+        [Export]
         private uint DoSemihosting()
         {
             var uart = semihostingUart;
@@ -431,6 +457,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionStringUInt64 TlibSetSystemRegister;
+
+        [Import]
+        public ActionInt32UInt32 TlibUpdatePmuCounters;
+
+        [Import]
+        public ActionUInt32 TlibPmuSetDebug;
 
 #pragma warning restore 649
 

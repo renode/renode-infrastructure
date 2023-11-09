@@ -33,6 +33,7 @@
     <Compile Include="Arm\Timers\ARM_PrivateTimer.cs" />
     <Compile Include="Arm\ARM_GenericInterruptController.cs" />
     <Compile Include="Arm\ArmSnoopControlUnit.cs" />
+    <Compile Include="Arm\ArmPerformanceMonitoringUnit.cs" />
     <Compile Include="Debug\CPUTracer.cs" />
     <Compile Include="Debug\FunctionCallParameter.cs" />
     <Compile Include="Debug\FunctionCallParameterType.cs" />
