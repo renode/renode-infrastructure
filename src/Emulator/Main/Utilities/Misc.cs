@@ -414,6 +414,13 @@ namespace Antmicro.Renode.Utilities
             return -1;
         }
 
+#if !NET
+        public static TSource MinBy<TSource, T>(this IEnumerable<TSource> source, Func<TSource, T> map) where T: IComparable<T>
+        {
+            return source.Aggregate((a, b) => map(a).CompareTo(map(b)) < 0 ? a : b);
+        }
+#endif
+
         public static string Stringify<TSource>(this IEnumerable<TSource> source, string separator = " ", int limitPerLine = 0)
         {
             return Stringify(source.Select(x => x == null ? String.Empty : x.ToString()), separator, limitPerLine);
