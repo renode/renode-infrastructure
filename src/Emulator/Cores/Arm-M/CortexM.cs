@@ -52,7 +52,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void OnResume()
         {
-            InitPCAndSP();
+            if (!IsHalted)
+            {
+                InitPCAndSP();
+            }
+                
             base.OnResume();
         }
 
