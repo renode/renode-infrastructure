@@ -11,14 +11,17 @@ using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Hooks
 {
-    public class RegisterCollectionHookPythonEngine<T> : PythonEngine where T: struct
+    public class RegisterCollectionHookPythonEngine<T, R> : PythonEngine 
+        where T: struct
+        where R: IRegisterCollection
     {
-        public RegisterCollectionHookPythonEngine(IPeripheral peripheral, string script)
+        public RegisterCollectionHookPythonEngine(IProvidesRegisterCollection<R> registerCollectionProvider, string script) 
         {
-            this.peripheral = peripheral;
+            this.registerCollectionProvider = registerCollectionProvider;
             this.script = script;
 
             InnerInit();
@@ -28,7 +31,7 @@ namespace Antmicro.Renode.Hooks
                 Scope.SetVariable("value", value);
                 Execute(code, error =>
                 {
-                    this.peripheral.Log(LogLevel.Error, "Python runtime error: {0}", error);
+                    Logger.Log(LogLevel.Error, "Python runtime error: {0}", error);
                 });
             };
         }
@@ -40,7 +43,7 @@ namespace Antmicro.Renode.Hooks
         [PostDeserialization]
         private void InnerInit()
         {
-            Scope.SetVariable("self", peripheral);
+            Scope.SetVariable("self", registerCollectionProvider);
 
             var source = Engine.CreateScriptSourceFromString(script);
             code = Compile(source);
@@ -50,7 +53,7 @@ namespace Antmicro.Renode.Hooks
         private CompiledCode code;
 
         private readonly string script;
-        private readonly IPeripheral peripheral;
+        private readonly IProvidesRegisterCollection<R> registerCollectionProvider;
     }
 }
 
