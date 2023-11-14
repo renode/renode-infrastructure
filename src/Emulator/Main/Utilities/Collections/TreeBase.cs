@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Utilities.Collections
             var node = ChildrenList.FirstOrDefault(x => value.Equals(x.Value));
             if(node == null)
             {
-                throw new InvalidOperationException(string.Format("Could not find child '{0}'.", value));
+                throw new InvalidOperationException($"Could not find child '{value}'.");
             }
             ChildrenList.Remove(node);
         }
