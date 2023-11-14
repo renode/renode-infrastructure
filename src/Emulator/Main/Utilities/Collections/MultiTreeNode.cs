@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Utilities.Collections
             {
                 if(index == -1)
                 {
-                    throw new KeyNotFoundException(string.Format("Could not find child with value '{0}'.", value));
+                    throw new KeyNotFoundException($"Could not find child with value '{value}'.");
                 }
                 yield return ConnectionWays[index];
             }
@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             if(!removed)
             {
-                throw new InvalidOperationException(string.Format("Node '{0}' does not have child '{1}'.", Value, value));
+                throw new InvalidOperationException($"Node '{Value}' does not have child '{value}'.");
             }
             root.GarbageCollect();
         }
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             if(!removed)
             {
-                throw new InvalidOperationException(string.Format("Node '{0}' does not have child connected by '{1}'.", Value, connectionWay));
+                throw new InvalidOperationException($"Node '{Value}' does not have child connected by '{connectionWay}'.");
             }
             root.GarbageCollect();
         }
