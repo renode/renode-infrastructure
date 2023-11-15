@@ -169,14 +169,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal AccelerationX
         {
-            get => accelerationFifo.Sample.X;
+            get => CurrentSample.X;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationFifo.Sample.X = value;
+                CurrentSample.X = value;
                 this.Log(LogLevel.Noisy, "AccelerationX set to {0}", value);
                 UpdateInterrupts();
             }
@@ -184,14 +184,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal AccelerationY
         {
-            get => accelerationFifo.Sample.Y;
+            get => CurrentSample.Y;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationFifo.Sample.Y = value;
+                CurrentSample.Y = value;
                 this.Log(LogLevel.Noisy, "AccelerationY set to {0}", value);
                 UpdateInterrupts();
             }
@@ -199,14 +199,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal AccelerationZ
         {
-            get => accelerationFifo.Sample.Z;
+            get => CurrentSample.Z;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationFifo.Sample.Z = value;
+                CurrentSample.Z = value;
                 this.Log(LogLevel.Noisy, "AccelerationZ set to {0}", value);
                 UpdateInterrupts();
             }
@@ -214,14 +214,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal DefaultAccelerationX
         {
-            get => accelerationFifo.DefaultSample.X;
+            get => DefaultSample.X;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationFifo.DefaultSample.X = value;
+                DefaultSample.X = value;
                 this.Log(LogLevel.Noisy, "DefaultAccelerationX set to {0}", value);
                 UpdateInterrupts();
             }
@@ -229,14 +229,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal DefaultAccelerationY
         {
-            get => accelerationFifo.DefaultSample.Y;
+            get => DefaultSample.Y;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationFifo.DefaultSample.Y = value;
+                DefaultSample.Y = value;
                 this.Log(LogLevel.Noisy, "DefaultAccelerationY set to {0}", value);
                 UpdateInterrupts();
             }
@@ -244,14 +244,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal DefaultAccelerationZ
         {
-            get => accelerationFifo.DefaultSample.Z;
+            get => DefaultSample.Z;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                accelerationFifo.DefaultSample.Z = value;
+                DefaultSample.Z = value;
                 this.Log(LogLevel.Noisy, "DefaultAccelerationZ set to {0}", value);
                 UpdateInterrupts();
             }
@@ -381,17 +381,29 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             var sample = new Vector3DSample(x, y, z);
 
-            for(var i = 0; i < repeat; i++)
+            if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
             {
-                accelerationFifo.FeedSample(sample);
+                CurrentSample = sample;
             }
+            else
+            {
+                for(var i = 0; i < repeat; i++)
+                {
+                    accelerationFifo.FeedSample(sample);
+                }
+            }
+
             UpdateInterrupts();
         }
 
         private void LoadNextSample()
         {
             this.Log(LogLevel.Noisy, "Acquiring next sample");
-            accelerationFifo.TryDequeueNewSample();
+            if(fifoModeSelection.Value != FIFOModeSelection.Bypass)
+            {
+                accelerationFifo.TryDequeueNewSample();
+                CurrentSample = accelerationFifo.Sample;
+            }
             UpdateInterrupts();
         }
 
@@ -820,6 +832,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        public Vector3DSample DefaultSample { get; } = new Vector3DSample();
+        private Vector3DSample CurrentSample { get; set; } = new Vector3DSample();
         private decimal SelfTestAccelerationOffset =>
             SelfTestAcceleration * (selfTestMode.Value == SelfTestMode.PositiveSign ? 1 : selfTestMode.Value == SelfTestMode.NegativeSign ? -1 : 0);
         private decimal ReportedAccelerationX => AccelerationX + SelfTestAccelerationOffset;
@@ -910,16 +924,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 lock(locker)
                 {
+                    latestSample = sample;
+
                     if(KeepFifoOnReset)
                     {
                         queue.Enqueue(sample);
-                        return;
-                    }
-
-                    latestSample = sample;
-
-                    if(Mode == FIFOModeSelection.Bypass)
-                    {
                         return;
                     }
 
@@ -1026,8 +1035,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public FIFOModeSelection Mode => owner.fifoModeSelection.Value;
 
             public bool OverrunOccurred { get; private set; }
-            public Vector3DSample Sample => latestSample ?? DefaultSample;
-            public Vector3DSample DefaultSample { get; } = new Vector3DSample();
+            public Vector3DSample Sample => latestSample ?? owner.DefaultSample;
 
             public event Action OnOverrun;
 
