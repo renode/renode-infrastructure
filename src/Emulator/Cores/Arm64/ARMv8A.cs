@@ -6,6 +6,8 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -119,6 +121,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ARMv8ARegisters.PSTATE, 32, "cpsr", "uint32", "general"));
                 features.Add(coreFeature);
 
+                var systemRegistersFeature = new GDBFeatureDescriptor("org.renode.gdb.aarch64.sysregs");
+                foreach(var indexNamePair in SystemRegistersDictionary)
+                {
+                    systemRegistersFeature.Registers.Add(new GDBRegisterDescriptor(indexNamePair.Key, SystemRegistersWidth, indexNamePair.Value, "uint64"));
+                }
+                features.Add(systemRegistersFeature);
+
                 /*
                  * TODO
                  * The ‘org.gnu.gdb.aarch64.fpu’ feature is optional. If present, it should contain registers ‘v0’ through ‘v31’, ‘fpsr’, and ‘fpcr’.
@@ -172,6 +181,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected IEnumerable<CPURegister> GetNonMappedRegisters()
+        {
+            return SystemRegistersDictionary.Keys.Select(index => new CPURegister((int)index, SystemRegistersWidth, false, false));
+        }
+
         [Export]
         protected ulong ReadSystemRegisterInterruptCPUInterface(uint offset)
         {
@@ -222,6 +236,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             timer.WriteRegisterAArch64(offset, value);
         }
 
+        protected bool TryGetNonMappedRegister(int index, out RegisterValue value)
+        {
+            // This method will be mostly used by GDB so let's prevent unhandled access logs.
+            // Otherwise, 'info all-registers' generates a lot of warnings.
+            var result = TryGetSystemRegisterValue((uint)index, out var ulongValue, logUnhandledAccess: false);
+
+            value = RegisterValue.Create(ulongValue, SystemRegistersWidth);
+            return result;
+        }
+
+        protected bool TrySetNonMappedRegister(int index, RegisterValue value)
+        {
+            if(SystemRegistersDictionary.TryGetValue((uint)index, out var name))
+            {
+                // ValidateSystemRegisterAccess isn't used because most of it's checks aren't needed.
+                // The register must exist at this point cause it's in the dictionary built based on tlib
+                // and we don't really care about the invalid access type error for unwritable registers.
+                TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
+                return true;
+            }
+            return false;
+        }
+
         [Export]
         private void OnExecutionModeChanged(uint el, uint isSecure)
         {
@@ -231,6 +268,20 @@ namespace Antmicro.Renode.Peripherals.CPU
                 securityState = isSecure != 0 ? SecurityState.Secure : SecurityState.NonSecure;
             }
             ExecutionModeChanged?.Invoke(ExceptionLevel, SecurityState);
+        }
+
+        private bool TryGetSystemRegisterValue(uint index, out ulong value, bool logUnhandledAccess)
+        {
+            if(SystemRegistersDictionary.TryGetValue(index, out var name))
+            {
+                // ValidateSystemRegisterAccess isn't used because most of it's checks aren't needed.
+                // The register must exist at this point cause it's in the dictionary built based on tlib
+                // and we don't really care about the invalid access type error for unreadable registers.
+                value = TlibGetSystemRegister(name, logUnhandledAccess ? 1u : 0u);
+                return true;
+            }
+            value = 0;
+            return false;
         }
 
         private void ValidateSystemRegisterAccess(string name, bool isWrite)
@@ -243,18 +294,61 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var accessName = isWrite ? "Writing" : "Reading";
                 throw new RecoverableException($"{accessName} the {name} register isn't supported.");
             case SystemRegisterCheckReturnValue.RegisterNotFound:
-                throw new RecoverableException("No such register.");
+                throw new RecoverableException($"No such register: {name}.");
             default:
                 throw new ArgumentException("Invalid TlibCheckSystemRegisterAccess return value!");
             }
         }
 
+        private Dictionary<uint, string> SystemRegistersDictionary
+        {
+            get
+            {
+                if(systemRegisters == null)
+                {
+                    systemRegisters = new Dictionary<uint, string>();
+
+                    var array = IntPtr.Zero;
+                    var arrayPointer = Marshal.AllocHGlobal(IntPtr.Size);
+                    try
+                    {
+                        var count = TlibCreateSystemRegisterNamesArray(arrayPointer);
+                        if(count == 0)
+                        {
+                            return systemRegisters;
+                        }
+                        array = Marshal.ReadIntPtr(arrayPointer);
+
+                        var namePointersArray = new IntPtr[count];
+                        Marshal.Copy(array, namePointersArray, 0, (int)count);
+
+                        var lastRegisterIndex = Enum.GetValues(typeof(ARMv8ARegisters)).Cast<uint>().Max();
+                        systemRegisters = namePointersArray.Select(namePointer => Marshal.PtrToStringAnsi(namePointer))
+                            .OrderBy(name => name)
+                            .ToDictionary(_ => ++lastRegisterIndex);
+                    }
+                    finally
+                    {
+                        if(array != IntPtr.Zero)
+                        {
+                            Free(array);
+                        }
+                        Marshal.FreeHGlobal(arrayPointer);
+                    }
+                }
+                return systemRegisters;
+            }
+        }
+
         private ExceptionLevel exceptionLevel;
         private SecurityState securityState;
+        private Dictionary<uint, string> systemRegisters;
         private ARM_GenericTimer timer;
 
         private readonly object elAndSecurityLock = new object();
         private readonly ARM_GenericInterruptController gic;
+
+        private const int SystemRegistersWidth = 64;
 
         // These '*ReturnValue' enums have to be in sync with their counterparts in 'tlib/arch/arm64/arch_exports.c'.
         private enum SetAvailableElsReturnValue
@@ -274,6 +368,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
         [Import]
         private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
+
+        [Import]
+        private FuncUInt32IntPtr TlibCreateSystemRegisterNamesArray;
 
         [Import]
         // The arguments are: char *name, bool log_unhandled_access.

@@ -21,6 +21,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((ARMv8ARegisters)register, out var r))
             {
+                if(TrySetNonMappedRegister(register, value))
+                {
+                    return;
+                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
@@ -41,6 +45,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((ARMv8ARegisters)register, out var r))
             {
+                if(TryGetNonMappedRegister(register, out var value))
+                {
+                    return value;
+                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
             switch(r.Width)
@@ -56,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return mapping.Values.OrderBy(x => x.Index);
+            return mapping.Values.Concat(GetNonMappedRegisters()).OrderBy(x => x.Index);
         }
 
         [Register]

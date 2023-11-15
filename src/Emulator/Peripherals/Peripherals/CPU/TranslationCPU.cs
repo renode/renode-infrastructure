@@ -1296,7 +1296,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void Free(IntPtr pointer)
+        protected void Free(IntPtr pointer)
         {
             memoryManager.Free(pointer);
         }
