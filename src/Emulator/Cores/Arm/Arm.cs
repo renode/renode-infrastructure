@@ -263,13 +263,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.StateChanged += hook;
         }
 
-        public void RegisterTCMRegion(ulong address, long size, uint interfaceIndex, uint regionIndex)
-        {
-            var config = new TCMConfiguration(checked((uint)address), checked((ulong)size), regionIndex, interfaceIndex);
-            RegisterTCMRegion(config);
-            defaultTCMConfiguration.Add(config);
-        }
-
         private void RegisterTCMRegion(TCMConfiguration config)
         {
             try
@@ -289,7 +282,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return false;
             }
-            RegisterTCMRegion(address, memory.Size, interfaceIndex, regionIndex);
+
+            var config = new TCMConfiguration(checked((uint)address), checked((ulong)memory.Size), regionIndex, interfaceIndex);
+            RegisterTCMRegion(config);
+            defaultTCMConfiguration.Add(config);
+
             return true;
         }
 
