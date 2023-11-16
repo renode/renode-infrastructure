@@ -1638,41 +1638,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool TryWriteRegisterSecurityView(long offset, uint value, DoubleWordRegisterCollection notBankedRegisters,
             DoubleWordRegisterCollection secureRegisters, DoubleWordRegisterCollection nonSecureRegisters, DoubleWordRegisterCollection disabledSecurityRegisters)
         {
-            bool registerExists;
-            if(DisabledSecurity)
-            {
-                registerExists = disabledSecurityRegisters.TryWrite(offset, value);
-            }
-            else if(GetAskingCPUEntry().IsStateSecure)
-            {
-                registerExists = secureRegisters.TryWrite(offset, value);
-            }
-            else
-            {
-                registerExists = nonSecureRegisters.TryWrite(offset, value);
-            }
-
-            return registerExists || notBankedRegisters.TryWrite(offset, value);
+            var bankedRegisters = GetBankedRegistersCollection(secureRegisters, nonSecureRegisters, disabledSecurityRegisters);
+            return bankedRegisters.TryWrite(offset, value) || notBankedRegisters.TryWrite(offset, value);
         }
 
         private bool TryReadRegisterSecurityView(long offset, out uint value, DoubleWordRegisterCollection notBankedRegisters,
             DoubleWordRegisterCollection secureRegisters, DoubleWordRegisterCollection nonSecureRegisters, DoubleWordRegisterCollection disabledSecurityRegisters)
         {
-            bool registerExists;
+            var bankedRegisters = GetBankedRegistersCollection(secureRegisters, nonSecureRegisters, disabledSecurityRegisters);
+            return bankedRegisters.TryRead(offset, out value) || notBankedRegisters.TryRead(offset, out value);
+        }
+
+        private DoubleWordRegisterCollection GetBankedRegistersCollection(DoubleWordRegisterCollection secureRegisters, DoubleWordRegisterCollection nonSecureRegisters,
+            DoubleWordRegisterCollection disabledSecurityRegisters)
+        {
             if(DisabledSecurity)
             {
-                registerExists = disabledSecurityRegisters.TryRead(offset, out value);
-            }
-            else if(GetAskingCPUEntry().IsStateSecure)
-            {
-                registerExists = secureRegisters.TryRead(offset, out value);
+                return disabledSecurityRegisters;
             }
             else
             {
-                registerExists = nonSecureRegisters.TryRead(offset, out value);
+                return GetAskingCPUEntry().IsStateSecure ? secureRegisters : nonSecureRegisters;
             }
-
-            return registerExists || notBankedRegisters.TryRead(offset, out value);
         }
 
         private bool IsDistributorByteAccessible(long offset)
