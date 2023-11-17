@@ -599,6 +599,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
         }
 
+        private IEnumerable<Interrupt> GetAllInterrupts(CPUEntry cpu)
+        {
+            return cpu.AllInterrupts.Concat(sharedInterrupts.Values);
+        }
+
         private IEnumerable<Interrupt> GetAllPendingCandidateInterrupts(CPUEntry cpu)
         {
             return GetAllEnabledInterrupts(cpu).Where(irq => irq.State.Pending && irq.Config.Priority < cpu.PriorityMask && irq.Config.Priority < cpu.RunningPriority);
