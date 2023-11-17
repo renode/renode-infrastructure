@@ -401,7 +401,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.Log(LogLevel.Warning, "Disabling security when a group of interrupts is enabled.");
                 }
 
-                var cpuConfigs = cpuEntries.Values.SelectMany(cpu => cpu.AllInterruptsConfigs);
+                var cpuConfigs = cpuEntries.Values.SelectMany(cpu => cpu.AllPrivateAndSoftwareGeneratedInterruptsConfigs);
                 var allInterruptConfigs = cpuConfigs.Concat(sharedInterrupts.Values.Select(irq => irq.Config));
                 foreach(var config in allInterruptConfigs)
                 {
@@ -594,14 +594,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups[type].Enabled).ToArray();
             IEnumerable<SharedInterrupt> filteredSharedInterrupts = sharedInterrupts.Values;
-            return cpu.AllInterrupts
+            return cpu.AllPrivateAndSoftwareGeneratedInterrupts
                 .Concat(GetSharedInterruptsTargetingCPU(cpu))
                 .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
         }
 
         private IEnumerable<Interrupt> GetAllInterrupts(CPUEntry cpu)
         {
-            return cpu.AllInterrupts.Concat(sharedInterrupts.Values);
+            return cpu.AllPrivateAndSoftwareGeneratedInterrupts.Concat(sharedInterrupts.Values);
         }
 
         private IEnumerable<Interrupt> GetAllPendingCandidateInterrupts(CPUEntry cpu)
@@ -1776,7 +1776,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public void Reset()
             {
-                foreach(var irq in AllInterrupts)
+                foreach(var irq in AllPrivateAndSoftwareGeneratedInterrupts)
                 {
                     irq.Reset();
                 }
@@ -1943,10 +1943,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public IReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt> SoftwareGeneratedInterruptsUnknownRequester;
             public Dictionary<CPUEntry, ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt>> SoftwareGeneratedInterruptsLegacyRequester { get; }
 
-            public IEnumerable<Interrupt> AllInterrupts => PrivatePeripheralInterrupts.Values
+            public IEnumerable<Interrupt> AllPrivateAndSoftwareGeneratedInterrupts => PrivatePeripheralInterrupts.Values
                 .Concat(SoftwareGeneratedInterruptsUnknownRequester.Values)
                 .Concat(SoftwareGeneratedInterruptsLegacyRequester.Values.SelectMany(x => x.Values));
-            public IEnumerable<InterruptConfig> AllInterruptsConfigs => PrivatePeripheralInterrupts.Values.Select(irq => irq.Config)
+            public IEnumerable<InterruptConfig> AllPrivateAndSoftwareGeneratedInterruptsConfigs => PrivatePeripheralInterrupts.Values.Select(irq => irq.Config)
                 .Concat(SoftwareGeneratedInterruptsConfig.Values);
 
             public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
