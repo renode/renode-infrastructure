@@ -67,18 +67,26 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 switch(InterruptType[i])
                 {
                     case InterruptTrigger.ActiveHigh:
-                        if(underlyingState[i])
+                        if(DeassertActiveInterruptTrigger)
                         {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
+                            activeInterrupts[i] = underlyingState[i];
                         }
+                        else
+                        {
+                            activeInterrupts[i] |= underlyingState[i];
+                        }
+                        irqState |= activeInterrupts[i] && !InterruptMask[i];
                         break;
                     case InterruptTrigger.ActiveLow:
-                        if(!underlyingState[i])
+                        if(DeassertActiveInterruptTrigger)
                         {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
+                            activeInterrupts[i] = !underlyingState[i];
                         }
+                        else
+                        {
+                            activeInterrupts[i] |= !underlyingState[i];
+                        }
+                        irqState |= activeInterrupts[i] && !InterruptMask[i];
                         break;
                     case InterruptTrigger.RisingEdge:
                         if(isEdge && underlyingState[i])
@@ -113,6 +121,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 underlyingIrq.Unset();
             }
         }
+
+        public bool DeassertActiveInterruptTrigger { get; set; }
 
         public IArray<bool> InterruptEnable { get { return interruptEnable; } }
 
