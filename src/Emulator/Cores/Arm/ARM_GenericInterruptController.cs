@@ -619,7 +619,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private IEnumerable<Interrupt> GetAllPendingCandidateInterrupts(CPUEntry cpu)
         {
-            return GetAllEnabledInterrupts(cpu).Where(irq => irq.State.Pending && irq.Config.Priority < cpu.PriorityMask && irq.Config.Priority < cpu.RunningPriority);
+            return GetAllEnabledInterrupts(cpu).Where(irq => irq.State.Pending && !irq.State.Active && irq.Config.Priority < cpu.PriorityMask && irq.Config.Priority < cpu.RunningPriority);
         }
 
         private Dictionary<long, DoubleWordRegister> BuildDistributorDoubleWordRegistersMap()
@@ -2253,9 +2253,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public void Acknowledge()
             {
-                if(IsInactive)
+                if(!Pending || Active)
                 {
-                    throw new InvalidOperationException("It's invalid to acknowledge an interrupt in the inactive state.");
+                    throw new InvalidOperationException("It's invalid to acknowledge an interrupt not in the pending state.");
                 }
                 if(TriggerType == InterruptTriggerType.EdgeTriggered)
                 {
