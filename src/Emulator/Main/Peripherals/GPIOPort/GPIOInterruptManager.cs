@@ -94,21 +94,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             irqState |= !InterruptMask[i];
                             activeInterrupts[i] = true;
                         }
-                    break;
+                        break;
                     case InterruptTrigger.FallingEdge:
                         if(isEdge && !underlyingState[i])
                         {
                             irqState |= !InterruptMask[i];
                             activeInterrupts[i] = true;
                         }
-                    break;
+                        break;
                     case InterruptTrigger.BothEdges:
                         if(isEdge)
                         {
                             irqState |= !InterruptMask[i];
                             activeInterrupts[i] = true;
                         }
-                    break;
+                        break;
                 }
             }
             Array.Copy(underlyingState, previousState, underlyingState.Length);
