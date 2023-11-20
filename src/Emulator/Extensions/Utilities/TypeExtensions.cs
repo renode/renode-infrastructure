@@ -131,7 +131,11 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert(1, type, false);
                 return true;
             }
-            catch(RuntimeBinderException)   //because every conversion operator may throw anything
+            //because every conversion operator may throw anything
+            //trying to convert Span<T> and ReadOnlySpan<T> always throws exception
+            catch(Exception ex) when (ex is TypeLoadException ||
+                                      ex is BadImageFormatException ||
+                                      ex is RuntimeBinderException)
             {
             }
             try    //try with a string
@@ -139,7 +143,9 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert("a", type, false);
                 return true;
             }
-            catch(RuntimeBinderException)
+            catch(Exception ex) when (ex is TypeLoadException ||
+                                      ex is BadImageFormatException ||
+                                      ex is RuntimeBinderException)
             {
             }
             try    //try with a character
@@ -147,7 +153,9 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert('a', type, false);
                 return true;
             }
-            catch(RuntimeBinderException)
+            catch(Exception ex) when (ex is TypeLoadException ||
+                                      ex is BadImageFormatException ||
+                                      ex is RuntimeBinderException)
             {
             }
             try    //try with a bool
@@ -155,7 +163,9 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert(true, type, false);
                 return true;
             }
-            catch(RuntimeBinderException)
+            catch(Exception ex) when (ex is TypeLoadException ||
+                                      ex is BadImageFormatException ||
+                                      ex is RuntimeBinderException)
             {
             }
             return false;
