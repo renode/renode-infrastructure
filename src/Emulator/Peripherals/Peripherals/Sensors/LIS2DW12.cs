@@ -55,18 +55,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
                 // while the peripheral's measurement unit is g.
-                FeedAccelerationSample(
+                FeedAccelerationSampleInner(
                     sample.AccelerationX / 1e6m,
                     sample.AccelerationY / 1e6m,
-                    sample.AccelerationZ / 1e6m
+                    sample.AccelerationZ / 1e6m,
+                    keepOnReset: false
                 );
             }
             else
             {
-                FeedAccelerationSample(
+                FeedAccelerationSampleInner(
                     DefaultAccelerationX,
                     DefaultAccelerationY,
-                    DefaultAccelerationZ
+                    DefaultAccelerationZ,
+                    keepOnReset: false
                 );
             }
         }
@@ -381,7 +383,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             var sample = new Vector3DSample(x, y, z);
 
-            if(fifoModeSelection.Value == FIFOModeSelection.Bypass)
+            if(fifoModeSelection.Value == FIFOModeSelection.Bypass && !keepOnReset)
             {
                 CurrentSample = sample;
             }
@@ -399,7 +401,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private void LoadNextSample()
         {
             this.Log(LogLevel.Noisy, "Acquiring next sample");
-            if(fifoModeSelection.Value != FIFOModeSelection.Bypass)
+            if(fifoModeSelection.Value != FIFOModeSelection.Bypass || accelerationFifo.KeepFifoOnReset)
             {
                 accelerationFifo.TryDequeueNewSample();
                 CurrentSample = accelerationFifo.Sample;
