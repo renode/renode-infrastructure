@@ -50,6 +50,9 @@
           <SourceFiles Include="$(TlibDirectory)/arch/$(EmulatedTarget)/*.c" />
           <SourceFiles Include="renode/*.c" />
           <SourceFiles Include="renode/arch/$(EmulatedTarget)/*.c" />
+
+          <!-- Common code for "arm" and "arm64" -->
+          <SourceFiles Include="$(TlibDirectory)/arch/arm_common/*.c" Condition="$(EmulatedTarget) == 'arm' or $(EmulatedTarget) == 'arm64'" />
       </ItemGroup>
       <ItemGroup>
           <CompilationFlags Include="-DTLIB_PROFILING_BUILD=1" Condition="$(TlibProfilingBuild) == 'true'" />
@@ -79,6 +82,8 @@
           <CompilationFlags Include="-I $(TlibDirectory)/fpu" />
           <CompilationFlags Include="-I $(TlibDirectory)/tcg" />
           <CompilationFlags Include="-I renode/include" />
+          <!-- Common headers for "arm" and "arm64" -->
+          <CompilationFlags Include="-I $(TlibDirectory)/arch/arm_common" Condition="$(EmulatedTarget) == 'arm' or $(EmulatedTarget) == 'arm64'" />
 
           <CompilationFlags Include="-DTARGET_SHORT_ALIGNMENT=2" />
           <CompilationFlags Include="-DTARGET_INT_ALIGNMENT=4" />
