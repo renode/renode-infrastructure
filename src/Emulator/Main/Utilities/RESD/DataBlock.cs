@@ -9,6 +9,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.IO;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -104,25 +105,26 @@ namespace Antmicro.Renode.Utilities.RESD
                 throw new RESDException("trying to call TryGetSample when using Samples iterator");
             }
 
-            if(timestamp < currentSampleTimestamp)
+            using(DisposableWrapper.New(() => Interlocked.Exchange(ref usingReader, 0)))
             {
-                // we don't support moving back in time
-                sample = null;
-                return RESDStreamStatus.BeforeStream;
+                if(timestamp < currentSampleTimestamp)
+                {
+                    // we don't support moving back in time
+                    sample = null;
+                    return RESDStreamStatus.BeforeStream;
+                }
+
+                var samplesDiff = (timestamp - currentSampleTimestamp) / Period;
+                if(!samplesData.Move((int)samplesDiff))
+                {
+                    // past the current block
+                    sample = null;
+                    return RESDStreamStatus.AfterStream;
+                }
+
+                currentSampleTimestamp += samplesDiff * Period;
+                sample = samplesData.GetCurrentSample();
             }
-
-            var samplesDiff = (timestamp - currentSampleTimestamp) / Period;
-            if(!samplesData.Move((int)samplesDiff))
-            {
-                // past the current block
-                sample = null;
-                return RESDStreamStatus.AfterStream;
-            }
-
-            currentSampleTimestamp += samplesDiff * Period;
-            sample = samplesData.GetCurrentSample();
-
-            Interlocked.Exchange(ref usingReader, 0);
 
             return RESDStreamStatus.OK;
         }
