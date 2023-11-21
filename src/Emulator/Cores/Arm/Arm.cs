@@ -275,6 +275,36 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public ulong GetSystemRegisterValue(string name)
+        {
+            ValidateSystemRegisterAccess(name, isWrite: false);
+
+            return TlibGetSystemRegister(name);
+        }
+
+        public void SetSystemRegisterValue(string name, ulong value)
+        {
+            ValidateSystemRegisterAccess(name, isWrite: true);
+
+            TlibSetSystemRegister(name, value);
+        }
+
+        private void ValidateSystemRegisterAccess(string name, bool isWrite)
+        {
+            switch((SystemRegisterCheckReturnValue)TlibCheckSystemRegisterAccess(name, isWrite ? 1u : 0u))
+            {
+            case SystemRegisterCheckReturnValue.AccessValid:
+                return;
+            case SystemRegisterCheckReturnValue.AccessorNotFound:
+                var accessName = isWrite ? "Writing" : "Reading";
+                throw new RecoverableException($"{accessName} the {name} register isn't supported.");
+            case SystemRegisterCheckReturnValue.RegisterNotFound:
+                throw new RecoverableException("No such register.");
+            default:
+                throw new ArgumentException("Invalid TlibCheckSystemRegisterAccess return value!");
+            }
+        }
+
         private bool TryRegisterTCMRegion(MappedMemory memory, uint interfaceIndex, uint regionIndex)
         {
             ulong address;
@@ -351,6 +381,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private enum SystemRegisterCheckReturnValue
+        {
+            RegisterNotFound = 1,
+            AccessorNotFound = 2,
+            AccessValid = 3,
+        }
+
         private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
@@ -385,6 +422,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt64UInt64 TlibRegisterTcmRegion;
+
+        [Import]
+        private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
+
+        [Import]
+        private FuncUInt64String TlibGetSystemRegister;
+
+        [Import]
+        private ActionStringUInt64 TlibSetSystemRegister;
 
 #pragma warning restore 649
 
