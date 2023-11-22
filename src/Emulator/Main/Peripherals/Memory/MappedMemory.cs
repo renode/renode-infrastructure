@@ -26,6 +26,7 @@ using Antmicro.Renode.Peripherals.CPU;
 using System.Reflection.Emit;
 using System.Reflection;
 #endif
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
@@ -51,6 +52,11 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public MappedMemory(IMachine machine, long size, int? segmentSize = null)
         {
+            if(size == 0)
+            {
+                throw new ConstructionException("Memory size cannot be 0");
+            }
+
             if(segmentSize == null)
             {
                 var proposedSegmentSize = Math.Min(MaximalSegmentSize, Math.Max(MinimalSegmentSize, size / RecommendedNumberOfSegments));
