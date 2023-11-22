@@ -608,6 +608,7 @@
     <Compile Include="Peripherals\CAN\LPC_CAN.cs" />
     <Compile Include="Peripherals\Timers\RenesasRA_AGT.cs" />
     <Compile Include="Peripherals\SCI\RenesasRA_SCI.cs" />
+    <Compile Include="Peripherals\Sensors\OB1203.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
