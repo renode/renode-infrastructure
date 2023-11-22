@@ -548,6 +548,7 @@
     <Compile Include="Peripherals\Sensors\MAX86171.cs" />
     <Compile Include="Peripherals\Sensors\TMP103.cs" />
     <Compile Include="Peripherals\Sensors\HS3001.cs" />
+    <Compile Include="Peripherals\Sensors\ZMOD4xxx.cs" />
     <Compile Include="Peripherals\Sensors\TMP108.cs" />
     <Compile Include="Peripherals\I2C\MAX32650_I2C.cs" />
     <Compile Include="Peripherals\Sensors\MAX30208.cs" />
