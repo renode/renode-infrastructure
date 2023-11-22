@@ -934,7 +934,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         return;
                     }
 
-                    if(Mode == FIFOModeSelection.Continuous && Full)
+                    if(Mode == FIFOModeSelection.FIFOMode && Full)
+                    {
+                        return;
+                    }
+                    else if(Mode == FIFOModeSelection.Continuous && Full)
                     {
                         if(!OverrunOccurred)
                         {
