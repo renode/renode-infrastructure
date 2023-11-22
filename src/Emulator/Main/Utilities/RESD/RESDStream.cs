@@ -219,6 +219,8 @@ namespace Antmicro.Renode.Utilities.RESD
                 }
                 else
                 {
+                    Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns, before the start time of the current block"
+                        + " after applying the {1}ns offset", timestamp, currentSampleOffsetTime);
                     sample = null;
                     return RESDStreamStatus.BeforeStream;
                 }
