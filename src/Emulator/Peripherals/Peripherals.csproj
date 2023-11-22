@@ -603,6 +603,7 @@
     <Compile Include="Peripherals\Timers\LPC_CTimer.cs" />
     <Compile Include="Peripherals\IRQControllers\PL190_VIC.cs" />
     <Compile Include="Peripherals\CAN\LPC_CAN.cs" />
+    <Compile Include="Peripherals\Timers\RenesasRA_AGT.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
