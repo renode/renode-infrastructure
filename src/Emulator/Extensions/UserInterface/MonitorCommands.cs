@@ -1075,16 +1075,62 @@ namespace Antmicro.Renode.UserInterface
                 paramArrayElementType = lastParam.ParameterType.GetElementType();
             }
 
+            var indexedValues = new Dictionary<int, Token>();
+            var allowPositional = true;
+            for(int i = 0, currentPos = 0; i < values.Count; ++i, ++currentPos)
+            {
+                //Parse named arguments
+                if(i < values.Count - 2
+                    && values[i] is LiteralToken lit
+                    && values[i + 1] is EqualityToken)
+                {
+                    var parameterIndex = parameters.IndexOf(p => p.Name == lit.Value);
+                    //Fail on nonexistent or duplicate names
+                    if(parameterIndex == -1 || indexedValues.ContainsKey(parameterIndex))
+                    {
+                        return false;
+                    }
+                    //Disallow further positional arguments only if the name doesn't match the position
+                    //For example, for f(a=0, b=0) `f a=4 9` is allowed, like in C#
+                    allowPositional &= parameterIndex == currentPos;
+                    indexedValues[parameterIndex] = values[i + 2];
+                    i += 2; //Skip the name and = sign
+                }
+                else
+                {
+                    //If we have filled all positional slots then allow further positional arguments
+                    //no matter what. This is used for a params T[] after named parameters
+                    if(!allowPositional && currentPos < parameters.Count)
+                    {
+                        return false;
+                    }
+                    indexedValues[currentPos] = values[i];
+                }
+            }
+
             //Too many arguments and no trailing params T[]
-            if(values.Count > parameters.Count && paramArrayElementType == null)
+            var valueCount = indexedValues.Count;
+            if(valueCount > parameters.Count && paramArrayElementType == null)
             {
                 return false;
+            }
+
+            //Grab all arguments that we can treat as positional off the front
+            values = new List<Token>(valueCount);
+            for(int i = 0; i < valueCount; ++i)
+            {
+                if(!indexedValues.TryGetValue(i, out var value))
+                {
+                    break;
+                }
+                indexedValues.Remove(i);
+                values.Add(value);
             }
 
             try
             {
                 int i;
-                //Convert all given parameters
+                //Convert all given positional parameters
                 for(i = 0; i < values.Count; ++i)
                 {
                     var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? paramArrayElementType;
@@ -1094,12 +1140,23 @@ namespace Antmicro.Renode.UserInterface
                     }
                     result.Add(parsed);
                 }
-                //If not enough parameters, check for their default values
+                //If not enough parameters, check for default values and named parameters
                 if(i < parameters.Count)
                 {
                     for(; i < parameters.Count; ++i)
                     {
-                        if(parameters[i].IsOptional)
+                        //See if it was passed as a named parameter
+                        if(indexedValues.TryGetValue(i, out var value))
+                        {
+                            //This can technically be a params T[], but it's not worth handling since
+                            //it would only be possible to pass one value
+                            if(!TryParseTokenForParamType(value, parameters[i].ParameterType, out var parsed))
+                            {
+                                return false;
+                            }
+                            result.Add(parsed);
+                        }
+                        else if(parameters[i].IsOptional)
                         {
                             result.Add(parameters[i].DefaultValue);
                         }
