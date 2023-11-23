@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             timerUnits[timerIndex].Value = value;
         }
 
-        public long Size => 0x1000;
+        public long Size => 0x100;
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 

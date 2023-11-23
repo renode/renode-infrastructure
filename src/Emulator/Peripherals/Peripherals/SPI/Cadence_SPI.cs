@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
-        public long Size => 0x1000;
+        public long Size => 0x100;
 
         public GPIO IRQ { get; }
 

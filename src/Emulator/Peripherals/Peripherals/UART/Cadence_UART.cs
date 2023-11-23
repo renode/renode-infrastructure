@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        public long Size => 0x1000;
+        public long Size => 0x80;
         public BufferState BufferState { get; private set; }
 
         public GPIO IRQ { get; }

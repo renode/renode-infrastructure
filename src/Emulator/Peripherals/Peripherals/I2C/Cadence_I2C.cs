@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             return registers.Read(offset);
         }
 
-        public long Size => 0x1000;
+        public long Size => 0x40;
 
         public GPIO IRQ { get; }
 
