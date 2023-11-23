@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             locker = new object();
             IRQ = new GPIO();
             irqManager = new GPIOInterruptManager(IRQ, State);
+            irqManager.DeassertActiveInterruptTrigger = true;
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
