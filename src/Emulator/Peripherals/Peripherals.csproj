@@ -612,6 +612,7 @@
     <Compile Include="Peripherals\Sensors\OB1203.cs" />
     <Compile Include="Peripherals\Sensors\ICP_10101.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA_GPIO.cs" />
+    <Compile Include="Peripherals\IRQControllers\RenesasRA_ICU.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
