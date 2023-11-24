@@ -1042,6 +1042,19 @@ namespace Antmicro.Renode.UserInterface
             { new Tuple<Type, Type>(typeof(short), typeof(DecimalIntegerToken)) },
         };
 
+        private bool TryParseTokenForParamType(Token token, Type type, out object result)
+        {
+            var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == type);
+            //If this result type is limited to specific token types, and this is not one of them, fail
+            if(tokenTypes.Any() && !tokenTypes.Any(tt => tt.Item2.IsInstanceOfType(token)))
+            {
+                result = null;
+                return false;
+            }
+            result = ConvertValue(token.GetObjectValue(), type);
+            return true;
+        }
+
         private bool TryPrepareParameters(IList<Token> values, IList<ParameterInfo> parameters, out List<object> result)
         {
             result = new List<object>();
@@ -1075,24 +1088,11 @@ namespace Antmicro.Renode.UserInterface
                 for(i = 0; i < values.Count; ++i)
                 {
                     var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? paramArrayElementType;
-                    var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == paramType).ToList();
-                    if(tokenTypes.Any())
+                    if(!TryParseTokenForParamType(values[i], paramType, out var parsed))
                     {
-                        var isOk = false;
-                        foreach(var tokenType in tokenTypes)
-                        {
-                            if(tokenType.Item2.IsInstanceOfType(values[i]))
-                            {
-                                isOk = true;
-                                break;
-                            }
-                        }
-                        if(!isOk)
-                        {
-                            return false;
-                        }
+                        return false;
                     }
-                    result.Add(ConvertValue(values[i].GetObjectValue(), paramType));
+                    result.Add(parsed);
                 }
                 //If not enough parameters, check for their default values
                 if(i < parameters.Count)
