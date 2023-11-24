@@ -8,7 +8,7 @@
 
 #include <callbacks.h>
 #include "renode_imports.h"
-#include "../tlib/unwind.h"
+#include "../tlib/include/unwind.h"
 
 EXTERNAL(action_uint64, touch_host_block)
 

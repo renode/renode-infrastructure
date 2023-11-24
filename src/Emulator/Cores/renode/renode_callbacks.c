@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include "cpu.h"
 #include "renode_imports.h"
-#include "../tlib/unwind.h"
+#include "../tlib/include/unwind.h"
 
 extern CPUState *cpu;
 
