@@ -4,19 +4,29 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>
+    public class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
         public RenesasRA_GPIO(IMachine machine, int numberOfConnections) : base(machine, numberOfConnections)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
+            PinConfigurationRegistersCollection = new DoubleWordRegisterCollection(this);
+
+            pinDirection = new IEnumRegisterField<Direction>[numberOfConnections];
+            usedAsIRQ = new IFlagRegisterField[numberOfConnections];
+
+            IRQ = new GPIO();
 
             DefineRegisters();
+            DefinePinConfigurationRegisters();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -29,118 +39,167 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             RegistersCollection.Write(offset, value);
         }
 
-        private void DefineRegisters()
+        [ConnectionRegion("pinConfiguration")]
+        public uint ReadDoubleWordFromPinConfiguration(long offset)
         {
-            Registers.PortControl1.Define(this)
-                .WithTaggedFlag("PDR00", 0)
-                .WithTaggedFlag("PDR01", 1)
-                .WithTaggedFlag("PDR02", 2)
-                .WithTaggedFlag("PDR03", 3)
-                .WithTaggedFlag("PDR04", 4)
-                .WithTaggedFlag("PDR05", 5)
-                .WithTaggedFlag("PDR06", 6)
-                .WithTaggedFlag("PDR07", 7)
-                .WithTaggedFlag("PDR08", 8)
-                .WithTaggedFlag("PDR09", 9)
-                .WithTaggedFlag("PDR10", 10)
-                .WithTaggedFlag("PDR11", 11)
-                .WithTaggedFlag("PDR12", 12)
-                .WithTaggedFlag("PDR13", 13)
-                .WithTaggedFlag("PDR14", 14)
-                .WithTaggedFlag("PDR15", 15)
-                .WithTaggedFlag("PODR00", 16)
-                .WithTaggedFlag("PODR01", 17)
-                .WithTaggedFlag("PODR02", 18)
-                .WithTaggedFlag("PODR03", 19)
-                .WithTaggedFlag("PODR04", 20)
-                .WithTaggedFlag("PODR05", 21)
-                .WithTaggedFlag("PODR06", 22)
-                .WithTaggedFlag("PODR07", 23)
-                .WithTaggedFlag("PODR08", 24)
-                .WithTaggedFlag("PODR09", 25)
-                .WithTaggedFlag("PODR10", 26)
-                .WithTaggedFlag("PODR11", 27)
-                .WithTaggedFlag("PODR12", 28)
-                .WithTaggedFlag("PODR13", 29)
-                .WithTaggedFlag("PODR14", 30)
-                .WithTaggedFlag("PODR15", 31);
-
-            Registers.PortControl2.Define(this)
-                .WithTaggedFlag("PIDR00", 0)
-                .WithTaggedFlag("PIDR01", 1)
-                .WithTaggedFlag("PIDR02", 2)
-                .WithTaggedFlag("PIDR03", 3)
-                .WithTaggedFlag("PIDR04", 4)
-                .WithTaggedFlag("PIDR05", 5)
-                .WithTaggedFlag("PIDR06", 6)
-                .WithTaggedFlag("PIDR07", 7)
-                .WithTaggedFlag("PIDR08", 8)
-                .WithTaggedFlag("PIDR09", 9)
-                .WithTaggedFlag("PIDR10", 10)
-                .WithTaggedFlag("PIDR11", 11)
-                .WithTaggedFlag("PIDR12", 12)
-                .WithTaggedFlag("PIDR13", 13)
-                .WithTaggedFlag("PIDR14", 14)
-                .WithTaggedFlag("PIDR15", 15)
-                .WithTaggedFlag("PIDR00", 16)
-                .WithTaggedFlag("PIDR01", 17)
-                .WithTaggedFlag("PIDR02", 18)
-                .WithTaggedFlag("PIDR03", 19)
-                .WithTaggedFlag("PIDR04", 20)
-                .WithTaggedFlag("PIDR05", 21)
-                .WithTaggedFlag("PIDR06", 22)
-                .WithTaggedFlag("PIDR07", 23)
-                .WithTaggedFlag("PIDR08", 24)
-                .WithTaggedFlag("PIDR09", 25)
-                .WithTaggedFlag("PIDR10", 26)
-                .WithTaggedFlag("PIDR11", 27)
-                .WithTaggedFlag("PIDR12", 28)
-                .WithTaggedFlag("PIDR13", 29)
-                .WithTaggedFlag("PIDR14", 30)
-                .WithTaggedFlag("PIDR15", 31);
-
-            Registers.PortControl3.Define(this)
-                .WithTaggedFlag("POSR00", 0)
-                .WithTaggedFlag("POSR01", 1)
-                .WithTaggedFlag("POSR02", 2)
-                .WithTaggedFlag("POSR03", 3)
-                .WithTaggedFlag("POSR04", 4)
-                .WithTaggedFlag("POSR05", 5)
-                .WithTaggedFlag("POSR06", 6)
-                .WithTaggedFlag("POSR07", 7)
-                .WithTaggedFlag("POSR08", 8)
-                .WithTaggedFlag("POSR09", 9)
-                .WithTaggedFlag("POSR10", 10)
-                .WithTaggedFlag("POSR11", 11)
-                .WithTaggedFlag("POSR12", 12)
-                .WithTaggedFlag("POSR13", 13)
-                .WithTaggedFlag("POSR14", 14)
-                .WithTaggedFlag("POSR15", 15)
-                .WithTaggedFlag("PORR00", 16)
-                .WithTaggedFlag("PORR01", 17)
-                .WithTaggedFlag("PORR02", 18)
-                .WithTaggedFlag("PORR03", 19)
-                .WithTaggedFlag("PORR04", 20)
-                .WithTaggedFlag("PORR05", 21)
-                .WithTaggedFlag("PORR06", 22)
-                .WithTaggedFlag("PORR07", 23)
-                .WithTaggedFlag("PORR08", 24)
-                .WithTaggedFlag("PORR09", 25)
-                .WithTaggedFlag("PORR10", 26)
-                .WithTaggedFlag("PORR11", 27)
-                .WithTaggedFlag("PORR12", 28)
-                .WithTaggedFlag("PORR13", 29)
-                .WithTaggedFlag("PORR14", 30)
-                .WithTaggedFlag("PORR15", 31);
+            return PinConfigurationRegistersCollection.Read(offset);
         }
 
-        public DoubleWordRegisterCollection RegistersCollection { get; private set; }
+        [ConnectionRegion("pinConfiguration")]
+        public void WriteDoubleWordToPinConfiguration(long offset, uint value)
+        {
+            PinConfigurationRegistersCollection.Write(offset, value);
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            if(!CheckPinNumber(number))
+            {
+                return;
+            }
+
+            base.OnGPIO(number, value);
+
+            if(pinDirection[number].Value != Direction.Input)
+            {
+                this.Log(LogLevel.Warning, "Writing to an output GPIO pin #{0}", number);
+                return;
+            }
+
+            if(usedAsIRQ[number].Value)
+            {
+                IRQ.Set(value);
+            }
+        }
+
+        public IGPIO IRQ { get; }
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public DoubleWordRegisterCollection PinConfigurationRegistersCollection { get; }
+
+        public long Size => 0x20;
+
+        private void UpdateIRQOutput()
+        {
+            var outputValue = false;
+            var activeOutputs = new List<int>();
+
+            for(var i = 0; i < NumberOfConnections; ++i)
+            {
+                if(pinDirection[i].Value != Direction.Input)
+                {
+                    continue;
+                }
+
+                outputValue |= usedAsIRQ[i].Value && State[i];
+                if(usedAsIRQ[i].Value)
+                {
+                    activeOutputs.Add(i);
+                }
+            }
+
+            IRQ.Set(outputValue);
+
+            if(activeOutputs.Count > 1)
+            {
+                this.Log(LogLevel.Warning, "More than one pin is used as IRQ output: {0}", string.Join(", ", activeOutputs));
+            }
+        }
+
+        private void DefineRegisters()
+        {
+            Registers.DirectionOutput.Define(this)
+                .WithEnumFields(0, 1, NumberOfConnections, out pinDirection, name: "PDR",
+                    changeCallback: (i, _, value) => { if(value == Direction.Input) UpdateIRQOutput(); })
+                .WithFlags(16, NumberOfConnections, name: "PODR",
+                    valueProviderCallback: (i, _) => Connections[i].IsSet,
+                    writeCallback: (i, _, value) => SetOutput(i, value))
+            ;
+
+            Registers.StateEventInput.Define(this)
+                .WithFlags(0, NumberOfConnections, FieldMode.Read, name: "PIDR",
+                    valueProviderCallback: (i, _) => GetInput(i))
+                .WithTag("EIDR", 16, NumberOfConnections)
+            ;
+
+            Registers.Output.Define(this)
+                .WithFlags(0, NumberOfConnections, FieldMode.Write, name: "POSR",
+                    writeCallback: (i, _, value) => { if(value) SetOutput(i, true); })
+                .WithFlags(16, NumberOfConnections, FieldMode.Write, name: "PORR",
+                    writeCallback: (i, _, value) => { if(value) SetOutput(i, false); })
+            ;
+        }
+
+        private void DefinePinConfigurationRegisters()
+        {
+            for(var i = 0; i < NumberOfConnections; ++i)
+            {
+                var idx = i;
+                var offset = i * 0x4;
+                var register = new DoubleWordRegister(this)
+                    .WithFlag(0, name: "PODR",
+                        valueProviderCallback: _ => Connections[idx].IsSet,
+                        writeCallback: (_, value) => SetOutput(idx, value))
+                    .WithFlag(1, FieldMode.Read, name: "PIDR",
+                        valueProviderCallback: _ => GetInput(i))
+                    .WithEnumField(2, 1, out pinDirection[idx], name: "PDR",
+                        changeCallback: (_, value) => { if(value == Direction.Input) UpdateIRQOutput(); })
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, name: "PCR")
+                    .WithReservedBits(5, 1)
+                    .WithFlag(6, name: "NCODR")
+                    .WithReservedBits(7, 3)
+                    .WithTag("DSCR", 10, 2)
+                    .WithTag("EOFR", 12, 2)
+                    .WithFlag(14, out usedAsIRQ[idx], name: "ISEL",
+                        changeCallback: (_, value) => UpdateIRQOutput())
+                    .WithTaggedFlag("ASEL", 15)
+                    .WithTaggedFlag("PMR", 16)
+                    .WithReservedBits(17, 7)
+                    .WithTag("PSEL", 24, 5)
+                    .WithReservedBits(29, 3)
+                ;
+                PinConfigurationRegistersCollection.AddRegister(offset, register);
+            }
+        }
+
+        private bool GetInput(int index)
+        {
+            var value = State[index];
+            if(pinDirection[index].Value == Direction.Output)
+            {
+                value |= Connections[index].IsSet;
+            }
+            return value;
+        }
+
+        private void SetOutput(int index, bool value)
+        {
+            if(pinDirection[index].Value != Direction.Output)
+            {
+                this.Log(LogLevel.Warning, "Trying to set pin level, but pin is not in output mode, ignoring");
+                return;
+            }
+
+            Connections[index].Set(value);
+        }
+
+        private IEnumRegisterField<Direction>[] pinDirection;
+        private IFlagRegisterField[] usedAsIRQ;
+
+        private enum Direction
+        {
+            Input,
+            Output,
+        }
 
         private enum Registers
         {
-            PortControl1 = 0x0,
-            PortControl2 = 0x4,
-            PortControl3 = 0x8,
+            DirectionOutput = 0x00,
+            StateEventInput = 0x04,
+            Output = 0x08,
+            EventOutput = 0x0C,
         }
     }
 }
