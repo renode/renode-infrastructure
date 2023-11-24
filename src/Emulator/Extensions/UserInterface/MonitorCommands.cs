@@ -9,13 +9,11 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Collections;
 using Microsoft.CSharp.RuntimeBinder;
 using AntShell.Commands;
@@ -23,7 +21,6 @@ using Dynamitey;
 using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.UserInterface.Commands;
 using Antmicro.Renode.UserInterface.Exceptions;
-using Antmicro.Renode.Core.Structure;
 using System.Runtime.InteropServices;
 using System.Globalization;
 
@@ -725,7 +722,7 @@ namespace Antmicro.Renode.UserInterface
                 writer.Write("get", ConsoleColor.Yellow);
                 writer.Write($": {name} fieldName\n\r - ");
                 writer.Write("set", ConsoleColor.Yellow);
-                writer.WriteLine($": {name} fieldName Value\n\r"); 
+                writer.WriteLine($": {name} fieldName Value\n\r");
             }
         }
 
@@ -1047,7 +1044,6 @@ namespace Antmicro.Renode.UserInterface
 
         private bool TryPrepareParameters(IList<Token> values, IList<ParameterInfo> parameters, out List<object> result)
         {
-
             result = new List<object>();
             //this might be expanded - try all parameters with the attribute, try to fill from factory based on it's type
             if(parameters.Count > 0 && typeof(IMachine).IsAssignableFrom(parameters[0].ParameterType)
@@ -1229,7 +1225,7 @@ namespace Antmicro.Renode.UserInterface
                 {
                     var currentObject = InvokeGet(device, foundProp);
                     var objectFullName = $"{name} {commandValue}";
-                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1); 
+                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
                 }
                 else if(setValue != null && foundProp.IsCurrentlySettable(CurrentBindingFlags))
                 {
@@ -1340,7 +1336,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 return null;
             }
-            return ExecuteDeviceAction(name, currentObject, p.Skip(tokensToSkip)); 
+            return ExecuteDeviceAction(name, currentObject, p.Skip(tokensToSkip));
         }
 
         IEnumerable<PropertyInfo> GetAvailableIndexers(Type objectType)
