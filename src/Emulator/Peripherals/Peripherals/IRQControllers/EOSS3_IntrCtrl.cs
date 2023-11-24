@@ -28,6 +28,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public EOSS3_IntrCtrl(IMachine machine) : base(machine, NumberOfGPIOs)
         {
             gpioManager = new GPIOInterruptManager(GPIOIrq, State);
+            gpioManager.DeassertActiveInterruptTrigger = true;
+
             externalIrqConfig = new [] { SRAMIrq, UARTIrq, TimerIrq, WatchdogIrq,
                 WatchdogResetIrq, BusTimeoutIrq, FPUIrq, PacketFIFOIrq, ReservedI2SIrq, ReservedAudioIrq,
                 SPIMasterIrq, ConfigDMAIrq, PMUTimerIrq, ADCIrq, RTCIrq, ResetIrq, FFE0Irq, WatchdogFFEIrq,
