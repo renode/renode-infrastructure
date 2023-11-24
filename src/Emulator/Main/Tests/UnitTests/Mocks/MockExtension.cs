@@ -28,5 +28,15 @@ namespace Antmicro.Renode.Utilities
         {
             return string.Format("arg: {0} args: [{1}]", arg, string.Join(", ", args));
         }
+
+        public static string MethodWithOptionalParameters(this Emulation emulation, int a = 1, int b = 2, int c = 3)
+        {
+            return string.Format("a: {0}, b: {1}, c: {2}", a, b, c);
+        }
+
+        public static string MethodWithOptionalParametersAndParamArray(this Emulation emulation, int a = 1, int b = 2, int c = 3, params int[] args)
+        {
+            return string.Format("a: {0}, b: {1}, c: {2}; {3}", a, b, c, string.Join(", ", args));
+        }
     }
 }
