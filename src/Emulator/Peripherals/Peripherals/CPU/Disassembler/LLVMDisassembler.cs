@@ -131,7 +131,9 @@ namespace Antmicro.Renode.Disassembler.LLVM
             { "x86"       , "i386"       },
             // this case is included because of #3250
             { "arm926"    , "arm926ej-s" },
+            // see: https://reviews.llvm.org/D12692
             { "cortex-m4f", "cortex-m4"  },
+            { "cortex-r5f", "cortex-r5"  },
             { "e200z6"    , "ppc32"      },
             { "gr716"     , "leon3"      }
         };
