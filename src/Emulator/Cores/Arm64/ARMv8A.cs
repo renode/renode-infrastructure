@@ -235,11 +235,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void ValidateSystemRegisterAccess(string name, bool isWrite)
         {
-            if(name.ToLower().Equals("nzcv"))
-            {
-                throw new RecoverableException("Use '<cpu_name> PSTATE' to access NZCV.");
-            }
-
             switch((SystemRegisterCheckReturnValue)TlibCheckSystemRegisterAccess(name, isWrite ? 1u : 0u))
             {
             case SystemRegisterCheckReturnValue.AccessValid:
