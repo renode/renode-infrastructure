@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -837,6 +837,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             BS = 0x4 << AdditionalExtensionOffset,
             ICSR = 0x5 << AdditionalExtensionOffset,
             IFENCEI = 0x6 << AdditionalExtensionOffset,
+            ZFH = 0x7 << AdditionalExtensionOffset,
         }
 
         public enum InterruptMode
@@ -944,6 +945,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                             case "BS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
                             case "ICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
                             case "IFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
+                            case "FH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
                             default:
                                 throw new ConstructionException($"Undefined instruction set standard extension: {set}.");
                         }
