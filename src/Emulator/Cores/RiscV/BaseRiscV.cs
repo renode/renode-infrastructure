@@ -831,6 +831,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             BS = 0x4 << AdditionalExtensionOffset,
             ICSR = 0x5 << AdditionalExtensionOffset,
             IFENCEI = 0x6 << AdditionalExtensionOffset,
+            ZFH = 0x7 << AdditionalExtensionOffset,
         }
 
         public enum InterruptMode
@@ -922,6 +923,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         case "BS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
                         case "ICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
                         case "IFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
+                        case "FH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
                         default:
                             parent.Log(LogLevel.Warning, $"Undefined instruction set extension: {set}.");
                             break;
