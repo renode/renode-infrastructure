@@ -13,6 +13,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         void AddHookAtInterruptBegin(Action<ulong> hook);
         void AddHookAtInterruptEnd(Action<ulong> hook);
+        void AddHookAtWfiStateChange(Action<bool> hook);
 
         void AddHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook);
         void RemoveHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook);

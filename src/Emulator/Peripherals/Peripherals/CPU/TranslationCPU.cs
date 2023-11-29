@@ -569,6 +569,30 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void AddHookAtWfiStateChange(Action<bool> hook)
+        {
+            if(wfiStateChangeHook == null)
+            {
+                TlibSetCpuWfiStateChangeHookPresent(1);
+            }
+            wfiStateChangeHook += hook;
+        }
+
+        public void RemoveHookAtWfiStateChange(Action<bool> hook)
+        {
+            wfiStateChangeHook -= hook;
+            if(wfiStateChangeHook == null)
+            {
+                TlibSetCpuWfiStateChangeHookPresent(0);
+            }
+        }
+
+        [Export]
+        public void OnWfiStateChange(int isInWfi)
+        {
+            wfiStateChangeHook?.Invoke(isInWfi > 0);
+        }
+
         [Export]
         protected virtual ulong ReadByteFromBus(ulong offset)
         {
@@ -1286,6 +1310,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong> interruptEndHook;
         private Action<ulong, AccessType, int> mmuFaultHook;
         private Action<ulong, MemoryOperation, ulong> memoryAccessHook;
+        private Action<bool> wfiStateChangeHook;
 
         private List<SegmentMapping> currentMappings;
 
@@ -1728,6 +1753,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 TlibSetInterruptBeginHookPresent;
+
+        [Import]
+        private ActionUInt32 TlibSetCpuWfiStateChangeHookPresent;
 
         [Import]
         private ActionUInt32 TlibSetInterruptEndHookPresent;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -18,6 +18,12 @@ namespace Antmicro.Renode.Hooks
         {
             var engine = new BlockPythonEngine(m, cpu, pythonScript);
             cpu.AddHook(addr, engine.Hook);
+        }
+
+        public static void AddHookAtWfiStateChange(this ICPUWithHooks cpu, [AutoParameter]Machine m, string pythonScript)
+        {
+            var engine = new WFIPythonEngine(m, cpu, pythonScript);
+            cpu.AddHookAtWfiStateChange(engine.HookWithWfiEnterExit);
         }
 
         public static void AddHookAtInterruptBegin(this ICPUWithHooks cpu, [AutoParameter]Machine m, string pythonScript)

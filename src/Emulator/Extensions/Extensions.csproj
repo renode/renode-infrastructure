@@ -187,6 +187,7 @@
       <DependentUpon>RegisterCollectionHookExtensions.tt</DependentUpon>
     </Compile>
     <Compile Include="UserInterface\Commands\ResdCommand.cs" />
+    <Compile Include="Hooks\WFIPythonEngine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Hooks\RegisterCollectionHookExtensions.tt">

@@ -78,3 +78,4 @@ EXTERNAL_AS(action_uint64_uint64_uint64_int32, OnStackChange, tlib_profiler_anno
 EXTERNAL_AS(action_uint64, OnContextChange, tlib_profiler_announce_context_change)
 EXTERNAL_AS(action_intptr_int32, OnMassBroadcastDirty, tlib_mass_broadcast_dirty)
 EXTERNAL_AS(func_intptr_intptr, GetDirty, tlib_get_dirty_addresses_list)
+EXTERNAL_AS(action_int32, OnWfiStateChange, tlib_on_wfi_state_change)

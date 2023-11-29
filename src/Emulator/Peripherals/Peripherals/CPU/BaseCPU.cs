@@ -306,7 +306,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public event Action<HaltArguments> Halted;
-        public event Action<BaseCPU> WaitingForInterrupt;
 
         public abstract ulong ExecutedInstructions { get; }
         public abstract RegisterValue PC { get; set; }
@@ -593,8 +592,6 @@ restart:
 
                 if(result == ExecutionResult.WaitingForInterrupt)
                 {
-                    WaitingForInterrupt?.Invoke(this);
-
                     if(!InDebugMode && !neverWaitForInterrupt)
                     {
                         this.Trace();
