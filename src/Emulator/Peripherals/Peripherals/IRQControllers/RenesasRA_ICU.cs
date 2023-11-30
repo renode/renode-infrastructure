@@ -4,40 +4,136 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+
 using System;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
+using System.Linq;
 using System.Collections.Generic;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    public class RenesasRA_ICU : BasicDoubleWordPeripheral, INumberedGPIOOutput, IIRQController
+    public class RenesasRA_ICU : BasicDoubleWordPeripheral, IIRQController, IKnownSize
     {
-        public RenesasRA_ICU(IMachine machine, uint interruptsCount) : base(machine)
+        public RenesasRA_ICU(IMachine machine, IGPIOReceiver nvic) : base(machine)
         {
-            this.interruptCount = interruptsCount;
+            // Type comparison like this is required due to NVIC model being in another project
+            if(nvic.GetType().FullName != "Antmicro.Renode.Peripherals.IRQControllers.NVIC")
+            {
+                throw new ConstructionException($"{nvic.GetType()} is invalid type for NVIC");
+            }
+
+            this.nvic = nvic;
+
+            MapEventToIRQ = new int?[NumberOfEvents];
+            interruptPending = new IFlagRegisterField[NumberOfEvents];
+
+            interruptTrigger = new IEnumRegisterField<InterruptTrigger>[NumberOfExternalInterrupts];
+            previousPinState = new bool[NumberOfExternalInterrupts];
 
             DefineRegisters();
         }
 
         public void OnGPIO(int number, bool value)
         {
-            throw new NotImplementedException();
+            if(number <= 0 || number >= MapEventToIRQ.Length)
+            {
+                return;
+            }
+
+            if(MapEventToIRQ[number] == null)
+            {
+                // If event mapping is not registered by software, ignore incoming IRQ
+                this.Log(LogLevel.Debug, "Unhandled IRQ request from 0x{0:X}", number);
+                return;
+            }
+
+            var irqIndex = MapEventToIRQ[number].Value;
+            if(number > NumberOfExternalInterrupts)
+            {
+                // Handle peripheral interrupt
+                interruptPending[number].Value |= value;
+                nvic.OnGPIO(irqIndex, value);
+                return;
+            }
+
+            // Handle IRQn interrupt
+            // As number is between 1 and NumberOfExternalInterrupts,
+            // externalIrqNumber will be between 0 and NumberOfExternalInterrupts - 1
+            var externalIrqNumber = number - 1;
+            switch(interruptTrigger[externalIrqNumber].Value)
+            {
+                case InterruptTrigger.RisingEdge:
+                    if(!(!previousPinState[externalIrqNumber] && value))
+                    {
+                        return;
+                    }
+                    break;
+
+                case InterruptTrigger.FallingEdge:
+                    if(!(previousPinState[externalIrqNumber] && !value))
+                    {
+                        return;
+                    }
+                    break;
+
+                case InterruptTrigger.BothEdges:
+                    if(!(previousPinState[externalIrqNumber] ^ value))
+                    {
+                        return;
+                    }
+                    break;
+
+                case InterruptTrigger.ActiveLow:
+                    if(value)
+                    {
+                        return;
+                    }
+                    break;
+            }
+
+            interruptPending[number].Value = true;
+            nvic.OnGPIO(irqIndex, true);
+            previousPinState[externalIrqNumber] = value;
         }
+
+        public long Size => 0x1000;
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
+        public int?[] MapEventToIRQ { get; }
+
+        private void UpdateInterrupts()
+        {
+            for(var i = 0; i < NumberOfExternalInterrupts; ++i)
+            {
+                if(interruptTrigger[i].Value == InterruptTrigger.ActiveLow && !previousPinState[i])
+                {
+                    var index = Array.FindIndex(MapEventToIRQ, val => val == i);
+                    if(index != -1)
+                    {
+                        OnGPIO(index, false);
+                        break;
+                    }
+                }
+            }
+        }
+
         private void DefineRegisters()
         {
-            Registers.IRQControl0.DefineMany(this, interruptCount, (register, registerIndex) =>
+            Registers.IRQControl0.DefineMany(this, NumberOfExternalInterrupts, (register, registerIndex) =>
             {
                 register
-                    .WithTag($"IRQMD{registerIndex}", 0, 2)
+                    .WithEnumField(0, 2, out interruptTrigger[registerIndex], name: $"IRQMD{registerIndex}")
                     .WithReservedBits(2, 2)
                     .WithTag($"FCLKSEL{registerIndex}", 4, 2)
                     .WithReservedBits(6, 1)
                     .WithTaggedFlag($"FLTEN{registerIndex}", 7)
                     .WithReservedBits(8, 24)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 ;
             });
 
@@ -48,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(6, 1)
                 .WithTaggedFlag("NFLTEN", 7)
                 .WithReservedBits(8, 24)
-                ;
+            ;
 
             Registers.NonMaskableInterruptEnable.Define(this)
                 .WithTaggedFlag("IWDTEN", 0)
@@ -67,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(14, 1)
                 .WithTaggedFlag("CPEEN", 15)
                 .WithReservedBits(16, 16)
-                ;
+            ;
 
             Registers.NonMaskableInterruptStatusClear.Define(this)
                 .WithTaggedFlag("IWDTCLR", 0)
@@ -86,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(14, 1)
                 .WithTaggedFlag("CPECLR", 15)
                 .WithReservedBits(16, 16)
-                ;
+            ;
 
             Registers.NonMaskableInterruptStatus.Define(this)
                 .WithTaggedFlag("IWDTST", 0)
@@ -105,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(14, 1)
                 .WithTaggedFlag("CPEST", 15)
                 .WithReservedBits(16, 16)
-                ;
+            ;
 
             Registers.WakeUpInterruptEnable0.Define(this)
                 .WithTag("IRQWUPEN", 0, 16)
@@ -122,39 +218,77 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithTaggedFlag("AGT1CAWUPEN", 29)
                 .WithTaggedFlag("AGT1CBWUPEN", 30)
                 .WithTaggedFlag("IIC0WUPEN", 31)
-                ;
+            ;
 
             Registers.WakeUpinterruptenableregister1.Define(this)
                 .WithTaggedFlag("AGT3UDWUPEN", 0)
                 .WithTaggedFlag("AGT3CAWUPEN", 1)
                 .WithTaggedFlag("AGT3CBWUPEN", 2)
                 .WithReservedBits(3, 29)
-                ;
+            ;
 
             Registers.SYSEventLinkSetting.Define(this)
                 .WithTag("SELSR0", 0, 16)
                 .WithReservedBits(16, 16)
-                ;
+            ;
 
-            Registers.DMACEventLinkSetting0.DefineMany(this, interruptCount, (register, registerIndex) =>
+            Registers.DMACEventLinkSetting0.DefineMany(this, NumberOfDMACEvents, (register, registerIndex) =>
             {
                 register
-                .WithTag($"DELS{registerIndex}", 0, 9)
-                .WithReservedBits(9, 7)
-                .WithTaggedFlag($"IR{registerIndex}", 16)
-                .WithReservedBits(17, 15)
+                    .WithTag($"DELS{registerIndex}", 0, 9)
+                    .WithReservedBits(9, 7)
+                    .WithTaggedFlag($"IR{registerIndex}", 16)
+                    .WithReservedBits(17, 15)
                 ;
             });
 
-            Registers.ICUEventLinkSetting0.DefineMany(this, interruptCount, (register, registerIndex) =>
+            Registers.ICUEventLinkSetting0.DefineMany(this, NumberOfNvicOutputs, (register, registerIndex) =>
             {
                 register
-                    .WithTag($"IELSR{registerIndex}", 0, 32)
-                    ;
+                    .WithValueField(0, 9, name: $"IELS{registerIndex}",
+                        valueProviderCallback: _ =>
+                            (ulong)MapEventToIRQ
+                                .Select((irqIndex, eventIndex) => irqIndex != null && irqIndex.Value == registerIndex ? eventIndex : 0)
+                                .FirstOrDefault(eventIndex => eventIndex > 0),
+                        writeCallback: (previousValue, value) =>
+                        {
+                            if(previousValue > 0)
+                            {
+                                MapEventToIRQ[previousValue] = null;
+                            }
+                            if(value > 0)
+                            {
+                                MapEventToIRQ[value] = registerIndex;
+                            }
+                        })
+                    .WithReservedBits(9, 7)
+                    .WithFlag(16, out interruptPending[registerIndex], FieldMode.WriteZeroToClear, name: $"IR{registerIndex}")
+                    .WithReservedBits(17, 7)
+                    .WithTaggedFlag($"DTCE{registerIndex}", 24)
+                    .WithReservedBits(25, 7)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                ;
             });
         }
 
-        private readonly uint interruptCount;
+        private const int NumberOfExternalInterrupts = 16;
+        private const int NumberOfEvents = 512;
+        private const int NumberOfDMACEvents = 8;
+        private const int NumberOfNvicOutputs = 96;
+
+        private readonly IFlagRegisterField[] interruptPending;
+        private readonly IEnumRegisterField<InterruptTrigger>[] interruptTrigger;
+        private readonly bool[] previousPinState;
+
+        private readonly IGPIOReceiver nvic;
+
+        private enum InterruptTrigger
+        {
+            FallingEdge,
+            RisingEdge,
+            BothEdges,
+            ActiveLow,
+        }
 
         private enum Registers
         {
