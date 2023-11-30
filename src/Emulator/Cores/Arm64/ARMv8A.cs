@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             ValidateSystemRegisterAccess(name, isWrite: false);
 
-            return TlibGetSystemRegister(name);
+            return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
         }
 
         public void SetAvailableExceptionLevels(bool el2Enabled, bool el3Enabled)
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             ValidateSystemRegisterAccess(name, isWrite: true);
 
-            TlibSetSystemRegister(name, value);
+            TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
         }
 
         public void Register(ARM_GenericTimer peripheral, NullRegistrationPoint registrationPoint)
@@ -276,7 +276,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
 
         [Import]
-        private FuncUInt64String TlibGetSystemRegister;
+        // The arguments are: char *name, bool log_unhandled_access.
+        private FuncUInt64StringUInt32 TlibGetSystemRegister;
 
         [Import]
         private FuncUInt32 TlibHasEl3;
@@ -288,7 +289,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32 TlibSetCurrentEl;
 
         [Import]
-        private ActionStringUInt64 TlibSetSystemRegister;
+        // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
+        private ActionStringUInt64UInt32 TlibSetSystemRegister;
 #pragma warning restore 649
     }
 }

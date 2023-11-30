@@ -297,14 +297,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             ValidateSystemRegisterAccess(name, isWrite: false);
 
-            return TlibGetSystemRegister(name);
+            return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
         }
 
         public void SetSystemRegisterValue(string name, ulong value)
         {
             ValidateSystemRegisterAccess(name, isWrite: true);
 
-            TlibSetSystemRegister(name, value);
+            TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
         }
 
         private void ValidateSystemRegisterAccess(string name, bool isWrite)
@@ -453,10 +453,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32StringUInt32 TlibCheckSystemRegisterAccess;
 
         [Import]
-        private FuncUInt64String TlibGetSystemRegister;
+        // The arguments are: char *name, bool log_unhandled_access.
+        private FuncUInt64StringUInt32 TlibGetSystemRegister;
 
         [Import]
-        private ActionStringUInt64 TlibSetSystemRegister;
+        // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
+        private ActionStringUInt64UInt32 TlibSetSystemRegister;
 
         [Import]
         public ActionInt32UInt32 TlibUpdatePmuCounters;
