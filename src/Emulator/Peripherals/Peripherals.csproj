@@ -599,6 +599,7 @@
     <Compile Include="Peripherals\I2C\BME280.cs" />
     <Compile Include="Peripherals\I2C\MB85RC1MT.cs" />
     <Compile Include="Peripherals\Miscellaneous\Zynq7000_SystemLevelControlRegisters.cs" />
+    <Compile Include="Peripherals\Timers\LPC_CTimer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
