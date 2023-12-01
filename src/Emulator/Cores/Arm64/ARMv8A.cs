@@ -271,6 +271,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return false;
         }
 
+        private bool IsGICOrGenericTimerSystemRegister(string name)
+        {
+            return TlibIsGicOrGenericTimerSystemRegister(name) == 1u;
+        }
+
         [Export]
         private void OnExecutionModeChanged(uint el, uint isSecure)
         {
@@ -336,6 +341,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                         var lastRegisterIndex = Enum.GetValues(typeof(ARMv8ARegisters)).Cast<uint>().Max();
                         systemRegisters = namePointersArray.Select(namePointer => Marshal.PtrToStringAnsi(namePointer))
+                            // Currently, GIC and Generic Timer system registers can only be accessed by software.
+                            // Let's not add them to the dictionary so that GDB won't fail on read until it's fixed.
+                            .Where(name => !IsGICOrGenericTimerSystemRegister(name))
                             .OrderBy(name => name)
                             .ToDictionary(_ => ++lastRegisterIndex);
                     }
@@ -383,6 +391,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32IntPtr TlibCreateSystemRegisterNamesArray;
+
+        [Import]
+        private FuncUInt32String TlibIsGicOrGenericTimerSystemRegister;
 
         [Import]
         // The arguments are: char *name, bool log_unhandled_access.
