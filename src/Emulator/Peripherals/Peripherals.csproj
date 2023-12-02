@@ -88,7 +88,6 @@
     <Compile Include="Peripherals\Memory\ArrayMemoryWithReadonlys.cs" />
     <Compile Include="Peripherals\Miscellaneous\EmulatorController.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K_SCG.cs" />
-    <Compile Include="Peripherals\IRQControllers\PL190.cs" />
     <Compile Include="Peripherals\IRQControllers\SIC.cs" />
     <Compile Include="Peripherals\IRQControllers\EOSS3_IntrCtrl.cs" />
     <Compile Include="Peripherals\Cache\PL310.cs" />
