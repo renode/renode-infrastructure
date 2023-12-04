@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // Convenience wrapper for binding an event to a counter
-        public void SetCounterEvent(uint counter, uint @event)
+        public void SetCounterEvent(uint counter, uint @event, bool ignoreCountAtPL0 = false, bool ignoreCountAtPL1 = false)
         {
             ValidateCounter(counter);
             // We are manipulating internal PMU state, we need to pause emulation
@@ -99,7 +99,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var selectedCounter = (uint)parentCPU.GetSystemRegisterValue(SelectedCounterRegister);
                 parentCPU.SetSystemRegisterValue(SelectedCounterRegister, counter);
-                parentCPU.SetSystemRegisterValue(CounterEventRegister, @event);
+
+                uint eventRegisterValue = @event & CounterEventRegisterEventMask;
+                eventRegisterValue |= (ignoreCountAtPL0 ? 1u : 0u) << CounterEventRegisterPL0CountIgnoreOffset;
+                eventRegisterValue |= (ignoreCountAtPL1 ? 1u : 0u) << CounterEventRegisterPL1CountIgnoreOffset;
+                parentCPU.SetSystemRegisterValue(CounterEventRegister, eventRegisterValue);
+
                 // Restore selected counter
                 parentCPU.SetSystemRegisterValue(SelectedCounterRegister, selectedCounter);
             }
@@ -158,7 +163,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             get
             {
                 VerifyCPURegistered();
-                return (parentCPU.GetSystemRegisterValue(ControlRegister) & 0x1) > 0 ? true : false;
+                return (parentCPU.GetSystemRegisterValue(ControlRegister) & ControlRegisterEnableMask) > 0;
+            }
+            set
+            {
+                VerifyCPURegistered();
+                var register = parentCPU.GetSystemRegisterValue(ControlRegister) & ~ControlRegisterEnableMask;
+                parentCPU.SetSystemRegisterValue(ControlRegister, (value ? 1u : 0u) | register);
             }
         }
 
@@ -220,6 +231,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const string CounterValueRegister = "PMXEVCNTR";
         private const string CounterEventRegister = "PMXEVTYPER";
         private const string ControlRegister = "PMCR";
+
+        private const uint CounterEventRegisterEventMask = 0xFF;
+        private const int CounterEventRegisterPL0CountIgnoreOffset = 30;
+        private const int CounterEventRegisterPL1CountIgnoreOffset = 31;
+        private const uint ControlRegisterEnableMask = 0x1;
 
         private Arm parentCPU;
     }
