@@ -600,6 +600,7 @@
     <Compile Include="Peripherals\Miscellaneous\Zynq7000_SystemLevelControlRegisters.cs" />
     <Compile Include="Peripherals\Timers\LPC_CTimer.cs" />
     <Compile Include="Peripherals\IRQControllers\PL190_VIC.cs" />
+    <Compile Include="Peripherals\CAN\LPC_CAN.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
