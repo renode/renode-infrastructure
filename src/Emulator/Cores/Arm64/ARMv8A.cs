@@ -39,6 +39,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             HasSingleSecurityState = TlibHasEl3() == 0;
         }
 
+        public string[,] GetAllSystemRegisterValues()
+        {
+            var table = new Renode.Utilities.Table().AddRow("Name", "Value");
+            foreach(var indexNamePair in SystemRegistersDictionary)
+            {
+                // Value is 0 if the attempt is unsuccessful so we don't need to care about the result.
+                _ = TryGetSystemRegisterValue(indexNamePair.Key, out var value, logUnhandledAccess: false);
+                table.AddRow(indexNamePair.Value, $"0x{value:X}");
+            }
+            return table.ToArray();
+        }
+
         public void GetAtomicExceptionLevelAndSecurityState(out ExceptionLevel exceptionLevel, out SecurityState securityState)
         {
             lock(elAndSecurityLock)
