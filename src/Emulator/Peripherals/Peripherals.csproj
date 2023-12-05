@@ -336,6 +336,7 @@
     <Compile Include="Peripherals\SPI\MPFS_SPI.cs" />
     <Compile Include="Peripherals\SPI\NPCX_SPIP.cs" />
     <Compile Include="Peripherals\SPI\NPCX_FIU.cs" />
+    <Compile Include="Peripherals\SPI\NPCX_Flash.cs" />
     <Compile Include="Peripherals\Timers\MPFS_Timer.cs" />
     <Compile Include="Peripherals\Timers\NPCX_ITIM32.cs" />
     <Compile Include="Peripherals\I2C\MPFS_I2C.cs" />
