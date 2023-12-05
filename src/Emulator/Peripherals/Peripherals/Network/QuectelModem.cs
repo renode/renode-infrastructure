@@ -546,6 +546,11 @@ namespace Antmicro.Renode.Peripherals.Network
                 else
                 {
                     this.Log(LogLevel.Debug, "Connection {0} opened successfully", connectionId);
+					
+					if(serviceType == Tcp)
+					{
+						ExecuteWithDelay(() => SendSignalingConnectionStatus(true), CsconDelay + 50);
+					}
                 }
                 sockets[connectionId] = service;
                 SendString($"+QIOPEN: {connectionId},{(service == null ? 1 : 0)}");
