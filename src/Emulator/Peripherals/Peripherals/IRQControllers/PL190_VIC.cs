@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 this.Log(LogLevel.Warning, "Tried to finish a vectored exception, but there is none active");
                                 return;
                             }
-                            var irqId = FinishCurrentInterrupt();
+                            var irqId = FinishCurrentInterrupt().Id;
                             this.Log(LogLevel.Debug, "Finished IRQ #{0}", irqId);
                             RefreshIrqFiqState();
                         }
