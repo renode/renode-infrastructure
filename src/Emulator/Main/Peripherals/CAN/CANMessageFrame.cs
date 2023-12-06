@@ -24,8 +24,10 @@ namespace Antmicro.Renode.Core.CAN
 
         public override string ToString()
         {
-            return $"[Message: Data=[{Data.Select(x => "0x{0:X}".FormatWith(x)).Stringify()}], Remote: {RemoteFrame}, Extended:{ExtendedFormat}, BitRateSwitch:{BitRateSwitch}, Id={Id}, DataLength={Data.Length}]";
+            return $"[Message: Data=[{DataAsHex}], Remote: {RemoteFrame}, Extended:{ExtendedFormat}, BitRateSwitch:{BitRateSwitch}, Id={Id}, DataLength={Data.Length}]";
         }
+
+        public string DataAsHex => Data.Select(x => "0x{0:X2}".FormatWith(x)).Stringify(", ");
 
         public uint Id { get; }
         public byte[] Data { get; }
