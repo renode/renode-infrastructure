@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Time
             {
                 handles.LatchAllAndCollectGarbage();
                 handles.UnlatchAll();
-                
+
                 foreach(var slave in handles.All)
                 {
                     slave.Dispose();
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Time
                 {
                     return;
                 }
-                
+
                 if(currentCommonElapsedTime == ElapsedVirtualTime)
                 {
                     return;
@@ -396,7 +396,7 @@ namespace Antmicro.Renode.Time
 
             SynchronizeVirtualTime();
             var elapsedVirtualTimeAtStart = ElapsedVirtualTime;
-            
+
             using(sync.LowPriority)
             {
                 handles.LatchAllAndCollectGarbage();
@@ -474,7 +474,7 @@ namespace Antmicro.Renode.Time
                 var currentTimestamp = stopwatch.Elapsed;
                 var elapsedThisTime = currentTimestamp - elapsedAtLastUpdate;
                 elapsedAtLastUpdate = currentTimestamp;
-                
+
                 this.Trace($"Updating virtual time by {virtualTimeElapsed.TotalMicroseconds} us");
                 this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
                 this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
