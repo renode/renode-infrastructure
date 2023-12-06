@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     if(value)
                     {
-                        receiveFifo.TryDequeue(out var _); // Release Receive Buffer, discard the current message
+                        receiveFifo.TryDequeue(out var __); // Release Receive Buffer, discard the current message
                     }
                 })
                 .WithTaggedFlag("CDO", 3)
