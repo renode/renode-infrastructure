@@ -410,6 +410,11 @@ namespace Antmicro.Renode.Time
 
                     if(!shouldGrantTime)
                     {
+                        if(ExecuteInSerial)
+                        {
+                            // We only test in serial execution to ensure determinism
+                            executor.RegisterTestPhase(ExecuteReadyForUnblockTestPhase);
+                        }
                         executor.RegisterPhase(ExecuteUnblockPhase);
                         executor.RegisterPhase(ExecuteWaitPhase);
                     }
@@ -566,6 +571,17 @@ namespace Antmicro.Renode.Time
         private void ExecuteUnblockPhase(LinkedListNode<TimeHandle> handle)
         {
             handle.Value.UnblockHandle();
+        }
+
+        /// <summary>
+        /// Tests the given handle for readiness to be unblocked.
+        /// If the handle is not ready the execution is blocked.
+        /// </summary>
+        private bool ExecuteReadyForUnblockTestPhase(LinkedListNode<TimeHandle> handle)
+        {
+            var isReady = handle.Value.IsReadyToBeUnblocked;
+            isBlocked |= !isReady;
+            return isReady;
         }
 
         /// <summary>
@@ -850,6 +866,7 @@ namespace Antmicro.Renode.Time
         {
             public PhaseExecutor()
             {
+                testPhases = new List<Func<T, Boolean>>();
                 phases = new List<Action<T>>();
             }
 
@@ -858,9 +875,18 @@ namespace Antmicro.Renode.Time
                 phases.Add(action);
             }
 
+            public void RegisterTestPhase(Func<T, Boolean> predicate)
+            {
+                testPhases.Add(predicate);
+            }
+
             public void ExecuteInSerial(IEnumerable<T> targets)
             {
                 if(phases.Count == 0)
+                {
+                    return;
+                }
+                if(!ExecuteTestPhase(targets))
                 {
                     return;
                 }
@@ -876,6 +902,10 @@ namespace Antmicro.Renode.Time
 
             public void ExecuteInParallel(IEnumerable<T> targets)
             {
+                if(!ExecuteTestPhase(targets))
+                {
+                    return;
+                }
                 foreach(var phase in phases)
                 {
                     foreach(var target in targets)
@@ -885,6 +915,22 @@ namespace Antmicro.Renode.Time
                 }
             }
 
+            private bool ExecuteTestPhase(IEnumerable<T> targets)
+            {
+                foreach(var test in testPhases)
+                {
+                    foreach(var target in targets)
+                    {
+                        if(!test(target))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            private readonly List<Func<T, Boolean>> testPhases;
             private readonly List<Action<T>> phases;
         }
     }
