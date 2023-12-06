@@ -320,7 +320,7 @@ namespace Antmicro.Renode.Time
                     progress -= reportedTimeResiduum;
                     reportedTimeResiduum = TimeInterval.Empty;
                 }
-                
+
                 this.Trace($"Reporting progress: {progress}");
                 TotalElapsedTime += progress;
                 reportedSoFar += progress;
@@ -348,7 +348,7 @@ namespace Antmicro.Renode.Time
 
                 DebugHelper.Assert(sinkSideInProgress, "Reporting a used time, but it seems that no grant has recently been requested.");
                 sinkSideInProgress = false;
-                
+
                 DebugHelper.Assert(slaveTimeResiduum == TimeInterval.Empty, "Time residuum should be empty here.");
                 slaveTimeResiduum = timeLeft;
                 intervalToReport = intervalGranted;
