@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             UpdateNMIVector();
 
-            TlibAllowUnalignedAccesses(allowUnalignedAccesses ? 1 : 0);
+            AllowUnalignedAccesses = allowUnalignedAccesses;
 
             try
             {
@@ -385,6 +385,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
+
+        public bool AllowUnalignedAccesses
+        {
+            set => TlibAllowUnalignedAccesses(value ? 1 : 0);
+        }
 
         public abstract RegisterValue VLEN { get; }
 
