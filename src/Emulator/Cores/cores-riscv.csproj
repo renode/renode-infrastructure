@@ -71,6 +71,7 @@
     <Compile Include="RiscV\NonstandardCSR.cs" />
     <Compile Include="RiscV\VectorInstructionsOpcodes.cs" />
     <Compile Include="RiscV\RiscvOpcodesParser.cs" />
+    <Compile Include="RiscV\Andes_AndeStarV5Extension.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">

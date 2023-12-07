@@ -951,7 +951,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     // custom extesions
                     else if(extension.StartsWith("X"))
                     {
-                        throw new ConstructionException($"Unsupported custom instruction set extension: {extension}.");
+                        switch(extension.Substring(1))
+                        {
+                            case "ANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
+                            default:
+                                throw new ConstructionException($"Unsupported custom instruction set extension: {extension}.");
+                        }
                     }
                     // unexpected value
                     else
