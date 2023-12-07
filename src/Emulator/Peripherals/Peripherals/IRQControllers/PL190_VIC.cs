@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -90,49 +91,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 else
                 {
-                    // FIQ has higher prio than IRQ
-                    if(activeInterrupts.Count == 0
-                       || (interrupts[id].Priority < activeInterrupts.Peek().Priority
-                           && !activeInterrupts.Peek().IsFiq))
+                    // FIQ is handled separately, the vector address register is not used
+                    if((activeInterrupts.Count == 0 || interrupts[id].Priority < activeInterrupts.Peek().Priority)
+                       && interrupts[id].IsIrq)
                     {
                         activeVectorAddress.Value = (interrupts[id].VectorId != -1)
                             ? vectorAddress[interrupts[id].VectorId].Value
                             : defaultVectorAddress.Value;
 
                         activeInterrupts.Push(interrupts[id]);
-                        RefreshIrqFiqState();
                     }
+                    RefreshIrqFiqState();
                 }
             }
         }
 
         private void RefreshIrqFiqState()
         {
-            if(activeInterrupts.Count > 0)
-            {
-                var topInterrupt = activeInterrupts.Peek();
-                if(topInterrupt.IsActive)
-                {
-                    if(topInterrupt.IsIrq)
-                    {
-                        this.Log(LogLevel.Noisy, "Setting IRQ state");
-                        IRQ.Set(true);
-                        FIQ.Set(false);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Noisy, "Setting FIQ state");
-                        IRQ.Set(false);
-                        FIQ.Set(true);
-                    }
-                    return;
-                }
-            }
-
-            // clear IRQ/FIQ signals
-            this.Log(LogLevel.Noisy, "Clearing IRQ/FIQ state");
-            IRQ.Set(false);
-            FIQ.Set(false);
+            var irq = activeInterrupts.FirstOrDefault()?.IsActive ?? false;
+            var fiq = interrupts.Any(intr => intr.IsFiq && intr.IsActive);
+            this.Log(LogLevel.Noisy, "Setting outputs: IRQ={0}, FIQ={1}", irq, fiq);
+            IRQ.Set(irq);
+            FIQ.Set(fiq);
         }
 
         private void DefineRegisters()
