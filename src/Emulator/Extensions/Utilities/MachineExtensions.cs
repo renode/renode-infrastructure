@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Utilities
             var fdtBlob = File.ReadAllBytes(file);
             if(bootargs == null)
             {
-                sysbus.WriteBytes(fdtBlob, address, true);
+                sysbus.WriteBytes(fdtBlob, address, true, context);
                 return;
             }
             var fdt = new FlattenedDeviceTree(fdtBlob);
