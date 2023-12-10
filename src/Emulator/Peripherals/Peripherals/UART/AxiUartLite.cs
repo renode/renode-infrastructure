@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public AxiUartLite()
         {
             readFifo = new Queue<uint>();
+            IRQ = new GPIO();
         }
 
         public void WriteChar(byte value)
@@ -67,6 +68,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [field: Transient]
         public event Action<byte> CharReceived;
+        
+        public GPIO IRQ { get; }
 
         public long Size { get { return 0x10; } }
         public Bits StopBits { get { return Bits.One; } }
