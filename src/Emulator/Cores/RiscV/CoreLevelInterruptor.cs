@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2023 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -82,6 +82,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                     irqs[2 * hartId + 1].Set(false);
                     mTimers[hartId].Compare = limit;
+                    if(TimerValue >= limit)
+                    {
+                        irqs[2 * hartId + 1].Set(true);
+                    }
                 }));
 
                 registersMap.Add((long)Registers.MTimeCmpHart0Hi + 8 * hartId, new DoubleWordRegister(this).WithValueField(0, 32, writeCallback: (_, value) =>
@@ -92,6 +96,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                     irqs[2 * hartId + 1].Set(false);
                     mTimers[hartId].Compare = limit;
+                    if(TimerValue >= limit)
+                    {
+                        irqs[2 * hartId + 1].Set(true);
+                    }
                 }));
             }
 
