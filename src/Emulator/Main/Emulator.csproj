@@ -598,6 +598,7 @@
     <Compile Include="Utilities\RESD\LowLevelRESDParser.cs" />
     <Compile Include="Utilities\RESD\RESDAttribute.cs" />
     <Compile Include="Core\IGPIOWithHooks.cs" />
+    <Compile Include="Utilities\Collections\PriorityQueue.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
