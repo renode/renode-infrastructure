@@ -11,6 +11,8 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
+using Collections = Antmicro.Renode.Utilities.Collections;
+
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class PL190_VIC : BasicDoubleWordPeripheral, IIRQController, IKnownSize
@@ -25,7 +27,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 interrupts[i] = new Interrupt(i);
             }
 
-            activeInterrupts = new Stack<Interrupt>();
+            activeInterrupts = new Collections.PriorityQueue<Interrupt, int>();
+            servicedInterrupts = new Stack<Interrupt>();
 
             DefineRegisters();
             Reset();
@@ -34,6 +37,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public override void Reset()
         {
             activeInterrupts.Clear();
+            servicedInterrupts.Clear();
             IRQ.Set(false);
             FIQ.Set(false);
             foreach(var interrupt in interrupts)
@@ -63,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private Interrupt FinishCurrentInterrupt()
         {
-            var result = activeInterrupts.Pop();
+            var result = servicedInterrupts.Pop();
             ClearInactiveInterrupts();
             return result;
         }
@@ -73,7 +77,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // clear all inactive interrupts (might have been disabled in the meantime)
             while(activeInterrupts.Count > 0 && !activeInterrupts.Peek().IsActive)
             {
-                activeInterrupts.Pop();
+                activeInterrupts.Dequeue();
+            }
+            while(servicedInterrupts.Count > 0 && !servicedInterrupts.Peek().IsActive)
+            {
+                servicedInterrupts.Pop();
             }
         }
 
@@ -92,14 +100,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 else
                 {
                     // FIQ is handled separately, the vector address register is not used
-                    if((activeInterrupts.Count == 0 || interrupts[id].Priority < activeInterrupts.Peek().Priority)
-                       && interrupts[id].IsIrq)
+                    if(interrupts[id].IsIrq)
                     {
-                        activeVectorAddress.Value = (interrupts[id].VectorId != -1)
-                            ? vectorAddress[interrupts[id].VectorId].Value
-                            : defaultVectorAddress.Value;
-
-                        activeInterrupts.Push(interrupts[id]);
+                        activeInterrupts.Enqueue(interrupts[id], interrupts[id].Priority);
                     }
                     RefreshIrqFiqState();
                 }
@@ -108,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void RefreshIrqFiqState()
         {
-            var irq = activeInterrupts.FirstOrDefault()?.IsActive ?? false;
+            var irq = activeInterrupts.TryPeek(out var interrupt, out _) && interrupt.IsActive;
             var fiq = interrupts.Any(intr => intr.IsFiq && intr.IsActive);
             this.Log(LogLevel.Noisy, "Setting outputs: IRQ={0}, FIQ={1}", irq, fiq);
             IRQ.Set(irq);
@@ -180,12 +183,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             Registers.ActiveInterruptVectorAddress.Define(this)
                 .WithValueField(0, 32, out activeVectorAddress, name: "VectorAddr",
-                    readCallback: (_, __) => IRQ.Set(false),
+                    valueProviderCallback: _ =>
+                    {
+                        lock(activeInterrupts)
+                        {
+                            ulong activeVectorAddress = 0;
+                            if(activeInterrupts.TryDequeue(out var interrupt, out var __))
+                            {
+                                servicedInterrupts.Push(interrupt);
+                                activeVectorAddress = (interrupt.VectorId != -1)
+                                    ? vectorAddress[interrupt.VectorId].Value
+                                    : defaultVectorAddress.Value;
+                            }
+                            RefreshIrqFiqState();
+                            return activeVectorAddress;
+                        }
+                    },
                     writeCallback: (_, __) =>
                     {
                         lock(activeInterrupts)
                         {
-                            if(activeInterrupts.Count == 0)
+                            if(servicedInterrupts.Count == 0)
                             {
                                 this.Log(LogLevel.Warning, "Tried to finish a vectored exception, but there is none active");
                                 return;
@@ -256,7 +274,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         private readonly Interrupt[] interrupts;
-        private readonly Stack<Interrupt> activeInterrupts;
+        private readonly Collections.PriorityQueue<Interrupt, int> activeInterrupts;
+        private readonly Stack<Interrupt> servicedInterrupts;
 
         private IFlagRegisterField[] irqSourceEnabled = new IFlagRegisterField[NumberOfInputLines];
         private IValueRegisterField[] irqSource = new IValueRegisterField[NumberOfInputLines];
