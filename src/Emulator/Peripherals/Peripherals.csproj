@@ -626,6 +626,8 @@
     <Compile Include="Peripherals\GPIOPort\RenesasRA_GPIOMisc.cs" />
     <Compile Include="Peripherals\CAN\CANToUART.cs" />
     <Compile Include="Peripherals\UART\AlteraJTAG_UART.cs" />
+    <Compile Include="Peripherals\DMA\PL330_DMA\PL330_DMA.cs" />
+    <Compile Include="Peripherals\DMA\PL330_DMA\PL330_DMA_Instructions.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

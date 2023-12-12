@@ -601,6 +601,7 @@
     <Compile Include="Core\IGPIOWithHooks.cs" />
     <Compile Include="Utilities\Collections\PriorityQueue.cs" />
     <Compile Include="Peripherals\UART\VirtualConsole.cs" />
+    <Compile Include="Utilities\SimpleInstructionDecoder.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
