@@ -89,9 +89,13 @@ namespace Antmicro.Renode.Tools.Network
                 {
                     return;
                 }
+                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
+                {
+                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
+                }
                 foreach(var iface in attached.Where(x => (x != sender || loopback)))
                 {
-                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, TimeDomainsManager.Instance.VirtualTimeStamp);
+                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts);
                 }
             }
         }
