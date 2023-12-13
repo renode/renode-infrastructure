@@ -133,7 +133,12 @@ namespace Antmicro.Renode.Core
                         }
                         catch(InvalidOperationException e)
                         {
-                            throw new RecoverableException(string.Format("Error encountered during saving: {0}.", e.Message));
+                            var message = string.Format("Error encountered during saving: {0}", e.Message);
+                            if(e is NonSerializableTypeException && serializer.Settings.SerializationMethod == Migrant.Customization.Method.Generated)
+                            {
+                                message += "\nHint: Set 'serialization-mode = Reflection' in the Renode config file for detailed information.";
+                            }
+                            throw new RecoverableException(message);
                         }
                     }
                 }
