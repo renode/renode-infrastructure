@@ -64,6 +64,9 @@
           <CompilationFlags Include="-fPIC" Condition=" $(CurrentPlatform) != 'Windows'" />
           <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug' or $(TlibProfilingBuild) == 'true'" />
           <CompilationFlags Include="-O3" Condition=" $(Configuration) == 'Release'" />
+          <!-- Partial Redundancy Elimination with GCC 12+ is breaking correctness of a simple exported tlib function
+               (see arch/arm64/arch_exports.c). Let's disable it so that it doesn't break any other code. -->
+          <CompilationFlags Include="-fno-tree-pre" Condition=" $(Configuration) == 'Release' and $(CurrentPlatform) != 'OSX'" />
           <CompilationFlags Include="-Wall" />
           <CompilationFlags Include="-Wextra" />
           <CompilationFlags Include="-Wno-unused-parameter" />
