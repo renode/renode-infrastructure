@@ -119,10 +119,6 @@ namespace Antmicro.Renode.Utilities
             switch(sudoName)
             {
                 // Tool specific adjustments.
-                case "beesu":
-                    // -l creates a login shell needed to execute bash startup scripts
-                    result = "-l " + command;
-                    break;
                 case "gksudo":
                     result = string.Format(@"-D ""{0}"" ""{1}""", description, command);
                     break;
@@ -142,7 +138,7 @@ namespace Antmicro.Renode.Utilities
         /// <summary>
         /// List of supported tool names.
         /// </summary>
-        private static string[] knownToolNames = { "gksudo", "beesu", "kdesudo", "pkexec" };
+        private static string[] knownToolNames = { "gksudo", "kdesudo", "pkexec" };
     }
 }
 
