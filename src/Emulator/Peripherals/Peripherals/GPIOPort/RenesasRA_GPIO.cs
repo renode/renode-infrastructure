@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         valueProviderCallback: _ => Connections[idx].IsSet,
                         writeCallback: (_, value) => SetOutput(idx, value))
                     .WithFlag(1, FieldMode.Read, name: "PIDR",
-                        valueProviderCallback: _ => GetInput(i))
+                        valueProviderCallback: _ => GetInput(idx))
                     .WithEnumField(2, 1, out pinDirection[idx], name: "PDR",
                         changeCallback: (_, value) => { if(value == Direction.Input) UpdateIRQOutput(); })
                     .WithReservedBits(3, 1)
