@@ -81,6 +81,24 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void Unregister(IPeripheral peripheral)
+        {
+            using(Machine.ObtainPausedState())
+            {
+                Machine.UnregisterAsAChildOf(this, peripheral);
+            }
+        }
+
+        public void Register(IPeripheral peripheral, NullRegistrationPoint registrationPoint)
+        {
+            using(Machine.ObtainPausedState())
+            {
+                // NullRegistrationPoint peripherals are not mapped on the bus and
+                // are not directly accessible from the emulated software.
+                Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            }
+        }
+
         public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
             var methods = PeripheralAccessMethods.CreateWithLock();

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,8 +19,8 @@ using Range = Antmicro.Renode.Core.Range;
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public interface IBusController: IPeripheralContainer<IBusPeripheral, BusRangeRegistration>, IPeripheralRegister<IKnownSize, BusPointRegistration>,
-        IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheral, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, ICanLoadFiles,
-        IMultibyteWritePeripheral
+        IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, IPeripheralRegister<IPeripheral, NullRegistrationPoint>,
+        ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
     {
         byte ReadByte(ulong address, ICPU context = null);
         void WriteByte(ulong address, byte value, ICPU context = null);

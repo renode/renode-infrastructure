@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -264,6 +264,16 @@ namespace Antmicro.Renode.Peripherals.Bus
         void IPeripheralRegister<IBusPeripheral, BusRangeRegistration>.Unregister(IBusPeripheral peripheral)
         {
             ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)ParentController).Unregister(peripheral);
+        }
+
+        public void Unregister(IPeripheral peripheral)
+        {
+            ParentController.Unregister(peripheral);
+        }
+
+        public void Register(IPeripheral peripheral, NullRegistrationPoint registrationPoint)
+        {
+            ParentController.Register(peripheral, registrationPoint);
         }
 
         public virtual void Unregister(ICPU peripheral)
