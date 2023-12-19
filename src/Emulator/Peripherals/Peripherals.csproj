@@ -347,7 +347,6 @@
     <Compile Include="Peripherals\GPIOPort\Murax_GPIO.cs" />
     <Compile Include="Peripherals\GPIOPort\Renesas_GPIO.cs" />
     <Compile Include="Peripherals\Miscellaneous\SAM_TRNG.cs" />
-    <Compile Include="Peripherals\UART\LowPower_UART.cs" />
     <Compile Include="Peripherals\Timers\LowPower_Timer.cs" />
     <Compile Include="Peripherals\EtherBoneBridge.cs" />
     <Compile Include="Peripherals\SPI\LiteX_SPI_Flash.cs" />
