@@ -403,6 +403,7 @@
     <Compile Include="Core\Structure\Registers\Tag.cs" />
     <Compile Include="Utilities\EnumConverter.cs" />
     <Compile Include="Core\Structure\Registers\PeripheralRegister.cs" />
+    <Compile Include="Core\Structure\Registers\RegisterSelector.cs" />
     <Compile Include="Core\SyncUnitPolicy.cs" />
     <Compile Include="Time\RealTimeClockMode.cs" />
     <Compile Include="Foreign\RecordEntryBase.cs" />

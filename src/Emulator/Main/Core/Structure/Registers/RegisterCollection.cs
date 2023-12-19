@@ -123,13 +123,19 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public BaseRegisterCollection(IPeripheral parent, IDictionary<long, R> registersMap = null)
         {
             this.parent = parent;
-            this.registers = (registersMap != null)
-                ? new Dictionary<long, R>(registersMap)
-                : new Dictionary<long, R>();
             this.beforeReadHooks = new Dictionary<long, Func<long, T?>>();
             this.afterReadHooks = new Dictionary<long, Func<long, T, T?>>();
             this.beforeWriteHooks = new Dictionary<long, Func<long, T, T?>>();
             this.afterWriteHooks = new Dictionary<long, Action<long, T>>();
+
+            this.registers = new Dictionary<long, RegisterSelector<T>>();
+            if(registersMap != null)
+            {
+                foreach(KeyValuePair<long, R> pair in registersMap)
+                {
+                    AddRegisterInner(pair.Key, pair.Value);
+                }
+            }
         }
 
         /// <summary>
@@ -165,9 +171,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 }
             }
 
-            R register;
             T? output = null;
-            if(registers.TryGetValue(offset, out register))
+            if(registers.TryGetValue(offset, out var register))
             {
                 output = register.Read();
             }
@@ -206,8 +211,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="value">Value to write.</param>
         public bool TryWrite(long offset, T value)
         {
-            R register;
-            if(registers.TryGetValue(offset, out register))
+            if(registers.TryGetValue(offset, out var register))
             {
                 if(beforeWriteHooks.TryGetValue(offset, out var beforeWriteHook))
                 {
@@ -368,9 +372,22 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>Newly added register.</returns>
         public R DefineRegister(long offset, T resetValue = default(T), bool softResettable = true)
         {
+            return DefineConditionalRegister(offset, null, resetValue, softResettable);
+        }
+
+        /// <summary>
+        /// Defines a new conditional register and adds it to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="resetValue">Register reset value.</param>
+        /// <param name="condition">Condition based on which a register is selected.</param>
+        /// <param name="softResettable">Indicates if the register is cleared on soft reset.</param>
+        /// <returns>Newly added register.</returns>
+        public R DefineConditionalRegister(long offset, Func<bool> condition, T resetValue = default(T), bool softResettable = true)
+        {
             var constructor = typeof(R).GetConstructor(new Type[] { typeof(IPeripheral), typeof(ulong), typeof(bool) });
             var reg = (R)constructor.Invoke(new object[] { parent, Misc.CastToULong(resetValue), softResettable });
-            registers.Add(offset, reg);
+            AddRegisterInner(offset, reg, condition);
             return reg;
         }
 
@@ -382,12 +399,41 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
         public R AddRegister(long offset, R register)
         {
-            registers.Add(offset, register);
+            AddRegisterInner(offset, register);
             return register;
         }
 
+        /// <summary>
+        /// Adds an existing register with a condition to the collection.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="register">Register to add.</param>
+        /// <param name="condition">Condition based on which a register is selected.</param>
+        /// <returns>Added register (the same passed in <see cref="register"> argument).</returns>
+        public R AddConditionalRegister(long offset, R register, Func<bool> condition)
+        {
+            AddRegisterInner(offset, register, condition);
+            return register;
+        }
+
+        /// <summary>
+        /// Adds a register and condition to a new or existing selector.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        /// <param name="register">Rgister to add.</param>
+        /// <param name="condition">Condition based on which a register is selected.</param>
+        private void AddRegisterInner(long offset, R register, Func<bool> condition = null)
+        {
+            if(!registers.ContainsKey(offset))
+            {
+                registers.Add(offset, new RegisterSelector<T>());
+            }
+            registers[offset].AddRegister(register, condition);
+        }
+
         private readonly IPeripheral parent;
-        private readonly IDictionary<long, R> registers;
+        private readonly IDictionary<long, RegisterSelector<T>> registers;
+
         private readonly IDictionary<long, Func<long, T?>> beforeReadHooks;
         private readonly IDictionary<long, Func<long, T, T?>> afterReadHooks;
         private readonly IDictionary<long, Func<long, T, T?>> beforeWriteHooks;

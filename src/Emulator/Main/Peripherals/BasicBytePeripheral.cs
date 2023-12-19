@@ -83,6 +83,11 @@ namespace Antmicro.Renode.Peripherals
             return c.DefineRegister(Convert.ToInt64(o), resetValue);
         }
 
+        public static ByteRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, Func<bool> condition, byte resetValue = 0, string name = "")
+        {
+            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue);
+        }
+
         public static ByteRegister Bind(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, ByteRegister reg, string name = "")
         {
             return p.RegistersCollection.AddRegister(Convert.ToInt64(o), reg);

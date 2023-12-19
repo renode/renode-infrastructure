@@ -439,6 +439,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
     {
         T Read();
         void Write(long offset, T value);
+        void Reset();
     }
 
     /// <summary>
