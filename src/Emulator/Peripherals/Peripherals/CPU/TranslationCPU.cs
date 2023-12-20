@@ -304,6 +304,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected override void OnResume()
+        {
+            base.OnResume();
+            TlibResume();
+        }
+
         protected override void RequestPause()
         {
             base.RequestPause();
@@ -1304,7 +1310,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         #region Memory trampolines
 
         [Export]
-        private IntPtr Allocate(IntPtr size)
+        protected IntPtr Allocate(IntPtr size)
         {
             return memoryManager.Allocate(size);
         }
@@ -1679,6 +1685,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibReset;
+
+        [Import]
+        private Action TlibResume;
 
         [Import]
         private FuncInt32Int32 TlibExecute;

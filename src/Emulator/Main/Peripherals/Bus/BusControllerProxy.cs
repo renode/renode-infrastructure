@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -159,6 +159,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public virtual IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral)
         {
             return ParentController.GetRegistrationPoints(peripheral);
+        }
+
+        public IEnumerable<IBusRegistered<IBusPeripheral>> GetPeripheralsForContext(ICPU context)
+        {
+            return ParentController.GetPeripheralsForContext(context);
         }
 
         public virtual string DecorateWithCPUNameAndPC(string str)

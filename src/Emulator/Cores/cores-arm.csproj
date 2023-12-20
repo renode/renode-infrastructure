@@ -52,6 +52,7 @@
     <Compile Include="Arm\Timers\ARM_GlobalTimer.cs" />
     <Compile Include="Arm\Timers\ARM_PrivateTimer.cs" />
     <Compile Include="Arm\ARM_GenericInterruptController.cs" />
+    <Compile Include="Arm\ArmSignalsUnit.cs" />
     <Compile Include="Arm\ArmSnoopControlUnit.cs" />
     <Compile Include="Arm\ArmPerformanceMonitoringUnit.cs" />
     <Compile Include="Debug\CPUTracer.cs" />

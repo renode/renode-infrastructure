@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,14 +8,16 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public class ARMv7R : Arm, IARMSingleSecurityStateCPU
     {
-        public ARMv7R(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null)
-            : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
+        public ARMv7R(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian,
+                      uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
+            : base(cpuType, machine, cpuId, endianness, numberOfMPURegions, signalsUnit)
         {
             Affinity = new Affinity(cpuId);
             try
@@ -28,9 +30,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public override void Reset()
+        {
+            base.Reset();
+            resumeAfterResetOrInit = true;
+        }
+
         public Affinity Affinity { get; }
         public SecurityState SecurityState => SecurityState.Secure;
         public uint AuxiliaryControlRegister { get; set; }
+
+        protected override void OnResume()
+        {
+            base.OnResume();
+            if(resumeAfterResetOrInit)
+            {
+                resumeAfterResetOrInit = false;
+                if(SignalsUnit == null)
+                {
+                    return;
+                }
+                SignalsUnit.OnResumeAfterReset(this);
+            }
+        }
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
         {
@@ -50,6 +72,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             return base.Read32CP15Inner(instruction);
         }
+
+        private bool resumeAfterResetOrInit = true;
 
         private readonly Coprocessor32BitMoveInstruction AuxiliaryControlRegisterInstruction = new Coprocessor32BitMoveInstruction(0, 1, 0, 1); // ACTLR
     }

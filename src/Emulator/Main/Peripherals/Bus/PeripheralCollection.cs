@@ -92,10 +92,20 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             public IBusRegistered<IBusPeripheral> Move(IBusRegistered<IBusPeripheral> registeredPeripheral, ulong newStart)
             {
-                var start = registeredPeripheral.RegistrationPoint.Range.StartAddress;
                 var size = registeredPeripheral.RegistrationPoint.Range.Size;
                 var cpu = registeredPeripheral.RegistrationPoint.CPU;
-                var newRegistrationPoint = new BusRangeRegistration(newStart, size, cpu: cpu);
+
+                BusRangeRegistration newRegistrationPoint;
+                if(registeredPeripheral.RegistrationPoint is BusMultiRegistration multiRegistration)
+                {
+                    var regionName = multiRegistration.ConnectionRegionName;
+                    newRegistrationPoint = new BusMultiRegistration(newStart, size, regionName, cpu);
+                }
+                else
+                {
+                    newRegistrationPoint = new BusRangeRegistration(newStart, size, cpu: cpu);
+                }
+
                 var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistrationPoint);
                 lock(sync)
                 {

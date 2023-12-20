@@ -117,38 +117,40 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
         {
-            if(context == null ? !TryFindCurrentThreadCPUAndId(out context, out var _) : !context.OnPossessedThread)
+            if(context == null && !TryFindCurrentThreadCPUAndId(out context, out var _))
             {
-                throw new RecoverableException("Moving a peripheral is supported only from context's CPU thread");
+                throw new RecoverableException("Moving a peripheral is supported only from CPU thread if context isn't explicitly set");
             }
             if(mappingsForPeripheral.ContainsKey(peripheral))
             {
                 throw new RecoverableException("Moving mapped peripherals is not yet supported");
             }
-            var registrationPoints = cpuLocalPeripherals[context].Peripherals.Where(x => x.Peripheral == peripheral).ToList();
-            if(registrationPoints.Count == 0)
+            var busRegisteredList = cpuLocalPeripherals[context].Peripherals.Concat(globalPeripherals.Peripherals).Where(x => x.Peripheral == peripheral).ToList();
+            if(busRegisteredList.Count == 0)
             {
                 throw new RecoverableException("Attempted to move a peripheral that isn't registered within current context");
             }
-            IBusRegistered<IBusPeripheral> registrationPoint;
+            IBusRegistered<IBusPeripheral> busRegistered;
             if(selector != null)
             {
-                registrationPoint = selector(registrationPoints);
-                if(registrationPoint == null)
+                busRegistered = selector(busRegisteredList);
+                if(busRegistered == null)
                 {
                     throw new RecoverableException("Provided selector failed to find a suitable registration point");
                 }
             }
             else
             {
-                if(registrationPoints.Count > 1)
+                if(busRegisteredList.Count > 1)
                 {
-                    throw new RecoverableException($"Unable to unambiguously determine a registration point, found multiple candidates: {String.Join(", ", registrationPoints.Select(x => x.RegistrationPoint))}");
+                    throw new RecoverableException($"Unable to unambiguously determine a registration point, found multiple candidates: {String.Join(", ", busRegisteredList.Select(x => x.RegistrationPoint))}");
                 }
-                registrationPoint = registrationPoints[0];
+                busRegistered = busRegisteredList[0];
             }
-            var newRegistrationPoint = cpuLocalPeripherals[context].Move(registrationPoint, newAddress);
-            Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, registrationPoint.RegistrationPoint, newRegistrationPoint.RegistrationPoint);
+
+            var peripheralCollection = cpuLocalPeripherals[context].Peripherals.Contains(busRegistered) ? cpuLocalPeripherals[context] : globalPeripherals;
+            var newBusRegistered =  peripheralCollection.Move(busRegistered, newAddress);
+            Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, busRegistered.RegistrationPoint, newBusRegistered.RegistrationPoint);
         }
 
         public void Register(ICPU cpu, CPURegistrationPoint registrationPoint)
@@ -1132,7 +1134,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return GetPeripheralsForContext(context);
         }
 
-        private IEnumerable<IBusRegistered<IBusPeripheral>> GetPeripheralsForContext(ICPU context)
+        public IEnumerable<IBusRegistered<IBusPeripheral>> GetPeripheralsForContext(ICPU context)
         {
             return (context != null)
                 ? cpuLocalPeripherals[context].Peripherals.Concat(globalPeripherals.Peripherals)

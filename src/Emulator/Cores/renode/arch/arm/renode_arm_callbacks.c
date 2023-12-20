@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -27,3 +27,4 @@ EXTERNAL_AS(func_uint32, IsWfeAndSevAsNop, tlib_is_wfe_and_sev_as_nop)
 EXTERNAL_AS(func_uint32, DoSemihosting, tlib_do_semihosting)
 EXTERNAL_AS(action_int32, SetSystemEvent, tlib_set_system_event)
 EXTERNAL_AS(action_int32, ReportPMUOverflow, tlib_report_pmu_overflow)
+EXTERNAL_AS(action_intptr, FillConfigurationSignalsState, tlib_fill_configuration_signals_state)

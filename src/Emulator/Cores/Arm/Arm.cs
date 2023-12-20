@@ -19,6 +19,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.UserInterface;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -26,12 +27,26 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 2)]
     public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>, IPeripheralRegister<ArmPerformanceMonitoringUnit, NullRegistrationPoint>
     {
-        public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null) : base(cpuId, cpuType, machine, endianness)
+        public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
+            : base(cpuId, cpuType, machine, endianness)
         {
             if(numberOfMPURegions.HasValue)
             {
                 this.NumberOfMPURegions = numberOfMPURegions.Value;
             }
+
+            // There's no such unit in hardware but we need to share certain signals between cores.
+            SignalsUnit = signalsUnit;
+        }
+
+        public ArmSignalsUnit SignalsUnit { get; private set; }
+
+        [Export,HideInMonitor]
+        public void FillConfigurationSignalsState(IntPtr allocatedStatePointer)
+        {
+            // It's OK not to set the fields if there's no ArmConfigurationSignals.
+            // Default values of structure's fields don't change a thing.
+            SignalsUnit?.FillConfigurationStateStruct(allocatedStatePointer, Id);
         }
 
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,12 +16,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     // Implementation based on: https://developer.arm.com/documentation/ddi0458/c/Multiprocessing/About-multiprocessing-and-the-SCU
     public class ArmSnoopControlUnit : BasicDoubleWordPeripheral, IKnownSize
     {
-        public ArmSnoopControlUnit(IMachine machine, byte smpMask = 0xFF) : base(machine)
+        public ArmSnoopControlUnit(IMachine machine, byte smpMask = 0xFF, ArmSignalsUnit signalsUnit = null) : base(machine)
         {
+            this.signalsUnit = signalsUnit;
             this.smpMask = smpMask;
 
             DefineRegisters();
             Reset();
+
+            if(signalsUnit != null)
+            {
+                signalsUnit.ResumeAfterReset += OnResumeAfterReset;
+            }
+        }
+
+        public void OnResumeAfterReset()
+        {
+            // Address signals only contain top 12 bits.
+            const int SignalToAddressShift = 20;
+
+            Func<ArmSignals, ulong> signalToAddress = signal => signalsUnit.GetSignal(signal) << SignalToAddressShift;
+
+            if(signalsUnit != null)
+            {
+                addressFilteringEnabled.Value = signalsUnit.GetSignal(ArmSignals.MFILTEREN, 0);
+                MasterFilteringEndRange = signalToAddress(ArmSignals.MFILTEREND);
+                MasterFilteringStartRange = signalToAddress(ArmSignals.MFILTERSTART);
+                PeripheralsFilteringEndRange = signalToAddress(ArmSignals.PFILTEREND);
+                PeripheralsFilteringStartRange = signalToAddress(ArmSignals.PFILTERSTART);
+            }
         }
 
         public override void Reset()
@@ -57,12 +80,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             Registers.Control.Define(this)
                 .WithFlag(0, out enabled, name: "SCU Enable")
-                // We return 0 here to signify that these are not supported
-                .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) =>
-                    {
-                        return MasterFilteringStartRange != 0 && MasterFilteringEndRange != 0;
-                    }, 
-                    name: "Address Filtering Enable")
+                .WithFlag(1, out addressFilteringEnabled, FieldMode.Read, name: "Address Filtering Enable")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: (_) => false, name: "ECC/Parity Enable") // Parity for Cortex-A9, otherwise ECC
                 .WithTaggedFlag("Speculative linefills enable", 3)
                 .WithTaggedFlag("Force all Device to port0 enable", 4) // Cortex-A9 only
@@ -134,6 +152,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringEndRange & ~0xFFFFFUL);
         }
 
+        public ulong MasterFilteringStartRange { get; set; }
+        public ulong MasterFilteringEndRange { get; set; }
+
+        public ulong PeripheralsFilteringStartRange { get; set; }
+        public ulong PeripheralsFilteringEndRange { get; set; }
+
         public long Size => 0x100;
 
         private int CountCPUs()
@@ -152,16 +176,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return numberOfCPUs;
         }
 
+        private IFlagRegisterField addressFilteringEnabled;
         private IFlagRegisterField enabled;
         private bool[] lockedCPUs;
-        private readonly byte smpMask;
         private int numberOfCPUs;
+        private ArmSignalsUnit signalsUnit;
 
-        public ulong PeripheralsFilteringStartRange { get; set; }
-        public ulong PeripheralsFilteringEndRange { get; set; }
-
-        public ulong MasterFilteringStartRange { get; set; }
-        public ulong MasterFilteringEndRange { get; set; }
+        private readonly byte smpMask;
 
         // Should not be more than 4, but could be less
         private const int MaximumCPUs = 4;
