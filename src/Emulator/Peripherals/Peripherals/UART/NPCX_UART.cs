@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,6 +19,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public NPCX_UART(Machine machine) : base(machine)
         {
             IRQ = new GPIO();
+            DMAReceive = new GPIO();
+
             RegistersCollection = new ByteRegisterCollection(this, BuildRegisterMap());
 
             Reset();
@@ -52,6 +54,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public long Size => 0x2D;
         public GPIO IRQ { get; }
+        public GPIO DMAReceive { get; }
+
         public ByteRegisterCollection RegistersCollection { get; }
 
         public override Bits StopBits => stopBits ? Bits.Two : Bits.One;
@@ -90,6 +94,13 @@ namespace Antmicro.Renode.Peripherals.UART
         protected override void CharWritten()
         {
             UpdateInterrupts();
+            if(receiveDMAEnabled.Value)
+            {
+                // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now.
+                // Without this signal DMA will never move data from the receive FIFO to memory.
+                // See NPCX_MDMA:OnGPIO
+                DMAReceive.Blink();
+            }
         }
 
         protected override void QueueEmptied()
@@ -154,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.ModeSelect, new ByteRegister(this)
                     .WithReservedBits(6, 2)
-                    .WithTaggedFlag("ERD (Enable Receive DMA)", 5)
+                    .WithFlag(5, out receiveDMAEnabled, name: "ERD (Enable Receive DMA)")
                     .WithTaggedFlag("ETD (Enable Transmit DMA)", 4)
                     .WithReservedBits(3, 1)
                     .WithTaggedFlag("BRK (Break Transmit)", 2)
@@ -238,6 +249,8 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private bool RxFullLevelStatus => Count >= rxFullLevelSelect;
+
+        private IFlagRegisterField receiveDMAEnabled;
 
         private bool stopBits;
         private bool parityEnable;
