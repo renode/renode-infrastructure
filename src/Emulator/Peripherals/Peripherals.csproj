@@ -617,6 +617,7 @@
     <Compile Include="Peripherals\IRQControllers\RenesasRA_ICU.cs" />
     <Compile Include="Peripherals\UART\BCM2711_AUX_UART.cs" />
     <Compile Include="Peripherals\UART\Kinetis_LPUART.cs" />
+    <Compile Include="Peripherals\UART\XMC4XXX_UART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
