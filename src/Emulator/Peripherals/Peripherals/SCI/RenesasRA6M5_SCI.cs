@@ -7,19 +7,21 @@
 using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SCI
 {
     // Due to unusual register offsets we cannot use address translations
-    public class RenesasRA6M5_SCI : IUART, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
+    public class RenesasRA6M5_SCI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IUART, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
     {
-        public RenesasRA6M5_SCI(IMachine machine, ulong frequency, bool enableManchesterMode, bool enableFIFO)
+        public RenesasRA6M5_SCI(IMachine machine, ulong frequency, bool enableManchesterMode, bool enableFIFO) : base(machine)
         {
             this.machine = machine;
             this.frequency = frequency;
@@ -59,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             UpdateInterrupts();
         }
 
-        public void Reset()
+        public override void Reset()
         {
             fifoMode = false;
             manchesterMode = false;
@@ -189,7 +191,16 @@ namespace Antmicro.Renode.Peripherals.SCI
                             this.Log(LogLevel.Warning, "Transmission is not enabled, ignoring byte 0x{0:X}", value);
                             return;
                         }
-                        TransmitData((byte)value);
+                        if(RegisteredPeripheral == null)
+                        {
+                            // Act as an UART
+                            TransmitData((byte)value);
+                        }
+                        else
+                        {
+                            // Act as a SPI
+                            receiveQueue.Enqueue(RegisteredPeripheral.Transmit((byte)value));
+                        }
                         UpdateInterrupts();
                     })
                 .WithReservedBits(8, 8);
