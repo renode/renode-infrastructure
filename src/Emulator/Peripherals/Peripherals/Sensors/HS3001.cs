@@ -160,6 +160,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void FinishTransmission()
         {
             currentRegister = null;
+            registerWriteBuffer.Clear();
         }
 
         public void Reset()
