@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -34,15 +34,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
-        public long Size => 0x1000;
-
-        public GPIO IRQ { get; }
-
         public override void Reset()
         {
             base.Reset();
             watchdogTimer.Reset();
         }
+
+        public GPIO IRQ { get; }
+        public long Size => 0x1000;
 
         private void DefineRegisters()
         {
