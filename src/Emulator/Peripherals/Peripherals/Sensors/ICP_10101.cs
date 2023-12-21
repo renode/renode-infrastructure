@@ -7,28 +7,39 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class ICP_10101 : II2CPeripheral, ISensor, ITemperatureSensor
+    public class ICP_10101 : II2CPeripheral, ISensor, ITemperatureSensor, IUnderstandRESD
     {
-        public ICP_10101()
+        public ICP_10101(IMachine machine)
         {
             crcEngine = new CRCEngine(0x31, 8, false, false, 0xFF, 0x00);
             writeHandlers = new Dictionary<Command, Action<byte[], int>>();
             readHandlers = new Dictionary<Command, Func<int, IEnumerable<byte>>>();
             Pressure = MinPressure;
+            this.machine = machine;
             DefineCommandHandlers();
+        }
+
+        public void SoftwareReset()
+        {
+            command = null;
         }
 
         public void Reset()
         {
-            command = null;
+            SoftwareReset();
+
+            temperatureResdStream?.Dispose();
+            temperatureResdStream = null;
         }
 
         public void Write(byte[] data)
@@ -59,6 +70,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var rets = InsertCrc(HandleRead(count)).Concat(new byte[]{ 0, 0 }).Take(count).ToArray();
             this.Log(LogLevel.Debug, "Reading data with CRC: {0}, current command: {1}, requested: {2} bytes", Misc.PrettyPrintCollectionHex(rets), GetCommandString(), count);
             return rets;
+        }
+
+        public void FeedTemperatureSamplesFromRESD(ReadFilePath path, uint channelId = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
+        {
+            temperatureResdStream?.Dispose();
+            temperatureResdStream = this.CreateRESDStream<TemperatureSample>(path, channelId, sampleOffsetType, sampleOffsetTime);
         }
 
         public void FinishTransmission()
@@ -189,7 +207,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             RegisterCommand(Command.SoftReset,
                 writeHandler: (_, __) =>
                 {
-                    Reset();
+                    SoftwareReset();
                 }
             );
 
@@ -261,7 +279,28 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private ushort GetTemperature(OperationMode _)
         {
+            TryUpdateCurrentTemperatureSample();
             return (ushort)((Temperature + 45) * (1 << 16) / 175);
+        }
+
+        private void TryUpdateCurrentTemperatureSample()
+        {
+            if(temperatureResdStream == null)
+            {
+                return;
+            }
+
+            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+            }
+
+            // RESD uses nanosecond timestamps, while the maximum clock resolution is 1 microsecond
+            var currentTimestamp = machine.ClockSource.CurrentValue.TotalMicroseconds * 1000;
+            if(temperatureResdStream.TryGetSample(currentTimestamp, out var sample) == RESDStreamStatus.OK)
+            {
+                Temperature = (decimal)sample.Temperature / 1e3m;
+            }
         }
 
         private uint GetPressure(OperationMode mode)
@@ -348,11 +387,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private decimal temperature;
 
         private readonly CRCEngine crcEngine;
+        private readonly IMachine machine;
         private readonly Dictionary<Command, Action<byte[], int>> writeHandlers;
         private readonly Dictionary<Command, Func<int, IEnumerable<byte>>> readHandlers;
 
         // Which calibration value is read in incremental read-from OTP
         private int calibrationValueIndex = 0;
+
+        private RESDStream<TemperatureSample> temperatureResdStream;
 
         // Configuration constants, taken directly from the datasheet (https://invensense.tdk.com/wp-content/uploads/2021/06/DS-000408-ICP-10101-v1.2.pdf)
         private readonly int[] p_Pa = new int [] { 45000, 80000, 105000 };
