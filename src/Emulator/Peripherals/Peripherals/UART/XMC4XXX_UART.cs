@@ -35,6 +35,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(16, 16)
             );
 
+            TxInterrupt = new GPIO();
+            RxInterrupt = new GPIO();
+
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
@@ -53,6 +56,9 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             registers.Write(offset, val);
         }
+
+        public GPIO TxInterrupt { get; }
+        public GPIO RxInterrupt { get; }
 
         public override Bits StopBits => Bits.One;
 
