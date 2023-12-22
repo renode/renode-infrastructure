@@ -572,6 +572,12 @@ namespace Antmicro.Renode.Peripherals.SD
                     return spiMode
                         ? GenerateR3Response()
                         : BitStream.Empty;
+
+                case SdCardCommand.EnableCRCChecking_CMD59:
+                    // we don't have to check CRC, but the software requires proper response after such request
+                    return spiMode
+                        ? GenerateR1Response()
+                        : BitStream.Empty;
             }
 
             this.Log(LogLevel.Warning, "Unsupported command: {0}. Ignoring it", command);
@@ -707,7 +713,8 @@ namespace Antmicro.Renode.Peripherals.SD
             WriteSingleBlock_CMD24 = 24,
             WriteMultipleBlocks_CMD25 = 25,
             AppCommand_CMD55 = 55,
-            ReadOperationConditionRegister_CMD58 = 58
+            ReadOperationConditionRegister_CMD58 = 58,
+            EnableCRCChecking_CMD59 = 59
         }
 
         private enum SdCardApplicationSpecificCommand
