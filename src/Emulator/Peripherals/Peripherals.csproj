@@ -317,6 +317,7 @@
     <Compile Include="Peripherals\UART\PicoSoC_SimpleUART.cs" />
     <Compile Include="Peripherals\Timers\RenesasRA_GPT.cs" />
     <Compile Include="Peripherals\UART\Renesas_SCI.cs" />
+    <Compile Include="Peripherals\UART\RCAR_UART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
     <Compile Include="Peripherals\Miscellaneous\Quark_SystemControlSubsystem.cs" />
     <Compile Include="Peripherals\UART\SiFive_UART.cs" />
