@@ -18,6 +18,8 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public SmartbondUART(IMachine machine) : base(machine)
         {
+            IRQ = new GPIO();
+
             var registersMap = new Dictionary<long, DoubleWordRegister>();
 
             registersMap.Add((long)Registers.TransmitReceiveBuffer, new DoubleWordRegister(this)
@@ -58,6 +60,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public override Bits StopBits => Bits.None;
 
         public long Size => 0x100;
+
+        public GPIO IRQ { get; }
 
         protected override void CharWritten()
         {
