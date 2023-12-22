@@ -109,8 +109,18 @@ namespace Antmicro.Renode.Utilities.RESD
             out Out sample, out TimeInterval timestamp) where T: RESDSample, new()
         {
             var result = @this.TryGetCurrentSample(peripheral, out var originalSample, out timestamp);
-            sample = transformer(originalSample);
+            sample = transformer.TransformSample(originalSample);
             return result;
+        }
+
+        public static Out TransformSample<T, Out>(this Func<T, Out> @this, T sample)
+            where T: RESDSample, new()
+        {
+            if(sample == null)
+            {
+                return default(Out);
+            }
+            return @this(sample);
         }
 
         private static Action<Out, TimeInterval> FindCallback<Out>(IUnderstandRESD instance, SampleType sampleType, RESDStreamStatus status, uint channel, string domain)
@@ -151,21 +161,21 @@ namespace Antmicro.Renode.Utilities.RESD
         public RESDStreamStatus TryGetSample(ulong timestamp, out Out sample, long? overrideSampleOffsetTime = null)
         {
             var result = TryGetSample(timestamp, out T originalSample, overrideSampleOffsetTime);
-            sample = transformer(originalSample);
+            sample = transformer.TransformSample(originalSample);
             return result;
         }
 
         public RESDStreamStatus TryGetCurrentSample(IPeripheral peripheral, out Out sample, out TimeInterval timestamp)
         {
             var result = TryGetCurrentSample(peripheral, out T originalSample, out timestamp);
-            sample = transformer(originalSample);
+            sample = transformer.TransformSample(originalSample);
             return result;
         }
 
         public IManagedThread StartSampleFeedThread(IPeripheral owner, uint frequency, Action<Out, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0)
         {
             Action<T, TimeInterval, RESDStreamStatus> transformedCallback =
-                (sample, timestamp, status) => newSampleCallback(transformer(sample), timestamp, status);
+                (sample, timestamp, status) => newSampleCallback(transformer.TransformSample(sample), timestamp, status);
             return StartSampleFeedThread(owner, frequency, transformedCallback, startTime);
         }
 
