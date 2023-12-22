@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(number > NumberOfExternalInterrupts)
             {
                 // Handle peripheral interrupt
-                interruptPending[number].Value |= value;
+                interruptPending[irqIndex].Value |= value;
                 nvic.OnGPIO(irqIndex, value);
                 return;
             }
@@ -95,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
             }
 
-            interruptPending[number].Value = true;
+            interruptPending[irqIndex].Value = true;
             nvic.OnGPIO(irqIndex, true);
             previousPinState[externalIrqNumber] = value;
         }
