@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -588,12 +588,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        public void OnWfiStateChange(int isInWfi)
-        {
-            wfiStateChangeHook?.Invoke(isInWfi > 0);
-        }
-
-        [Export]
         protected virtual ulong ReadByteFromBus(ulong offset)
         {
             if(UpdateContextOnLoadAndStore)
@@ -882,6 +876,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private bool insideBlockHook;
+
+        /// <remarks>
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
+        /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
+        /// </remarks>
+        [Export]
+        private void OnWfiStateChange(int isInWfi)
+        {
+            using(ObtainPauseGuardForHook())
+            {
+                wfiStateChangeHook?.Invoke(isInWfi > 0);
+            }
+        }
 
         [Export]
         private uint OnBlockBegin(ulong address, uint size)
@@ -1281,6 +1288,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pauseGuard;
         }
 
+        /// <remarks>
+        /// Be careful when using this method - the PauseGuard is used to verify if the precise pause is possible in a given context
+        /// and as such, we should only obtain the guard when we for certain know it is.
+        /// For example, precise pause is always possible if called from CPU loop in tlib
+        /// </remarks>
+        private CpuThreadPauseGuard ObtainPauseGuardForHook()
+        {
+            pauseGuard.InitializeForHook();
+            return pauseGuard;
+        }
+
         #region Memory trampolines
 
         [Export]
@@ -1422,9 +1440,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 active = false;
             }
 
-            public void Initialize()
+            public void InitializeForHook()
             {
-                guard.Value = new object();
+                Initialize();
             }
 
             public void InitializeForWriting(ulong address, SysbusAccessWidth width, ulong value)
@@ -1435,6 +1453,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             public void InitializeForReading(ulong address, SysbusAccessWidth width)
             {
                 Initialize(address, width, null);
+            }
+
+            private void Initialize()
+            {
+                guard.Value = new object();
             }
 
             private void Initialize(ulong address, SysbusAccessWidth width, ulong? value)
