@@ -26,12 +26,12 @@ namespace Antmicro.Renode.Peripherals.SD
     {
         public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
         {
-            var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize); 
+            var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize);
             if((blockSize != BlockLength.Undefined) && (capacity % blockLenghtInBytes != 0))
             {
                 throw new ConstructionException($"Size (0x{capacity:X}) is not aligned to selected block size(0x{blockLenghtInBytes:X})");
             }
-            
+
             this.spiMode = spiMode;
             this.highCapacityMode = SDHelpers.TypeFromCapacity((ulong)capacity) != CardType.StandardCapacity_SC;
             this.capacity = capacity;
@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                     .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
                     .DefineFragment(84, 12, (uint)(
-                          CardCommandClass.Class0 
+                          CardCommandClass.Class0
                         | CardCommandClass.Class2
                         | CardCommandClass.Class4
                         ), name: "card command classes")
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     .DefineFragment(48, 22, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                     .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
                     .DefineFragment(84, 12, (uint)(
-                          CardCommandClass.Class0 
+                          CardCommandClass.Class0
                         | CardCommandClass.Class2
                         | CardCommandClass.Class4
                         ), name: "card command classes")
@@ -407,7 +407,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SdCardCommand.GoIdleState_CMD0:
                     GoToIdle();
-                    return spiMode 
+                    return spiMode
                         ? GenerateR1Response()
                         : BitStream.Empty; // no response in SD mode
 
@@ -503,7 +503,7 @@ namespace Antmicro.Renode.Peripherals.SD
                             state = SDCardState.Programming;
                             break;
                     }
-                    
+
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
@@ -521,7 +521,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
                     readContext.Offset = highCapacityMode
-                        ? arg * HighCapacityBlockLength 
+                        ? arg * HighCapacityBlockLength
                         : arg;
                     state = SDCardState.SendingData;
                     return spiMode
