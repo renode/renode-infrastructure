@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
     public class RCAR_UART : IUART, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public Renesas_RCAR()
+        public RCAR_UART()
         {
             IRQ = new GPIO();
 
