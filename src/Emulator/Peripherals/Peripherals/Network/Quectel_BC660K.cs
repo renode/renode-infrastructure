@@ -35,6 +35,10 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok.WithParameters("+CCLK: " + machine.RealTimeClockDateTime.ToString("yy/MM/dd,HH:mm:sszz"));
         }
 
+        // CGPADDR - Show PDP Addresses
+        [AtCommand("AT+CGPADDR", CommandType.Read)]
+        protected override Response Cgpaddr() => Ok.WithParameters($"+CGPADDR: 1,\"{NetworkIp}\""); // stub
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected override Response Qcfg(string function, int value)
