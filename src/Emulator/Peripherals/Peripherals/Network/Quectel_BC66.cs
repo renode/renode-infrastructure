@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -42,6 +42,13 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             this.Log(LogLevel.Warning, "Ignoring attempt to set date/time to '{0}'", dateTime);
             return Ok; // stub
+        }
+
+        // CCLK - Set and Get Current Date and Time
+        [AtCommand("AT+CCLK", CommandType.Read)]
+        protected virtual Response CclkRead()
+        {
+            return Ok.WithParameters("+CCLK: " + machine.RealTimeClockDateTime.ToString("yyyy/MM/dd,HH:mm:ss'GMT'zz"));
         }
 
         // QCFG - System Configuration

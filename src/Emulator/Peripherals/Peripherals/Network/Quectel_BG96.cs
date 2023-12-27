@@ -72,6 +72,13 @@ namespace Antmicro.Renode.Peripherals.Network
         // Not supported
         protected override Response Qccid() => Error;
 
+        // CCLK - Set and Get Current Date and Time
+        [AtCommand("AT+CCLK", CommandType.Read)]
+        protected virtual Response CclkRead()
+        {
+            return Ok.WithParameters("+CCLK: " + machine.RealTimeClockDateTime.ToString("yy/MM/dd,HH:mm:sszz").SurroundWith("\""));
+        }
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected override Response Qcfg(string function, int value)

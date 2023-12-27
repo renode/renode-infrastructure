@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,6 +16,13 @@ namespace Antmicro.Renode.Peripherals.Network
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {
+        }
+
+        // CCLK - Set and Get Current Date and Time
+        [AtCommand("AT+CCLK", CommandType.Read)]
+        protected virtual Response CclkRead()
+        {
+            return Ok.WithParameters("+CCLK: " + machine.RealTimeClockDateTime.ToString("yy/MM/dd,HH:mm:sszz"));
         }
 
         // QCFG - System Configuration

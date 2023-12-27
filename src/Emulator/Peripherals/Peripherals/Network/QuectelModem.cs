@@ -409,6 +409,14 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QCCID")]
         protected virtual Response Qccid() => Ok.WithParameters($"+QCCID: {IccidNumber}");
 
+        // CCLK - Set and Get Current Date and Time
+        [AtCommand("AT+CCLK", CommandType.Write)]
+        protected virtual Response CclkWrite(string dateTime)
+        {
+            this.Log(LogLevel.Warning, "Ignoring attempt to set date/time to '{0}'", dateTime);
+            return Ok; // stub
+        }
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected virtual Response Qcfg(string function, int value)
