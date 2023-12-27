@@ -257,12 +257,18 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+CFUN", CommandType.Write)]
         protected virtual Response Cfun(FunctionalityLevel functionalityLevel = FunctionalityLevel.Full, int reset = 0)
         {
+            // Reset option isn't taken into account yet, so the new functionality level
+            // is always activated immediately and remains valid after deep sleep wakeup.
+            this.functionalityLevel = functionalityLevel;
             // Notify the DTE about the registration status to emulate the behavior
             // of a real modem where it might change in response to the functionality
             // level being changed.
             ExecuteWithDelay(() => SendString(CeregContent(true)), CeregDelay);
             return Ok; // stub
         }
+
+        [AtCommand("AT+CFUN", CommandType.Read)]
+        protected virtual Response Cfun() => Ok.WithParameters($"+CFUN: {functionalityLevel}");
 
         // CGDCONT - Define PDP Context
         [AtCommand("AT+CGDCONT", CommandType.Read)]
@@ -823,6 +829,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected bool signalingConnectionStatusReportingEnabled;
         protected NetworkRegistrationUrcType networkRegistrationUrcType;
         protected int netLightMode;
+        protected FunctionalityLevel functionalityLevel;
 
         protected readonly string imeiNumber;
 
@@ -971,6 +978,7 @@ namespace Antmicro.Renode.Peripherals.Network
             Minimum,
             Full,
             RfTransmitReceiveDisabled = 4,
+            UsimDisabled = 7,
         }
 
         protected enum NetworkRegistrationUrcType
