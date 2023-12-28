@@ -678,6 +678,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 sendResponse = SendFailed;
                 this.Log(LogLevel.Warning, "Failed to send data to connection {0}", connectionId);
             }
+            SendResponse(Ok);
             // We can send the OK (the return value of this command) immediately,
             // but we have to wait before SEND OK/SEND FAIL if the network is too fast
             ExecuteWithDelay(() => SendString(sendResponse), 50);
