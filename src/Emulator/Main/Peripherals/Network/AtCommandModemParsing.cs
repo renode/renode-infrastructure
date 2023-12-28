@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,9 +20,12 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             if(str.Length < 2 || str.First() != '"' || str.Last() != '"')
             {
-                throw new ArgumentException($"String '{str}' is not correctly formatted");
+                return str; // unquoted string is allowed
             }
-            return str.Substring(1, str.Length - 2);
+            else
+            {
+                return str.Substring(1, str.Length - 2);
+            }
         }
 
         // This enum parser is looked up as special case and its signature is incomatible
