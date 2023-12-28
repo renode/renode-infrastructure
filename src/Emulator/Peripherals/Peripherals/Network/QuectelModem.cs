@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -650,23 +650,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         this.Log(LogLevel.Debug, "ConnectionId {0} requested send of '{1}' in data mode",
                             connectionId, BitConverter.ToString(bytes));
 
-                        string sendResponse;
-                        if(sockets[connectionId].Send(bytes))
-                        {
-                            sendResponse = SendOk;
-                        }
-                        else
-                        {
-                            sendResponse = SendFailed;
-                            this.Log(LogLevel.Warning, "Failed to send data to connection {0}", connectionId);
-                        }
-                        // We can send the OK (the return value of this command) immediately,
-                        // but we have to wait before SEND OK/SEND FAIL if the network is too fast
-                        ExecuteWithDelay(() => SendString(sendResponse), 50);
-                        // A successful send means the signaling connection became active, but this
-                        // happens after the actual send notification hence the additional delay on
-                        // top of CsconDelay.
-                        ExecuteWithDelay(() => SendSignalingConnectionStatus(true), CsconDelay + 50);
+                        SendSocketData(bytes, connectionId);
                     });
                 });
                 return null;
@@ -680,6 +664,27 @@ namespace Antmicro.Renode.Peripherals.Network
         protected virtual bool IsValidContextId(int id)
         {
             return id >= 1 && id <= 16;
+        }
+
+        protected void SendSocketData(byte[] bytes, int connectionId)
+        {
+            string sendResponse;
+            if(sockets[connectionId].Send(bytes))
+            {
+                sendResponse = SendOk;
+            }
+            else
+            {
+                sendResponse = SendFailed;
+                this.Log(LogLevel.Warning, "Failed to send data to connection {0}", connectionId);
+            }
+            // We can send the OK (the return value of this command) immediately,
+            // but we have to wait before SEND OK/SEND FAIL if the network is too fast
+            ExecuteWithDelay(() => SendString(sendResponse), 50);
+            // A successful send means the signaling connection became active, but this
+            // happens after the actual send notification hence the additional delay on
+            // top of CsconDelay.
+            ExecuteWithDelay(() => SendSignalingConnectionStatus(true), CsconDelay + 50);
         }
 
         protected void EnterDeepsleep()
