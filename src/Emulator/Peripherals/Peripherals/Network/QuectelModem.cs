@@ -615,7 +615,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // QISEND - Send Hex/Text String Data
         [AtCommand("AT+QISEND", CommandType.Write)]
-        protected virtual Response Qisend(int connectionId, int? sendLength = null, string data = null)
+        protected virtual Response Qisend(int connectionId, int? sendLength = null, string data = null, int? raiMode = null)
         {
             if(!IsValidConnectionId(connectionId) || sockets[connectionId] == null)
             {
@@ -630,14 +630,25 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             else if(data != null) // Send data in non-data mode
             {
+                var bytes = Misc.HexStringToByteArray(data);
                 // Non-data mode is only supported with a fixed length
-                if(sendLength == null || data.Length != sendLength)
+                if(sendLength == null || bytes.Length != sendLength)
                 {
                     return Error;
                 }
-                this.Log(LogLevel.Warning, "ConnectionId {0} requested send of '{1}' in non-data mode, not implemented",
-                    connectionId, data);
-                return Ok.WithTrailer(SendOk);
+                else if(raiMode != null)
+                {
+                    var status = Qnbiotrai(raiMode.Value);
+                    if(status.Status == ErrorMessage)
+                    {
+                        return status;
+                    }
+                }
+                this.Log(LogLevel.Debug, "ConnectionId {0} requested send of '{1}' in non-data mode",
+                    connectionId, BitConverter.ToString(bytes));
+
+                SendSocketData(bytes, connectionId);
+                return null;
             }
             else // Send data (fixed or variable-length) in data mode
             {

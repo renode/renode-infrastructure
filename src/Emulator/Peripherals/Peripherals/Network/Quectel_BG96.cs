@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // QISEND - Send Hex/Text String Data
         [AtCommand("AT+QISEND", CommandType.Write)]
-        protected override Response Qisend(int connectionId, int? sendLength = null, string data = null)
+        protected override Response Qisend(int connectionId, int? sendLength = null, string data = null, int? raiMode = null)
         {
             // The BG96 doesn't support non-data mode in AT+QISEND
             if(data != null)
