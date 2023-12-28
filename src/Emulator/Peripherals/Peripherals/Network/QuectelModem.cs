@@ -260,6 +260,16 @@ namespace Antmicro.Renode.Peripherals.Network
             // Reset option isn't taken into account yet, so the new functionality level
             // is always activated immediately and remains valid after deep sleep wakeup.
             this.functionalityLevel = functionalityLevel;
+
+            if(signalingConnectionStatusReportingEnabled && functionalityLevel == FunctionalityLevel.Full)
+            {
+                var d = 0UL;
+                // We do both of the sends here after a delay to accomodate software
+                // which might not expect the "instant" reply which would otherwise happen.
+                ExecuteWithDelay(() => SendSignalingConnectionStatus(true), d += CsconDelay);
+                ExecuteWithDelay(() => SendString($"+IP: {NetworkIp}"), d += IpDelay); // IP URC means successfully registered
+            }
+
             // Notify the DTE about the registration status to emulate the behavior
             // of a real modem where it might change in response to the functionality
             // level being changed.
