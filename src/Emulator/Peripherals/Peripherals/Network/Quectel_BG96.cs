@@ -92,6 +92,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 case "ims": // IMS function control
                 case "iotopmode": // network category to be searched under LTE RAT
                 case "ledmode": // NETLIGHT output Mode
+                    return SetNetLightMode(value);
                 case "msc": // MSC release version configuration
                 case "nb1/bandprior": // band scan priority under LTE Cat NB1
                 case "nwscanmode": // RAT(s) to be searched

@@ -27,6 +27,7 @@ namespace Antmicro.Renode.Peripherals.Network
             Connections = new Dictionary<int, IGPIO>
             {
                 {0, vddExt},
+                {1, netLight},
             };
 
             Reset();
@@ -790,6 +791,19 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        // NETLIGHT pin is controlled by AT+QLEDMODE (BC660K, BC66) or AT+QCFG="ledmode" (BG96)
+        // You can implement exact AT commands for particular models using this helper.
+        protected Response SetNetLightMode(int ledMode)
+        {
+            if(ledMode < 0 || ledMode > 1)
+            {
+                this.Log(LogLevel.Warning, "Invalid mode for NETLIGHT pin: {0}", ledMode);
+                return Error;
+            }
+            netLightMode = ledMode;
+            return Ok;
+        }
+
         protected abstract string Vendor { get; }
         protected abstract string ModelName { get; }
         protected abstract string Revision { get; }
@@ -808,6 +822,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected bool powerSavingModeEventEnabled;
         protected bool signalingConnectionStatusReportingEnabled;
         protected NetworkRegistrationUrcType networkRegistrationUrcType;
+        protected int netLightMode;
 
         protected readonly string imeiNumber;
 
@@ -893,6 +908,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly string softwareVersionNumber;
         private readonly string serialNumber;
         private readonly IGPIO vddExt = new GPIO();
+        private readonly IGPIO netLight = new GPIO();
         private readonly SocketService[] sockets = new SocketService[NumberOfConnections];
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";

@@ -29,6 +29,16 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok; // stub
         }
 
+        // AT+QLEDMODE - Configure Network-status-indication Light
+        [AtCommand("AT+QLEDMODE", CommandType.Write)]
+        protected virtual Response QledmodeWrite(int ledMode)
+        {
+            return SetNetLightMode(ledMode);
+        }
+
+        [AtCommand("AT+QLEDMODE", CommandType.Read)]
+        protected virtual Response QledmodeRead() => Ok.WithParameters($"+QLEDMODE: {netLightMode}");
+
         // QCCLK - Set and Get Current Date and UTC
         [AtCommand("AT+QCCLK", CommandType.Read)]
         protected virtual Response QcclkRead()
