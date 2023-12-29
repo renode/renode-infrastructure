@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -30,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     this.Log(LogLevel.Info, "Watchdog timed out. Resetting...");
                     machine.RequestReset();
                 }
+                LimitReached?.Invoke(this);
             };
             DefineRegisters();
         }
@@ -42,6 +45,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; }
         public long Size => 0x1000;
+
+        public event Action<Cadence_WDT> LimitReached;
 
         private void DefineRegisters()
         {
