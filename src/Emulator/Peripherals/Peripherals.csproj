@@ -371,6 +371,7 @@
     <Compile Include="Peripherals\Miscellaneous\LiteX_MMCM.cs" />
     <Compile Include="Peripherals\Analog\EOSS3_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32_ADC_Common.cs" />
+    <Compile Include="Peripherals\Analog\STM32C0_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32F0_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32G0_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32L0_ADC.cs" />
