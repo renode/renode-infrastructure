@@ -478,7 +478,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             var configurationRegister2 = new DoubleWordRegister(this)
-                .WithReservedBits(0, 30)
+                .WithFlag(0, name: "OVSE")
+                .WithReservedBits(1, 1)
+                .WithFlags(2, 3, name: "OVSR")
+                .WithFlags(5, 4, name: "OVSS")
+                .WithTag("TOVS", 9, 1)
+                .WithReservedBits(10, 20)
                 .WithTag("CKMODE", 30, 2);
 
             var commonConfigurationRegister = new DoubleWordRegister(this)
