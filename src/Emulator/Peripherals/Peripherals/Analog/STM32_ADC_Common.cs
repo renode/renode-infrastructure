@@ -514,7 +514,9 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 sequenceInProgress = false;
                             }
                         }, name: "ADSTP")
-                    .WithReservedBits(5, 25)
+                    .WithReservedBits(5, 22)
+                    .WithTag("ADVREGEN", 28, 1)
+                    .WithReservedBits(29, 2)
                     .WithTaggedFlag("ADCAL", 31)
                 },
                 {(long)Registers.Configuration1, configurationRegister1},
