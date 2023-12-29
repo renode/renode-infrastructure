@@ -17,9 +17,9 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class ICP_10101 : II2CPeripheral, ISensor, ITemperatureSensor, IUnderstandRESD
+    public class ICP_101xx : II2CPeripheral, ISensor, ITemperatureSensor, IUnderstandRESD
     {
-        public ICP_10101(IMachine machine)
+        public ICP_101xx(IMachine machine)
         {
             crcEngine = new CRCEngine(0x31, 8, false, false, 0xFF, 0x00);
             writeHandlers = new Dictionary<Command, Action<byte[], int>>();

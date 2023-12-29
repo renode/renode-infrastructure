@@ -613,7 +613,7 @@
     <Compile Include="Peripherals\SCI\RenesasRA_SCI.cs" />
     <Compile Include="Peripherals\SCI\RenesasRA6M5_SCI.cs" />
     <Compile Include="Peripherals\Sensors\OB1203.cs" />
-    <Compile Include="Peripherals\Sensors\ICP_10101.cs" />
+    <Compile Include="Peripherals\Sensors\ICP_101xx.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA_GPIO.cs" />
     <Compile Include="Peripherals\IRQControllers\RenesasRA_ICU.cs" />
     <Compile Include="Peripherals\UART\BCM2711_AUX_UART.cs" />
