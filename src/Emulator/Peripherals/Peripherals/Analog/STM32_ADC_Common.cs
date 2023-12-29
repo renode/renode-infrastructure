@@ -449,7 +449,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithReservedBits(0, 18)
                 .WithTaggedFlag("VREFEN", 22)
                 .WithTaggedFlag("TSEN", 23)
-                .WithReservedBits(25, 7);
+                .WithTaggedFlag("LFMEN", 25)
+                .WithReservedBits(26, 6);
 
             if(hasPrescaler)
             {
