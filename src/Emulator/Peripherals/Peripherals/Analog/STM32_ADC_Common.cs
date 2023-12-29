@@ -195,8 +195,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             var endOfSampling = endOfSamplingFlag.Value && endOfSamplingInterruptEnable.Value;
             var endOfConversion = endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
             var endOfSequence = endOfSequenceFlag.Value && endOfSequenceInterruptEnable.Value;
+            var endOfCalibration = endOfCalibrationFlag.Value && endOfCalibrationInterruptEnable.Value;
 
-            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence);
+            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence || endOfCalibration);
         }
 
         private void StartSampling()
@@ -379,10 +380,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(hasCalibration)
             {
                 isrRegister
-                    .WithTaggedFlag("EOCAL", 11)
+                    .WithFlag(11, out endOfCalibrationFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOCAL")
                     .WithTaggedFlag("LDORDY", 12);
                 interruptEnableRegister
-                    .WithTaggedFlag("EOCALIE", 11)
+                    .WithFlag(11, out endOfCalibrationInterruptEnable, name: "EOCALIE")
                     .WithTaggedFlag("LDORDYIE", 12);
             }
             else
@@ -518,7 +519,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(5, 22)
                     .WithTag("ADVREGEN", 28, 1)
                     .WithReservedBits(29, 2)
-                    .WithTaggedFlag("ADCAL", 31)
+                    .WithFlag(31, valueProviderCallback: _ => false, writeCallback: (_, __) =>
+                        {
+                            UpdateInterrupts();
+                        }, name: "ADCAL")
                 },
                 {(long)Registers.Configuration1, configurationRegister1},
                 {(long)Registers.Configuration2, configurationRegister2},
@@ -620,12 +624,14 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField endOfConversionFlag;
         private IFlagRegisterField endOfSamplingFlag;
         private IFlagRegisterField endOfSequenceFlag;
+        private IFlagRegisterField endOfCalibrationFlag;
         private IFlagRegisterField adcOverrunInterruptEnable;
         private IFlagRegisterField adcReadyInterruptEnable;
         private IFlagRegisterField[] analogWatchdogsInterruptEnable;
         private IFlagRegisterField endOfConversionInterruptEnable;
         private IFlagRegisterField endOfSamplingInterruptEnable;
         private IFlagRegisterField endOfSequenceInterruptEnable;
+        private IFlagRegisterField endOfCalibrationInterruptEnable;
         private IFlagRegisterField analogWatchdogSingleChannel;
 
         private IValueRegisterField data;
