@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 // Base class configuration
                 watchdogCount: 3,
                 hasCalibration: true,
+                hasHighCalAddress: true,
                 channelCount: 14,
                 hasPrescaler: true,
                 hasVbatPin: false,
