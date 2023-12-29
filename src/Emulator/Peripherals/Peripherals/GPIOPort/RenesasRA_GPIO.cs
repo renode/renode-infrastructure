@@ -15,13 +15,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasRA_GPIO(IMachine machine, int numberOfConnections) : base(machine, numberOfConnections)
+        public RenesasRA_GPIO(IMachine machine, int numberOfConnections, RenesasRA_GPIOMisc pfsMisc) : base(machine, numberOfConnections)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             PinConfigurationRegistersCollection = new DoubleWordRegisterCollection(this);
 
             pinDirection = new IEnumRegisterField<Direction>[numberOfConnections];
             usedAsIRQ = new IFlagRegisterField[numberOfConnections];
+
+            this.pfsMisc = pfsMisc;
 
             IRQ = new GPIO();
 
@@ -48,6 +50,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         [ConnectionRegion("pinConfiguration")]
         public void WriteDoubleWordToPinConfiguration(long offset, uint value)
         {
+            if(!pfsMisc.PFSWriteEnabled)
+            {
+                this.Log(LogLevel.Warning, "Trying to write to pin configuration registers (PFS) when PFSWE is deasserted");
+                return;
+            }
+
             PinConfigurationRegistersCollection.Write(offset, value);
         }
 
@@ -184,6 +192,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             Connections[index].Set(value);
         }
+
+        private readonly RenesasRA_GPIOMisc pfsMisc;
 
         private IEnumRegisterField<Direction>[] pinDirection;
         private IFlagRegisterField[] usedAsIRQ;
