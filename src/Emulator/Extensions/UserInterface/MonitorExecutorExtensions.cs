@@ -1,10 +1,11 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.IO;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Microsoft.Scripting.Hosting;
@@ -17,6 +18,17 @@ namespace Antmicro.Renode.UserInterface
 {
     public static class MonitorExecutorExtensions
     {
+        public static void ExecutePython(this IMachine machine, string script)
+        {
+            var engine = new ExecutorPythonEngine(machine, script);
+            engine.Action();
+        }
+
+        public static void ExecutePythonFromFile(this IMachine machine, ReadFilePath filePath)
+        {
+            machine.ExecutePython(ReadScriptFromFile(filePath));
+        }
+
         public static void ExecutePythonEvery(this IMachine machine, string name, int milliseconds, string script)
         {
             var engine = new ExecutorPythonEngine(machine, script);
@@ -38,6 +50,18 @@ namespace Antmicro.Renode.UserInterface
             if(state.CurrentState == MachineStateChangedEventArgs.State.Disposed)
             {
                 events.Remove(machine, name);
+            }
+        }
+
+        private static string ReadScriptFromFile(ReadFilePath filePath)
+        {
+            try
+            {
+                return File.ReadAllText(filePath);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException($"Error while opening Python script file '{filePath}': {e.Message}");
             }
         }
 
