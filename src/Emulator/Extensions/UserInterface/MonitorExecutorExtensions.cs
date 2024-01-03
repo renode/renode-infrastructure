@@ -39,6 +39,11 @@ namespace Antmicro.Renode.UserInterface
             machine.StateChanged += (m, s) => UnregisterEvent(m, name, s);
         }
 
+        public static void ExecutePythonEveryFromFile(this IMachine machine, string name, int milliseconds, ReadFilePath filePath)
+        {
+            machine.ExecutePythonEvery(name, milliseconds, ReadScriptFromFile(filePath));
+        }
+
         public static void StopPythonExecution(this IMachine machine, string name)
         {
             machine.ClockSource.TryRemoveClockEntry(events.WithdrawAction(machine, name));
