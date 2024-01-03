@@ -178,27 +178,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal Temperature
         {
-            get
-            {
-                if(resdTemperatureStream == null)
-                {
-                    return DefaultTemperature;
-                }
-
-                switch(resdTemperatureStream.TryGetCurrentSample(this, out var sample, out _))
-                {
-                case RESDStreamStatus.OK:
-                    return sample.Temperature / 1000m;
-                case RESDStreamStatus.BeforeStream:
-                    return DefaultTemperature;
-                case RESDStreamStatus.AfterStream:
-                    resdTemperatureStream.Dispose();
-                    resdTemperatureStream = null;
-                    return DefaultTemperature;
-                default:
-                    return DefaultTemperature;
-                }
-            }
+            get => GetSampleFromRESDStream(ref resdTemperatureStream, (sample) => sample.Temperature / 1000, DefaultTemperature);
             set => throw new RecoverableException($"Explicitly setting temperature is not supported by this model. " +
                 $"Temperature should be provided from a RESD file or set via the '{nameof(DefaultTemperature)}' property");
         }
@@ -209,6 +189,29 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public decimal DefaultTemperature { get; set; }
+
+        private decimal GetSampleFromRESDStream<T>(ref RESDStream<T> stream, Func<T, decimal> transformer, decimal defaultValue)
+            where T: RESDSample, new()
+        {
+            if(stream == null)
+            {
+                return defaultValue;
+            }
+
+            switch(stream.TryGetCurrentSample(this, transformer, out var sample, out _))
+            {
+            case RESDStreamStatus.OK:
+                return sample;
+            case RESDStreamStatus.BeforeStream:
+                return defaultValue;
+            case RESDStreamStatus.AfterStream:
+                stream.Dispose();
+                stream = null;
+                return defaultValue;
+            default:
+                throw new Exception("Unreachable");
+            }
+        }
 
         private ushort ConvertMeasurement(decimal value, MeasurementResolution resolution, Func<decimal, decimal> converter, int shift = 0)
         {
