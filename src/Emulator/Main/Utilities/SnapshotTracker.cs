@@ -6,6 +6,7 @@
 //
 using System;
 using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Time;
@@ -65,6 +66,33 @@ namespace Antmicro.Renode.Utilities
                 // binary search returned bitwise complement of the index of the first element larger than the new one
                 snapshots.Insert(~index, newSnap);
             }
+        }
+
+        public string PrintSnapshotsInfo()
+        {
+            return $"Count: {Count}\nTotal Size: {GetSnapshotSizeText(TotalSnapshotsSize)}";
+        }
+
+        public string[,] PrintDetailedSnapshotsInfo()
+        {
+            var table = new Table().AddRow("Path", "Timestamp", "Size");
+            table.AddRows(snapshots,
+                x => x.Path,
+                x => x.TimeStamp.ToString(),
+                x => GetSnapshotSizeText(new FileInfo(x.Path).Length)
+            );
+
+            return table.ToArray();
+        }
+
+        public int Count => snapshots.Count;
+
+        public long TotalSnapshotsSize => snapshots.Select(x => new FileInfo(x.Path)).Where(x => x.Exists).Sum(x => x.Length);
+
+        private string GetSnapshotSizeText(long size)
+        {
+            Misc.CalculateUnitSuffix(size, out var value, out var unit);
+            return $"{value:F2} {unit}";
         }
 
         private readonly List<SnapshotDescriptor> snapshots;
