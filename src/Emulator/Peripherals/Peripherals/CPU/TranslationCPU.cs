@@ -314,8 +314,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.InnerPause(onCpuThread, checkPauseGuard);
 
-            // calling pause from block begin/end hook is safe and we should not check pauseGuard in this context
-            if(!onCpuThread && !insideBlockHook && checkPauseGuard)
+            if(!onCpuThread && checkPauseGuard)
             {
                 pauseGuard.OrderPause();
             }
@@ -875,8 +874,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool insideBlockHook;
-
         /// <remarks>
         /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
         /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
@@ -890,15 +887,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <remarks>
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
+        /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
+        /// </remarks>
         [Export]
         private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            using(DisposableWrapper.New(() => insideBlockHook = false))
+            using(ObtainPauseGuardForHook())
             {
-                insideBlockHook = true;
-
                 blockBeginInternalHook?.Invoke(address, size);
                 blockBeginUserHook?.Invoke(address, size);
             }
@@ -906,12 +905,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             return (currentHaltedState || isPaused) ? 0 : 1u;
         }
 
+        /// <remarks>
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
+        /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
+        /// </remarks>
         [Export]
         private void OnBlockFinished(ulong pc, uint executedInstructions)
         {
-            using(DisposableWrapper.New(() => insideBlockHook = false))
+            using(ObtainPauseGuardForHook())
             {
-                insideBlockHook = true;
                 blockFinishedHook?.Invoke(pc, executedInstructions);
             }
         }
