@@ -43,6 +43,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             resdTemperatureStream = this.CreateRESDStream<TemperatureSample>(filePath, channelId, sampleOffsetType, sampleOffsetTime);
         }
 
+        public void FeedHumiditySamplesFromRESD(ReadFilePath filePath, uint channelId = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
+        {
+            resdHumidityStream?.Dispose();
+            resdHumidityStream = this.CreateRESDStream<HumiditySample>(filePath, channelId, sampleOffsetType, sampleOffsetTime);
+        }
+
         public void Write(params byte[] data)
         {
             if(isReconfiguringSensor)
@@ -185,10 +192,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal Humidity
         {
-            get; set;
+            get => GetSampleFromRESDStream(ref resdHumidityStream, (sample) => sample.Humidity / 1000, DefaultHumidity);
+            set => throw new RecoverableException($"Explicitly setting humidity is not supported by this model. " +
+                $"Humidity should be provided from a RESD file or set via the '{nameof(DefaultHumidity)}' property");
         }
 
         public decimal DefaultTemperature { get; set; }
+
+        public decimal DefaultHumidity { get; set; }
 
         private decimal GetSampleFromRESDStream<T>(ref RESDStream<T> stream, Func<T, decimal> transformer, decimal defaultValue)
             where T: RESDSample, new()
@@ -303,6 +314,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private Registers? currentRegister;
         private RESDStream<TemperatureSample> resdTemperatureStream;
+        private RESDStream<HumiditySample> resdHumidityStream;
 
         private bool canReconfigureSensor;
         private bool isReconfiguringSensor;
