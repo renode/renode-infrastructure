@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -65,11 +65,14 @@ namespace Antmicro.Renode.Core
             BackendManager = new BackendManager();
             BlobManager = new BlobManager();
             theBag = new Dictionary<string, object>();
+            SnapshotTracker = new SnapshotTracker();
         }
 
         public MasterTimeSource MasterTimeSource { get; private set; }
 
         public BackendManager BackendManager { get; private set; }
+
+        public SnapshotTracker SnapshotTracker { get; }
 
         public BlobManager BlobManager { get; set; }
 
