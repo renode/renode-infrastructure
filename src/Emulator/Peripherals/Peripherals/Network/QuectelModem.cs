@@ -167,6 +167,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public decimal TxTime { get; set; } = 0m;
 
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
+        public int ActiveTimeSeconds => ConvertEncodedStringToSeconds(ActiveTime, ModemTimerType.ActiveTimeT3324);
+        public int PeriodicTauSeconds => ConvertEncodedStringToSeconds(PeriodicTau, ModemTimerType.PeriodicTauT3412);
 
         // ATI - Display Product Identification Information
         [AtCommand("ATI")]
@@ -933,6 +935,90 @@ namespace Antmicro.Renode.Peripherals.Network
             return true;
         }
 
+        // Return encoded string that represents the greatest available value
+        // that is not greater than the requested one.
+        protected string ConvertSecondsToEncodedString(int t, ModemTimerType timerType)
+        {
+            IReadOnlyDictionary<byte, int> keyMap;
+            switch(timerType)
+            {
+                case ModemTimerType.ActiveTimeT3324:
+                {
+                    keyMap = activeTimeUnitToSecondsMultiplier;
+                    break;
+                }
+                case ModemTimerType.PeriodicTauT3412:
+                {
+                    keyMap = periodicTauTimeUnitToSecondsMultiplier;
+                    break;
+                }
+                default:
+                {
+                    throw new ArgumentException("Invalid timer type");
+                }
+            }
+
+            byte selectedKey = 0b111;
+            int selectedValue = 0;
+
+            foreach(var entry in keyMap.OrderByDescending(x => x.Value))
+            {
+                if(t >= entry.Value)
+                {
+                    selectedKey = entry.Key;
+                    selectedValue = entry.Value;
+                    break;
+                }
+            }
+
+            selectedValue = selectedValue == 0 ? 0 : t / selectedValue;
+
+            const int timerValueWidth = 5;
+            const int maxTimerValue = (1 << timerValueWidth) - 1; // 5 bits for coding timer value
+            var timeByteCoded = selectedKey << timerValueWidth | (selectedValue & maxTimerValue);
+
+            return Convert.ToString(timeByteCoded, 2).PadLeft(8, '0');
+        }
+
+        protected int ConvertEncodedStringToSeconds(string encoded, ModemTimerType timerType)
+        {
+            IReadOnlyDictionary<byte, int> keyMap;
+            int defaultMultiplier;
+            switch(timerType)
+            {
+                case ModemTimerType.ActiveTimeT3324:
+                {
+                    keyMap = activeTimeUnitToSecondsMultiplier;
+                    defaultMultiplier = ActiveTimeDefaultUnitMultiplier;
+                    break;
+                }
+                case ModemTimerType.PeriodicTauT3412:
+                {
+                    keyMap = periodicTauTimeUnitToSecondsMultiplier;
+                    defaultMultiplier = PeriodicTauDefaultUnitMultiplier;
+                    break;
+                }
+                default:
+                {
+                    throw new ArgumentException("Invalid timer type");
+                }
+            }
+
+            if(!Misc.TryParseBitPattern(encoded, out var parsed, out _))
+            {
+                this.Log(LogLevel.Warning, "Unable to decode time code '{0}' - should be a bit-string", encoded);
+                return 0;
+            }
+            var timerValue = BitHelper.GetValue((byte)parsed, 0, 5);
+            var unit = BitHelper.GetValue((byte)parsed, 5, 3);
+
+            if(keyMap.TryGetValue(unit, out var multiplier))
+            {
+                return multiplier * timerValue;
+            }
+            return defaultMultiplier * timerValue;
+        }
+
         // When this is set to Numeric or Verbose, MT-related errors are reported with "+CME ERROR: "
         // instead of the plain "ERROR". This does not apply to syntax errors, invalid parameter
         // errors or Terminal Adapter functionality.
@@ -949,6 +1035,27 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IGPIO vddExt = new GPIO();
         private readonly IGPIO netLight = new GPIO();
         private readonly SocketService[] sockets = new SocketService[NumberOfConnections];
+
+        private readonly IReadOnlyDictionary<byte, int> activeTimeUnitToSecondsMultiplier = new Dictionary<byte, int>
+        {
+            { 0b111, 0 },
+            { 0b000, 2 },
+            { 0b001, 60 },
+            { 0b010, 6 * 60 }
+        };
+
+        private readonly IReadOnlyDictionary<byte, int> periodicTauTimeUnitToSecondsMultiplier = new Dictionary<byte, int>
+        {
+            { 0b111, 0 },
+            { 0b011, 2 },
+            { 0b100, 30 },
+            { 0b101, 60 },
+            { 0b000, 10 * 60 },
+            { 0b001, 60 * 60 },
+            { 0b010, 10 * 60 * 60 },
+            { 0b110, 320 * 60 * 60 }
+        };
+
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";
         private const string DefaultSerialNumber = "<serial number>";
@@ -957,6 +1064,8 @@ namespace Antmicro.Renode.Peripherals.Network
         private const string SendFailed = "SEND FAIL";
         private const string ModemReady = "RDY";
         private const int NumberOfConnections = 4;
+        private const int ActiveTimeDefaultUnitMultiplier = 60;
+        private const int PeriodicTauDefaultUnitMultiplier = 60 * 60;
 
         public enum NetworkRegistrationStates
         {
@@ -974,6 +1083,12 @@ namespace Antmicro.Renode.Peripherals.Network
             Searching,
             Selected,
             OutOfService
+        }
+
+        protected enum ModemTimerType
+        {
+            ActiveTimeT3324,
+            PeriodicTauT3412
         }
 
         protected enum MobileTerminationResultCodeMode
