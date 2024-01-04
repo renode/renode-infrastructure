@@ -198,6 +198,30 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        // QPSC - Power Saving Control
+        [AtCommand("AT+QPSC", CommandType.Read)]
+        protected virtual Response QpscRead() => Ok.WithParameters($"+QPSC: \"minT3324\",{minimumT3324},\"minT3412\",{minimumT3412},\"minTeDRX\",{minimumTeDRX}");
+
+        [AtCommand("AT+QPSC", CommandType.Write)]
+        protected virtual Response QpscWrite(int minT3324, int minT3412, int minTeDRX)
+        {
+            minimumT3324 = minT3324;
+            minimumT3412 = minT3412;
+            minimumTeDRX = minTeDRX;
+
+            return Ok;
+        }
+
+        [AtCommand("AT+QPSC", CommandType.Execution)]
+        protected virtual Response QpscExec()
+        {
+            minimumT3324 = 0;
+            minimumT3412 = 0;
+            minimumTeDRX = 0;
+
+            return Ok;
+        }
+
         protected override bool IsValidContextId(int id)
         {
             return id == 0;
@@ -208,6 +232,10 @@ namespace Antmicro.Renode.Peripherals.Network
         protected override string Revision => "Revision: QCX212";
         protected override string ManufacturerRevision => "BC660KGLAAR01A03";
         protected override string SoftwareRevision => "01.002.01.002";
+
+        private int minimumT3324;
+        private int minimumT3412;
+        private int minimumTeDRX;
 
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";
