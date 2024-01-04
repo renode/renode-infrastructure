@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -7,7 +7,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -18,33 +20,42 @@ using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class IMXRT_PWM : BasicWordPeripheral, IKnownSize
+    public class IMXRT_PWM : BasicWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
         public IMXRT_PWM(IMachine machine, long frequency = 10000000) : base(machine)
         {
-            IRQ = new GPIO();
-
             halfCycleTimer = new ComparingTimer(machine.ClockSource, frequency, this, "halfCycleTimer", compare: ushort.MaxValue, limit: ushort.MaxValue, workMode: WorkMode.Periodic, enabled: false, eventEnabled: true);
             fullCycleTimer = new ComparingTimer(machine.ClockSource, frequency, this, "fullCycleTimer", compare: ushort.MaxValue, limit: ushort.MaxValue, workMode: WorkMode.Periodic, enabled: false, eventEnabled: true);
 
             halfCycleTimer.CompareReached += () => OnCompare(false);
             fullCycleTimer.CompareReached += () => OnCompare(true);
 
+            Connections = new ReadOnlyDictionary<int, IGPIO>(Enumerable.Range(0, NumberOfSubmodules * 3 + 2).ToDictionary<int, int, IGPIO>(x => x, x => new GPIO()));
             DefineRegisters();
         }
 
-        public GPIO IRQ { get; }
+        public override void Reset()
+        {
+            base.Reset();
+            UpdateInterrupts();
+        }
+
+        // The Connections is composed of Compare, Capture and Reload IRQ triplets
+        // in that order for every submodule in ascending index order. The second
+        // to last and last connection are Reload Error and Fault in that order.
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long Size => 0x200;
 
         private void UpdateInterrupts()
         {
-            var flag = false;
-
-            flag |= reloadFlag.Value && reloadInterruptEnable.Value;
-
-            this.Log(LogLevel.Debug, "Setting IRQ to {0}", flag);
-            IRQ.Set(flag);
+            // At the moment only Reload IRQ for submodule 0 is implemented
+            GetReloadIRQ(0).Set(reloadFlag.Value && reloadInterruptEnable.Value);
+            for(var i = 0; i < NumberOfSubmodules; ++i)
+            {
+                this.Log(LogLevel.Debug, "Setting submodule#{0} events: compare {1}, capture {2}, reload {3}.", i, GetCompareIRQ(i).IsSet, GetCaptureIRQ(i).IsSet, GetReloadIRQ(i).IsSet);
+            }
+            this.Log(LogLevel.Debug, "Setting reload error {0} and fault {1}", ReloadError.IsSet, Fault.IsSet);
         }
 
         private void DefineRegisters()
@@ -167,6 +178,24 @@ namespace Antmicro.Renode.Peripherals.Timers
                 timer.Compare = valueRegister.Value;
             }
         }
+
+        private IGPIO GetCompareIRQ(int index)
+        {
+            return Connections[index * 3];
+        }
+
+        private IGPIO GetCaptureIRQ(int index)
+        {
+            return Connections[index * 3 + 1];
+        }
+
+        private IGPIO GetReloadIRQ(int index)
+        {
+            return Connections[index * 3 + 2];
+        }
+
+        private IGPIO ReloadError => Connections[NumberOfSubmodules * 3];
+        private IGPIO Fault => Connections[NumberOfSubmodules * 3 + 1];
 
         private IFlagRegisterField reloadInterruptEnable;
         private IFlagRegisterField reloadFlag;
