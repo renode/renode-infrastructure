@@ -795,6 +795,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             ReportNbiotEvent(enable ? NbiotEvent.EnterPowerSavingMode : NbiotEvent.ExitPowerSavingMode);
+            powerSavingModeActive = enable;
         }
 
         protected void SendSignalingConnectionStatus(bool active)
