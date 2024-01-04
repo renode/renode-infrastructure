@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1010,39 +1010,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .Append(str);
 
             return builder.ToString();
-        }
-
-        // This is a helper method that is meant to be used in the `sysbus: init:` section
-        // of a platform description file to run a Python script that adds some functionality
-        // to the platform
-        public void RunPythonScript(ReadFilePath filePath)
-        {
-            string fileContent;
-            try
-            {
-                fileContent = File.ReadAllText(filePath);
-            }
-            catch(Exception e)
-            {
-                throw new RecoverableException($"Error while opening the Python script '{filePath}': {e.Message}");
-            }
-            
-            // The Monitor class is in a different project, and there is no direct access
-            // to it from this class
-            const string MonitorTypeName = "Antmicro.Renode.UserInterface.Monitor";
-            var monitor = (dynamic)ObjectCreator.Instance.GetSurrogate(MonitorTypeName);
-
-            var currentMachine = monitor.Machine;
-            monitor.Machine = Machine;
-
-            try
-            {
-                monitor.ExecutePythonCommand(fileContent);
-            }
-            finally
-            {
-                monitor.Machine = currentMachine;
-            }
         }
 
         public IMachine Machine { get; }
