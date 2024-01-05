@@ -69,6 +69,7 @@
     <Compile Include="Peripherals\UART\NS16550.cs" />
     <Compile Include="Peripherals\UART\NPCX_UART.cs" />
     <Compile Include="Peripherals\UART\LPC_USART.cs" />
+    <Compile Include="Peripherals\UART\GD32_UART.cs" />
     <Compile Include="Peripherals\Timers\NPCX_MTC.cs" />
     <Compile Include="Peripherals\Timers\NPCX_TWD.cs" />
     <Compile Include="Peripherals\UART\AxiUartLite.cs" />
