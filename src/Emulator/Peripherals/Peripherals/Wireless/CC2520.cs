@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -868,7 +868,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private Instruction currentInstruction;
         private ByteRegisterCollection registers;
 
-        private DecoderEntry decoderRoot = new DecoderEntry();
+        private SimpleInstructionDecoder<Instruction> decoderRoot = new SimpleInstructionDecoder<Instruction>();
 
         private const int RegisterMemorySize = 0x80;
         private const uint TxFifoMemoryStart = 0x100;
@@ -1230,49 +1230,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private struct DecoderEntry
-        {
-            public void AddOpcode(byte value, int length, Func<Instruction> newInstruction, int bitNumber = 7)
-            {
-                if(bitNumber < 8 - length)
-                {
-                    //we're done parsing
-                    this.instruction = newInstruction;
-                }
-                else
-                {
-                    if(children == null)
-                    {
-                        children = new DecoderEntry[2];
-                        children[0] = new DecoderEntry();
-                        children[1] = new DecoderEntry();
-                    }
-                    var nextBit = BitHelper.IsBitSet(value, (byte)bitNumber);
-                    bitNumber--;
-                    children[nextBit ? 1 : 0].AddOpcode(value, length, newInstruction, bitNumber);
-                }
-            }
 
-            public bool TryParseOpcode(byte value, out Instruction result, byte bitNumber = 7)
-            {
-                if(instruction != null)
-                {
-                    result = instruction();
-                    return true;
-                }
-                if(children == null)
-                {
-                    result = null;
-                    return false;
-                }
-                var nextBit = BitHelper.IsBitSet(value, bitNumber);
-                bitNumber--;
-                return children[nextBit ? 1 : 0].TryParseOpcode(value, out result, bitNumber);
-            }
-
-            private DecoderEntry[] children;
-            private Func<Instruction> instruction;
-        }
 
         private enum Registers
         {
