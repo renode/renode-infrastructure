@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,23 +7,40 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 
+using TimeDirection = Antmicro.Renode.Time.Direction;
+
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class RenesasRA_GPT : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class RenesasRA_GPT : IDoubleWordPeripheral, INumberedGPIOOutput, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasRA_GPT(int numberOf32BitChannels, int numberOf16BitChannels, long commonRegistersOffset)
+        public RenesasRA_GPT(IMachine machine, int numberOf32BitChannels, int numberOf16BitChannels, long commonRegistersOffset,
+            long peripheralClockDFrequency)
         {
+            this.peripheralClockDFrequency = peripheralClockDFrequency;
+            this.machine = machine;
+
             this.numberOf32BitChannels = numberOf32BitChannels;
             this.numberOf16BitChannels = numberOf16BitChannels;
+            this.channels = new GPTChannel[TotalChannels];
 
             Size = commonRegistersOffset + 0x100;
             RegistersCollection = new DoubleWordRegisterCollection(this, BuildRegisterMap(commonRegistersOffset));
+
+            Connections = new ReadOnlyDictionary<int, IGPIO>(
+                channels
+                    .SelectMany(channel => channel.IRQ)
+                    .Select((x, i) => new { Key = i, Value = (IGPIO)x })
+                    .ToDictionary(x => x.Key, x => x.Value)
+            );
 
             Reset();
         }
@@ -45,6 +62,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size { get; }
         public DoubleWordRegisterCollection RegistersCollection { get; }
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap(long commonRegistersOffset)
         {
@@ -78,8 +96,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             for(long i = 0; i < numberOf32BitChannels; ++i)
             {
+                var channel = new GPTChannel(this, i, 32);
+                channels[i] = channel;
                 registerMap = registerMap
-                    .Concat(BuildChannelRegisterMap(0x100 * i))
+                    .Concat(BuildChannelRegisterMap(0x100 * i, channel))
                     .ToDictionary(x => x.Key, x => x.Value);
             }
 
@@ -88,15 +108,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // 16-bit channels are numbered after 32-bit channels,
                 // i.e. if 32-bit channels are 0 to 7 then 16-bit are 8 to 13.
                 var channelNumber = numberOf32BitChannels + i;
+                var channel = new GPTChannel(this, channelNumber, 16);
+                channels[channelNumber] = channel;
                 registerMap = registerMap
-                    .Concat(BuildChannelRegisterMap(0x100 * channelNumber))
+                    .Concat(BuildChannelRegisterMap(0x100 * channelNumber, channel))
                     .ToDictionary(x => x.Key, x => x.Value);
             }
 
             return registerMap;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildChannelRegisterMap(long channelOffset)
+        private Dictionary<long, DoubleWordRegister> BuildChannelRegisterMap(long channelOffset, GPTChannel channel)
         {
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -111,12 +133,30 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(16, 16)
                 },
                 {channelOffset + (long)ChannelRegisters.SoftwareStart, new DoubleWordRegister(this)
-                    .WithFlags(0, 14, name: "CSTRT")
-                    .WithReservedBits(14, 18)
+                    .WithFlags(0, TotalChannels, name: "CSTRT",
+                        valueProviderCallback: (i, _) => channels[i].Enable,
+                        writeCallback: (i, _, value) =>
+                        {
+                            if(value)
+                            {
+                                channels[i].Enable = true;
+                            }
+                        }
+                    )
+                    .WithReservedBits(TotalChannels, 32 - TotalChannels)
                 },
                 {channelOffset + (long)ChannelRegisters.SoftwareStop, new DoubleWordRegister(this)
-                    .WithFlags(0, 14, name: "CSTOP")
-                    .WithReservedBits(14, 18)
+                    .WithFlags(0, TotalChannels, name: "CSTOP",
+                        valueProviderCallback: (i, _) => !channels[i].Enable,
+                        writeCallback: (i, _, value) =>
+                        {
+                            if(value)
+                            {
+                                channels[i].Enable = false;
+                            }
+                        }
+                    )
+                    .WithReservedBits(TotalChannels, 32 - TotalChannels)
                 },
                 {channelOffset + (long)ChannelRegisters.SoftwareClear, new DoubleWordRegister(this)
                     .WithFlags(0, 14, name: "CCLR")
@@ -132,13 +172,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {channelOffset + (long)ChannelRegisters.TimerControl, new DoubleWordRegister(this)
                     .WithFlag(0, name: "CST (Count Start)")
                     .WithReservedBits(1, 15)
-                    .WithValueField(16, 3, name: "MD (Mode Select)")
+                    .WithEnumField<DoubleWordRegister, Mode>(16, 3, name: "MD (Mode Select)",
+                        valueProviderCallback: _ => channel.Mode,
+                        writeCallback: (_, value) => channel.Mode = value
+                    )
                     .WithReservedBits(19, 4)
                     .WithValueField(23, 4, name: "TPCS (Timer Prescaler Select)")
                     .WithReservedBits(27, 5)
                 },
                 {channelOffset + (long)ChannelRegisters.CountDirectionAndDutySetting, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "UD (Count Direction Setting)")
+                    .WithEnumField<DoubleWordRegister, Direction>(0, 1, name: "UD (Count Direction Setting)",
+                        valueProviderCallback: _ => channel.Direction,
+                        writeCallback: (_, value) => channel.Direction = value
+                    )
                     .WithFlag(1, name: "UDF (Forcible Count Direction Setting)")
                     .WithReservedBits(2, 14)
                     .WithValueField(16, 2, name: "OADTY (GTIOCnA Output Duty Setting)")
@@ -202,11 +248,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(31, 1)
                 },
                 {channelOffset + (long)ChannelRegisters.Counter, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTCNT")
+                    .WithValueField(0, 32, name: "GTCNT",
+                        valueProviderCallback: _ => channel.Value,
+                        writeCallback: (_, value) => channel.Value = value
+                    )
                 },
                 // Compare Capture register A..F defined later
                 {channelOffset + (long)ChannelRegisters.CycleSetting, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTPR")
+                    .WithValueField(0, 32, name: "GTPR",
+                        valueProviderCallback: _ => channel.Cycle,
+                        writeCallback: (_, value) => channel.Cycle = value
+                    )
                 },
                 {channelOffset + (long)ChannelRegisters.CycleSettingBuffer, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "GTPBR")
@@ -288,7 +340,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(f.offset, name: $"TCF{f.c} (Input Capture/Compare Match Flag {f.c})");
             }
             statusRegister
-                .WithFlag(6, name: "TCFPO (Overflow Flag)")
+                .WithFlag(6, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TCFPO (Overflow Flag)",
+                    valueProviderCallback: _ => channel.Overflow,
+                    writeCallback: (_, __) => channel.ClearOverflow()
+                )
                 .WithFlag(7, name: "TCFPU (Underflow Flag)")
                 .WithReservedBits(8, 7)
                 .WithFlag(15, name: "TUCF (Count Direction Flag)")
@@ -353,11 +408,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class OffsetWithLetter
         {
+            public int index;
             public int offset;
             public char c;
 
-            public OffsetWithLetter(int offset, char c)
+            public OffsetWithLetter(int index, int offset, char c)
             {
+                this.index = index;
                 this.offset = offset;
                 this.c = c;
             }
@@ -369,12 +426,212 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 int offset = start + i * step;
                 var c = (char)('A' + i);
-                yield return new OffsetWithLetter(offset, c);
+                yield return new OffsetWithLetter(i, offset, c);
             }
         }
 
+        private int TotalChannels => numberOf32BitChannels + numberOf16BitChannels;
+
+        private readonly IMachine machine;
         private readonly int numberOf32BitChannels;
         private readonly int numberOf16BitChannels;
+        private readonly long peripheralClockDFrequency;
+        private readonly GPTChannel[] channels;
+
+        private class GPTChannel
+        {
+            public GPTChannel(RenesasRA_GPT parent, long index, int width)
+            {
+                this.parent = parent;
+                this.index = index;
+                this.width = width;
+                IRQ = new GPIO[InterruptCount];
+                for(int i = 0; i < InterruptCount; ++i)
+                {
+                    IRQ[i] = new GPIO();
+                }
+
+                timer = new LimitTimer(parent.machine.ClockSource, parent.peripheralClockDFrequency, parent, $"Timer{index}",
+                    MaxLimit, direction: TimeDirection.Descending, workMode: WorkMode.Periodic, eventEnabled: true
+                );
+                timer.LimitReached += OnMainTimerLimitReached;
+
+                Reset();
+            }
+
+            public void Reset()
+            {
+                overflow = false;
+                timer.Reset();
+                Cycle = MaxLimit;
+                Direction = Direction.DownCounting;
+                Mode = Mode.SawWave;
+            }
+
+            public void ClearOverflow()
+            {
+                overflow = false;
+                UpdateInterrupts();
+            }
+
+            public void UpdateInterrupts()
+            {
+                IRQ[OvfInterruptIndex].Set(overflow);
+                IRQ[UdfInterruptIndex].Set(underflow);
+            }
+
+            public Mode Mode
+            {
+                get => mode;
+                set
+                {
+                    if(value != Mode.SawWave)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Modes other than Saw Wave (default) are not supported yet. Ignoring", index);
+                        return;
+                    }
+                    mode = value;
+                }
+            }
+
+            public Direction Direction
+            {
+                get => direction;
+                set
+                {
+                    direction = value;
+                    timer.Direction = direction == Direction.UpCounting ? TimeDirection.Ascending : TimeDirection.Descending;
+                }
+            }
+
+            public bool Enable
+            {
+                get => timer.Enabled;
+                set
+                {
+                    timer.Enabled = value;
+                }
+            }
+
+            public ulong Cycle
+            {
+                get => timer.Limit;
+                set
+                {
+                    if(value > MaxLimit)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Cycle {1} is higher than maximum limit of {2}. Truncating to {3} bits", index, value, MaxLimit, width);
+                    }
+                    timer.Limit = value & MaxLimit;
+                }
+            }
+
+            public ulong Value
+            {
+                get => timer.Value;
+                set
+                {
+                    if(Enable)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Setting GTCNT while counting is still on-going. Ignoring", index);
+                        return;
+                    }
+                    if(value > MaxLimit)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Value {1} is higher than maximum limit of {2}. Truncating to {3} bits", index, value, MaxLimit, width);
+                    }
+                    var newValue = value & MaxLimit;
+                    if(newValue >= Cycle)
+                    {
+                        overflow = true;
+                        timer.Reset();
+                    }
+                    else
+                    {
+                        overflow = false;
+                        timer.Value = newValue;
+                    }
+                    UpdateInterrupts();
+                }
+            }
+
+            public GPIO[] IRQ { get; }
+
+            public bool Overflow
+            {
+                get => overflow;
+                set
+                {
+                    if(AssertFalse("Overflow Flag", value))
+                    {
+                        overflow = value;
+                    }
+                }
+            }
+
+            public const long InterruptCount = 9;
+
+            private void OnMainTimerLimitReached()
+            {
+                if(direction == Direction.UpCounting)
+                {
+                    overflow = true;
+                }
+                else
+                {
+                    underflow = true;
+                }
+                UpdateInterrupts();
+            }
+
+            private bool AssertFalse(string flag, bool value)
+            {
+                if(value)
+                {
+                    this.parent.Log(LogLevel.Warning, "GPT{0}: Writing 1 to {1} is forbidden", index, flag);
+                    return true;
+                }
+                return false;
+            }
+
+            private ulong MaxLimit => (1ul << width) - 1ul;
+
+            private Mode mode;
+            private Direction direction;
+            private bool overflow;
+            private bool underflow;
+
+            private readonly LimitTimer timer;
+            private readonly RenesasRA_GPT parent;
+            private readonly long index;
+            private readonly int width;
+
+            private const long OvfInterruptIndex = 6;
+            private const long UdfInterruptIndex = 7;
+        }
+
+        public enum Mode
+        {
+            // single buffer or double buffer possible
+            SawWave        = 0b000,
+            // fixed buffer operation
+            SawWaveOneShot = 0b001,
+            // single buffer or double buffer possible
+            // 32-bit transfer at trough
+            TriangleWave1  = 0b100,
+            // single buffer or double buffer possible
+            // 32-bit transfer at crest and trough
+            TriangleWave2  = 0b101,
+            // fixed buffer operation
+            // 64-bit transfer at trough
+            TriangleWave3  = 0b110,
+        }
+
+        public enum Direction
+        {
+            DownCounting = 0,
+            UpCounting   = 1,
+        }
 
         public enum ChannelRegisters
         {
