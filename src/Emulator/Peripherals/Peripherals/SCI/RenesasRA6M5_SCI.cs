@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         private void UpdateInterrupts()
         {
             var rxState = receiveInterruptEnabled.Value && (fifoMode ? IsReceiveFIFOFull : IsReceiveDataFull);
-            var txState = transmitInterruptEnabled.Value && (fifoMode ? transmitFIFOEmpty.Value : transmitDataEmpty.Value);
+            var txState = transmitInterruptEnabled.Value && (fifoMode ? transmitFIFOEmpty.Value : true);
             var teState = transmitEndInterruptEnabled.Value;
             this.DebugLog("ReceiveIRQ: {0}, TransmitIRQ: {1}, TransmitEndIRQ: {2}.", rxState ? "set" : "unset", txState ? "set" : "unset", teState ? "set" : "unset");
             ReceiveIRQ.Set(rxState);
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithFlag(2, out transmitEndInterruptEnabled, name: "TEIE")
                 .WithTaggedFlag("MPIE", 3)
                 .WithFlag(4, out receiveEnabled, name: "RE")
-                .WithFlag(5, out transmitEnabled, name: "TE", writeCallback: (_, val) => transmitDataEmpty.Value = !val)
+                .WithFlag(5, out transmitEnabled, name: "TE")
                 .WithFlag(6, out receiveInterruptEnabled, name: "RIE")
                 .WithFlag(7, out transmitInterruptEnabled, name: "TIE")
                 .WithReservedBits(8, 8)
@@ -176,7 +176,6 @@ namespace Antmicro.Renode.Peripherals.SCI
                             return;
                         }
                         TransmitData((byte)value);
-                        transmitDataEmpty.Value = true;
                         UpdateInterrupts();
                     })
                 .WithReservedBits(8, 8);
@@ -190,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithTaggedFlag("FER", 4)
                 .WithTaggedFlag("ORER", 5)
                 .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => IsReceiveDataFull, name: "RDRF")
-                .WithFlag(7, out transmitDataEmpty, FieldMode.Read | FieldMode.WriteZeroToClear,  name: "TDRE")
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "TDRE")
                 .WithReservedBits(8, 8)
                 .WithChangeCallback((_, __) => UpdateInterrupts());
 
@@ -633,7 +632,6 @@ namespace Antmicro.Renode.Peripherals.SCI
         private IFlagRegisterField receiveEnabled;
         private IFlagRegisterField receiveInterruptEnabled;
         private IFlagRegisterField transmitInterruptEnabled;
-        private IFlagRegisterField transmitDataEmpty;
         private IFlagRegisterField smartCardMode;
         private IFlagRegisterField transmitFIFOEmpty;
         private IValueRegisterField receiveFIFOTriggerCount;
