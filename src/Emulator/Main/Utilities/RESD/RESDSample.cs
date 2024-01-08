@@ -183,6 +183,26 @@ namespace Antmicro.Renode.Utilities.RESD
         }
     }
 
+    [SampleType(SampleType.Pressure)]
+    public class PressureSample : RESDSample
+    {
+        public override int? Width => 8;
+
+        public ulong Pressure { get; private set; }
+
+        public override bool TryReadFromStream(SafeBinaryReader reader)
+        {
+            Pressure = reader.ReadUInt64();
+
+            return true;
+        }
+
+        public override string ToString()
+        {
+            return $"{DecimalToString(Pressure / (decimal)1e3)} Pa";
+        }
+    }
+
     public class SampleTypeAttribute : Attribute
     {
         public SampleTypeAttribute(SampleType sampleType)
@@ -202,6 +222,7 @@ namespace Antmicro.Renode.Utilities.RESD
         Voltage = 0x0004,
         ECG = 0x0005,
         Humidity = 0x0006,
+        Pressure = 0x0007,
 
         // Custom sample types
         Custom = 0xF000,
