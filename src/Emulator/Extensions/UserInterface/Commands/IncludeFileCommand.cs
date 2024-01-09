@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,9 +23,10 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine("\nTo load a script you have to provide an existing file name.");
             writer.WriteLine();
             writer.WriteLine("Supported file formats:");
-            writer.WriteLine("*.cs  - plugin file");
-            writer.WriteLine("*.py  - python script");
-            writer.WriteLine("other - monitor script");
+            writer.WriteLine("*.cs   - plugin file");
+            writer.WriteLine("*.py   - python script");
+            writer.WriteLine("*.repl - renode platform description file");
+            writer.WriteLine("other  - monitor script");
         }
 
         [Runnable]
@@ -48,6 +49,9 @@ namespace Antmicro.Renode.UserInterface.Commands
                 case ".cs":
                     result = CsharpExecutor(path.Value, writer);
                     break;
+                case ".repl":
+                    result = ReplExecutor(path.Value, writer);
+                    break;
                 default:
                     result = ScriptExecutor(path.Value);
                     break;
@@ -60,12 +64,14 @@ namespace Antmicro.Renode.UserInterface.Commands
         private readonly Func<string,bool> ScriptExecutor;
         private readonly Func<string, ICommandInteraction, bool> CsharpExecutor;
         private readonly Func<string, ICommandInteraction, bool> PythonExecutor;
+        private readonly Func<string, ICommandInteraction, bool> ReplExecutor;
 
-        public IncludeFileCommand(Monitor monitor, Func<string, ICommandInteraction, bool> pythonExecutor, Func<string, bool> scriptExecutor, Func<string, ICommandInteraction, bool> csharpExecutor) : base(monitor, "include", "loads a monitor script, python code or a plugin class.", "i")
+        public IncludeFileCommand(Monitor monitor, Func<string, ICommandInteraction, bool> pythonExecutor, Func<string, bool> scriptExecutor, Func<string, ICommandInteraction, bool> csharpExecutor, Func<string, ICommandInteraction, bool> replExecutor) : base(monitor, "include", "loads a monitor script, python code or a plugin class.", "i")
         {
             this.CsharpExecutor = csharpExecutor;
             this.PythonExecutor = pythonExecutor;
             this.ScriptExecutor = scriptExecutor;
+            this.ReplExecutor = replExecutor;
         }
     }
 }

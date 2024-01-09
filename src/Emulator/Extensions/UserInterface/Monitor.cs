@@ -209,7 +209,7 @@ namespace Antmicro.Renode.UserInterface
             BindStatic("plugins", () => TypeManager.Instance.PluginManager);
             BindStatic("EmulationManager", () => emulationManager);
 
-            var includeCommand = new IncludeFileCommand(this, (x, y) => pythonRunner.TryExecutePythonScript(x, y), x => TryExecuteScript(x), (x, y) => TryCompilePlugin(x, y));
+            var includeCommand = new IncludeFileCommand(this, (x, y) => pythonRunner.TryExecutePythonScript(x, y), x => TryExecuteScript(x), (x, y) => TryCompilePlugin(x, y), (x,y) => TryLoadPlatform(x,y));
             Commands.Add(new HelpCommand(this, () =>
             {
                 var gic = GetInternalCommands;
