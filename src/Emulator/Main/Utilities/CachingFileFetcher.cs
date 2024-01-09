@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Utilities
 
         private bool TryFetchFromUriInner(Uri uri, out string fileName)
         {
-            fileName = TemporaryFilesManager.Instance.GetTemporaryFile();
+            fileName = TemporaryFilesManager.Instance.GetTemporaryFile(Path.GetExtension(uri.AbsoluteUri));
             // try download the file a few times times
             // in order to handle some intermittent
             // network problems
