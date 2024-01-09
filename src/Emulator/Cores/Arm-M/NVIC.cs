@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void AttachCPU(CortexM cpu)
         {
             this.cpu = cpu;
-            this.cpuId = cpu.ID;
+            this.cpuId = cpu.CpuModelID;
             mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
         }
 
