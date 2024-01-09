@@ -743,6 +743,36 @@ namespace Antmicro.Renode.Peripherals.CPU
             return AssertMmuEnabled() && windowInRange;
         }
 
+        /* Currently, due to the used types, 64 bit targets will always pass this check.
+        Also on such platforms unary overflow is not possible */
+        private bool AssertMmuWindowAddressInRange(ulong address, bool inclusiveRange = false)
+        {
+            ulong maxValue;
+            switch(this.bitness)
+            {
+                case CpuBitness.Bits32:
+                    maxValue = UInt32.MaxValue;
+                    break;
+                case CpuBitness.Bits64:
+                    maxValue = UInt64.MaxValue;
+                    break;
+                default:
+                    throw new ArgumentException("Unexpected value of the CpuBitness");
+            }
+
+            if(inclusiveRange && address != 0)
+            {
+                address -= 1;
+            }
+
+            if(address > maxValue)
+            {
+                throw new RecoverableException($"Address is outside of the possible range. Maximum value: {maxValue}");
+            }
+
+            return true;
+        }
+
         public void EnableExternalWindowMmu(bool value)
         {
             TlibEnableExternalWindowMmu(value ? 1u : 0u);
@@ -764,7 +794,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetMmuWindowAddend(uint index, ulong addend)
         {
-            if(AssertMmuEnabledAndWindowInRange(index))
+            if(AssertMmuEnabledAndWindowInRange(index) && AssertMmuWindowAddressInRange(addend))
             {
                 TlibSetMmuWindowAddend(index, addend);
             }
@@ -772,17 +802,30 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetMmuWindowStart(uint index, ulong startAddress)
         {
-            if(AssertMmuEnabledAndWindowInRange(index))
+            if(AssertMmuEnabledAndWindowInRange(index) && AssertMmuWindowAddressInRange(startAddress))
             {
                 TlibSetMmuWindowStart(index, startAddress);
             }
         }
 
-        public void SetMmuWindowEnd(uint index, ulong end_addr)
+        public void SetMmuWindowEnd(uint index, ulong endAddress)
         {
-            if(AssertMmuEnabledAndWindowInRange(index))
+            if(AssertMmuEnabledAndWindowInRange(index) && AssertMmuWindowAddressInRange(endAddress, inclusiveRange: true))
             {
-                TlibSetMmuWindowEnd(index, end_addr);
+                bool useInclusiveEndRange= false;
+                // Overflow on 64bits currently not possible due to type constraints
+                if(this.bitness == CpuBitness.Bits32)
+                {
+                    useInclusiveEndRange = ((endAddress - 1) == UInt32.MaxValue); 
+                }
+
+                if(useInclusiveEndRange)
+                {
+                    endAddress -= 1;
+                }
+
+                this.DebugLog("Setting range end to {0} addr 0x{1:x}", useInclusiveEndRange ? "inclusive" : "exclusive", endAddress);
+                TlibSetMmuWindowEnd(index, endAddress, useInclusiveEndRange? 1u : 0u);
             }
         }
 
@@ -1825,7 +1868,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32UInt64 TlibSetMmuWindowStart;
 
         [Import]
-        private ActionUInt32UInt64 TlibSetMmuWindowEnd;
+        private ActionUInt32UInt64UInt32 TlibSetMmuWindowEnd;
 
         [Import]
         private ActionUInt32UInt32 TlibSetWindowPrivileges;
