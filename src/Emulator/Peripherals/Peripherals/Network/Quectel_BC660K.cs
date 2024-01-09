@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -141,6 +142,35 @@ namespace Antmicro.Renode.Peripherals.Network
 
         [AtCommand("AT+QOOSAIND", CommandType.Read)]
         protected virtual Response QoosaindRead() => Ok.WithParameters($"+QOOSAIND: {(outOfServiceAreaUrcEnabled ? 1 : 0)}");
+
+        // QPLMNS - Search PLMN
+        [AtCommand("AT+QPLMNS", CommandType.Execution)]
+        protected virtual Response QplmnsExec()
+        {
+            if(ModemPLMNState != PublicLandMobileNetworkSearchingState.OutOfService)
+            {
+                const int errorCode = 111; // errorCode: PLMN not allowed
+                return new Response($"+CME ERROR: {errorCode}");
+            }
+            ModemPLMNState = PublicLandMobileNetworkSearchingState.Searching;
+            return Ok;
+        }
+
+        [AtCommand("AT+QPLMNS", CommandType.Read)]
+        protected virtual Response QplmnsRead()
+        {
+            var fragments = new List<string>
+            {
+                ((int)ModemPLMNState).ToString()
+            };
+
+            if(ModemPLMNState == PublicLandMobileNetworkSearchingState.OutOfService)
+            {
+                fragments.Add(PLMNSearchTime.ToString());
+            }
+
+            return Ok.WithParameters("+QPLMNS: " + string.Join(",", fragments));
+        }
 
         protected override bool IsValidContextId(int id)
         {

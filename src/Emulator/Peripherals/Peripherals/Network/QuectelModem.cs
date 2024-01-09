@@ -150,6 +150,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public int EnhancedCoverageLevel { get; set; } = 0;
         public int TransmitPower { get; set; } = 0;
         public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
+        public PublicLandMobileNetworkSearchingState ModemPLMNState { get; set; } = PublicLandMobileNetworkSearchingState.Selected;
+        public int PLMNSearchTime { get; set; } = 0;
         public bool DeepsleepOnRellock { get; set; } = false;
         // The delay before sending the +CSCON URC in virtual milliseconds
         public ulong CsconDelay { get; set; } = 500;
@@ -945,6 +947,14 @@ namespace Antmicro.Renode.Peripherals.Network
             RegistrationDenied,
             Unknown,
             RegisteredRoaming,
+        }
+
+        public enum PublicLandMobileNetworkSearchingState
+        {
+            SearchingInactive,
+            Searching,
+            Selected,
+            OutOfService
         }
 
         protected enum MobileTerminationResultCodeMode
