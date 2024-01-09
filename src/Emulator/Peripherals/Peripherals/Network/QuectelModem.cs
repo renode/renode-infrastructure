@@ -837,6 +837,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected bool deepSleepEventEnabled = false;
         protected bool powerSavingModeEventEnabled;
         protected bool signalingConnectionStatusReportingEnabled;
+        protected bool outOfServiceAreaUrcEnabled;
         protected NetworkRegistrationUrcType networkRegistrationUrcType;
         protected int netLightMode;
         protected FunctionalityLevel functionalityLevel;

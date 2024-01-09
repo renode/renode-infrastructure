@@ -125,6 +125,23 @@ namespace Antmicro.Renode.Peripherals.Network
             return base.Qnbiotrai(raiMode);
         }
 
+        // QOOSAIND - Enable or Disable OOSA URC
+        [AtCommand("AT+QOOSAIND", CommandType.Write)]
+        protected virtual Response QoosaindWrite(int oosaUrcEnabled)
+        {
+            if(oosaUrcEnabled < 0 || oosaUrcEnabled > 1)
+            {
+                this.Log(LogLevel.Warning, "AT+QOOSAIND: Parameter QOOSAIND set to {0}, not supported by this modem", oosaUrcEnabled);
+                return Error;
+            }
+
+            outOfServiceAreaUrcEnabled = oosaUrcEnabled == 1;
+            return Ok;
+        }
+
+        [AtCommand("AT+QOOSAIND", CommandType.Read)]
+        protected virtual Response QoosaindRead() => Ok.WithParameters($"+QOOSAIND: {(outOfServiceAreaUrcEnabled ? 1 : 0)}");
+
         protected override bool IsValidContextId(int id)
         {
             return id == 0;
