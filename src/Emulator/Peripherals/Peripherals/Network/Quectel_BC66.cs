@@ -61,6 +61,21 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok.WithParameters("+CCLK: " + machine.RealTimeClockDateTime.ToString("yyyy/MM/dd,HH:mm:ss'GMT'zz"));
         }
 
+        // CREG - Network Registration
+        [AtCommand("AT+CREG", CommandType.Write)]
+        protected override Response CregWrite(NetworkRegistrationUrcType type)
+        {
+            this.Log(LogLevel.Warning, "Command not available for this modem: 'AT+CREG'");
+            return Error;
+        }
+
+        [AtCommand("AT+CREG", CommandType.Read)]
+        protected override Response CregRead()
+        {
+            this.Log(LogLevel.Warning, "Command not available for this modem: 'AT+CREG'");
+            return Error;
+        }
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected override Response Qcfg(string function, int value)

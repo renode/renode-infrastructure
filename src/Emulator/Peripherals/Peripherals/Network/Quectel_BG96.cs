@@ -31,6 +31,18 @@ namespace Antmicro.Renode.Peripherals.Network
             return base.CeregWrite(type);
         }
 
+        // CREG - Network Registration
+        [AtCommand("AT+CREG", CommandType.Write)]
+        protected override Response CregWrite(NetworkRegistrationUrcType type)
+        {
+            if(type > NetworkRegistrationUrcType.StatLocation)
+            {
+                this.Log(LogLevel.Warning, "AT+CREG: Argument <n> set to {0}, not supported by this modem", (int)type);
+                return Error;
+            }
+            return base.CregWrite(type);
+        }
+
         // CESQ - Extended Signal Quality
         // CESQ is not supported by this modem. We override Cesq without marking it with [AtCommand]
         // in order to remove it from the command set (including the test command, AT+CESQ=?).

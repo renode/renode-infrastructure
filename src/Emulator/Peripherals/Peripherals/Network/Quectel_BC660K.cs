@@ -40,6 +40,18 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+CGPADDR", CommandType.Read)]
         protected override Response Cgpaddr() => Ok.WithParameters($"+CGPADDR: 1,\"{NetworkIp}\""); // stub
 
+        // CREG - Network Registration
+        [AtCommand("AT+CREG", CommandType.Write)]
+        protected override Response CregWrite(NetworkRegistrationUrcType type)
+        {
+            if(type > NetworkRegistrationUrcType.StatLocationEmmCause)
+            {
+                this.Log(LogLevel.Warning, "AT+CREG: Argument <n> set to {0}, not supported by this modem", (int)type);
+                return Error;
+            }
+            return base.CregWrite(type);
+        }
+
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
         protected override Response Qcfg(string function, int value)

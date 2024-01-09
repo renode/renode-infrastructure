@@ -189,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok; // stub
         }
 
-        protected virtual string CeregContent(bool urc = false)
+        protected virtual string CeregContent(bool urc = false, string prefix = "+CEREG")
         {
             var fragments = new List<string>();
             // The URC form of CEREG does not report the type, the command response form does.
@@ -228,7 +228,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 fragments.Add(PeriodicTau.SurroundWith("\""));
             }
 
-            return "+CEREG: " + string.Join(",", fragments);
+            return prefix + ": " + string.Join(",", fragments);
+        }
+
+        protected virtual string CregContent(bool urc = false)
+        {
+            // Signature of +CREG message is the same as of +CEREG.
+            return CeregContent(urc, "+CREG");
         }
 
         // CEREG - EPS Network Registration Status
@@ -243,6 +249,19 @@ namespace Antmicro.Renode.Peripherals.Network
 
         [AtCommand("AT+CEREG", CommandType.Read)]
         protected virtual Response CeregRead() => Ok.WithParameters(CeregContent());
+
+        // CREG - Network Registration
+        [AtCommand("AT+CREG", CommandType.Write)]
+        protected virtual Response CregWrite(NetworkRegistrationUrcType type)
+        {
+            networkRegistrationUrcType = type;
+            // Queue a CREG URC in response to the write, use the same delay as for CEREG URC
+            ExecuteWithDelay(() => SendString(CregContent(true)), CeregDelay);
+            return Ok; // stub, should disable or enable network registration URC
+        }
+
+        [AtCommand("AT+CREG", CommandType.Read)]
+        protected virtual Response CregRead() => Ok.WithParameters(CregContent());
 
         // CESQ - Extended Signal Quality
         [AtCommand("AT+CESQ")]
