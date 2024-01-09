@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -583,6 +583,24 @@ namespace Antmicro.Renode.UserInterface
                 writer.WriteError("Errors during compilation or loading:\r\n" + e.Message.Replace(Environment.NewLine, "\r\n"));
                 return false;
             }
+        }
+
+        public bool TryLoadPlatform(string filename, ICommandInteraction writer = null)
+        {
+            if(writer == null)
+            {
+                writer = Interaction;
+            }
+            if(currentMachine == null)
+            {
+                var machine = new Machine();
+                EmulationManager.Instance.CurrentEmulation.AddMachine(machine);
+                currentMachine = machine;
+            }
+            var path = new PathToken(filename);
+            var command = new LiteralToken("LoadPlatformDescription");
+            ExecuteDeviceAction("machine", Machine, new Token[]{ command, path });
+            return true;
         }
 
         private List<string> scannedFilesCache = new List<string>();
