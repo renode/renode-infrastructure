@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -234,7 +234,9 @@ namespace Antmicro.Renode.UI
 
             if(!string.IsNullOrEmpty(options.ScriptPath))
             {
-                shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n", Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/", options.ScriptPath));
+                shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n",
+                    Uri.IsWellFormedUriString(options.ScriptPath, UriKind.Absolute) || Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/",
+                    options.ScriptPath));
             }
             if(options.Execute != null)
             {
