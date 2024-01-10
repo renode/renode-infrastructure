@@ -692,6 +692,11 @@ namespace Antmicro.Renode.Utilities
             }
 
             directory = null;
+            if(baseDirectory.Length == 0)
+            {
+                return false;
+            }
+
             var currentDirectory = new DirectoryInfo(baseDirectory);
             while(currentDirectory != null)
             {
