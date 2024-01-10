@@ -25,7 +25,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine("Supported file formats:");
             writer.WriteLine("*.cs   - plugin file");
             writer.WriteLine("*.py   - python script");
-            writer.WriteLine("*.repl - renode platform description file");
+            writer.WriteLine("*.repl - platform description file");
             writer.WriteLine("other  - monitor script");
         }
 
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         private readonly Func<string, ICommandInteraction, bool> PythonExecutor;
         private readonly Func<string, ICommandInteraction, bool> ReplExecutor;
 
-        public IncludeFileCommand(Monitor monitor, Func<string, ICommandInteraction, bool> pythonExecutor, Func<string, bool> scriptExecutor, Func<string, ICommandInteraction, bool> csharpExecutor, Func<string, ICommandInteraction, bool> replExecutor) : base(monitor, "include", "loads a monitor script, python code or a plugin class.", "i")
+        public IncludeFileCommand(Monitor monitor, Func<string, ICommandInteraction, bool> pythonExecutor, Func<string, bool> scriptExecutor, Func<string, ICommandInteraction, bool> csharpExecutor, Func<string, ICommandInteraction, bool> replExecutor) : base(monitor, "include", "loads a Monitor script, Python code, platform file or a plugin class.", "i")
         {
             this.CsharpExecutor = csharpExecutor;
             this.PythonExecutor = pythonExecutor;
