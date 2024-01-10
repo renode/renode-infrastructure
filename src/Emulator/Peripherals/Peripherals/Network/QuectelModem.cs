@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         [AtCommand("AT+CFUN", CommandType.Read)]
-        protected virtual Response Cfun() => Ok.WithParameters($"+CFUN: {functionalityLevel}");
+        protected virtual Response Cfun() => Ok.WithParameters($"+CFUN: {(int)functionalityLevel}");
 
         // CGDCONT - Define PDP Context
         [AtCommand("AT+CGDCONT", CommandType.Read)]
