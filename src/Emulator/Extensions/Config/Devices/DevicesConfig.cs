@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -591,7 +591,10 @@ namespace Antmicro.Renode.Config.Devices
                 var parent = parents.Single(x => x.Key == parentName).Value;
                 var connections = device.Connections[parentName];
                 var ifaces = parent.GetType().GetInterfaces().Where(x => IsSpecializationOfRawGeneric(typeof(IPeripheralRegister<,>), x)).ToList();
-                var ifaceCandidates = ifaces.Where(x => x.GetGenericArguments()[0].IsAssignableFrom(device.Peripheral.GetType())).ToList();
+                var ifaceCandidates = ifaces
+                    .Where(x => x.GetGenericArguments()[0].IsAssignableFrom(device.Peripheral.GetType()))
+                    .OrderBy(x => typeof(NullRegistrationPoint).IsAssignableFrom(x.GetGenericArguments()[1])) // Use the null registration point last
+                    .ToList();
                 foreach(var connection in connections)
                 {
                     IRegistrationPoint regPoint = null;
