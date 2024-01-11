@@ -251,7 +251,6 @@ namespace Antmicro.Renode.UserInterface
 
                 IPeripheral device;
                 string longestMatch;
-                string actualName;
                 if(TryFindPeripheralByName(name, out device, out longestMatch))
                 {
                     return device;
