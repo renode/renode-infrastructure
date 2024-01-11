@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Network
             // We use it as a signal that the software talking to the modem expects it to
             // enter sleep mode, so we enter sleep mode if this was requested with the
             // DeepsleepOnRellock property.
-            if(DeepsleepOnRellock)
+            if(DeepsleepOnRellock && !deepsleepTimer.Enabled)
             {
                 // The signaling connection goes inactive before entering sleep mode.
                 SendSignalingConnectionStatus(false);

@@ -11,6 +11,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -24,6 +26,13 @@ namespace Antmicro.Renode.Peripherals.Network
             this.imeiNumber = imeiNumber;
             this.softwareVersionNumber = softwareVersionNumber;
             this.serialNumber = serialNumber;
+            deepsleepTimer = new LimitTimer(machine.ClockSource, 1, this, "T3324", direction: Direction.Ascending, workMode: WorkMode.OneShot, eventEnabled: true);
+            deepsleepTimer.LimitReached += () =>
+            {
+                this.Log(LogLevel.Noisy, "T3324 timer timeout");
+                SendSignalingConnectionStatus(false);
+                EnterDeepsleep();
+            };
             Connections = new Dictionary<int, IGPIO>
             {
                 {0, vddExt},
@@ -169,6 +178,17 @@ namespace Antmicro.Renode.Peripherals.Network
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
         public int ActiveTimeSeconds => ConvertEncodedStringToSeconds(ActiveTime, ModemTimerType.ActiveTimeT3324);
         public int PeriodicTauSeconds => ConvertEncodedStringToSeconds(PeriodicTau, ModemTimerType.PeriodicTauT3412);
+
+        protected override Response HandleCommand(string command)
+        {
+            if(deepsleepTimer.Enabled)
+            {
+                // Restart deep sleep timer after receiving any AT command.
+                deepsleepTimer.Value = 0;
+                this.Log(LogLevel.Noisy, "'{0}' command received: Defer deepsleep by {1} seconds", command, ActiveTimeSeconds);
+            }
+            return base.HandleCommand(command);
+        }
 
         // ATI - Display Product Identification Information
         [AtCommand("ATI")]
@@ -547,23 +567,50 @@ namespace Antmicro.Renode.Peripherals.Network
         [AtCommand("AT+QSCLK", CommandType.Write)]
         protected virtual Response QsclkWrite(int mode = 1)
         {
-            if(mode == 1)
+            switch(mode)
             {
-                // The signaling connection goes inactive when sleep mode is enabled.
-                ExecuteWithDelay(() =>
+                case 0: // Disable sleep modes.
                 {
-                    SendSignalingConnectionStatus(false);
-
-                    // Also, if we are configured to enter deep sleep when the sleep
-                    // lock is released, we also use sleep mode being enabled as our
-                    // cue to enter it.
-                    if(DeepsleepOnRellock)
+                    deepsleepTimer.Enabled = false;
+                    break;
+                }
+                case 1: // Enable deep sleep mode.
+                {
+                    if(ActiveTimeSeconds != 0)
                     {
-                        EnterDeepsleep();
+                        deepsleepTimer.Value = 0;
+                        deepsleepTimer.Limit = (ulong)ActiveTimeSeconds;
+                        deepsleepTimer.Enabled = true;
+                        // Defer entering deep sleep until timer timeouts.
+                        this.Log(LogLevel.Noisy, "Defer deepsleep by {0} seconds", ActiveTimeSeconds);
+                        break;
                     }
-                }, CsconDelay);
+                    // The signaling connection goes inactive when sleep mode is enabled.
+                    ExecuteWithDelay(() =>
+                    {
+                        SendSignalingConnectionStatus(false);
+
+                        // Also, if we are configured to enter deep sleep when the sleep
+                        // lock is released, we also use sleep mode being enabled as our
+                        // cue to enter it.
+                        if(DeepsleepOnRellock)
+                        {
+                            EnterDeepsleep();
+                        }
+                    }, CsconDelay);
+                    break;
+                }
+                case 2: // Enable light sleep mode.
+                {
+                    // Light sleep mode is not implemented.
+                    break;
+                }
+                default:
+                {
+                    return Error;
+                }
             }
-            return Ok; // stub
+            return Ok;
         }
 
         // QIOPEN - Open a Socket Service
@@ -884,6 +931,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected FunctionalityLevel functionalityLevel;
 
         protected readonly string imeiNumber;
+        protected readonly LimitTimer deepsleepTimer;
 
         private Response MobileTerminationError(int errorCode)
         {
