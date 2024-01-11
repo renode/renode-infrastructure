@@ -184,6 +184,20 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok.WithParameters("+QPLMNS: " + string.Join(",", fragments));
         }
 
+        // QPSMS - Power Saving Mode Setting
+        [AtCommand("AT+QPSMS", CommandType.Read)]
+        protected virtual Response QpsmsRead() => Ok.WithParameters($"+QPSMS: {ActiveTimeSeconds},{PeriodicTauSeconds}");
+
+        [AtCommand("AT+QPSMS", CommandType.Write)]
+        protected virtual Response QpsmsWrite(int t1, int t2)
+        {
+            SetPowerSavingMode(true);
+            ActiveTime = ConvertSecondsToEncodedString(t1, ModemTimerType.ActiveTimeT3324);
+            PeriodicTau = ConvertSecondsToEncodedString(t2, ModemTimerType.PeriodicTauT3412);
+
+            return Ok;
+        }
+
         protected override bool IsValidContextId(int id)
         {
             return id == 0;
