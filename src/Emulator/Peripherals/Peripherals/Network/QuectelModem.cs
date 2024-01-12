@@ -653,9 +653,14 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 case DataFormat.Hex:
                     var hexBytes = BitConverter.ToString(readBytes).Replace("-", "");
-                    return Ok.WithParameters(qirdResponseHeader + hexBytes);
+                    return Ok.WithParameters(qirdResponseHeader + hexBytes.SurroundWith(dataOutputSurrounding));
                 case DataFormat.Text:
-                    return Ok.WithParameters(StringEncoding.GetBytes(qirdResponseHeader).Concat(readBytes).ToArray());
+                    var dataOutputSurroundingBytes = StringEncoding.GetBytes(dataOutputSurrounding);
+                    return Ok.WithParameters(StringEncoding.GetBytes(qirdResponseHeader)
+                                                        .Concat(dataOutputSurroundingBytes)
+                                                        .Concat(readBytes)
+                                                        .Concat(dataOutputSurroundingBytes)
+                                                        .ToArray());
                 default:
                     throw new InvalidOperationException($"Invalid {nameof(receiveDataFormat)}");
             }
@@ -857,6 +862,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected DataFormat sendDataFormat = DataFormat.Text;
         protected DataFormat receiveDataFormat = DataFormat.Text;
         protected string dataOutputSeparator = CrLf;
+        protected string dataOutputSurrounding = ""; // for specific models it can be overriden in the constructor
         protected bool deepSleepEventEnabled = false;
         protected bool powerSavingModeEventEnabled;
         protected bool signalingConnectionStatusReportingEnabled;

@@ -17,6 +17,8 @@ namespace Antmicro.Renode.Peripherals.Network
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {
+            dataOutputSeparator = ",";
+            dataOutputSurrounding = "\"";
         }
 
         // AT+QR14FEATURE - Query Status of R14 Features
