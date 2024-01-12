@@ -19,6 +19,25 @@ namespace Antmicro.Renode.Peripherals.Network
         {
         }
 
+        // AT+QR14FEATURE - Query Status of R14 Features
+        [AtCommand("AT+QR14FEATURE", CommandType.Execution)]
+        protected virtual Response Qr14feature()
+        {
+            var parameters = new string[]
+            {
+                "+QR14FEATURE: 14,1",      // UE supports R14 protocol, MAC RAI is enabled.
+                "+QR14FEATURE: 0",         // None of the features listed below is enabled by the network.
+                // The options below have the following meaning:
+                // MAC RAI status is disabled.
+                // 2-HARQ is disabled.
+                // Random access on non-anchor carrier is not supported.
+                // Paging on non-anchor carrier is not supported.
+                // Re-establishing with CP-CIOT is not supported.
+                "+QR14FEATURE: 0,0,0,0,0"
+            };
+            return Ok.WithParameters(parameters); // stub
+        }
+
         // AT+QLEDMODE - Configure Network-status-indication Light
         [AtCommand("AT+QLEDMODE", CommandType.Write)]
         protected virtual Response QledmodeWrite(int ledMode)
