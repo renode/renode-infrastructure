@@ -661,13 +661,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     return Error;
                 }
-                else if(raiMode != null)
+                else if(raiMode.HasValue)
                 {
-                    var status = Qnbiotrai(raiMode.Value);
-                    if(status.Status == ErrorMessage)
+                    if(raiMode.Value < 0 || raiMode.Value > 2)
                     {
-                        return status;
+                        return Error;
                     }
+                    this.Log(LogLevel.Debug, "QISEND: NB-IoT Release Assistance Indication set to {0}", raiMode);
                 }
                 this.Log(LogLevel.Debug, "ConnectionId {0} requested send of '{1}' in non-data mode",
                     connectionId, BitConverter.ToString(bytes));
