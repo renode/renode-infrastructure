@@ -5,6 +5,7 @@
     <RootNamespace>Antmicro.Renode.Plugins.AdvancedLoggerViewer</RootNamespace>
     <AssemblyName>AdvancedLoggerViewerPlugin</AssemblyName>
     <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+    <LangVersion>7.2</LangVersion>
   </PropertyGroup>
   <Import Project="$(PropertiesLocation)" />
   <ItemGroup>

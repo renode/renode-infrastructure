@@ -11,6 +11,7 @@
     <AssemblyName>SampleCommandPlugin</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+    <LangVersion>7.2</LangVersion>
   </PropertyGroup>
   <Import Project="$(PropertiesLocation)" />
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

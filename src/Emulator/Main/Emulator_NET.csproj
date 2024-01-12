@@ -6,6 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Emulator</AssemblyName>
     <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+    <LangVersion>7.2</LangVersion>
   </PropertyGroup>
   <Import Project="$(PropertiesLocation)" />
   <PropertyGroup Condition=" $(GUI_DISABLED) == 'true' ">

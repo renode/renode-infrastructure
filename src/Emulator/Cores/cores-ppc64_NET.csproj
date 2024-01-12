@@ -5,6 +5,7 @@
     <EnableDefaultItems>false</EnableDefaultItems>
     <AssemblyName>cores-ppc64</AssemblyName>
     <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+    <LangVersion>7.2</LangVersion>
   </PropertyGroup>
   <Import Project="$(PropertiesLocation)" />
   <Target Name="SetEndianess" BeforeTargets="Build">
