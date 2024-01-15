@@ -67,6 +67,7 @@
     <Compile Include="Peripherals\SPI\Cypress_S25H.cs" />
     <Compile Include="Peripherals\MTD\CFIFlash.cs" />
     <Compile Include="Peripherals\UART\NS16550.cs" />
+    <Compile Include="Peripherals\UART\LINFlexD_UART.cs" />
     <Compile Include="Peripherals\UART\NPCX_UART.cs" />
     <Compile Include="Peripherals\UART\LPC_USART.cs" />
     <Compile Include="Peripherals\UART\GD32_UART.cs" />
