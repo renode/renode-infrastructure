@@ -106,6 +106,7 @@
     <Compile Include="Peripherals\DMA\OmapDma.cs" />
     <Compile Include="Peripherals\EfmSystemDevice.cs" />
     <Compile Include="Peripherals\UART\GaislerUART.cs" />
+    <Compile Include="Peripherals\UART\Infineon_SCBUART.cs" />
     <Compile Include="Peripherals\Bus\GaislerAHBPlugAndPlayInfo.cs" />
     <Compile Include="Peripherals\Bus\GaislerAHBPlugAndPlayRecord.cs" />
     <Compile Include="Peripherals\Bus\GaislerAPBController.cs" />
