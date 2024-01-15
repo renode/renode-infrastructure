@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     changeCallback: (i, _, value) => { if(value == Direction.Input) UpdateIRQOutput(); })
                 .WithFlags(16, NumberOfConnections, name: "PODR",
                     valueProviderCallback: (i, _) => Connections[i].IsSet,
-                    writeCallback: (i, _, value) => SetOutput(i, value))
+                    changeCallback: (i, _, value) => SetOutput(i, value))
             ;
 
             Registers.StateEventInput.Define(this)
@@ -148,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 var register = new DoubleWordRegister(this)
                     .WithFlag(0, name: "PODR",
                         valueProviderCallback: _ => Connections[idx].IsSet,
-                        writeCallback: (_, value) => SetOutput(idx, value))
+                        changeCallback: (_, value) => SetOutput(idx, value))
                     .WithFlag(1, FieldMode.Read, name: "PIDR",
                         valueProviderCallback: _ => GetInput(idx))
                     .WithEnumField(2, 1, out pinDirection[idx], name: "PDR",
