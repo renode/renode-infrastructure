@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 
-    public class VirtualConsole : IExternal, IUART
+    public class VirtualConsole : IUART
     {
         public VirtualConsole(IMachine machine)
         {
@@ -55,11 +55,23 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public bool Contains(byte value)
+        {
+            lock(locker)
+            {
+                return fifo.Contains(value);
+            }
+        }
+
         public void WriteChar(byte value)
         {
             lock(locker)
             {
                 fifo.Enqueue(value);
+            }
+            if(Echo)
+            {
+                DisplayChar(value);
             }
         }
 
@@ -68,6 +80,14 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(locker)
             {
                 return GetFifoIterator().Take(maxCount).ToArray();
+            }
+        }
+
+        public byte[] GetBuffer()
+        {
+            lock(locker)
+            {
+                return fifo.ToArray();
             }
         }
 
@@ -82,6 +102,8 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             CharReceived?.Invoke(value);
         }
+
+        public bool Echo { get; set; } = true;
 
         public uint BaudRate { get; set; }
         public Bits StopBits { get; set; }
