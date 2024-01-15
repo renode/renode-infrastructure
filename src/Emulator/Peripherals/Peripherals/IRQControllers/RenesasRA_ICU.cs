@@ -12,10 +12,12 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class RenesasRA_ICU : BasicDoubleWordPeripheral, IIRQController, IKnownSize
     {
         public RenesasRA_ICU(IMachine machine, IGPIOReceiver nvic) : base(machine)
