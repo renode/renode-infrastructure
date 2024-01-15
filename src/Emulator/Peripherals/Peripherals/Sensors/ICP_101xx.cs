@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             crcEngine = new CRCEngine(0x31, 8, false, false, 0xFF, 0x00);
             writeHandlers = new Dictionary<Command, Action<byte[], int>>();
             readHandlers = new Dictionary<Command, Func<int, IEnumerable<byte>>>();
-            Pressure = MinPressure;
+            DefaultPressure = MinPressure;
             this.machine = machine;
             DefineCommandHandlers();
         }
@@ -40,6 +40,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             temperatureResdStream?.Dispose();
             temperatureResdStream = null;
+
+            pressureResdStream?.Dispose();
+            pressureResdStream = null;
         }
 
         public void Write(byte[] data)
@@ -79,6 +82,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             temperatureResdStream = this.CreateRESDStream<TemperatureSample>(path, channelId, sampleOffsetType, sampleOffsetTime);
         }
 
+        public void FeedPressureSamplesFromRESD(ReadFilePath path, uint channelId = 0,
+            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
+        {
+            pressureResdStream?.Dispose();
+            pressureResdStream = this.CreateRESDStream<PressureSample>(path, channelId, sampleOffsetType, sampleOffsetTime);
+        }
+
         public void FinishTransmission()
         {
             // Don't reset state machine (current command) here - instead the software driver should use Soft Reset command
@@ -105,38 +115,54 @@ namespace Antmicro.Renode.Peripherals.Sensors
         // { 30261, -20852 /*44684*/, -24209 /*41327*/, 3107 };
 
         // Pressure is specified in Pascals
-        public uint Pressure
+        public long DefaultPressure
         {
-            get => pressure;
+            get => defaultPressure;
             set
             {
-                if(value < MinPressure || value > MaxPressure)
-                {
-                    this.Log(LogLevel.Warning, "Pressure value: {0} is out of range and it will be clamped. Supported range: {1} - {2}", value, MinPressure, MaxPressure);
-                    pressure = value < MinPressure ? MinPressure : MaxPressure;
-                }
-                else
-                {
-                    pressure = value;
-                }
+                defaultPressure = value;
+                ClampPressureAndLogWarning(ref defaultPressure);
+            }
+        }
+
+        public long Pressure
+        {
+            get
+            {
+                UpdateCurrentPressureSample();
+                ClampPressureAndLogWarning(ref pressure);
+                return pressure;
+            }
+            set
+            {
+                throw new RecoverableException("Explicitly setting pressure is not supported by this model. " +
+                $"Pressure should be provided from a RESD file or set via the '{nameof(DefaultPressure)}' property");
             }
         }
 
         // Temperature is specified in degrees Celsius
-        public decimal Temperature
+        public decimal DefaultTemperature
         {
-            get => temperature;
+            get => defaultTemperature;
             set
             {
-                if(value < MinTemperature || value > MaxTemperature)
-                {
-                    this.Log(LogLevel.Warning, "Temperature value: {0} is out of range and it will be clamped. Supported range: {1} - {2}", value, MinTemperature, MaxTemperature);
-                    temperature = value < MinTemperature ? MinTemperature : MaxTemperature;
-                }
-                else
-                {
-                    temperature = value;
-                }
+                defaultTemperature = value;
+                ClampTemperatureAndLogWarning(ref defaultTemperature);
+            }
+        }
+
+        public decimal Temperature
+        {
+            get
+            {
+                UpdateCurrentTemperatureSample();
+                ClampTemperatureAndLogWarning(ref temperature);
+                return temperature;
+            }
+            set
+            {
+                throw new RecoverableException("Explicitly setting temperature is not supported by this model. " +
+                $"Temperature should be provided from a RESD file or set via the '{nameof(DefaultTemperature)}' property");
             }
         }
 
@@ -145,6 +171,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public const uint MinPressure = 30000;
         public const uint MaxPressure = 110000;
+
+        private void ClampPressureAndLogWarning(ref long pressure)
+        {
+            if(pressure < MinPressure || pressure > MaxPressure)
+            {
+                this.Log(LogLevel.Warning, "Pressure value: {0} is out of range and it will be clamped. Supported range: {1} - {2}", pressure, MinPressure, MaxPressure);
+                pressure = pressure.Clamp(MinPressure, MaxPressure);
+            }
+        }
+
+        private void ClampTemperatureAndLogWarning(ref decimal temperature)
+        {
+            if(temperature < MinTemperature || temperature > MaxTemperature)
+            {
+                this.Log(LogLevel.Warning, "Temperature value: {0} is out of range and it will be clamped. Supported range: {1} - {2}", temperature, MinTemperature, MaxTemperature);
+                temperature = temperature.Clamp(MinTemperature, MaxTemperature);
+            }
+        }
 
         private void DefineCommandHandlers()
         {
@@ -272,22 +316,36 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }));
         }
 
-        private IEnumerable<byte> GetTemperatureBytes(OperationMode mode)
+        private void UpdateCurrentTemperatureSample()
         {
-            return BitHelper.GetBytesFromValue(GetTemperature(mode), 2, reverse: false);
-        }
-
-        private ushort GetTemperature(OperationMode _)
-        {
-            TryUpdateCurrentTemperatureSample();
-            return (ushort)((Temperature + 45) * (1 << 16) / 175);
-        }
-
-        private void TryUpdateCurrentTemperatureSample()
-        {
-            if(temperatureResdStream == null)
+            if(TryGetSampleFromRESDStream<TemperatureSample>(temperatureResdStream, out var sample))
             {
-                return;
+                temperature = (decimal)sample.Temperature / 1e3m;
+            }
+            else
+            {
+                temperature = DefaultTemperature;
+            }
+        }
+
+        private void UpdateCurrentPressureSample()
+        {
+            if(TryGetSampleFromRESDStream<PressureSample>(pressureResdStream, out var sample))
+            {
+                pressure = (long)(sample.Pressure / 1000);
+            }
+            else
+            {
+                pressure = DefaultPressure;
+            }
+        }
+
+        private bool TryGetSampleFromRESDStream<T>(RESDStream<T> stream, out T sample) where T : RESDSample, new()
+        {
+            sample = null;
+            if(stream == null)
+            {
+                return false;
             }
 
             if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
@@ -297,15 +355,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             // RESD uses nanosecond timestamps, while the maximum clock resolution is 1 microsecond
             var currentTimestamp = machine.ClockSource.CurrentValue.TotalMicroseconds * 1000;
-            if(temperatureResdStream.TryGetSample(currentTimestamp, out var sample) == RESDStreamStatus.OK)
+            if(stream.TryGetSample(currentTimestamp, out sample) == RESDStreamStatus.OK)
             {
-                Temperature = (decimal)sample.Temperature / 1e3m;
+                return true;
             }
+            return false;
+        }
+
+        private IEnumerable<byte> GetTemperatureBytes(OperationMode mode)
+        {
+            return BitHelper.GetBytesFromValue(GetTemperature(mode), 2, reverse: false);
+        }
+
+        private ushort GetTemperature(OperationMode _)
+        {
+            return (ushort)((Temperature + 45) * (1 << 16) / 175);
         }
 
         private uint GetPressure(OperationMode mode)
         {
             GetCoefficients(mode, out long A, out long B, out long C);
+
             var decimalPressure = (B / (Pressure - A)) - C;
             // Detect and report that the sensor might be miscalibrated
             if(decimalPressure < 0 || decimalPressure > 0xFFFFFF)
@@ -383,7 +453,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private Command? command;
 
-        private uint pressure;
+        private long defaultPressure;
+        private long pressure;
+        private decimal defaultTemperature;
         private decimal temperature;
 
         private readonly CRCEngine crcEngine;
@@ -395,6 +467,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private int calibrationValueIndex = 0;
 
         private RESDStream<TemperatureSample> temperatureResdStream;
+        private RESDStream<PressureSample> pressureResdStream;
 
         // Configuration constants, taken directly from the datasheet (https://invensense.tdk.com/wp-content/uploads/2021/06/DS-000408-ICP-10101-v1.2.pdf)
         private readonly int[] p_Pa = new int [] { 45000, 80000, 105000 };
