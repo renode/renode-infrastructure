@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SCI
@@ -18,8 +19,9 @@ namespace Antmicro.Renode.Peripherals.SCI
     // Due to unusual register offsets we cannot use address translations
     public class RenesasRA6M5_SCI : IUART, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
     {
-        public RenesasRA6M5_SCI(ulong frequency, bool enableManchesterMode, bool enableFIFO)
+        public RenesasRA6M5_SCI(IMachine machine, ulong frequency, bool enableManchesterMode, bool enableFIFO)
         {
+            this.machine = machine;
             this.frequency = frequency;
             ReceiveIRQ = new GPIO();
             TransmitIRQ = new GPIO();
@@ -153,7 +155,19 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithFlag(6, out receiveInterruptEnabled, name: "RIE")
                 .WithFlag(7, out transmitInterruptEnabled, name: "TIE")
                 .WithReservedBits(8, 8)
-                .WithChangeCallback((_, __) => UpdateInterrupts());
+                .WithChangeCallback((_, __) =>
+                {
+                    // The documentation states that the TXI interrupt should be fired when both TE and TIE are set
+                    // with a single write operation. On the hardware however it takes some time to actually do that.
+                    // The delay mechanism introduced below will prevent Renode from activating the interrupt too soon,
+                    // because in some cases interrupts could be handled in the wrong order.
+                    if(transmitEnabled.Value && transmitInterruptEnabled.Value)
+                    {
+                        machine.ScheduleAction(TimeInterval.FromMilliseconds(InterruptDelay), ___ => UpdateInterrupts());
+                        return;
+                    }
+                    UpdateInterrupts();
+                });
 
             // Smart Card Mode
             Registers.SerialControlSmartCard.DefineConditional(this, () => smartCardMode.Value)
@@ -619,6 +633,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             CharReceived?.Invoke(value);
         }
 
+        private readonly IMachine machine;
         private readonly Queue<ushort> receiveQueue;
         private readonly ulong frequency;
         private Parity parityBit = Parity.Even;
@@ -639,6 +654,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         private IValueRegisterField clockSource;
 
         private const ulong MaxFIFOSize = 16;
+        private const int InterruptDelay = 1;
 
         private enum Registers
         {
