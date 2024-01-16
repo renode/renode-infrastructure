@@ -6,6 +6,7 @@
 //
 using System;
 using ELFSharp.ELF;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
@@ -16,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class PicoRV32 : RiscV32
     {
-        public PicoRV32(Core.IMachine machine, string cpuType, bool latchedIrqs = true, uint hartId = 0, uint resetVectorAddress = 0x10) : base(null, cpuType, machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public PicoRV32(IMachine machine, string cpuType, bool latchedIrqs = true, uint hartId = 0, uint resetVectorAddress = 0x10) : base(machine, cpuType, null, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
             this.latchedIrqs = latchedIrqs;
 

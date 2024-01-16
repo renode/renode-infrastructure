@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public class CV32E40P : RiscV32
     {
         public CV32E40P(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imfc_zicsr_zifencei")
-            : base(null, cpuType, machine, hartId, privilegeArchitecture, endianness, allowUnalignedAccesses : true)
+            : base(machine, cpuType, timeProvider, hartId, privilegeArchitecture, endianness, allowUnalignedAccesses : true)
         {
             // enable all interrupt sources
             MIE = 0xffffffff;

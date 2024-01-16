@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Minerva : RiscV32
     {
-        public Minerva(Core.IMachine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(timeProvider, "rv32i", machine, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
+        public Minerva(IMachine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null) : base(machine, "rv32i", timeProvider, hartId, PrivilegeArchitecture.Priv1_09, Endianess.LittleEndian)
         {
             CSRValidation = CSRValidationLevel.None;
 

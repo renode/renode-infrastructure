@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Ri5cy : RiscV32
     {
-        public Ri5cy(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc") : base(timeProvider, cpuType, machine, hartId, privilegeArchitecture, endianness)
+        public Ri5cy(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc") : base(machine, cpuType, timeProvider, hartId, privilegeArchitecture, endianness)
         {
             // enable all interrupt sources
             MIE = 0xffffffff;
