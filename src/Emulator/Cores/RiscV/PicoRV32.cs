@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     irqState |= (1u << number);
                     pendingInterrupts |= (1u << number);
                 }
-                else 
+                else
                 {
                     irqState &= ~(1u << number);
                     if(!latchedIrqs)
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool IrqIsPending(out uint interruptsToHandle)
         {
             var pendingExceptions = (pendingInterrupts & ExceptionsMask);
-            if((pendingExceptions != 0) 
+            if((pendingExceptions != 0)
                     && (interruptsMasked || ((disabledInterrupts & pendingExceptions) != 0)))
             {
                 // according to the readme:
@@ -293,7 +293,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private const int EBreakECallIllegalInstructionInterruptSource = 1;
         private const int UnalignedMemoryAccessInterruptSource = 2;
 
-        private const uint ExceptionsMask = ((1u << UnalignedMemoryAccessInterruptSource) 
+        private const uint ExceptionsMask = ((1u << UnalignedMemoryAccessInterruptSource)
                 | (1u << EBreakECallIllegalInstructionInterruptSource));
 
         private enum Result
