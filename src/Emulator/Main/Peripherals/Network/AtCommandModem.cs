@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Network
             lineBuffer = new StringBuilder();
         }
 
-        public void WriteChar(byte value)
+        public virtual void WriteChar(byte value)
         {
             if(!Enabled)
             {
