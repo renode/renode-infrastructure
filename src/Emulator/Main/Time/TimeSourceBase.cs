@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Time
             }
             lock(delayedActions)
             {
-                delayedActions.Add(new DelayedTask(what, new TimeStamp()));
+                delayedActions.Add(new DelayedTask(what, new TimeStamp(), ++delayedTaskId));
             }
         }
 
@@ -206,7 +206,7 @@ namespace Antmicro.Renode.Time
         {
             lock(delayedActions)
             {
-                delayedActions.Add(new DelayedTask(what, when.Domain != Domain ? new TimeStamp() : when));
+                delayedActions.Add(new DelayedTask(what, when.Domain != Domain ? new TimeStamp() : when, ++delayedTaskId));
             }
         }
 
@@ -641,7 +641,10 @@ namespace Antmicro.Renode.Time
 
                 State = TimeSourceState.ExecutingDelayedActions;
                 timeNow = new TimeStamp(ElapsedVirtualTime, Domain);
-                var tasksToExecute = delayedActions.GetViewBetween(DelayedTask.Zero, new DelayedTask(null, timeNow));
+                // we are not incrementing delayedTaskId here because DelayedTask object is only created temporarily for comparison,
+                // all operations on delayedActions are in the lock() blocks and delayedTaskId is never decremented so its current value
+                // is greater or equal to every currently existing DelayedTask object which is what we care for in this comparison
+                var tasksToExecute = delayedActions.GetViewBetween(DelayedTask.Zero, new DelayedTask(null, timeNow, delayedTaskId));
                 tasksAsArray = tasksToExecute.ToArray();
                 tasksToExecute.Clear();
             }
@@ -696,6 +699,7 @@ namespace Antmicro.Renode.Time
         private bool isBlocked;
         private bool updateNearestSyncPoint;
         private int? executeThreadId;
+        private ulong delayedTaskId;
 
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
@@ -836,11 +840,11 @@ namespace Antmicro.Renode.Time
                 Zero = new DelayedTask();
             }
 
-            public DelayedTask(Action<TimeStamp> what, TimeStamp when) : this()
+            public DelayedTask(Action<TimeStamp> what, TimeStamp when, ulong id) : this()
             {
                 What = what;
                 When = when;
-                id = Interlocked.Increment(ref Id);
+                this.id = id;
             }
 
             public int CompareTo(DelayedTask other)
@@ -855,8 +859,7 @@ namespace Antmicro.Renode.Time
 
             public static DelayedTask Zero { get; private set; }
 
-            private readonly int id;
-            private static int Id;
+            private readonly ulong id;
         }
 
         /// <summary>
