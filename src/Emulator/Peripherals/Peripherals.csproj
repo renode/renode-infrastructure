@@ -319,6 +319,7 @@
     <Compile Include="Peripherals\Network\LiteX_Ethernet.cs" />
     <Compile Include="Peripherals\UART\PicoSoC_SimpleUART.cs" />
     <Compile Include="Peripherals\Timers\RenesasRA_GPT.cs" />
+    <Compile Include="Peripherals\Timers\RenesasDA14_GPT.cs" />
     <Compile Include="Peripherals\UART\Renesas_SCI.cs" />
     <Compile Include="Peripherals\UART\RCAR_UART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
