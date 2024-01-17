@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -130,12 +130,38 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for creating a set of tagged fields. For parameters see <see cref="PeripheralRegister.Tag"/>.
+        /// </summary>
+        /// <returns>This register with a defined tag field set.</returns>
+        public static T WithTags<T>(this T register, string name, int position, int width, int count) where T : PeripheralRegister
+        {
+            for(var i = 0; i < count; i++)
+            {
+                register.Tag(name == null ? null : $"{name}_{i}", position + (i * width), width);
+            }
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for tagged flag creation - a tag of width equal to 1. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
         /// </summary>
         /// <returns>This register with a defined tag field.</returns>
         public static T WithTaggedFlag<T>(this T register, string name, int position) where T : PeripheralRegister
         {
             register.Tag(name, position, 1);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for creating a set of tagged flags - a tag of width equal to 1. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
+        /// </summary>
+        /// <returns>This register with a defined tag field set.</returns>
+        public static T WithTaggedFlags<T>(this T register, string name, int position, int count) where T : PeripheralRegister
+        {
+            for(var i = 0; i < count; i++)
+            {
+                register.WithTaggedFlag(name == null ? null : $"{name}_{i}", position + i);
+            }
             return register;
         }
 
