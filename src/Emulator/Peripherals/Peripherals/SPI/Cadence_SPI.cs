@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -28,7 +28,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             rxFifo = new Queue<byte>(this.rxFifoCapacity);
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
 
-            IRQ = new GPIO();
             txFifoFull = new CadenceInterruptFlag(() => txFifo.Count >= this.txFifoCapacity);
             txFifoNotFull = new CadenceInterruptFlag(() => txFifo.Count < (int)txFifoThreshold.Value);
             txFifoUnderflow = new CadenceInterruptFlag(() => false);
@@ -64,7 +63,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public long Size => 0x100;
 
-        public GPIO IRQ { get; }
+        [DefaultInterrupt]
+        public GPIO IRQ { get; } = new GPIO();
+
+        public GPIO TxFifoFullIRQ { get; } = new GPIO();
+        public GPIO RxFifoFullIRQ { get; } = new GPIO();
 
         private void TransmitData()
         {
@@ -218,6 +221,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void UpdateInterrupts()
         {
             IRQ.Set(GetInterruptFlags().Any(x => x.InterruptStatus));
+            RxFifoFullIRQ.Set(rxFifoFull.InterruptStatus);
+            TxFifoFullIRQ.Set(txFifoFull.InterruptStatus);
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
