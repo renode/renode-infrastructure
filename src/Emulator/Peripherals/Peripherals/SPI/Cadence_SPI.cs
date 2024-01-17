@@ -67,7 +67,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         public GPIO IRQ { get; } = new GPIO();
 
         public GPIO TxFifoFullIRQ { get; } = new GPIO();
+        public GPIO TxFifoFillLevelThresholdIRQ { get; } = new GPIO();
+
         public GPIO RxFifoFullIRQ { get; } = new GPIO();
+        public GPIO RxFifoFillLevelThresholdIRQ { get; } = new GPIO();
 
         private void TransmitData()
         {
@@ -223,6 +226,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             IRQ.Set(GetInterruptFlags().Any(x => x.InterruptStatus));
             RxFifoFullIRQ.Set(rxFifoFull.InterruptStatus);
             TxFifoFullIRQ.Set(txFifoFull.InterruptStatus);
+            RxFifoFillLevelThresholdIRQ.Set(rxFifoNotEmpty.InterruptStatus);
+            TxFifoFillLevelThresholdIRQ.Set(txFifoNotFull.InterruptStatus);
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
