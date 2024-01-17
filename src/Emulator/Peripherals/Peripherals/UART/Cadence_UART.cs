@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,7 +24,6 @@ namespace Antmicro.Renode.Peripherals.UART
             this.clockFrequency = clockFrequency;
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
 
-            IRQ = new GPIO();
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
             rxFifoFull = new CadenceInterruptFlag(() => Count >= FifoCapacity);
             rxFifoTrigger = new CadenceInterruptFlag(() => Count >= (int)rxTriggerLevel.Value && rxTriggerLevel.Value > 0);
@@ -81,7 +80,17 @@ namespace Antmicro.Renode.Peripherals.UART
         public long Size => 0x80;
         public BufferState BufferState { get; private set; }
 
-        public GPIO IRQ { get; }
+        [DefaultInterrupt]
+        public GPIO IRQ { get; } = new GPIO();
+
+        public GPIO RxFifoFullIRQ { get; } = new GPIO();
+        public GPIO RxFifoFillLevelTriggerIRQ { get; } = new GPIO();
+        public GPIO RxFifoEmptyIRQ { get; } = new GPIO();
+
+        public GPIO TxFifoEmptyIRQ { get; } = new GPIO();
+        public GPIO TxFifoFullIRQ { get; } = new GPIO();
+        public GPIO TxFifoFillLevelTriggerIRQ { get; } = new GPIO();
+        public GPIO TxFifoNearlyFullIRQ { get; } = new GPIO();
 
         public event Action<BufferState> BufferStateChanged;
 
@@ -144,6 +153,10 @@ namespace Antmicro.Renode.Peripherals.UART
         private void UpdateInterrupts()
         {
             IRQ.Set(GetInterruptFlags().Any(x => x.InterruptStatus));
+            RxFifoFullIRQ.Set(rxFifoFull.InterruptStatus);
+            RxFifoFillLevelTriggerIRQ.Set(rxFifoTrigger.InterruptStatus);
+            RxFifoEmptyIRQ.Set(rxFifoEmpty.InterruptStatus);
+            TxFifoEmptyIRQ.Set(txFifoEmpty.InterruptStatus);
         }
 
         private void UpdateBufferState()
