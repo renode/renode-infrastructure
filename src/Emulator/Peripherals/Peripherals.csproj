@@ -625,6 +625,7 @@
     <Compile Include="Peripherals\UART\SmartbondUART.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA_GPIOMisc.cs" />
     <Compile Include="Peripherals\CAN\CANToUART.cs" />
+    <Compile Include="Peripherals\UART\AlteraJTAG_UART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
