@@ -337,7 +337,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
 
                 {(long)Registers.AutoReload, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) =>
+                    .WithValueField(0, 16, writeCallback: (_, val) =>
                     {
                         autoReloadValue = (uint)val;
                         Enabled = enableRequested && autoReloadValue > 0;
