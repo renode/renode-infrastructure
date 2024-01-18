@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 
                 {(long)Registers.Counter, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => Value = val, valueProviderCallback: _ => (uint)Value, name: "Counter value (CNT)")
+                    .WithValueField(0, 16, writeCallback: (_, val) => Value = val, valueProviderCallback: _ => (uint)Value, name: "Counter value (CNT)")
                     .WithWriteCallback((_, val) =>
                     {
                         for(var i = 0; i < NumberOfCCChannels; ++i)
@@ -325,7 +325,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
 
                 {(long)Registers.Prescaler, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => Divider = (int)val + 1, valueProviderCallback: _ => (uint)Divider - 1, name: "Prescaler value (PSC)")
+                    .WithValueField(0, 16, writeCallback: (_, val) => Divider = (int)val + 1, valueProviderCallback: _ => (uint)Divider - 1, name: "Prescaler value (PSC)")
                     .WithWriteCallback((_, __) =>
                     {
                         for(var i = 0; i < NumberOfCCChannels; ++i)
@@ -369,7 +369,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 var j = i;
                 registersMap.Add((long)Registers.CaptureOrCompare1 + (j * 0x4), new DoubleWordRegister(this)
-                    .WithValueField(0, 32, valueProviderCallback: _ => (uint)ccTimers[j].Limit, writeCallback: (_, val) =>
+                    .WithValueField(0, 16, valueProviderCallback: _ => (uint)ccTimers[j].Limit, writeCallback: (_, val) =>
                     {
                         if(val == 0)
                         {
