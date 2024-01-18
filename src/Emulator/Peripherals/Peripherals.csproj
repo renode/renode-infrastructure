@@ -634,6 +634,7 @@
     <Compile Include="Peripherals\GPIOPort\RenesasRA4_GPIO.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA6_GPIO.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA8_GPIO.cs" />
+    <Compile Include="Peripherals\UART\RenesasDA14_UART.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
