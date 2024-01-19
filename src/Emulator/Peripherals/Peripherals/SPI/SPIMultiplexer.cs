@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,8 +16,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class SPIMultiplexer : SimpleContainer<ISPIPeripheral>, IGPIOReceiver, ISPIPeripheral
     {
-        public SPIMultiplexer(IMachine machine) : base(machine)
+        public SPIMultiplexer(IMachine machine, bool suppressExplicitFinishTransmission = true) : base(machine)
         {
+            this.suppressExplicitFinishTransmission = suppressExplicitFinishTransmission;
             chipSelects = new HashSet<int>();
             activeLowSignals = new HashSet<int>();
             inputState = new Dictionary<int, bool>();
@@ -72,6 +73,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void FinishTransmission()
         {
+            if(suppressExplicitFinishTransmission)
+            {
+                return;
+            }
+
             if(chipSelects.Count == 0)
             {
                 this.Log(LogLevel.Warning, "Tried to finish transmission, but no device is currently selected");
@@ -122,6 +128,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly HashSet<int> chipSelects;
         private readonly HashSet<int> activeLowSignals;
         private readonly Dictionary<int, bool> inputState;
+        private readonly bool suppressExplicitFinishTransmission;
     }
 }
 
