@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void OnGPIO(int number, bool value)
         {
+            this.Log(LogLevel.Noisy, "GPIO #{0} set to {1}", number, value);
             inputState[number] = value;
             UpdateChipSelectState();
         }
@@ -102,6 +103,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
+            this.Log(LogLevel.Noisy, "Finisihing transmission on device 0x{0:X}", deviceAddress);
             device.FinishTransmission();
         }
 
