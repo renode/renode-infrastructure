@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,9 +14,10 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class PL011 : UARTBase, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public PL011(IMachine machine, uint fifoSize = 1) : base(machine)
+        public PL011(IMachine machine, uint fifoSize = 1, uint frequency = 24000000) : base(machine)
         {
             hardwareFifoSize = fifoSize;
+            uartClockFrequency = frequency;
 
             IRQ = new GPIO();
             interruptRawStatuses = new bool[InterruptsCount];
@@ -66,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.UART
             get
             {
                 var divisor = 16 * (integerBaudRate.Value + (fractionalBaudRate.Value / 64));
-                return (divisor > 0) ? (UARTClockFrequency / (uint)divisor) : 0;
+                return (divisor > 0) ? (uartClockFrequency / (uint)divisor) : 0;
             }
         }
 
@@ -377,11 +378,12 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly bool[] interruptRawStatuses;
         private readonly uint[] peripheralID = { 0x11, 0x10, 0x34, 0x0 };
         private readonly uint[] primeCellID = { 0x0D, 0xF0, 0x05, 0xB1 };
+        private readonly uint uartClockFrequency;
+
         private uint receiveFifoSize;
         private double receiveInterruptTriggerPoint;
 
         private const uint InterruptsCount = 11;
-        private const uint UARTClockFrequency = 24000000;
 
         private enum Interrupts
         {
