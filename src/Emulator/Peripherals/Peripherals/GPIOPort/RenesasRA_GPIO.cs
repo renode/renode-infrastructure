@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
@@ -13,9 +14,9 @@ using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    abstract public class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasRA_GPIO(IMachine machine, int numberOfConnections, RenesasRA_GPIOMisc pfsMisc) : base(machine, numberOfConnections)
+        public RenesasRA_GPIO(IMachine machine, int portNumber, int numberOfConnections, RenesasRA_GPIOMisc pfsMisc) : base(machine, numberOfConnections)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             PinConfigurationRegistersCollection = new DoubleWordRegisterCollection(this);
@@ -24,8 +25,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             usedAsIRQ = new IFlagRegisterField[numberOfConnections];
 
             this.pfsMisc = pfsMisc;
+            this.portNumber = portNumber;
 
-            IRQ = new GPIO();
+            IRQ0 = new GPIO();
+            IRQ1 = new GPIO();
+            IRQ2 = new GPIO();
+            IRQ3 = new GPIO();
+            IRQ4 = new GPIO();
+            IRQ5 = new GPIO();
+            IRQ6 = new GPIO();
+            IRQ7 = new GPIO();
+            IRQ8 = new GPIO();
+            IRQ9 = new GPIO();
+            IRQ10 = new GPIO();
+            IRQ11 = new GPIO();
+            IRQ12 = new GPIO();
+            IRQ13 = new GPIO();
+            IRQ14 = new GPIO();
+            IRQ15 = new GPIO();
 
             DefineRegisters();
             DefinePinConfigurationRegisters();
@@ -39,6 +56,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public void WriteDoubleWord(long offset, uint value)
         {
             RegistersCollection.Write(offset, value);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+
+            IRQ0.Unset();
+            IRQ1.Unset();
+            IRQ2.Unset();
+            IRQ3.Unset();
+            IRQ4.Unset();
+            IRQ5.Unset();
+            IRQ6.Unset();
+            IRQ7.Unset();
+            IRQ8.Unset();
+            IRQ9.Unset();
+            IRQ10.Unset();
+            IRQ11.Unset();
+            IRQ12.Unset();
+            IRQ13.Unset();
+            IRQ14.Unset();
+            IRQ15.Unset();
         }
 
         [ConnectionRegion("pinConfiguration")]
@@ -74,13 +113,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return;
             }
 
-            if(usedAsIRQ[number].Value)
+            if(TryGetInterruptOutput(number, out var irq))
             {
-                IRQ.Set(value);
+                irq.Set(value);
             }
         }
 
-        public IGPIO IRQ { get; }
+        public GPIO IRQ0 { get; }
+        public GPIO IRQ1 { get; }
+        public GPIO IRQ2 { get; }
+        public GPIO IRQ3 { get; }
+        public GPIO IRQ4 { get; }
+        public GPIO IRQ5 { get; }
+        public GPIO IRQ6 { get; }
+        public GPIO IRQ7 { get; }
+        public GPIO IRQ8 { get; }
+        public GPIO IRQ9 { get; }
+        public GPIO IRQ10 { get; }
+        public GPIO IRQ11 { get; }
+        public GPIO IRQ12 { get; }
+        public GPIO IRQ13 { get; }
+        public GPIO IRQ14 { get; }
+        public GPIO IRQ15 { get; }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
@@ -90,9 +144,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void UpdateIRQOutput()
         {
-            var outputValue = false;
-            var activeOutputs = new List<int>();
-
             for(var i = 0; i < NumberOfConnections; ++i)
             {
                 if(pinDirection[i].Value != Direction.Input)
@@ -100,18 +151,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     continue;
                 }
 
-                outputValue |= usedAsIRQ[i].Value && State[i];
-                if(usedAsIRQ[i].Value)
+                if(TryGetInterruptOutput(i, out var irq) && irq.IsSet != State[i])
                 {
-                    activeOutputs.Add(i);
+                    irq.Set(State[i]);
                 }
-            }
-
-            IRQ.Set(outputValue);
-
-            if(activeOutputs.Count > 1)
-            {
-                this.Log(LogLevel.Warning, "More than one pin is used as IRQ output: {0}", string.Join(", ", activeOutputs));
             }
         }
 
@@ -144,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             for(var i = 0; i < NumberOfConnections; ++i)
             {
                 var idx = i;
-                var offset = i * 0x4;
+                var offset = idx * 0x4;
                 var register = new DoubleWordRegister(this)
                     .WithFlag(0, name: "PODR",
                         valueProviderCallback: _ => Connections[idx].IsSet,
@@ -193,10 +236,44 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Connections[index].Set(value);
         }
 
+        private bool TryGetInterruptOutput(int number, out GPIO irq)
+        {
+            irq = null;
+            if(!usedAsIRQ[number].Value)
+            {
+                return false;
+            }
+
+            var interruptOutput = PinInterruptOutputs[portNumber].SingleOrDefault(e => e.PinNumber == number);
+            if(interruptOutput == null)
+            {
+                this.Log(LogLevel.Warning, "Trying to use pin#{0} as interrupt, but it's not associated with any IRQn output", number);
+                return false;
+            }
+
+            irq = interruptOutput.IRQ;
+            return true;
+        }
+
+        abstract protected List<InterruptOutput>[] PinInterruptOutputs { get; }
+
         private readonly RenesasRA_GPIOMisc pfsMisc;
+        private readonly int portNumber;
 
         private IEnumRegisterField<Direction>[] pinDirection;
         private IFlagRegisterField[] usedAsIRQ;
+
+        protected class InterruptOutput
+        {
+            public InterruptOutput(int pinNumber, GPIO irq)
+            {
+                PinNumber = pinNumber;
+                IRQ = irq;
+            }
+
+            public int PinNumber { get; }
+            public GPIO IRQ { get; }
+        }
 
         private enum Direction
         {
