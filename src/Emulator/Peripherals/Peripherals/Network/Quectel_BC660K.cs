@@ -134,6 +134,12 @@ namespace Antmicro.Renode.Peripherals.Network
                     sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
                     receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
                     break;
+                case "showlength":
+                    showLength = args[0] != 0;
+                    break;
+                case "viewmode":
+                    dataOutputSeparator = args[0] == 0 ? "," : CrLf;
+                    break;
                 case "showRA": // display the address of the remote end while displaying received data
                     this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
                     break;
