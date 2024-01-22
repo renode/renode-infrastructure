@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -428,7 +428,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 registers.Add(offset, new RegisterSelector<T>());
             }
-            registers[offset].AddRegister(register, condition);
+            try
+            {
+                registers[offset].AddRegister(register, condition);
+            }
+            catch(Exception e)
+            {
+                throw new ConstructionException($"At offset 0x{offset:x}: {e.Message}", e);
+            }
         }
 
         private readonly IPeripheral parent;

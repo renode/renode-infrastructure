@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -39,6 +39,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         public void AddRegister(IPeripheralRegister<T> register, Func<bool> condition)
         {
+            if(conditionalRegisters.Any(r => r.Condition == null))
+            {
+                throw new ArgumentException("Cannot add a conditional register because there is already an unconditional register in the collection");
+            }
+            if(conditionalRegisters.Any() && condition == null)
+            {
+                throw new ArgumentException("Cannot add an unconditional register because there is already a conditional register in the collection");
+            }
             conditionalRegisters.Add(new ConditionalRegister(register, condition));
         }
 
