@@ -593,9 +593,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
+            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
             {
-                return machine.SystemBus.ReadByte(offset, this);
+                var res = guard.InterruptTransaction
+                    ? 0
+                    : (ulong)machine.SystemBus.ReadByte(offset, this);
+                return res;
             }
         }
 
@@ -606,9 +609,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
+            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
             {
-                return machine.SystemBus.ReadWord(offset, this);
+                return guard.InterruptTransaction
+                    ? 0
+                    : (ulong)machine.SystemBus.ReadWord(offset, this);
             }
         }
 
@@ -619,9 +624,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
+            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
             {
-                return machine.SystemBus.ReadDoubleWord(offset, this);
+                return guard.InterruptTransaction
+                    ? 0
+                    : machine.SystemBus.ReadDoubleWord(offset, this);
             }
         }
 
@@ -632,9 +639,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
+            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
             {
-                return machine.SystemBus.ReadQuadWord(offset, this);
+                return guard.InterruptTransaction
+                    ? 0
+                    : machine.SystemBus.ReadQuadWord(offset, this);
             }
         }
 
@@ -645,9 +654,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
+            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
             {
-                machine.SystemBus.WriteByte(offset, unchecked((byte)value), this);
+                if(!guard.InterruptTransaction)
+                {
+                    machine.SystemBus.WriteByte(offset, unchecked((byte)value), this);
+                }
             }
         }
 
@@ -658,9 +670,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
+            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
             {
-                machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this);
+                if(!guard.InterruptTransaction)
+                {
+                    machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this);
+                }
             }
         }
 
@@ -671,9 +686,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
+            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
             {
-                machine.SystemBus.WriteDoubleWord(offset, (uint)value, this);
+                if(!guard.InterruptTransaction)
+                {
+                    machine.SystemBus.WriteDoubleWord(offset, (uint)value, this);
+                }
             }
         }
 
@@ -684,9 +702,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
+            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
             {
-                machine.SystemBus.WriteQuadWord(offset, value, this);
+                if(!guard.InterruptTransaction)
+                {
+                    machine.SystemBus.WriteQuadWord(offset, value, this);
+                }
             }
         }
 
@@ -1492,12 +1513,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public void InitializeForWriting(ulong address, SysbusAccessWidth width, ulong value)
             {
-                Initialize(address, width, value);
+                InterruptTransaction = !ExecuteWatchpoints(address, width, value);
             }
 
             public void InitializeForReading(ulong address, SysbusAccessWidth width)
             {
-                Initialize(address, width, null);
+                InterruptTransaction = !ExecuteWatchpoints(address, width, null);
             }
 
             private void Initialize()
@@ -1505,12 +1526,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 guard.Value = new object();
             }
 
-            private void Initialize(ulong address, SysbusAccessWidth width, ulong? value)
+            private bool ExecuteWatchpoints(ulong address, SysbusAccessWidth width, ulong? value)
             {
                 Initialize();
                 if(!parent.machine.SystemBus.TryGetWatchpointsAt(address, value.HasValue ? Access.Write : Access.Read, out var watchpoints))
                 {
-                    return;
+                    return true;
                 }
 
                 /*
@@ -1541,9 +1562,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(anyEnabled)
                 {
-                    // TODO: think if we have to tlib restart at all? if there is no pausing in watchpoint hook than maybe it's not necessary at all?
                     parent.TlibRequestTranslationBlockInterrupt();
-                    return;
+
+                    // tell sysbus to cancel the current transaction and return immediately
+                    return false;
                 }
                 else
                 {
@@ -1552,6 +1574,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                         disabledWatchpoint.Enabled = true;
                     }
                 }
+
+                return true;
             }
 
             public void OrderPause()
@@ -1590,6 +1614,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 guard.Value = null;
             }
+
+            public bool InterruptTransaction { get; private set; }
 
             [Constructor]
             private readonly ThreadLocal<object> guard;
