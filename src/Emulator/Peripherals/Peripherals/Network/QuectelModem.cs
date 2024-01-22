@@ -683,7 +683,18 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             else if(data != null) // Send data in non-data mode
             {
-                var bytes = Misc.HexStringToByteArray(data);
+                byte[] bytes;
+                switch(sendDataFormat)
+                {
+                    case DataFormat.Hex:
+                        bytes = Misc.HexStringToByteArray(data);
+                        break;
+                    case DataFormat.Text:
+                        bytes = StringEncoding.GetBytes(data);
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Invalid {nameof(sendDataFormat)}");
+                }
                 // Non-data mode is only supported with a fixed length
                 if(sendLength == null || bytes.Length != sendLength)
                 {

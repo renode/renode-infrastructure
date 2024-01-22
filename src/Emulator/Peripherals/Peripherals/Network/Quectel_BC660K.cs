@@ -129,8 +129,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         return Error;
                     }
-                    // sendDataFormat only applies to sending in non-data mode, which is not
-                    // currently implemented
                     sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
                     receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
                     break;
