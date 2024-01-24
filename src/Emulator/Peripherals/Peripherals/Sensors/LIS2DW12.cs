@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -106,6 +106,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void FeedAccelerationSample(string path)
         {
+            accelerationFifo.KeepFifoOnReset = true;
             accelerationFifo.FeedSamplesFromFile(path);
             UpdateInterrupts();
         }
