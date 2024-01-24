@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1639,6 +1639,15 @@ namespace Antmicro.Renode.Utilities
                 yield return function();
             }
         }
+
+#if !NET
+        // Enumerable.TakeLast is in the standard library on .NET Core but isn't available on .NET Framework
+        public static IEnumerable<T> TakeLast<T>(this IEnumerable<T> @this, int count)
+        {
+            // This will enumerate the collection twice - it might be not optimal for performance sensitive operations
+            return @this.Skip(Math.Max(0, @this.Count() - count));
+        }
+#endif
 
         public static ulong CastToULong(dynamic number)
         {
