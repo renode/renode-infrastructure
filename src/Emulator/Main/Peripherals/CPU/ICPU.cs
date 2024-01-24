@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -37,6 +37,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         ExecutionMode ExecutionMode { get; set; }
 
         ELFSharp.ELF.Endianess Endianness { get; }
+
+        CPUState State { get; }
+        event Action<ICPU, CPUState, CPUState> StateChanged;
     }
 
     public static class ICPUExtensions

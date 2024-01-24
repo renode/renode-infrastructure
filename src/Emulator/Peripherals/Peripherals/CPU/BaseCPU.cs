@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -177,6 +177,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             isAborted = false;
             Pause();
+            State = CPUState.InReset;
         }
 
         public virtual void SyncTime()
@@ -259,6 +260,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <remarks><c>StateChanged</c> is invoked when the value gets changed.</remarks>
+        public CPUState State
+        {
+            get => state;
+
+            private set
+            {
+                var oldState = state;
+                if(oldState == value)
+                {
+                    return;
+                }
+                state = value;
+                StateChanged?.Invoke(this, oldState, value);
+            }
+        }
+
         public TimeHandle TimeHandle
         {
             get
@@ -306,6 +324,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public event Action<HaltArguments> Halted;
+
+        /// <remarks>The arguments passed are: <c>StateChanged(cpu, oldState, newState)</c>.</remarks>
+        public event Action<ICPU, CPUState, CPUState> StateChanged;
 
         public abstract ulong ExecutedInstructions { get; }
         public abstract RegisterValue PC { get; set; }
@@ -537,6 +558,13 @@ restart:
                 return CpuResult.NothingExecuted;
             }
 
+            if(State != CPUState.Running)
+            {
+                // Here we know for sure that the machine has been started and the CPU isn't halted.
+                // Currently, the state can be Aborted, InReset and Running so stepping etc. is ignored.
+                State = CPUState.Running;
+            }
+
             this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
             var mmuFaultThrown = false;
             var initialExecutedResiduum = executedResiduum;
@@ -637,6 +665,7 @@ restart:
                 this.Trace("aborted, reporting continue");
                 TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                 executedResiduum = 0;
+                State = CPUState.Aborted;
                 return CpuResult.Aborted;
             }
             else if(currentHaltedState)
@@ -828,6 +857,7 @@ restart:
         [Transient]
         private Thread cpuThread;
 
+        private CPUState state = CPUState.InReset;
         private TimeHandle timeHandle;
 
         private bool wasRunningWhenHalted;
