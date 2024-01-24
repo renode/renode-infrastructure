@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -157,7 +157,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     valueProviderCallback: _ => channels[1].MatchFlag,
                     writeCallback: (_, value) => channels[1].MatchFlag &= value
                 )
-                .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
             Registers.Mode1.Define(thisWithByteRegisters)
@@ -280,16 +279,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
         }
 
-        private void UpdateInterrupts()
-        {
-            foreach(var channel in channels)
-            {
-                channel.UpdateInterrupts();
-            }
-            IRQ.Set(underflowFlag.Value);
-            this.Log(LogLevel.Debug, "IRQ: {0}", IRQ.IsSet);
-        }
-
         private void HandleLimitReached()
         {
             foreach(var channel in channels)
@@ -297,7 +286,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 channel.Restart();
             }
             underflowFlag.Value = true;
-            UpdateInterrupts();
+            IRQ.Blink();
+            this.Log(LogLevel.Debug, "IRQ blinked");
         }
 
         private bool TrySyncTime()
@@ -439,7 +429,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     MatchFlag = true;
                     Running = false;
-                    UpdateInterrupts();
+                    IRQ.Blink();
+                    parent.Log(LogLevel.Debug, "{0}.IRQ blinked ", name);
                 };
             }
 
@@ -462,12 +453,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 innerTimer.Limit = (ulong)(Limit - CompareValue);
                 innerTimer.ResetValue();
-            }
-
-            public void UpdateInterrupts()
-            {
-                IRQ.Set(MatchFlag);
-                parent.Log(LogLevel.Debug, "{1}.IRQ: {0}", IRQ.IsSet, name);
             }
 
             public GPIO IRQ { get; }
