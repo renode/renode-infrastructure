@@ -1236,6 +1236,11 @@ namespace Antmicro.Renode.Utilities
             return PrettyPrintCollection(collection, x => "0x{0:X}".FormatWith(x));
         }
 
+        public static LazyHexString<T> ToLazyHexString<T>(this IEnumerable<T> collection)
+        {
+            return new LazyHexString<T>(collection);
+        }
+
         public static UInt32 ToUInt32Smart(this byte[] @this)
         {
             if(@this.Length > 4)
@@ -1676,6 +1681,21 @@ namespace Antmicro.Renode.Utilities
 
         public MethodInfo Method { get; }
         public T Attribute { get; }
+    }
+
+    public class LazyHexString<T>
+    {
+        public LazyHexString(IEnumerable<T> collection)
+        {
+            this.collection = collection;
+        }
+
+        public override string ToString()
+        {
+            return Misc.PrettyPrintCollectionHex(collection);
+        }
+
+        private readonly IEnumerable<T> collection;
     }
 }
 
