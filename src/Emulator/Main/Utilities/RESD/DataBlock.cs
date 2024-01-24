@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public ulong Period { get; }
-        public long Frequency => (long)(NanosecondsInSecond / Period);
+        public decimal Frequency => NanosecondsInSecond / Period;
 
         public override ulong StartTime { get; }
         public override T CurrentSample => samplesData.GetCurrentSample();
