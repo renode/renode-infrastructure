@@ -93,18 +93,24 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
-        protected override Response Qcfg(string function, int value)
+        protected override Response Qcfg(string function, params int[] args)
         {
             switch(function)
             {
+                case "ledmode": // NETLIGHT output Mode
+                {
+                    if(args.Length == 1)
+                    {
+                        return SetNetLightMode(args[0]);
+                    }
+                    return base.Qcfg(function, args);
+                }
                 case "apready": // AP_READY Pin
                 case "band": // band configuration
                 case "celevel": // get LTE Cat NB1 coverage enhancement level
                 case "cmux/urcport": // URC output port for CMUX
                 case "ims": // IMS function control
                 case "iotopmode": // network category to be searched under LTE RAT
-                case "ledmode": // NETLIGHT output Mode
-                    return SetNetLightMode(value);
                 case "msc": // MSC release version configuration
                 case "nb1/bandprior": // band scan priority under LTE Cat NB1
                 case "nwscanmode": // RAT(s) to be searched
@@ -120,10 +126,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 case "urc/ri/other": // RI behavior when other URCs are presented
                 case "urc/ri/ring": // RI behavior when RING URC is presented
                 case "urc/ri/smsincoming": // RI behavior when incoming SMS URCs are presented
-                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, value);
+                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, string.Join(", ", args));
                     break;
                 default:
-                    return base.Qcfg(function, value);
+                    return base.Qcfg(function, args);
             }
             return Ok;
         }

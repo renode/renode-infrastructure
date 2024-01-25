@@ -479,9 +479,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
-        protected virtual Response Qcfg(string function, int value)
+        protected virtual Response Qcfg(string function, params int[] args)
         {
-            this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not supported by this modem", function, value);
+            this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not supported by this modem", function, string.Join(", ", args));
             return Error;
         }
 

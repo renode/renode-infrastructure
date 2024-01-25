@@ -4,7 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -19,6 +21,54 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             dataOutputSeparator = ",";
             dataOutputSurrounding = "\"";
+
+            nameModemConfigDecoder = new Dictionary<string, ModemConfigBC660K>(StringComparer.OrdinalIgnoreCase)
+            {
+                {"EPCO", ModemConfigBC660K.ExtendedProtocolConfigurationOptions},
+                {"DataInactTimer", ModemConfigBC660K.DataInactivityTimer},
+                {"OOSScheme", ModemConfigBC660K.NetworkSearchingMechanismInOOS},
+                {"logbaudrate", ModemConfigBC660K.LogBaudRate},
+                {"slplocktimes", ModemConfigBC660K.InitialSleepLockDuration},
+                {"dsevent", ModemConfigBC660K.DeepSleepEvent},
+                {"statisr", ModemConfigBC660K.ReportIntervalOfStatisticsURC},
+                {"MacRAI", ModemConfigBC660K.MacRAI},
+                {"relversion", ModemConfigBC660K.ProtocolVersionSupported},
+                {"NBcategory", ModemConfigBC660K.NBCategory},
+                {"wakeupRXD", ModemConfigBC660K.WakeUpByRXD},
+                {"faultaction", ModemConfigBC660K.ActionOnError},
+                {"GPIO", ModemConfigBC660K.GPIOStatusConfiguration},
+                {"NcellMeas", ModemConfigBC660K.NeighborCellMeasurement},
+                {"SimBip", ModemConfigBC660K.SIMBIP}
+            };
+
+            modemBasicConfig = new Dictionary<ModemConfigBC660K, int>()
+            {
+                {ModemConfigBC660K.ExtendedProtocolConfigurationOptions, 1},
+                {ModemConfigBC660K.DataInactivityTimer, 60},
+                {ModemConfigBC660K.NetworkSearchingMechanismInOOS, 1},
+                {ModemConfigBC660K.LogBaudRate, 6000000},
+                {ModemConfigBC660K.InitialSleepLockDuration, 10},
+                {ModemConfigBC660K.DeepSleepEvent, 1},
+                {ModemConfigBC660K.ReportIntervalOfStatisticsURC, 0},
+                {ModemConfigBC660K.MacRAI, 0},
+                {ModemConfigBC660K.ProtocolVersionSupported, 13},
+                {ModemConfigBC660K.NBCategory, 1},
+                {ModemConfigBC660K.WakeUpByRXD, 1},
+                {ModemConfigBC660K.ActionOnError, 4},
+                // ModemConfigBC660K.GPIOStatusConfiguration // GPIO configuration is stored separately
+                {ModemConfigBC660K.NeighborCellMeasurement, 1},
+                {ModemConfigBC660K.SIMBIP, 1}
+            };
+
+            gpioConfig = new Dictionary<int, GPIOStatusConfiguration>()
+            {
+                {1, new GPIOStatusConfiguration()},
+                {2, new GPIOStatusConfiguration()},
+                {3, new GPIOStatusConfiguration()},
+                {4, new GPIOStatusConfiguration()}
+            };
+
+            deepSleepEventEnabled = true;
         }
 
         // AT+QR14FEATURE - Query Status of R14 Features
@@ -75,33 +125,78 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // QCFG - System Configuration
         [AtCommand("AT+QCFG", CommandType.Write)]
-        protected override Response Qcfg(string function, int value)
+        protected override Response Qcfg(string function, params int[] args)
         {
-            switch(function)
+            if(!nameModemConfigDecoder.TryGetValue(function, out var modemFunction))
             {
-                case "dsevent":
-                    deepSleepEventEnabled = value != 0;
-                    break;
-                case "DataInactTimer": // inactivity timer
-                case "EPCO": // extended protocol configuration options
-                case "faultaction": // action performed by the UE after an error occurs
-                case "GPIO": // GPIO status
-                case "logbaudrate": // baud rate
-                case "MacRAI": // enable or disable RAI in MAC layer
-                case "NBcategory": // UE category
-                case "NcellMeas": // NcellMeas
-                case "OOSScheme": // network searching mechanism in OOS
-                case "relversion": // protocol release version
-                case "SimBip": // enable or disable SIMBIP
-                case "slplocktimes": // sleep duration
-                case "statisr": // report interval of the statistics URC
-                case "wakeupRXD": // whether the UE can be woken up by RXD
-                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, value);
-                    break;
-                default:
-                    return base.Qcfg(function, value);
+                return base.Qcfg(function, args); // unrecognized function
             }
-            return Ok;
+
+            if(modemBasicConfig.TryGetValue(modemFunction, out int value))
+            {
+                if(args.Length == 0)
+                {
+                    // If the optional parameter is omitted, query the current configuration.
+                    var parameters = string.Format("+QCFG: \"{0}\",{1}", function, value);
+                    return Ok.WithParameters(parameters);
+                }
+                else if(args.Length == 1)
+                {
+                    modemBasicConfig[modemFunction] = args[0];
+                    // Handle functions with side effects
+                    switch(modemFunction)
+                    {
+                        case ModemConfigBC660K.DeepSleepEvent:
+                            deepSleepEventEnabled = args[0] != 0;
+                            break;
+                    }
+                }
+                else
+                {
+                    return base.Qcfg(function, args);
+                }
+
+                return Ok;
+            }
+
+            // Handle functions not covered by basic config
+            switch(modemFunction)
+            {
+                case ModemConfigBC660K.GPIOStatusConfiguration:
+                    var isOk = ConfigureGPIOStatus(out var parameters, args);
+                    if(isOk)
+                    {
+                        return Ok.WithParameters(parameters);
+                    }
+                    break;
+            }
+
+            return base.Qcfg(function, args);
+        }
+
+        [AtCommand("AT+QCFG", CommandType.Read)]
+        protected virtual Response QcfgRead()
+        {
+            var parameters = new List<string>();
+            foreach(string function in nameModemConfigDecoder.Keys)
+            {
+                var modemFunction = nameModemConfigDecoder[function];
+                if(modemBasicConfig.TryGetValue(modemFunction, out int value))
+                {
+                    parameters.Add(string.Format("+QCFG: \"{0}\",{1}", function, value));
+                }
+                else
+                {
+                    switch(modemFunction)
+                    {
+                        case ModemConfigBC660K.GPIOStatusConfiguration:
+                            parameters.Add(GetQcfgGPIOStatus());
+                            break;
+                    }
+                }
+            }
+
+            return Ok.WithParameters(parameters.ToArray());
         }
 
         // QCGDEFCONT - Set Default PSD Connection Settings
@@ -248,6 +343,72 @@ namespace Antmicro.Renode.Peripherals.Network
             return id == 0;
         }
 
+        private bool ConfigureGPIOStatus(out string parameters, params int[] args)
+        {
+            parameters = string.Empty;
+
+            if(args.Length == 0)
+            {
+                // If the optional parameter is omitted, query the current configuration
+                parameters = GetQcfgGPIOStatus();
+                return true;
+            }
+
+            switch((GPIOStatusOperation)args[0])
+            {
+                case GPIOStatusOperation.Initialize:
+                {
+                    // no parameter shall be omitted
+                    if(args.Length != 5)
+                    {
+                        break;
+                    }
+
+                    var pin = args[1];
+                    if(gpioConfig.TryGetValue(pin, out var gpioStatus))
+                    {
+                        gpioStatus.Direction = args[2];
+                        gpioStatus.PullTypeSelection = args[3];
+                        gpioStatus.LogicLevel = args[4];
+                        return true;
+                    }
+
+                    break;
+                }
+                case GPIOStatusOperation.Query:
+                {
+                    // query the current configuration
+                    parameters = GetQcfgGPIOStatus();
+                    return true;
+                }
+                case GPIOStatusOperation.Configure:
+                {
+                    if(args.Length != 3)
+                    {
+                        break;
+                    }
+
+                    var pin = args[1];
+                    if(gpioConfig.TryGetValue(pin, out var gpioStatus))
+                    {
+                        gpioStatus.LogicLevel = args[2];
+                        return true;
+                    }
+
+                    break;
+                }
+            }
+
+            return false;
+        }
+
+        private string GetQcfgGPIOStatus()
+        {
+            const string function = "GPIO";
+            var gpioStatus = string.Join(",", gpioConfig.Values.Select(gpio => gpio.LogicLevel));
+            return string.Format("+QCFG: \"{0}\",{1}", function, gpioStatus);
+        }
+
         protected override string Vendor => "Quectel_Ltd";
         protected override string ModelName => "Quectel_BC660K-GL";
         protected override string Revision => "Revision: QCX212";
@@ -257,9 +418,45 @@ namespace Antmicro.Renode.Peripherals.Network
         private int minimumT3324;
         private int minimumT3412;
         private int minimumTeDRX;
+        private readonly Dictionary<string, ModemConfigBC660K> nameModemConfigDecoder;
+        private readonly Dictionary<ModemConfigBC660K, int> modemBasicConfig;
+        private readonly Dictionary<int, GPIOStatusConfiguration> gpioConfig;
 
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";
         private const string DefaultSerialNumber = "<serial number>";
+
+        private enum ModemConfigBC660K
+        {
+            ExtendedProtocolConfigurationOptions,
+            DataInactivityTimer,
+            NetworkSearchingMechanismInOOS,
+            LogBaudRate,
+            InitialSleepLockDuration,
+            DeepSleepEvent,
+            ReportIntervalOfStatisticsURC,
+            MacRAI,
+            ProtocolVersionSupported,
+            NBCategory,
+            WakeUpByRXD,
+            ActionOnError,
+            GPIOStatusConfiguration,
+            NeighborCellMeasurement,
+            SIMBIP
+        }
+
+        private enum GPIOStatusOperation
+        {
+            Initialize = 1,
+            Query = 2,
+            Configure = 3
+        }
+
+        private sealed class GPIOStatusConfiguration
+        {
+            public int Direction { get; set; }
+            public int PullTypeSelection { get; set; }
+            public int LogicLevel { get; set; }
+        }
     }
 }
