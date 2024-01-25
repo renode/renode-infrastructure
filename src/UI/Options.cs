@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.UI
         [Name("config"), Description("Use the configuration file from the provided path, or create one if it does not exist")]
         public string ConfigFile { get; set; }
 
-        [Name("disable-xwt"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
+        [Name("disable-xwt"), Alias("disable-gui"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
         public bool DisableXwt { get; set; }
 
         [Name("script"), PositionalArgument(0)]
