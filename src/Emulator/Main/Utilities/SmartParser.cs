@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -168,25 +168,30 @@ namespace Antmicro.Renode.Utilities
             cache = new Dictionary<Type, Delegate>();
             hexCache = new Dictionary<Type, Delegate>();
             binaryCache = new Dictionary<Type, Delegate>();
+            sync = new object();
         }
 
         private Delegate GetFromCacheOrAdd(Dictionary<Type, Delegate> cacheDict, Type outputType, Func<Delegate> function)
         {
-            if(!cacheDict.TryGetValue(outputType, out Delegate parser))
+            lock(sync)
             {
-                parser = function();
-                if(parser == null)
+                if(!cacheDict.TryGetValue(outputType, out Delegate parser))
                 {
-                    throw new ArgumentException(string.Format("Type \"{0}\" does not have a \"Parse\" method with the requested parameters", outputType.Name));
+                    parser = function();
+                    if(parser == null)
+                    {
+                        throw new ArgumentException(string.Format("Type \"{0}\" does not have a \"Parse\" method with the requested parameters", outputType.Name));
+                    }
+                    cacheDict.Add(outputType, parser);
                 }
-                cacheDict.Add(outputType, parser);
+                return parser;
             }
-            return parser;
         }
 
         private readonly Dictionary<Type, Delegate> cache;
         private readonly Dictionary<Type, Delegate> hexCache;
         private readonly Dictionary<Type, Delegate> binaryCache;
+        private readonly object sync;
     }
 }
 
