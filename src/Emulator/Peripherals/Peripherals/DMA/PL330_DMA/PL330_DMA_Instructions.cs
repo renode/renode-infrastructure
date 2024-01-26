@@ -19,8 +19,13 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             decoderRoot.AddOpcode(0b01010100, 8, () => new DMAADH(this, isDestinationAddressRegister: false));
             decoderRoot.AddOpcode(0b01010110, 8, () => new DMAADH(this, isDestinationAddressRegister: true));
-            decoderRoot.AddOpcode(0b01011100, 8, () => new DMAADNH(this, isDestinationAddressRegister: false));
-            decoderRoot.AddOpcode(0b01011110, 8, () => new DMAADNH(this, isDestinationAddressRegister: true));
+            
+            // DMAADNH should not be present in product revision r0p0
+            if(Revision > 0x0)
+            {
+                decoderRoot.AddOpcode(0b01011100, 8, () => new DMAADNH(this, isDestinationAddressRegister: false));
+                decoderRoot.AddOpcode(0b01011110, 8, () => new DMAADNH(this, isDestinationAddressRegister: true));
+            }
             
             decoderRoot.AddOpcode(0b00000000, 8, () => new DMAEND(this));
             // FLUSHP is part of Peripheral Request Interface. Leaving unimplemented for now
@@ -29,10 +34,12 @@ namespace Antmicro.Renode.Peripherals.DMA
             decoderRoot.AddOpcode(0b10100000, 8, () => new DMAGO(this, nonSecure: false));
             decoderRoot.AddOpcode(0b10100010, 8, () => new DMAGO(this, nonSecure: true));
 
-            // KILL and SEV are currently unimplemented, and are placeholders
             decoderRoot.AddOpcode(0b00000001, 8, () => new DMAKILL(this));
             decoderRoot.AddOpcode(0b00110100, 8, () => new DMASEV(this));
             decoderRoot.AddOpcode(0b00011000, 8, () => new DMANOP(this));
+            decoderRoot.AddOpcode(0b00110110, 8, () => new DMAWFE(this));
+            decoderRoot.AddOpcode(0b00010011, 8, () => new DMAWMB(this));
+            decoderRoot.AddOpcode(0b00010010, 8, () => new DMARMB(this));
 
             decoderRoot.AddOpcode(0b00000100, 8, () => new DMALD(this, isConditional: false));
             decoderRoot.AddOpcode(0b00000101, 8, () => new DMALD(this, isConditional: true, transactionType: Channel.ChannelRequestType.Single));
@@ -41,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             decoderRoot.AddOpcode(0b00001000, 8, () => new DMAST(this, isConditional: false));
             decoderRoot.AddOpcode(0b00001001, 8, () => new DMAST(this, isConditional: true, transactionType: Channel.ChannelRequestType.Single));
             decoderRoot.AddOpcode(0b00001011, 8, () => new DMAST(this, isConditional: true, transactionType: Channel.ChannelRequestType.Burst));
+            decoderRoot.AddOpcode(0b00001100, 8, () => new DMASTZ(this));
 
             decoderRoot.AddOpcode(0b10111100, 8, () => new DMAMOV(this));
             
@@ -160,11 +168,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(threadType == DMAThreadType.Manager && !usableByManager)
                 {
                     Parent.Log(LogLevel.Error, "Thread is a manager, but instruction {0} not usable by manager", this.ToString());
+                    // TODO: We should abort manager thread here, but its logic is unimplemented now
                     return Length;
                 }
                 if(threadType == DMAThreadType.Channel && !usableByChannel)
                 {
                     Parent.Log(LogLevel.Error, "Thread is a channel, but instruction {0} not usable by channel", this.ToString());
+                    // The docs are not clear about what happens here, but UndefinedInstruction seems logical
+                    Parent.channels[channelIndex.Value].SignalChannelAbort(Channel.ChannelFaultReason.UndefinedInstruction);
                     return Length;
                 }
                 return ExecuteInner(threadType, channelIndex);
@@ -318,6 +329,21 @@ namespace Antmicro.Renode.Peripherals.DMA
         private class DMAKILL : Instruction
         {
             public DMAKILL(PL330_DMA parent) : base(parent, usableByManager: true) {}
+
+            protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
+            {
+                if(threadType == DMAThreadType.Manager)
+                {
+                    Parent.Log(LogLevel.Error, "KILL on Manager thread is currently unsupported");
+                }
+                else
+                {
+                    var selectedChannel = Parent.channels[channelIndex.Value];
+                    selectedChannel.localMFIFO.Clear();
+                    selectedChannel.Status = Channel.ChannelStatus.Stopped;
+                }
+                return Length;
+            }
         }
 
         private abstract class DMA_LD_ST_base : Instruction
@@ -385,13 +411,22 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 var selectedChannel = Parent.channels[channelIndex];
                 var writeLength = selectedChannel.DestinationWriteSize;
+                var burstLength = ignoreBurst ? 1 : selectedChannel.DestinationBurstLength;
 
-                for(var burst = 0; burst < (ignoreBurst ? 1 : selectedChannel.DestinationBurstLength); ++burst)
+                // If requested, swap endianness of data in buffer, just before the transmission
+                if(selectedChannel.EndianSwapSize > 0)
+                {
+                    DoEndianSwap(selectedChannel, writeLength * burstLength);
+                }
+
+                for(var burst = 0; burst < burstLength; ++burst)
                 {
                     byte[] byteArray = selectedChannel.localMFIFO.DequeueRange(writeLength);
                     if(byteArray.Length != writeLength)
                     {
-                        Parent.Log(LogLevel.Error, "Underflow in channel queue, will write {0} bytes, instead of {1} expected", byteArray.Length, writeLength);
+                        Parent.Log(LogLevel.Error, "Underflow in channel queue, {0} bytes remaining in FIFO, but requested to write {1}. Aborting thread.", byteArray.Length, writeLength);
+                        selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.NotEnoughStoredDataInMFIFO);
+                        return;
                     }
                     Parent.machine.GetSystemBus(Parent).WriteBytes(byteArray, selectedChannel.DestinationAddress, context: Parent.GetCurrentCPUOrNull());
 
@@ -401,11 +436,56 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 }
             }
+
+            private void DoEndianSwap(Channel selectedChannel, int dataLengthToSwap)
+            {
+                byte[] bytesToSwap = selectedChannel.localMFIFO.DequeueRange(dataLengthToSwap);
+                byte[] bytesRemaining = selectedChannel.localMFIFO.DequeueAll();
+
+                if(bytesToSwap.Length % selectedChannel.EndianSwapSize != 0)
+                {
+                    // Not sure what happens here - the docs recommend to avoid this state
+                    // but there is no mention if DMA should abort now
+                    Parent.Log(LogLevel.Error, "Number of bytes requested for transfer: {0} is not a multiple of EndianSwapSize: {1}", bytesToSwap.Length, selectedChannel.EndianSwapSize);
+                }
+
+                for(int i = 0; i < bytesToSwap.Length; i += selectedChannel.EndianSwapSize)
+                {
+                    Array.Reverse(bytesToSwap, i, Math.Min(selectedChannel.EndianSwapSize, bytesToSwap.Length - i));
+                }
+                // Restore contents of the thread's buffer
+                selectedChannel.localMFIFO.EnqueueRange(bytesToSwap);
+                selectedChannel.localMFIFO.EnqueueRange(bytesRemaining);
+            }
         }
 
-        private class DMANOP : Instruction
+        private class DMASTZ : DMA_LD_ST_base
         {
-            public DMANOP(PL330_DMA parent) : base(parent, usableByManager: true) {}
+            public DMASTZ(PL330_DMA parent) : base(parent, IsConditional: false, TransactionType: Channel.ChannelRequestType.Single) {}
+
+            protected override void DoTransfer(int channelIndex, bool _)
+            {
+                var selectedChannel = Parent.channels[channelIndex];
+                var writeLength = selectedChannel.DestinationWriteSize;
+
+                for(var burst = 0; burst < selectedChannel.DestinationBurstLength; ++burst)
+                {
+                    Parent.sysbus.WriteBytes(Enumerable.Repeat((byte)0, writeLength).ToArray(), selectedChannel.DestinationAddress, context: Parent.GetCurrentCPUOrNull());
+
+                    if(selectedChannel.DestinationIncrementingAddress)
+                    {
+                        selectedChannel.DestinationAddress += (uint)writeLength;
+                    }
+                }
+            }
+        }
+
+
+        private abstract class DMANOP_base : Instruction
+        {
+            public DMANOP_base(PL330_DMA parent, uint length, bool usableByChannel = true, bool usableByManager = false) 
+                : base(parent, length, usableByChannel, usableByManager)
+            {}
 
             protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
             {
@@ -414,16 +494,99 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        private class DMANOP : DMANOP_base
+        {
+            public DMANOP(PL330_DMA parent) : base(parent, length: 1, usableByManager: true) {}
+        }
+
+        private class DMAWMB : DMANOP_base
+        {
+            // Write memory barrier - treat as NOP
+            // for us each load/store instruction has immediate result
+            // so there should be no need for a barrier operation
+            public DMAWMB(PL330_DMA parent) : base(parent, length: 1) {}
+        }
+
+        private class DMARMB : DMANOP_base
+        {
+            // See: DMAWMB for explanation
+            public DMARMB(PL330_DMA parent) : base(parent, length: 1) {}
+        }
+
+
         private class DMASEV : Instruction
         {
             public DMASEV(PL330_DMA parent) : base(parent, length: 2, usableByManager: true) {}
             
             protected override void ParseCompleteAction()
             {
-                eventNumber = instructionBytes[1] >> 3;
+                eventNumber = (uint)instructionBytes[1] >> 3;
             }
 
-            private int eventNumber;
+            protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
+            {
+                if(threadType == DMAThreadType.Manager)
+                {
+                    Parent.Log(LogLevel.Error, "SEV on Manager thread is currently unsupported");
+                }
+                else
+                {
+                    if(!Parent.SignalEventOrInterrupt(eventNumber))
+                    {
+                        Parent.channels[channelIndex.Value].SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                    }
+                }
+                return Length;
+            }
+
+            private uint eventNumber;
+        }
+
+
+        private class DMAWFE : Instruction
+        {
+            public DMAWFE(PL330_DMA parent) : base(parent, length: 2, usableByManager: true) {}
+            
+            protected override void ParseCompleteAction()
+            {
+                eventNumber = (uint)instructionBytes[1] >> 3;
+                invalid = ((instructionBytes[1] >> 1) & 0x1) == 1;
+            }
+
+            protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
+            {
+                if(threadType == DMAThreadType.Manager)
+                {
+                    Parent.Log(LogLevel.Error, "WFE on Manager thread is currently unsupported");
+                }
+                else
+                {
+                    var selectedChannel = Parent.channels[channelIndex.Value];
+
+                    if(!Parent.IsEventOrInterruptValid(eventNumber))
+                    {
+                        selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                        return Length;
+                    }
+
+                    if(Parent.eventActive[eventNumber])
+                    {
+                        // If the event was pending before, let's deactivate it and continue execution normally
+                        Parent.eventActive[eventNumber] = false;
+                    }
+                    else
+                    {
+                        // If the event is not active, then let's wait
+                        selectedChannel.WaitingEventNumber = eventNumber;
+                        selectedChannel.Status = Channel.ChannelStatus.WaitingForEvent;
+                    }
+                }
+                return Length;
+            }
+
+            private uint eventNumber;
+            // Invalid bit is used to force DMAC to invalidate its icache - we don't have any cache implemented
+            private bool invalid;
         }
 
         private class DMAMOV : Instruction
@@ -442,19 +605,21 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
             {
+                var selectedChannel = Parent.channels[channelIndex.Value];
                 switch(registerNumber)
                 {
                     case 0b000: // SAR
-                        Parent.channels[channelIndex.Value].SourceAddress = immediate;
+                        selectedChannel.SourceAddress = immediate;
                         break;
                     case 0b001: // CCR
-                        Parent.channels[channelIndex.Value].ChannelControlRawValue = immediate;
+                        selectedChannel.ChannelControlRawValue = immediate;
                         break;
                     case 0b010: // DAR
-                        Parent.channels[channelIndex.Value].DestinationAddress = immediate;
+                        selectedChannel.DestinationAddress = immediate;
                         break;
                     default:
                         Parent.Log(LogLevel.Error, "Invalid destination bits: {0}", registerNumber);
+                        selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
                         break;
                 }
                 return Length;
