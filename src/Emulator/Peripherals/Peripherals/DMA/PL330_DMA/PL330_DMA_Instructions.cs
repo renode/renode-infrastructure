@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -137,11 +137,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 get => currentByteCount == Length;
             }
 
-            protected Instruction(PL330_DMA parent, uint Length = 1, bool usableByChannel = true, bool usableByManager = false)
+            protected Instruction(PL330_DMA parent, uint length = 1, bool usableByChannel = true, bool usableByManager = false)
             {
                 this.usableByManager = usableByManager;
                 this.usableByChannel = usableByChannel;
-                this.Length = Length;
+                this.Length = length;
                 this.Parent = parent;
 
                 Name = GetType().Name;
@@ -182,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private abstract class DMAADH_base : Instruction
         {
-            public DMAADH_base(PL330_DMA parent, bool isDestinationAddressRegister, bool negative) : base(parent, Length: 3)
+            public DMAADH_base(PL330_DMA parent, bool isDestinationAddressRegister, bool negative) : base(parent, length: 3)
             {
                 this.negative = negative;
                 this.isDestinationAddressRegister = isDestinationAddressRegister;
@@ -272,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMAGO : Instruction
         {
-            public DMAGO(PL330_DMA parent, bool nonSecure) : base(parent, Length: 6, usableByChannel: false, usableByManager: true)
+            public DMAGO(PL330_DMA parent, bool nonSecure) : base(parent, length: 6, usableByChannel: false, usableByManager: true)
             {
                 this.nonSecure = nonSecure;
             }
@@ -355,7 +355,8 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMALD : DMA_LD_ST_base
         {
-            public DMALD(PL330_DMA parent, bool isConditional, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single)  : base(parent, isConditional, transactionType) {}
+            public DMALD(PL330_DMA parent, bool isConditional, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single)  
+                : base(parent, isConditional, transactionType) {}
 
             protected override void DoTransfer(int channelIndex, bool ignoreBurst)
             {
@@ -364,7 +365,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 for(var burst = 0; burst < (ignoreBurst ? 1 : selectedChannel.SourceBurstLength); ++burst)
                 {
-                    var byteArray = Parent.machine.GetSystemBus(Parent).ReadBytes(selectedChannel.SourceAddress, readLength, context: Parent.GetCurrentCPUOrNull());
+                    byte[] byteArray = Parent.machine.GetSystemBus(Parent).ReadBytes(selectedChannel.SourceAddress, readLength, context: Parent.GetCurrentCPUOrNull());
                     selectedChannel.localMFIFO.EnqueueRange(byteArray);
 
                     if(selectedChannel.SourceIncrementingAddress)
@@ -377,7 +378,8 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMAST : DMA_LD_ST_base
         {
-            public DMAST(PL330_DMA parent, bool isConditional, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single) : base(parent, isConditional, transactionType) {}
+            public DMAST(PL330_DMA parent, bool isConditional, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single) 
+                : base(parent, isConditional, transactionType) {}
 
             protected override void DoTransfer(int channelIndex, bool ignoreBurst)
             {
@@ -386,7 +388,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 for(var burst = 0; burst < (ignoreBurst ? 1 : selectedChannel.DestinationBurstLength); ++burst)
                 {
-                    var byteArray = selectedChannel.localMFIFO.DequeueRange(writeLength);
+                    byte[] byteArray = selectedChannel.localMFIFO.DequeueRange(writeLength);
                     if(byteArray.Length != writeLength)
                     {
                         Parent.Log(LogLevel.Error, "Underflow in channel queue, will write {0} bytes, instead of {1} expected", byteArray.Length, writeLength);
@@ -414,7 +416,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMASEV : Instruction
         {
-            public DMASEV(PL330_DMA parent) : base(parent, Length: 2, usableByManager: true) {}
+            public DMASEV(PL330_DMA parent) : base(parent, length: 2, usableByManager: true) {}
             
             protected override void ParseCompleteAction()
             {
@@ -426,7 +428,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMAMOV : Instruction
         {
-            public DMAMOV(PL330_DMA parent) : base(parent, Length: 6) {}
+            public DMAMOV(PL330_DMA parent) : base(parent, length: 6) {}
 
             protected override void ParseCompleteAction()
             {
@@ -464,7 +466,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMALP : Instruction
         {
-            public DMALP(PL330_DMA parent, int loopCounterIndex) : base(parent, Length: 2)
+            public DMALP(PL330_DMA parent, int loopCounterIndex) : base(parent, length: 2)
             {
                 this.loopCounterIndex = loopCounterIndex;
             }
@@ -489,7 +491,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private class DMALPEND : Instruction
         {
-            public DMALPEND(PL330_DMA parent, bool isConditional = false, bool isForever = false, int loopCounterIndex = 0, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single) : base(parent, Length: 2)
+            public DMALPEND(PL330_DMA parent, bool isConditional = false, bool isForever = false, int loopCounterIndex = 0, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single) : base(parent, length: 2)
             {
                 this.isConditional = isConditional;
                 this.isForever = isForever;
