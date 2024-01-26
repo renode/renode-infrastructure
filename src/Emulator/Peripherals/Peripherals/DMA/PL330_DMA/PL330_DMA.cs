@@ -22,8 +22,9 @@ namespace Antmicro.Renode.Peripherals.DMA
         // This model doesn't take into account differences in AXI bus width, 
         // which could have impact on unaligned transfers in real HW
         // this is a know limitation at this moment
-        public PL330_DMA(IMachine machine, uint numberOfSupportedEventsAndInterrupts = 32) : base(machine)
+        public PL330_DMA(IMachine machine, uint numberOfSupportedEventsAndInterrupts = 32, byte revision = 0x3) : base(machine)
         {
+            this.Revision = revision;
             if(numberOfSupportedEventsAndInterrupts > MaximumSupportedEventsOrInterrupts)
             {
                 throw new ConstructionException($"No more than {MaximumSupportedEventsOrInterrupts} Events or Interrupts are supported by this peripheral");
@@ -99,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
         public GPIO AbortIRQ { get; } = new GPIO();
 
-        public byte Revision { get; set; } = 0x3;
+        public byte Revision { get; }
         public int NumberOfSupportedEventsAndInterrupts { get; }
         public int NumberOfSupportedPeripheralRequestInterfaces { get; set; } = 32;
 
