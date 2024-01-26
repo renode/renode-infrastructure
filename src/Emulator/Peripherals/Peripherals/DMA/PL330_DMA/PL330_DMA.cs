@@ -258,6 +258,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 (Registers.Channel0DestinationAddress + Id * 0x20).Define(Parent)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => DestinationAddress, name: $"Channel {Id} Destination Address");
 
+                ChannelControlRawValue = 0x00800200;
                 (Registers.Channel0Control + Id * 0x20).Define(Parent)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => ChannelControlRawValue, name: $"Channel {Id} Control");
 
@@ -296,14 +297,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             // Whether it's a last request - this is set in peripheral transfers only, in infinite loop transfers
             public bool RequestLast { get; set; } = false;
 
-            public int SourceReadSize { get; private set; } = 1;
-            public int DestinationWriteSize { get; private set; } = 1;
+            // Sizes are specified in bytes
+            public int SourceReadSize { get; private set; }
+            public int DestinationWriteSize { get; private set; }
 
-            public int SourceBurstLength { get; private set; } = 1;
-            public int DestinationBurstLength { get; private set; } = 1;
+            public int SourceBurstLength { get; private set; }
+            public int DestinationBurstLength { get; private set; }
 
-            public bool SourceIncrementingAddress { get; private set; } = true;
-            public bool DestinationIncrementingAddress { get; private set; } = true;
+            public bool SourceIncrementingAddress { get; private set; }
+            public bool DestinationIncrementingAddress { get; private set; }
 
             public readonly int Id;
             public readonly byte[] LoopCounter = new byte[2];
