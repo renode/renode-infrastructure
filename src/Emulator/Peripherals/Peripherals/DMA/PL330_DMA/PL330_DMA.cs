@@ -31,6 +31,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.NumberOfSupportedEventsAndInterrupts = (int)numberOfSupportedEventsAndInterrupts;
 
             channels = new Channel[NumberOfChannels];
+            for(int i = 0; i < channels.Length; ++i)
+            {
+                channels[i] = new Channel(this, i);
+            }
 
             RegisterInstructions();
             DefineRegisters();
@@ -53,8 +57,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             for(int i = 0; i < channels.Length; ++i)
             {
-                channels[i] = new Channel(this, i);
-                channels[i].DefineRegisters();
+                channels[i].Reset();
             }
 
             foreach(var connection in Connections.Values)
@@ -431,9 +434,30 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 this.Parent = parent;
                 this.Id = id;
+
+                Reset();
+                DefineRegisters();
             }
 
-            public void DefineRegisters()
+            public void Reset()
+            {
+                ChannelControlRawValue = 0x00800200;
+                PC = 0;
+                SourceAddress = 0;
+                DestinationAddress = 0;
+
+                status = ChannelStatus.Stopped;
+                faultReason = ChannelFaultReason.NoFault;
+                RequestType = ChannelRequestType.Single;
+                RequestLast = false;
+                WaitingEventNumber = 0;
+
+                LoopCounter[0] = 0;
+                LoopCounter[1] = 0;
+                localMFIFO.Clear();
+            }
+
+            private void DefineRegisters()
             {
                 (Registers.Channel0FaultType + Id * 4).Define(Parent)
                     .WithEnumField<DoubleWordRegister, ChannelFaultReason>(0, 32, FieldMode.Read, valueProviderCallback: _ => faultReason, name: $"Channel {Id} Fault Reason");
@@ -457,7 +481,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 (Registers.Channel0DestinationAddress + Id * 0x20).Define(Parent)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => DestinationAddress, name: $"Channel {Id} Destination Address");
 
-                ChannelControlRawValue = 0x00800200;
                 (Registers.Channel0Control + Id * 0x20).Define(Parent)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => ChannelControlRawValue, name: $"Channel {Id} Control");
 
@@ -515,9 +538,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             // RequestType is part of Peripheral Request Interface (is set by `DMAWFP`)
-            public ChannelRequestType RequestType { get; set; } = ChannelRequestType.Single;
+            public ChannelRequestType RequestType { get; set; }
             // Whether it's a last request - this is set in peripheral transfers only, in infinite loop transfers
-            public bool RequestLast { get; set; } = false;
+            public bool RequestLast { get; set; }
 
             // Sizes are specified in bytes
             public int SourceReadSize { get; private set; }
@@ -533,14 +556,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             public int EndianSwapSize { get; private set; }
             
             // What event is the channel waiting for (after calling DMAWFE)
+            // We don't care about clearing this, since it only has meaning when the channel is in WaitingForEvent state
             public uint WaitingEventNumber { get; set; }
 
             public readonly int Id;
             public readonly byte[] LoopCounter = new byte[2];
             public readonly Queue<byte> localMFIFO = new Queue<byte>();
 
-            private ChannelStatus status = ChannelStatus.Stopped;
-            private ChannelFaultReason faultReason = ChannelFaultReason.NoFault;
+            private ChannelStatus status;
+            private ChannelFaultReason faultReason;
             private uint channelControlRawValue;
             private readonly PL330_DMA Parent;
 
