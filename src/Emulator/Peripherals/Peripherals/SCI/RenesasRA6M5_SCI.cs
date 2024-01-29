@@ -5,6 +5,7 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -15,11 +16,13 @@ using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.SCI
 {
     // Due to unusual register offsets we cannot use address translations
-    public class RenesasRA6M5_SCI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IUART, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
+    public class RenesasRA6M5_SCI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IUART, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize,
+        IPeripheralContainer<IUART, NullRegistrationPoint>
     {
         public RenesasRA6M5_SCI(IMachine machine, ulong frequency, bool enableManchesterMode, bool enableFIFO) : base(machine)
         {
@@ -73,6 +76,36 @@ namespace Antmicro.Renode.Peripherals.SCI
             RegistersCollection.Reset();
         }
 
+        public void Register(IUART peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(registeredUartPeripheral != null)
+            {
+                throw new RegistrationException($"UART peripheral alredy registered");
+            }
+
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+
+            CharReceived += peripheral.WriteChar;
+            peripheral.CharReceived += WriteChar;
+
+            registeredUartPeripheral = peripheral;
+        }
+
+        public void Unregister(IUART peripheral)
+        {
+            CharReceived -= peripheral.WriteChar;
+            peripheral.CharReceived -= WriteChar;
+
+            registeredUartPeripheral = null;
+        }
+
+        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(IUART peripheral)
+        {
+            return registeredUartPeripheral != null ?
+                new[] { NullRegistrationPoint.Instance } :
+                Enumerable.Empty<NullRegistrationPoint>();
+        }
+
         public bool IsDataReadyFIFO { get => (ulong)receiveQueue.Count < receiveFIFOTriggerCount.Value; }
 
         public bool IsReceiveFIFOFull { get => (ulong)receiveQueue.Count >= receiveFIFOTriggerCount.Value; }
@@ -102,6 +135,13 @@ namespace Antmicro.Renode.Peripherals.SCI
         public Parity ParityBit => parityEnabled.Value ? parityBit : Parity.None;
 
         public long Size => 0x20;
+
+        IEnumerable<IRegistered<IUART, NullRegistrationPoint>> IPeripheralContainer<IUART, NullRegistrationPoint>.Children
+        {
+            get => registeredUartPeripheral != null ?
+                new [] { Registered.Create(registeredUartPeripheral, NullRegistrationPoint.Instance) } :
+                Enumerable.Empty<IRegistered<IUART, NullRegistrationPoint>>();
+        }
 
         public event Action<byte> CharReceived;
 
@@ -648,6 +688,8 @@ namespace Antmicro.Renode.Peripherals.SCI
         private readonly Queue<ushort> receiveQueue;
         private readonly ulong frequency;
         private Parity parityBit = Parity.Even;
+
+        private IUART registeredUartPeripheral;
 
         private bool manchesterMode;
         private bool fifoMode;
