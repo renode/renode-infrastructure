@@ -351,7 +351,6 @@
     <Compile Include="Peripherals\GPIOPort\BaseGPIOPort.cs" />
     <Compile Include="Peripherals\Bus\AllowedTranslation.cs" />
     <Compile Include="Peripherals\Bus\AllowedTranslationsAttribute.cs" />
-    <Compile Include="Peripherals\EndianessAttribute.cs" />
     <Compile Include="Core\GPIOConnection.cs" />
     <Compile Include="Peripherals\BackendManager.cs" />
     <Compile Include="Peripherals\Video\IVideo.cs" />

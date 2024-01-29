@@ -11,12 +11,10 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using System;
 using System.Collections.Generic;
-using Endianess = ELFSharp.ELF.Endianess;
 using static Antmicro.Renode.Peripherals.Bus.GaislerAPBPlugAndPlayRecord;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    [Endianess(Endianess.BigEndian)]
     public sealed class Gaisler_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IGaislerAPB
     {
         // Connections [0; numberOfConnections) are the actual connections.

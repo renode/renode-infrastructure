@@ -12,11 +12,9 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 using System.Collections.Generic;
 using System.Linq;
-using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    [Endianess(Endianess.BigEndian)]
     public class GaislerMIC: IDoubleWordPeripheral, INumberedGPIOOutput, IIRQController, IGaislerAPB
     {
         public GaislerMIC(IMachine machine, uint totalNumberCPUs = 1)

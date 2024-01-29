@@ -13,11 +13,9 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Migrant;
-using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [Endianess(Endianess.BigEndian)]
     public class GaislerAPBUART: BasicDoubleWordPeripheral, IUART, IGaislerAPB
     {
         public GaislerAPBUART(IMachine machine, uint fifoDepth = 8, uint frequency = 25000000) : base(machine)

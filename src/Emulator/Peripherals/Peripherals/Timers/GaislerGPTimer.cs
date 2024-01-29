@@ -13,11 +13,9 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    [Endianess(Endianess.BigEndian)]
     public class GaislerGPTimer : IDoubleWordPeripheral, IGaislerAPB, INumberedGPIOOutput
     {
         public GaislerGPTimer(int timersNumber, IMachine machine, int frequency = DefaultTimerFrequency)
