@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             if(type == RESDType.MultiFrequency)
             {
-                FeedMultiFrequencyAccelerationSamplesFromRESD(path);
+                FeedMultiFrequencyAccelerationSamplesFromRESD(path, startTime);
                 return;
             }
             else if(type != RESDType.Normal)
@@ -291,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        private void FeedMultiFrequencyAccelerationSamplesFromRESD(string path)
+        private void FeedMultiFrequencyAccelerationSamplesFromRESD(string path, ulong startTime)
         {
             var parser = new LowLevelRESDParser(path);
             var mapping = parser.GetDataBlockEnumerator<AccelerationSample>()
@@ -302,6 +302,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             // We keep the index of the last block used so far so that we can skip already
             // used blocks on each sample rate change.
             var index = 0;
+            var init = true;
             Action<uint> findAndActivate = null;
             findAndActivate = (sampleRate) =>
             {
@@ -340,7 +341,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     path,
                     block.Channel,
                     RESDStreamSampleOffset.Specified,
-                    (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L + (long)block.StartTime,
+                    (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L + (long)block.StartTime - (init ? (long)startTime : 0),
                     b => (b as ConstantFrequencySamplesDataBlock<AccelerationSample>)?.Frequency == sampleRate
                 );
                 accelerationFifo.KeepFifoOnReset = false;
@@ -366,7 +367,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         HandleAccelerationSample(previousSample, ts);
                     }
-                }, shouldStop: false);
+                }, startTime: init ? startTime : 0, shouldStop: false);
+
+                init = false;
             };
 
             findAndActivate(SampleRate);
