@@ -379,6 +379,7 @@
     <Compile Include="Peripherals\Analog\STM32WBA_ADC.cs" />
     <Compile Include="Peripherals\Analog\Xilinx_XADC.cs" />
     <Compile Include="Peripherals\Analog\STM32_ADC.cs" />
+    <Compile Include="Peripherals\Analog\RenesasDA14_GPADC.cs" />
     <Compile Include="Peripherals\DMA\EOSS3_SPI_DMA.cs" />
     <Compile Include="Peripherals\Miscellaneous\EOSS3_PacketFIFO.cs" />
     <Compile Include="Peripherals\Miscellaneous\EOSS3_FlexibleFusionEngine.cs" />
