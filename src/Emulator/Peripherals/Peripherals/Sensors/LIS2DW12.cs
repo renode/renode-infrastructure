@@ -320,6 +320,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     if(index == mapping.Count)
                     {
                         SampleRateChanged -= findAndActivate;
+                        FIFOModeEntered -= findAndActivate;
                     }
                     return;
                 }
@@ -375,6 +376,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             findAndActivate(SampleRate);
             SampleRateChanged += findAndActivate;
+            FIFOModeEntered += findAndActivate;
         }
 
         private void FeedAccelerationSampleInner(decimal x, decimal y, decimal z, bool keepOnReset, uint repeat = 1)
@@ -573,6 +575,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         if(newMode == FIFOModeSelection.Bypass)
                         {
                             accelerationFifo.Reset();
+                        }
+                    }, changeCallback: (oldMode, newMode) =>
+                    {
+                        if(oldMode == FIFOModeSelection.Bypass && newMode == FIFOModeSelection.FIFOMode)
+                        {
+                            FIFOModeEntered?.Invoke(SampleRate);
                         }
                     }, name: "FIFO mode selection bits (FMode)");
 
@@ -883,6 +891,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private RESDStream<AccelerationSample> resdStream;
 
         private event Action<uint> SampleRateChanged;
+        // This event is used in MultiFrequency RESD to precisely match RESD behavior with FIFO operation
+        private event Action<uint> FIFOModeEntered;
 
         private decimal temperature;
 
