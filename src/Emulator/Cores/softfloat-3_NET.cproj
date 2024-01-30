@@ -3,16 +3,15 @@
 
   <PropertyGroup>
     <SoftFloatDirectory>tlib/softfloat-3</SoftFloatDirectory>
-    <BuildDirectory>$(SoftFloatDirectory)/build/$(Configuration)/$(SpecializedArchitecture)</BuildDirectory>
-    <OutputDirectory>$(BuildDirectory)</OutputDirectory>
   </PropertyGroup>
 
-  <Target Name="_VerifyProperties">
+  <Target Name="VerifyProperties">
     <Error Text="No configuration provided" Condition=" $(Configuration) == '' " />
     <Error Text="No specialized architecture provided" Condition=" $(SpecializedArchitecture) == '' " />
+    <Error Text="No build directory specified" Condition=" $(BuildDirectory) == '' " />
     <PropertyGroup>
-      <SoftFloatOutput>$(OutputDirectory)/libsoftfloat-3.a</SoftFloatOutput>
-      <ObjectFilesDirectory>$(BuildDirectory)</ObjectFilesDirectory>
+      <OutputDirectory>$(BuildDirectory)/softfloat-3</OutputDirectory>
+      <OutputArchive>$(OutputDirectory)/lib_softfloat-3_$(SpecializedArchitecture).a</OutputArchive>
       <ExcludeNonFastInt64>**/s_*128M*.c;**/s_*128SigM*.c;**/s_*80M*.c;**/s_*M.c</ExcludeNonFastInt64>
       <ExcludeUnusedFormats>**/*bf16*.c;**/*F80*.c;**/*F128*.c;**/*f128*.c;**/*BF16*.c</ExcludeUnusedFormats>
       <ExcludeCommon>$(ExcludeUnusedFormats);$(ExcludeNonFastInt64)</ExcludeCommon>
@@ -37,31 +36,22 @@
       <CSources Include="$(SoftFloatDirectory)/source/$(SpecializedArchitecture)/*.c" Condition="$(SpecializedArchitecture) == '8086'" Exclude="$(ExcludeCommon)" />
       <CSources Include="$(SoftFloatDirectory)/source/$(SpecializedArchitecture)/*.c" Condition="$(SpecializedArchitecture) == 'RISCV'" Exclude="$(ExcludeCommon)" />
       <CSources Include="$(SoftFloatDirectory)/source/*.c" Exclude="$(ExcludeCommon)" />
+      <ObjectFiles Include="@(CSources -> '$(OutputDirectory)/%(RelativeDir)%(filename).o')" />
 
       <InputFiles Include="@(CSources)" />
       <InputFiles Include="$(SoftFloatDirectory)/**/*.h" />
       <InputFiles Include="$(SoftFloatDirectory)/**/hashes" />
     </ItemGroup>
-
-    <ItemGroup>
-      <ObjectFiles Include="@(CSources -> '$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
-    </ItemGroup>
   </Target>
 
-  <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="_VerifyProperties">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
+  <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="VerifyProperties">
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(OutputDirectory)" />
   </Target>
 
-  <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(SoftFloatOutput)" DependsOnTargets="Compile">
-    <Message Text="Calling ar" />
+  <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(OutputArchive)" DependsOnTargets="Compile">
     <PropertyGroup>
       <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
     </PropertyGroup>
-    <MakeDir Directories="$(OutputDirectory)" />
-    <Exec Command="$(ArPath) rcs $(SoftFloatOutput) $(ObjectFilesString)" Condition=" !Exists('$(SoftFloatOutput)') Or '$(ObjectFilesString)' != '' " />
-  </Target>
-
-  <Target Name="Clean">
-    <RemoveDir Directories="$(BuildDirectory);$(OutputDirectory)" />
+    <Exec Command="$(ArPath) rcs $(OutputArchive) $(ObjectFilesString)" />
   </Target>
 </Project>

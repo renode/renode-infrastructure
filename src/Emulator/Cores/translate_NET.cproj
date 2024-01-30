@@ -32,34 +32,16 @@
       <TcgLibraryDirectory>$(MSBuildProjectDirectory)/tlib/tcg/bin/$(Configuration)</TcgLibraryDirectory>
       <TcgLibraryFilename>libtcg_$(HostArchitecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(TargetEndianess).a</TcgLibraryFilename>
     </PropertyGroup>
-    <PropertyGroup>
-      <SoftFloatSpecializedArchitecture>8086</SoftFloatSpecializedArchitecture>
-      <SoftFloatSpecializedArchitecture Condition="$(EmulatedTarget) == 'riscv' or $(EmulatedTarget) == 'riscv64'">RISCV</SoftFloatSpecializedArchitecture>
-      <SoftFloatLibraryDirectory>$(MSBuildProjectDirectory)/tlib/softfloat-3/build/$(Configuration)/$(SoftFloatSpecializedArchitecture)</SoftFloatLibraryDirectory>
-      <SoftFloatLibraryFilename>libsoftfloat-3.a</SoftFloatLibraryFilename>
-    </PropertyGroup>
 
     <Message Text="Configuring translation library" />
     <Message Text="Host : $(HostArchitecture), 64-bit, $(HostEndianess)" />
     <Message Text="Target : $(TargetArchitecture), $(TargetWordSize)-bit, $(TargetEndianess)" />
   </Target>
 
-  <Target Name="PrepareCompilation" DependsOnTargets="VerifyProperties">
+  <Target Name="GenerateFlags" DependsOnTargets="VerifyProperties">
     <PropertyGroup>
       <EmulatedTargetUpper>$(EmulatedTarget.ToUpper())</EmulatedTargetUpper>
     </PropertyGroup>
-    <ItemGroup>
-      <SourceFiles Include="$(TlibDirectory)/*.c" />
-      <SourceFiles Include="$(TlibDirectory)/arch/*.c" />
-      <SourceFiles Include="$(TlibDirectory)/external/*.c" />
-      <SourceFiles Include="$(TlibDirectory)/softfloat-2/*.c" />
-      <SourceFiles Include="$(TlibDirectory)/arch/$(EmulatedTarget)/*.c" />
-      <SourceFiles Include="renode/*.c" />
-      <SourceFiles Include="renode/arch/$(EmulatedTarget)/*.c" />
-
-      <!-- Common code for "arm" and "arm64" -->
-      <SourceFiles Include="$(TlibDirectory)/arch/arm_common/*.c" Condition="$(EmulatedTarget) == 'arm' or $(EmulatedTarget) == 'arm64'" />
-    </ItemGroup>
     <ItemGroup>
       <CompilationFlags Include="-DTLIB_PROFILING_BUILD=1" Condition="$(TlibProfilingBuild) == 'true'" />
       <CompilationFlags Include="-fno-omit-frame-pointer" Condition="$(TlibProfilingBuild) == 'true'" />
@@ -127,15 +109,36 @@
       <LinkFlags Include="-Wl,-undefined,error" Condition="$(CurrentPlatform) != 'Linux'" />
       <LinkFlags Include="$(AdditionalLinkFlags)" />
     </ItemGroup>
+  </Target>
+
+  <Target Name="PrepareCompilation" DependsOnTargets="GenerateFlags">
+    <ItemGroup>
+      <SourceFiles Include="$(TlibDirectory)/*.c" />
+      <SourceFiles Include="$(TlibDirectory)/arch/*.c" />
+      <SourceFiles Include="$(TlibDirectory)/external/*.c" />
+      <SourceFiles Include="$(TlibDirectory)/softfloat-2/*.c" />
+      <SourceFiles Include="$(TlibDirectory)/arch/$(EmulatedTarget)/*.c" />
+      <SourceFiles Include="renode/*.c" />
+      <SourceFiles Include="renode/arch/$(EmulatedTarget)/*.c" />
+
+      <!-- Common code for "arm" and "arm64" -->
+      <SourceFiles Include="$(TlibDirectory)/arch/arm_common/*.c" Condition="$(EmulatedTarget) == 'arm' or $(EmulatedTarget) == 'arm64'" />
+    </ItemGroup>
     <ItemGroup>
       <InputFiles Include="**" Exclude="config/**;tcg/**;softfloat-3/**;bin/**;obj/**;lib/**;**/.*" />
       <ObjectFiles Include="@(SourceFiles->'$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
-      <ObjectFiles Include="$(TcgLibraryDirectory)/$(TcgLibraryFilename)" />
-      <ObjectFiles Include="$(SoftFloatLibraryDirectory)/$(SoftFloatLibraryFilename)" />
     </ItemGroup>
   </Target>
 
+  <Target Name="Compile" DependsOnTargets="PrepareCompilation" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)">
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
+  </Target>
+
   <Target Name="PrepareDependencies" DependsOnTargets="VerifyProperties">
+    <PropertyGroup>
+      <SoftFloatSpecializedArchitecture>8086</SoftFloatSpecializedArchitecture>
+      <SoftFloatSpecializedArchitecture Condition="$(EmulatedTarget) == 'riscv' or $(EmulatedTarget) == 'riscv64'">RISCV</SoftFloatSpecializedArchitecture>
+    </PropertyGroup>
     <ItemGroup>
       <ProjectDependencies Include="tcg_NET.cproj">
         <AdditionalProperties>TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);Endianess=$(TargetEndianess)</AdditionalProperties>
@@ -147,21 +150,26 @@
   </Target>
 
   <Target Name="BuildDependencies" DependsOnTargets="PrepareDependencies">
-    <MSBuild Projects="@(ProjectDependencies)" Targets="Build" Properties="Configuration=$(Configuration);CompilerPath=$(CompilerPath);" />
+    <MSBuild Projects="@(ProjectDependencies)" Properties="Configuration=$(Configuration);BuildDirectory=$(ObjectFilesDirectory);CompilerPath=$(CompilerPath);">
+      <Output
+        TaskParameter="TargetOutputs"
+        ItemName="LibraryDependencies"
+        />
+    </MSBuild>
   </Target>
 
-  <Target Name="Compile" DependsOnTargets="PrepareCompilation;BuildDependencies" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
+  <Target Name="PrepareBuild" DependsOnTargets="BuildDependencies">
+    <ItemGroup>
+      <ObjectFiles Include="@(LibraryDependencies)" />
+    </ItemGroup>
   </Target>
 
-  <Target Name="Build" DependsOnTargets="Compile" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
+  <Target Name="Build" DependsOnTargets="Compile;PrepareBuild" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
     <MakeDir Directories="$(SoFileLocation)" />
     <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(SoFileLocation)/$(LibraryPath)" />
   </Target>
 
   <Target Name="Clean">
-    <MSBuild Projects="tcg_NET.cproj" Targets="Clean" />
-    <MSBuild Projects="softfloat-3_NET.cproj" Targets="Clean" />
     <RemoveDir Directories="config;obj;bin" />
   </Target>
 </Project>

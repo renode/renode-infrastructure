@@ -4,7 +4,6 @@
   <PropertyGroup>
     <Architecture Condition=" $(Architecture) == '' ">i386</Architecture>
     <TcgDirectory>tlib/tcg</TcgDirectory>
-    <OutputDirectory>$(TcgDirectory)/bin/$(Configuration)</OutputDirectory>
   </PropertyGroup>
 
   <Target Name="_VerifyProperties">
@@ -13,9 +12,10 @@
     <Error Text="Endianess not provided" Condition=" $(Endianess) == '' " />
     <Error Text="Number of extra insn_start words not provided" Condition=" $(TargetInsnStartExtraWords) == '' " />
     <Error Text="Wrong endianess value: provide 'le' or 'be'" Condition=" $(Endianess) != 'le' and $(Endianess) != 'be' " />
+    <Error Text="No build directory specified" Condition=" $(BuildDirectory) == '' " />
     <PropertyGroup>
-      <TcgOutput>$(OutputDirectory)/libtcg_$(Architecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess).a</TcgOutput>
-      <ObjectFilesDirectory>$(TcgDirectory)/obj/$(Configuration)/obj-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess)</ObjectFilesDirectory>
+      <OutputDirectory>$(BuildDirectory)/tcg</OutputDirectory>
+      <OutputArchive>$(OutputDirectory)/libtcg_$(Architecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess).a</OutputArchive>
     </PropertyGroup>
 
     <ItemGroup>
@@ -40,33 +40,21 @@
       <CSources Include="$(TcgDirectory)/tcg-op-gvec.c" />
       <CSources Include="$(TcgDirectory)/tcg-op-vec.c" />
       <CSources Include="$(TcgDirectory)/tcg-runtime-gvec.c" />
+      <ObjectFiles Include="@(CSources -> '$(OutputDirectory)/%(RelativeDir)%(filename).o')" />
 
       <InputFiles Include="$(TcgDirectory)/**" Exclude="$(TcgDirectory)/bin/**;$(TcgDirectory)/obj/**;$(TcgDirectory)/**/.*;$(TcgDirectory)/*.a" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ObjectFiles Include="@(CSources -> '$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
     </ItemGroup>
   </Target>
 
   <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="_VerifyProperties">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)"/>
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(OutputDirectory)" />
   </Target>
 
-  <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(TcgOutput)" DependsOnTargets="Compile">
-    <Message Text="Calling ar" />
+  <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(OutputArchive)" DependsOnTargets="Compile">
     <PropertyGroup>
       <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
     </PropertyGroup>
     <MakeDir Directories="$(OutputDirectory)" />
-    <Exec Command="$(ArPath) rcs $(TcgOutput) $(ObjectFilesString)" Condition=" !Exists('$(TcgOutput)') Or '$(ObjectFilesString)' != '' " />
-  </Target>
-
-  <Target Name="Clean">
-    <ItemGroup>
-      <FilesToDelete Include="$(TcgDirectory)/*.a" />
-    </ItemGroup>
-    <Delete Files="@(FilesToDelete)" />
-    <RemoveDir Directories="$(TcgDirectory)/obj;$(TcgDirectory)/bin" />
+    <Exec Command="$(ArPath) rcs $(OutputArchive) $(ObjectFilesString)" />
   </Target>
 </Project>
