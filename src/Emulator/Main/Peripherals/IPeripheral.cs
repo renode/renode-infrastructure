@@ -62,6 +62,10 @@ namespace Antmicro.Renode.Peripherals
 
         public static Endianess GetEndianness(this IPeripheral @this, Endianess? defaultEndianness = null)
         {
+            if(@this is IEndiannessAware endiannessAwarePeripheral)
+            {
+                return endiannessAwarePeripheral.Endianness;
+            }
             if(defaultEndianness != null)
             {
                 return defaultEndianness.Value;

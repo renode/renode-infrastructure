@@ -605,6 +605,7 @@
     <Compile Include="Utilities\SimpleInstructionDecoder.cs" />
     <Compile Include="Peripherals\DefaultInterruptAttribute.cs" />
     <Compile Include="Peripherals\CPU\CPUState.cs" />
+    <Compile Include="Peripherals\IEndiannessAware.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
