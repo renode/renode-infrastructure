@@ -38,7 +38,9 @@
       <CSources Include="$(SoftFloatDirectory)/source/$(SpecializedArchitecture)/*.c" Condition="$(SpecializedArchitecture) == 'RISCV'" Exclude="$(ExcludeCommon)" />
       <CSources Include="$(SoftFloatDirectory)/source/*.c" Exclude="$(ExcludeCommon)" />
 
-      <InputFiles Include="$(SoftFloatDirectory)/**" Exclude="$(BuildDirectory)/**;$(OutputDirectory)/*.a" />
+      <InputFiles Include="@(CSources)" />
+      <InputFiles Include="$(SoftFloatDirectory)/**/*.h" />
+      <InputFiles Include="$(SoftFloatDirectory)/**/hashes" />
     </ItemGroup>
 
     <ItemGroup>
