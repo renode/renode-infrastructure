@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.SCI
 
         public Parity ParityBit => parityEnabled.Value ? parityBit : Parity.None;
 
-        public long Size => 0x100;
+        public long Size => 0x20;
 
         public event Action<byte> CharReceived;
 
