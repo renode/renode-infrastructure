@@ -23,7 +23,7 @@
       <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
       <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
     </PropertyGroup>
-    <MSBuild Projects="./translate_NET.cproj" Targets="VerifyProperties;GenerateFlags;Compile;Link;Build" Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
+    <MSBuild Projects="./translate_NET.cproj" Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
   </Target>
 
   <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">

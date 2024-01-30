@@ -44,7 +44,7 @@
     <Message Text="Target : $(TargetArchitecture), $(TargetWordSize)-bit, $(TargetEndianess)" />
   </Target>
 
-  <Target Name="GenerateFlags" DependsOnTargets="VerifyProperties">
+  <Target Name="PrepareCompilation" DependsOnTargets="VerifyProperties">
     <PropertyGroup>
       <EmulatedTargetUpper>$(EmulatedTarget.ToUpper())</EmulatedTargetUpper>
     </PropertyGroup>
@@ -127,9 +127,6 @@
       <LinkFlags Include="-Wl,-undefined,error" Condition="$(CurrentPlatform) != 'Linux'" />
       <LinkFlags Include="$(AdditionalLinkFlags)" />
     </ItemGroup>
-  </Target>
-
-  <Target Name="_PrepareInputsAndOutputsForCompilation" DependsOnTargets="GenerateFlags">
     <ItemGroup>
       <InputFiles Include="**" Exclude="config/**;tcg/**;softfloat-3/**;bin/**;obj/**;lib/**;**/.*" />
       <ObjectFiles Include="@(SourceFiles->'$(ObjectFilesDirectory)/%(relativedir)%(filename).o')" />
@@ -138,26 +135,28 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CompileTcg" DependsOnTargets="GenerateFlags">
-    <Message Text="Compiling tcg" />
-    <MSBuild Projects="tcg_NET.cproj" Targets="_VerifyProperties;Compile;Build" Properties="Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);Endianess=$(TargetEndianess);CompilerPath=$(CompilerPath)" />
+  <Target Name="PrepareDependencies" DependsOnTargets="VerifyProperties">
+    <ItemGroup>
+      <ProjectDependencies Include="tcg_NET.cproj">
+        <AdditionalProperties>TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);Endianess=$(TargetEndianess)</AdditionalProperties>
+      </ProjectDependencies>
+      <ProjectDependencies Include="softfloat-3_NET.cproj">
+        <AdditionalProperties>SpecializedArchitecture=$(SoftFloatSpecializedArchitecture)</AdditionalProperties>
+      </ProjectDependencies>
+    </ItemGroup>
   </Target>
 
-  <Target Name="CompileSoftFloat" DependsOnTargets="GenerateFlags">
-    <Message Text="Compiling SoftFloat" />
-    <MSBuild Projects="softfloat-3_NET.cproj" Targets="_VerifyProperties;Compile;Build" Properties="Configuration=$(Configuration);CompilerPath=$(CompilerPath);SpecializedArchitecture=$(SoftFloatSpecializedArchitecture)" />
+  <Target Name="BuildDependencies" DependsOnTargets="PrepareDependencies">
+    <MSBuild Projects="@(ProjectDependencies)" Targets="Build" Properties="Configuration=$(Configuration);CompilerPath=$(CompilerPath);" />
   </Target>
 
-  <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg;CompileSoftFloat" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)">
+  <Target Name="Compile" DependsOnTargets="PrepareCompilation;BuildDependencies" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)">
     <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
   </Target>
 
-  <Target Name="Link" DependsOnTargets="Compile" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
+  <Target Name="Build" DependsOnTargets="Compile" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
     <MakeDir Directories="$(SoFileLocation)" />
     <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(SoFileLocation)/$(LibraryPath)" />
-  </Target>
-
-  <Target Name="Build" DependsOnTargets="Link">
   </Target>
 
   <Target Name="Clean">
