@@ -13,10 +13,11 @@ using Antmicro.Renode.Logging;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Exceptions;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral, IQuadWordPeripheral, ICanLoadFiles
+    public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral, IQuadWordPeripheral, ICanLoadFiles, IEndiannessAware
     {
         public ArrayMemory(byte[] source)
         {
@@ -163,6 +164,10 @@ namespace Antmicro.Renode.Peripherals.Memory
                 return array.Length;
             }
         }
+
+        // ArrayMemory matches the host endianness because host-endian BitConverter operations are used for
+        // accesses wider than a byte.
+        public Endianess Endianness => BitConverter.IsLittleEndian ? Endianess.LittleEndian : Endianess.BigEndian;
 
         protected readonly byte[] array;
 
