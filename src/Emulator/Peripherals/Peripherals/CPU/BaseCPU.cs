@@ -603,6 +603,9 @@ restart:
                     // call SyncTime during ExecuteInstructions
                 }
 
+                // set upper limit on instructions to execute to `int.MaxValue` 
+                // as otherwise it would overflow further down in ExecuteInstructions
+                toExecute = Math.Min(toExecute, int.MaxValue);
                 var result = ExecutionResult.Ok;
                 if(toExecute > 0)
                 {
