@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -129,8 +129,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return;
             }
 
-            //GPIOs from outer peripherals have to be attached by their negative value.
-            //Please keep in mind that it's impossible to connect outgoing GPIO to pin 0.
             State[number] = value;
         }
 
