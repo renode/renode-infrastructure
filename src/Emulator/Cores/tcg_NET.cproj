@@ -1,5 +1,5 @@
 <Project DefaultTargets="Build">
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask"/>
+  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask" />
 
   <PropertyGroup>
     <Architecture Condition=" $(Architecture) == '' ">i386</Architecture>
@@ -9,10 +9,10 @@
 
   <Target Name="_VerifyProperties">
     <Error Text="Target word size not provided" Condition=" $(TargetWordSize) == '' " />
-    <Error Text="No configuration provided" Condition=" $(Configuration) == '' "/>
-    <Error Text="Endianess not provided" Condition=" $(Endianess) == '' "/>
-    <Error Text="Number of extra insn_start words not provided" Condition=" $(TargetInsnStartExtraWords) == '' "/>
-    <Error Text="Wrong endianess value: provide 'le' or 'be'" Condition=" $(Endianess) != 'le' and $(Endianess) != 'be' "/>
+    <Error Text="No configuration provided" Condition=" $(Configuration) == '' " />
+    <Error Text="Endianess not provided" Condition=" $(Endianess) == '' " />
+    <Error Text="Number of extra insn_start words not provided" Condition=" $(TargetInsnStartExtraWords) == '' " />
+    <Error Text="Wrong endianess value: provide 'le' or 'be'" Condition=" $(Endianess) != 'le' and $(Endianess) != 'be' " />
     <PropertyGroup>
       <TcgOutput>$(OutputDirectory)/libtcg_$(Architecture)-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess).a</TcgOutput>
       <ObjectFilesDirectory>$(TcgDirectory)/obj/$(Configuration)/obj-$(TargetWordSize)-$(TargetInsnStartExtraWords)_$(Endianess)</ObjectFilesDirectory>
@@ -54,19 +54,19 @@
   </Target>
 
   <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(TcgOutput)" DependsOnTargets="Compile">
-    <Message Text="Calling ar"/>
+    <Message Text="Calling ar" />
     <PropertyGroup>
       <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
     </PropertyGroup>
-    <MakeDir Directories="$(OutputDirectory)"/>
-    <Exec Command="$(ArPath) rcs $(TcgOutput) $(ObjectFilesString)" Condition=" !Exists('$(TcgOutput)') Or '$(ObjectFilesString)' != '' "/>
+    <MakeDir Directories="$(OutputDirectory)" />
+    <Exec Command="$(ArPath) rcs $(TcgOutput) $(ObjectFilesString)" Condition=" !Exists('$(TcgOutput)') Or '$(ObjectFilesString)' != '' " />
   </Target>
 
   <Target Name="Clean">
     <ItemGroup>
-      <FilesToDelete Include="$(TcgDirectory)/*.a"/>
+      <FilesToDelete Include="$(TcgDirectory)/*.a" />
     </ItemGroup>
-    <Delete Files="@(FilesToDelete)"/>
-    <RemoveDir Directories="$(TcgDirectory)/obj;$(TcgDirectory)/bin"/>
+    <Delete Files="@(FilesToDelete)" />
+    <RemoveDir Directories="$(TcgDirectory)/obj;$(TcgDirectory)/bin" />
   </Target>
 </Project>

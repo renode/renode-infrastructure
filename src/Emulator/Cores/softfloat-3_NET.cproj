@@ -1,5 +1,5 @@
 <Project DefaultTargets="Build">
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask"/>
+  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask" />
 
   <PropertyGroup>
     <SoftFloatDirectory>tlib/softfloat-3</SoftFloatDirectory>
@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <Target Name="_VerifyProperties">
-    <Error Text="No configuration provided" Condition=" $(Configuration) == '' "/>
-    <Error Text="No specialized architecture provided" Condition=" $(SpecializedArchitecture) == '' "/>
+    <Error Text="No configuration provided" Condition=" $(Configuration) == '' " />
+    <Error Text="No specialized architecture provided" Condition=" $(SpecializedArchitecture) == '' " />
     <PropertyGroup>
       <SoftFloatOutput>$(OutputDirectory)/libsoftfloat-3.a</SoftFloatOutput>
       <ObjectFilesDirectory>$(BuildDirectory)</ObjectFilesDirectory>
@@ -47,19 +47,19 @@
   </Target>
 
   <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="_VerifyProperties">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)"/>
+    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
   </Target>
 
   <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(SoftFloatOutput)" DependsOnTargets="Compile">
-    <Message Text="Calling ar"/>
+    <Message Text="Calling ar" />
     <PropertyGroup>
       <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
     </PropertyGroup>
-    <MakeDir Directories="$(OutputDirectory)"/>
-    <Exec Command="$(ArPath) rcs $(SoftFloatOutput) $(ObjectFilesString)" Condition=" !Exists('$(SoftFloatOutput)') Or '$(ObjectFilesString)' != '' "/>
+    <MakeDir Directories="$(OutputDirectory)" />
+    <Exec Command="$(ArPath) rcs $(SoftFloatOutput) $(ObjectFilesString)" Condition=" !Exists('$(SoftFloatOutput)') Or '$(ObjectFilesString)' != '' " />
   </Target>
 
   <Target Name="Clean">
-    <RemoveDir Directories="$(BuildDirectory);$(OutputDirectory)"/>
+    <RemoveDir Directories="$(BuildDirectory);$(OutputDirectory)" />
   </Target>
 </Project>
