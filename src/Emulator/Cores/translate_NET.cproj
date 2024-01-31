@@ -25,8 +25,8 @@
       <EmulatedTarget Condition=" '$(EmulatedTarget)' == '' ">$(TargetArchitecture.ToLower())</EmulatedTarget>
 
       <ConfigName>$(ProtoTarget)-$(TargetWordSize)_$(TargetEndianess)</ConfigName>
-      <SoFileLocation>bin/$(Configuration)/lib</SoFileLocation>
-      <LibraryPath>translate-$(ProtoTarget)-$(TargetEndianess).so</LibraryPath>
+      <OutputDirectory>bin/$(Configuration)/$(ConfigName)</OutputDirectory>
+      <OutputLibrary>$(OutputDirectory)/translate-$(ProtoTarget)-$(TargetEndianess).so</OutputLibrary>
       <ObjectFilesDirectory>obj/$(Configuration)/obj-$(ConfigName)</ObjectFilesDirectory>
       <TlibDirectory>tlib</TlibDirectory>
       <TcgLibraryDirectory>$(MSBuildProjectDirectory)/tlib/tcg/bin/$(Configuration)</TcgLibraryDirectory>
@@ -151,10 +151,7 @@
 
   <Target Name="BuildDependencies" DependsOnTargets="PrepareDependencies">
     <MSBuild Projects="@(ProjectDependencies)" Properties="Configuration=$(Configuration);BuildDirectory=$(ObjectFilesDirectory);CompilerPath=$(CompilerPath);">
-      <Output
-        TaskParameter="TargetOutputs"
-        ItemName="LibraryDependencies"
-        />
+      <Output TaskParameter="TargetOutputs" ItemName="LibraryDependencies" />
     </MSBuild>
   </Target>
 
@@ -164,9 +161,9 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="Build" DependsOnTargets="Compile;PrepareBuild" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
-    <MakeDir Directories="$(SoFileLocation)" />
-    <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(SoFileLocation)/$(LibraryPath)" />
+  <Target Name="Build" DependsOnTargets="Compile;PrepareBuild" Inputs="@(ObjectFiles)" Outputs="$(OutputLibrary)">
+    <MakeDir Directories="$(OutputDirectory)" />
+    <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(OutputLibrary)" />
   </Target>
 
   <Target Name="Clean">

@@ -23,16 +23,6 @@
       <AdditionalCompilationFlags>-DTARGET_PROTO_ARM_M=1</AdditionalCompilationFlags>
     </PropertyGroup>
   </Target>
-  <Target Name="PrepareEmbeddedResources" BeforeTargets="PrepareForBuild" DependsOnTargets="_PrepareProperties">
-    <ItemGroup>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-arm-m-le.so">
-        <LogicalName>Antmicro.Renode.translate-arm-m-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-arm-m-be.so">
-        <LogicalName>Antmicro.Renode.translate-arm-m-be.so</LogicalName>
-      </EmbeddedResource>
-    </ItemGroup>
-  </Target>
   <Import Project="./cores.template_NET.csproj" />
   <ItemGroup>
     <Compile Include="Arm-M\CortexM.cs" />

@@ -20,16 +20,6 @@
       <Endianess Include="be" />
     </ItemGroup>
   </Target>
-  <Target Name="PrepareEmbeddedResources" DependsOnTargets="_PrepareProperties" BeforeTargets="PrepareForBuild">
-    <ItemGroup>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-sparc-le.so">
-        <LogicalName>Antmicro.Renode.translate-sparc-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-sparc-be.so">
-        <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
-      </EmbeddedResource>
-    </ItemGroup>
-  </Target>
   <Import Project="./cores.template_NET.csproj" />
   <ItemGroup>
     <Compile Include="Sparc\Sparc.cs" />
