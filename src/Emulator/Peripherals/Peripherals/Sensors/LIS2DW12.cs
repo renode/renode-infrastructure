@@ -349,10 +349,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 // sample into the FIFO at the specified frequency until it's stopped after a sample
                 // rate switch
                 AccelerationSample previousSample = null;
+                // The same indexing as in 'ResdCommand' is used to log block's number
+                this.Log(LogLevel.Debug, "New RESD block with index {0} activated at time {1}", index, machine.ClockSource.CurrentValue);
                 feederThread = resdStream.StartSampleFeedThread(this, sampleRate, (sample, ts, status) =>
                 {
                     if(status == RESDStreamStatus.OK)
                     {
+                        this.Log(LogLevel.Noisy, "Feeded sample {0} at {1}", sample, ts);
                         previousSample = sample;
                     }
                     else if(status == RESDStreamStatus.AfterStream && index == mapping.Count)
@@ -401,12 +404,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void LoadNextSample()
         {
-            this.Log(LogLevel.Noisy, "Acquiring next sample");
             if(fifoModeSelection.Value != FIFOModeSelection.Bypass || accelerationFifo.KeepFifoOnReset)
             {
                 accelerationFifo.TryDequeueNewSample();
                 CurrentSample = accelerationFifo.Sample;
             }
+            this.Log(LogLevel.Noisy, "Acquired sample {0} during {1} operation", CurrentSample, fifoModeSelection.Value);
             UpdateInterrupts();
         }
 
@@ -460,7 +463,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                                 SampleRate = 0;
                                 break;
                         }
-                        this.Log(LogLevel.Noisy, "Sampling rate set to {0}", SampleRate);
+                        this.Log(LogLevel.Debug, "Sampling rate set to {0}", SampleRate);
                     }, name: "Output data rate and mode selection (ODR)");
 
             Registers.Control2.Define(this, 0x4)
@@ -951,7 +954,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         owner.Log(LogLevel.Noisy, "{0}: Fifo filled up. Dumping the oldest sample.", name);
                         queue.TryDequeue<Vector3DSample>(out _);
                     }
-
+                    owner.Log(LogLevel.Noisy, "Enqueued sample {0} at index {1}", sample, queue.Count);
                     queue.Enqueue(sample);
                 }
             }
