@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         Byte = 1,
         Word = 2,
-        DoubleWord = 4
+        DoubleWord = 4,
+        QuadWord = 8,
     }
 }
-

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -74,8 +74,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                         case TransferType.DoubleWord:
                             BitConverter.GetBytes(sysbus.ReadDoubleWord(readAddress)).CopyTo(buffer, transferred);
                             break;
+                        case TransferType.QuadWord:
+                            BitConverter.GetBytes(sysbus.ReadQuadWord(readAddress)).CopyTo(buffer, transferred);
+                            break;
                         default:
-                            throw new ArgumentOutOfRangeException();
+                            throw new ArgumentOutOfRangeException($"Requested read transfer size: {request.ReadTransferType} is not supported by DmaEngine");
                         }
                         transferred += (int)request.ReadTransferType;
                         if(request.IncrementReadAddress)
@@ -125,8 +128,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                         case TransferType.DoubleWord:
                             sysbus.WriteDoubleWord(destinationAddress + offset, BitConverter.ToUInt32(buffer, transferred));
                             break;
+                        case TransferType.QuadWord:
+                            sysbus.WriteQuadWord(destinationAddress + offset, BitConverter.ToUInt64(buffer, transferred));
+                            break;
                         default:
-                            throw new ArgumentOutOfRangeException();
+                            throw new ArgumentOutOfRangeException($"Requested write transfer size: {request.WriteTransferType} is not supported by DmaEngine");
                         }
                         transferred += (int)request.WriteTransferType;
                         if(request.IncrementWriteAddress)
