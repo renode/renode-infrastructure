@@ -631,6 +631,7 @@
     <Compile Include="Peripherals\DMA\PL330_DMA\PL330_DMA_Instructions.cs" />
     <Compile Include="Peripherals\MTD\SamsungK9NANDFlash.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA2_GPIO.cs" />
+    <Compile Include="Peripherals\GPIOPort\RenesasRA4_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
