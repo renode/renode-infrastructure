@@ -632,6 +632,7 @@
     <Compile Include="Peripherals\MTD\SamsungK9NANDFlash.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA2_GPIO.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA4_GPIO.cs" />
+    <Compile Include="Peripherals\GPIOPort\RenesasRA6_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
