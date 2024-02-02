@@ -313,8 +313,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
                 if(currentEntry == null)
                 {
-                    // No more blocks at this sample rate, so restore the FIFO-preserving behavior
-                    accelerationFifo.KeepFifoOnReset = true;
+                    // No more blocks at this sample rate
+                    this.Log(LogLevel.Debug, "No more RESD blocks for the sample rate {0}Hz", sampleRate);
+                    feederThread?.Stop();
+                    feederThread = null;
+                    resdStream?.Dispose();
                     // If there are no more blocks, even without taking the sample rate
                     // into account, then we can unregister this sample rate change handler
                     if(index == mapping.Count)
