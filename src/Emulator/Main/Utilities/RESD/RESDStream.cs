@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -209,12 +209,13 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             var machine = peripheral.GetMachine();
             timestamp = machine.ClockSource.CurrentValue;
-            var timestampInMicroseconds = timestamp.TotalMicroseconds * 1000;
-            return TryGetSample(timestampInMicroseconds, out sample);
+            var timestampInNanoseconds = timestamp.TotalMicroseconds * 1000;
+            return TryGetSample(timestampInNanoseconds, out sample);
         }
 
         public RESDStreamStatus TryGetSample(ulong timestamp, out T sample, long? overrideSampleOffsetTime = null)
         {
+            currentTimestampInNanoseconds = timestamp;
             var currentSampleOffsetTime = overrideSampleOffsetTime ?? sampleOffsetTime;
             if(currentSampleOffsetTime < 0)
             {
@@ -365,7 +366,9 @@ namespace Antmicro.Renode.Utilities.RESD
         [PreSerialization]
         private void BeforeSerialization()
         {
-            serializedTimestamp = currentBlock.CurrentTimestamp;
+            // After stream ended, current block is null so serialize timestamp as the last registered time
+            // so after serialization it will also return RESDStreamStatus.AfterStream
+            serializedTimestamp = currentBlock != null ? currentBlock.CurrentTimestamp : currentTimestampInNanoseconds;
         }
 
         [PostDeserialization]
@@ -380,6 +383,7 @@ namespace Antmicro.Renode.Utilities.RESD
         [Transient]
         private IEnumerator<DataBlock<T>> blockEnumerator;
         private ulong serializedTimestamp;
+        private ulong currentTimestampInNanoseconds;
         private long sampleOffsetTime;
 
         private readonly LowLevelRESDParser parser;
