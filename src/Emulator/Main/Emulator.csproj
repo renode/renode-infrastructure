@@ -297,6 +297,7 @@
     </Compile>
     <Compile Include="Utilities\IAutoLoadType.cs" />
     <Compile Include="Peripherals\CPU\ICPU.cs" />
+    <Compile Include="Peripherals\CPU\ICPUWithAArch64Support.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMetrics.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithNMI.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithExternalMmu.cs" />
