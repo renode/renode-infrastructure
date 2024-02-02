@@ -161,6 +161,7 @@
     <Compile Include="Utilities\GDB\Commands\ThreadAliveCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ThreadAttachedCommand.cs" />
     <Compile Include="Utilities\GDB\Commands\ThreadContextCommand.cs" />
+    <Compile Include="Utilities\GDB\Commands\Trace32Commands.cs" />
     <Compile Include="Utilities\USBIP\USBIPServer.cs" />
     <Compile Include="Utilities\USBIP\InterfaceDescriptor.cs" />
     <Compile Include="Utilities\USBIP\DeviceDescriptor.cs" />

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,8 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public PacketData Execute()
         {
             var command = new StringBuilder();
-            command.Append(string.Format("PacketSize={0};qXfer:features:read+;swbreak+;hwbreak+", 1024));
+            // Trace32 extensions aren't supported by all CPUs but it shouldn't break anything.
+            command.Append(string.Format("PacketSize={0};qXfer:features:read+;swbreak+;hwbreak+;t32extensions+", 1024));
             if(manager.Machine.SystemBus.IsMultiCore)
             {
                 command.Append(";qXfer:threads:read+;vContSupported+");
