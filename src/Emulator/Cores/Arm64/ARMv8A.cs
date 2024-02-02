@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
@@ -20,7 +21,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class ARMv8A : TranslationCPU, IARMTwoSecurityStatesCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
+    public partial class ARMv8A : TranslationCPU, IARMTwoSecurityStatesCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>, ICPUWithAArch64Support
     {
         public ARMv8A(IMachine machine, string cpuType, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
                 : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
@@ -104,6 +105,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             timer = peripheral;
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public bool TryGetSystemRegisterValue(AArch64SystemRegisterEncoding encoding, out ulong value)
+        {
+            value = 0;
+            return TryGetSystemRegisterIndex(encoding, out var systemRegisterIndex)
+                && TryGetSystemRegisterValue(systemRegisterIndex, out value, logUnhandledAccess: false);
+        }
+
+        public bool TrySetSystemRegisterValue(AArch64SystemRegisterEncoding encoding, ulong value)
+        {
+            return TryGetSystemRegisterIndex(encoding, out var systemRegisterIndex)
+                && TrySetSystemRegisterValue(systemRegisterIndex, value);
         }
 
         public void Unregister(ARM_GenericTimer peripheral)
@@ -260,15 +274,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected bool TrySetNonMappedRegister(int index, RegisterValue value)
         {
-            if(SystemRegistersDictionary.TryGetValue((uint)index, out var name))
-            {
-                // ValidateSystemRegisterAccess isn't used because most of it's checks aren't needed.
-                // The register must exist at this point cause it's in the dictionary built based on tlib
-                // and we don't really care about the invalid access type error for unwritable registers.
-                TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
-                return true;
-            }
-            return false;
+            return TrySetSystemRegisterValue((uint)index, value);
         }
 
         private bool IsGICOrGenericTimerSystemRegister(SystemRegister systemRegister)
@@ -287,6 +293,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             ExecutionModeChanged?.Invoke(ExceptionLevel, SecurityState);
         }
 
+        private bool TryGetSystemRegisterIndex(AArch64SystemRegisterEncoding encoding, out uint index)
+        {
+            index = uint.MaxValue;
+            var matchingEntries = SystemRegistersDictionary.Where(entry => encoding.Equals(entry.Value.Encoding));
+            DebugHelper.Assert(matchingEntries.Count() <= 1);
+
+            if(!matchingEntries.Any())
+            {
+                this.Log(LogLevel.Warning, "Unknown AArch64 system register encoding: {0}", encoding);
+                return false;
+            }
+            index = matchingEntries.Single().Key;
+            return true;
+        }
+
         private bool TryGetSystemRegisterValue(uint index, out ulong value, bool logUnhandledAccess)
         {
             if(SystemRegistersDictionary.TryGetValue(index, out var systemRegister))
@@ -298,6 +319,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return true;
             }
             value = 0;
+            return false;
+        }
+
+        private bool TrySetSystemRegisterValue(uint index, ulong value)
+        {
+            if(SystemRegistersDictionary.TryGetValue(index, out var systemRegister))
+            {
+                ValidateSystemRegisterAccess(systemRegister.Name, isWrite: true);
+                TlibSetSystemRegister(systemRegister.Name, value, 1u /* log_unhandled_access: true */);
+                return true;
+            }
             return false;
         }
 
