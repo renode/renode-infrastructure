@@ -344,6 +344,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L + (long)block.StartTime - (init ? (long)startTime : 0),
                     b => (b as ConstantFrequencySamplesDataBlock<AccelerationSample>)?.Frequency == sampleRate
                 );
+                resdStream.Owner = null; // turn off verbose internal RESD logging and use custom logs
                 accelerationFifo.KeepFifoOnReset = false;
 
                 // We start the thread with shouldStop: false so that it will keep feeding the last
