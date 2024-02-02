@@ -595,6 +595,8 @@
     <Compile Include="Utilities\ICanLoadFiles.cs" />
     <Compile Include="Peripherals\Network\Clause45Address.cs" />
     <Compile Include="Network\CRCMode.cs" />
+    <Compile Include="Network\BasicNetwork.cs" />
+    <Compile Include="Network\IBasicNetworkNode.cs" />
     <Compile Include="Utilities\IfWrapper.cs" />
     <Compile Include="Peripherals\IMachine.cs" />
     <Compile Include="Utilities\RESD\LowLevelRESDParser.cs" />
