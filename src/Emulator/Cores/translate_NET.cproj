@@ -22,7 +22,6 @@
 
       <ProtoTarget>$(TargetArchitecture.ToLower())</ProtoTarget>
       <HostUpper>$(HostArchitecture.ToUpper())</HostUpper>
-      <EmulatedTarget Condition=" '$(EmulatedTarget)' == '' ">$(TargetArchitecture.ToLower())</EmulatedTarget>
 
       <ConfigName>$(ProtoTarget)-$(TargetWordSize)_$(TargetEndianess)</ConfigName>
       <OutputDirectory>bin/$(Configuration)/$(ConfigName)</OutputDirectory>

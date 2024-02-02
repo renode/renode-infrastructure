@@ -1,11 +1,21 @@
 <Project DefaultTargets="Build">
   <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="EnvironmentTask" />
 
-  <Target Name="_PrepareProperties" DependsOnTargets="SetEndianess">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+
+  <Import Project="$(PropertiesLocation)" />
+
+  <Target Name="VerifyProperties">
     <Error Text="Configuration not provided" Condition=" $(Configuration) == '' " />
   </Target>
 
-  <Target Name="CompileTranslationLib" DependsOnTargets="_PrepareProperties" BeforeTargets="PrepareEmbeddedResources">
+  <Target Name="CompileTranslationLib" DependsOnTargets="VerifyProperties">
     <!-- Due to a bug in some versions of xbuild we set default value of $(TargetWordSize) and $(TargetInsnStartExtraWords)
              before passing it to 'translate.cproj' as it is impossible to overwrite them later. -->
     <PropertyGroup>
@@ -17,7 +27,7 @@
     </MSBuild>
   </Target>
 
-  <Target Name="PrepareEmbeddedResources" BeforeTargets="PrepareForBuild" DependsOnTargets="_PrepareProperties">
+  <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" DependsOnTargets="CompileTranslationLib">
     <ItemGroup>
       <EmbeddedResource Include="@(TranslationLibraries)">
         <LogicalName>Antmicro.Renode.%(Filename)%(Extension)</LogicalName>

@@ -1,4 +1,4 @@
-<Project DefaultTargets="Build">
+<Project>
   <PropertyGroup>
     <CompilerPath>/usr/bin/gcc</CompilerPath>
     <LinkerPath>/usr/bin/gcc</LinkerPath>

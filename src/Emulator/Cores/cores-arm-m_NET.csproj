@@ -1,29 +1,17 @@
-<Project DefaultTargets="CompileTranslationLib;Build" Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
-    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
-    <EnableDefaultItems>false</EnableDefaultItems>
+    <Architecture>arm-m</Architecture>
+    <EmulatedTarget>arm</EmulatedTarget>
     <AssemblyName>cores-arm-m</AssemblyName>
-    <PropertiesLocation>..\..\..\..\..\output\properties.csproj</PropertiesLocation>
-    <LangVersion>7.2</LangVersion>
+    <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
+    <AdditionalCompilationFlags>-DTARGET_PROTO_ARM_M=1</AdditionalCompilationFlags>
   </PropertyGroup>
-  <Import Project="$(PropertiesLocation)" />
-  <Target Name="SetEndianess" BeforeTargets="Build">
-    <!-- Endianess cannot be set directly in Project tag, as it would be visible in Monodevelop then -->
-    <PropertyGroup>
-      <Architecture>arm-m</Architecture>
-      <EmulatedTarget>arm</EmulatedTarget>
-      <TargetInsnStartExtraWords>1</TargetInsnStartExtraWords>
-    </PropertyGroup>
-    <ItemGroup>
-      <Endianess Include="le" />
-      <Endianess Include="be" />
-    </ItemGroup>
-    <PropertyGroup>
-      <AdditionalCompilationFlags>-DTARGET_PROTO_ARM_M=1</AdditionalCompilationFlags>
-    </PropertyGroup>
-  </Target>
+  <ItemGroup>
+    <Endianess Include="le" />
+    <Endianess Include="be" />
+  </ItemGroup>
   <Import Project="./cores.template_NET.csproj" />
+
   <ItemGroup>
     <Compile Include="Arm-M\CortexM.cs" />
     <Compile Include="Arm-M\CortexMRegisters.cs">
