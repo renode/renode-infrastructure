@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -445,6 +445,18 @@ namespace Antmicro.Renode.Utilities
         public static bool[] GetBits(uint reg)
         {
             return GetBitsInner(reg, 32);
+        }
+
+        public static byte[] GetNibbles(ulong reg)
+        {
+            var nibbles = new byte[16];
+            var i = 0;
+            while(reg > 0)
+            {
+                nibbles[i++] = (byte)(reg & 0xF);
+                reg >>= 4;
+            }
+            return nibbles;
         }
 
         public static byte GetValue(byte reg, int offset, int size)
