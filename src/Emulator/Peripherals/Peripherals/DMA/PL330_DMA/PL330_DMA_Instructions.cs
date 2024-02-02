@@ -414,7 +414,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var burstLength = ignoreBurst ? 1 : selectedChannel.DestinationBurstLength;
 
                 // If requested, swap endianness of data in buffer, just before the transmission
-                if(selectedChannel.EndianSwapSize > 0)
+                if(selectedChannel.EndianSwapSize > 1)
                 {
                     DoEndianSwap(selectedChannel, writeLength * burstLength);
                 }
