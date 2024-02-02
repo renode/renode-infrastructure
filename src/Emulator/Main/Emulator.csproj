@@ -525,6 +525,7 @@
     <Compile Include="Utilities\GDB\Packet.cs" />
     <Compile Include="Utilities\GDB\PacketBuilder.cs" />
     <Compile Include="Utilities\GDB\PacketData.cs" />
+    <Compile Include="Utilities\GDB\PacketThreadId.cs" />
     <Compile Include="Utilities\GDB\GdbStub.cs" />
     <Compile Include="Peripherals\CPU\ICpuSupportingGdb.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMMU.cs" />

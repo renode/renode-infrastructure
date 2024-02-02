@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,7 +21,8 @@ namespace Antmicro.Renode.Utilities.GDB
             HexBytesString, // two hex digits for each byte
             BinaryBytes,
             HexString, // two hex digits for every character
-            String
+            String,
+            ThreadId, // can be "<thread-id>" but can also be "p<process-id>.<thread-id>"
         }
     }
 }
