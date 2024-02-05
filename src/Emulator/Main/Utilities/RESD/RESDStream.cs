@@ -293,8 +293,11 @@ namespace Antmicro.Renode.Utilities.RESD
             {
                 if(blockEnumerator == null)
                 {
-                    Owner?.Log(LogLevel.Debug, "RESD: End of sample feeding thread detected");
-                    newSampleCallback(null, TimeInterval.Empty, RESDStreamStatus.AfterStream);
+                    if(shouldStop)
+                    {
+                        feedSample(); // invoke action to update timestamp and status before stopping thread
+                        Owner?.Log(LogLevel.Debug, "RESD: End of sample feeding thread detected");
+                    }
                     return shouldStop;
                 }
                 return false;
