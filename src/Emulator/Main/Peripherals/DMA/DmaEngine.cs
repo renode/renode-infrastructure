@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             sysbus = systemBus;
         }
 
-        public Response IssueCopy(Request request)
+        public Response IssueCopy(Request request, CPU.ICPU context = null)
         {
             var response = new Response
             {
@@ -42,18 +42,18 @@ namespace Antmicro.Renode.Peripherals.DMA
             else
             {
                 var sourceAddress = request.Source.Address.Value;
-                whatIsAt = sysbus.WhatIsAt(sourceAddress);
+                whatIsAt = sysbus.WhatIsAt(sourceAddress, context);
                 //allow ReadBytes if the read memory is without gaps
                 if((whatIsAt == null || whatIsAt.Peripheral is MappedMemory) && (int)request.ReadTransferType == request.SourceIncrementStep)
                 {
                     if(request.IncrementReadAddress)
                     {
-                        sysbus.ReadBytes(sourceAddress, request.Size, buffer, 0);
+                        sysbus.ReadBytes(sourceAddress, request.Size, buffer, 0, context: context);
                         response.ReadAddress += (ulong)request.Size;
                     }
                     else
                     {
-                        sysbus.ReadBytes(sourceAddress, (int)request.ReadTransferType, buffer, 0);
+                        sysbus.ReadBytes(sourceAddress, (int)request.ReadTransferType, buffer, 0, context: context);
                     }
                 }
                 else if(whatIsAt != null)
@@ -66,16 +66,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                         switch(request.ReadTransferType)
                         {
                         case TransferType.Byte:
-                            buffer[transferred] = sysbus.ReadByte(readAddress);
+                            buffer[transferred] = sysbus.ReadByte(readAddress, context);
                             break;
                         case TransferType.Word:
-                            BitConverter.GetBytes(sysbus.ReadWord(readAddress)).CopyTo(buffer, transferred);
+                            BitConverter.GetBytes(sysbus.ReadWord(readAddress, context)).CopyTo(buffer, transferred);
                             break;
                         case TransferType.DoubleWord:
-                            BitConverter.GetBytes(sysbus.ReadDoubleWord(readAddress)).CopyTo(buffer, transferred);
+                            BitConverter.GetBytes(sysbus.ReadDoubleWord(readAddress, context)).CopyTo(buffer, transferred);
                             break;
                         case TransferType.QuadWord:
-                            BitConverter.GetBytes(sysbus.ReadQuadWord(readAddress)).CopyTo(buffer, transferred);
+                            BitConverter.GetBytes(sysbus.ReadQuadWord(readAddress, context)).CopyTo(buffer, transferred);
                             break;
                         default:
                             throw new ArgumentOutOfRangeException($"Requested read transfer size: {request.ReadTransferType} is not supported by DmaEngine");
@@ -102,13 +102,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     if(request.IncrementWriteAddress)
                     {
-                        sysbus.WriteBytes(buffer, destinationAddress);
+                        sysbus.WriteBytes(buffer, destinationAddress, context: context);
                         response.WriteAddress += (ulong)request.Size;
                     }
                     else
                     {
                         // if the place to write is memory and we're not incrementing address, effectively only the last byte is written
-                        sysbus.WriteByte(destinationAddress, buffer[buffer.Length - 1]);
+                        sysbus.WriteByte(destinationAddress, buffer[buffer.Length - 1], context: context);
                     }
                 }
                 else
@@ -120,16 +120,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                         switch(request.WriteTransferType)
                         {
                         case TransferType.Byte:
-                            sysbus.WriteByte(destinationAddress + offset, buffer[transferred]);
+                            sysbus.WriteByte(destinationAddress + offset, buffer[transferred], context);
                             break;
                         case TransferType.Word:
-                            sysbus.WriteWord(destinationAddress + offset, BitConverter.ToUInt16(buffer, transferred));
+                            sysbus.WriteWord(destinationAddress + offset, BitConverter.ToUInt16(buffer, transferred), context);
                             break;
                         case TransferType.DoubleWord:
-                            sysbus.WriteDoubleWord(destinationAddress + offset, BitConverter.ToUInt32(buffer, transferred));
+                            sysbus.WriteDoubleWord(destinationAddress + offset, BitConverter.ToUInt32(buffer, transferred), context);
                             break;
                         case TransferType.QuadWord:
-                            sysbus.WriteQuadWord(destinationAddress + offset, BitConverter.ToUInt64(buffer, transferred));
+                            sysbus.WriteQuadWord(destinationAddress + offset, BitConverter.ToUInt64(buffer, transferred), context);
                             break;
                         default:
                             throw new ArgumentOutOfRangeException($"Requested write transfer size: {request.WriteTransferType} is not supported by DmaEngine");
