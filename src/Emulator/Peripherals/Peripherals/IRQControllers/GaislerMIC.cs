@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -472,9 +472,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
 
                 // Check the irq is forced
-                if((registers.ProcessorInterruptForce[cpuid] & (1u << realInterruptNumber)) != 0)
+                var interruptMask = 1u << realInterruptNumber;
+                if((registers.ProcessorInterruptForce[cpuid] & interruptMask) != 0)
                 {
-                    registers.ProcessorInterruptForce[cpuid] &= ~(1u << realInterruptNumber);
+                    registers.ProcessorInterruptForce[cpuid] &= ~interruptMask;
                     interrupts[cpuid].Remove(realInterruptNumber);
                     if(irqs[cpuid].IsSet)
                     {
@@ -484,10 +485,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 else
                 {
                     // Check if the interrupt is still pending and needs an ACK
-                    if((registers.InterruptPending & (1u << realInterruptNumber)) != 0)
+                    if((registers.InterruptPending & interruptMask) != 0)
                     {
                         // Remove the global pending interrupt
-                        registers.InterruptPending &= ~(1u << realInterruptNumber);
+                        registers.InterruptPending &= ~interruptMask;
                         interrupts[cpuid].Remove(realInterruptNumber);
                         if(irqs[cpuid].IsSet)
                         {
