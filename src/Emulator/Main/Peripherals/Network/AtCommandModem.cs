@@ -111,6 +111,8 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public bool EchoEnabledAtReset { get; set; } = true;
 
+        public bool EchoEnabled => echoEnabled;
+
         public virtual uint BaudRate { get; protected set; } = 115200;
 
         public Bits StopBits => Bits.One;
