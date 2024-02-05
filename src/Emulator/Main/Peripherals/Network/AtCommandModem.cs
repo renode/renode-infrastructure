@@ -128,6 +128,8 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public ulong? CommandResponseDelayMilliseconds { get; set; }
 
+        public uint? TransferBandwidth { get; set; }
+
         [field: Transient]
         public event Action<byte> CharReceived;
 
@@ -162,12 +164,35 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            lock(uartWriteLock)
+            if(TransferBandwidth == null)
             {
-                foreach(var b in bytes)
+                lock(uartWriteLock)
                 {
-                    charReceived(b);
+                    foreach(var b in bytes)
+                    {
+                        charReceived(b);
+                    }
                 }
+            }
+            else
+            {
+                var currentByte = 0;
+                IManagedThread thread = null;
+                thread = machine.ObtainManagedThread(() =>
+                {
+                    lock(uartWriteLock)
+                    {
+                        var b = bytes[currentByte];
+                        currentByte++;
+                        charReceived(b);
+                    }
+
+                    if(currentByte == bytes.Length)
+                    {
+                        thread.Stop();
+                    }
+                }, TransferBandwidth.Value);
+                thread.Start();
             }
         }
 
