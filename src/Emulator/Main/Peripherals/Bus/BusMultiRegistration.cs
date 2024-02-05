@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -37,6 +37,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return false;
             }
             return ConnectionRegionName == other.ConnectionRegionName;
+        }
+
+        public override string ToString()
+        {
+            return base.ToString() + $" [region: {ConnectionRegionName}]";
         }
 
         public override int GetHashCode()
