@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         public bool IsReceiveDataFull { get => receiveQueue.Count > 0; }
 
         public WordRegisterCollection RegistersCollection { get; }
-        
+
         public GPIO ReceiveIRQ { get; }
 
         public GPIO TransmitIRQ { get; }
@@ -515,7 +515,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                     .WithTag("SYNSEL", 5, 1)
                     .WithTag("SBSEL", 6, 1)
                     .WithFlag(7, name: "MANEN",
-                        writeCallback: (_, val) => manchesterMode = val, 
+                        writeCallback: (_, val) => manchesterMode = val,
                         valueProviderCallback: _ => manchesterMode)
                     .WithReservedBits(8, 8);
 
@@ -528,13 +528,13 @@ namespace Antmicro.Renode.Peripherals.SCI
                     .WithTag("RPLEN", 0, 3)
                     .WithTag("RPPAT", 4, 2)
                     .WithReservedBits(6, 10);
-                
+
                 Registers.ManchesterExtendedErrorStatus.Define(this)
                     .WithTag("PFER", 0, 1)
                     .WithTag("SYER", 1, 1)
                     .WithTag("SBER", 2, 1)
                     .WithReservedBits(3, 13);
-                
+
                 Registers.ManchesterExtendedErrorControl.Define(this)
                     .WithTag("PFEREN", 0, 1)
                     .WithTag("SYEREN", 1, 1)
