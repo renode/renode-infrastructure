@@ -87,7 +87,14 @@ namespace Antmicro.Renode.Peripherals.Network
                 var response = HandleCommand(command);
                 if(response != null)
                 {
-                    SendResponse(response);
+                    if(CommandResponseDelayMilliseconds.HasValue)
+                    {
+                        machine.ScheduleAction(TimeInterval.FromMilliseconds(CommandResponseDelayMilliseconds.Value), _ => SendResponse(response)); 
+                    }
+                    else
+                    {
+                        SendResponse(response);
+                    }
                 }
             }
             else
@@ -118,6 +125,8 @@ namespace Antmicro.Renode.Peripherals.Network
         public Bits StopBits => Bits.One;
 
         public Parity ParityBit => Parity.None;
+
+        public ulong? CommandResponseDelayMilliseconds { get; set; }
 
         [field: Transient]
         public event Action<byte> CharReceived;
