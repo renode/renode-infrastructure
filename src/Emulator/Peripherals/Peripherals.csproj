@@ -640,6 +640,7 @@
     <Compile Include="Peripherals\Timers\RenesasDA14_Watchdog.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasDA14_GPIO.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_PeriodicInterruptTimer.cs" />
+    <Compile Include="Peripherals\Timers\S32K3XX_SystemTimerModule.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
