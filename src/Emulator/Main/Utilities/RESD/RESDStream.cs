@@ -321,6 +321,8 @@ namespace Antmicro.Renode.Utilities.RESD
         public IEmulationElement Owner { get; set; }
 
         public T CurrentSample => currentBlock?.CurrentSample;
+        public DataBlock<T> CurrentBlock => currentBlock;
+        public long CurrentBlockNumber => currentBlockNumber;
         public SampleType SampleType { get; }
         public uint Channel { get; }
         public Action MetadataChanged;
@@ -344,6 +346,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
             while(blockEnumerator.TryGetNext(out var nextBlock))
             {
+                currentBlockNumber++;
                 if(nextBlock.ChannelId != Channel || !(extraFilter?.Invoke(nextBlock) ?? true))
                 {
                     Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", nextBlock.BlockType, nextBlock.DataSize);
@@ -380,6 +383,7 @@ namespace Antmicro.Renode.Utilities.RESD
         private IEnumerator<DataBlock<T>> blockEnumerator;
         private ulong serializedTimestamp;
         private ulong currentTimestampInNanoseconds;
+        private long currentBlockNumber;
         private long sampleOffsetTime;
 
         private readonly LowLevelRESDParser parser;
