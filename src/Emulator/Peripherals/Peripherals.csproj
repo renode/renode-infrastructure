@@ -642,6 +642,7 @@
     <Compile Include="Peripherals\Timers\S32K3XX_PeriodicInterruptTimer.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_SystemTimerModule.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_SoftwareWatchdogTimer.cs" />
+    <Compile Include="Peripherals\Timers\S32K3XX_RealTimeClock.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
