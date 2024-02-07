@@ -75,15 +75,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType() => GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
 
-        public uint GetInterruptNumber()
-        {
-            var endpoint = IRQ.Endpoints.FirstOrDefault();
-            if(endpoint == null)
-            {
-                return 0;
-            }
-            return (uint)endpoint.Number;
-        }
+        public uint GetInterruptNumber() => this.GetCpuInterruptNumber(IRQ);
 
         private void DefineRegisters()
         {

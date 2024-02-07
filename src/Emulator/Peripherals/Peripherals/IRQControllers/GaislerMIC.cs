@@ -352,12 +352,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public uint GetInterruptNumber()
         {
-            var irqEndpoints = irqs[0].Endpoints;
-            if(irqEndpoints.Count > 0)
-            {
-                return (uint)irqEndpoints[0].Number;
-            }
-            return 0;
+            return this.GetCpuInterruptNumber(irqs[0]);
         }
         #endregion
 

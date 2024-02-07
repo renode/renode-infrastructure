@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
@@ -166,13 +167,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public uint GetInterruptNumber()
         {
-            var irqEndpoints = IRQ.Endpoints;
-            if(irqEndpoints.Count > 0)
-            {
-                return (uint)irqEndpoints[0].Number;
-            }
-            return 0;
-
+            return this.GetCpuInterruptNumber(IRQ);
         }
 
         public GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType()

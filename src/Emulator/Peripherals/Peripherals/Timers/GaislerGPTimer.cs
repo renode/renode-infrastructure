@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -320,12 +321,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         
         public uint GetInterruptNumber()
         {
-            var irqEndpoints = Connections[0].Endpoints;
-            if(irqEndpoints.Count > 0)
-            {
-                return (uint)irqEndpoints[0].Number;
-            }
-            return 0;
+            return this.GetCpuInterruptNumber(Connections[0]);
         }
 
         private readonly int numberOfTimers;
