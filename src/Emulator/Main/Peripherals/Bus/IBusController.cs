@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Utilities;
@@ -52,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         IEnumerable<ICPU> GetCPUs();
         int GetCPUId(ICPU cpu);
         ICPU GetCurrentCPU();
+        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null);
         bool TryGetCurrentCPU(out ICPU cpu);
 
         void UnregisterFromAddress(ulong address, ICPU context = null);

@@ -474,6 +474,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .Convert<IBusPeripheral, IMapped>();
         }
 
+        public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null)
+        {
+            return GetPeripheralsForContext(context);
+        }
+
         public void SilenceRange(Range range)
         {
             var silencer = new Silencer();
