@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -134,6 +134,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringEndRange & ~0xFFFFFUL);
         }
 
+        public ulong MasterFilteringStartRange { get; set; }
+        public ulong MasterFilteringEndRange { get; set; }
+
+        public ulong PeripheralsFilteringStartRange { get; set; }
+        public ulong PeripheralsFilteringEndRange { get; set; }
+
         public long Size => 0x100;
 
         private int CountCPUs()
@@ -154,14 +160,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IFlagRegisterField enabled;
         private bool[] lockedCPUs;
-        private readonly byte smpMask;
         private int numberOfCPUs;
 
-        public ulong PeripheralsFilteringStartRange { get; set; }
-        public ulong PeripheralsFilteringEndRange { get; set; }
-
-        public ulong MasterFilteringStartRange { get; set; }
-        public ulong MasterFilteringEndRange { get; set; }
+        private readonly byte smpMask;
 
         // Should not be more than 4, but could be less
         private const int MaximumCPUs = 4;
