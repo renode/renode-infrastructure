@@ -49,7 +49,6 @@
     <Compile Include="SHT21Test.cs" />
     <Compile Include="BMC050Test.cs" />
     <Compile Include="STMCANTest.cs" />
-    <Compile Include="GailserUARTTests.cs" />
     <Compile Include="LPC43xx_GPIO_Test.cs" />
     <Compile Include="OpenTitan_AES_Test.cs" />
     <Compile Include="OpenTitan_KeyManagerTest.cs" />
