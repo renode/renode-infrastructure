@@ -104,6 +104,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             bus.SetPeripheralEnabled(peripheral, false);
         }
 
+        public static void MoveBusMultiRegistrationWithinContext(this IBusController bus, IBusPeripheral peripheral, ulong newAddress, ICPU cpu, string regionName)
+        {
+            bus.MoveRegistrationWithinContext(peripheral, newAddress, cpu,
+                selector: busRegisteredEnumerable =>
+                {
+                    return busRegisteredEnumerable.Where(
+                            busRegistered => (busRegistered.RegistrationPoint is BusMultiRegistration multiRegistration) && multiRegistration.ConnectionRegionName == regionName
+                        ).Single();
+                }
+            );
+        }
+
         public static void ZeroRange(this IBusController bus, long from, long size, ICPU context = null)
         {
             bus.ZeroRange(from.By(size), context);
