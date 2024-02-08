@@ -19,7 +19,6 @@ namespace Antmicro.Renode.Peripherals.Network
             string softwareVersionNumber = DefaultSoftwareVersionNumber,
             string serialNumber = DefaultSerialNumber) : base(machine, imeiNumber, softwareVersionNumber, serialNumber)
         {
-            dataOutputSeparator = ",";
             dataOutputSurrounding = "\"";
 
             nameModemConfigDecoder = new Dictionary<string, ModemConfigBC660K>(StringComparer.OrdinalIgnoreCase)
@@ -231,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     showLength = args[0] != 0;
                     break;
                 case "viewmode":
-                    dataOutputSeparator = args[0] == 0 ? "," : CrLf;
+                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
                     break;
                 case "showRA": // display the address of the remote end while displaying received data
                     this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
