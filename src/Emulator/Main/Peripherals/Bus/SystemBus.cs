@@ -1138,31 +1138,31 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalPeripherals.Remove(peripheral);
         }
 
-        private void UnregisterInner(IBusRegistered<IBusPeripheral> registrationPoint)
+        private void UnregisterInner(IBusRegistered<IBusPeripheral> busRegistered)
         {
-            if(mappingsForPeripheral.ContainsKey(registrationPoint.Peripheral))
+            if(mappingsForPeripheral.ContainsKey(busRegistered.Peripheral))
             {
                 var toRemove = new HashSet<MappedSegmentWrapper>();
                 // it is assumed that mapped segment cannot be partially outside the registration point range
-                foreach(var mapping in mappingsForPeripheral[registrationPoint.Peripheral].Where(x => registrationPoint.RegistrationPoint.Range.Contains(x.StartingOffset)))
+                foreach(var mapping in mappingsForPeripheral[busRegistered.Peripheral].Where(x => busRegistered.RegistrationPoint.Range.Contains(x.StartingOffset)))
                 {
                     UnmapMemory(new Range(mapping.StartingOffset, checked((ulong)mapping.Size)));
                     toRemove.Add(mapping);
                 }
-                mappingsForPeripheral[registrationPoint.Peripheral].RemoveAll(x => toRemove.Contains(x));
-                if(mappingsForPeripheral[registrationPoint.Peripheral].Count == 0)
+                mappingsForPeripheral[busRegistered.Peripheral].RemoveAll(x => toRemove.Contains(x));
+                if(mappingsForPeripheral[busRegistered.Peripheral].Count == 0)
                 {
-                    mappingsForPeripheral.Remove(registrationPoint.Peripheral);
+                    mappingsForPeripheral.Remove(busRegistered.Peripheral);
                 }
             }
-            var perCoreRegistration = registrationPoint as IPerCoreRegistration;
+            var perCoreRegistration = busRegistered as IPerCoreRegistration;
             if(perCoreRegistration?.CPU != null)
             {
-                cpuLocalPeripherals[perCoreRegistration.CPU].Remove(registrationPoint.RegistrationPoint.Range.StartAddress, registrationPoint.RegistrationPoint.Range.EndAddress);
+                cpuLocalPeripherals[perCoreRegistration.CPU].Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
             }
             else
             {
-                globalPeripherals.Remove(registrationPoint.RegistrationPoint.Range.StartAddress, registrationPoint.RegistrationPoint.Range.EndAddress);
+                globalPeripherals.Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
             }
         }
 
