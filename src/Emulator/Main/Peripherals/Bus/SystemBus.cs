@@ -135,9 +135,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
         {
-            if(context == null ? !TryFindCurrentThreadCPUAndId(out context, out var _) : !context.OnPossessedThread)
+            if(context == null && !TryFindCurrentThreadCPUAndId(out context, out var _))
             {
-                throw new RecoverableException("Moving a peripheral is supported only from context's CPU thread");
+                throw new RecoverableException("Moving a peripheral is supported only from CPU thread if context isn't explicitly set");
             }
             var wasMapped = RemoveMappingsForPeripheral(peripheral);
             var container = context != null ? cpuLocalPeripherals[context] : globalPeripherals;
