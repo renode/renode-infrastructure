@@ -20,7 +20,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class RenesasRA_ICU : BasicDoubleWordPeripheral, IIRQController, IKnownSize
     {
-        public RenesasRA_ICU(IMachine machine, IGPIOReceiver nvic) : base(machine)
+        public RenesasRA_ICU(IMachine machine, IGPIOReceiver nvic,
+            uint numberOfExternalInterrupts = DefaultNumberOfExternalInterrupts,
+            uint highestEventNumber = DefaultHighestEventNumber,
+            uint numberOfNVICOutputs = DefaultNumberOfNVICOutputs) : base(machine)
         {
             // Type comparison like this is required due to NVIC model being in another project
             if(nvic.GetType().FullName != "Antmicro.Renode.Peripherals.IRQControllers.NVIC")
@@ -28,114 +31,135 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 throw new ConstructionException($"{nvic.GetType()} is invalid type for NVIC");
             }
 
+            var numberOfEvents = highestEventNumber + 1;
+            if(numberOfEvents < numberOfExternalInterrupts)
+            {
+                throw new ConstructionException($"The number of events ({numberOfEvents}) is lower than number of external interrupts ({numberOfExternalInterrupts})");
+            }
+
             this.nvic = nvic;
 
-            MapEventToIRQ = new int?[NumberOfEvents];
-            interruptPending = new IFlagRegisterField[NumberOfEvents];
-
-            interruptTrigger = new IEnumRegisterField<InterruptTrigger>[NumberOfExternalInterrupts];
-            previousPinState = new bool[NumberOfExternalInterrupts];
+            interruptsForEvent = Enumerable.Range(0, (int)numberOfEvents).Select(_ => new HashSet<int>()).ToArray();
+            latestEventState = new bool[numberOfEvents];
+            externalInterruptTrigger = new IEnumRegisterField<InterruptTrigger>[numberOfExternalInterrupts];
+            interruptEventLink = new IValueRegisterField[numberOfNVICOutputs];
+            interruptPending = new IFlagRegisterField[numberOfNVICOutputs];
 
             DefineRegisters();
         }
 
-        public void OnGPIO(int number, bool value)
+        public override void Reset()
         {
-            if(number <= 0 || number >= MapEventToIRQ.Length)
+            base.Reset();
+            foreach(var irqs in interruptsForEvent)
             {
+                irqs.Clear();
+            }
+            Array.Clear(latestEventState, 0, latestEventState.Length);
+        }
+
+        public void OnGPIO(int eventIndex, bool state)
+        {
+            if(eventIndex >= latestEventState.Length)
+            {
+                this.Log(LogLevel.Warning, "Trying to update a state of event of index 0x{0:x}, which is larger than declared number of events", eventIndex);
                 return;
             }
 
-            if(MapEventToIRQ[number] == null)
-            {
-                // If event mapping is not registered by software, ignore incoming IRQ
-                this.Log(LogLevel.Debug, "Unhandled IRQ request from 0x{0:X}", number);
-                return;
-            }
-
-            var irqIndex = MapEventToIRQ[number].Value;
-            if(number > NumberOfExternalInterrupts)
-            {
-                // Handle peripheral interrupt
-                interruptPending[irqIndex].Value |= value;
-                nvic.OnGPIO(irqIndex, value);
-                return;
-            }
-
-            // Handle IRQn interrupt
-            // As number is between 1 and NumberOfExternalInterrupts,
-            // externalIrqNumber will be between 0 and NumberOfExternalInterrupts - 1
-            var externalIrqNumber = number - 1;
-            switch(interruptTrigger[externalIrqNumber].Value)
-            {
-                case InterruptTrigger.RisingEdge:
-                    if(!(!previousPinState[externalIrqNumber] && value))
-                    {
-                        return;
-                    }
-                    break;
-
-                case InterruptTrigger.FallingEdge:
-                    if(!(previousPinState[externalIrqNumber] && !value))
-                    {
-                        return;
-                    }
-                    break;
-
-                case InterruptTrigger.BothEdges:
-                    if(!(previousPinState[externalIrqNumber] ^ value))
-                    {
-                        return;
-                    }
-                    break;
-
-                case InterruptTrigger.ActiveLow:
-                    if(value)
-                    {
-                        return;
-                    }
-                    break;
-            }
-
-            interruptPending[irqIndex].Value = true;
-            nvic.OnGPIO(irqIndex, true);
-            previousPinState[externalIrqNumber] = value;
+            UpdateEventAndInterrupts(eventIndex, state);
         }
 
         public long Size => 0x1000;
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        public int?[] MapEventToIRQ { get; }
-
-        private void UpdateInterrupts()
+        private int GetEventForInterruptIndex(int irqIndex)
         {
-            for(var i = 0; i < NumberOfExternalInterrupts; ++i)
+            var eventIndex = Array.FindIndex(interruptsForEvent, irqs => irqs.Contains(irqIndex));
+            if(eventIndex == -1)
             {
-                if(interruptTrigger[i].Value == InterruptTrigger.ActiveLow && !previousPinState[i])
-                {
-                    var index = Array.FindIndex(MapEventToIRQ, val => val == i);
-                    if(index != -1)
-                    {
-                        OnGPIO(index, false);
-                        break;
-                    }
-                }
+                return NoEventIndex;
+            }
+            return eventIndex;
+        }
+
+        private int GetEventForEventLink(int irqIndex, ulong eventLink)
+        {
+            return (int)eventLink;
+        }
+
+        private bool IsEventTriggered(int eventIndex, bool previousState, bool state)
+        {
+            if(eventIndex == NoEventIndex)
+            {
+                // There is no event with index 0.
+                return false;
+            }
+
+            if(eventIndex > externalInterruptTrigger.Length)
+            {
+                // Handle an event from a peripheral
+                return state;
+            }
+
+            // Handle an IRQn (an external interrupt)
+            // As number is between 1 and NumberOfExternalInterrupts,
+            // externalIrqNumber will be between 0 and NumberOfExternalInterrupts - 1.
+            var externalIrqNumber = eventIndex - 1;
+            var trigger = externalInterruptTrigger[externalIrqNumber].Value;
+            switch(trigger)
+            {
+                case InterruptTrigger.RisingEdge:
+                    return !previousState && state;
+                case InterruptTrigger.FallingEdge:
+                    return previousState && !state;
+                case InterruptTrigger.BothEdges:
+                    return previousState != state;
+                case InterruptTrigger.ActiveLow:
+                    return !state;
+                default:
+                    throw new ArgumentOutOfRangeException($"Unknown value of interrupt trigger {trigger}");
+            }
+        }
+
+        private void UpdateEventAndInterrupts(int eventIndex, bool? newEventState = null, ICollection<int> interruptIndexes = null)
+        {
+            var previousState = latestEventState[eventIndex];
+            // If newEventState isn't passed just keep existing state.
+            var newState = newEventState ?? previousState;
+            latestEventState[eventIndex] = newState;
+
+            // Update the passed list of interrupts or all linked to the event.
+            var irqs = interruptIndexes ?? interruptsForEvent[eventIndex];
+            var isTriggered = IsEventTriggered(eventIndex, previousState, newState);
+
+            if(irqs.Count() == 0 && isTriggered)
+            {
+                // If event mapping is not registered by software and there is no list of interrupts to update, ignore incoming IRQ.
+                this.Log(LogLevel.Warning, "Unhandled event request: 0x{0:X}. There is no configured link to the NVIC.", eventIndex);
+                return;
+            }
+
+            foreach(var irqIndex in irqs)
+            {
+                // Latch signal and pass to the NVIC.
+                interruptPending[irqIndex].Value |= isTriggered;
+                nvic.OnGPIO(irqIndex, interruptPending[irqIndex].Value);
             }
         }
 
         private void DefineRegisters()
         {
-            Registers.IRQControl0.DefineMany(this, NumberOfExternalInterrupts, (register, registerIndex) =>
+            Registers.IRQControl0.DefineMany(this, (uint)externalInterruptTrigger.Length, (register, registerIndex) =>
             {
                 register
-                    .WithEnumField(0, 2, out interruptTrigger[registerIndex], name: $"IRQMD{registerIndex}")
+                    .WithEnumField(0, 2, out externalInterruptTrigger[registerIndex], name: $"IRQMD{registerIndex}")
                     .WithReservedBits(2, 2)
                     .WithTag($"FCLKSEL{registerIndex}", 4, 2)
                     .WithReservedBits(6, 1)
                     .WithTaggedFlag($"FLTEN{registerIndex}", 7)
                     .WithReservedBits(8, 24)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                    .WithChangeCallback((_, __) => UpdateEventAndInterrupts(registerIndex + 1))
                 ;
             });
 
@@ -234,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(16, 16)
             ;
 
-            Registers.DMACEventLinkSetting0.DefineMany(this, NumberOfDMACEvents, (register, registerIndex) =>
+            Registers.DMACEventLinkSetting0.DefineMany(this, DefaultNumberOfDMACEvents, (register, registerIndex) =>
             {
                 register
                     .WithTag($"DELS{registerIndex}", 0, 9)
@@ -244,45 +268,41 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ;
             });
 
-            Registers.ICUEventLinkSetting0.DefineMany(this, NumberOfNvicOutputs, (register, registerIndex) =>
+            var eventLinkRegisterLength = 9;
+            Registers.ICUEventLinkSetting0.DefineMany(this, (uint)interruptEventLink.Length, (register, registerIndex) =>
             {
                 register
-                    .WithValueField(0, 9, name: $"IELS{registerIndex}",
-                        valueProviderCallback: _ =>
-                            (ulong)MapEventToIRQ
-                                .Select((irqIndex, eventIndex) => irqIndex != null && irqIndex.Value == registerIndex ? eventIndex : 0)
-                                .FirstOrDefault(eventIndex => eventIndex > 0),
-                        writeCallback: (previousValue, value) =>
+                    .WithValueField(0, eventLinkRegisterLength, out interruptEventLink[registerIndex], name: $"IELS{registerIndex}",
+                        changeCallback: (prevVal, val) =>
                         {
-                            if(previousValue > 0)
-                            {
-                                MapEventToIRQ[previousValue] = null;
-                            }
-                            if(value > 0)
-                            {
-                                MapEventToIRQ[value] = registerIndex;
-                            }
-                        })
-                    .WithReservedBits(9, 7)
-                    .WithFlag(16, out interruptPending[registerIndex], FieldMode.WriteZeroToClear, name: $"IR{registerIndex}")
+                            interruptsForEvent[GetEventForEventLink(registerIndex, prevVal)].Remove(registerIndex);
+                            interruptsForEvent[GetEventForEventLink(registerIndex, val)].Add(registerIndex);
+                        }
+                    )
+                    .WithReservedBits(eventLinkRegisterLength, 16 - eventLinkRegisterLength)
+                    .WithFlag(16, out interruptPending[registerIndex], FieldMode.Read | FieldMode.WriteZeroToClear, name: $"IR{registerIndex}")
                     .WithReservedBits(17, 7)
                     .WithTaggedFlag($"DTCE{registerIndex}", 24)
                     .WithReservedBits(25, 7)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                    // If there is no event for the interrupt, the event with index 0 is returned, which is never triggered.
+                    .WithChangeCallback((_, __) => UpdateEventAndInterrupts(GetEventForInterruptIndex(registerIndex), null, new int[] { registerIndex }))
                 ;
             });
         }
 
-        private const int NumberOfExternalInterrupts = 16;
-        private const int NumberOfEvents = 512;
-        private const int NumberOfDMACEvents = 8;
-        private const int NumberOfNvicOutputs = 96;
-
+        private readonly IEnumRegisterField<InterruptTrigger>[] externalInterruptTrigger;
+        private readonly IValueRegisterField[] interruptEventLink;
         private readonly IFlagRegisterField[] interruptPending;
-        private readonly IEnumRegisterField<InterruptTrigger>[] interruptTrigger;
-        private readonly bool[] previousPinState;
 
+        private readonly ISet<int>[] interruptsForEvent;
+        private readonly bool[] latestEventState;
         private readonly IGPIOReceiver nvic;
+
+        private const int NoEventIndex = 0;
+        private const uint DefaultNumberOfExternalInterrupts = 16;
+        private const uint DefaultHighestEventNumber = 0x1DA;
+        private const uint DefaultNumberOfDMACEvents = 8;
+        private const uint DefaultNumberOfNVICOutputs = 96;
 
         private enum InterruptTrigger
         {
