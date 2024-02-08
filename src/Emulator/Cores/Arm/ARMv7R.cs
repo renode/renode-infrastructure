@@ -8,14 +8,16 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public class ARMv7R : Arm, IARMSingleSecurityStateCPU
     {
-        public ARMv7R(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null)
-            : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
+        public ARMv7R(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian,
+                      uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
+            : base(cpuType, machine, cpuId, endianness, numberOfMPURegions, signalsUnit)
         {
             Affinity = new Affinity(cpuId);
             try

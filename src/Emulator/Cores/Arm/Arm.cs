@@ -26,11 +26,19 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 2)]
     public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>, IPeripheralRegister<ArmPerformanceMonitoringUnit, NullRegistrationPoint>
     {
-        public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null) : base(cpuId, cpuType, machine, endianness)
+        public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
+            : base(cpuId, cpuType, machine, endianness)
         {
             if(numberOfMPURegions.HasValue)
             {
                 this.NumberOfMPURegions = numberOfMPURegions.Value;
+            }
+
+            if(signalsUnit != null)
+            {
+                // There's no such unit in hardware but we need to share certain signals between cores.
+                this.signalsUnit = signalsUnit;
+                signalsUnit.RegisterCPU(this);
             }
         }
 
@@ -383,6 +391,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        private void FillConfigurationSignalsState(IntPtr allocatedStatePointer)
+        {
+            // It's OK not to set the fields if there's no ArmConfigurationSignals.
+            // Default values of structure's fields are neutral to the simulation.
+            signalsUnit?.FillConfigurationStateStruct(allocatedStatePointer, this);
+        }
+
+        [Export]
         private uint IsWfiAsNop()
         {
             return WfiAsNop ? 1u : 0u;
@@ -415,6 +431,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
+        private readonly ArmSignalsUnit signalsUnit;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649

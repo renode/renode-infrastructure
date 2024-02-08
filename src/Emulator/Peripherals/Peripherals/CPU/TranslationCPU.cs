@@ -304,6 +304,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected override void OnLeavingResetState()
+        {
+            base.OnLeavingResetState();
+            TlibOnLeavingResetState();
+        }
+
         protected override void RequestPause()
         {
             base.RequestPause();
@@ -1924,6 +1930,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionInt32 TlibSetBroadcastDirty;
+
+        [Import]
+        private Action TlibOnLeavingResetState;
 
 #pragma warning restore 649
 

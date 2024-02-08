@@ -278,6 +278,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 state = value;
+                if(oldState == CPUState.InReset)
+                {
+                    OnLeavingResetState();
+                }
                 StateChanged?.Invoke(this, oldState, value);
             }
         }
@@ -387,6 +391,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var intervalToReport = TimeInterval.FromCPUCycles(instructions + executedResiduum, PerformanceInMips, out executedResiduum);
                 TimeHandle.ReportProgress(intervalToReport);
             }
+        }
+
+        protected virtual void OnLeavingResetState()
+        {
+            // Intentionally left blank.
         }
 
         protected override void OnResume()
