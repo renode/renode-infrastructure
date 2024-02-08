@@ -102,20 +102,24 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
             var methods = PeripheralAccessMethods.CreateWithLock();
-            FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-            RegisterInner(peripheral, methods, registrationPoint, registrationPoint.CPU);
+            if(registrationPoint is BusMultiRegistration multiRegistrationPoint)
+            {
+                if(peripheral is IMapped)
+                {
+                    throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
+                }
+                FillAccessMethodsWithTaggedMethods(peripheral, multiRegistrationPoint.ConnectionRegionName, ref methods);
+            }
+            else
+            {
+                FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
+            }
+            RegisterInner(peripheral, methods, registrationPoint, context: registrationPoint.CPU);
         }
 
         public void Register(IBusPeripheral peripheral, BusMultiRegistration registrationPoint)
         {
-            if(peripheral is IMapped)
-            {
-                throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
-            }
-
-            var methods = PeripheralAccessMethods.CreateWithLock();
-            FillAccessMethodsWithTaggedMethods(peripheral, registrationPoint.ConnectionRegionName, ref methods);
-            RegisterInner(peripheral, methods, registrationPoint, context: registrationPoint.CPU);
+            Register(peripheral, (BusRangeRegistration)registrationPoint);
         }
 
         void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
