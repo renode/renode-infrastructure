@@ -5,16 +5,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.IRQControllers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public sealed class STM32_SYSCFG : IDoubleWordPeripheral, IIRQController, INumberedGPIOOutput, IKnownSize
+    public sealed class STM32_SYSCFG : IDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize, ILocalGPIOReceiver
     {
         public STM32_SYSCFG()
         {
@@ -24,17 +25,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 gpios.Add(i, new GPIO());
             }
             Connections = new ReadOnlyDictionary<int, IGPIO>(gpios);
+            internalReceiversCache = new Dictionary<int, InternalReceiver>();
             registers = CreateRegisters();
         }
 
-        public void OnGPIO(int number, bool value)
+        /* The pattern to connect IRQs in REPL would be:
+         * `[a-b] -> syscfg@index[a-b]`, where:
+         * -> index - index of the mapped peripheral
+         * -> a, b - the range of exposed GPIO pins (lines to be redirected to EXTI)
+         * since this peripheral maps IRQs line-to-line (e.g. line X of input into line X of output)
+         * the thing that's muxed is the peripheral, the line belongs to (the index)
+         */
+        public IGPIOReceiver GetLocalReceiver(int index)
         {
-            var pinNumber = number % GpioPins;
-            var portNumber = number / GpioPins;
-            if((int)extiMappings[pinNumber].Value == portNumber)
+            if(!internalReceiversCache.TryGetValue(index, out var receiver))
             {
-                Connections[pinNumber].Set(value);
+                receiver = new InternalReceiver(this, index);
+                internalReceiversCache.Add(index, receiver);
             }
+            return receiver;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -87,10 +96,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private readonly DoubleWordRegisterCollection registers;
+        private readonly Dictionary<int, InternalReceiver> internalReceiversCache;
 
         private readonly IValueRegisterField[] extiMappings = new IValueRegisterField[GpioPins];
 
         private const int GpioPins = 16;
+
+        private class InternalReceiver : IGPIOReceiver
+        {
+            public InternalReceiver(STM32_SYSCFG parent, int portNumber)
+            {
+                this.parent = parent;
+                this.portNumber = portNumber;
+            }
+
+            public void OnGPIO(int pinNumber, bool value)
+            {
+                parent.Log(LogLevel.Noisy, "GPIO port {0}, pin {1}, raised IRQ: {2}", portNumber, pinNumber, value);
+                if((int)parent.extiMappings[pinNumber].Value == portNumber)
+                {
+                    parent.Connections[pinNumber].Set(value);
+                }
+            }
+
+            public void Reset()
+            {
+                // Intentionally left empty - this helper class has no internal state
+            }
+
+            private readonly STM32_SYSCFG parent;
+            private readonly int portNumber;
+        }
 
         private enum Registers
         {
