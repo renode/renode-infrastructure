@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -100,7 +100,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ExternalInterruptConfiguration2 = 0xC,
             ExternalInterruptConfiguration3 = 0x10,
             ExternalInterruptConfiguration4 = 0x14,
-            CompensationCellControl = 0x20
+            ConfigurationRegister = 0x18,
+            CompensationCellControl = 0x20,
+            CompensationCellValue = 0x24,
+            CompensationCellCode = 0x28,
+            PowerControl = 0x2C,
+            PackageType = 0x124,
+            User0 = 0x300,
+            User1 = 0x304,
+            User2 = 0x308,
+            User3 = 0x30C,
+            User4 = 0x310,
+            User5 = 0x314,
+            User6 = 0x318,
+            User7 = 0x31C,
+            User8 = 0x320,
+            User9 = 0x324,
+            User10 = 0x328,
+            User11 = 0x32C,
+            User12 = 0x330,
+            User13 = 0x334,
+            User14 = 0x338,
+            User15 = 0x33C,
+            User16 = 0x340,
+            User17 = 0x344,
         }
     }
 }
