@@ -118,6 +118,7 @@
     <Compile Include="Peripherals\MemoryControllers\ESAMemoryController.cs" />
     <Compile Include="Peripherals\IRQControllers\GaislerMIC.cs" />
     <Compile Include="Peripherals\Timers\GaislerGPTimer.cs" />
+    <Compile Include="Peripherals\Timers\Gaisler_GPTimer.cs" />
     <Compile Include="Peripherals\GPIOPort\Gaisler_GPIO.cs" />
     <Compile Include="Peripherals\Timers\TegraTimer.cs" />
     <Compile Include="Peripherals\Timers\OMAP_GPTimer.cs" />
