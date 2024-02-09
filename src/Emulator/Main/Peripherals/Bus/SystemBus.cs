@@ -985,6 +985,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void SetAddressRangeLocked(Range range, bool locked)
+        {
+            if(locked)
+            {
+                lockedRangesCollection.Add(range);
+            }
+            else
+            {
+                lockedRangesCollection.Remove(range);
+            }
+        }
+
         public void SetPeripheralEnabled(IPeripheral peripheral, bool enabled)
         {
             if(enabled)
@@ -998,6 +1010,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     lockedPeripherals.Add(peripheral);
                 }
             }
+        }
+
+        public bool IsAddressRangeLocked(Range range)
+        {
+            return lockedRangesCollection.ContainsOverlappingRange(range);
         }
 
         public bool IsPeripheralEnabled(IPeripheral peripheral)
@@ -1654,6 +1671,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalPeripherals = new PeripheralCollection(this);
             cpuLocalPeripherals = new Dictionary<ICPU, PeripheralCollection>();
             lockedPeripherals = new HashSet<IPeripheral>();
+            lockedRangesCollection = new MinimalRangesCollection();
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
             tags = new Dictionary<Range, TagEntry>();
             svdDevices = new List<SVDParser>();
@@ -1845,6 +1863,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private PeripheralCollection globalPeripherals;
         private Dictionary<ICPU, PeripheralCollection> cpuLocalPeripherals;
         private ISet<IPeripheral> lockedPeripherals;
+        private MinimalRangesCollection lockedRangesCollection;
         private Dictionary<IBusPeripheral, List<MappedSegmentWrapper>> mappingsForPeripheral;
         private bool mappingsRemoved;
         private bool peripheralRegistered;
