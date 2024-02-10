@@ -149,6 +149,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             base.Reset();
+            pcWrittenFlag = false;
             ShouldEnterDebugMode = true;
             EnableArchitectureVariants();
             foreach(var key in simpleCSRs.Keys.ToArray())
