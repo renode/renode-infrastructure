@@ -157,6 +157,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 simpleCSRs[key] = 0;
             }
             UserState.Clear();
+            SetPCFromResetVector();
         }
 
         public void RegisterCustomCSR(string name, uint number, PrivilegeLevel mode)
@@ -287,6 +288,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 TlibSetHartId(value);
+            }
+        }
+
+        public ulong ResetVector
+        {
+            get => resetVector;
+            set
+            {
+                resetVector = value;
+                SetPCFromResetVector();
+            }
+        }
+
+        private void SetPCFromResetVector()
+        {
+            // Prevents overwriting PC if it's been set already (e.g. by LoadELF).
+            // The pcWrittenFlag is automatically set when setting PC so let's unset it.
+            // Otherwise, only the first ResetVector change would be propagated to PC.
+            if(!pcWrittenFlag)
+            {
+                PC = ResetVector;
+                pcWrittenFlag = false;
             }
         }
 
@@ -671,6 +694,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint? nmiVectorLength;
 
         private bool pcWrittenFlag;
+        private ulong resetVector = DefaultResetVector;
 
         private readonly IRiscVTimeProvider timeProvider;
 
@@ -1035,6 +1059,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         // but because these additional features are not there RISCV_ADDITIONAL_FEATURE_OFFSET allows to show that they are unrelated to MISA.
         private const int AdditionalExtensionOffset = 26;
 
+        private const ulong DefaultResetVector = 0x1000;
         private const int NumberOfGeneralPurposeRegisters = 32;
 
         protected enum IrqType
