@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         //     -> gpio@3
         public Button(bool invert = false)
         {
+            ReleaseOnReset = true;
             Inverted = invert;
             IRQ = new GPIO();
 
@@ -29,9 +30,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset()
         {
-            // We call Press here to refresh states after reset.
-            Press();
-            Release();
+            if(ReleaseOnReset)
+            {
+                Press();
+                Release();
+            }
+            else
+            {
+                // Toggle the button twice to refresh it's state to the same value as before the reset
+                Toggle();
+                Toggle();
+            }
         }
 
         public void PressAndRelease()
@@ -73,6 +82,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public bool Pressed { get; private set; }
 
         public bool Inverted { get; private set; }
+
+        public bool ReleaseOnReset { get; set; }
 
         private void OnStateChange(bool pressed)
         {
