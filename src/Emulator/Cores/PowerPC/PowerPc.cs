@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,8 +22,8 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 1)]
     public partial class PowerPc : TranslationCPU, ICPUWithHooks
     {
-        public PowerPc(string cpuType, IMachine machine, Endianess endianness = Endianess.BigEndian) : base(cpuType, machine,
-            /* hardcoded to big endian, controlable via TlibSetLittleEndianMode */ Endianess.BigEndian)
+        // Note that the reported endianness will be wrong if it is switched at runtime!
+        public PowerPc(string cpuType, IMachine machine, Endianess endianness = Endianess.BigEndian) : base(cpuType, machine, endianness)
         {
             initialEndianess = endianness;
             irqSync = new object();
