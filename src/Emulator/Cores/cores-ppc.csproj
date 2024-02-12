@@ -34,7 +34,6 @@
       <EmulatedTarget>ppc</EmulatedTarget>
     </PropertyGroup>
     <ItemGroup>
-      <Endianess Include="le" />
       <Endianess Include="be" />
     </ItemGroup>
   </Target>

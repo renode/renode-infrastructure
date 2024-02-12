@@ -35,7 +35,6 @@
       <TargetWordSize>64</TargetWordSize>
     </PropertyGroup>
     <ItemGroup>
-      <Endianess Include="le" />
       <Endianess Include="be" />
     </ItemGroup>
   </Target>

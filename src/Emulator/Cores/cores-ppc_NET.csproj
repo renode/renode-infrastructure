@@ -5,7 +5,6 @@
     <AssemblyName>cores-$(Architecture)</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Endianess Include="le" />
     <Endianess Include="be" />
   </ItemGroup>
   <Import Project="./cores.template_NET.csproj" />
