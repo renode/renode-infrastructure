@@ -1207,7 +1207,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             onTranslationBlockFetch = OnTranslationBlockFetch;
 
-            var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, Endianness == Endianess.BigEndian ? "be" : "le");
+            // PowerPC always uses the big-endian translation library
+            var endianSuffix = (Endianness == Endianess.BigEndian || Architecture.StartsWith("ppc")) ? "be" : "le";
+            var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, endianSuffix);
             foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
