@@ -815,7 +815,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetMmuWindowAddend(uint index, ulong addend)
         {
-            if(AssertMmuEnabledAndWindowInRange(index) && AssertMmuWindowAddressInRange(addend))
+            if(AssertMmuEnabledAndWindowInRange(index))
             {
                 TlibSetMmuWindowAddend(index, addend);
             }
