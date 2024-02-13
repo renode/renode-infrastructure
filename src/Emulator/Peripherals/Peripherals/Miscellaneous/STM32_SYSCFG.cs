@@ -62,6 +62,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 connection.Unset();
             }
+            foreach(var receiver in internalReceiversCache.Values)
+            {
+                for(int pin = 0; pin < GpioPins; ++pin)
+                {
+                    receiver.UpdateGPIO(pin);
+                }
+            }
             registers.Reset();
         }
 
@@ -88,7 +95,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     var rn = regNumber;
                     var fn = fieldNumber;
-                    extiMappings[regNumber * 4 + fieldNumber] = reg.DefineValueField(4 * fieldNumber, 4, name: "EXTI" + regNumber * 4 + fieldNumber, changeCallback: (_, __) => Connections[rn * 4 + fn].Unset());
+                    var pinNumber = regNumber * 4 + fieldNumber;
+                    extiMappings[pinNumber] = reg.DefineValueField(4 * fieldNumber, 4, name: "EXTI" + pinNumber,
+                        changeCallback: (_, portNumber) =>
+                        {
+                            Connections[pinNumber].Unset();
+                            ((InternalReceiver)GetLocalReceiver((int)portNumber)).UpdateGPIO(pinNumber);
+                        }
+                    );
                 }
                 map.Add((long)Registers.ExternalInterruptConfiguration1 + 4 * regNumber, reg);
             }
@@ -108,22 +122,40 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 this.parent = parent;
                 this.portNumber = portNumber;
+                this.state = new bool[GpioPins];
             }
 
             public void OnGPIO(int pinNumber, bool value)
             {
+                if(pinNumber >= GpioPins)
+                {
+                    parent.Log(LogLevel.Error, "GPIO port {0}, pin {1}, is not supported. Up to {2} pins are supported", portNumber, pinNumber, GpioPins);
+                    return;
+                }
                 parent.Log(LogLevel.Noisy, "GPIO port {0}, pin {1}, raised IRQ: {2}", portNumber, pinNumber, value);
+                state[pinNumber] = value;
+                UpdateGPIO(pinNumber);
+            }
+
+            public void UpdateGPIO(int pinNumber)
+            {
                 if((int)parent.extiMappings[pinNumber].Value == portNumber)
                 {
-                    parent.Connections[pinNumber].Set(value);
+                    parent.Connections[pinNumber].Set(state[pinNumber]);
                 }
             }
 
             public void Reset()
             {
-                // Intentionally left empty - this helper class has no internal state
+                // IRQs are cleared on Parent reset
+                // Don't clear `state` array here - as it represents the state of input signals, and is not a property of this peripheral
+                // The state can only be cleared when the input signal is reset - but it's not controlled by us, but by the peripheral connected to OnGPIO (IRQ/GPIO line)
+                // and since peripherals with connected GPIOs will naturally unset them in their Reset, the state array won't contain stale data
             }
 
+            // The state is recorded, so it's possible to update the GPIO state when changing source peripheral
+            // since this peripheral is effectively a mux - when changing input source, it's needed to get the other source's value
+            private readonly bool[] state;
             private readonly STM32_SYSCFG parent;
             private readonly int portNumber;
         }
