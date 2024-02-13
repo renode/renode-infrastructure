@@ -405,7 +405,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return;
             }
 
-            LogInstructionExecuted(firstInstruction);
+            LogInstructionExecuted(firstInstruction, threadType, channelIndex);
             // This is an instruction provided by the debug registers - it can't advance PC
             firstInstruction.Execute(threadType, threadType != DMAThreadType.Manager ? (int?)channelIndex : null, suppressAdvance: true);
             debugStatus.Value = false;
@@ -440,7 +440,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                             address += sizeof(byte);
                         }
 
-                        LogInstructionExecuted(instruction, channelThread.PC);
+                        LogInstructionExecuted(instruction, DMAThreadType.Channel, channelThread.Id, channelThread.PC);
                         instruction.Execute(DMAThreadType.Channel, channelThread.Id);
                     }
                 }
@@ -450,9 +450,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             } while(channels.Any(c => c.Status == Channel.ChannelStatus.Executing));
         }
 
-        private void LogInstructionExecuted(Instruction insn, ulong? address = null)
+        private void LogInstructionExecuted(Instruction insn, DMAThreadType threadType, int threadId, ulong? address = null)
         {
-            this.Log(LogLevel.Noisy, "Executing: {0} {1}", insn.ToString(), address != null ? $"@ 0x{address:X}" : "" );
+            this.Log(LogLevel.Noisy, "[{0}] Executing: {1} {2}", threadType == DMAThreadType.Manager ? "M" : threadId.ToString(),
+                insn.ToString(), address != null ? $"@ 0x{address:X}" : "" );
         }
 
         private ICPU GetCurrentCPUOrNull()
