@@ -397,6 +397,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
                             {
                                 // We received the first sample from the next block in the RESD stream 
                                 // as a result of internal RESD operation, not due to a triggered event
+                                if(fifoModeSelection.Value == FIFOModeSelection.FIFOMode)
+                                {
+                                    // In FIFO mode we don't allow automatic passtrough to the next block,
+                                    // because it would interfere with event driven FIFOModeEntered logic.
+                                    goto case RESDStreamStatus.BeforeStream;
+                                }
                                 resetCurrentBlockStats(resdStream.CurrentBlock.SamplesCount);
                                 blockNumber = (int)resdStream.CurrentBlockNumber;
                                 this.Log(LogLevel.Noisy, "Beginning of the new RESD block ({0}Hz) with the number {1}", sampleRate, blockNumber);
