@@ -203,6 +203,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return Interrupt.Hard;
                 case InterruptSignalType.FIQ:
                     return Interrupt.TargetExternal1;
+                case InterruptSignalType.vIRQ:
+                    return Interrupt.TargetExternal2;
+                case InterruptSignalType.vFIQ:
+                    return Interrupt.TargetExternal3;
                 default:
                     this.Log(LogLevel.Error, "Unexpected interrupt type for IRQ#{0}", number);
                     throw InvalidInterruptNumberException;

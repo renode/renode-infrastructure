@@ -60,11 +60,13 @@ namespace Antmicro.Renode.Peripherals.CPU
     }
 
     // GIC should use GPIO#0 of an ARM CPU to signal IRQ and GPIO#1 to signal FIQ
-    // An ARM CPU should be connected to a GIC following the convention `[<N*2>-<N*2+1>] -> cpuN@[0-1]`";
+    // An ARM CPU should be connected to a GIC following the convention `[<N*4>-<N*4+3>] -> cpuN@[0-3]`";
     public enum InterruptSignalType
     {
-        IRQ = 0,
-        FIQ = 1,
+        IRQ  = 0,
+        FIQ  = 1,
+        vIRQ = 2,
+        vFIQ = 3,
     }
 
     public enum SecurityState

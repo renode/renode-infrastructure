@@ -1629,9 +1629,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected enum Interrupt
         {
-            Hard = 0x02,
-            TargetExternal0 = 0x08,
-            TargetExternal1 = 0x10
+            Hard            = 1 << 1,
+            TargetExternal0 = 1 << 3,
+            TargetExternal1 = 1 << 4,
+            TargetExternal2 = 1 << 6,
+            TargetExternal3 = 1 << 9,
         }
 
         private class SegmentMapping
