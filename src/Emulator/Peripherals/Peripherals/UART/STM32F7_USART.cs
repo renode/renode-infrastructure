@@ -1,16 +1,18 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Threading;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Migrant;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -32,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
             RegistersCollection.Reset();
             IRQ.Unset();
+            receiverTimeoutCancellationTokenSrc?.Cancel();
             ReceiveDmaRequest.Unset();
         }
 
@@ -111,6 +114,19 @@ namespace Antmicro.Renode.Peripherals.UART
         protected override void CharWritten()
         {
             BufferState = BufferState.Ready;
+            if(receiverTimeoutOccurred != null && receiverTimeoutInterruptEnable.Value)
+            {
+                // We just got a character - cancel the previous action
+                // If it has already executed - then it's alright, since the timeout held
+                receiverTimeoutCancellationTokenSrc?.Cancel();
+                // Set up a new action to fire after specified time if no characters are received
+                // again, if it receives any, this should be cancelled too, in the exact same way
+                receiverTimeoutCancellationTokenSrc = new CancellationTokenSource();
+                // Receiver timeout is specified in bits of inactivity, so divide by the baud rate to calculate time
+                // and multiply by 8 since it's a baud rate (measures bits), and by million to convert to microseconds
+                var timeoutIn = (receiverTimeout.Value * 8000000) / BaudRate;
+                Machine.ScheduleAction(TimeInterval.FromMicroseconds(timeoutIn), _ => ReportRxTimeout(receiverTimeoutCancellationTokenSrc.Token), name: $"{nameof(STM32F7_USART)} Receiver timeout");
+            }
         }
 
         protected override void QueueEmptied()
@@ -291,10 +307,23 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
+                Registers.ReceiverTimeout.Define(RegistersCollection)
+                    .WithValueField(0, 24, out receiverTimeout, name: "RTO (Receiver Timeout value)")
+                    .WithTag("BLEN (Block length)", 24, 8);
+
                 cr1
                     .WithFlag(15, out over8, name: "OVER8")
-                    .WithTaggedFlag("RTOIE", 26)
-                    .WithTaggedFlag("EOBIE", 27);
+                    .WithFlag(26, out receiverTimeoutInterruptEnable, name: "RTOIE")
+                    .WithTaggedFlag("EOBIE", 27)
+                    .WithWriteCallback((_, __) =>
+                        {
+                            // Need to cancel the previous receiverTimeout here
+                            if(!enabled.Value || !receiveEnabled.Value || !receiverTimeoutInterruptEnable.Value)
+                            {
+                                receiverTimeoutCancellationTokenSrc?.Cancel();
+                            }
+                        }
+                    );
 
                 cr2
                     .WithTaggedFlag("LBDL", 5)
@@ -323,7 +352,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 isr
                     .WithTaggedFlag("LBDF", 8)
-                    .WithTaggedFlag("RTOF", 11)
+                    .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => receiverTimeoutInterruptEnable.Value && (receiverTimeoutOccurred?.Value ?? false), name: "RTOF")
                     .WithTaggedFlag("EOBF", 12)
                     .WithTaggedFlag("ABRE", 14)
                     .WithTaggedFlag("ABRF", 15)
@@ -332,8 +361,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 icr
                     .WithTaggedFlag("TCBGTCF", 7)
                     .WithTaggedFlag("LBDCF", 8)
-                    .WithTaggedFlag("RTOCF", 11)
-                    .WithTaggedFlag("EOBCF", 12);
+                    .WithFlag(11, out receiverTimeoutOccurred, FieldMode.WriteOneToClear, name: "RTOCF")
+                    .WithTaggedFlag("EOBCF", 12)
+                    .WithWriteCallback((_, __) => UpdateInterrupt());
             }
         }
 
@@ -365,9 +395,23 @@ namespace Antmicro.Renode.Peripherals.UART
             var transmitRegisterEmptyInterrupt = transmitRegisterEmptyInterruptEnabled.Value; // we assume that transmit register is always empty
             var transferCompleteInterrupt = transferComplete.Value && transferCompleteInterruptEnabled.Value;
             var readRegisterNotEmptyInterrupt = Count != 0 && readRegisterNotEmptyInterruptEnabled.Value;
-            
-            IRQ.Set(transmitRegisterEmptyInterrupt || transferCompleteInterrupt || readRegisterNotEmptyInterrupt);
+
+            // This interrupt is expected to fire if there are not additional bits incoming after some specified time after last reception
+            var receiverTimeoutInterrupt = (receiverTimeoutOccurred?.Value ?? false) && receiverTimeoutInterruptEnable.Value;
+
+            IRQ.Set(transmitRegisterEmptyInterrupt || transferCompleteInterrupt || readRegisterNotEmptyInterrupt || receiverTimeoutInterrupt);
         }
+
+        private void ReportRxTimeout(CancellationToken ct)
+        {
+            if(!ct.IsCancellationRequested)
+            {
+                receiverTimeoutOccurred.Value = true;
+                UpdateInterrupt();
+            }
+        }
+
+        private CancellationTokenSource receiverTimeoutCancellationTokenSrc;
 
         private IFlagRegisterField parityControlEnabled;
         private IFlagRegisterField paritySelection;
@@ -382,6 +426,9 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField baudRateDivisor;
         private IValueRegisterField stopBits;
         private IFlagRegisterField over8;
+        private IFlagRegisterField receiverTimeoutInterruptEnable;
+        private IFlagRegisterField receiverTimeoutOccurred;
+        private IValueRegisterField receiverTimeout;
 
         private BufferState bufferState;
 
