@@ -188,6 +188,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public bool FIQMaskOverride => (GetSystemRegisterValue("hcr_el2") & 0b01000) != 0;
+        public bool IRQMaskOverride => (GetSystemRegisterValue("hcr_el2") & 0b10000) != 0;
+
         public Affinity Affinity { get; }
         public bool IsEL3UsingAArch32State => false; // ARM8vA currently supports only AArch64 execution
         public bool HasSingleSecurityState { get; private set; }

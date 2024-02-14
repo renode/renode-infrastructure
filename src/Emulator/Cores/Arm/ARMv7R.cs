@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -28,8 +28,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        // Currently unsupported
+        public bool FIQMaskOverride => false;
+        public bool IRQMaskOverride => false;
+
         public Affinity Affinity { get; }
         public SecurityState SecurityState => SecurityState.Secure;
+        public ExceptionLevel ExceptionLevel => ExceptionLevel.EL1_SystemMode;
         public uint AuxiliaryControlRegister { get; set; }
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)

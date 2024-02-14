@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,16 +13,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IARMSingleSecurityStateCPU : ICPU
     {
+        ExceptionLevel ExceptionLevel { get; }
+
         Affinity Affinity { get; }
         // This kind of CPU is always in a specific Security State and it can't be changed
         SecurityState SecurityState { get; }
+
+        bool FIQMaskOverride { get; }
+        bool IRQMaskOverride { get; }
     }
 
     public interface IARMTwoSecurityStatesCPU : IARMSingleSecurityStateCPU
     {
         void GetAtomicExceptionLevelAndSecurityState(out ExceptionLevel exceptionLevel, out SecurityState securityState);
-
-        ExceptionLevel ExceptionLevel { get; }
 
         // This property should return false if CPU doesn't support EL3
         bool IsEL3UsingAArch32State { get; }
