@@ -62,6 +62,17 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size { get; }
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        // IRQs are bundled in 9 signals per channel in the following order:
+        // 0: CCMPA - ompare match / input capture A
+        // 1: CCMPB - compare match / input capture B
+        // 2: CMPC - compare match C
+        // 3: CMPD - compare match D
+        // 4: CMPE - compare match E
+        // 5: CMPF - compare match F
+        // 6: OVF - overflow
+        // 7: UDF - underflow
+        // 8: PC - count stop
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap(long commonRegistersOffset)
