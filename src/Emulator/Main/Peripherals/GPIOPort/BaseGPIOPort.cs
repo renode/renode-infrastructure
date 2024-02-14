@@ -84,10 +84,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 innerConnections[i] = new GPIO();
             }
-            for(var i = 1; i < numberOfConnections; i++)
-            {
-                innerConnections[-i] = new GPIO();
-            }
             this.machine = machine;
             Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
         }
