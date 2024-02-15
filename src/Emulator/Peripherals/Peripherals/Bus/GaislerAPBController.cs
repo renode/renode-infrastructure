@@ -94,15 +94,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                 var registration = record.RegistrationPoint;
                 var recordEntry = new GaislerAPBPlugAndPlayRecord();
                 var deviceAddress = registration.Range.StartAddress;
+                var deviceSize = registration.Range.Size;
                 recordEntry.ConfigurationWord.Vendor = peripheral.GetVendorID();
                 recordEntry.ConfigurationWord.Device = peripheral.GetDeviceID();
                 recordEntry.BankAddressRegister.Type = peripheral.GetSpaceType();
                 recordEntry.ConfigurationWord.Irq = peripheral.GetInterruptNumber();
                 if(recordEntry.BankAddressRegister.Type == GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace)
                 {
-                    recordEntry.BankAddressRegister.Address = (uint)((deviceAddress >> 8) & 0xfff);
+                    recordEntry.BankAddressRegister.Address = (uint)deviceAddress;
+                    recordEntry.BankAddressRegister.Size = deviceSize;
                 }
-                recordEntry.BankAddressRegister.Mask = 0xfff;
                 records.Add(recordEntry);                
             }
         }

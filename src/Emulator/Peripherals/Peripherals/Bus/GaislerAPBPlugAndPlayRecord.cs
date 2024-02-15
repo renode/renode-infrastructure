@@ -37,12 +37,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             public uint Address = 0;
             public bool Prefechable = false;
             public bool Cacheable = false;
-            public uint Mask = 0;
+            public ulong Size = 0;
             public SpaceType Type = SpaceType.None;
                     
             public uint GetValue()
             {
-                var value = ((Address & 0xfff) << 20) | (Prefechable ? 1u << 17 : 0) | (Cacheable ? 1u << 16 : 0) | ((Mask & 0xfff) << 4) | (uint)(Type);
+                // Round the size up to a multiple of 0x100
+                var size = (Size + 0xff) / 0x100;
+                var mask = (uint)(0x1000 - size);
+                var address = (Address >> 8) & 0xfff;
+                var value = (address << 20) | (Prefechable ? 1u << 17 : 0) | (Cacheable ? 1u << 16 : 0) | ((mask & 0xfff) << 4) | ((uint)Type & 0xf);
                 return value;
             }
         }
