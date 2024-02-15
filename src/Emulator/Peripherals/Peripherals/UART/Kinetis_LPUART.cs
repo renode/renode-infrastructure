@@ -279,6 +279,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 base.Reset();
                 registers.Reset();
                 txQueue.Clear();
+                rxMaxBytes = 1;
+                txMaxBytes = 1;
                 UpdateGPIOOutputs();
                 reset.Value = true;
             }
@@ -466,8 +468,8 @@ namespace Antmicro.Renode.Peripherals.UART
             return offset == CommonRegistersOffset + (long)CommonRegs.Data;
         }
 
-        private int rxMaxBytes;
-        private int txMaxBytes;
+        private int rxMaxBytes = 1;
+        private int txMaxBytes = 1;
         private readonly object locker;
         private readonly Queue<byte> txQueue;
         private readonly DoubleWordRegisterCollection registers;
