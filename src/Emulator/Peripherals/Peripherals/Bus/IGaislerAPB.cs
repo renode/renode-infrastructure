@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public interface IGaislerAPB : IPeripheral
+    public interface IGaislerAPB : IBusPeripheral
     {
         uint GetVendorID();
         uint GetDeviceID();

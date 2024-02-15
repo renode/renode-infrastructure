@@ -9,6 +9,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Extensions;
@@ -84,10 +85,22 @@ namespace Antmicro.Renode.Peripherals.Bus
             return spaceType;
         }
         #endregion
+
+        private uint? GetBusAddress(IBusPeripheral peripheral)
+        {
+            var registrationPoint = machine.SystemBus.GetRegistrationPoints(peripheral).SingleOrDefault();
+            if(registrationPoint == null)
+            {
+                return null;
+            }
+            return (uint)(registrationPoint.Range.StartAddress >> 20) & 0xfff;
+        }
   
         private void cacheRecords()
         { 
-            var recordsFound = machine.SystemBus.Children.Where(x => x.Peripheral is IGaislerAPB);
+            var busAddress = GetBusAddress(this) ?? throw new RecoverableException("Failed to get the controller's bus address");
+            var recordsFound = machine.SystemBus.Children
+                .Where(x => x.Peripheral is IGaislerAPB && GetBusAddress(x.Peripheral) == busAddress);
             foreach (var record in recordsFound)
             {
                 var peripheral = (IGaislerAPB)record.Peripheral;
