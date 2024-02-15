@@ -40,11 +40,13 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
             var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
             var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
+#elif PLATFORM_OSX
+            var key = OSXToKeyScanCodeConverter.Instance.GetScanCode(e.Key);
 #else
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
             var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
-#endif // !PLATFORM_WINDOWS
+#endif // !(PLATFORM_WINDOWS || PLATFORM_OSX)
             if(key != null)
             {
                 handler.KeyReleased(key.Value);
@@ -63,11 +65,13 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
             var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
             var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
+#elif PLATFORM_OSX
+            var key = OSXToKeyScanCodeConverter.Instance.GetScanCode(e.Key);
 #else
             var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
             var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
-#endif // !PLATFORM_WINDOWS
+#endif // !(PLATFORM_WINDOWS || PLATFORM_OSX)
             if(key != null)
             {
                 handler.KeyPressed(key.Value);
