@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("NEIE / Noise Error Interrupt Enable", 26)
                 .WithTaggedFlag("ORIE / Overrun Interrupt Enable", 27)
                 .WithTaggedFlag("TXINV / Transmit Data Inversion", 28)
-                .WithFlag(29, out transmissionPinDirectionOutNotIn , name: "TXDIR / TXD Pin Direction in Single-Wire Mode")
+                .WithFlag(29, out transmissionPinDirectionOutNotIn, name: "TXDIR / TXD Pin Direction in Single-Wire Mode")
                 .WithTaggedFlag("R9T8 / Receive Bit 9 / Transmit Bit 8", 30)
                 .WithTaggedFlag("R8T9 / Receive Bit 8 / Transmit Bit 9", 31)
                 .WithWriteCallback((_, __) => UpdateGPIOOutputs())
