@@ -14,7 +14,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class Kinetis_LPUART : UARTBase, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
+    public class Kinetis_LPUART : UARTBase, IUARTWithBufferState, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
         public Kinetis_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true) : base(machine)
         {
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("NF / Noise Flag", 18)
                 .WithFlag(19, out receiverOverrun, FieldMode.Read | FieldMode.WriteOneToClear, name: "OR / Receiver Overrun Flag")
                 .WithTaggedFlag("IDLE / Idle Line Flag", 20)
-                .WithFlag(21, out receiveDataRegisterFull, FieldMode.Read, name: "RDRF / Receive Data Register Full")
+                .WithFlag(21, FieldMode.Read, valueProviderCallback: _ => BufferState == BufferState.Full, name: "RDRF / Receive Data Register Full")
                 .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == 0, name: "TC / Transmission Complete Flag")
                 .WithFlag(23, out transmitDataRegisterEmpty, FieldMode.Read, name: "TDRE / Transmission Data Register Empty Flag")
                 .WithTaggedFlag("RAF / Receiver Active Flag", 24)
@@ -149,8 +149,10 @@ namespace Antmicro.Renode.Peripherals.UART
                             receiveFifoUnderflowInterrupt.Value = true;
                             this.Log(LogLevel.Warning, "Trying to read form an empty fifo");
                         }
-
-                        UpdateFillLevels();
+                        else
+                        {
+                            OnBufferStateChanged();
+                        }
                         return b;
                     },
                     writeCallback: (_, val) =>
@@ -173,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     })
                 .WithReservedBits(10, 1)
                 .WithTaggedFlag("IDLINE / Idle Line", 11)
-                .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => Count == 0, name: "RXEMPT / Receive Buffer Empty")
+                .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => BufferState == BufferState.Empty, name: "RXEMPT / Receive Buffer Empty")
                 .WithTaggedFlag("FRETSC / Frame Error / Transmit Special Character", 13)
                 .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => false, name: "PARITYE / PARITYE")
                 .WithFlag(15, FieldMode.Read, valueProviderCallback: _ => false, name: "NOISY / NOISY")
@@ -250,7 +252,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(16, out receiveFifoUnderflowInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "RXUF / Receiver Buffer Underflow Flag")
                     .WithFlag(17, out transmitFifoOverflowInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "TXOF / Transmitter Buffer Overflow Flag")
                     .WithReservedBits(18, 4)
-                    .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => Count == 0, name: "RXEMPT / Receive Buffer Empty")
+                    .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => BufferState == BufferState.Empty, name: "RXEMPT / Receive Buffer Empty")
                     .WithFlag(23, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == 0, name: "TXEMPT / Transmit Buffer Empty")
                     .WithReservedBits(24, 8)
                     .WithWriteCallback((_, __) => UpdateGPIOOutputs())
@@ -279,6 +281,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 base.Reset();
                 registers.Reset();
                 txQueue.Clear();
+                latestBufferState = BufferState.Empty;
                 rxMaxBytes = 1;
                 txMaxBytes = 1;
                 UpdateGPIOOutputs();
@@ -364,6 +367,31 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public event Action<BufferState> BufferStateChanged;
+
+        public BufferState BufferState
+        {
+            get
+            {
+                var count = Count;
+                if(count == 0)
+                {
+                    return BufferState.Empty;
+                }
+
+                var fullCount = rxMaxBytes;
+                if(receiveFifoEnabled.Value)
+                {
+                    fullCount = (int)receiveWatermark.Value + 1;
+                }
+                if(count >= fullCount)
+                {
+                    return BufferState.Full;
+                }
+                return BufferState.Ready;
+            }
+        }
+
         public long Size => 0x30;
 
         public override Bits StopBits => stopBitNumberSelect.Value ? Bits.Two : Bits.One;
@@ -423,7 +451,7 @@ namespace Antmicro.Renode.Peripherals.UART
             var rxUnderflow = receiveFifoUnderflowEnabled.Value && receiveFifoUnderflowInterrupt.Value;
             var txOverflow = transmitFifoOverflowEnabled.Value && transmitFifoOverflowInterrupt.Value;
             var tx = transmitterInterruptEnabled.Value && transmitDataRegisterEmpty.Value;
-            var rx = receiverInterruptEnabled.Value && (Count > 0);
+            var rx = receiverInterruptEnabled.Value && BufferState == BufferState.Full;
             var txComplete = transmissionCompleteInterruptEnabled.Value && (txQueue.Count == 0);
 
             var irqState = rxUnderflow || txOverflow || tx || rx || txComplete;
@@ -436,7 +464,7 @@ namespace Antmicro.Renode.Peripherals.UART
             var drqState = false;
 
             drqState |= transmitterDMAEnabled.Value && transmitDataRegisterEmpty.Value;
-            drqState |= receiverDMAEnabled.Value && receiveDataRegisterFull.Value;
+            drqState |= receiverDMAEnabled.Value && BufferState == BufferState.Full;
 
             DMA.Set(drqState);
             this.Log(LogLevel.Noisy, "Setting DMA request to {0}", drqState);
@@ -444,15 +472,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateFillLevels()
         {
-            if(receiveFifoEnabled.Value)
-            {
-                receiveDataRegisterFull.Value = Count > (int)receiveWatermark.Value;
-            }
-            else
-            {
-                receiveDataRegisterFull.Value = Count == rxMaxBytes;
-            }
-
+            OnBufferStateChanged();
             if(transmitFifoEnabled.Value)
             {
                 transmitDataRegisterEmpty.Value = txQueue.Count <= (int)transmitWatermark.Value;
@@ -463,11 +483,22 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        private void OnBufferStateChanged()
+        {
+            var state = BufferState;
+            if(latestBufferState != state)
+            {
+                BufferStateChanged?.Invoke(state);
+                latestBufferState = state;
+            }
+        }
+
         private bool IsDataRegister(long offset)
         {
             return offset == CommonRegistersOffset + (long)CommonRegs.Data;
         }
 
+        private BufferState latestBufferState = BufferState.Empty;
         private int rxMaxBytes = 1;
         private int txMaxBytes = 1;
         private readonly object locker;
@@ -479,7 +510,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField transmitterDMAEnabled;
         private readonly IFlagRegisterField receiverDMAEnabled;
         private readonly IFlagRegisterField receiverOverrun;
-        private readonly IFlagRegisterField receiveDataRegisterFull;
         private readonly IFlagRegisterField transmitDataRegisterEmpty;
         private readonly IFlagRegisterField parityType;
         private readonly IFlagRegisterField parityEnabled;
