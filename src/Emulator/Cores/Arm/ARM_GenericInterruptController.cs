@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,6 +19,8 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
+    // NOTE: Memory mapped Virtual CPU Interface is currently not supported.
+    //       It can be accesses only through system registers.
     public class ARM_GenericInterruptController : IARMCPUsConnectionsProvider, IBusPeripheral, ILocalGPIOReceiver, INumberedGPIOOutput, IIRQController
     {
         public ARM_GenericInterruptController(IMachine machine, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = DefaultArchitectureVersion, uint sharedPeripheralCount = 960)
@@ -1090,7 +1092,81 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithTaggedFlag("CommonBinaryPointRegisterEL1NonSecure", 1)
                     .WithTaggedFlag("CommonBinaryPointRegisterEL1Secure", 0)
                 },
+                {(long)CPUInterfaceSystemRegisters.HypControl, new QuadWordRegister(this)
+                    .WithReservedBits(32, 32)
+                    .WithTag("EOIcount", 27, 5)
+                    .WithReservedBits(16, 11)
+                    .WithTaggedFlag("DVIM", 15) // Reserved when ICH_VTR_EL2.DVIM = 0
+                    .WithTaggedFlag("TDIR", 14) // Reserved when FEAT_GICv3_TDIR is not implemented
+                    .WithTaggedFlag("TSEI", 13)
+                    .WithTaggedFlag("TALL1", 12)
+                    .WithTaggedFlag("TALL0", 11)
+                    .WithTaggedFlag("TC", 10)
+                    .WithReservedBits(9, 1)
+                    .WithTaggedFlag("vSGIEOICount", 8) // Reserved when FEAT_GICv4p1 is not implemented
+                    .WithTaggedFlag("VGrp0DIE", 7)
+                    .WithTaggedFlag("VGrp1EIE", 6)
+                    .WithTaggedFlag("VGrp0DIE", 5)
+                    .WithTaggedFlag("VGrp0EIE", 4)
+                    .WithTaggedFlag("NPIE", 3)
+                    .WithTaggedFlag("LRENPIE", 2)
+                    .WithTaggedFlag("UIE", 1)
+                    .WithTaggedFlag("En", 0)
+                },
+                {(long)CPUInterfaceSystemRegisters.VGICType, new QuadWordRegister(this)
+                    .WithReservedBits(32, 32)
+                    .WithTag("PRIbits", 29, 3)
+                    .WithTag("PREbits", 26, 3)
+                    .WithTag("IDbits", 23, 3)
+                    .WithTaggedFlag("SEIS", 22)
+                    .WithTaggedFlag("A3V", 21)
+                    .WithTaggedFlag("nV4", 20)
+                    .WithTaggedFlag("TDS", 19)
+                    .WithTaggedFlag("DVIM", 18)
+                    .WithReservedBits(5, 13)
+                    .WithTag("ListRegs", 0, 5)
+                },
+                {(long)CPUInterfaceSystemRegisters.VMControl, new QuadWordRegister(this)
+                    .WithReservedBits(32, 32)
+                    .WithTag("VPMR", 24, 8)
+                    .WithTag("VBPR0", 21, 3)
+                    .WithTag("VBPR1", 18, 3)
+                    .WithTaggedFlag("VEOIM", 9)
+                    .WithReservedBits(5, 4)
+                    .WithTaggedFlag("VCBPR", 4)
+                    .WithTaggedFlag("VFIQEn", 3)
+                    .WithTaggedFlag("VAckCtl", 2)
+                    .WithTaggedFlag("VENG1", 1)
+                    .WithTaggedFlag("VENG0", 0)
+                },
             };
+
+            for(int j = 0; j < 16; ++j)
+            {
+                var i = j;
+
+                registersMap.Add((long)CPUInterfaceSystemRegisters.ListRegister_0 + i, new QuadWordRegister(this)
+                    .WithTag("State", 62, 2)
+                    .WithTaggedFlag("HW", 61)
+                    .WithTaggedFlag("Group", 60)
+                    .WithReservedBits(56, 4)
+                    .WithTag("Priority", 48, 8)
+                    .WithReservedBits(45, 3)
+                    .WithTag("pINTID", 32, 13)
+                    .WithTag("vINTID", 0, 32)
+                );
+
+                registersMap.Add((long)CPUInterfaceSystemRegisters.ListRegisterUpper_0 + i, new QuadWordRegister(this)
+                    .WithReservedBits(32, 32)
+                    .WithTag("State", 30, 2)
+                    .WithTaggedFlag("HW", 29)
+                    .WithTaggedFlag("Group", 28)
+                    .WithReservedBits(24, 4)
+                    .WithTag("Priority", 16, 8)
+                    .WithReservedBits(13, 3)
+                    .WithTag("pINTID", 0, 13)
+                );
+            }
 
             return registersMap;
         }
@@ -2763,6 +2839,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SoftwareGeneratedInterruptGroup0Generate = 0xC65F, // ICC_SGI0R_EL1
             SoftwareGeneratedInterruptGroup1Generate = 0xC65D, // ICC_SGI1R_EL1
             SystemRegisterEnableEL2 = 0xE64D, // ICC_SRE_EL2
+            HypControl = 0xE658, // ICH_HCR_EL2
+            VGICType = 0xE659, // ICH_VTR_EL2
+            VMControl = 0xE65F, // ICH_VMCR_EL2
+            ListRegister_0 = 0xE660, // ICH_LR<n>_EL2
+            ListRegisterUpper_0 = 0xE670, // ICH_LRC<n> (Aarch32 only)
         }
     }
 
