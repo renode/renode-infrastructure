@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -36,13 +36,13 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             public uint Address = 0;
             public bool Prefechable = false;
-            public bool Cacheble = false;
+            public bool Cacheable = false;
             public uint Mask = 0;
             public SpaceType Type = SpaceType.None;
                     
             public uint GetValue()
             {
-                var value = ((Address & 0xfff) << 20) | (Prefechable ? 1u<<17 : 0) | (Cacheble ? 1u<<16 : 0) | ((Mask & 0xfff) << 4) | (uint)(Type);
+                var value = ((Address & 0xfff) << 20) | (Prefechable ? 1u << 17 : 0) | (Cacheable ? 1u << 16 : 0) | ((Mask & 0xfff) << 4) | (uint)(Type);
                 return value;
             }
         }
