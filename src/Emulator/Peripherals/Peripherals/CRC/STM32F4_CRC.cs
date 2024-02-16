@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CRC
     {
         public STM32F4_CRC(IMachine machine) : base(machine)
         {
-            crc = new CRCEngine(CRCPolynomial.CRC32, init: 0xFFFFFFFF, xorOutput: 0xFFFFFFFF);
+            crc = new CRCEngine(CRCPolynomial.CRC32, init: 0xFFFFFFFF, xorOutput: 0, reflectInput: false, reflectOutput: false);
 
             DefineRegisters();
             Reset();
