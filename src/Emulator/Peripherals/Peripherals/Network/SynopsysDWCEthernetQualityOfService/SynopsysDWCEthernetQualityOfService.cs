@@ -427,9 +427,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
                     var buffer = structure.FetchBuffer1OrHeader(Bus, cpuContext);
                     txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
+                    var tsoEnabled = structure.tcpSegmentationEnable && tcpSegmentationEnable.Value;
                     if(structure.firstDescriptor)
                     {
-                        var tsoEnabled = structure.tcpSegmentationEnable && tcpSegmentationEnable.Value;
                         if(tsoEnabled)
                         {
                             frameAssembler = new FrameAssembler(
@@ -441,7 +441,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 SendFrame
                             );
                             buffer = structure.FetchBuffer2OrBuffer1(Bus, cpuContext);
-                            txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
+                            txCurrentBuffer.Value = structure.buffer2orBuffer1Address;
                         }
                         else
                         {
@@ -453,6 +453,15 @@ namespace Antmicro.Renode.Peripherals.Network
                                 SendFrame
                             );
                         }
+                    }
+                    if(structure.buffer2Length != 0 && !tsoEnabled)
+                    {
+                        // Though it's not clearly stated in the documentation, the STM driver
+                        // expects buffer2 to be valid even with TSO disabled. In this case,
+                        // concatenate two buffers when assembling frame to be sent.
+                        frameAssembler.PushPayload(buffer);
+                        buffer = structure.FetchBuffer2OrBuffer1(Bus, cpuContext);
+                        txCurrentBuffer.Value = structure.buffer2orBuffer1Address;
                     }
                     frameAssembler.PushPayload(buffer);
                     earlyTxInterrupt.Value = true;
