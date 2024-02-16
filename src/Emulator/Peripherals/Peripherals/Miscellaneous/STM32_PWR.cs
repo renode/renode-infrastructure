@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2022 SICK AG
 //
 // This file is licensed under the MIT License.
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("CSBF", 3)
                 .WithTaggedFlag("PVDE", 4)
                 .WithEnumField<DoubleWordRegister, PvdLevelSelection>(5, 3, name: "PLS")
-                .WithTaggedFlag("DBP", 8)
+                .WithFlag(8, name: "DBP")
                 .WithTaggedFlag("FPDS", 9)
                 .WithTaggedFlag("LPUDS", 10)
                 .WithTaggedFlag("MRUDS", 11)
