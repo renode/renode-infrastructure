@@ -472,6 +472,11 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public static IEnumerable<int> ConcatRangeFromTo(this IEnumerable<int> enumerable, int start, int stopIncluded)
+        {
+            return enumerable.Concat(Enumerable.Range(start, stopIncluded - start + 1));
+        }
+
         // MoreLINQ - Extensions to LINQ to Objects
         // Copyright (c) 2008 Jonathan Skeet. All rights reserved.
         public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector,
