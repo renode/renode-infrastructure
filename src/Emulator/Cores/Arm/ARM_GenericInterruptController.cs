@@ -563,25 +563,38 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        // Returns the best pending interrupt for given candidates.
+        // If null is returned, that means there's no pending interrupt.
+        private T FindBestPendingInterrupt<T>(IEnumerable<T> pendingCandidates) where T : Interrupt
+        {
+            var bestPending = pendingCandidates.FirstOrDefault();
+            foreach(var irq in pendingCandidates.Skip(1))
+            {
+                if(irq.Config.Priority < bestPending.Config.Priority)
+                {
+                    bestPending = irq;
+                    if(bestPending.Config.Priority == InterruptPriority.Highest)
+                    {
+                        break;
+                    }
+                }
+            }
+            return bestPending;
+        }
+
         private void UpdateBestPendingInterrupts()
         {
             foreach(var cpu in cpuEntries.Values)
             {
-                var pendingCandidates = GetAllPendingCandidateInterrupts(cpu);
-                var bestPending = pendingCandidates.FirstOrDefault();
-                foreach(var irq in pendingCandidates.Skip(1))
+                if(cpu.VirtualCPUInterfaceEnabled)
                 {
-                    if(irq.Config.Priority < bestPending.Config.Priority)
-                    {
-                        bestPending = irq;
-                        if(bestPending.Config.Priority == InterruptPriority.Highest)
-                        {
-                            break;
-                        }
-                    }
+                    cpu.BestPendingVirtual = FindBestPendingInterrupt(GetAllPendingCandidateVirtualInterrupts(cpu));
                 }
-                // Setting the bestPending to null indicates there is no pending interrupt
-                cpu.BestPending = bestPending;
+                else
+                {
+                    cpu.BestPendingVirtual = null;
+                }
+                cpu.BestPending = FindBestPendingInterrupt(GetAllPendingCandidateInterrupts(cpu));
             }
         }
 
@@ -607,7 +620,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
         {
-            var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups[type].Enabled).ToArray();
+            var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups.Physical[type].Enabled).ToArray();
             IEnumerable<SharedInterrupt> filteredSharedInterrupts = sharedInterrupts.Values;
             return cpu.AllPrivateAndSoftwareGeneratedInterrupts
                 .Concat(GetSharedInterruptsTargetingCPU(cpu))
@@ -619,9 +632,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return cpu.AllPrivateAndSoftwareGeneratedInterrupts.Concat(sharedInterrupts.Values);
         }
 
+        private Func<Interrupt, bool> InterruptPriorityFilter(InterruptPriority priorityMask, InterruptPriority runningPriority)
+        {
+            return irq => irq.State.Pending && !irq.State.Active && irq.Config.Priority < priorityMask && irq.Config.Priority < runningPriority;
+        }
+
         private IEnumerable<Interrupt> GetAllPendingCandidateInterrupts(CPUEntry cpu)
         {
-            return GetAllEnabledInterrupts(cpu).Where(irq => irq.State.Pending && !irq.State.Active && irq.Config.Priority < cpu.PriorityMask && irq.Config.Priority < cpu.RunningPriority);
+            var filter = InterruptPriorityFilter(cpu.PhysicalPriorityMask, cpu.RunningInterrupts.PhysicalPriority);
+            return GetAllEnabledInterrupts(cpu).Where(filter);
+        }
+
+        private IEnumerable<VirtualInterrupt> GetAllPendingCandidateVirtualInterrupts(CPUEntry cpu)
+        {
+            var enabledGroups = groups.Keys.Where(type => cpu.Groups.Virtual[type].Enabled).ToArray();
+            var filter = InterruptPriorityFilter(cpu.VirtualPriorityMask, cpu.RunningInterrupts.VirtualPriority);
+            return cpu
+                .VirtualInterrupts
+                .Where(irq => enabledGroups.Contains(irq.Config.GroupType) && filter(irq));
         }
 
         private Dictionary<long, DoubleWordRegister> BuildDistributorDoubleWordRegistersMap()
@@ -1018,7 +1046,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithTaggedFlag("PriorityFromNonSecureNonMaskableInterrupt", 62) // Requires FEAT_GICv3_NMI extension
                     .WithReservedBits(8, 54)
                     .WithEnumField<QuadWordRegister, InterruptPriority>(0, 8, FieldMode.Read, name: "RunningPriority",
-                        valueProviderCallback: _ => GetAskingCPUEntry().RunningPriority
+                        valueProviderCallback: _ => GetAskingCPUEntry().RunningInterrupts.Priority
                     )
                 },
                 {(long)CPUInterfaceSystemRegisters.PriorityMask, new QuadWordRegister(this)
@@ -1094,7 +1122,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 },
                 {(long)CPUInterfaceSystemRegisters.HypControl, new QuadWordRegister(this)
                     .WithReservedBits(32, 32)
-                    .WithTag("EOIcount", 27, 5)
+                    .WithValueField(27, 5, FieldMode.Read, name: "EOIcount",
+                        valueProviderCallback: _ => GetAskingCPUEntry().EOICount
+                    )
                     .WithReservedBits(16, 11)
                     .WithTaggedFlag("DVIM", 15) // Reserved when ICH_VTR_EL2.DVIM = 0
                     .WithTaggedFlag("TDIR", 14) // Reserved when FEAT_GICv3_TDIR is not implemented
@@ -1111,11 +1141,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithTaggedFlag("NPIE", 3)
                     .WithTaggedFlag("LRENPIE", 2)
                     .WithTaggedFlag("UIE", 1)
-                    .WithTaggedFlag("En", 0)
+                    .WithFlag(0, name: "En",
+                        valueProviderCallback: _ => GetAskingCPUEntry().VirtualCPUInterfaceEnabled,
+                        writeCallback: (_, val) => GetAskingCPUEntry().VirtualCPUInterfaceEnabled = val
+                    )
                 },
                 {(long)CPUInterfaceSystemRegisters.VGICType, new QuadWordRegister(this)
                     .WithReservedBits(32, 32)
-                    .WithTag("PRIbits", 29, 3)
+                    .WithValueField(29, 3, FieldMode.Read, name: "PRIbits",
+                        valueProviderCallback: _ => VirtualPriorityBits - 1
+                    )
                     .WithTag("PREbits", 26, 3)
                     .WithTag("IDbits", 23, 3)
                     .WithTaggedFlag("SEIS", 22)
@@ -1124,47 +1159,110 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithTaggedFlag("TDS", 19)
                     .WithTaggedFlag("DVIM", 18)
                     .WithReservedBits(5, 13)
-                    .WithTag("ListRegs", 0, 5)
+                    .WithValueField(0, 5, FieldMode.Read, name: "ListRegs",
+                        valueProviderCallback: _ => VirtualInterruptCount - 1
+                    )
                 },
                 {(long)CPUInterfaceSystemRegisters.VMControl, new QuadWordRegister(this)
                     .WithReservedBits(32, 32)
-                    .WithTag("VPMR", 24, 8)
+                    .WithEnumField<QuadWordRegister, InterruptPriority>(24, 8, name: "VPMR",
+                        valueProviderCallback: _ => GetAskingCPUEntry().VirtualPriorityMask,
+                        writeCallback: (_, val) => GetAskingCPUEntry().VirtualPriorityMask = val
+                    )
                     .WithTag("VBPR0", 21, 3)
                     .WithTag("VBPR1", 18, 3)
-                    .WithTaggedFlag("VEOIM", 9)
+                    .WithEnumField<QuadWordRegister, EndOfInterruptModes>(9, 1, name: "VEOIM",
+                        valueProviderCallback: _ => GetAskingCPUEntry().EndOfInterruptModeVirtual,
+                        writeCallback: (_, val) => GetAskingCPUEntry().EndOfInterruptModeVirtual = val
+                    )
                     .WithReservedBits(5, 4)
                     .WithTaggedFlag("VCBPR", 4)
-                    .WithTaggedFlag("VFIQEn", 3)
+                    .WithFlag(3, name: "VFIQEn",
+                        valueProviderCallback: _ => GetAskingCPUEntry().VirtualFIQEnabled,
+                        writeCallback: (_, val) => GetAskingCPUEntry().VirtualFIQEnabled = val
+                    )
                     .WithTaggedFlag("VAckCtl", 2)
-                    .WithTaggedFlag("VENG1", 1)
-                    .WithTaggedFlag("VENG0", 0)
+                    .WithFlag(1, name: "VENG1",
+                        valueProviderCallback: _ => GetAskingCPUEntry().Groups.Virtual[GroupType.Group1].Enabled,
+                        writeCallback: (_, val) => GetAskingCPUEntry().Groups.Virtual[GroupType.Group1].Enabled = val
+                    )
+                    .WithFlag(0, name: "VENG0",
+                        valueProviderCallback: _ => GetAskingCPUEntry().Groups.Virtual[GroupType.Group0].Enabled,
+                        writeCallback: (_, val) => GetAskingCPUEntry().Groups.Virtual[GroupType.Group0].Enabled = val
+                    )
                 },
             };
 
-            for(int j = 0; j < 16; ++j)
+            for(int j = 0; j < VirtualInterruptCount; ++j)
             {
                 var i = j;
 
+                Func<VirtualInterrupt> virtualInterrupt = () => GetAskingCPUEntry().VirtualInterrupts[i];
+                Action syncInterruptState = () =>
+                {
+                    var currentInterrupt = virtualInterrupt();
+                    var activeInterrupt = GetAskingCPUEntry().RunningInterrupts.GetActiveVirtual(currentInterrupt.Identifier);
+                    if(activeInterrupt != null)
+                    {
+                        activeInterrupt.Sync(currentInterrupt);
+                    }
+                };
+
                 registersMap.Add((long)CPUInterfaceSystemRegisters.ListRegister_0 + i, new QuadWordRegister(this)
-                    .WithTag("State", 62, 2)
-                    .WithTaggedFlag("HW", 61)
-                    .WithTaggedFlag("Group", 60)
+                    .WithValueField(62, 2, name: "State",
+                        valueProviderCallback: _ => virtualInterrupt().State.Bits,
+                        writeCallback: (_, val) => virtualInterrupt().State.Bits = val
+                    )
+                    .WithFlag(61, name: "HW",
+                        valueProviderCallback: _ => virtualInterrupt().Hardware,
+                        writeCallback: (_, val) => virtualInterrupt().Hardware = val
+                    )
+                    .WithFlag(60, name: "Group",
+                        valueProviderCallback: _ => virtualInterrupt().Config.GroupBit,
+                        writeCallback: (_, val) => virtualInterrupt().Config.GroupBit = val
+                    )
                     .WithReservedBits(56, 4)
-                    .WithTag("Priority", 48, 8)
+                    .WithEnumField<QuadWordRegister, InterruptPriority>(48, 8, name: "Priority",
+                        valueProviderCallback: _ => virtualInterrupt().Config.Priority,
+                        writeCallback: (_, val) => virtualInterrupt().Config.Priority = val
+                    )
                     .WithReservedBits(45, 3)
-                    .WithTag("pINTID", 32, 13)
-                    .WithTag("vINTID", 0, 32)
+                    .WithValueField(32, 13, name: "pINTID",
+                        valueProviderCallback: _ => (uint)virtualInterrupt().HardwareIdentifier,
+                        writeCallback: (_, val) => virtualInterrupt().SetHardwareIdentifier((uint)val)
+                    )
+                    .WithValueField(0, 32, name: "vINTID",
+                        valueProviderCallback: _ => (uint)virtualInterrupt().Identifier,
+                        writeCallback: (_, val) => virtualInterrupt().SetIdentifier((uint)val)
+                    )
+                    .WithWriteCallback((_, __) => syncInterruptState())
                 );
 
                 registersMap.Add((long)CPUInterfaceSystemRegisters.ListRegisterUpper_0 + i, new QuadWordRegister(this)
                     .WithReservedBits(32, 32)
-                    .WithTag("State", 30, 2)
-                    .WithTaggedFlag("HW", 29)
-                    .WithTaggedFlag("Group", 28)
+                    .WithValueField(30, 2, name: "State",
+                        valueProviderCallback: _ => virtualInterrupt().State.Bits,
+                        writeCallback: (_, val) => virtualInterrupt().State.Bits = val
+                    )
+                    .WithFlag(29, name: "HW",
+                        valueProviderCallback: _ => virtualInterrupt().Hardware,
+                        writeCallback: (_, val) => virtualInterrupt().Hardware = val
+                    )
+                    .WithFlag(28, name: "Group",
+                        valueProviderCallback: _ => virtualInterrupt().Config.GroupBit,
+                        writeCallback: (_, val) => virtualInterrupt().Config.GroupBit = val
+                    )
                     .WithReservedBits(24, 4)
-                    .WithTag("Priority", 16, 8)
+                    .WithEnumField<QuadWordRegister, InterruptPriority>(16, 8, name: "Priority",
+                        valueProviderCallback: _ => virtualInterrupt().Config.Priority,
+                        writeCallback: (_, val) => virtualInterrupt().Config.Priority = val
+                    )
                     .WithReservedBits(13, 3)
-                    .WithTag("pINTID", 0, 13)
+                    .WithValueField(0, 13, name: "pINTID",
+                        valueProviderCallback: _ => (uint)virtualInterrupt().HardwareIdentifier,
+                        writeCallback: (_, val) => virtualInterrupt().SetHardwareIdentifier((uint)val)
+                    )
+                    .WithWriteCallback((_, __) => syncInterruptState())
                 );
             }
 
@@ -1185,7 +1283,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {(long)CPUInterfaceRegisters.RunningPriority, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithEnumField<DoubleWordRegister, InterruptPriority>(0, 8, FieldMode.Read, name: "RunningPriority",
-                        valueProviderCallback: _ => GetAskingCPUEntry().RunningPriority
+                        valueProviderCallback: _ => GetAskingCPUEntry().RunningInterrupts.Priority
                     )
                 },
                 {(long)CPUInterfaceRegisters.PriorityMask, new DoubleWordRegister(this)
@@ -1919,6 +2017,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const uint CPUsCountLegacySupport = 8;
         private const long RedistributorPrivateInterruptsFrameOffset = 0x10000;
 
+        private const uint VirtualInterruptCount = 16;
+        private const uint VirtualPriorityBits = 5;
+
         private class CPUEntry : IGPIOReceiver
         {
             public CPUEntry(ARM_GenericInterruptController gic, IARMSingleSecurityStateCPU cpu, IEnumerable<GroupType> groupTypes, IReadOnlyDictionary<InterruptSignalType, IGPIO> interruptConnections)
@@ -1937,8 +2038,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .Concat(InterruptId.GetRange(gic.irqsDecoder.ExtendedPrivatePeripheralFirst, gic.irqsDecoder.ExtendedPrivatePeripheralLast));
                 PrivatePeripheralInterrupts = new ReadOnlyDictionary<InterruptId, Interrupt>(ppiIds.ToDictionary(id => id, id => new Interrupt(id)));
 
-                Groups = new ReadOnlyDictionary<GroupType, InterruptGroup>(groupTypes.ToDictionary(type => type, _ => new InterruptGroup()));
-                RunningInterrupts = new Stack<Interrupt>();
+                Groups = new GroupCollection(this, groupTypes);
+                RunningInterrupts = new RunningInterrupts(this);
+                VirtualInterrupts = new VirtualInterrupt[VirtualInterruptCount];
+                for(var i = 0; i < VirtualInterruptCount; ++i)
+                {
+                    VirtualInterrupts[i] = new VirtualInterrupt();
+                }
             }
 
             public virtual void Reset()
@@ -1947,16 +2053,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     irq.Reset();
                 }
-                foreach(var group in Groups.Values)
+                foreach(var interrupt in VirtualInterrupts)
                 {
-                    group.Reset();
+                    interrupt.Reset();
                 }
+                Groups.Reset();
+                VirtualCPUInterfaceEnabled = false;
                 BestPending = null;
+                BestPendingVirtual = null;
                 EndOfInterruptModeEL1NonSecure = EndOfInterruptModes.PriorityDropAndDeactivation;
                 EndOfInterruptModeEL1Secure = EndOfInterruptModes.PriorityDropAndDeactivation;
+                EndOfInterruptModeVirtual = EndOfInterruptModes.PriorityDropAndDeactivation;
+                VirtualFIQEnabled = false;
                 IsSleeping = true;
                 RunningInterrupts.Clear();
-                PriorityMask = InterruptPriority.Idle;
+                PhysicalPriorityMask = InterruptPriority.Idle;
+                VirtualPriorityMask = InterruptPriority.Idle;
                 UpdateSignals();
             }
 
@@ -1968,17 +2080,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public virtual InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister, out CPUEntry sgiRequestingCPU)
             {
+                var groupType = GetGroupTypeForRegister(groupTypeRegister);
+                var isVirtualized = IsVirtualized(groupType);
                 sgiRequestingCPU = null;
-                var pendingIrq = BestPending;
+                var pendingIrq = isVirtualized ? BestPendingVirtual : BestPending;
                 if(pendingIrq == null)
                 {
                     return gic.irqsDecoder.NoPending;
                 }
-                var groupType = GetGroupTypeForRegister(groupTypeRegister);
                 if(pendingIrq.Config.GroupType != groupType)
                 {
                     // In GICv2, Secure (Group 0) access can acknowledge Group 1 interrupt if GICC_CTLR.AckCtl is set. Otherwise, the returned Interrupt ID is 1022 (NoPending=1023).
-                    if(gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
+                    if(!isVirtualized && gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
                     {
                         if(!gic.ackControl)
                         {
@@ -1993,8 +2106,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                 }
                 pendingIrq.State.Acknowledge();
-                RunningInterrupts.Push(pendingIrq);
-                BestPending = null;
+                RunningInterrupts.Push(groupType, pendingIrq);
+                if(isVirtualized)
+                {
+                    BestPendingVirtual = null;
+                }
+                else
+                {
+                    BestPending = null;
+                }
 
                 var pendingIrqAsSGI = pendingIrq as SoftwareGeneratedInterrupt;
                 if(pendingIrqAsSGI != null)
@@ -2008,21 +2128,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Performs priority drop and, if independentEOIControls is false, IRQ deactivation.
             public void InterruptEnd(InterruptId id, GroupTypeRegister groupTypeRegister, CPUEntry sgiRequestingCPU)
             {
+                var groupType = GetGroupTypeForRegister(groupTypeRegister);
+                var isVirtualized = IsVirtualized(groupType);
                 var shouldBeDeactivated = CurrentEndOfInterruptMode == EndOfInterruptModes.PriorityDropAndDeactivation;
                 gic.Log(LogLevel.Debug, "Ending interrupt with id {0}{1}.", (uint)id, shouldBeDeactivated ? "" : " but it won't be deactivated");
 
-                if(RunningInterrupts.Count == 0)
+                if(RunningInterrupts.Count(groupType) == 0)
                 {
                     gic.Log(LogLevel.Warning, "Trying to end the running interrupt when no interrupt is running.");
                     return;
                 }
 
-                var runningIrq = RunningInterrupts.Peek();
-                var groupType = GetGroupTypeForRegister(groupTypeRegister);
+                var runningIrq = RunningInterrupts.Peek(groupType);
                 if(runningIrq.Config.GroupType != groupType)
                 {
                     // In GICv2, Secure (Group 0) access can affect Group 1 interrupts if GICC_CTLR.AckCtl is set.
-                    if(gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
+                    if(!isVirtualized && gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
                     {
                         if(!gic.ackControl)
                         {
@@ -2051,11 +2172,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // The interrupt are just removed from stack of currently running interrupts
                 // It's still accessible using one of the read only collections of interrupts (shared or private ones)
                 // If the stack becomes empty, RunningPriority will return InterruptPriority.Idle; otherwise the priority of an interrupt on top of stack.
-                RunningInterrupts.Pop();
+                RunningInterrupts.Pop(groupType);
 
                 if(shouldBeDeactivated)
                 {
-                    runningIrq.State.Active = false;
+                    DeactivateInterrupt(runningIrq, isVirtualized);
                 }
             }
 
@@ -2065,13 +2186,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     LogLevel.Warning, "Trying to deactivate interrupt with id {0} {1}, write ignored.", (uint)id, failureReason
                 );
 
+                var isVirtualized = IsVirtualized();
+
                 if(CurrentEndOfInterruptMode == EndOfInterruptModes.PriorityDropAndDeactivation)
                 {
                     logFailure($"with EOImode=0 in the current CPU state: {CurrentCPUSecurityStateString}");
                     return;
                 }
 
-                var interrupt = gic.GetAllInterrupts(this).SingleOrDefault(x => ((uint)x.Identifier) == ((uint)id));
+                var interrupt = isVirtualized
+                    ? RunningInterrupts.GetActiveVirtual(id)
+                    : gic.GetAllInterrupts(this).SingleOrDefault(x => ((uint)x.Identifier) == ((uint)id));
                 if(interrupt == null)
                 {
                     logFailure("which is an invalid INTID");
@@ -2098,13 +2223,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     logFailure("but it isn't active");
                     return;
                 }
-                gic.Log(LogLevel.Debug, "Deactivating interrupt with id {0}", (uint)id);
-                interrupt.State.Active = false;
+                DeactivateInterrupt(interrupt, isVirtualized);
             }
 
             public void UpdateSignals()
             {
-                if(BestPending == null)
+                if(BestPending == null && BestPendingVirtual == null)
                 {
                     foreach(var signal in interruptSignals.Values)
                     {
@@ -2155,6 +2279,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SoftwareGeneratedInterruptsLegacyRequester[cpu] = GenerateSGIs(SoftwareGeneratedInterruptsConfig, cpu);
             }
 
+            public bool IsVirtualized()
+            {
+                if(cpu.SecurityState != SecurityState.NonSecure || cpu.ExceptionLevel > ExceptionLevel.EL1_SystemMode)
+                {
+                    return false;
+                }
+                return cpu.FIQMaskOverride || cpu.IRQMaskOverride;
+            }
+
+            public bool IsVirtualized(GroupType type)
+            {
+                if(cpu.SecurityState != SecurityState.NonSecure || cpu.ExceptionLevel > ExceptionLevel.EL1_SystemMode)
+                {
+                    return false;
+                }
+                if(type == GroupType.Group0)
+                {
+                    return cpu.FIQMaskOverride;
+                }
+                if(type == GroupType.Group1)
+                {
+                    return cpu.IRQMaskOverride;
+                }
+                throw new ArgumentOutOfRangeException($"There is no valid InterruptGroupType for value: {type}.");
+            }
+
             public event Action<CPUEntry, int, bool> PrivateInterruptChanged;
 
             public IReadOnlyDictionary<InterruptId, Interrupt> PrivatePeripheralInterrupts { get; }
@@ -2168,7 +2318,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public IEnumerable<InterruptConfig> AllPrivateAndSoftwareGeneratedInterruptsConfigs => PrivatePeripheralInterrupts.Values.Select(irq => irq.Config)
                 .Concat(SoftwareGeneratedInterruptsConfig.Values);
 
-            public IReadOnlyDictionary<GroupType, InterruptGroup> Groups { get; }
+            public GroupCollection Groups { get; }
 
             public bool IsSleeping
             {
@@ -2191,10 +2341,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public EndOfInterruptModes EndOfInterruptModeEL1
             {
-                get => gic.DisabledSecurity || IsStateSecure ? EndOfInterruptModeEL1Secure : EndOfInterruptModeEL1NonSecure;
+                get => IsVirtualized()
+                    ? EndOfInterruptModeVirtual
+                    : gic.DisabledSecurity || IsStateSecure ? EndOfInterruptModeEL1Secure : EndOfInterruptModeEL1NonSecure;
                 set
                 {
-                    if(gic.DisabledSecurity || IsStateSecure)
+                    if(IsVirtualized())
+                    {
+                        EndOfInterruptModeVirtual = value;
+                    }
+                    else if(gic.DisabledSecurity || IsStateSecure)
                     {
                         EndOfInterruptModeEL1Secure = value;
                     }
@@ -2207,18 +2363,50 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public EndOfInterruptModes EndOfInterruptModeEL1NonSecure { get; set; }
             public EndOfInterruptModes EndOfInterruptModeEL1Secure { get; set; }
+            public EndOfInterruptModes EndOfInterruptModeVirtual { get; set; }
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
             public uint ProcessorNumber => cpu.Id;
             public uint TargetFieldFlag => ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
+            public bool VirtualCPUInterfaceEnabled { get; set; }
+            public bool VirtualFIQEnabled { get; set; }
 
             public Interrupt BestPending { get; set; }
-            public InterruptPriority PriorityMask { get; set; }
-            public Stack<Interrupt> RunningInterrupts { get; }
-            public InterruptPriority RunningPriority => RunningInterrupts.Count > 0 ? RunningInterrupts.Peek().Config.Priority : InterruptPriority.Idle;
+            public Interrupt BestPendingVirtual { get; set; }
+            public VirtualInterrupt[] VirtualInterrupts { get; }
+            public InterruptPriority PriorityMask
+            {
+                get => IsVirtualized() ? VirtualPriorityMask : PhysicalPriorityMask;
+                set
+                {
+                    if(IsVirtualized())
+                    {
+                        VirtualPriorityMask = value;
+                    }
+                    else
+                    {
+                        PhysicalPriorityMask = value;
+                    }
+                }
+            }
+            public InterruptPriority VirtualPriorityMask { get; set; }
+            public InterruptPriority PhysicalPriorityMask { get; set; }
+            public RunningInterrupts RunningInterrupts { get; }
+            public uint EOICount { get; private set; }
+
+            public const int EOICountWidth = 5;
+            public const int EOICountMask = (1 << EOICountWidth) - 1;
 
             protected virtual InterruptSignalType GetBestPendingInterruptSignalType()
             {
+                if(BestPending == null)
+                {
+                    if(VirtualFIQEnabled && BestPendingVirtual.Config.GroupType == GroupType.Group0)
+                    {
+                        return InterruptSignalType.vFIQ;
+                    }
+                    return InterruptSignalType.vIRQ;
+                }
                 if(gic.enableFIQ && BestPending.Config.GroupType == GroupType.Group0)
                 {
                     return InterruptSignalType.FIQ;
@@ -2231,6 +2419,35 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt> GenerateSGIs(IReadOnlyDictionary<InterruptId, InterruptConfig> configs, CPUEntry requester)
             {
                 return new ReadOnlyDictionary<InterruptId, SoftwareGeneratedInterrupt>(configs.ToDictionary(config => config.Key, config => new SoftwareGeneratedInterrupt(config.Key, config.Value, requester)));
+            }
+
+            private void DeactivateInterrupt(Interrupt interrupt, bool isVirtualized)
+            {
+                gic.Log(LogLevel.Debug, "Deactivating interrupt with id {0}", (uint)interrupt.Identifier);
+                interrupt.State.Active = false;
+
+                if(isVirtualized)
+                {
+                    var virtualInterrupt = (VirtualInterrupt)interrupt;
+                    var lrEntry = VirtualInterrupts.SingleOrDefault(x => x.Identifier.Equals(interrupt.Identifier));
+                    if(lrEntry == null)
+                    {
+                        EOICount = (EOICount + 1) & EOICountMask;
+                    }
+                    else
+                    {
+                        lrEntry.Sync(virtualInterrupt);
+                    }
+                    RunningInterrupts.RemoveActiveVirtual(virtualInterrupt.Identifier);
+                    if(virtualInterrupt.Hardware)
+                    {
+                        var physicalIrq = gic.GetAllInterrupts(this).SingleOrDefault(x => x.Identifier.Equals(virtualInterrupt.HardwareIdentifier));
+                        if(physicalIrq != null)
+                        {
+                            physicalIrq.State.Active = false;
+                        }
+                    }
+                }
             }
 
             private bool IsSoftwareGeneratedInterruptAccessValid(Interrupt interrupt, CPUEntry accessingCPU, string registerTypeName)
@@ -2253,6 +2470,132 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private bool isSleeping = true;
             private readonly IARMSingleSecurityStateCPU cpu;
             private readonly IReadOnlyDictionary<InterruptSignalType, IGPIO> interruptSignals;
+
+            public class GroupCollection
+            {
+                public GroupCollection(CPUEntry cpu, IEnumerable<GroupType> groupTypes)
+                {
+                    this.cpu = cpu;
+                    Physical = new ReadOnlyDictionary<GroupType, InterruptGroup>(groupTypes.ToDictionary(type => type, _ => new InterruptGroup()));
+                    Virtual = new ReadOnlyDictionary<GroupType, InterruptGroup>(groupTypes.ToDictionary(type => type, _ => new InterruptGroup()));
+                }
+
+                public void Reset()
+                {
+                    foreach(var group in Physical.Values)
+                    {
+                        group.Reset();
+                    }
+                    foreach(var group in Virtual.Values)
+                    {
+                        group.Reset();
+                    }
+                }
+
+                public InterruptGroup this[GroupType type] => cpu.IsVirtualized(type) ? Virtual[type] : Physical[type];
+                public IReadOnlyDictionary<GroupType, InterruptGroup> Physical { get; }
+                public IReadOnlyDictionary<GroupType, InterruptGroup> Virtual { get; }
+
+                private readonly CPUEntry cpu;
+            }
+        }
+
+        private class RunningInterrupts
+        {
+            public RunningInterrupts(CPUEntry cpu)
+            {
+                this.cpu = cpu;
+                Physical = new Stack<Interrupt>();
+                Virtual = new Stack<VirtualInterrupt>();
+                activeVirtual = new Dictionary<InterruptId, VirtualInterrupt>();
+            }
+
+            public void Clear()
+            {
+                Physical.Clear();
+                Virtual.Clear();
+                activeVirtual.Clear();
+            }
+
+            public void Push(GroupType type, Interrupt interrupt)
+            {
+                if(!interrupt.State.Active)
+                {
+                    throw new ArgumentException("Trying to push inactive interrupt to interrupt stack");
+                }
+                if(cpu.IsVirtualized(type))
+                {
+                    if(interrupt is VirtualInterrupt virtualInterrupt)
+                    {
+                        // GICv3 only has a maximum of 16 List Registers.
+                        // To allow the hypervisor to manage more virtual interrutps
+                        // than the implementation has list registers,
+                        // the LRs only act as a "cache" of the virtual interrupts.
+                        // The only requirement is that for a pending virtual interrupt to be raised,
+                        // it has to be in a list register.
+                        // This means that once we're acknowledging the interrupt, we're "cutting it off"
+                        // from the List Register, and the hypervisor is free to
+                        // reuse that LR to schedule another interrupt.
+                        // However, both the active and the list-register interrupts,
+                        // provided they have the same virtual identifier set,
+                        // have to be kept in sync, which is what the VirtualInterrupt.Sync method is used for.
+                        var cloned = virtualInterrupt.Clone();
+                        Virtual.Push(cloned);
+                        activeVirtual.Add(cloned.Identifier, cloned);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Trying to push physical interrupt to virtual interrupt stack");
+                    }
+                }
+                else
+                {
+                    if(interrupt is VirtualInterrupt)
+                    {
+                        throw new ArgumentException("Trying to push virtual interrupt to physical interrupt stack");
+                    }
+                    else
+                    {
+                        Physical.Push(interrupt);
+                    }
+                }
+            }
+
+            public Interrupt Pop(GroupType type)
+            {
+                return cpu.IsVirtualized(type) ? Virtual.Pop() : Physical.Pop();
+            }
+
+            public Interrupt Peek(GroupType type)
+            {
+                return cpu.IsVirtualized(type) ? Virtual.Peek() : Physical.Peek();
+            }
+
+            public int Count(GroupType type)
+            {
+                return cpu.IsVirtualized(type) ? Virtual.Count : Physical.Count;
+            }
+
+            public VirtualInterrupt GetActiveVirtual(InterruptId id)
+            {
+                VirtualInterrupt result;
+                var present = activeVirtual.TryGetValue(id, out result);
+                return present ? result : null;
+            }
+
+            public void RemoveActiveVirtual(InterruptId id)
+            {
+                activeVirtual.Remove(id);
+            }
+
+            public InterruptPriority Priority => cpu.IsVirtualized() ? VirtualPriority : PhysicalPriority;
+            public Stack<Interrupt> Physical { get; }
+            public InterruptPriority PhysicalPriority => Physical.Count > 0 ? Physical.Peek().Config.Priority : InterruptPriority.Idle;
+            public Stack<VirtualInterrupt> Virtual { get; }
+            public InterruptPriority VirtualPriority => Virtual.Count > 0 ? Virtual.Peek().Config.Priority : InterruptPriority.Idle;
+
+            private readonly Dictionary<InterruptId, VirtualInterrupt> activeVirtual;
+            private readonly CPUEntry cpu;
         }
 
         private class CPUEntryWithTwoSecurityStates : CPUEntry
@@ -2293,7 +2636,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             protected override InterruptSignalType GetBestPendingInterruptSignalType()
             {
                 // Based on the "4.6.2 Interrupt assignment to IRQ and FIQ signals" subsection of GICv3 and GICv4 Architecture Specification
-                if(cpu.HasSingleSecurityState || gic.DisabledSecurity)
+                if(BestPending == null || cpu.HasSingleSecurityState || gic.DisabledSecurity)
                 {
                     return base.GetBestPendingInterruptSignalType();
                 }
@@ -2360,6 +2703,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public bool Active { get; set; }
             public bool IsInactive => !Active && !Pending;
             public bool Pending { get; set; }
+            public ulong Bits
+            {
+                get => (Active ? 0b10ul : 0) | (Pending ? 0b01ul : 0);
+                set
+                {
+                    bool active = (value & 0b10) != 0;
+                    bool pending = (value & 1) != 0;
+                    Active = active;
+                    Pending = pending;
+                }
+            }
             public virtual InterruptTriggerType TriggerType { get; set; }
 
             protected virtual InterruptTriggerType DefaultTriggerType => default(InterruptTriggerType);
@@ -2413,7 +2767,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 State.Reset();
             }
 
-            public InterruptId Identifier { get; }
+            public InterruptId Identifier { get; protected set; }
             public virtual InterruptConfig Config { get; } = new InterruptConfig();
             public virtual InterruptState State { get; } = new InterruptState();
         }
@@ -2433,6 +2787,58 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             protected override InterruptTriggerType DefaultTriggerType => InterruptTriggerType.EdgeTriggered;
+        }
+
+        private class VirtualInterrupt : Interrupt
+        {
+            public VirtualInterrupt() : base(new InterruptId(0))
+            {
+                Reset();
+            }
+
+            public override void Reset()
+            {
+                base.Reset();
+                State.TriggerType = InterruptTriggerType.EdgeTriggered;
+                Identifier = new InterruptId(0);
+                HardwareIdentifier = new InterruptId(0);
+                Hardware = false;
+            }
+
+            // Performs a deep clone of the Virtual Interrupt.
+            public VirtualInterrupt Clone()
+            {
+                var cloned = new VirtualInterrupt();
+                cloned.Sync(this);
+                return cloned;
+            }
+
+            public void SetIdentifier(uint id)
+            {
+                Identifier = new InterruptId(id);
+            }
+
+            public void SetHardwareIdentifier(uint id)
+            {
+                HardwareIdentifier = new InterruptId(id);
+            }
+
+            public void Sync(VirtualInterrupt other)
+            {
+                this.Identifier = other.Identifier;
+                this.HardwareIdentifier = other.HardwareIdentifier;
+                this.Hardware = other.Hardware;
+                this.State.Bits = other.State.Bits;
+                this.Config.GroupBit = other.Config.GroupBit;
+                this.Config.Priority = other.Config.Priority;
+            }
+
+            public InterruptId HardwareIdentifier { get; protected set; }
+            public bool Hardware { get; set; }
+
+            public bool EOIMaitenance => !Hardware && EOIMaintenanceBit;
+
+            private bool EOIMaintenanceBit => ((uint)HardwareIdentifier & (1 << 9)) != 0;
         }
 
         private class SoftwareGeneratedInterrupt : Interrupt
