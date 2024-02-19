@@ -10,6 +10,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 
@@ -159,6 +161,222 @@ namespace Antmicro.Renode.Core.Extensions
             loader.LoadFileChunks(fileName, chunks, cpu);
         }
 
+        public static void LoadSRecord(this ICanLoadFiles loader, ReadFilePath fileName, IInitableCPU cpu = null)
+        {
+            SRecPurpose type;
+            ulong address;
+            string line = "";
+            int lineNum = 1;
+            bool endOfFileReached = false;
+            List<FileChunk> chunks = new List<FileChunk>();
+            Range? currentSegmentInfo = null;
+
+            try
+            {
+                using(var file = new System.IO.StreamReader(fileName))
+                {
+                    Logger.Log(LogLevel.Debug, "S-record loader: Loading {0}", fileName);
+                    while((line = file.ReadLine()) != null)
+                    {
+                        if(endOfFileReached)
+                        {
+                            throw new RecoverableException($"Unexpected data after the end of file marker at line #{lineNum}");
+                        }
+
+                        // an S-record consist of:
+                        // * 'S' character followed by a digit character 0-9 denoting type of the record,
+                        // * hexstring byte value of bytes count, e.i. number of bytes that follow this byte,
+                        // * hexstring bytes representing address, number of them depends on the record type,
+                        // * hexstring bytes representing data, number of them depends on bytes count,
+                        // * hexstring byte value of checksum,
+                        // records are seperated by end of line that can differ between operating systems.
+
+                        // ensure that line contains bytes count
+                        if(line.Length < SRecAddressStart)
+                        {
+                            throw new RecoverableException($"Line is too short error at line #{lineNum}:\n\"{line}\"");
+                        }
+
+                        if(line[SRecStartOfRecordIndex] != SRecStartOfRecord)
+                        {
+                            throw new RecoverableException($"Invalid Start-of-Record at line #{lineNum}:\n\"{line}\"");
+                        }
+
+                        // number of address, data and checksum bytes
+                        var bytesCount = Convert.ToUInt16(line.Substring(SRecBytesCountStart, SRecBytesCountLength), 16);
+
+                        if(line.Length != SRecAddressStart + bytesCount * 2)
+                        {
+                            throw new RecoverableException($"Line length does not match bytes count error at line #{lineNum}:\n\"{line}\"");
+                        }
+
+                        var addressLength = 4;
+                        switch((SRecType)line[SRecTypeIndex])
+                        {
+                            case SRecType.Header:
+                                type = SRecPurpose.Header;
+                                break;
+                            case SRecType.Data16BitAddress:
+                                type = SRecPurpose.Data;
+                                break;
+                            case SRecType.Data24BitAddress:
+                                addressLength = 6;
+                                type = SRecPurpose.Data;
+                                break;
+                            case SRecType.Data32BitAddress:
+                                addressLength = 8;
+                                type = SRecPurpose.Data;
+                                break;
+                            case SRecType.Reserved:
+                                throw new RecoverableException($"Reserved record type at line #{lineNum}:\n\"{line}\"");
+                            case SRecType.Count16Bit:
+                                type = SRecPurpose.Count;
+                                break;
+                            case SRecType.Count24Bit:
+                                addressLength = 6;
+                                type = SRecPurpose.Count;
+                                break;
+                            case SRecType.Termination32BitAddress:
+                                addressLength = 8;
+                                type = SRecPurpose.Termination;
+                                break;
+                            case SRecType.Termination24BitAddress:
+                                addressLength = 6;
+                                type = SRecPurpose.Termination;
+                                break;
+                            case SRecType.Termination16BitAddress:
+                                type = SRecPurpose.Termination;
+                                break;
+                            default:
+                                throw new RecoverableException($"Invalid record type at line #{lineNum}:\n\"{line}\"");
+                        }
+
+                        // bytes count needs to allow for at least address and checksum bytes
+                        if(bytesCount * 2 < addressLength + SRecChecksumLength)
+                        {
+                            throw new RecoverableException($"Bytes count is too small error at line #{lineNum}:\n\"{line}\"");
+                        }
+
+                        var addressString = line.Substring(SRecAddressStart, addressLength);
+                        address = Convert.ToUInt32(addressString, 16);
+
+                        var bufferLength = bytesCount * 2 + SRecBytesCountLength - SRecChecksumLength;
+                        var checksumStart = SRecAddressStart + bytesCount * 2 - SRecChecksumLength;
+
+                        var buffer = Misc.HexStringToByteArray(line.Substring(SRecBytesCountStart, bufferLength));
+                        var checksum = Convert.ToByte(line.Substring(checksumStart, SRecChecksumLength), 16);
+
+                        // checksum is 0xFF minus a sum of bytes count, address and data bytes
+                        var calculatedChecksum = 0xFF - buffer.Aggregate((byte)0x0, (a, b) => (byte)(a + b));
+                        if(calculatedChecksum != checksum)
+                        {
+                            throw new RecoverableException($"Checksum error (calculated: 0x{calculatedChecksum:X02}, given: 0x{checksum:X02}) at line #{lineNum}:\n\"{line}\"");
+                        }
+
+                        var data = buffer.Skip((addressLength + SRecBytesCountLength) / 2);
+                        var dataLength = (ulong)(bytesCount - (addressLength + SRecChecksumLength) / 2);
+
+                        switch(type)
+                        {
+                            case SRecPurpose.Header:
+                                if(address != 0)
+                                {
+                                    throw new RecoverableException($"Invalid Header record at line #{lineNum}:\n\"{line}\"");
+                                }
+                                Logger.Log(LogLevel.Info, "S-record loader: Header: \"{0}\"", System.Text.Encoding.ASCII.GetString(data.ToArray()));
+                                break;
+                            case SRecPurpose.Data:
+                                if(!currentSegmentInfo.HasValue)
+                                {
+                                    currentSegmentInfo = address.By(dataLength);
+                                }
+                                else if(currentSegmentInfo.Value.EndAddress + 1 == address)
+                                {
+                                    currentSegmentInfo = currentSegmentInfo.Value.StartAddress.By(currentSegmentInfo.Value.Size + dataLength);
+                                }
+                                else
+                                {
+                                    Logger.Log(LogLevel.Info, "S-record loader: Parsed segment of {0} bytes length at 0x{1:X}", currentSegmentInfo.Value.Size, currentSegmentInfo.Value.StartAddress);
+                                    currentSegmentInfo = address.By(dataLength);
+                                }
+
+                                chunks.Add(new FileChunk() { Data = data.ToArray(), OffsetToLoad = address });
+                                break;
+                            case SRecPurpose.Count:
+                                if(dataLength != 0)
+                                {
+                                    throw new RecoverableException($"Unexpected data in a count record error at line #{lineNum}:\n\"{line}\"");
+                                }
+                                if(chunks.Count != (int)address)
+                                {
+                                    throw new RecoverableException($"Data record count mismatch error (calculated: {chunks.Count}, given: {address}) at line #{lineNum}:\n\"{line}\"");
+                                }
+                                Logger.Log(LogLevel.Debug, "S-record loader: Loaded {0} data records", chunks.Count);
+                                break;
+                            case SRecPurpose.Termination:
+                                if(dataLength != 0)
+                                {
+                                    throw new RecoverableException($"Unexpected data in a termination record error at line #{lineNum}:\n\"{line}\"");
+                                }
+                                if(cpu != null)
+                                {
+                                    cpu.Log(LogLevel.Info, "Setting PC value to 0x{0:X}", address);
+                                    cpu.PC = address;
+                                }
+                                else if(loader is IBusController bus)
+                                {
+                                    foreach(var core in bus.GetCPUs())
+                                    {
+                                        cpu.Log(LogLevel.Info, "Setting PC value to 0x{0:X}", address);
+                                        core.PC = address;
+                                    }
+                                }
+                                else
+                                {
+                                    Logger.Log(LogLevel.Warning, "S-record loader: Found start addres: 0x{0:X}, but no cpu is selected to set it for", address);
+                                }
+                                break;
+                            default:
+                                throw new Exception("Unreachable");
+                        }
+
+                        lineNum++;
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                throw new RecoverableException($"Exception while loading file {fileName}: {(e.Message)}");
+            }
+            catch(FormatException e)
+            {
+                throw new RecoverableException($"Exception while parsing line #{lineNum}:\n\"{line}\"", e);
+            }
+
+            if(lineNum == 1)
+            {
+                Logger.Log(LogLevel.Warning, "S-record loader: Attempted to load empty file {0}", fileName);
+                return;
+            }
+
+            if(currentSegmentInfo.HasValue)
+            {
+                Logger.Log(LogLevel.Info, "S-record loader: Parsed segment of {0} bytes length at 0x{1:X}", currentSegmentInfo.Value.Size, currentSegmentInfo.Value.StartAddress);
+            }
+
+            Logger.Log(LogLevel.Debug, "S-record loader: Loaded {0} data records", chunks.Count);
+
+            loader.LoadFileChunks(fileName, chunks, cpu);
+        }
+
+        private const char SRecStartOfRecord = 'S';
+        private const int SRecStartOfRecordIndex = 0;
+        private const int SRecTypeIndex = 1;
+        private const int SRecBytesCountStart = 2;
+        private const int SRecBytesCountLength = 2;
+        private const int SRecAddressStart = 4;
+        private const int SRecChecksumLength = 2;
+
         private enum HexRecordType
         {
             Data = 0,
@@ -167,6 +385,28 @@ namespace Antmicro.Renode.Core.Extensions
             StartSegmentAddress = 3,
             ExtendedLinearAddress = 4,
             StartLinearAddress = 5
+        }
+
+        private enum SRecPurpose
+        {
+            Header,
+            Data,
+            Count,
+            Termination,
+        }
+
+        private enum SRecType : byte
+        {
+            Header = (byte)'0', // S0
+            Data16BitAddress, // S1
+            Data24BitAddress, // S2
+            Data32BitAddress, // S3
+            Reserved, // S4
+            Count16Bit, // S5
+            Count24Bit, // S6
+            Termination32BitAddress, // S7
+            Termination24BitAddress, // S8
+            Termination16BitAddress, // S
         }
     }
 }
