@@ -37,7 +37,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 {"faultaction", ModemConfigBC660K.ActionOnError},
                 {"GPIO", ModemConfigBC660K.GPIOStatusConfiguration},
                 {"NcellMeas", ModemConfigBC660K.NeighborCellMeasurement},
-                {"SimBip", ModemConfigBC660K.SIMBIP}
+                {"SimBip", ModemConfigBC660K.SIMBIP},
+                {"activetimer", ModemConfigBC660K.ActiveTimer}
             };
 
             modemBasicConfig = new Dictionary<ModemConfigBC660K, int>()
@@ -56,7 +57,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 {ModemConfigBC660K.ActionOnError, 4},
                 // ModemConfigBC660K.GPIOStatusConfiguration // GPIO configuration is stored separately
                 {ModemConfigBC660K.NeighborCellMeasurement, 1},
-                {ModemConfigBC660K.SIMBIP, 1}
+                {ModemConfigBC660K.SIMBIP, 1},
+                {ModemConfigBC660K.ActiveTimer, 0}
             };
 
             gpioConfig = new Dictionary<int, GPIOStatusConfiguration>()
@@ -441,7 +443,8 @@ namespace Antmicro.Renode.Peripherals.Network
             ActionOnError,
             GPIOStatusConfiguration,
             NeighborCellMeasurement,
-            SIMBIP
+            SIMBIP,
+            ActiveTimer
         }
 
         private enum GPIOStatusOperation
