@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -16,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class Kinetis_LPUART : UARTBase, IUARTWithBufferState, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public Kinetis_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true) : base(machine)
+        public Kinetis_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true, uint fifoSize = DefaultFIFOSize) : base(machine)
         {
             this.frequency = frequency;
             this.hasGlobalRegisters = hasGlobalRegisters;
@@ -25,6 +26,12 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ = new GPIO();
             DMA = new GPIO();
             txQueue = new Queue<byte>();
+            if(!Misc.IsPowerOfTwo(fifoSize))
+            {
+                throw new ConstructionException($"The `{nameof(fifoSize)}` argument must be a power of 2, given: {fifoSize}.");
+            }
+            rxFIFOCapacity = fifoSize;
+            txFIFOCapacity = fifoSize; 
 
             var registersMap = new Dictionary<long, DoubleWordRegister>();
 
@@ -193,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.UART
             if(hasFifoRegisters)
             {
                 registersMap.Add(FifoRegistersOffset + (long)FifoRegs.Fifo, new DoubleWordRegister(this)
-                    .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => RxFIFOSize, name: "RXFIFOSIZE / Receive FIFO Buffer Depth")
+                    .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => CalculateFIFOSize(rxFIFOCapacity), name: "RXFIFOSIZE / Receive FIFO Buffer Depth")
                     .WithFlag(3, out receiveFifoEnabled, name: "RXFE / Receive FIFO Enable", writeCallback: (current, val) =>
                         {
                             if(current != val && (transmitterEnabled.Value || receiverEnabled.Value))
@@ -209,10 +216,10 @@ namespace Antmicro.Renode.Peripherals.UART
                             }
                             else
                             {
-                                rxMaxBytes = RxFIFOCapacity;
+                                rxMaxBytes = (int)rxFIFOCapacity;
                             }
                         })
-                    .WithValueField(4, 3, FieldMode.Read, valueProviderCallback: _ => TxFIFOSize, name: "TXFIFOSIZE / Transmit FIFO Buffer Depth")
+                    .WithValueField(4, 3, FieldMode.Read, valueProviderCallback: _ => CalculateFIFOSize(txFIFOCapacity), name: "TXFIFOSIZE / Transmit FIFO Buffer Depth")
                     .WithFlag(7, out transmitFifoEnabled, name: "TXFE / Transmit FIFO Enable", writeCallback: (current, val) =>
                         {
                             if(current != val && (transmitterEnabled.Value || receiverEnabled.Value))
@@ -228,7 +235,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             }
                             else
                             {
-                                txMaxBytes = TxFIFOCapacity;
+                                txMaxBytes = (int)txFIFOCapacity;
                             }
                         })
                     .WithFlag(8, out receiveFifoUnderflowEnabled, name: "RXUFE / Receive FIFO Underflow Interrupt Enable")
@@ -498,6 +505,15 @@ namespace Antmicro.Renode.Peripherals.UART
             return offset == CommonRegistersOffset + (long)CommonRegs.Data;
         }
 
+        private uint CalculateFIFOSize(uint capacity)
+        {
+            if(capacity == 1)
+            {
+                return 0;
+            }
+            return (uint)Misc.Logarithm2((int)capacity) - 1;
+        }
+
         private BufferState latestBufferState = BufferState.Empty;
         private int rxMaxBytes = 1;
         private int txMaxBytes = 1;
@@ -533,13 +549,10 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IValueRegisterField receiveWatermark;
         private readonly long frequency;
         private readonly bool hasGlobalRegisters;
+        private readonly uint txFIFOCapacity;
+        private readonly uint rxFIFOCapacity;
 
-        // TxFIFOSize (TXFIFOSIZE) represents TxFIFOCapacity
-        private const int TxFIFOCapacity = 256;
-        private const uint TxFIFOSize = 0b111;
-        // RxFIFOSize (RXFIFOSIZE) represents RxFIFOCapacity
-        private const int RxFIFOCapacity = 256;
-        private const uint RxFIFOSize = 0b111;
+        private const uint DefaultFIFOSize = 256;
         private const int DataSize = 8;
 
         // enum belows intentionally do not contain `Register(s)` in the name
