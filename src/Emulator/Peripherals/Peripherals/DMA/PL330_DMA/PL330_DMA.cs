@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 Connections[idx].Unset();
                             }
                         },
-                        name: "DMA Interrupt Enable")
+                    name: "DMA Interrupt Enable")
                 .WithReservedBits(NumberOfSupportedEventsAndInterrupts, 32 - NumberOfSupportedEventsAndInterrupts);
 
             Registers.DmaEventInterruptRawStatus.Define(this)
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 Connections[idx].Unset();
                             }
                         },
-                        name: "DMA Interrupt Clear")
+                    name: "DMA Interrupt Clear")
                 .WithReservedBits(NumberOfSupportedEventsAndInterrupts, 32 - NumberOfSupportedEventsAndInterrupts);
 
             // This register is RO. To bring channel out of fault, issue KILL to Debug Registers
@@ -168,16 +168,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             Registers.DebugCommand.Define(this)
                 .WithValueField(0, 2, FieldMode.Write,
                     writeCallback: (_, val) =>
-                    {
-                        if(val == 0b00)
                         {
-                            ExecuteDebugStart();
-                        }
-                        else
-                        {
-                            this.Log(LogLevel.Error, "Undefined DMA Debug Command: {0}", val);
-                        }
-                    },
+                            if(val == 0b00)
+                            {
+                                ExecuteDebugStart();
+                            }
+                            else
+                            {
+                                this.Log(LogLevel.Error, "Undefined DMA Debug Command: {0}", val);
+                            }
+                        },
                     name: "Debug Command")
                 .WithReservedBits(2, 30);
 
@@ -594,7 +594,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 InstructionFetchError = 1 << 16,      // instr_fetch_err
                 DataWriteError = 1 << 17,             // data_write_err
                 DataReadError = 1 << 18,              // data_read_err
-                OriginatesFromDebugInsruction = 1 << 30, // dbg_instr
+                OriginatesFromDebugInstruction = 1 << 30, // dbg_instr
                 LockupError = 1 << 31,                // lockup_err
             }
 

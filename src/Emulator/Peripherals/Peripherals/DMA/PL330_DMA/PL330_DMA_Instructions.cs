@@ -19,18 +19,18 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             decoderRoot.AddOpcode(0b01010100, 8, () => new DMAADH(this, isDestinationAddressRegister: false));
             decoderRoot.AddOpcode(0b01010110, 8, () => new DMAADH(this, isDestinationAddressRegister: true));
-            
+
             // DMAADNH should not be present in product revision r0p0
             if(Revision > 0x0)
             {
                 decoderRoot.AddOpcode(0b01011100, 8, () => new DMAADNH(this, isDestinationAddressRegister: false));
                 decoderRoot.AddOpcode(0b01011110, 8, () => new DMAADNH(this, isDestinationAddressRegister: true));
             }
-            
+
             decoderRoot.AddOpcode(0b00000000, 8, () => new DMAEND(this));
             // FLUSHP is part of Peripheral Request Interface. Leaving unimplemented for now
             decoderRoot.AddOpcode(0b00110101, 8, () => new DMAFLUSHP(this));
-            
+
             decoderRoot.AddOpcode(0b10100000, 8, () => new DMAGO(this, nonSecure: false));
             decoderRoot.AddOpcode(0b10100010, 8, () => new DMAGO(this, nonSecure: true));
 
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             decoderRoot.AddOpcode(0b00001100, 8, () => new DMASTZ(this));
 
             decoderRoot.AddOpcode(0b10111100, 8, () => new DMAMOV(this));
-            
+
             decoderRoot.AddOpcode(0b00100000, 8, () => new DMALP(this, loopCounterIndex: 0));
             decoderRoot.AddOpcode(0b00100010, 8, () => new DMALP(this, loopCounterIndex: 1));
 
