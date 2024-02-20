@@ -198,6 +198,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                         memoryMappedCpu.MapMemory(mapping);
                     }
                 }
+
+                if(cpu.Endianness != Endianess)
+                {
+                    hasCpuWithMismatchedEndianness = true;
+                    UpdateAccessMethods();
+                }
             }
         }
 
@@ -1250,6 +1256,22 @@ namespace Antmicro.Renode.Peripherals.Bus
                 allowedTranslations = ((AllowedTranslationsAttribute)allowedTranslationsAttributes[0]).AllowedTranslations;
             }
 
+            // If the CPU endianness does not match the bus endianness, this endianness mismatch
+            // is basically an additional swap. Instead of performing it we reverse the condition.
+            // This is the case on PowerPC, for example: there the translation library is always built
+            // in big-endian mode, and if the CPU is running in little-endian mode, it performs byte
+            // swapping separately. This is to support switching endianness at runtime, but note that
+            // if this is actually done, peripheral accesses will be reversed.
+            if(hasCpuWithMismatchedEndianness)
+            {
+                matchingAccessNeedsSwap = !matchingAccessNeedsSwap;
+                translatedAccessNeedsSwap = !translatedAccessNeedsSwap;
+                // Other translation types will behave incorrectly in this case.
+                allowedTranslations &=
+                    AllowedTranslation.ByteToWord | AllowedTranslation.ByteToDoubleWord | AllowedTranslation.ByteToQuadWord |
+                    AllowedTranslation.WordToByte | AllowedTranslation.DoubleWordToByte | AllowedTranslation.QuadWordToByte;
+            }
+
             if(methods.ReadByte == null) // they are null or not always in pairs
             {
                 if(bytePeripheral != null)
@@ -1442,6 +1464,25 @@ namespace Antmicro.Renode.Peripherals.Bus
                 // if methods.ReadQuadWord != null then we have a qwordWrapper
                 methods.ReadQuadWord = (BusAccess.QuadWordReadMethod)qwordWrapper.ReadQuadWordBigEndian;
                 methods.WriteQuadWord = (BusAccess.QuadWordWriteMethod)qwordWrapper.WriteQuadWordBigEndian;
+            }
+        }
+
+        private void UpdateAccessMethods()
+        {
+            foreach(var peripherals in allPeripherals)
+            {
+                peripherals.VisitAccessMethods(null, pam =>
+                {
+                    if(pam.Tag != null)
+                    {
+                        FillAccessMethodsWithTaggedMethods(pam.Peripheral, pam.Tag, ref pam);
+                    }
+                    else
+                    {
+                        FillAccessMethodsWithDefaultMethods(pam.Peripheral, ref pam);
+                    }
+                    return pam;
+                });
             }
         }
 
@@ -1785,6 +1826,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private bool mappingsRemoved;
         private bool peripheralRegistered;
         private Endianess endianess;
+        private bool hasCpuWithMismatchedEndianness;
         private readonly Dictionary<ICPU, int> idByCpu;
         private readonly Dictionary<int, ICPU> cpuById;
         private readonly Dictionary<ulong, List<BusHookHandler>> hooksOnRead;
